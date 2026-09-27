@@ -57,8 +57,8 @@ export class ListingsController {
 
   @Public()
   @Get(':slug')
-  detail(@Param('slug') slug: string, @CurrentUser() user?: RequestUser) {
-    return this.listings.detail(slug, user);
+  detail(@Param('slug') slug: string, @CurrentUser() user?: RequestUser, @Query('track') track?: string) {
+    return this.listings.detail(slug, user, track !== '0');
   }
 
   @Public()

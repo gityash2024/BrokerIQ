@@ -181,7 +181,7 @@ export class ListingsService {
     return !!user && !!listing.organizationId && listing.organizationId === user.orgId;
   }
 
-  async detail(slugOrId: string, user?: RequestUser) {
+  async detail(slugOrId: string, user?: RequestUser, track = true) {
     const listing = await this.prisma.listing.findFirst({
       where: { OR: [{ slug: slugOrId }, { id: slugOrId }], deletedAt: null },
       include: {
@@ -196,7 +196,7 @@ export class ListingsService {
     const manage = this.canEdit(listing, user);
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
 
-    if (!manage) {
+    if (!manage && track) {
       await this.prisma.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } });
       if (user) {
         await this.prisma.recentView.upsert({ where: { userId_listingId: { userId: user.id, listingId: listing.id } }, create: { userId: user.id, listingId: listing.id }, update: { viewedAt: new Date() } });

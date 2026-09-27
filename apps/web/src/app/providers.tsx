@@ -1,25 +1,33 @@
 'use client';
-
+import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { Toaster } from 'sonner';
+import type { PublicConfig } from '@brokeriq/shared';
+import { AuthProvider } from '@/lib/auth';
+import { ConfigProvider } from '@/lib/config';
+import { ApiError } from '@/lib/api';
 
-export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(
+export function Providers({ children, config }: { children: React.ReactNode; config: PublicConfig | null }) {
+  const [qc] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5000,
+            staleTime: 20_000,
             refetchOnWindowFocus: false,
+            retry: (count, err) => !(err instanceof ApiError && [401, 403, 404, 424].includes(err.status)) && count < 2,
           },
         },
-      })
+      }),
   );
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+    <QueryClientProvider client={qc}>
+      <ConfigProvider initial={config}>
+        <AuthProvider>
+          {children}
+          <Toaster position="top-center" richColors closeButton />
+        </AuthProvider>
+      </ConfigProvider>
     </QueryClientProvider>
   );
 }
