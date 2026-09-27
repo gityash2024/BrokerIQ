@@ -1,22 +1,14 @@
 {
-  "cli": {
-    "version": ">= 3.0.0"
-  },
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
+    "base": {
+      "node": "22.20.0",
+      "pnpm": "11.25.0",
+      "env": { "EXPO_PUBLIC_API_URL": "https://YOUR-API.up.railway.app/api" }
     },
-    "preview": {
-      "android": {
-        "buildType": "apk"
-      },
-      "distribution": "internal"
-    },
-    "production": {
-      "android": {
-        "buildType": "apk"
-      }
-    }
-  }
+    "development": { "extends": "base", "developmentClient": true, "distribution": "internal" },
+    "preview": { "extends": "base", "distribution": "internal", "android": { "buildType": "apk" }, "channel": "preview" },
+    "production": { "extends": "base", "autoIncrement": true, "android": { "buildType": "app-bundle" }, "channel": "production" }
+  },
+  "submit": { "production": {} }
 }
