@@ -36,7 +36,26 @@ export class BillingService {
       this.prisma.payment.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: 'desc' }, take: 50 }),
       this.usage.limits(orgId),
     ]);
-    return { subscription: sub, payments, limits, razorpayReady: await this.settings.isConfigured('razorpay') };
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const [agents, activeListings, leadsPerMonth, aiCredits, automations, connectors] = await Promise.all([
+      this.prisma.user.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
+      this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null } }),
+      this.prisma.lead.count({ where: { organizationId: orgId, createdAt: { gte: monthStart } } }),
+      this.usage.count(orgId, 'ai'),
+      this.prisma.automationRule.count({ where: { organizationId: orgId, isActive: true } }),
+      this.prisma.connectorState.count({ where: { organizationId: orgId, status: { not: 'DISABLED' }, type: { in: ['EMAIL_INBOX', 'META_LEAD_ADS'] } } }),
+    ]);
+    const app = await this.settings.getAppConfig();
+    return {
+      subscription: sub,
+      payments,
+      limits,
+      usage: { agents, activeListings, leadsPerMonth, aiCredits, automations, connectors },
+      gstPercent: app.monetization.gstPercent,
+      razorpayReady: await this.settings.isConfigured('razorpay'),
+    };
   }
 
   private async rzp() {
