@@ -1,0 +1,1421 @@
+// BrokerIQ — Gurgaon brokerage hub
+// PostgreSQL schema. All timestamps UTC. Money in INR (Float rupees) unless noted (Payment.amount is paise).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres", "postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm]
+}
+
+// ============================================================ Enums
+
+enum Role {
+  SUPER_ADMIN
+  BROKER_ADMIN
+  BROKER_AGENT
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ListingPurpose {
+  SALE
+  RENT
+}
+
+enum PropertyCategory {
+  RESIDENTIAL
+  COMMERCIAL
+  PLOT
+}
+
+enum PropertyType {
+  APARTMENT
+  BUILDER_FLOOR
+  INDEPENDENT_HOUSE
+  VILLA
+  PENTHOUSE
+  STUDIO
+  SERVICE_APARTMENT
+  PG
+  RESIDENTIAL_PLOT
+  COMMERCIAL_PLOT
+  OFFICE
+  COWORKING
+  SHOP
+  SHOWROOM
+  WAREHOUSE
+  INDUSTRIAL
+}
+
+enum Furnishing {
+  UNFURNISHED
+  SEMI_FURNISHED
+  FULLY_FURNISHED
+}
+
+enum PossessionStatus {
+  READY_TO_MOVE
+  UNDER_CONSTRUCTION
+}
+
+enum Facing {
+  NORTH
+  SOUTH
+  EAST
+  WEST
+  NORTH_EAST
+  NORTH_WEST
+  SOUTH_EAST
+  SOUTH_WEST
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  SOLD
+  RENTED
+  EXPIRED
+  ARCHIVED
+}
+
+enum PostedByType {
+  OWNER
+  BROKER
+  BUILDER
+}
+
+enum MediaKind {
+  PHOTO
+  VIDEO
+  FLOOR_PLAN
+}
+
+enum EnquiryStatus {
+  NEW
+  RESPONDED
+  CLOSED
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+enum ReportReason {
+  FAKE
+  WRONG_PRICE
+  ALREADY_SOLD
+  BROKER_AS_OWNER
+  SPAM
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum KycDocType {
+  AADHAAR
+  PAN
+  RERA_CERTIFICATE
+  GST_CERTIFICATE
+  OWNERSHIP_PROOF
+  ELECTRICITY_BILL
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  INTERESTED
+  SITE_VISIT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum LeadSource {
+  WEBSITE
+  MICROSITE
+  HOUSING
+  ACRES99
+  MAGICBRICKS
+  NOBROKER
+  FACEBOOK
+  INSTAGRAM
+  WHATSAPP
+  WEBHOOK
+  CSV_IMPORT
+  WALK_IN
+  REFERRAL
+  CALL
+  MANUAL
+}
+
+enum LeadTemperature {
+  HOT
+  WARM
+  COLD
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  WHATSAPP
+  EMAIL
+  SMS
+  STAGE_CHANGE
+  ASSIGNMENT
+  SITE_VISIT
+  FOLLOW_UP
+  PROPERTY_SHARED
+  ENQUIRY
+  AUTOMATION
+  SYSTEM
+}
+
+enum CallOutcome {
+  CONNECTED
+  NO_ANSWER
+  BUSY
+  SWITCHED_OFF
+  WRONG_NUMBER
+  CALLBACK
+}
+
+enum FollowUpType {
+  CALL
+  WHATSAPP
+  MEETING
+  EMAIL
+  OTHER
+}
+
+enum FollowUpStatus {
+  PENDING
+  DONE
+  MISSED
+  CANCELLED
+}
+
+enum VisitStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum DealStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum Channel {
+  WHATSAPP
+  CHAT
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  TEMPLATE
+  IMAGE
+  DOCUMENT
+  VIDEO
+  AUDIO
+  LOCATION
+  PROPERTY
+  SYSTEM
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  RECEIVED
+}
+
+enum ConnectorType {
+  EMAIL_INBOX
+  WEBHOOK
+  META_LEAD_ADS
+  WHATSAPP
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  ERROR
+  DISABLED
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum AutomationTrigger {
+  LEAD_CREATED
+  STAGE_CHANGED
+  NO_ACTIVITY
+  VISIT_SCHEDULED
+  VISIT_REMINDER
+}
+
+enum RunStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentPurpose {
+  SUBSCRIPTION
+  BOOST
+}
+
+enum TemplateChannel {
+  EMAIL
+  WHATSAPP
+  PUSH
+}
+
+enum TicketStatus {
+  OPEN
+  CLOSED
+}
+
+// ============================================================ Identity
+
+model User {
+  id             String     @id @default(cuid())
+  name           String
+  email          String     @unique
+  phone          String?
+  passwordHash   String?
+  googleId       String?    @unique
+  avatarUrl      String?
+  role           Role       @default(USER)
+  status         UserStatus @default(ACTIVE)
+  emailVerified  Boolean    @default(false)
+  locale         String     @default("en")
+  organizationId String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  organization   Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  refreshTokens  RefreshToken[]
+  pushTokens     PushToken[]
+  listings       Listing[]        @relation("ListingPostedBy")
+  savedListings  SavedListing[]
+  recentViews    RecentView[]
+  savedSearches  SavedSearch[]
+  enquiries      Enquiry[]        @relation("EnquiryUser")
+  ownerEnquiries Enquiry[]        @relation("EnquiryOwner")
+  reviews        Review[]
+  reports        ListingReport[]
+  kycDocuments   KycDocument[]    @relation("KycUser")
+  notifications  Notification[]
+  assignedLeads  Lead[]           @relation("LeadAssignee")
+  followUps      FollowUp[]       @relation("FollowUpAssignee")
+  visits         SiteVisit[]      @relation("VisitAssignee")
+  activities     Activity[]
+  deals          Deal[]
+  sentMessages   Message[]
+  auditLogs      AuditLog[]
+  blogPosts      BlogPost[]
+  chats          Conversation[]   @relation("ConversationUser")
+  shareLinks     ShareLink[]
+
+  @@index([organizationId])
+  @@index([role])
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  purpose    String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Organization {
+  id               String             @id @default(cuid())
+  name             String
+  slug             String             @unique
+  status           OrgStatus          @default(ACTIVE)
+  logoUrl          String?
+  coverUrl         String?
+  about            String?
+  phone            String?
+  whatsapp         String?
+  email            String?
+  address          String?
+  website          String?
+  reraNumber       String?
+  gstNumber        String?
+  experienceYears  Int?
+  verification     VerificationStatus @default(UNVERIFIED)
+  onboarded        Boolean            @default(false)
+  webhookKey       String             @unique @default(cuid())
+  rating           Float              @default(0)
+  reviewCount      Int                @default(0)
+  businessHours    Json?
+  roundRobinCursor Int                @default(0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  members      User[]
+  invites      Invite[]
+  localities   Locality[]           @relation("OrgLocalities")
+  listings     Listing[]
+  enquiries    Enquiry[]
+  reviews      Review[]
+  leads        Lead[]
+  activities   Activity[]
+  followUps    FollowUp[]
+  visits       SiteVisit[]
+  deals        Deal[]
+  settings     OrgSetting[]
+  connectors   ConnectorState[]
+  automations  AutomationRule[]
+  conversations Conversation[]
+  templates    WhatsAppTemplate[]
+  subscription Subscription?
+  payments     Payment[]
+  usage        UsageCounter[]
+  kycDocuments KycDocument[]
+  shareLinks   ShareLink[]
+
+  @@index([status])
+}
+
+model Invite {
+  id           String    @id @default(cuid())
+  organizationId String
+  email        String
+  name         String
+  role         Role      @default(BROKER_AGENT)
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  invitedById  String?
+  createdAt    DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model KycDocument {
+  id             String             @id @default(cuid())
+  userId         String?
+  organizationId String?
+  docType        KycDocType
+  fileUrl        String
+  docNumber      String?
+  status         VerificationStatus @default(PENDING)
+  reviewNote     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime           @default(now())
+
+  user         User?         @relation("KycUser", fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// ============================================================ Master data
+
+model Locality {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  city         String   @default("Gurgaon")
+  zone         String?
+  latitude     Float
+  longitude    Float
+  pincode      String?
+  description  String?
+  highlights   String[]
+  coverUrl     String?
+  avgPriceSale Float?
+  avgRent2Bhk  Float?
+  isPopular    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  listings      Listing[]
+  projects      Project[]
+  organizations Organization[] @relation("OrgLocalities")
+
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+model Builder {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  logoUrl     String?
+  description String?
+  website     String?
+  createdAt   DateTime @default(now())
+
+  projects Project[]
+}
+
+model Project {
+  id             String            @id @default(cuid())
+  name           String
+  slug           String            @unique
+  builderId      String
+  localityId     String
+  reraNumber     String?
+  description    String?
+  possession     PossessionStatus?
+  possessionDate DateTime?
+  minPrice       Float?
+  maxPrice       Float?
+  configurations Json              @default("[]")
+  amenities      String[]
+  photos         String[]
+  brochureUrl    String?
+  latitude       Float?
+  longitude      Float?
+  totalUnits     Int?
+  landArea       String?
+  isFeatured     Boolean           @default(false)
+  isActive       Boolean           @default(true)
+  views          Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  builder   Builder   @relation(fields: [builderId], references: [id])
+  locality  Locality  @relation(fields: [localityId], references: [id])
+  listings  Listing[]
+  enquiries Enquiry[]
+
+  @@index([localityId])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+model Amenity {
+  id        String  @id @default(cuid())
+  key       String  @unique
+  label     String
+  icon      String?
+  category  String  @default("society")
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+}
+
+// ============================================================ Marketplace
+
+model Listing {
+  id               String            @id @default(cuid())
+  refNo            Int               @unique @default(autoincrement())
+  slug             String            @unique
+  purpose          ListingPurpose
+  category         PropertyCategory
+  propertyType     PropertyType
+  status           ListingStatus     @default(DRAFT)
+  title            String
+  description      String?
+  localityId       String
+  projectId        String?
+  societyName      String?
+  address          String?
+  latitude         Float?
+  longitude        Float?
+  price            Float
+  pricePerSqft     Float?
+  maintenance      Float?
+  securityDeposit  Float?
+  priceNegotiable  Boolean           @default(false)
+  bedrooms         Int?
+  bathrooms        Int?
+  balconies        Int?
+  carpetArea       Float?
+  builtUpArea      Float?
+  superArea        Float?
+  plotArea         Float?
+  floor            Int?
+  totalFloors      Int?
+  furnishing       Furnishing?
+  possession       PossessionStatus?
+  possessionDate   DateTime?
+  ageYears         Int?
+  facing           Facing?
+  parking          Int?
+  availableFrom    DateTime?
+  preferredTenants String[]
+  amenities        String[]
+  reraNumber       String?
+  videoUrl         String?
+  floorPlanUrl     String?
+  coverUrl         String?
+  contactName      String?
+  contactPhone     String?
+  postedByType     PostedByType
+  postedById       String
+  organizationId   String?
+  isVerified       Boolean           @default(false)
+  isFeatured       Boolean           @default(false)
+  featuredUntil    DateTime?
+  views            Int               @default(0)
+  enquiryCount     Int               @default(0)
+  shortlistCount   Int               @default(0)
+  rejectionReason  String?
+  moderationFlags  String[]
+  publishedAt      DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+
+  locality     Locality        @relation(fields: [localityId], references: [id])
+  project      Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  postedBy     User            @relation("ListingPostedBy", fields: [postedById], references: [id])
+  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  media        ListingMedia[]
+  saved        SavedListing[]
+  recentViews  RecentView[]
+  enquiries    Enquiry[]
+  reports      ListingReport[]
+  leads        Lead[]
+  visits       SiteVisit[]
+  deals        Deal[]
+  shareLinks   ShareLink[]
+
+  @@index([status, purpose, category])
+  @@index([localityId, status])
+  @@index([organizationId, status])
+  @@index([postedById])
+  @@index([price])
+  @@index([latitude, longitude])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+model ListingMedia {
+  id        String    @id @default(cuid())
+  listingId String
+  url       String
+  publicId  String?
+  caption   String?
+  kind      MediaKind @default(PHOTO)
+  sortOrder Int       @default(0)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+model SavedListing {
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listingId])
+}
+
+model RecentView {
+  userId    String
+  listingId String
+  viewedAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listingId])
+  @@index([userId, viewedAt])
+}
+
+model SavedSearch {
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  filters        Json
+  alertsEnabled  Boolean   @default(true)
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Enquiry {
+  id             String        @id @default(cuid())
+  listingId      String?
+  projectId      String?
+  organizationId String?
+  ownerUserId    String?
+  userId         String?
+  name           String
+  phone          String
+  email          String?
+  message        String?
+  wantsVisit     Boolean       @default(false)
+  visitDate      DateTime?
+  source         String        @default("WEBSITE")
+  status         EnquiryStatus @default(NEW)
+  leadId         String?
+  createdAt      DateTime      @default(now())
+
+  listing      Listing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  owner        User?         @relation("EnquiryOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  user         User?         @relation("EnquiryUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([ownerUserId])
+  @@index([userId])
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  rating         Int
+  comment        String?
+  reply          String?
+  status         ReviewStatus @default(PUBLISHED)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model ListingReport {
+  id         String       @id @default(cuid())
+  listingId  String
+  userId     String?
+  reason     ReportReason
+  details    String?
+  status     ReportStatus @default(OPEN)
+  resolution String?
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+// ============================================================ CRM
+
+model Lead {
+  id              String           @id @default(cuid())
+  organizationId  String
+  name            String
+  phone           String
+  alternatePhone  String?
+  email           String?
+  source          LeadSource       @default(MANUAL)
+  sourceRef       String?
+  sourceDetail    String?
+  stage           LeadStage        @default(NEW)
+  temperature     LeadTemperature?
+  score           Int              @default(0)
+  assignedToId    String?
+  listingId       String?
+  tags            String[]
+  notes           String?
+  lostReason      String?
+  aiSummary       String?
+  lastActivityAt  DateTime?
+  nextFollowUpAt  DateTime?
+  stageChangedAt  DateTime         @default(now())
+  firstResponseAt DateTime?
+  repeatCount     Int              @default(0)
+  rawPayload      Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo    User?            @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  listing       Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  requirement   LeadRequirement?
+  activities    Activity[]
+  followUps     FollowUp[]
+  visits        SiteVisit[]
+  deals         Deal[]
+  conversations Conversation[]
+  automationRuns AutomationRun[]
+  shareLinks    ShareLink[]
+
+  @@unique([organizationId, phone])
+  @@index([organizationId, stage])
+  @@index([organizationId, assignedToId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, source])
+}
+
+model LeadRequirement {
+  id            String          @id @default(cuid())
+  leadId        String          @unique
+  purpose       ListingPurpose?
+  propertyTypes PropertyType[]
+  localityIds   String[]
+  minBudget     Float?
+  maxBudget     Float?
+  bedrooms      Int[]
+  minArea       Float?
+  maxArea       Float?
+  furnishing    Furnishing?
+  notes         String?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id             String       @id @default(cuid())
+  organizationId String
+  leadId         String
+  userId         String?
+  type           ActivityType
+  content        String?
+  meta           Json?
+  callOutcome    CallOutcome?
+  durationSec    Int?
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model FollowUp {
+  id             String         @id @default(cuid())
+  organizationId String
+  leadId         String
+  assignedToId   String?
+  createdById    String?
+  type           FollowUpType   @default(CALL)
+  dueAt          DateTime
+  note           String?
+  status         FollowUpStatus @default(PENDING)
+  completedAt    DateTime?
+  reminderSentAt DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedTo   User?        @relation("FollowUpAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, dueAt])
+  @@index([assignedToId, status, dueAt])
+}
+
+model SiteVisit {
+  id             String      @id @default(cuid())
+  organizationId String
+  leadId         String
+  listingId      String?
+  assignedToId   String?
+  scheduledAt    DateTime
+  address        String?
+  note           String?
+  status         VisitStatus @default(SCHEDULED)
+  feedback       String?
+  rating         Int?
+  checkInAt      DateTime?
+  checkInLat     Float?
+  checkInLng     Float?
+  reminderSentAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  listing      Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  assignedTo   User?        @relation("VisitAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, scheduledAt])
+}
+
+model Deal {
+  id                 String     @id @default(cuid())
+  organizationId     String
+  leadId             String
+  listingId          String?
+  agentId            String?
+  title              String
+  dealValue          Float
+  commissionPct      Float?
+  commissionAmount   Float?
+  agentSharePct      Float?
+  commissionReceived Float      @default(0)
+  status             DealStatus @default(OPEN)
+  closedAt           DateTime?
+  notes              String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  listing      Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  agent        User?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+}
+
+model ShareLink {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  organizationId String
+  listingId      String
+  leadId         String?
+  createdById    String?
+  opens          Int       @default(0)
+  lastOpenedAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+// ============================================================ Messaging
+
+model Conversation {
+  id             String    @id @default(cuid())
+  organizationId String?
+  channel        Channel
+  contactKey     String
+  contactName    String?
+  contactPhone   String?
+  leadId         String?
+  userId         String?
+  lastMessageAt  DateTime?
+  lastInboundAt  DateTime?
+  lastPreview    String?
+  unreadCount    Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user         User?         @relation("ConversationUser", fields: [userId], references: [id], onDelete: SetNull)
+  messages     Message[]
+
+  @@unique([organizationId, channel, contactKey])
+  @@index([organizationId, lastMessageAt])
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  direction      MessageDirection
+  type           MessageType      @default(TEXT)
+  body           String?
+  mediaUrl       String?
+  templateName   String?
+  meta           Json?
+  status         MessageStatus    @default(QUEUED)
+  externalId     String?          @unique
+  error          String?
+  senderUserId   String?
+  createdAt      DateTime         @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+}
+
+model WhatsAppTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  language       String   @default("en")
+  category       String?
+  status         String?
+  body           String?
+  components     Json?
+  externalId     String?
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name, language])
+}
+
+// ============================================================ Integrations & settings
+
+model SystemSetting {
+  id              String    @id @default(cuid())
+  key             String    @unique
+  value           Json
+  updatedById     String?
+  lastTestedAt    DateTime?
+  lastTestOk      Boolean?
+  lastTestMessage String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model OrgSetting {
+  id              String    @id @default(cuid())
+  organizationId  String
+  key             String
+  value           Json
+  updatedById     String?
+  lastTestedAt    DateTime?
+  lastTestOk      Boolean?
+  lastTestMessage String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+}
+
+model ConnectorState {
+  id             String          @id @default(cuid())
+  organizationId String
+  type           ConnectorType
+  status         ConnectorStatus @default(ACTIVE)
+  lastSyncAt     DateTime?
+  lastError      String?
+  cursor         Json?
+  leadsImported  Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+}
+
+model WebhookEvent {
+  id             String        @id @default(cuid())
+  provider       String
+  organizationId String?
+  externalId     String?
+  payload        Json
+  status         WebhookStatus @default(RECEIVED)
+  error          String?
+  createdAt      DateTime      @default(now())
+  processedAt    DateTime?
+
+  @@index([provider, createdAt])
+  @@index([organizationId])
+}
+
+model IntegrationLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  integration    String
+  action         String
+  success        Boolean
+  message        String?
+  meta           Json?
+  createdAt      DateTime @default(now())
+
+  @@index([integration, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+// ============================================================ Automation & jobs
+
+model AutomationRule {
+  id                   String            @id @default(cuid())
+  organizationId       String
+  name                 String
+  isActive             Boolean           @default(true)
+  trigger              AutomationTrigger
+  conditions           Json              @default("{}")
+  actions              Json              @default("[]")
+  respectBusinessHours Boolean           @default(true)
+  runCount             Int               @default(0)
+  lastRunAt            DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         AutomationRun[]
+
+  @@index([organizationId, trigger, isActive])
+}
+
+model AutomationRun {
+  id        String    @id @default(cuid())
+  ruleId    String
+  leadId    String
+  status    RunStatus @default(PENDING)
+  log       Json?
+  createdAt DateTime  @default(now())
+
+  rule AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  lead Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId, createdAt])
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  type        String
+  key         String?   @unique
+  payload     Json      @default("{}")
+  runAt       DateTime  @default(now())
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lastError   String?
+  lockedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, runAt])
+}
+
+model AiUsage {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  feature        String
+  provider       String
+  model          String?
+  tokens         Int      @default(0)
+  success        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+// ============================================================ Billing
+
+model Plan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?
+  priceMonthly Float
+  priceYearly  Float
+  limits       Json
+  features     String[]
+  isActive     Boolean  @default(true)
+  isPopular    Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  trialDays    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  organizationId     String             @unique
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  billingCycle       BillingCycle       @default(MONTHLY)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+}
+
+model Payment {
+  id                String         @id @default(cuid())
+  organizationId    String?
+  userId            String?
+  purpose           PaymentPurpose
+  planId            String?
+  billingCycle      BillingCycle?
+  listingId         String?
+  amount            Int
+  currency          String         @default("INR")
+  status            PaymentStatus  @default(CREATED)
+  razorpayOrderId   String?        @unique
+  razorpayPaymentId String?
+  invoiceNumber     String?        @unique
+  couponCode        String?
+  meta              Json?
+  paidAt            DateTime?
+  createdAt         DateTime       @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([status])
+}
+
+model Coupon {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  percentOff     Float?
+  amountOff      Float?
+  maxRedemptions Int?
+  redeemed       Int       @default(0)
+  validUntil     DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+}
+
+model UsageCounter {
+  id             String @id @default(cuid())
+  organizationId String
+  metric         String
+  period         String
+  count          Int    @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, metric, period])
+}
+
+// ============================================================ CMS
+
+model HomepageSection {
+  id        String   @id @default(cuid())
+  type      String
+  title     String?
+  subtitle  String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  config    Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+model Page {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  content         String
+  metaTitle       String?
+  metaDescription String?
+  isPublished     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model BlogPost {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  excerpt         String?
+  content         String
+  coverUrl        String?
+  tags            String[]
+  isPublished     Boolean   @default(true)
+  publishedAt     DateTime?
+  authorId        String?
+  metaTitle       String?
+  metaDescription String?
+  views           Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+model Faq {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String
+  category  String  @default("general")
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+}
+
+model Template {
+  id        String          @id @default(cuid())
+  key       String          @unique
+  channel   TemplateChannel
+  name      String
+  subject   String?
+  body      String
+  isActive  Boolean         @default(true)
+  updatedAt DateTime        @updatedAt
+}
+
+model ContactMessage {
+  id        String       @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  subject   String?
+  message   String
+  status    TicketStatus @default(OPEN)
+  note      String?
+  userId    String?
+  createdAt DateTime     @default(now())
+}
+
+model Broadcast {
+  id          String   @id @default(cuid())
+  audience    String
+  channel     String
+  title       String
+  body        String
+  link        String?
+  sentCount   Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+}
+
+// ============================================================ Platform
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String
+  title     String
+  body      String?
+  link      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  actorRole      String?
+  organizationId String?
+  action         String
+  entity         String?
+  entityId       String?
+  meta           Json?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String?
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}

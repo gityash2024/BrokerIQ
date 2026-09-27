@@ -1,0 +1,78 @@
+/** Built-in templates. Seeded into the Template table so the Super Admin can edit them. */
+export const DEFAULT_TEMPLATES: { key: string; channel: 'EMAIL' | 'WHATSAPP' | 'PUSH'; name: string; subject?: string; body: string }[] = [
+  {
+    key: 'auth.otp',
+    channel: 'EMAIL',
+    name: 'Login OTP',
+    subject: '{{code}} — आपका {{app.siteName}} login code',
+    body: '<p>नमस्ते,</p><p>आपका one-time login code है:</p><p style="font-size:32px;font-weight:800;letter-spacing:8px">{{code}}</p><p>यह code 10 मिनट तक valid है। अगर आपने request नहीं की तो इस email को ignore करें।</p>',
+  },
+  {
+    key: 'auth.reset',
+    channel: 'EMAIL',
+    name: 'Password reset code',
+    subject: '{{code}} — password reset code',
+    body: '<p>Password reset करने के लिए यह code डालें:</p><p style="font-size:32px;font-weight:800;letter-spacing:8px">{{code}}</p><p>Code 10 मिनट तक valid है।</p>',
+  },
+  {
+    key: 'team.invite',
+    channel: 'EMAIL',
+    name: 'Team invite',
+    subject: '{{inviter}} ने आपको {{orgName}} team में invite किया है',
+    body: '<p>नमस्ते {{name}},</p><p><b>{{inviter}}</b> ने आपको {{app.siteName}} पर <b>{{orgName}}</b> की team में जोड़ा है।</p><p><a href="{{link}}" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none">Invite accept करें</a></p><p>यह link 7 दिन तक valid है।</p>',
+  },
+  {
+    key: 'lead.new',
+    channel: 'EMAIL',
+    name: 'New lead alert (broker)',
+    subject: 'नई lead: {{lead.name}} ({{source}})',
+    body: '<p>आपको एक नई lead मिली है:</p><p><b>{{lead.name}}</b><br/>📞 {{lead.phone}}<br/>Source: {{source}}<br/>{{lead.sourceDetail}}</p><p><a href="{{link}}">Lead खोलें →</a></p>',
+  },
+  {
+    key: 'enquiry.owner',
+    channel: 'EMAIL',
+    name: 'Enquiry on owner listing',
+    subject: 'आपकी property पर नई enquiry — {{listing.title}}',
+    body: '<p>आपकी listing <b>{{listing.title}}</b> पर enquiry आई है:</p><p><b>{{enquiry.name}}</b> · {{enquiry.phone}}<br/>{{enquiry.message}}</p><p><a href="{{link}}">Enquiries देखें →</a></p>',
+  },
+  {
+    key: 'listing.approved',
+    channel: 'EMAIL',
+    name: 'Listing approved',
+    subject: 'आपकी listing live है 🎉',
+    body: '<p><b>{{listing.title}}</b> अब {{app.siteName}} पर live है।</p><p><a href="{{link}}">Listing देखें →</a></p>',
+  },
+  {
+    key: 'listing.rejected',
+    channel: 'EMAIL',
+    name: 'Listing rejected',
+    subject: 'आपकी listing में बदलाव ज़रूरी है',
+    body: '<p><b>{{listing.title}}</b> approve नहीं हो सकी।</p><p>कारण: {{reason}}</p><p><a href="{{link}}">Edit करके दोबारा submit करें →</a></p>',
+  },
+  {
+    key: 'search.alert',
+    channel: 'EMAIL',
+    name: 'Saved search alert',
+    subject: '"{{search.name}}" में {{count}} नई properties',
+    body: '<p>आपकी saved search <b>{{search.name}}</b> से मिलती {{count}} नई properties आई हैं।</p><p><a href="{{link}}">अभी देखें →</a></p>',
+  },
+  {
+    key: 'payment.receipt',
+    channel: 'EMAIL',
+    name: 'Payment receipt',
+    subject: 'Payment receipt — {{invoiceNumber}}',
+    body: '<p>धन्यवाद! हमें आपका ₹{{amount}} का payment मिल गया है।</p><p>Invoice: {{invoiceNumber}}<br/>Plan: {{plan}}</p>',
+  },
+  {
+    key: 'wa.lead_welcome',
+    channel: 'WHATSAPP',
+    name: 'Lead welcome (WhatsApp)',
+    body: 'नमस्ते {{lead.name}} 👋\n{{org.name}} से बात कर रहे हैं। आपकी property enquiry मिल गई है — हम जल्दी ही आपसे संपर्क करेंगे। अपनी requirement (budget, BHK, location) यहीं भेज दीजिए।',
+  },
+  {
+    key: 'wa.visit_reminder',
+    channel: 'WHATSAPP',
+    name: 'Site visit reminder (WhatsApp)',
+    body: 'नमस्ते {{lead.name}}, याद दिला दें — आपकी site visit {{visit.time}} पर है। 📍 {{visit.address}}\n— {{org.name}}',
+  },
+];

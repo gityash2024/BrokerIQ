@@ -6,8 +6,8 @@
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "dev": "prisma generate && nest start --watch",
-    "start": "node dist/main.js",
-    "start:prod": "prisma migrate deploy && node dist/prisma/seed.js && node dist/main.js",
+    "start": "node dist/src/main.js",
+    "start:prod": "prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "jest --config jest.config.js --runInBand",
@@ -38,6 +38,7 @@
     "cloudinary": "^2.7.0",
     "compression": "^1.8.1",
     "csv-parse": "^6.1.0",
+    "express": "^5.2.1",
     "google-auth-library": "^10.3.0",
     "helmet": "^8.1.0",
     "imapflow": "^1.0.195",
