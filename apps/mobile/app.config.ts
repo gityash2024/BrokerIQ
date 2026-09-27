@@ -13,8 +13,6 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
-  splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#1E1B4B' },
   ios: {
     supportsTablet: true,
     bundleIdentifier: process.env.IOS_BUNDLE_ID ?? 'com.brokeriq.app',
@@ -27,7 +25,6 @@ const config: ExpoConfig = {
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1E1B4B' },
-    edgeToEdgeEnabled: true,
     permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS'],
     intentFilters: [
       {
