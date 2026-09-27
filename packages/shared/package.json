@@ -1,19 +1,21 @@
 {
   "name": "@brokeriq/shared",
-  "version": "1.0.0",
-  "description": "Shared TypeScript types, Zod schemas, domain enums, and utilities for BrokerIQ",
+  "version": "2.0.0",
   "private": true,
+  "description": "Shared enums, Zod schemas, API types, integration registry and utilities for BrokerIQ",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
-    "test": "node dist/index.test.js"
+    "test": "node --test dist/__tests__/*.test.js"
   },
   "dependencies": {
-    "zod": "file:../../.vendor/zod-4.1.11.tgz"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "typescript": "file:../../.vendor/typescript-5.9.3.tgz"
+    "@types/node": "^22.18.0",
+    "typescript": "5.9.3"
   }
 }

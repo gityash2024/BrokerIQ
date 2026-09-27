@@ -1,8 +1,8 @@
 {
   "name": "brokeriq",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Multi-tenant SaaS CRM and automation platform for Indian real-estate brokers",
+  "description": "BrokerIQ — Gurgaon property brokerage hub: marketplace website, broker CRM & lead automation, super admin",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "build": "turbo run build",
@@ -12,10 +12,10 @@
     "test": "turbo run test"
   },
   "devDependencies": {
-    "typescript": "file:.vendor/typescript-5.9.3.tgz"
+    "turbo": "^2.5.8",
+    "typescript": "5.9.3"
   },
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=20.0.0"
   }
 }

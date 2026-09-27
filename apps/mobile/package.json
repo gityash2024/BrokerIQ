@@ -51,6 +51,6 @@
     "@types/react": "^19.3.0",
     "@types/react-native": "^0.73.0",
     "babel-preset-expo": "^57.0.13",
-    "typescript": "file:../../.vendor/typescript-5.9.3.tgz"
+    "typescript": "5.9.3"
   }
 }
