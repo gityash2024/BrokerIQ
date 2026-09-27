@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: brokeriq
+          POSTGRES_PASSWORD: brokeriq
+          POSTGRES_DB: brokeriq_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U brokeriq" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://brokeriq:brokeriq@localhost:5432/brokeriq_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @brokeriq/shared build
+      - name: Shared unit tests
+        run: pnpm --filter @brokeriq/shared test
+      - name: Typecheck (api, web, mobile)
+        run: |
+          pnpm --filter @brokeriq/api exec prisma generate
+          pnpm --filter @brokeriq/api typecheck
+          pnpm --filter @brokeriq/web typecheck
+          pnpm --filter @brokeriq/mobile typecheck
+      - name: API unit tests
+        run: pnpm --filter @brokeriq/api test
+      - name: API e2e tests (real Postgres)
+        run: |
+          bash apps/api/test/setup-db.sh
+          pnpm --filter @brokeriq/api test:e2e
+      - name: API production build
+        run: pnpm --filter @brokeriq/api build
+      - name: Web production build
+        run: pnpm --filter @brokeriq/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3001

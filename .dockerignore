@@ -1,0 +1,13 @@
+# Never bake local secrets or build artefacts into images
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/.next
+**/dist
+**/.expo
+**/.turbo
+**/coverage
+apps/mobile
+apps/web
+.git

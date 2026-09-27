@@ -1,142 +1,51 @@
-# BrokerIQ — Enterprise Multi-Role Real Estate Marketplace & AI Listing Book Scanner
+# BrokerIQ — Gurgaon property brokerage hub
 
-An enterprise-grade, multi-sided real estate marketplace inspired by **Housing.com**, **Linear**, and **Stripe**. BrokerIQ connects property seekers, owners, field broker agents, agency principals, and platform super administrators into a unified identity architecture with role-adaptive web and mobile experiences.
+BrokerIQ is a production-ready property marketplace and broker CRM for Gurgaon. It has three panels: **User** (buyers, tenants and owners), **Broker** (a firm plus its agents) and **Super Admin**. It ships as a website and an Android/iOS app.
 
----
+- **Marketplace (website + app):** buy, rent, commercial and plots search with a map, locality guides with price trends, projects, broker microsites, property detail (gallery, EMI, contact, enquiry, chat), post property for free, saved homes and alerts, calculators, and a feedback/roadmap board.
+- **Broker CRM:** a unified lead inbox (Housing, 99acres, MagicBricks and NoBroker email alerts over IMAP, Facebook/Instagram lead ads, a universal webhook, website, app and WhatsApp). It also covers a drag-and-drop pipeline, follow-ups and site visits (GPS check-in), deals and commission, and a WhatsApp team inbox (Cloud API, 24h window, templates). A no-code automation builder handles welcome messages, round-robin assignment and drips. There is also an AI listing-book scanner, AI lead insights, team management, analytics, and plans and billing.
+- **Super Admin:** a command center (MRR, growth, queues), a Credentials center with Hindi step-by-step guides and a test button, app config, feature flags, moderation, KYC, users and firms, and support. It also includes feedback management, broadcasts, plans, subscriptions, payments and coupons, a CMS (homepage builder, pages, blog, FAQs, templates), master data and an audit log, plus system health.
+- **Revenue from day one:** broker subscriptions (Razorpay, GST invoices), paid listing boosts, and sponsored homepage banners and featured projects.
 
-## 🌟 Key Capabilities
+## Monorepo
 
-### 1. Unified 5-Persona Identity & RBAC
-- **Super Admin (`SUPER_ADMIN`)**: Platform command center, listing moderation queue, KYC document auditing, agency tenant provisioning.
-- **Agency Manager (`BROKER_ADMIN`)**: Team management, revenue pipeline, round-robin lead allocation, commission tracking.
-- **Broker Agent (`BROKER_AGENT`)**: Field CRM, assigned leads, follow-up timeline, client visit scheduling, book scanner.
-- **Property Owner (`PROPERTY_OWNER`)**: 3-step listing wizard, ownership document verification, direct buyer inquiry inbox.
-- **Buyer / Renter (`SEEKER`)**: Micro-market exploration, commercial ROI calculator, saved wishlist, direct owner/agent outreach.
-- **Instant Role-Switching**: Token re-minting via `/auth/switch-role` and `/auth/demo-login` preserving user identity across personas.
+| Path | What |
+|---|---|
+| `apps/api` | NestJS 11 + Prisma 6 + PostgreSQL. Global prefix `/api`, Swagger at `/api/docs` |
+| `apps/web` | Next.js 16 (App Router): public site, `/account`, `/broker`, `/admin` |
+| `apps/mobile` | Expo SDK 57 (expo-router): User mode and Broker mode |
+| `packages/shared` | Zod schemas, enums/labels, API types, integration registry, utilities |
+| `docs/` | [Deployment](docs/DEPLOYMENT.md) · [Credentials setup (Hindi)](docs/SETUP_CREDENTIALS.md) |
 
-### 2. Web Application (`apps/admin`)
-- Built with **Next.js 16 (App Router)**, **React 19**, **Tailwind CSS**, and **Turbopack**.
-- **1-Click Demo Login (`/login`)**: Instant login chips for all 5 personas directing users to their dedicated portal.
-- **5 Dedicated Portals (39 Routes)**:
-  - `/admin`: Super Admin Command Center, Moderation, KYC Queues, Tenants.
-  - `/agency`: Agency Command Dashboard, Team Performance, Lead Allocation.
-  - `/agent`: Broker Field CRM, Property Matching, Direct WhatsApp Outreach.
-  - `/owner`: Property Owner Dashboard, 3-Step Wizard, Inquiry Tracker.
-  - `/portal`: High-resolution Seeker Search, Saved Wishlist, EMI Calculator.
-- **Top-Bar Persona Switcher**: Seamless switching between roles during live client demos.
+## Principles
 
-### 3. Mobile Application (`apps/mobile`)
-- Built with **React Native**, **Expo SDK 52**, **Expo Router**, and **NativeWind**.
-- **Dynamic Role-Adaptive Navigation**: Hot-swaps bottom tabs based on active role:
-  - **Seeker**: `[Explore, Saved, Inquiries, Market Hub, Profile]`
-  - **Owner**: `[My Listings, Inquiries, Post Property, Verification, Profile]`
-  - **Broker Agent**: `[Dashboard, Leads, Market Hub, Inventory, Follow-ups, More]`
-  - **Broker Admin**: `[Dashboard, Team, Pipeline, Inventory, Settings, More]`
-- **1-Tap Header Persona Switcher Modal**: Quick-switch personas via the header status badge (`• Broker Agent ⌵`).
-- **AI Physical Listing Book Scanner**: Scan physical listing registers via camera, gallery upload, or 1-tap sample loader with OCR extraction into structured fields (Sector, Complex, Unit, Area, Floor, Tenancy, Contact).
-- **Micro-Market Directory**: Sector intelligence across Sectors 86–93 (Dwarka Expressway corridor) with 1-tap WhatsApp and Call broker outreach.
+- **No mock or demo data.** Only real master data is seeded: 99 Gurgaon localities, amenities, plans and templates.
+- **Credentials are never in code.** They are saved from the admin panel (platform) or the broker panel (per firm) and stored with AES-256-GCM encryption. The resolution order is org, then platform, then env.
+- **Missing integrations fail loudly.** The API returns `INTEGRATION_NOT_CONFIGURED` with the exact settings page, and the web and app show where to add it.
+- **Zero-cost start.** Everything runs on free tiers: Brevo or Gmail SMTP OTP, Google login, Cloudinary or R2, Groq or Gemini, MapTiler or OSM, Expo push, Sentry, and a Postgres-backed job queue (no Redis).
 
-### 4. Robust Backend API (`apps/api`)
-- Built with **NestJS 10**, **Prisma ORM**, and **PostgreSQL**.
-- Cryptographic token generation, AES-256-GCM field encryption, and row-level tenant isolation.
-- Complete market directory and OCR data extraction endpoints with offline fallback cache.
+## Quick start
 
----
-
-## 📁 Repository Structure
-
-```
-BrokerIQ/
-├── apps/
-│   ├── admin/             # Next.js 16 Multi-Role Web Portals (/admin, /agency, /agent, /owner, /portal)
-│   ├── api/               # NestJS Backend API & Prisma ORM Engine
-│   └── mobile/            # React Native / Expo Mobile App with Dynamic Tab Navigation
-├── packages/
-│   ├── shared/            # Shared TypeScript types, enums, DTOs, and RBAC contracts
-│   └── eslint-config/     # Workspace linting configuration
-├── tests/                 # 4-tier E2E test battery (241 test cases)
-├── docker-compose.yml     # PostgreSQL, Redis, and infrastructure setup
-├── pnpm-workspace.yaml    # Monorepo workspace configuration
-└── turbo.json             # Turborepo task pipeline configuration
-```
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Node.js**: >= 20.x
-- **pnpm**: >= 9.x
-- **Docker & Docker Compose** (for PostgreSQL and Redis)
-
-### Installation
 ```bash
-# Clone the repository
-git clone https://github.com/gityash2024/BrokerIQ.git
-cd BrokerIQ
-
-# Install dependencies across all workspaces
-pnpm install
-```
-
-### Environment Configuration
-```bash
-# Copy root environment file
-cp .env.example .env
-
-# Copy app-specific environment files
+docker compose up -d
 cp apps/api/.env.example apps/api/.env
-cp apps/admin/.env.example apps/admin/.env
-cp apps/mobile/.env.example apps/mobile/.env
+pnpm install && pnpm --filter @brokeriq/shared build
+pnpm --filter @brokeriq/api exec prisma migrate deploy && pnpm --filter @brokeriq/api seed
+pnpm --filter @brokeriq/api dev      # :3000
+pnpm --filter @brokeriq/web dev      # :3001
+pnpm --filter @brokeriq/mobile start
 ```
 
-### Database Setup & Seeding
-```bash
-# Start PostgreSQL & Redis
-docker-compose up -d
+Log in with `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `apps/api/.env`, then open **/admin → Credentials center**.
 
-# Run database migrations and seed 5-persona demo data
-pnpm --filter @brokeriq/api db:migrate
-pnpm --filter @brokeriq/api db:seed
-```
-
-### Running Applications
-```bash
-# Start all applications concurrently via Turborepo
-pnpm dev
-
-# Or start individually:
-pnpm --filter @brokeriq/api start:dev   # NestJS API (http://localhost:3000)
-pnpm --filter @brokeriq/admin dev      # Web Portals (http://localhost:3001)
-pnpm --filter @brokeriq/mobile start   # Expo Mobile App (Metro bundler)
-```
-
----
-
-## 🧪 Testing & Verification
-
-The test battery includes **241 comprehensive tests** covering RBAC, tenant isolation, role switching, and real-world marketplace scenarios:
+## Checks
 
 ```bash
-# Run baseline E2E test suite (197 tests)
-bash tests/runner.sh
-
-# Run Milestone 4 Multi-Role Marketplace test suite (44 tests)
-NODE_PATH=apps/api/node_modules node tests/m4_personas_e2e_suite.js
+pnpm --filter @brokeriq/api typecheck && pnpm --filter @brokeriq/web typecheck && pnpm --filter @brokeriq/mobile typecheck
+pnpm --filter @brokeriq/api test
+DATABASE_URL=postgresql://.../brokeriq_test bash apps/api/test/setup-db.sh && pnpm --filter @brokeriq/api test:e2e
+pnpm --filter @brokeriq/web build
+cd apps/mobile && npx expo export --platform android
 ```
 
----
-
-## 📱 Mobile APK Build
-
-To build the release Android APK:
-```bash
-cd apps/mobile/android
-./gradlew assembleRelease --no-daemon
-```
-The compiled APK will be generated at `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`.
-
----
-
-## 📄 License
-Private & Confidential — BrokerIQ Platform.
+CI (`.github/workflows/ci.yml`) runs all of the above against a real Postgres on every push.

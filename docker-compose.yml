@@ -1,120 +1,24 @@
+# Local development database (the API and web run with pnpm dev).
+#   docker compose up -d
 name: brokeriq
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: brokeriq-postgres
     restart: unless-stopped
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '5432:5432'
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-brokeriq}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brokeriq_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-brokeriq_db}
+      POSTGRES_USER: brokeriq
+      POSTGRES_PASSWORD: brokeriq
+      POSTGRES_DB: brokeriq
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brokeriq} -d ${POSTGRES_DB:-brokeriq_db} || pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U brokeriq']
       interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - brokeriq-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: brokeriq-redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-brokeriq_redis}"]
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-brokeriq_redis}", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-    networks:
-      - brokeriq-network
-
-  api:
-    build:
-      context: ./
-      dockerfile: ./apps/api/Dockerfile
-    container_name: brokeriq-api
-    restart: unless-stopped
-    ports:
-      - "${API_PORT:-3000}:3000"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 3000
-      API_PREFIX: ${API_PREFIX:-api}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://brokeriq:brokeriq_secret@postgres:5432/brokeriq_db?schema=public}
-      REDIS_URL: ${REDIS_URL:-redis://:brokeriq_redis@redis:6379}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-access_secret_min_32_characters_long_12345}
-      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-refresh_secret_min_32_characters_long_67890}
-      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
-      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
-      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
-      META_WHATSAPP_TOKEN: ${META_WHATSAPP_TOKEN}
-      META_WHATSAPP_PHONE_NUMBER_ID: ${META_WHATSAPP_PHONE_NUMBER_ID}
-      META_WHATSAPP_VERIFY_TOKEN: ${META_WHATSAPP_VERIFY_TOKEN}
-      HOUSING_API_KEY: ${HOUSING_API_KEY}
-      HOUSING_WEBHOOK_SECRET: ${HOUSING_WEBHOOK_SECRET}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      GROQ_MODEL: ${GROQ_MODEL:-llama3-70b-8192}
-      SPACES_ENDPOINT: ${SPACES_ENDPOINT}
-      SPACES_KEY: ${SPACES_KEY}
-      SPACES_SECRET: ${SPACES_SECRET}
-      SPACES_BUCKET: ${SPACES_BUCKET}
-      SPACES_REGION: ${SPACES_REGION}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
-      THROTTLE_TTL: ${THROTTLE_TTL:-60}
-      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    networks:
-      - brokeriq-network
-
-  admin:
-    build:
-      context: ./
-      dockerfile: ./apps/admin/Dockerfile
-    container_name: brokeriq-admin
-    restart: unless-stopped
-    ports:
-      - "${ADMIN_PORT:-3001}:3001"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 3001
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3000/api}
-      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-BrokerIQ Super Admin}
-    depends_on:
-      - api
-    networks:
-      - brokeriq-network
+      retries: 10
 
 volumes:
   postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-
-networks:
-  brokeriq-network:
-    driver: bridge
