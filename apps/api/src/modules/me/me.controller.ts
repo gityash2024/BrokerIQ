@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { normalizeIndianPhone, pushTokenSchema, updateProfileSchema } from '@brokeriq/shared';
+import { normalizeIndianPhone, pushTokenSchema, savedSearchSchema, updateProfileSchema } from '@brokeriq/shared';
+import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser, type RequestUser } from '../../common/decorators';
@@ -55,6 +57,31 @@ export class MeController {
   sign(@CurrentUser() user: RequestUser, @Body() body: { kind?: UploadKind; contentType?: string }) {
     const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat'] as const).includes(body?.kind as any) ? body.kind! : 'listing';
     return this.media.sign(kind, body?.contentType ?? 'image/jpeg', user.orgId ?? user.id);
+  }
+
+  @Get('saved-searches')
+  savedSearches(@CurrentUser() user: RequestUser) {
+    return this.prisma.savedSearch.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } });
+  }
+
+  @Post('saved-searches')
+  async createSavedSearch(@CurrentUser() user: RequestUser, @Body(new ZodPipe(savedSearchSchema)) body: any) {
+    const count = await this.prisma.savedSearch.count({ where: { userId: user.id } });
+    if (count >= 20) throw new NotFoundException('ज़्यादा से ज़्यादा 20 saved searches');
+    return this.prisma.savedSearch.create({ data: { userId: user.id, name: body.name, filters: body.filters as Prisma.InputJsonValue, alertsEnabled: body.alertsEnabled, lastNotifiedAt: new Date() } });
+  }
+
+  @Patch('saved-searches/:id')
+  async updateSavedSearch(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(savedSearchSchema.partial())) body: any) {
+    const s = await this.prisma.savedSearch.findFirst({ where: { id, userId: user.id } });
+    if (!s) throw new NotFoundException();
+    return this.prisma.savedSearch.update({ where: { id }, data: { ...body, filters: body.filters as Prisma.InputJsonValue | undefined } });
+  }
+
+  @Delete('saved-searches/:id')
+  async deleteSavedSearch(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    await this.prisma.savedSearch.deleteMany({ where: { id, userId: user.id } });
+    return { ok: true };
   }
 
   @Delete()

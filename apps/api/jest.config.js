@@ -6,4 +6,5 @@ module.exports = {
   testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'js', 'json'],
   testTimeout: 30000,
+  setupFiles: ['<rootDir>/test/env-setup.ts'],
 };

@@ -59,6 +59,9 @@ export const appConfigSchema = z.object({
         'Verified flats, builder floors, villas, offices and plots for sale & rent in Gurgaon. Compare localities, prices and connect with trusted brokers.',
       ogImage: '',
     }),
+  monetization: z
+    .object({ boostPricePerWeek: z.number().min(0).default(499), gstPercent: z.number().min(0).max(28).default(18), invoicePrefix: z.string().default('BIQ'), companyName: z.string().default(''), companyAddress: z.string().default(''), companyGstin: z.string().default('') })
+    .default({ boostPricePerWeek: 499, gstPercent: 18, invoicePrefix: 'BIQ', companyName: '', companyAddress: '', companyGstin: '' }),
   finance: z
     .object({ defaultInterestRate: z.number().default(8.5), stampDutyMalePct: z.number().default(7), stampDutyFemalePct: z.number().default(5), stampDutyJointPct: z.number().default(6), registrationFeeMax: z.number().default(50000) })
     .default({ defaultInterestRate: 8.5, stampDutyMalePct: 7, stampDutyFemalePct: 5, stampDutyJointPct: 6, registrationFeeMax: 50000 }),

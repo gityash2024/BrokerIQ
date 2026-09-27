@@ -16,6 +16,14 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { PublicModule } from './modules/public/public.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+import { ConnectorsModule } from './modules/connectors/connectors.module';
+import { AutomationModule } from './modules/automation/automation.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { InsightsModule } from './modules/insights/insights.module';
+import { AiModule } from './modules/ai/ai.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.service';
 
 @Module({
   imports: [
@@ -33,6 +41,14 @@ import { AdminModule } from './modules/admin/admin.module';
     PublicModule,
     IntegrationsModule,
     AdminModule,
+    WhatsAppModule,
+    ConnectorsModule,
+    AutomationModule,
+    BillingModule,
+    InsightsModule,
+    AiModule,
+    ChatModule,
+    MaintenanceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

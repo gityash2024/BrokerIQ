@@ -1,0 +1,210 @@
+import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { json } from 'express';
+import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/bootstrap';
+import { PrismaService } from '../src/prisma/prisma.service';
+
+/**
+ * End-to-end suite against a real PostgreSQL database.
+ * Run: DATABASE_URL=postgresql://.../brokeriq_test bash test/setup-db.sh && pnpm test:e2e
+ */
+jest.setTimeout(60000);
+
+const uniq = process.env.E2E_UNIQ!;
+const email = (p: string) => `${p}.${uniq}@e2e.test`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+describe('BrokerIQ API (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let http: ReturnType<typeof request>;
+  let admin: string;
+  let brokerA: { token: string; refresh: string; orgId: string };
+  let brokerB: { token: string };
+  let user: { token: string; id: string };
+  let localityId: string;
+  let listingId: string;
+  let listingSlug: string;
+  let webhookKey: string;
+
+  beforeAll(async () => {
+    const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = mod.createNestApplication({ bodyParser: false });
+    app.use(json({ verify: (req: any, _res, buf) => (req.rawBody = buf) }));
+    configureApp(app);
+    await app.init();
+    prisma = app.get(PrismaService);
+    http = request(app.getHttpServer());
+
+    const a = await http.post('/api/auth/login').send({ email: email('admin'), password: 'Admin@12345' }).expect(200);
+    admin = a.body.accessToken;
+    const loc = await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } });
+    localityId = loc.id;
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
+
+  it('health is public, protected routes need auth', async () => {
+    await http.get('/api/health').expect(200);
+    const r = await http.get('/api/auth/me').expect(401);
+    expect(r.body.code).toBe('UNAUTHORIZED');
+  });
+
+  it('registers a user and two broker firms', async () => {
+    const u = await http.post('/api/auth/register').send({ name: 'Neha Buyer', email: email('user'), password: 'Passw0rd!', phone: '9811100001' }).expect(201);
+    user = { token: u.body.accessToken, id: u.body.user.id };
+    expect(u.body.user.role).toBe('USER');
+
+    const b = await http.post('/api/auth/register').send({ name: 'Arjun', email: email('brokera'), password: 'Passw0rd!', accountType: 'BROKER', firmName: 'Arjun Estates' }).expect(201);
+    expect(b.body.user.role).toBe('BROKER_ADMIN');
+    const onb = await http.post('/api/broker/onboarding').set(auth(b.body.accessToken)).send({ firmName: 'Arjun Estates', phone: '9876500011', localityIds: [localityId] }).expect(201);
+    brokerA = { token: onb.body.accessToken, refresh: onb.body.refreshToken, orgId: onb.body.user.organizationId };
+    webhookKey = (await prisma.organization.findUniqueOrThrow({ where: { id: brokerA.orgId } })).webhookKey;
+
+    const b2 = await http.post('/api/auth/register').send({ name: 'Other', email: email('brokerb'), password: 'Passw0rd!', accountType: 'BROKER', firmName: 'Other Realty' }).expect(201);
+    brokerB = { token: b2.body.accessToken };
+  });
+
+  it('enforces RBAC: users cannot reach broker or admin APIs', async () => {
+    await http.get('/api/leads').set(auth(user.token)).expect(403);
+    await http.get('/api/admin/dashboard').set(auth(user.token)).expect(403);
+    await http.get('/api/admin/dashboard').set(auth(brokerA.token)).expect(403);
+    await http.get('/api/admin/dashboard').set(auth(admin)).expect(200);
+  });
+
+  it('broker posts a listing → moderation → admin approves → public search', async () => {
+    const l = await http
+      .post('/api/listings')
+      .set(auth(brokerA.token))
+      .send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 32500000, bedrooms: 3, bathrooms: 3, superArea: 2100, photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }], amenities: ['lift', 'gym'] })
+      .expect(201);
+    expect(l.body.status).toBe('PENDING_REVIEW');
+    expect(l.body.title).toBe('3 BHK Apartment for Sale in Sector 65, Gurgaon');
+    listingId = l.body.id;
+    listingSlug = l.body.slug;
+
+    let s = await http.get('/api/listings?localities=sector-65-gurgaon').expect(200);
+    expect(s.body.items.find((x: any) => x.id === listingId)).toBeUndefined();
+
+    await http.post(`/api/admin/moderation/listings/${listingId}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
+    s = await http.get('/api/listings?localities=sector-65-gurgaon&bedrooms=3&minPrice=30000000').expect(200);
+    expect(s.body.items.map((x: any) => x.id)).toContain(listingId);
+
+    const d = await http.get(`/api/listings/${listingSlug}`).expect(200);
+    expect(d.body.contactPhone).not.toContain('9876500011'); // masked for public
+    await http.post(`/api/listings/${listingId}/contact`).expect(403); // login required
+    const c = await http.post(`/api/listings/${listingId}/contact`).set(auth(user.token)).expect(201);
+    expect(c.body.phone).toBe('+919876500011');
+  });
+
+  it('enquiry becomes a CRM lead and repeat enquiries merge by phone', async () => {
+    await http.post('/api/enquiries').set(auth(user.token)).send({ listingId, name: 'Neha', phone: '98111 00001', message: 'Visit on Sunday?' }).expect(201);
+    await http.post('/api/enquiries').send({ listingId, name: 'Neha B', phone: '+91-9811100001' }).expect(201);
+    const leads = await http.get('/api/leads').set(auth(brokerA.token)).expect(200);
+    const mine = leads.body.items.filter((x: any) => x.phone === '+919811100001');
+    expect(mine).toHaveLength(1);
+    const detail = await prisma.lead.findFirstOrThrow({ where: { id: mine[0].id } });
+    expect(detail.repeatCount).toBe(1);
+    expect(detail.source).toBe('WEBSITE');
+  });
+
+  it('isolates organizations', async () => {
+    const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: brokerA.orgId } });
+    await http.get(`/api/leads/${lead.id}`).set(auth(brokerB.token)).expect(404);
+    const other = await http.get('/api/leads').set(auth(brokerB.token)).expect(200);
+    expect(other.body.total).toBe(0);
+  });
+
+  it('ingests leads from the public webhook with source mapping', async () => {
+    const r = await http.post(`/api/webhooks/leads/${webhookKey}`).send({ full_name: 'Karan Mehta', mobile: '9900112233', source: '99acres', project: 'DLF Privana' }).expect(200);
+    expect(r.body.ok).toBe(true);
+    const lead = await prisma.lead.findUniqueOrThrow({ where: { id: r.body.leadId } });
+    expect(lead.source).toBe('ACRES99');
+    expect(lead.sourceDetail).toBe('DLF Privana');
+    await http.post('/api/webhooks/leads/wrong-key').send({ phone: '9900112233' }).expect(404);
+    const bad = await http.post(`/api/webhooks/leads/${webhookKey}`).send({ name: 'no phone' }).expect(400);
+    expect(bad.body.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('returns INTEGRATION_NOT_CONFIGURED with a settings link when credentials are missing', async () => {
+    const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: brokerA.orgId } });
+    const wa = await http.post('/api/whatsapp/send').set(auth(brokerA.token)).send({ leadId: lead.id, text: 'hi' }).expect(424);
+    expect(wa.body.code).toBe('INTEGRATION_NOT_CONFIGURED');
+    expect(wa.body.integration.settingsPath).toBe('/broker/connectors?key=whatsapp');
+    const ai = await http.post('/api/ai/scan').set(auth(brokerA.token)).send({ image: 'data:image/png;base64,iVBORw0KGgo=' }).expect(424);
+    expect(ai.body.integration.fixBy).toBe('SUPER_ADMIN');
+    const up = await http.post('/api/me/uploads/sign').set(auth(user.token)).send({ kind: 'listing' }).expect(424);
+    expect(up.body.integration.key).toBe('cloudinary');
+  });
+
+  it('credentials center encrypts and masks secrets', async () => {
+    await http.patch('/api/admin/integrations/groq').set(auth(admin)).send({ fields: { apiKey: 'gsk_test_secret_value_1234' } }).expect(200);
+    const v = await http.get('/api/admin/integrations/groq').set(auth(admin)).expect(200);
+    expect(v.body.state.configured).toBe(true);
+    expect(v.body.state.fields.apiKey).toMatch(/^•+1234$/);
+    const row = await prisma.systemSetting.findUniqueOrThrow({ where: { key: 'integration.groq' } });
+    expect(JSON.stringify(row.value)).not.toContain('gsk_test_secret_value_1234');
+    // Saving the masked value keeps the secret
+    await http.patch('/api/admin/integrations/groq').set(auth(admin)).send({ fields: { apiKey: v.body.state.fields.apiKey, textModel: 'x' } }).expect(200);
+    expect((await http.get('/api/admin/integrations/groq').set(auth(admin))).body.state.fields.apiKey).toMatch(/1234$/);
+    await http.delete('/api/admin/integrations/groq').set(auth(admin)).expect(200);
+    const pub = await http.get('/api/public/config').expect(200);
+    expect(JSON.stringify(pub.body)).not.toContain('gsk_');
+  });
+
+  it('runs automation rules on new leads', async () => {
+    await http
+      .post('/api/automations')
+      .set(auth(brokerA.token))
+      .send({ name: 'Tag + follow-up', trigger: 'LEAD_CREATED', respectBusinessHours: false, actions: [{ type: 'ADD_TAG', params: { tag: 'auto' } }, { type: 'CREATE_FOLLOW_UP', params: { inMinutes: 15, note: 'Call' } }] })
+      .expect(201);
+    const r = await http.post(`/api/webhooks/leads/${webhookKey}`).send({ name: 'Auto Test', phone: '9123456780' }).expect(200);
+    let lead;
+    for (let i = 0; i < 20; i++) {
+      lead = await prisma.lead.findUniqueOrThrow({ where: { id: r.body.leadId }, include: { followUps: true } });
+      if (lead.tags.includes('auto') && lead.followUps.length) break;
+      await sleep(150);
+    }
+    expect(lead!.tags).toContain('auto');
+    expect(lead!.followUps).toHaveLength(1);
+  });
+
+  it('pipeline stage changes are logged', async () => {
+    const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: brokerA.orgId, phone: '+919811100001' } });
+    await http.patch(`/api/leads/${lead.id}/stage`).set(auth(brokerA.token)).send({ stage: 'INTERESTED' }).expect(200);
+    const d = await http.get(`/api/leads/${lead.id}`).set(auth(brokerA.token)).expect(200);
+    expect(d.body.stage).toBe('INTERESTED');
+    expect(d.body.activities.some((a: any) => a.type === 'STAGE_CHANGE')).toBe(true);
+    const k = await http.get('/api/leads/kanban').set(auth(brokerA.token)).expect(200);
+    expect(k.body.find((c: any) => c.stage === 'INTERESTED').count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('rotates refresh tokens and detects reuse', async () => {
+    const r1 = await http.post('/api/auth/refresh').send({ refreshToken: brokerA.refresh }).expect(200);
+    await http.post('/api/auth/refresh').send({ refreshToken: brokerA.refresh }).expect(401); // reuse
+    await http.post('/api/auth/refresh').send({ refreshToken: r1.body.refreshToken }).expect(401); // family revoked
+  });
+
+  it('OTP login works (dev mode returns code when SMTP missing)', async () => {
+    const r = await http.post('/api/auth/otp/request').send({ email: email('otp') }).expect(200);
+    expect(r.body.devCode).toMatch(/^\d{6}$/);
+    await http.post('/api/auth/otp/verify').send({ email: email('otp'), code: '000000' === r.body.devCode ? '111111' : '000000' }).expect(401);
+    const v = await http.post('/api/auth/otp/verify').send({ email: email('otp'), code: r.body.devCode, name: 'OTP User' }).expect(200);
+    expect(v.body.user.emailVerified).toBe(true);
+  });
+
+  it('serves public homepage, localities and taxonomies', async () => {
+    const h = await http.get('/api/public/homepage').expect(200);
+    expect(h.body.find((s: any) => s.type === 'HERO')).toBeTruthy();
+    const loc = await http.get('/api/public/localities/sector-65-gurgaon').expect(200);
+    expect(loc.body.listingsSale).toBeGreaterThanOrEqual(1);
+    const t = await http.get('/api/public/taxonomies').expect(200);
+    expect(t.body.amenities.length).toBeGreaterThan(10);
+  });
+});

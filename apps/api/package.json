@@ -10,7 +10,7 @@
     "start:prod": "prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "jest --config jest.config.js --runInBand",
+    "test": "jest --config jest.config.js --runInBand src",
     "test:e2e": "jest --config jest.config.js --runInBand",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
