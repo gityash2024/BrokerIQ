@@ -4,7 +4,7 @@
     "base": {
       "node": "22.20.0",
       "pnpm": "11.25.0",
-      "env": { "EXPO_PUBLIC_API_URL": "https://YOUR-API.up.railway.app/api" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://api-production-448d.up.railway.app/api" }
     },
     "development": { "extends": "base", "developmentClient": true, "distribution": "internal" },
     "preview": { "extends": "base", "distribution": "internal", "android": { "buildType": "apk" }, "channel": "preview" },
