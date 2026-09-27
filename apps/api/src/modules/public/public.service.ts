@@ -122,7 +122,7 @@ export class PublicService {
         where: { status: 'ACTIVE', onboarded: true, OR: [{ localities: { some: { id: loc.id } } }, { listings: { some: { localityId: loc.id, status: 'ACTIVE' } } }] },
         orderBy: [{ verification: 'desc' }, { rating: 'desc' }],
         take: 8,
-        select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true, reviewCount: true },
+        select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true, reviewCount: true, _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } } },
       }),
       this.prisma.listing.groupBy({ by: ['bedrooms'], where: { localityId: loc.id, purpose: 'RENT', status: 'ACTIVE', deletedAt: null, bedrooms: { not: null } }, _avg: { price: true }, _count: { _all: true } }),
       this.prisma.listing.groupBy({ by: ['bedrooms'], where: { localityId: loc.id, status: 'ACTIVE', deletedAt: null, bedrooms: { not: null } }, _count: { _all: true } }),

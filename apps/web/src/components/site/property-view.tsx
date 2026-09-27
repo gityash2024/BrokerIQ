@@ -134,11 +134,11 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
             </div>
           </div>
 
-          <section className="card grid grid-cols-2 gap-px overflow-hidden bg-line sm:grid-cols-3 lg:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {facts
               .filter(([, , v]) => v != null && v !== '')
               .map(([icon, label, value]) => (
-                <div key={label} className="flex items-center gap-3 bg-surface p-4">
+                <div key={label} className="card flex items-center gap-3 p-3.5 transition hover:border-brand-300">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 [&_svg]:size-5">{icon}</span>
                   <div>
                     <p className="text-xs text-muted">{label}</p>
@@ -248,6 +248,17 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
             ))}
           </div>
         </section>
+      )}
+      {!l.canManage && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-line bg-surface/95 p-3 backdrop-blur-xl lg:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg leading-tight font-extrabold">{formatPriceShort(l.price)}{l.purpose === 'RENT' ? '/mo' : ''}</p>
+            <p className="truncate text-xs text-muted">{l.locality.name}</p>
+          </div>
+          <Button size="md" onClick={() => document.getElementById('enquiry')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+            Contact
+          </Button>
+        </div>
       )}
       <ReportDialog open={reportOpen} onOpenChange={setReportOpen} listingId={l.id} />
     </div>

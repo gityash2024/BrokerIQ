@@ -36,6 +36,20 @@ function Bounds({ onBounds }: { onBounds?: (bbox: string) => void }) {
   return null;
 }
 
+function Picker({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: (e) => onPick(e.latlng.lat, e.latlng.lng) });
+  return null;
+}
+
+function Recenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom() < 14 ? 15 : map.getZoom());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center[0], center[1]]);
+  return null;
+}
+
 function FitTo({ points }: { points: MapPoint[] }) {
   const map = useMap();
   useEffect(() => {
@@ -57,6 +71,8 @@ export default function MapView({
   radius,
   className = 'h-full w-full',
   scrollWheelZoom = true,
+  onPick,
+  recenter,
 }: {
   points: MapPoint[];
   center?: [number, number];
@@ -68,6 +84,8 @@ export default function MapView({
   radius?: number;
   className?: string;
   scrollWheelZoom?: boolean;
+  onPick?: (lat: number, lng: number) => void;
+  recenter?: boolean;
 }) {
   const icons = useMemo(() => {
     const m = new Map<string, L.DivIcon>();
@@ -86,6 +104,8 @@ export default function MapView({
       <Tiles />
       {fit && <FitTo points={points} />}
       {onBounds && <Bounds onBounds={onBounds} />}
+      {onPick && <Picker onPick={onPick} />}
+      {recenter && <Recenter center={center} />}
       {radius && <Circle center={center} radius={radius} pathOptions={{ color: '#4f46e5', fillColor: '#6366f1', fillOpacity: 0.12, weight: 2 }} />}
       {points.map((p) => (
         <Marker key={p.id} position={[p.lat, p.lng]} icon={icons.get(p.id)!} zIndexOffset={p.id === activeId ? 1000 : 0} eventHandlers={{ click: () => (onSelect ? onSelect(p) : p.href && (window.location.href = p.href)) }}>
