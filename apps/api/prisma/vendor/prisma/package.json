@@ -1,0 +1,8 @@
+{
+  "name": "prisma",
+  "version": "5.20.0",
+  "bin": {
+    "prisma": "bin.js"
+  },
+  "main": "index.js"
+}

@@ -1,0 +1,284 @@
+export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  BROKER_ADMIN = 'BROKER_ADMIN',
+  BROKER_STAFF = 'BROKER_STAFF',
+  BROKER_AGENT = 'BROKER_AGENT',
+  PROPERTY_OWNER = 'PROPERTY_OWNER',
+  SEEKER = 'SEEKER',
+}
+
+export const CORE_PERSONAS = [
+  Role.SUPER_ADMIN,
+  Role.BROKER_ADMIN,
+  Role.BROKER_AGENT,
+  Role.PROPERTY_OWNER,
+  Role.SEEKER,
+] as const;
+
+export enum LeadStage {
+  NEW = 'NEW',
+  CONTACTED = 'CONTACTED',
+  INTERESTED = 'INTERESTED',
+  FOLLOW_UP = 'FOLLOW_UP',
+  SITE_VISIT = 'SITE_VISIT',
+  NEGOTIATION = 'NEGOTIATION',
+  WON = 'WON',
+  LOST = 'LOST',
+  NOT_INTERESTED = 'NOT_INTERESTED',
+}
+
+export enum LeadSource {
+  HOUSING_COM = 'HOUSING_COM',
+  ACRES99 = 'ACRES99',
+  MAGICBRICKS = 'MAGICBRICKS',
+  WHATSAPP = 'WHATSAPP',
+  WEBSITE = 'WEBSITE',
+  REFERRAL = 'REFERRAL',
+  WALK_IN = 'WALK_IN',
+  MANUAL = 'MANUAL',
+}
+
+export enum Priority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+export const LeadPriority = Priority;
+export type LeadPriority = Priority;
+
+export enum PropertyType {
+  APARTMENT = 'APARTMENT',
+  VILLA = 'VILLA',
+  PLOT = 'PLOT',
+  COMMERCIAL = 'COMMERCIAL',
+  PENTHOUSE = 'PENTHOUSE',
+  FLOOR = 'FLOOR',
+}
+
+export enum ListingType {
+  SALE = 'SALE',
+  RENT = 'RENT',
+}
+
+export enum FurnishingStatus {
+  UNFURNISHED = 'UNFURNISHED',
+  SEMI_FURNISHED = 'SEMI_FURNISHED',
+  FULLY_FURNISHED = 'FULLY_FURNISHED',
+}
+
+export enum PropertyStatus {
+  AVAILABLE = 'AVAILABLE',
+  UNDER_OFFER = 'UNDER_OFFER',
+  SOLD = 'SOLD',
+  RENTED = 'RENTED',
+  INACTIVE = 'INACTIVE',
+}
+
+export enum FollowUpStatus {
+  SCHEDULED = 'SCHEDULED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  RESCHEDULED = 'RESCHEDULED',
+  MISSED = 'MISSED',
+}
+
+export enum FollowUpType {
+  CALL = 'CALL',
+  WHATSAPP = 'WHATSAPP',
+  EMAIL = 'EMAIL',
+  IN_PERSON = 'IN_PERSON',
+  MEETING = 'MEETING',
+}
+
+export enum SiteVisitStatus {
+  SCHEDULED = 'SCHEDULED',
+  CONFIRMED = 'CONFIRMED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  NO_SHOW = 'NO_SHOW',
+  RESCHEDULED = 'RESCHEDULED',
+}
+
+export enum SubscriptionStatus {
+  TRIALING = 'TRIALING',
+  ACTIVE = 'ACTIVE',
+  PAST_DUE = 'PAST_DUE',
+  PAUSED = 'PAUSED',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
+}
+
+export enum PlanTier {
+  FOUNDER = 'FOUNDER',
+  STARTER = 'STARTER',
+  PRO = 'PRO',
+  BUSINESS = 'BUSINESS',
+}
+
+export enum BillingPeriod {
+  MONTHLY = 'MONTHLY',
+  YEARLY = 'YEARLY',
+}
+
+export enum PaymentProvider {
+  RAZORPAY = 'RAZORPAY',
+  STRIPE = 'STRIPE',
+  MANUAL = 'MANUAL',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export enum PaymentMethod {
+  UPI = 'UPI',
+  NET_BANKING = 'NET_BANKING',
+  CREDIT_CARD = 'CREDIT_CARD',
+  DEBIT_CARD = 'DEBIT_CARD',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CHEQUE = 'CHEQUE',
+  CASH = 'CASH',
+}
+
+export enum InvoiceStatus {
+  DRAFT = 'DRAFT',
+  ISSUED = 'ISSUED',
+  PAID = 'PAID',
+  VOID = 'VOID',
+  UNCOLLECTIBLE = 'UNCOLLECTIBLE',
+}
+
+export enum ActivityType {
+  STAGE_CHANGED = 'STAGE_CHANGED',
+  CALL_LOGGED = 'CALL_LOGGED',
+  MESSAGE_SENT = 'MESSAGE_SENT',
+  NOTE_ADDED = 'NOTE_ADDED',
+  CREATED = 'CREATED',
+  UPDATED = 'UPDATED',
+  ASSIGNED = 'ASSIGNED',
+}
+
+export const ActionType = ActivityType;
+export type ActionType = ActivityType;
+
+export enum NotificationType {
+  LEAD_ASSIGNED = 'LEAD_ASSIGNED',
+  FOLLOW_UP_REMINDER = 'FOLLOW_UP_REMINDER',
+  SITE_VISIT_REMINDER = 'SITE_VISIT_REMINDER',
+  WHATSAPP_RECEIVED = 'WHATSAPP_RECEIVED',
+  SYSTEM_ALERT = 'SYSTEM_ALERT',
+  SUBSCRIPTION_EVENT = 'SUBSCRIPTION_EVENT',
+}
+
+export enum AuditAction {
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+  CREDENTIAL_UPDATE = 'CREDENTIAL_UPDATE',
+  SUBSCRIPTION_CHANGE = 'SUBSCRIPTION_CHANGE',
+  PLAN_CHANGE = 'PLAN_CHANGE',
+  INTEGRATION_CHANGE = 'INTEGRATION_CHANGE',
+  MEMBER_INVITE = 'MEMBER_INVITE',
+  MEMBER_REMOVE = 'MEMBER_REMOVE',
+}
+
+export enum SystemSettingCategory {
+  GENERAL = 'GENERAL',
+  BRANDING = 'BRANDING',
+  AI = 'AI',
+  PAYMENTS = 'PAYMENTS',
+  WHATSAPP = 'WHATSAPP',
+  HOUSING = 'HOUSING',
+  STORAGE = 'STORAGE',
+  NOTIFICATIONS = 'NOTIFICATIONS',
+  SECURITY = 'SECURITY',
+  FEATURE_FLAGS = 'FEATURE_FLAGS',
+}
+
+export enum AutomationTrigger {
+  LEAD_CREATED = 'LEAD_CREATED',
+  LEAD_STAGE_CHANGED = 'LEAD_STAGE_CHANGED',
+  INCOMING_WHATSAPP = 'INCOMING_WHATSAPP',
+  FOLLOW_UP_OVERDUE = 'FOLLOW_UP_OVERDUE',
+  SITE_VISIT_SCHEDULED = 'SITE_VISIT_SCHEDULED',
+}
+
+export const TriggerType = AutomationTrigger;
+export type TriggerType = AutomationTrigger;
+
+export enum MessageDirection {
+  INBOUND = 'INBOUND',
+  OUTBOUND = 'OUTBOUND',
+}
+
+export enum MessageStatus {
+  QUEUED = 'QUEUED',
+  SENT = 'SENT',
+  DELIVERED = 'DELIVERED',
+  READ = 'READ',
+  FAILED = 'FAILED',
+}
+
+export enum IntegrationType {
+  HOUSING_COM = 'HOUSING_COM',
+  META_WHATSAPP = 'META_WHATSAPP',
+  RAZORPAY = 'RAZORPAY',
+  GROQ_AI = 'GROQ_AI',
+  FCM = 'FCM',
+  DIGITALOCEAN_SPACES = 'DIGITALOCEAN_SPACES',
+}
+
+export const IntegrationProvider = IntegrationType;
+export type IntegrationProvider = IntegrationType;
+
+export enum AIProviderType {
+  GROQ = 'GROQ',
+  OPENAI = 'OPENAI',
+  ANTHROPIC = 'ANTHROPIC',
+}
+
+export enum AITaskType {
+  FEATURE_EXTRACTION = 'FEATURE_EXTRACTION',
+  CONVERSATION_SUMMARY = 'CONVERSATION_SUMMARY',
+  REPLY_SUGGESTION = 'REPLY_SUGGESTION',
+  LEAD_SCORING = 'LEAD_SCORING',
+  PROPERTY_MATCHING = 'PROPERTY_MATCHING',
+}
+
+export enum OrganizationStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum ConversationChannel {
+  WHATSAPP = 'WHATSAPP',
+  SMS = 'SMS',
+  EMAIL = 'EMAIL',
+}
+
+export enum MessageType {
+  TEXT = 'TEXT',
+  IMAGE = 'IMAGE',
+  DOCUMENT = 'DOCUMENT',
+  AUDIO = 'AUDIO',
+  VIDEO = 'VIDEO',
+  LOCATION = 'LOCATION',
+  TEMPLATE = 'TEMPLATE',
+}
+
+export enum SenderType {
+  USER = 'USER',
+  CONTACT = 'CONTACT',
+  SYSTEM = 'SYSTEM',
+  AI = 'AI',
+}

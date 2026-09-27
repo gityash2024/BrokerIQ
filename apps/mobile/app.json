@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "BrokerIQ",
+    "slug": "brokeriq",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#18222d"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.brokeriq.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#18222d"
+      },
+      "package": "com.brokeriq.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to scan listing books.",
+          "cameraPermission": "The app accesses your camera to scan listing books."
+        }
+      ]
+    ],
+    "scheme": "brokeriq",
+    "extra": {
+      "eas": {
+        "projectId": "brokeriq-local"
+      }
+    }
+  }
+}

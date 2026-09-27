@@ -1,0 +1,7 @@
+{
+  "name": "@prisma/client",
+  "version": "5.20.0",
+  "description": "Generated Prisma Client for BrokerIQ",
+  "main": "index.js",
+  "types": "index.d.ts"
+}

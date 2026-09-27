@@ -1,0 +1,21 @@
+{
+  "name": "brokeriq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-tenant SaaS CRM and automation platform for Indian real-estate brokers",
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "typescript": "file:.vendor/typescript-5.9.3.tgz"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
