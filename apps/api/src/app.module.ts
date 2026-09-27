@@ -9,6 +9,13 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuthModule } from './modules/auth/auth.module';
 import { MeModule } from './modules/me/me.module';
 import { HealthModule } from './modules/health/health.module';
+import { ListingsModule } from './modules/listings/listings.module';
+import { LeadsModule } from './modules/leads/leads.module';
+import { EnquiriesModule } from './modules/enquiries/enquiries.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { PublicModule } from './modules/public/public.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -19,6 +26,13 @@ import { HealthModule } from './modules/health/health.module';
     AuthModule,
     MeModule,
     HealthModule,
+    ListingsModule,
+    LeadsModule,
+    EnquiriesModule,
+    OrganizationsModule,
+    PublicModule,
+    IntegrationsModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
