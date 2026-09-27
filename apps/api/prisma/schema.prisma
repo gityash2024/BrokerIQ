@@ -1419,3 +1419,73 @@ model FeatureFlag {
   enabled     Boolean  @default(true)
   updatedAt   DateTime @updatedAt
 }
+
+// ============================================================ Feedback & roadmap
+
+enum FeedbackType {
+  BUG
+  FEATURE
+  IMPROVEMENT
+  COMPLAINT
+  GENERAL
+}
+
+enum FeedbackStatus {
+  OPEN
+  UNDER_REVIEW
+  PLANNED
+  IN_PROGRESS
+  DONE
+  DECLINED
+}
+
+model Feedback {
+  id           String         @id @default(cuid())
+  userId       String?
+  type         FeedbackType   @default(GENERAL)
+  title        String
+  description  String
+  screenshots  String[]
+  rating       Int?
+  platform     String         @default("WEB")
+  appVersion   String?
+  pageUrl      String?
+  contactEmail String?
+  status       FeedbackStatus @default(OPEN)
+  isPublic     Boolean        @default(false)
+  voteCount    Int            @default(0)
+  adminReply   String?
+  mergedIntoId String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  votes    FeedbackVote[]
+  comments FeedbackComment[]
+
+  @@index([status, isPublic])
+  @@index([userId])
+}
+
+model FeedbackVote {
+  feedbackId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@id([feedbackId, userId])
+}
+
+model FeedbackComment {
+  id         String   @id @default(cuid())
+  feedbackId String
+  userId     String?
+  authorName String
+  isAdmin    Boolean  @default(false)
+  body       String
+  createdAt  DateTime @default(now())
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, createdAt])
+}

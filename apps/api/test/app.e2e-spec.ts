@@ -207,4 +207,20 @@ describe('BrokerIQ API (e2e)', () => {
     const t = await http.get('/api/public/taxonomies').expect(200);
     expect(t.body.amenities.length).toBeGreaterThan(10);
   });
+
+  it('feedback: submit → admin publishes on roadmap → votes → status notifications', async () => {
+    const f = await http.post('/api/feedback').set(auth(user.token)).send({ type: 'FEATURE', title: 'Metro distance filter', description: 'Search में metro से distance का filter चाहिए', rating: 5 }).expect(201);
+    await http.post('/api/feedback').send({ type: 'BUG', title: 'Anon bug', description: 'Without email should fail' }).expect(400);
+    let board = await http.get('/api/feedback/board').expect(200);
+    expect(board.body.items.find((x: any) => x.id === f.body.id)).toBeUndefined(); // private until admin publishes
+    await http.patch(`/api/feedback/${f.body.id}`).set(auth(user.token)).send({ status: 'PLANNED' }).expect(403);
+    await http.patch(`/api/feedback/${f.body.id}`).set(auth(admin)).send({ isPublic: true, status: 'PLANNED', adminReply: 'अगले release में' }).expect(200);
+    const v = await http.post(`/api/feedback/${f.body.id}/vote`).set(auth(brokerA.token)).expect(201);
+    expect(v.body).toMatchObject({ voted: true, voteCount: 2 });
+    board = await http.get('/api/feedback/board').set(auth(brokerA.token)).expect(200);
+    const item = board.body.items.find((x: any) => x.id === f.body.id);
+    expect(item).toMatchObject({ status: 'PLANNED', voted: true, voteCount: 2 });
+    const notes = await http.get('/api/me/notifications').set(auth(user.token)).expect(200);
+    expect(notes.body.items.some((n: any) => n.title.includes('Metro distance filter'))).toBe(true);
+  });
 });

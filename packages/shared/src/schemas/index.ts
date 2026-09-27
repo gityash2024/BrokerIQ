@@ -372,3 +372,27 @@ export const broadcastSchema = z.object({
   body: z.string().min(2).max(2000),
   link: z.string().max(300).optional().nullable(),
 });
+
+// ------------------------------------------------------------------ Feedback
+export const FEEDBACK_TYPES = ['BUG', 'FEATURE', 'IMPROVEMENT', 'COMPLAINT', 'GENERAL'] as const;
+export const FEEDBACK_STATUSES = ['OPEN', 'UNDER_REVIEW', 'PLANNED', 'IN_PROGRESS', 'DONE', 'DECLINED'] as const;
+export const feedbackSchema = z.object({
+  type: z.enum(FEEDBACK_TYPES).default('GENERAL'),
+  title: z.string().trim().min(4, 'Title कम से कम 4 अक्षर').max(140),
+  description: z.string().trim().min(10, 'थोड़ा detail में लिखें').max(5000),
+  screenshots: z.array(z.string().url()).max(5).default([]),
+  rating: z.number().int().min(1).max(5).optional().nullable(),
+  platform: z.enum(['WEB', 'ANDROID', 'IOS']).default('WEB'),
+  appVersion: z.string().max(20).optional().nullable(),
+  pageUrl: z.string().max(300).optional().nullable(),
+  contactEmail: z.string().email().optional().nullable().or(z.literal('')),
+});
+export type FeedbackInput = z.infer<typeof feedbackSchema>;
+export const feedbackAdminSchema = z.object({
+  status: z.enum(FEEDBACK_STATUSES).optional(),
+  isPublic: z.boolean().optional(),
+  adminReply: z.string().max(3000).optional().nullable(),
+  type: z.enum(FEEDBACK_TYPES).optional(),
+  title: z.string().min(4).max(140).optional(),
+  mergedIntoId: z.string().optional().nullable(),
+});

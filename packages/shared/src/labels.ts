@@ -131,3 +131,27 @@ export const VISIT_STATUS_LABELS: Record<VisitStatus, string> = {
   CANCELLED: 'Cancelled',
   NO_SHOW: 'No-show',
 };
+
+export const FEEDBACK_TYPE_LABELS: Record<string, string> = {
+  BUG: 'Bug / problem',
+  FEATURE: 'New feature',
+  IMPROVEMENT: 'Improvement',
+  COMPLAINT: 'Complaint',
+  GENERAL: 'General feedback',
+};
+export const FEEDBACK_STATUS_LABELS: Record<string, string> = {
+  OPEN: 'Open',
+  UNDER_REVIEW: 'Under review',
+  PLANNED: 'Planned',
+  IN_PROGRESS: 'In progress',
+  DONE: 'Shipped',
+  DECLINED: 'Declined',
+};
+export const FEEDBACK_STATUS_COLORS: Record<string, string> = {
+  OPEN: '#64748B',
+  UNDER_REVIEW: '#0EA5E9',
+  PLANNED: '#6366F1',
+  IN_PROGRESS: '#F59E0B',
+  DONE: '#22C55E',
+  DECLINED: '#EF4444',
+};
