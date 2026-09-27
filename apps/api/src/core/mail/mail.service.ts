@@ -6,6 +6,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_TEMPLATES } from './default-templates';
 
 export interface MailInput {
+  /** Hidden recipients (bulk sends must never expose addresses to each other) */
+  bcc?: string | string[];
   to: string | string[];
   subject: string;
   html: string;
@@ -38,7 +40,7 @@ export class MailService {
   async send(input: MailInput) {
     const { tx, from } = await this.transport();
     const app = await this.settings.getAppConfig();
-    await tx.sendMail({ from, to: input.to, subject: input.subject, html: wrapHtml(input.html, app.siteName, app.primaryColor), text: input.text, replyTo: input.replyTo });
+    await tx.sendMail({ from, to: input.to, bcc: input.bcc, subject: input.subject, html: wrapHtml(input.html, app.siteName, app.primaryColor), text: input.text, replyTo: input.replyTo });
   }
 
   /** Send using an admin-editable template (Template table, falling back to built-in defaults). */

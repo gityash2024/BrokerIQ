@@ -418,7 +418,7 @@ export class AdminCoreController {
     if (body.channel === 'EMAIL') {
       await this.settings.require('smtp');
       for (let i = 0; i < users.length; i += 40) {
-        await this.mail.send({ to: users.slice(i, i + 40).map((u) => u.email), subject: body.title, html: `<p>${escapeHtml(body.body).replace(/\n/g, '<br/>')}</p>${body.link ? `<p><a href="${body.link}">Open →</a></p>` : ''}` }).catch(() => undefined);
+        await this.mail.send({ to: (await this.settings.resolve('smtp'))?.fromEmail as string, bcc: users.slice(i, i + 40).map((u) => u.email), subject: body.title, html: `<p>${escapeHtml(body.body).replace(/\n/g, '<br/>')}</p>${body.link ? `<p><a href="${body.link}">Open →</a></p>` : ''}` }).catch(() => undefined);
       }
     } else {
       for (let i = 0; i < users.length; i += 200) {

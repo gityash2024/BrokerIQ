@@ -10,6 +10,7 @@ import { SectionTitle } from '../site/page-shell';
 import { Map } from '../site/map';
 import { Button } from '../ui/button';
 import { useConfig } from '@/lib/config';
+import { img } from '@/lib/utils';
 
 const ICONS: Record<string, any> = { 'shield-check': ShieldCheck, 'map-pinned': MapPinned, 'messages-square': MessagesSquare, sparkles: Sparkles, star: Star, 'badge-check': BadgeCheck };
 
@@ -342,6 +343,32 @@ export function CtaBannerSection({ s }: { s: any }) {
           </div>
         </div>
       </Reveal>
+    </section>
+  );
+}
+
+/** Admin-managed image banner — used for sponsored builder / project promotions. */
+export function BannerSection({ s }: { s: any }) {
+  const c = s.config ?? {};
+  if (!c.imageUrl) return null;
+  const inner = (
+    <div className="group relative overflow-hidden rounded-[28px] border border-line bg-surface-2 shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={img(c.imageUrl, 1600)} alt={s.title ?? ''} className="aspect-[21/7] w-full object-cover transition duration-700 group-hover:scale-[1.02]" />
+      {(s.title || s.subtitle) && (
+        <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-black/10 to-transparent p-6 sm:p-10">
+          <div>
+            {s.title && <h2 className="font-display text-2xl font-extrabold text-white sm:text-3xl">{s.title}</h2>}
+            {s.subtitle && <p className="mt-1 max-w-xl text-white/85">{s.subtitle}</p>}
+          </div>
+        </div>
+      )}
+      {c.sponsor && <span className="absolute top-4 right-4 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">Sponsored · {c.sponsor}</span>}
+    </div>
+  );
+  return (
+    <section className="container-x py-10">
+      <Reveal>{c.link ? <a href={c.link} target={String(c.link).startsWith('http') ? '_blank' : undefined} rel="noreferrer">{inner}</a> : inner}</Reveal>
     </section>
   );
 }

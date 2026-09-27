@@ -64,7 +64,7 @@ export class PublicService {
         case 'FEATURED_LISTINGS': {
           const ids: string[] = Array.isArray(cfg.listingIds) ? cfg.listingIds : [];
           data = await this.prisma.listing.findMany({
-            where: { status: 'ACTIVE', deletedAt: null, ...(ids.length ? { id: { in: ids } } : {}) },
+            where: { status: 'ACTIVE', deletedAt: null, ...(ids.length ? { id: { in: ids } } : {}), ...(cfg.purpose === 'SALE' || cfg.purpose === 'RENT' ? { purpose: cfg.purpose } : {}) },
             orderBy: [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { publishedAt: 'desc' }],
             take: cfg.limit ?? 8,
             select: LISTING_CARD_SELECT,

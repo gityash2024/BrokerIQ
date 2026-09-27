@@ -2,6 +2,7 @@ import { sget } from '@/lib/server';
 import { PageShell } from '@/components/site/page-shell';
 import {
   AppDownloadSection,
+  BannerSection,
   BlogSection,
   BrokersSection,
   CtaBannerSection,
@@ -30,6 +31,7 @@ const RENDERERS: Record<string, (p: { s: any }) => React.ReactNode> = {
   APP_DOWNLOAD: AppDownloadSection,
   BLOG: BlogSection,
   CTA_BANNER: CtaBannerSection,
+  BANNER: BannerSection,
 };
 
 export default async function HomePage() {
