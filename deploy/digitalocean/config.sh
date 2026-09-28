@@ -17,5 +17,5 @@ API_DOMAIN=brokeriqapi.mymultimeds.com
 export PATH="$BASE/runtime/node/bin:$PATH"
 export COREPACK_HOME="$BASE/runtime/corepack"
 # pm2 daemon is the server's shared one (global Node 20) — always call it with the system PATH.
-pm2() { env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root command pm2 "$@"; }
+pm2() { env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root pm2 "$@"; }
 log() { printf '\n\033[1;34m[brokeriq]\033[0m %s\n' "$*"; }
