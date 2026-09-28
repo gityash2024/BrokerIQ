@@ -78,6 +78,7 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}>
               <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
               <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
               <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
               <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
             </Stack>

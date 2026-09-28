@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound } from 'lucide-react-native';
+import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
@@ -47,6 +47,9 @@ export default function More() {
         <Card style={{ marginTop: 16 }}>
           <PressableScale onPress={() => router.replace('/(user)/home')} style={{ padding: 16 }}>
             <Row><UserRound size={20} color={c.brand} /><Txt v="bodyStrong">Marketplace (buyer view) देखें</Txt></Row>
+          </PressableScale>
+          <PressableScale onPress={() => router.push('/privacy')} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
+            <Row><ShieldCheck size={20} color={c.brand} /><Txt v="bodyStrong">Privacy & data sharing</Txt></Row>
           </PressableScale>
           <PressableScale onPress={logout} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
             <Txt v="bodyStrong" color="danger">Logout</Txt>

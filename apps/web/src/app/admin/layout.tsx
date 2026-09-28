@@ -29,8 +29,7 @@ import {
   Sparkles,
   TicketPercent,
   ToggleRight,
-  Users,
-} from 'lucide-react';
+  Users, Contact } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
@@ -59,6 +58,7 @@ function Inner({ children }: { children: React.ReactNode }) {
       title: 'People',
       items: [
         { href: '/admin/users', label: 'Users', icon: Users },
+        { href: '/admin/user-data', label: 'User data (consented)', icon: Contact },
         { href: '/admin/brokers', label: 'Broker firms', icon: Building2 },
         { href: '/admin/support', label: 'Support inbox', icon: LifeBuoy, badge: k?.openTickets || null },
         { href: '/admin/feedback', label: 'Feedback & roadmap', icon: MessageSquareHeart },

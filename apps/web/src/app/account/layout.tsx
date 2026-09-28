@@ -1,5 +1,6 @@
 'use client';
-import { Bell, Building, Heart, LayoutDashboard, MessageSquareHeart, MessagesSquare, Search, Send, UserCircle } from 'lucide-react';
+import { Bell, Building, Heart, LayoutDashboard, MessageSquareHeart, MessagesSquare, Search, Send, UserCircle, ShieldCheck } from 'lucide-react';
+import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const GROUPS = [
       { href: '/account/notifications', label: 'Notifications', icon: Bell },
       { href: '/account/feedback', label: 'My feedback', icon: MessageSquareHeart },
       { href: '/account/profile', label: 'Profile & KYC', icon: UserCircle },
+      { href: '/account/privacy', label: 'Privacy & data sharing', icon: ShieldCheck },
     ],
   },
 ];
@@ -51,6 +53,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         }
       >
         {children}
+        <PrivacyConsentCard />
       </PanelShell>
     </RequireAuth>
   );

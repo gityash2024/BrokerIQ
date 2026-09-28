@@ -26,6 +26,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.service';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { MediaModule } from './modules/media/media.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { MediaModule } from './modules/media/media.module';
     MaintenanceModule,
     FeedbackModule,
     MediaModule,
+    PrivacyModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

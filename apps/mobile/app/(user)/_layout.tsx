@@ -4,8 +4,10 @@ import { Heart, Home, MessageCircle, Search, UserRound } from 'lucide-react-nati
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { TabBar } from '@/components/tab-bar';
+import { usePrivacySync } from '@/lib/privacy';
 
 export default function UserTabs() {
+  usePrivacySync();
   const { user } = useAuth();
   const threads = useQuery({ queryKey: ['chat-threads'], queryFn: () => api<any[]>('/chat/threads'), enabled: !!user, refetchInterval: 60_000 });
   const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications'), enabled: !!user, refetchInterval: 60_000 });

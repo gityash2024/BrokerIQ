@@ -2,9 +2,10 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow, ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/broker/team', label: 'Team', icon: Users },
         ...(admin ? [{ href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign }, { href: '/broker/settings', label: 'Settings', icon: Settings }] : []),
         { href: '/broker/notifications', label: 'Notifications', icon: Bell },
+        { href: '/broker/privacy', label: 'Privacy & data sharing', icon: ShieldCheck },
         { href: '/broker/feedback', label: 'Feedback', icon: MessageSquareHeart },
       ],
     },
@@ -76,6 +78,7 @@ function Inner({ children }: { children: React.ReactNode }) {
     >
       {children}
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
+      <PrivacyConsentCard />
     </PanelShell>
   );
 }

@@ -7,8 +7,10 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useRealtime } from '@/lib/realtime';
 import { TabBar } from '@/components/tab-bar';
+import { usePrivacySync } from '@/lib/privacy';
 
 export default function BrokerTabs() {
+  usePrivacySync();
   const { user, isBroker } = useAuth();
   const dash = useQuery({ queryKey: ['broker-dashboard'], queryFn: () => api<any>('/broker/dashboard'), enabled: isBroker, refetchInterval: 60_000 });
   useRealtime('notification', (n: any) => n?.kind === 'NEW_LEAD' && dash.refetch());

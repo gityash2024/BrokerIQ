@@ -89,6 +89,7 @@ export default function Profile() {
           <Group title="Account">
             {user && <Item icon={<Bell size={20} color={c.brand} />} label="Notifications" onPress={() => router.push('/notifications')} />}
             {user && <Item icon={<UserCog size={20} color={c.brand} />} label="Profile, password & KYC" onPress={() => router.push('/edit-profile')} />}
+            {user && <Item icon={<ShieldCheck size={20} color={c.success} />} tint={c.success} label="Privacy & data sharing" sub="Location / contacts — आपकी मर्ज़ी" onPress={() => router.push('/privacy')} />}
             <Item
               icon={mode === 'dark' ? <Moon size={20} color={c.brand} /> : mode === 'light' ? <Sun size={20} color={c.brand} /> : <SunMoon size={20} color={c.brand} />}
               label="Theme"

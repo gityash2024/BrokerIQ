@@ -135,6 +135,35 @@ describe('BrokerIQ API (e2e)', () => {
     await http.post('/api/ai/scan/import').set(auth(user.token)).send({ rows: [row] }).expect(403);
   });
 
+  it('location & contacts need explicit consent, only Super Admin can read them, withdrawal deletes', async () => {
+    // nothing is accepted before consent
+    await http.post('/api/me/location').set(auth(user.token)).send({ latitude: 28.45, longitude: 77.03 }).expect(403);
+    await http.post('/api/me/contacts/sync').set(auth(user.token)).send({ contacts: [{ name: 'Ravi', phones: ['9811100077'] }] }).expect(403);
+    await http.post('/api/me/consent').set(auth(user.token)).send({ kind: 'LOCATION', granted: true, platform: 'android' }).expect(201);
+    await http.post('/api/me/consent').set(auth(user.token)).send({ kind: 'CONTACTS', granted: true, platform: 'android' }).expect(201);
+    await http.post('/api/me/location').set(auth(user.token)).send({ latitude: 28.45, longitude: 77.03, platform: 'android' }).expect(201);
+    const sync = await http.post('/api/me/contacts/sync').set(auth(user.token)).send({ contacts: [{ name: 'Ravi', phones: ['9811100077', '+91 98111 00077'] }, { name: 'Sita', phones: ['9811100088'], emails: ['Sita@x.in'] }] }).expect(201);
+    expect(sync.body.total).toBe(2); // same number twice → one contact
+    // stored encrypted
+    const raw = await prisma.userContact.findFirstOrThrow({ where: { userId: user.id } });
+    expect(raw.phoneEnc).not.toContain('98111');
+    // nobody but Super Admin can read it
+    await http.get('/api/admin/user-data').set(auth(brokerA.token)).expect(403);
+    await http.get(`/api/admin/user-data/${user.id}`).set(auth(user.token)).expect(403);
+    const d = await http.get(`/api/admin/user-data/${user.id}`).set(auth(admin)).expect(200);
+    expect(d.body.contacts.map((c: any) => c.phone).sort()).toEqual(['+919811100077', '+919811100088']);
+    expect(d.body.locations).toHaveLength(1);
+    const csv = await http.get(`/api/admin/user-data/${user.id}/contacts.csv`).set(auth(admin)).expect(200);
+    expect(csv.text).toContain('Sita');
+    expect(await prisma.auditLog.count({ where: { action: 'privacy.admin.view', entityId: user.id } })).toBe(1);
+    // withdrawing consent deletes the data
+    await http.delete('/api/me/data/CONTACTS').set(auth(user.token)).expect(200);
+    expect(await prisma.userContact.count({ where: { userId: user.id } })).toBe(0);
+    const st = await http.get('/api/me/privacy').set(auth(user.token)).expect(200);
+    expect(st.body.contacts.granted).toBe(false);
+    expect(st.body.location.granted).toBe(true);
+  });
+
   it('every listing needs admin approval: edits and re-activation go back to review', async () => {
     // content edit on an approved listing → back to review, hidden from public
     const e = await http.patch(`/api/listings/${listingId}`).set(auth(brokerA.token)).send({ description: 'Updated description with more details' }).expect(200);

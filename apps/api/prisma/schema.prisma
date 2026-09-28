@@ -398,9 +398,65 @@ model User {
   blogPosts      BlogPost[]
   chats          Conversation[]   @relation("ConversationUser")
   shareLinks     ShareLink[]
+  consents       UserConsent[]
+  locations      UserLocation[]
+  contacts       UserContact[]
 
   @@index([organizationId])
   @@index([role])
+}
+
+// ============================================================ Consent-based data (visible to Super Admin only)
+
+enum ConsentKind {
+  LOCATION
+  CONTACTS
+}
+
+/// Append-only consent history — the latest row per (user, kind) is the current decision.
+model UserConsent {
+  id            String      @id @default(cuid())
+  userId        String
+  kind          ConsentKind
+  granted       Boolean
+  policyVersion String
+  platform      String?
+  ip            String?
+  createdAt     DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, createdAt])
+}
+
+model UserLocation {
+  id         String   @id @default(cuid())
+  userId     String
+  latitude   Float
+  longitude  Float
+  accuracy   Float?
+  source     String
+  capturedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, capturedAt])
+}
+
+/// Phonebook entries shared with consent — encrypted at rest (AES-256-GCM), deduped by an HMAC of the phone.
+model UserContact {
+  id        String   @id @default(cuid())
+  userId    String
+  phoneHash String
+  nameEnc   String?
+  phoneEnc  String
+  emailEnc  String?
+  syncedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, phoneHash])
+  @@index([userId])
 }
 
 model RefreshToken {
