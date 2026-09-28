@@ -22,6 +22,8 @@ import { cmpVersion, useConfig } from '@/lib/config';
 import { registerPush } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
 import { Button, Toaster, Txt } from '@/ui';
+import { AssistantButton } from '@/components/assistant';
+import { loadLang } from '@/lib/lang';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
@@ -58,6 +60,7 @@ export default function RootLayout() {
   const { c, isDark } = useTheme();
   useEffect(() => {
     authStore.load();
+    loadLang();
   }, []);
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(c.bg).catch(() => undefined);
@@ -83,6 +86,7 @@ export default function RootLayout() {
               <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
             </Stack>
           </Gate>
+          <AssistantButton />
           <Toaster />
         </QueryClientProvider>
       </SafeAreaProvider>

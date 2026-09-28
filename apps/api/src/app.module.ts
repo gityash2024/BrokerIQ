@@ -27,11 +27,13 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.service';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { MediaModule } from './modules/media/media.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
+import { isInternalCall } from './common/internal';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
+    ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }], skipIf: (ctx) => isInternalCall(ctx.switchToHttp().getRequest()) }),
     PrismaModule,
     CoreModule,
     AuthModule,
@@ -55,6 +57,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
     FeedbackModule,
     MediaModule,
     PrivacyModule,
+    AssistantModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

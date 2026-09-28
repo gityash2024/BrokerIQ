@@ -20,13 +20,14 @@ const config: ExpoConfig = {
       NSCameraUsageDescription: 'Property photos और listing-book scan करने के लिए camera चाहिए।',
       NSPhotoLibraryUsageDescription: 'Property photos चुनने के लिए gallery access चाहिए।',
       NSLocationWhenInUseUsageDescription: 'आस-पास की properties और site-visit check-in के लिए location चाहिए।',
+      NSMicrophoneUsageDescription: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।',
       NSContactsUsageDescription: 'आपकी अनुमति से BrokerIQ admin आपके contacts तक rental services पहुँचा सके — कोई broker या user इन्हें नहीं देख सकता।',
     },
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
-    permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'READ_CONTACTS'],
+    permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'READ_CONTACTS', 'RECORD_AUDIO'],
     intentFilters: [
       {
         action: 'VIEW',
@@ -48,6 +49,8 @@ const config: ExpoConfig = {
     ['expo-notifications', { color: '#4F46E5' }],
     ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 220, resizeMode: 'contain', backgroundColor: '#1D2530' }],
     'expo-font',
+    // Voice input for the in-app AI assistant.
+    ['expo-audio', { microphonePermission: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।' }],
     // Google ML Kit document scanner (auto edge-detect, crop, clean-up, multi-page) for the broker listing-book scanner.
     'react-native-document-scanner-plugin',
   ],

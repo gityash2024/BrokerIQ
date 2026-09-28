@@ -73,6 +73,64 @@ export class AiService {
     return parseJsonLoose<T>(text);
   }
 
+  /**
+   * OpenAI-style tool calling (Groq natively, Gemini via its OpenAI-compatible endpoint).
+   * Returns the assistant message — either text or tool_calls to execute.
+   */
+  async chatWithTools(messages: any[], tools: any[], opts: { feature: string; orgId?: string | null; userId?: string; maxTokens?: number }) {
+    const p = await this.provider();
+    const url = p.name === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${p.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: p.textModel, messages, tools: tools.length ? tools : undefined, tool_choice: tools.length ? 'auto' : undefined, temperature: 0.2, max_tokens: opts.maxTokens ?? 1200 }),
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? `${p.name} HTTP ${res.status}`);
+      await this.track(p, opts, true, data.usage?.total_tokens ?? 0);
+      return (data.choices?.[0]?.message ?? { content: '' }) as { content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] };
+    } catch (e) {
+      await this.track(p, opts, false, 0);
+      throw new IntegrationFailedException(p.name, (e as Error).message);
+    }
+  }
+
+  /** Speech → text for the assistant's voice input (Groq Whisper; Gemini audio as fallback). */
+  async transcribe(audioBase64: string, mime: string, lang: string | undefined, opts: { userId?: string; orgId?: string | null }) {
+    const p = await this.provider();
+    const bytes = Buffer.from(audioBase64.replace(/^data:[^,]+,/, ''), 'base64');
+    try {
+      let text: string;
+      if (p.name === 'groq') {
+        const form = new FormData();
+        const ext = mime.includes('webm') ? 'webm' : mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac') ? 'm4a' : 'mp3';
+        form.append('file', new Blob([bytes], { type: mime }), `voice.${ext}`);
+        form.append('model', 'whisper-large-v3-turbo');
+        form.append('response_format', 'json');
+        if (lang && lang !== 'en') form.append('language', lang);
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${p.apiKey}` }, body: form });
+        const data: any = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error?.message ?? `Groq HTTP ${res.status}`);
+        text = String(data.text ?? '').trim();
+      } else {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(p.textModel)}:generateContent?key=${p.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Transcribe this voice note exactly, in the language spoken. Reply with the transcript only.' }, { inline_data: { mime_type: mime, data: bytes.toString('base64') } }] }] }),
+        });
+        const data: any = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error?.message ?? `Gemini HTTP ${res.status}`);
+        text = (data.candidates?.[0]?.content?.parts ?? []).map((x: any) => x.text).join('').trim();
+      }
+      await this.track(p, { feature: 'assistant-voice', ...opts }, true, 0);
+      return text;
+    } catch (e) {
+      await this.track(p, { feature: 'assistant-voice', ...opts }, false, 0);
+      throw new IntegrationFailedException(p.name, (e as Error).message);
+    }
+  }
+
   private async groqChat(p: Provider, model: string, messages: any[], opts: { json?: boolean; maxTokens?: number; temperature?: number }) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',

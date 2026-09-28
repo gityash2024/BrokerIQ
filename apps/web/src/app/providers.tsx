@@ -7,6 +7,7 @@ import { AuthProvider } from '@/lib/auth';
 import { ConfigProvider } from '@/lib/config';
 import { ApiError } from '@/lib/api';
 import { FeedbackWidget } from '@/components/feedback/feedback-widget';
+import { AssistantWidget } from '@/components/assistant/assistant';
 
 export function Providers({ children, config }: { children: React.ReactNode; config: PublicConfig | null }) {
   const [qc] = useState(
@@ -27,6 +28,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
         <AuthProvider>
           {children}
           <FeedbackWidget />
+          <AssistantWidget />
           <Toaster position="top-center" richColors closeButton />
         </AuthProvider>
       </ConfigProvider>
