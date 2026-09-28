@@ -110,7 +110,7 @@ export function Logo({ className, light, name = 'BrokerIQ' }: { className?: stri
 export function Stat({ label, value, icon, hint, tone = 'brand', className }: { label: string; value: React.ReactNode; icon?: React.ReactNode; hint?: React.ReactNode; tone?: 'brand' | 'success' | 'warning' | 'danger' | 'info'; className?: string }) {
   const bg = { brand: 'bg-brand-50 text-brand-600 dark:bg-brand-500/15', success: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15', warning: 'bg-amber-50 text-amber-600 dark:bg-amber-500/15', danger: 'bg-rose-50 text-rose-600 dark:bg-rose-500/15', info: 'bg-sky-50 text-sky-600 dark:bg-sky-500/15' }[tone];
   return (
-    <div className={cn('card flex items-start gap-3 p-4', className)}>
+    <div className={cn('card flex h-full items-start gap-3 p-4', className)}>
       {icon && <div className={cn('grid size-10 shrink-0 place-items-center rounded-xl', bg)}>{icon}</div>}
       <div className="min-w-0">
         <p className="text-xs font-medium text-muted">{label}</p>

@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { BlurView } from 'expo-blur';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -32,7 +32,9 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: BottomTa
   const insets = useSafeAreaInsets();
   return (
     <View style={{ position: 'absolute', left: 12, right: 12, bottom: Math.max(insets.bottom, 10), borderRadius: 26, overflow: 'hidden', borderWidth: 1, borderColor: c.line, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 20, elevation: 12 }}>
-      <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={{ flexDirection: 'row', paddingVertical: 8, backgroundColor: isDark ? 'rgba(19,22,38,0.85)' : 'rgba(255,255,255,0.88)' }}>
+      {Platform.OS === 'ios' && <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />}
+      {/* Android has no cheap real blur: use an (almost) opaque surface so content never shows through. */}
+      <View style={{ flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 4, backgroundColor: Platform.OS === 'ios' ? (isDark ? 'rgba(19,22,38,0.72)' : 'rgba(255,255,255,0.78)') : isDark ? 'rgba(19,22,38,0.97)' : 'rgba(255,255,255,0.98)' }}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const focused = state.index === index;
@@ -52,7 +54,7 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: BottomTa
             />
           );
         })}
-      </BlurView>
+      </View>
     </View>
   );
 }

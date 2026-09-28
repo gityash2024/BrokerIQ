@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -16,6 +16,9 @@ export default function Onboarding() {
   const router = useRouter();
   const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }) });
   const [f, setF] = useState({ firmName: user?.organization?.name ?? '', phone: user?.phone ?? '', whatsapp: '', reraNumber: '', gstNumber: '', about: '', experienceYears: '', address: '', logoUrl: '', localityIds: [] as string[] });
+  useEffect(() => {
+    if (user) setF((x) => ({ ...x, firmName: x.firmName || user.organization?.name || '', phone: x.phone || user.phone || '' }));
+  }, [user]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const logo = async (file?: File) => {

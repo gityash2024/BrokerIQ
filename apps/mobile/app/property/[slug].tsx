@@ -110,7 +110,7 @@ export default function Property() {
           </Animated.View>
           <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent', 'rgba(0,0,0,0.5)']} style={{ position: 'absolute', inset: 0 } as any} pointerEvents="none" />
           {photos.length > 1 && (
-            <View style={{ position: 'absolute', bottom: 14, right: 14, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <View style={{ position: 'absolute', bottom: 40, right: 14, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
               <Txt v="caption" color="white">{photo + 1} / {photos.length}</Txt>
             </View>
           )}

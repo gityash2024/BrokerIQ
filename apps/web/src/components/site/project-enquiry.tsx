@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle2, FileDown } from 'lucide-react';
 import { api, errorMessage } from '@/lib/api';
@@ -10,6 +10,9 @@ import { Input, Textarea } from '../ui/field';
 export function ProjectEnquiry({ projectId, name, brochureUrl }: { projectId: string; name: string; brochureUrl?: string | null }) {
   const { user } = useAuth();
   const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', message: `${name} के बारे में price list और site visit की जानकारी चाहिए।` });
+  useEffect(() => {
+    if (user) setF((x) => ({ ...x, name: x.name || user.name || '', phone: x.phone || user.phone || '' }));
+  }, [user]);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const submit = async (e: React.FormEvent) => {

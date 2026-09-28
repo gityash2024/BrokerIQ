@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BadgeCheck, Camera, Clock, FileUp, ShieldCheck, XCircle } from 'lucide-react';
@@ -13,6 +13,9 @@ import { Avatar, Badge } from '../ui/misc';
 export function ProfileForm() {
   const { user, refreshMe } = useAuth();
   const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '' });
+  useEffect(() => {
+    if (user) setF((x) => ({ ...x, name: x.name || user.name || '', phone: x.phone || user.phone || '' }));
+  }, [user]);
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '' });
   const [saving, setSaving] = useState(false);
   const save = async () => {

@@ -8,11 +8,14 @@ import { AlarmClock, Bell, CalendarCheck, IndianRupee, MessageCircle, Phone, Plu
 import { LEAD_SOURCE_COLORS, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatINR, timeAgo, whatsappLink, type LeadSource, type LeadStage } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useLightStatusBar } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge } from '@/components/crm';
-import { Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt } from '@/ui';
+import { Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
 
 export default function Dashboard() {
+  useLightStatusBar();
+  const scrim = useStatusScrim();
   const { c } = useTheme();
   const { user } = useAuth();
   const q = useQuery({ queryKey: ['broker-dashboard'], queryFn: () => api<any>('/broker/dashboard') });
@@ -25,7 +28,7 @@ export default function Dashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <Animated.ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView onScroll={scrim.onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#1E1B4B', '#3730A3', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
           <SafeAreaView edges={['top']} style={{ padding: 20, paddingBottom: 26 }}>
             <Row style={{ justifyContent: 'space-between' }}>
@@ -161,6 +164,7 @@ export default function Dashboard() {
           </View>
         </View>
       </Animated.ScrollView>
+      {scrim.view}
     </View>
   );
 }

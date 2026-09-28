@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -23,6 +23,9 @@ export function ContactCard({ listing }: { listing: any }) {
   const [sent, setSent] = useState(false);
   const [visitOpen, setVisitOpen] = useState(false);
   const [form, setForm] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', email: user?.email ?? '', message: `Hi, मुझे "${listing.title}" में interest है। कृपया details share करें।` });
+  useEffect(() => {
+    if (user) setForm((x) => ({ ...x, name: x.name || user.name || '', phone: x.phone || user.phone || '', email: x.email || user.email || '' }));
+  }, [user]);
   const [sending, setSending] = useState(false);
   const org = listing.organization;
   const isOwn = listing.canManage;

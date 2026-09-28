@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { StatusBar } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { ApiError, errorMessage } from './api';
@@ -34,4 +36,14 @@ export function useApiMutation<V = any, R = any>(fn: (v: V) => Promise<R>, opts:
       showError(e);
     },
   });
+}
+
+/** Light status-bar icons while a screen with a dark header is focused (stack entry is popped on blur). */
+export function useLightStatusBar() {
+  useFocusEffect(
+    useCallback(() => {
+      const entry = StatusBar.pushStackEntry({ barStyle: 'light-content', animated: true });
+      return () => StatusBar.popStackEntry(entry);
+    }, []),
+  );
 }

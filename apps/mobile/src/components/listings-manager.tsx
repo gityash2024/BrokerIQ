@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Building2, Eye, MessageSquare, Pencil, Plus, Rocket } from 'lucide-react-native';
-import { LISTING_STATUS_LABELS, formatPriceShort, type ListingStatus } from '@brokeriq/shared';
+import { LISTING_STATUS_LABELS, formatPriceShort, type ListingStatus, plural } from '@brokeriq/shared';
 import { api, patch } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -62,8 +62,8 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
                 {l.status === 'REJECTED' && !!l.rejectionReason && <Txt v="small" color="danger">Reason: {l.rejectionReason}</Txt>}
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Row gap={14}>
-                    <Row gap={4}><Eye size={14} color={c.muted} /><Txt v="caption" color="muted">{l.views} views</Txt></Row>
-                    <Row gap={4}><MessageSquare size={14} color={c.muted} /><Txt v="caption" color="muted">{l.enquiryCount} enquiries</Txt></Row>
+                    <Row gap={4}><Eye size={14} color={c.muted} /><Txt v="caption" color="muted">{plural(l.views, 'view')}</Txt></Row>
+                    <Row gap={4}><MessageSquare size={14} color={c.muted} /><Txt v="caption" color="muted">{plural(l.enquiryCount, 'enquiry', 'enquiries')}</Txt></Row>
                   </Row>
                   {l.status === 'ACTIVE' && !l.isFeatured && (
                     <Button title="Boost" size="sm" variant="accent" icon={<Rocket size={14} color="#111" />} onPress={() => router.push({ pathname: '/boost', params: { id: l.id, title: l.title } })} />

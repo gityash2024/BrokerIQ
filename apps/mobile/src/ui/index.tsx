@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +19,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import Animated, { FadeInDown, FadeOutUp, SlideInDown, SlideOutDown, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutUp, SlideInDown, SlideOutDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -106,12 +107,48 @@ export function SectionTitle({ title, subtitle, action }: { title: string; subti
 }
 
 // ------------------------------------------------------------------ Pressables
+/**
+ * For screens whose dark hero scrolls under a light-icon status bar: fades in a solid bar behind the
+ * status icons once the hero has scrolled away, so content never collides with the clock/battery.
+ * Usage: const scrim = useStatusScrim(); <Animated.ScrollView onScroll={scrim.onScroll} scrollEventThrottle={16}> … {scrim.view}
+ */
+export function useStatusScrim(color = '#1E1B4B', fadeFrom = 60) {
+  const insets = useSafeAreaInsets();
+  const y = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    y.value = e.contentOffset.y;
+  });
+  const style = useAnimatedStyle(() => ({ opacity: interpolate(y.value, [fadeFrom, fadeFrom + 60], [0, 1], 'clamp') }));
+  const view = <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: color }, style]} />;
+  return { onScroll, view };
+}
+
+/** Style keys that size/position the element inside its parent — they must live on the Pressable itself. */
+const OUTER_KEYS = ['flex', 'flexGrow', 'flexShrink', 'flexBasis', 'width', 'minWidth', 'maxWidth', 'alignSelf', 'position', 'top', 'left', 'right', 'bottom', 'zIndex', 'margin', 'marginHorizontal', 'marginVertical', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginStart', 'marginEnd'] as const;
+
+function splitPressStyle(style: StyleProp<ViewStyle>) {
+  const flat = { ...(StyleSheet.flatten(style) ?? {}) } as Record<string, unknown>;
+  const outer: Record<string, unknown> = {};
+  for (const k of OUTER_KEYS) {
+    if (flat[k] !== undefined) {
+      outer[k] = flat[k];
+      delete flat[k];
+    }
+  }
+  // A flex item's size comes from its parent row, so let the animated body fill it (equal-height rows).
+  // Only for flex items: in unbounded containers (horizontal lists) flexGrow would collapse the body.
+  if (outer.flex !== undefined || outer.flexGrow !== undefined) flat.flexGrow = 1;
+  return { outer: outer as ViewStyle, inner: flat as ViewStyle };
+}
+
 export function PressableScale({ children, style, onPress, haptic = true, disabled, ...p }: PressableProps & { style?: StyleProp<ViewStyle>; haptic?: boolean; children: React.ReactNode }) {
   const s = useSharedValue(1);
   const a = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
+  const { outer, inner } = splitPressStyle(style);
   return (
     <Pressable
       {...p}
+      style={outer}
       disabled={disabled}
       onPressIn={() => (s.value = withSpring(0.96, { damping: 20, stiffness: 400 }))}
       onPressOut={() => (s.value = withSpring(1, { damping: 15, stiffness: 300 }))}
@@ -120,7 +157,7 @@ export function PressableScale({ children, style, onPress, haptic = true, disabl
         onPress?.(e);
       }}
     >
-      <Animated.View style={[style, a, disabled && { opacity: 0.5 }]}>{children}</Animated.View>
+      <Animated.View style={[inner, a, disabled && { opacity: 0.5 }]}>{children}</Animated.View>
     </Pressable>
   );
 }
@@ -198,11 +235,11 @@ export function Chip({ label, active, onPress, icon, color }: { label: string; a
 export function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; count?: number }[] }) {
   const { c } = useTheme();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, padding: 4, backgroundColor: c.surface2, borderRadius: 16 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ flexGrow: 1, gap: 6, padding: 4, backgroundColor: c.surface2, borderRadius: 16 }}>
       {options.map((o) => {
         const on = o.value === value;
         return (
-          <PressableScale key={o.value} onPress={() => onChange(o.value)} style={{ paddingHorizontal: 14, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: on ? c.surface : 'transparent', shadowColor: '#000', shadowOpacity: on ? 0.06 : 0, shadowRadius: 6, elevation: on ? 1 : 0 }}>
+          <PressableScale key={o.value} onPress={() => onChange(o.value)} style={{ flexGrow: 1, paddingHorizontal: 14, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: on ? c.surface : 'transparent', shadowColor: '#000', shadowOpacity: on ? 0.06 : 0, shadowRadius: 6, elevation: on ? 1 : 0 }}>
             <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: on ? c.fg : c.muted }}>{o.label}</Text>
             {!!o.count && <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: c.brand }}>{o.count}</Text>}
           </PressableScale>
@@ -261,8 +298,9 @@ export function Empty({ title, text, icon, action }: { title: string; text?: str
   return (
     <Animated.View entering={FadeInDown.duration(400)} style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24, gap: 8 }}>
       <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>{icon ?? <Inbox size={28} color={c.brand} />}</View>
-      <Txt v="h3" style={{ textAlign: 'center' }}>{title}</Txt>
-      {!!text && <Txt v="small" color="muted" style={{ textAlign: 'center' }}>{text}</Txt>}
+      {/* alignSelf: stretch — Android under-measures centred Devanagari and clips the last word otherwise */}
+      <Txt v="h3" style={{ textAlign: 'center', alignSelf: 'stretch' }}>{title}</Txt>
+      {!!text && <Txt v="small" color="muted" style={{ textAlign: 'center', alignSelf: 'stretch' }}>{text}</Txt>}
       {action && <View style={{ marginTop: 10 }}>{action}</View>}
     </Animated.View>
   );
@@ -301,8 +339,9 @@ export function Sheet({ open, onClose, title, children, full }: { open: boolean;
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      {/* Android sizes the modal root without the system bars even though it draws edge-to-edge, so pin the sheet to the real screen height. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={Platform.OS === 'android' ? { position: 'absolute', top: 0, left: 0, right: 0, height: Dimensions.get('screen').height } : { flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
         {open && (
           <Animated.View entering={SlideInDown.springify().damping(18)} exiting={SlideOutDown} style={{ backgroundColor: c.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 12, maxHeight: full ? '94%' : '88%' }}>

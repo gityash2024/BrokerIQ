@@ -9,10 +9,11 @@ import { ArrowRight, Bell, Building2, Calculator, Home, KeyRound, Landmark, MapP
 import { api, img } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
+import { useLightStatusBar } from '@/lib/hooks';
 import { palette, useTheme } from '@/lib/theme';
 import { BrokerCard, LocalityCard, ProjectCard } from '@/components/cards';
 import { ListingCard } from '@/components/listing';
-import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt } from '@/ui';
+import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
 
 const QUICK = [
   { label: 'Buy', icon: Home, purpose: 'SALE', category: 'RESIDENTIAL' },
@@ -101,6 +102,7 @@ function HScroll<T>({ data, render, keyOf }: { data: T[]; render: (x: T, i: numb
 
 function Section({ s }: { s: any }) {
   const { c } = useTheme();
+  const { user, isBroker } = useAuth();
   const { app } = useConfig();
   const items = (s.data ?? []) as any[];
   const T = ({ action }: { action?: React.ReactNode }) => (
@@ -151,7 +153,7 @@ function Section({ s }: { s: any }) {
                 <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: `${t.tint}22`, alignItems: 'center', justifyContent: 'center' }}>
                   <t.icon size={20} color={t.tint} />
                 </View>
-                <Txt v="bodyStrong">{t.label}</Txt>
+                <Txt v="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t.label}</Txt>
               </Card>
             ))}
           </Row>
@@ -164,7 +166,7 @@ function Section({ s }: { s: any }) {
             <Building2 size={28} color="#fff" />
             <Txt v="h2" color="white">{s.title}</Txt>
             {!!s.subtitle && <Txt color="rgba(255,255,255,0.9)">{s.subtitle}</Txt>}
-            <Button title={s.config?.ctaLabel ?? 'Get started'} variant="dark" size="sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => router.push('/login')} />
+            <Button title={s.config?.ctaLabel ?? 'Get started'} variant="dark" size="sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => router.push(!user ? '/login' : isBroker ? '/(broker)/dashboard' : '/broker-onboarding')} />
           </LinearGradient>
         </View>
       );
@@ -208,13 +210,15 @@ function Section({ s }: { s: any }) {
 }
 
 export default function HomeScreen() {
+  useLightStatusBar();
+  const scrim = useStatusScrim();
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['homepage'], queryFn: () => api<any[]>('/public/homepage', { auth: false }) });
   const sections = q.data ?? [];
   const hero = sections.find((s) => s.type === 'HERO');
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <Animated.ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <Animated.ScrollView onScroll={scrim.onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <Hero s={hero} />
         {q.isError && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {q.isLoading && (
@@ -229,6 +233,7 @@ export default function HomeScreen() {
         )}
         {sections.filter((s) => s.type !== 'HERO').map((s) => <Section key={s.id} s={s} />)}
       </Animated.ScrollView>
+      {scrim.view}
     </View>
   );
 }

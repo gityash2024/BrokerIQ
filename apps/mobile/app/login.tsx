@@ -5,12 +5,13 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Building2, KeyRound, Lock, Mail, User, X } from 'lucide-react-native';
 import type { AuthResponse } from '@brokeriq/shared';
 import { post } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
-import { showError } from '@/lib/hooks';
+import { showError, useLightStatusBar } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Button, Chip, IconBtn, Input, Row, Screen, Segmented, Txt } from '@/ui';
@@ -28,7 +29,9 @@ function GoogleButton({ clientIds, accountType, onDone }: { clientIds: { web?: s
 }
 
 export default function Login() {
+  useLightStatusBar();
   const { c } = useTheme();
+  const insets = useSafeAreaInsets();
   const { app, integrations } = useConfig();
   const { setSession } = useAuth();
   const [mode, setMode] = useState<Mode>(app.auth?.allowEmailOtp === false ? 'password' : 'otp');
@@ -77,8 +80,8 @@ export default function Login() {
   ];
 
   return (
-    <Screen keyboard padded={false} edges={['top', 'bottom']}>
-      <LinearGradient colors={['#1E1B4B', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 44, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
+    <Screen keyboard padded={false} edges={['bottom']}>
+      <LinearGradient colors={['#1E1B4B', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 44, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Txt v="h3" color="white">{app.siteName}</Txt>
           <IconBtn onPress={() => (router.canGoBack() ? router.back() : router.replace('/(user)/home'))} style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>

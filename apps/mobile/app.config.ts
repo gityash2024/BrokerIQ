@@ -24,7 +24,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1E1B4B' },
+    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
     permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS'],
     intentFilters: [
       {
@@ -43,7 +43,7 @@ const config: ExpoConfig = {
     ['expo-image-picker', { photosPermission: 'Property photos चुनने के लिए gallery access चाहिए।', cameraPermission: 'Photos और listing-book scan के लिए camera चाहिए।' }],
     ['expo-location', { locationWhenInUsePermission: 'आस-पास की properties और site-visit check-in के लिए location चाहिए।' }],
     ['expo-notifications', { color: '#4F46E5' }],
-    ['expo-splash-screen', { image: './assets/splash.png', imageWidth: 200, backgroundColor: '#1E1B4B' }],
+    ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 240, resizeMode: 'contain', backgroundColor: '#1D2530' }],
     'expo-font',
   ],
   experiments: { typedRoutes: false },

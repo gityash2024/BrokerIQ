@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeCheck, Building2, MapPin, Star, TrendingUp } from 'lucide-react-native';
-import { POSSESSION_LABELS, formatPriceShort } from '@brokeriq/shared';
+import { POSSESSION_LABELS, formatPriceShort, plural } from '@brokeriq/shared';
 import { img } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Badge, PressableScale, Row, Txt } from '@/ui';
@@ -31,7 +31,7 @@ export function LocalityCard({ l, index = 0 }: { l: any; index?: number }) {
             <Txt v="caption" color="#D1FAE5">₹{Math.round(l.avgPsf).toLocaleString('en-IN')}/sqft</Txt>
           </Row>
         )}
-        <Txt v="caption" color="rgba(255,255,255,0.8)">{(l.listingsSale ?? 0) + (l.listingsRent ?? 0)} listings</Txt>
+        <Txt v="caption" color="rgba(255,255,255,0.8)">{plural((l.listingsSale ?? 0) + (l.listingsRent ?? 0), 'listing')}</Txt>
       </View>
     </PressableScale>
   );
@@ -79,7 +79,7 @@ export function BrokerCard({ b }: { b: any }) {
         <Star size={12} color="#F59E0B" fill={b.reviewCount ? '#F59E0B' : 'transparent'} />
         <Txt v="caption" color="muted">{b.reviewCount ? `${Number(b.rating).toFixed(1)} (${b.reviewCount})` : 'New'}</Txt>
       </Row>
-      <Txt v="caption" color="brand">{listings} listings</Txt>
+      <Txt v="caption" color="brand">{plural(listings, 'listing')}</Txt>
     </PressableScale>
   );
 }

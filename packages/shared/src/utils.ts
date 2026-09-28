@@ -121,3 +121,9 @@ export function initials(name: string | null | undefined): string {
     .map((p) => p[0]?.toUpperCase() ?? '')
     .join('');
 }
+
+/** "1 listing" / "3 listings" — count with an English noun in the right number. */
+export function plural(n: number | null | undefined, one: string, many = `${one}s`): string {
+  const v = Number(n ?? 0);
+  return `${v.toLocaleString('en-IN')} ${v === 1 ? one : many}`;
+}

@@ -5,19 +5,22 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Building2, Camera, Rocket } from 'lucide-react-native';
 import type { AuthResponse } from '@brokeriq/shared';
 import { api, post, uploadUri } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { showError } from '@/lib/hooks';
+import { showError, useLightStatusBar } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Button, Chip, Input, PressableScale, Row, Screen, Txt } from '@/ui';
 
 export default function BrokerOnboarding() {
+  useLightStatusBar();
   const { c } = useTheme();
   const { user, setSession } = useAuth();
+  const insets = useSafeAreaInsets();
   const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const [f, setF] = useState({ firmName: user?.organization?.name ?? '', phone: user?.phone ?? '', whatsapp: '', reraNumber: '', gstNumber: '', about: '', experienceYears: '', address: '', logoUrl: '', localityIds: [] as string[] });
   const [q, setQ] = useState('');
@@ -49,11 +52,11 @@ export default function BrokerOnboarding() {
   };
   const toggle = (id: string) => setF((x) => ({ ...x, localityIds: x.localityIds.includes(id) ? x.localityIds.filter((y) => y !== id) : [...x.localityIds, id].slice(0, 30) }));
   return (
-    <Screen edges={['top', 'bottom']} keyboard padded={false}>
-      <LinearGradient colors={['#1E1B4B', '#4F46E5']} style={{ padding: 20, paddingBottom: 36, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+    <Screen edges={['bottom']} keyboard padded={false}>
+      <LinearGradient colors={['#1E1B4B', '#4F46E5']} style={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 36, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
         <Animated.View entering={FadeInDown}>
           <Building2 size={32} color="#fff" />
-          <Txt v="h1" color="white" style={{ marginTop: 10 }}>अपनी firm set up करें</Txt>
+          <Txt v="h1" color="white" style={{ marginTop: 10 }}>{user?.organization?.onboarded ? 'Firm profile' : 'अपनी firm set up करें'}</Txt>
           <Txt color="rgba(255,255,255,0.8)">Free CRM — Housing, 99acres, Facebook की सारी leads एक app में, WhatsApp automation के साथ।</Txt>
         </Animated.View>
       </LinearGradient>

@@ -13,7 +13,7 @@ export function LocalitiesExplorer({ locs }: { locs: any[] }) {
   return (
     <div className="container-x py-10">
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div>
+        <div className="min-w-0">
           <Input icon={<Search className="size-4" />} placeholder="Sector या locality खोजें" value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
             <Chip active={!zone} onClick={() => setZone(null)}>

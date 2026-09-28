@@ -119,7 +119,7 @@ export function ListingsSection({ s }: { s: any }) {
 
 export function MapExplorerSection({ s }: { s: any }) {
   const locs = ((s.data ?? []) as any[]).filter((l) => l.latitude && l.longitude);
-  const points = locs.map((l) => ({ id: l.id, lat: l.latitude, lng: l.longitude, label: `${l.name} · ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0)} listings`, href: `/locality/${l.slug}`, dot: true }));
+  const points = locs.map((l) => ({ id: l.id, lat: l.latitude, lng: l.longitude, label: `${l.name} · ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0)} ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0) === 1 ? 'listing' : 'listings'}`, href: `/locality/${l.slug}`, dot: true }));
   return (
     <section className="container-x py-16">
       <SectionTitle title={s.title} subtitle={s.subtitle} />

@@ -29,7 +29,7 @@ export function LocalityCard({ l, i = 0 }: { l: any; i?: number }) {
                 <TrendingUp className="size-3" /> {formatINR(l.avgPsf)}/sq.ft
               </span>
             ) : null}
-            <span className="opacity-90">{count ? `${count} listings` : 'Explore'}</span>
+            <span className="opacity-90">{count ? `${count} ${count === 1 ? 'listing' : 'listings'}` : 'Explore'}</span>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@ export function BrokerCard({ b }: { b: any }) {
         {b.reviewCount ? `${b.rating.toFixed(1)} (${b.reviewCount})` : 'New'}
         {b.experienceYears ? ` · ${b.experienceYears}+ yrs` : ''}
       </div>
-      <p className="mt-2 text-xs font-semibold text-brand-600">{listings} active listings</p>
+      <p className="mt-2 text-xs font-semibold text-brand-600">{listings} active {listings === 1 ? 'listing' : 'listings'}</p>
     </Link>
   );
 }

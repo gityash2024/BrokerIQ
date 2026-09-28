@@ -5,7 +5,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellPlus, List, Map as MapIcon, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, formatPriceShort, type PropertyType } from '@brokeriq/shared';
+import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, formatPriceShort, type PropertyType, plural } from '@brokeriq/shared';
 import { api, post, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useDebounced } from '@/lib/hooks';
@@ -118,7 +118,7 @@ export default function SearchScreen() {
         renderItem={({ item }) => <Chip label={item.l} active={f.purpose === item.k} onPress={() => set({ purpose: item.k, minPrice: undefined, maxPrice: undefined })} />}
       />
       <Row style={{ justifyContent: 'space-between' }}>
-        <Txt v="small" color="muted">{total != null ? `${total.toLocaleString('en-IN')} properties` : ' '}</Txt>
+        <Txt v="small" color="muted">{total != null ? plural(total, 'property', 'properties') : ' '}</Txt>
         <Row gap={6}>
           <Chip label="Alert" onPress={saveSearch} icon={<BellPlus size={14} color={c.muted} />} />
           <Chip label={mode === 'list' ? 'Map' : 'List'} onPress={() => setMode(mode === 'list' ? 'map' : 'list')} icon={mode === 'list' ? <MapIcon size={14} color={c.muted} /> : <List size={14} color={c.muted} />} />

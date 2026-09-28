@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Dimensions, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
+import { useLightStatusBar } from '@/lib/hooks';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, ZoomIn, useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -24,6 +25,7 @@ function Dot({ active }: { active: boolean }) {
 }
 
 export default function Onboarding() {
+  useLightStatusBar();
   const { app } = useConfig();
   const [i, setI] = useState(0);
   const list = useRef<FlatList>(null);

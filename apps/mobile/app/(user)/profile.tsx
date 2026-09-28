@@ -7,8 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Briefcase, Building2, Calculator, ChevronRight, HelpCircle, LogIn, LogOut, MessageSquareHeart, Moon, PlusCircle, Send, ShieldCheck, Sun, SunMoon, UserCog } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
+import { useLightStatusBar } from '@/lib/hooks';
 import { useTheme, useThemeMode } from '@/lib/theme';
-import { Avatar, Badge, Card, PressableScale, Row, Txt } from '@/ui';
+import { Avatar, Badge, Card, PressableScale, Row, Txt, useStatusScrim } from '@/ui';
 
 function Item({ icon, label, sub, onPress, tint, right }: { icon: React.ReactNode; label: string; sub?: string; onPress?: () => void; tint?: string; right?: React.ReactNode }) {
   const { c } = useTheme();
@@ -34,6 +35,8 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
 }
 
 export default function Profile() {
+  useLightStatusBar();
+  const scrim = useStatusScrim();
   const { c } = useTheme();
   const { user, logout, isBroker } = useAuth();
   const { app } = useConfig();
@@ -42,7 +45,7 @@ export default function Profile() {
   const nextMode = mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <Animated.ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView onScroll={scrim.onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#1E1B4B', '#4F46E5']} style={{ borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
           <SafeAreaView edges={['top']} style={{ padding: 20, paddingBottom: 30 }}>
             {user ? (
@@ -102,6 +105,7 @@ export default function Profile() {
           <Txt v="caption" color="subtle" style={{ textAlign: 'center', marginTop: 20 }}>{app.siteName} v{Constants.expoConfig?.version}</Txt>
         </Animated.View>
       </Animated.ScrollView>
+      {scrim.view}
     </View>
   );
 }

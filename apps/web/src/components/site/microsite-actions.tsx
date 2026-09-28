@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { MessageCircle, Phone, Send, Star } from 'lucide-react';
@@ -16,6 +16,9 @@ export function MicrositeActions({ org }: { org: { id: string; name: string; pho
   const router = useRouter();
   const [open, setOpen] = useState<'contact' | 'review' | null>(null);
   const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', message: '' });
+  useEffect(() => {
+    if (user) setF((x) => ({ ...x, name: x.name || user.name || '', phone: x.phone || user.phone || '' }));
+  }, [user]);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
