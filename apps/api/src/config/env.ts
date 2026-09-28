@@ -6,6 +6,8 @@ const devDefault = <T extends z.ZodTypeAny>(schema: T, value: string) => (isProd
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
+  /** Bind address; self-hosted deployments behind nginx use 127.0.0.1. */
+  HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_ACCESS_SECRET: devDefault(z.string().min(32), 'dev_access_secret_change_me_0123456789abcdef'),
   JWT_REFRESH_SECRET: devDefault(z.string().min(32), 'dev_refresh_secret_change_me_0123456789abcdef'),
@@ -18,6 +20,8 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default('*'),
   PUBLIC_API_URL: z.string().default('http://localhost:3000'),
   PUBLIC_WEB_URL: z.string().default('http://localhost:3001'),
+  /** Self-hosted media: when set, uploads are compressed + encrypted onto this directory (takes precedence over Cloudinary/S3). */
+  MEDIA_ROOT: z.string().optional(),
   SUPER_ADMIN_EMAIL: z.string().email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
   SUPER_ADMIN_NAME: z.string().default('Super Admin'),

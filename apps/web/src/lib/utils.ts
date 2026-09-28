@@ -8,11 +8,15 @@ export function cn(...inputs: ClassValue[]) {
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001').replace(/\/$/, '');
 
-/** Cloudinary on-the-fly resize (no-op for other hosts). */
+/** On-the-fly resize for Cloudinary and self-hosted (/api/media) URLs; no-op for other hosts. */
 export function img(url: string | null | undefined, w = 800): string {
   if (!url) return '';
   if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('/upload/w_')) {
     return url.replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`);
+  }
+  if (url.includes('/api/media/f/') && !url.includes('?')) {
+    const width = [320, 480, 800, 1200].find((x) => x >= w);
+    return width ? `${url}?w=${width}` : url;
   }
   return url;
 }

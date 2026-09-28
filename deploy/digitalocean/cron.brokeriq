@@ -1,0 +1,4 @@
+# BrokerIQ — installed as /etc/cron.d/brokeriq. Server clock is UTC: 21:00 UTC = 02:30 IST.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 21 * * * root /opt/brokeriq/bin/backup.sh >> /opt/brokeriq/logs/backup.log 2>&1

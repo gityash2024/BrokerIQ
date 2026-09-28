@@ -5,20 +5,26 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationNotConfiguredException } from '../../common/exceptions';
 import { shortCode } from '../../common/utils';
+import { LocalStorageService } from './local-storage.service';
 
 export type UploadKind = 'listing' | 'avatar' | 'logo' | 'kyc' | 'project' | 'cms' | 'scan' | 'chat';
 
 const NOT_CONFIGURED = 'File upload configured नहीं है। Super Admin → Settings → Integrations में Cloudinary (या S3/R2) जोड़ें।';
 
 /**
- * Direct-to-storage uploads: the API only signs requests, files go straight from the
- * browser/app to Cloudinary or S3 — zero bandwidth cost on our server.
+ * Signed uploads. Self-hosted deployments (MEDIA_ROOT set) store files on the server's own
+ * disk, compressed + encrypted; otherwise files go straight from the browser/app to
+ * Cloudinary or S3 — zero bandwidth cost on our server.
  */
 @Injectable()
 export class MediaService {
-  constructor(private readonly settings: SettingsService) {}
+  constructor(
+    private readonly settings: SettingsService,
+    private readonly local: LocalStorageService,
+  ) {}
 
   async sign(kind: UploadKind, contentType = 'image/jpeg', ownerId = 'anon') {
+    if (this.local.enabled) return this.local.presign(kind, contentType, ownerId);
     const folderSuffix = `${kind}/${ownerId}`;
     const cld = await this.settings.resolve('cloudinary');
     if (cld) {
@@ -56,6 +62,7 @@ export class MediaService {
   /** Server-side upload of a base64 data URL (used for AI scanner images). */
   async uploadDataUrl(dataUrl: string, kind: UploadKind, ownerId: string): Promise<string | null> {
     if (!dataUrl.startsWith('data:')) throw new BadRequestException('Invalid image');
+    if (this.local.enabled) return this.local.putDataUrl(dataUrl, kind, ownerId);
     const cld = await this.settings.resolve('cloudinary');
     if (!cld) return null;
     cloudinary.config({ cloud_name: String(cld.cloudName), api_key: String(cld.apiKey), api_secret: String(cld.apiSecret) });

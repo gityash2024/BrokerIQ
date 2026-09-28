@@ -18,7 +18,7 @@ async function bootstrap() {
   const doc = SwaggerModule.createDocument(app, new DocumentBuilder().setTitle('BrokerIQ API').setVersion('2.0').addBearerAuth().build());
   SwaggerModule.setup('api/docs', app, doc);
 
-  await app.listen(e.PORT, '0.0.0.0');
+  await app.listen(e.PORT, e.HOST);
   Logger.log(`BrokerIQ API listening on :${e.PORT} (${e.NODE_ENV})`, 'Bootstrap');
 }
 bootstrap();

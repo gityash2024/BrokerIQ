@@ -13,6 +13,14 @@ Website (Vercel) ───┘           │
 
 ---
 
+## 0. ✅ Live setup: DigitalOcean self-host (web + API + DB + media एक server पर)
+
+Production अब DigitalOcean droplet पर चलता है: `https://brokeriq.mymultimeds.com` (website) और `https://brokeriqapi.mymultimeds.com` (API)। Photos/documents Cloudinary की जगह server की disk पर **compressed + encrypted** रहते हैं (API env `MEDIA_ROOT`)। पूरी जानकारी, backups और restore: [deploy/digitalocean/README.md](../deploy/digitalocean/README.md)।
+
+नीचे के Railway / Vercel steps सिर्फ़ विकल्प के तौर पर रखे गए हैं।
+
+---
+
 ## 1. API + Postgres on Railway
 
 1. https://railway.com पर GitHub से login करें → **New Project → Deploy PostgreSQL**।

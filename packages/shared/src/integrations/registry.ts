@@ -108,7 +108,7 @@ export const INTEGRATIONS: IntegrationDef[] = [
     category: 'storage',
     scope: 'platform',
     group: 'storage',
-    description: 'Property photos, videos, brochures, KYC documents का upload और fast CDN.',
+    description: 'Property photos, videos, brochures, KYC documents का upload और fast CDN. (Self-hosted server पर MEDIA_ROOT set हो तो files server की अपनी disk पर compressed + encrypted रहती हैं — तब यह ज़रूरी नहीं।)',
     freeTier: '25 credits/month free (~25GB storage या bandwidth)',
     docsUrl: 'https://cloudinary.com/documentation/how_to_integrate_cloudinary',
     steps: [

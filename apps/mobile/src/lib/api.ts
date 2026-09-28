@@ -130,9 +130,13 @@ export async function uploadUri(uri: string, kind: string, mime = 'image/jpeg'):
   return { url: sig.publicUrl };
 }
 
-/** Cloudinary on-the-fly resize; other URLs untouched. */
+/** On-the-fly resize for Cloudinary and self-hosted (/api/media) URLs; other URLs untouched. */
 export function img(url?: string | null, w = 800) {
   if (!url) return undefined;
   if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('/upload/c_')) return url.replace('/upload/', `/upload/c_limit,w_${w},q_auto,f_auto/`);
+  if (url.includes('/api/media/f/') && !url.includes('?')) {
+    const width = [320, 480, 800, 1200].find((x) => x >= w);
+    return width ? `${url}?w=${width}` : url;
+  }
   return url;
 }

@@ -9,11 +9,12 @@ import { RealtimeGateway } from './realtime/realtime.gateway';
 import { NotificationsService } from './notifications/notifications.service';
 import { AiService } from './ai/ai.service';
 import { MediaService } from './media/media.service';
+import { LocalStorageService } from './media/local-storage.service';
 import { EventsService } from './events/events.service';
 import { UsageService } from './usage/usage.service';
 import { env } from '../config/env';
 
-const services = [CryptoService, SettingsService, AuditService, JobsService, MailService, RealtimeGateway, NotificationsService, AiService, MediaService, EventsService, UsageService];
+const services = [CryptoService, SettingsService, AuditService, JobsService, MailService, RealtimeGateway, NotificationsService, AiService, LocalStorageService, MediaService, EventsService, UsageService];
 
 @Global()
 @Module({
