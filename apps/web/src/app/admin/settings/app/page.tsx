@@ -73,9 +73,8 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
   {
     id: 'listing',
     title: 'Listing rules',
-    desc: 'Marketplace की policies',
+    desc: 'Marketplace की policies · हर listing (user या broker) Super Admin approval के बाद ही live होती है — यह हमेशा चालू है',
     fields: [
-      { key: 'listing.requireModeration', label: 'Admin approval ज़रूरी', type: 'switch', hint: 'बंद करने पर verified brokers की listings सीधे live' },
       { key: 'listing.contactRevealRequiresLogin', label: 'Number देखने के लिए login ज़रूरी', type: 'switch' },
       { key: 'listing.expiryDays', label: 'Listing expiry (days)', type: 'number' },
       { key: 'listing.maxPhotos', label: 'Max photos', type: 'number' },

@@ -103,6 +103,23 @@ describe('BrokerIQ API (e2e)', () => {
     expect(c.body.phone).toBe('+919876500011');
   });
 
+  it('every listing needs admin approval: edits and re-activation go back to review', async () => {
+    // content edit on an approved listing → back to review, hidden from public
+    const e = await http.patch(`/api/listings/${listingId}`).set(auth(brokerA.token)).send({ description: 'Updated description with more details' }).expect(200);
+    expect(e.body.status).toBe('PENDING_REVIEW');
+    // trying to force it live via status change is not allowed for non-admins
+    const f = await http.patch(`/api/listings/${listingId}/status`).set(auth(brokerA.token)).send({ status: 'ACTIVE' }).expect(200);
+    expect(f.body.status).toBe('PENDING_REVIEW');
+    // owners (plain users) go through review too
+    const o = await http.post('/api/listings').set(auth(user.token)).send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 45000, bedrooms: 2, superArea: 1200, photos: [] }).expect(201);
+    expect(o.body.status).toBe('PENDING_REVIEW');
+    // admins are notified
+    const n = await prisma.notification.count({ where: { kind: 'MODERATION', data: { path: ['listingId'], equals: o.body.id } } });
+    expect(n).toBeGreaterThan(0);
+    // approve again so later tests see it live
+    await http.post(`/api/admin/moderation/listings/${listingId}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
+  });
+
   it('enquiry becomes a CRM lead and repeat enquiries merge by phone', async () => {
     await http.post('/api/enquiries').set(auth(user.token)).send({ listingId, name: 'Neha', phone: '98111 00001', message: 'Visit on Sunday?' }).expect(201);
     await http.post('/api/enquiries').send({ listingId, name: 'Neha B', phone: '+91-9811100001' }).expect(201);

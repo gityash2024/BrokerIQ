@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AiService, parseJsonLoose } from '../../core/ai/ai.service';
 import { UsageService } from '../../core/usage/usage.service';
 import { MediaService } from '../../core/media/media.service';
+import { ListingsService } from '../listings/listings.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg, shortCode } from '../../common/utils';
@@ -41,6 +42,7 @@ export class AiController {
     private readonly ai: AiService,
     private readonly usage: UsageService,
     private readonly media: MediaService,
+    private readonly listings: ListingsService,
   ) {}
 
   private async localityIndex() {
@@ -92,10 +94,15 @@ export class AiController {
     return { rows, imageUrl };
   }
 
-  /** Imports scanned rows as private DRAFT listings in the broker's inventory. */
+  /** Imports scanned rows into the broker's inventory — as private drafts, or straight into the admin approval queue. */
   @Post('scan/import')
-  async importRows(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ rows: z.array(rowSchema).min(1).max(100) }))) body: any) {
+  async importRows(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ rows: z.array(rowSchema).min(1).max(100), submit: z.boolean().default(false) }))) body: any) {
     const orgId = requireOrg(user);
+    const status = body.submit ? 'PENDING_REVIEW' : 'DRAFT';
+    if (body.submit) {
+      const active = await this.prisma.listing.count({ where: { organizationId: orgId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null } });
+      await this.usage.assert(orgId, 'activeListings', active, body.rows.length);
+    }
     const locs = await this.localityIndex();
     const created: string[] = [];
     const errors: { index: number; error: string }[] = [];
@@ -116,7 +123,7 @@ export class AiController {
           purpose: r.purpose,
           propertyType: r.propertyType,
           category: PROPERTY_TYPE_CATEGORY[r.propertyType as keyof typeof PROPERTY_TYPE_CATEGORY],
-          status: 'DRAFT',
+          status,
           title,
           description: [r.unit ? `Unit: ${r.unit}` : null, r.notes].filter(Boolean).join('\n') || null,
           localityId: r.localityId,
@@ -138,6 +145,7 @@ export class AiController {
       created.push(l.id);
     }
     if (!created.length && errors.length) throw new BadRequestException(errors[0].error);
-    return { created: created.length, ids: created, errors };
+    if (status === 'PENDING_REVIEW' && created.length) await this.listings.notifyReviewers({ id: created[0], title: `${created.length} scanned listing(s) — approval pending` });
+    return { created: created.length, ids: created, errors, status };
   }
 }

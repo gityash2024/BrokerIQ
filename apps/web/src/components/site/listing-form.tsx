@@ -129,7 +129,8 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
     }
     setSaving(true);
     try {
-      const l = listingId ? await api(`/listings/${listingId}`, { method: 'PATCH', body: payload(submit) }) : await api('/listings', { method: 'POST', body: payload(submit) });
+      const l = listingId ? await api<any>(`/listings/${listingId}`, { method: 'PATCH', body: payload(submit) }) : await api<any>('/listings', { method: 'POST', body: payload(submit) });
+      if (l?.status === 'PENDING_REVIEW') toast.success('Review के लिए भेज दी गई — admin approval के बाद live होगी ✅');
       afterSave(l);
     } catch (e) {
       toast.error(errorMessage(e));

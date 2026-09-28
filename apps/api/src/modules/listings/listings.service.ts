@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { UsageService } from '../../core/usage/usage.service';
 import { EventsService } from '../../core/events/events.service';
+import { NotificationsService } from '../../core/notifications/notifications.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { paged, shortCode } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
@@ -69,7 +70,16 @@ export class ListingsService {
     private readonly usage: UsageService,
     private readonly events: EventsService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** Tell every Super Admin that a listing is waiting for approval. */
+  async notifyReviewers(listing: { id: string; title: string }) {
+    const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }, select: { id: true } });
+    await this.notifications
+      .notify(admins.map((a) => a.id), { kind: 'MODERATION', title: 'नई listing approval के लिए', body: listing.title, link: '/admin/moderation', data: { listingId: listing.id } })
+      .catch(() => undefined);
+  }
 
   // ------------------------------------------------------------------ search
   buildWhere(f: Partial<ListingSearchInput>, opts: { publicOnly?: boolean } = { publicOnly: true }): Prisma.ListingWhereInput {
@@ -306,7 +316,8 @@ export class ListingsService {
     if (input.photos.length > app.listing.maxPhotos) throw new BadRequestException(`ज़्यादा से ज़्यादा ${app.listing.maxPhotos} photos`);
     const title = input.title?.trim() || this.autoTitle(input, locality.name);
     const flags = this.moderationFlags({ ...input, title }, await this.localityPsf(locality.id, input.purpose, PROPERTY_TYPE_CATEGORY[input.propertyType]));
-    const autoApprove = !app.listing.requireModeration || user.role === 'SUPER_ADMIN';
+    // Every listing goes live only after Super Admin approval (the approver's own listings are live at once).
+    const autoApprove = user.role === 'SUPER_ADMIN';
     const status = !input.submit ? 'DRAFT' : autoApprove ? 'ACTIVE' : 'PENDING_REVIEW';
 
     const listing = await this.prisma.listing.create({
@@ -330,6 +341,7 @@ export class ListingsService {
       } as Prisma.ListingUncheckedCreateInput,
     });
     if (status === 'ACTIVE') this.events.emit('listing.published', { listingId: listing.id });
+    if (status === 'PENDING_REVIEW') await this.notifyReviewers(listing);
     await this.audit.log(user, 'listing.create', 'Listing', listing.id, { status });
     return listing;
   }
@@ -340,10 +352,11 @@ export class ListingsService {
     if (!this.canEdit(existing, user)) throw new ForbiddenException();
     const app = await this.settings.getAppConfig();
     const contentChanged = CONTENT_FIELDS.some((k) => input[k] !== undefined);
+    const isAdmin = user.role === 'SUPER_ADMIN';
     let status = existing.status;
-    if (input.submit && existing.status === 'DRAFT') status = app.listing.requireModeration && user.role !== 'SUPER_ADMIN' ? 'PENDING_REVIEW' : 'ACTIVE';
+    if (input.submit && existing.status === 'DRAFT') status = isAdmin ? 'ACTIVE' : 'PENDING_REVIEW';
     else if (existing.status === 'REJECTED' && input.submit !== false) status = 'PENDING_REVIEW';
-    else if (existing.status === 'ACTIVE' && contentChanged && app.listing.requireModeration && user.role !== 'SUPER_ADMIN') status = 'PENDING_REVIEW';
+    else if (existing.status === 'ACTIVE' && contentChanged && !isAdmin) status = 'PENDING_REVIEW';
 
     const merged = { ...existing, ...input } as any;
     const data: any = {
@@ -370,6 +383,9 @@ export class ListingsService {
       const updated = await tx.listing.update({ where: { id }, data });
       if (status === 'ACTIVE' && existing.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
       return updated;
+    }).then(async (updated) => {
+      if (status === 'PENDING_REVIEW' && existing.status !== 'PENDING_REVIEW') await this.notifyReviewers(updated);
+      return updated;
     });
   }
 
@@ -385,10 +401,13 @@ export class ListingsService {
         const active = await this.prisma.listing.count({ where: { organizationId: existing.organizationId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null } });
         await this.usage.assert(existing.organizationId, 'activeListings', active);
       }
-      next = existing.publishedAt || !app.listing.requireModeration ? 'ACTIVE' : 'PENDING_REVIEW';
+      // Re-activating (after archive/rented/rejection) always goes back through admin review.
+      next = user.role === 'SUPER_ADMIN' ? 'ACTIVE' : existing.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_REVIEW';
       if (next === 'ACTIVE') data.expiresAt = new Date(Date.now() + app.listing.expiryDays * 86400_000);
     }
-    return this.prisma.listing.update({ where: { id }, data: { ...data, status: next } });
+    const updated = await this.prisma.listing.update({ where: { id }, data: { ...data, status: next } });
+    if (next === 'PENDING_REVIEW' && existing.status !== 'PENDING_REVIEW') await this.notifyReviewers(updated);
+    return updated;
   }
 
   async remove(id: string, user: RequestUser) {

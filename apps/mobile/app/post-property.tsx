@@ -149,7 +149,7 @@ export default function PostProperty() {
     try {
       const l = id ? await patch<any>(`/listings/${id}`, payload(submit)) : await post<any>('/listings', payload(submit));
       qc.invalidateQueries({ queryKey: ['my-listings'] });
-      toast.success(l.status === 'ACTIVE' ? 'Listing live है 🎉' : l.status === 'DRAFT' ? 'Draft saved' : 'Review के लिए भेज दी गई ✅');
+      toast.success(l.status === 'ACTIVE' ? 'Listing live है 🎉' : l.status === 'DRAFT' ? 'Draft saved' : 'Review के लिए भेज दी गई — admin approval के बाद live होगी ✅');
       router.replace('/my-listings');
     } catch (e) {
       showError(e);
