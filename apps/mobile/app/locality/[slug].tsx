@@ -41,16 +41,16 @@ export default function Locality() {
         </View>
         <View style={{ padding: 16, gap: 12 }}>
           <Row gap={10}>
-            <Stat label="Avg sale ₹/sqft" value={l.avgPsf ? `₹${Math.round(l.avgPsf).toLocaleString('en-IN')}` : l.avgPriceSale ? `₹${Math.round(l.avgPriceSale).toLocaleString('en-IN')}` : '—'} icon={<TrendingUp size={18} color={c.brand} />} />
-            <Stat label="2BHK rent (avg)" value={l.avgRent2Bhk ? formatPriceShort(l.avgRent2Bhk) : l.rentByBhk?.find((r: any) => r.bedrooms === 2)?.avgRent ? formatPriceShort(l.rentByBhk.find((r: any) => r.bedrooms === 2).avgRent) : '—'} icon={<KeyRound size={18} color={c.accent} />} tint={c.accent} />
+            <Stat label="Homes for rent" value={String(l.listingsRent ?? 0)} icon={<TrendingUp size={18} color={c.brand} />} />
+            <Stat label="2BHK rent (avg)" value={l.avgRent ? formatPriceShort(l.avgRent) : l.avgRent2Bhk ? formatPriceShort(l.avgRent2Bhk) : l.rentByBhk?.find((r: any) => r.bedrooms === 2)?.avgRent ? formatPriceShort(l.rentByBhk.find((r: any) => r.bedrooms === 2).avgRent) : '—'} icon={<KeyRound size={18} color={c.accent} />} tint={c.accent} />
           </Row>
           <Row gap={10}>
-            <Button title={`Buy · ${l.listingsSale}`} icon={<Home size={16} color="#fff" />} style={{ flex: 1 }} onPress={() => router.push({ pathname: '/(user)/search', params: { purpose: 'SALE', localities: l.slug } })} />
-            <Button title={`Rent · ${l.listingsRent}`} variant="secondary" icon={<KeyRound size={16} color={c.fg} />} style={{ flex: 1 }} onPress={() => router.push({ pathname: '/(user)/search', params: { purpose: 'RENT', localities: l.slug } })} />
+            <Button title={`Rent · ${l.listingsRent}`} icon={<KeyRound size={16} color="#fff" />} style={{ flex: 1 }} onPress={() => router.push({ pathname: '/(user)/search', params: { category: 'RESIDENTIAL', localities: l.slug } })} />
+            <Button title="Furnished" variant="secondary" icon={<Home size={16} color={c.fg} />} style={{ flex: 1 }} onPress={() => router.push({ pathname: '/(user)/search', params: { category: 'RESIDENTIAL', localities: l.slug, furnishing: 'FULLY_FURNISHED' } })} />
           </Row>
           {trend.length > 1 && (
             <Card style={{ padding: 16, gap: 10 }}>
-              <Txt v="h3">Price trend (₹/sqft)</Txt>
+              <Txt v="h3">Rent trend (₹/sqft per month)</Txt>
               <Row style={{ alignItems: 'flex-end', height: 120, gap: 6 }}>
                 {trend.map((t, i) => (
                   <Animated.View key={t.month} entering={FadeInDown.delay(i * 50)} style={{ flex: 1, alignItems: 'center', gap: 4 }}>

@@ -19,14 +19,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const l = await sget<any>(`/public/localities/${slug}`, 300);
   if (!l) return { title: 'Locality not found' };
-  return { title: `${l.name}, Gurgaon — property prices, flats for sale & rent`, description: `${l.name} (${l.zone ?? 'Gurgaon'}) guide: ${l.listingsSale} properties for sale, ${l.listingsRent} for rent${l.avgPsf ? `, average ₹${l.avgPsf}/sq.ft` : ''}. Projects, brokers and connectivity.` };
+  return { title: `${l.name}, Gurgaon — flats & houses for rent, average rent`, description: `${l.name} (${l.zone ?? 'Gurgaon'}) rental guide: ${l.listingsRent} homes for rent${l.avgRent ? `, average 2 BHK rent ₹${l.avgRent}` : ''}. Local brokers and connectivity.` };
 }
 
 export default async function LocalityPage({ params }: Props) {
   const { slug } = await params;
   const l = await sget<any>(`/public/localities/${slug}`, 300);
   if (!l) notFound();
-  const [sale, rent] = await Promise.all([sget<any>(`/listings?localities=${slug}&purpose=SALE&pageSize=8`, 120), sget<any>(`/listings?localities=${slug}&purpose=RENT&pageSize=4`, 120)]);
+  const rent = await sget<any>(`/listings?localities=${slug}&purpose=RENT&pageSize=8`, 120);
   return (
     <PageShell>
       <section className="relative overflow-hidden">
@@ -41,7 +41,7 @@ export default async function LocalityPage({ params }: Props) {
               <MapPin className="size-4" /> {l.zone ?? 'Gurgaon'}
             </p>
             <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{l.name}</h1>
-            {l.description ? <p className="mt-3 max-w-2xl text-white/75">{l.description}</p> : <p className="mt-3 max-w-2xl text-white/75">{l.name}, Gurgaon में properties, prices और neighbourhood की पूरी जानकारी।</p>}
+            {l.description ? <p className="mt-3 max-w-2xl text-white/75">{l.description}</p> : <p className="mt-3 max-w-2xl text-white/75">{l.name}, Gurgaon में rent पर घर, औसत किराया और neighbourhood की पूरी जानकारी।</p>}
             <div className="mt-6 flex flex-wrap gap-2">
               {(l.highlights ?? []).map((h: string) => (
                 <span key={h} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm backdrop-blur">
@@ -50,11 +50,11 @@ export default async function LocalityPage({ params }: Props) {
               ))}
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button href={`/buy?localities=${slug}`} variant="accent">
-                <Home className="size-4" /> Buy in {l.name}
-              </Button>
-              <Button href={`/rent?localities=${slug}`} variant="secondary" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+              <Button href={`/rent?localities=${slug}`} variant="accent">
                 <KeyRound className="size-4" /> Rent in {l.name}
+              </Button>
+              <Button href={`/rent?localities=${slug}&furnishing=FULLY_FURNISHED`} variant="secondary" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                <Home className="size-4" /> Furnished homes
               </Button>
             </div>
           </div>
@@ -65,17 +65,17 @@ export default async function LocalityPage({ params }: Props) {
       </section>
 
       <div className="container-x -mt-8 relative grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="For sale" value={l.listingsSale} icon={<Home className="size-5" />} />
         <Stat label="For rent" value={l.listingsRent} icon={<KeyRound className="size-5" />} tone="info" />
-        <Stat label="Avg price" value={l.avgPsf ? `${formatINR(l.avgPsf)}` : '—'} hint="per sq.ft" icon={<TrendingUp className="size-5" />} tone="success" />
-        <Stat label="Projects" value={l.projects?.length ?? 0} icon={<Building2 className="size-5" />} tone="warning" />
+        <Stat label="Avg rent (2 BHK)" value={l.avgRent ? `${formatINR(l.avgRent)}` : '—'} hint="per month" icon={<TrendingUp className="size-5" />} tone="success" />
+        <Stat label="Local brokers" value={l.brokers?.length ?? 0} icon={<Building2 className="size-5" />} tone="warning" />
+        <Stat label="Nearby areas" value={l.nearby?.length ?? 0} icon={<Home className="size-5" />} />
       </div>
 
       {(l.priceTrend?.length > 1 || l.rentByBhk?.length > 0) && (
         <section className="container-x mt-14 grid gap-6 lg:grid-cols-2">
           {l.priceTrend?.length > 1 && (
             <div className="card p-6">
-              <h2 className="font-display text-lg font-bold">Price trend (₹/sq.ft)</h2>
+              <h2 className="font-display text-lg font-bold">Rent trend (₹/sq.ft per month)</h2>
               <p className="text-sm text-muted">पिछले 12 महीने की listings पर आधारित</p>
               <div className="mt-4">
                 <PriceTrendChart data={l.priceTrend} />
@@ -94,16 +94,6 @@ export default async function LocalityPage({ params }: Props) {
         </section>
       )}
 
-      {sale?.items?.length > 0 && (
-        <section className="container-x mt-16">
-          <SectionTitle title={`Properties for sale in ${l.name}`} action={<Button href={`/buy?localities=${slug}`} variant="secondary" size="sm">View all <ArrowRight className="size-4" /></Button>} />
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {sale.items.map((x: any) => (
-              <ListingCard key={x.id} l={x} />
-            ))}
-          </div>
-        </section>
-      )}
       {rent?.items?.length > 0 && (
         <section className="container-x mt-16">
           <SectionTitle title={`For rent in ${l.name}`} action={<Button href={`/rent?localities=${slug}`} variant="secondary" size="sm">View all <ArrowRight className="size-4" /></Button>} />

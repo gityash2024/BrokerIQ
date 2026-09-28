@@ -70,6 +70,13 @@ enum PropertyType {
   INDUSTRIAL
 }
 
+enum BrokerageType {
+  NONE
+  DAYS_15
+  MONTH_1
+  FIXED
+}
+
 enum Furnishing {
   UNFURNISHED
   SEMI_FURNISHED
@@ -632,6 +639,8 @@ model Listing {
   pricePerSqft     Float?
   maintenance      Float?
   securityDeposit  Float?
+  brokerageType    BrokerageType?
+  brokerageAmount  Float?
   priceNegotiable  Boolean           @default(false)
   bedrooms         Int?
   bathrooms        Int?

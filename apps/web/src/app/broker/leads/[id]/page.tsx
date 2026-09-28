@@ -35,6 +35,7 @@ import {
   formatPriceShort,
   timeAgo,
   whatsappLink,
+  RENTABLE_TYPES,
 } from '@brokeriq/shared';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -371,13 +372,12 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
 function Requirement({ lead, onChange }: { lead: any; onChange: () => void }) {
   const r = lead.requirement ?? {};
   const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
-  const [f, setF] = useState({ purpose: r.purpose ?? 'SALE', propertyTypes: r.propertyTypes ?? [], localityIds: r.localityIds ?? [], minBudget: r.minBudget ?? '', maxBudget: r.maxBudget ?? '', bedrooms: r.bedrooms ?? [], furnishing: r.furnishing ?? '', notes: r.notes ?? '' });
+  const [f, setF] = useState({ purpose: r.purpose ?? 'RENT', propertyTypes: r.propertyTypes ?? [], localityIds: r.localityIds ?? [], minBudget: r.minBudget ?? '', maxBudget: r.maxBudget ?? '', bedrooms: r.bedrooms ?? [], furnishing: r.furnishing ?? '', notes: r.notes ?? '' });
   const save = useApiMutation(() => patch(`/leads/${lead.id}`, { requirement: { ...f, minBudget: f.minBudget ? Number(f.minBudget) : null, maxBudget: f.maxBudget ? Number(f.maxBudget) : null, furnishing: f.furnishing || null } }), { success: 'Requirement saved', onSuccess: onChange });
   const t = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   return (
     <div className="card space-y-4 p-5">
-      <div className="flex gap-2">{(['SALE', 'RENT'] as const).map((p) => <Chip key={p} active={f.purpose === p} onClick={() => setF({ ...f, purpose: p })}>{p === 'SALE' ? 'Buy' : 'Rent'}</Chip>)}</div>
-      <div className="flex flex-wrap gap-2">{Object.entries(PROPERTY_TYPE_LABELS).slice(0, 10).map(([k, v]) => <Chip key={k} active={f.propertyTypes.includes(k)} onClick={() => setF({ ...f, propertyTypes: t(f.propertyTypes, k) })}>{v}</Chip>)}</div>
+      <div className="flex flex-wrap gap-2">{Object.entries(PROPERTY_TYPE_LABELS).filter(([k]) => RENTABLE_TYPES.includes(k as any)).slice(0, 10).map(([k, v]) => <Chip key={k} active={f.propertyTypes.includes(k)} onClick={() => setF({ ...f, propertyTypes: t(f.propertyTypes, k) })}>{v}</Chip>)}</div>
       <div className="flex flex-wrap gap-2">{[1, 2, 3, 4, 5].map((b) => <Chip key={b} active={f.bedrooms.includes(b)} onClick={() => setF({ ...f, bedrooms: t(f.bedrooms, b) })}>{b} BHK</Chip>)}</div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Min budget" hint={f.minBudget ? formatPriceShort(Number(f.minBudget)) : undefined}><Input inputMode="numeric" value={f.minBudget} onChange={(e) => setF({ ...f, minBudget: e.target.value.replace(/\D/g, '') })} /></Field>

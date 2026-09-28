@@ -72,16 +72,16 @@ const FLAGS = [
 const HOMEPAGE = [
   {
     type: 'HERO',
-    title: 'Gurgaon में अपना अगला घर ढूँढिए',
-    subtitle: 'Verified flats, builder floors, villas, offices और plots — भरोसेमंद brokers और owners से सीधे।',
+    title: 'Gurgaon में rent पर अपना अगला घर ढूँढिए',
+    subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।',
     config: { tabs: ['SALE', 'RENT', 'COMMERCIAL', 'PLOT', 'PROJECTS'], backgroundUrl: '', stats: true },
   },
-  { type: 'LOCALITIES', title: 'Gurgaon के popular इलाके', subtitle: 'Price trends, connectivity और live listings', config: { limit: 12, popularOnly: true } },
-  { type: 'FEATURED_LISTINGS', title: 'Handpicked properties', subtitle: 'Verified और featured listings', config: { limit: 8 } },
+  { type: 'LOCALITIES', title: 'Gurgaon के popular इलाके', subtitle: 'औसत किराया, connectivity और live rentals', config: { limit: 12, popularOnly: true } },
+  { type: 'FEATURED_LISTINGS', title: 'Handpicked rentals', subtitle: 'Verified और featured rent listings', config: { limit: 8 } },
   { type: 'MAP_EXPLORER', title: 'Map पर Gurgaon explore करें', subtitle: 'हर sector की live listings एक नज़र में', config: {} },
-  { type: 'FEATURED_PROJECTS', title: 'New projects', subtitle: 'RERA registered launches', config: { limit: 6 } },
+  { type: 'FEATURED_PROJECTS', title: 'New projects', subtitle: 'RERA registered launches', isActive: false, config: { limit: 6 } },
   { type: 'TOP_BROKERS', title: 'Gurgaon के top brokers', subtitle: 'Verified, highly rated local experts', config: { limit: 8 } },
-  { type: 'TOOLS', title: 'Smart property tools', subtitle: 'EMI, affordability, stamp duty और rent vs buy', config: {} },
+  { type: 'TOOLS', title: 'Smart rent tools', subtitle: 'Rent budget, move-in cost और flatmates के साथ rent split', config: {} },
   {
     type: 'WHY_US',
     title: 'BrokerIQ क्यों?',
@@ -91,12 +91,12 @@ const HOMEPAGE = [
         { icon: 'shield-check', title: 'Verified listings', text: 'हर listing moderation से गुज़रती है और verified brokers को badge मिलता है।' },
         { icon: 'map-pinned', title: 'Hyper-local', text: 'हर sector, society और corridor की सटीक जानकारी।' },
         { icon: 'messages-square', title: 'सीधा संपर्क', text: 'Owner या broker से सीधे WhatsApp, call या chat।' },
-        { icon: 'sparkles', title: 'Smart tools', text: 'EMI, stamp duty, price trends और saved-search alerts।' },
+        { icon: 'sparkles', title: 'Smart tools', text: 'Rent budget, move-in cost और saved-search alerts।' },
       ],
     },
   },
   { type: 'APP_DOWNLOAD', title: 'BrokerIQ app पर पाइए instant alerts', subtitle: 'नई listings, price drops और broker replies — सीधे आपके phone पर', config: {} },
-  { type: 'BLOG', title: 'Property guides & news', subtitle: 'Gurgaon real estate की ताज़ा जानकारी', config: { limit: 3 } },
+  { type: 'BLOG', title: 'Renting guides & news', subtitle: 'Gurgaon में rent पर घर लेने की ताज़ा जानकारी', config: { limit: 3 } },
   { type: 'CTA_BANNER', title: 'क्या आप broker हैं?', subtitle: 'Housing, 99acres, MagicBricks, Facebook की सारी leads एक app में — WhatsApp automation के साथ। Free शुरू करें।', config: { ctaLabel: 'Broker account बनाएँ', ctaLink: '/for-brokers' } },
   { type: 'TESTIMONIALS', title: 'हमारे users क्या कहते हैं', subtitle: '', isActive: false, config: { items: [] } },
 ];
@@ -141,6 +141,25 @@ async function main() {
     await prisma.template.upsert({ where: { key: t.key }, create: { key: t.key, channel: t.channel, name: t.name, subject: t.subject, body: t.body }, update: {} });
   }
   // Homepage sections (only when empty so admin ordering is preserved)
+  // Rental pivot: refresh sections that still carry the original (sale-oriented) default copy.
+  const RENTAL_COPY: [string, string | null, Record<string, unknown>][] = [
+    ['Gurgaon में अपना अगला घर ढूँढिए', null, { title: 'Gurgaon में rent पर अपना अगला घर ढूँढिए', subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।' }],
+    ['Handpicked properties', null, { title: 'Handpicked rentals', subtitle: 'Verified और featured rent listings' }],
+    ['Smart property tools', null, { title: 'Smart rent tools', subtitle: 'Rent budget, move-in cost और flatmates के साथ rent split' }],
+    ['Property guides & news', null, { title: 'Renting guides & news', subtitle: 'Gurgaon में rent पर घर लेने की ताज़ा जानकारी' }],
+    ['New projects', 'RERA registered launches', { isActive: false }],
+  ];
+  for (const [title, subtitle, data] of RENTAL_COPY) {
+    await prisma.homepageSection.updateMany({ where: { title, ...(subtitle ? { subtitle } : {}) }, data });
+  }
+  await prisma.homepageSection.updateMany({ where: { type: 'LOCALITIES', subtitle: 'Price trends, connectivity और live listings' }, data: { subtitle: 'औसत किराया, connectivity और live rentals' } });
+  for (const why of await prisma.homepageSection.findMany({ where: { type: 'WHY_US' } })) {
+    const cfg = (why.config ?? {}) as { items?: { text?: string }[] };
+    if (!cfg.items?.some((i) => i.text === 'EMI, stamp duty, price trends और saved-search alerts।')) continue;
+    const items = cfg.items.map((i) => (i.text === 'EMI, stamp duty, price trends और saved-search alerts।' ? { ...i, text: 'Rent budget, move-in cost और saved-search alerts।' } : i));
+    await prisma.homepageSection.update({ where: { id: why.id }, data: { config: { ...cfg, items } as Prisma.InputJsonValue } });
+  }
+
   if ((await prisma.homepageSection.count()) === 0) {
     await prisma.homepageSection.createMany({
       data: HOMEPAGE.map((s, idx) => ({ type: s.type, title: s.title, subtitle: s.subtitle, isActive: s.isActive ?? true, sortOrder: idx, config: s.config as Prisma.InputJsonValue })),

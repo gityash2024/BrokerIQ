@@ -69,7 +69,7 @@ export default async function BrokerPage({ params }: Props) {
             </section>
           )}
           <section>
-            <SectionTitle title={`Active listings (${b.listings.length})`} subtitle={`${b.stats?.SALE ?? 0} for sale · ${b.stats?.RENT ?? 0} for rent`} />
+            <SectionTitle title={`Active listings (${b.listings.length})`} subtitle={`${b.stats?.RENT ?? 0} homes for rent`} />
             {b.listings.length ? (
               <div className="grid gap-5 sm:grid-cols-2">
                 {b.listings.map((l: any) => (
@@ -134,8 +134,8 @@ export default async function BrokerPage({ params }: Props) {
           <div className="card grid grid-cols-2 gap-3 p-5 text-center">
             <div>
               <Home className="mx-auto size-5 text-brand-600" />
-              <p className="mt-1 font-display text-xl font-bold">{b.stats?.SALE ?? 0}</p>
-              <p className="text-xs text-muted">For sale</p>
+              <p className="mt-1 font-display text-xl font-bold">{b.team?.length ?? 0}</p>
+              <p className="text-xs text-muted">Team members</p>
             </div>
             <div>
               <KeyRound className="mx-auto size-5 text-saffron-500" />

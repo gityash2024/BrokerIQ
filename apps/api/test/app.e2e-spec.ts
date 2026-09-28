@@ -82,10 +82,11 @@ describe('BrokerIQ API (e2e)', () => {
     const l = await http
       .post('/api/listings')
       .set(auth(brokerA.token))
-      .send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 32500000, bedrooms: 3, bathrooms: 3, superArea: 2100, photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }], amenities: ['lift', 'gym'] })
+      .send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 45000, securityDeposit: 90000, brokerageType: 'MONTH_1', bedrooms: 3, bathrooms: 3, superArea: 2100, photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }], amenities: ['lift', 'gym'] })
       .expect(201);
     expect(l.body.status).toBe('PENDING_REVIEW');
-    expect(l.body.title).toBe('3 BHK Apartment for Sale in Sector 65, Gurgaon');
+    expect(l.body.title).toBe('3 BHK Apartment for Rent in Sector 65, Gurgaon');
+    expect(l.body.brokerageType).toBe('MONTH_1');
     listingId = l.body.id;
     listingSlug = l.body.slug;
 
@@ -93,7 +94,7 @@ describe('BrokerIQ API (e2e)', () => {
     expect(s.body.items.find((x: any) => x.id === listingId)).toBeUndefined();
 
     await http.post(`/api/admin/moderation/listings/${listingId}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
-    s = await http.get('/api/listings?localities=sector-65-gurgaon&bedrooms=3&minPrice=30000000').expect(200);
+    s = await http.get('/api/listings?localities=sector-65-gurgaon&bedrooms=3&minPrice=40000').expect(200);
     expect(s.body.items.map((x: any) => x.id)).toContain(listingId);
 
     const d = await http.get(`/api/listings/${listingSlug}`).expect(200);
@@ -101,6 +102,24 @@ describe('BrokerIQ API (e2e)', () => {
     await http.post(`/api/listings/${listingId}/contact`).expect(403); // login required
     const c = await http.post(`/api/listings/${listingId}/contact`).set(auth(user.token)).expect(201);
     expect(c.body.phone).toBe('+919876500011');
+  });
+
+  it('rental marketplace: sale listings and plots are rejected, legacy sale listings stay hidden', async () => {
+    const sale = await http.post('/api/listings').set(auth(brokerA.token)).send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [] }).expect(400);
+    expect(sale.body.code).toBe('VALIDATION_FAILED');
+    await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'RESIDENTIAL_PLOT', localityId, price: 20000, photos: [] }).expect(400);
+    // purpose defaults to RENT
+    const r = await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'PG', localityId, price: 12000, submit: false, photos: [] }).expect(201);
+    expect(r.body.purpose).toBe('RENT');
+    // a legacy sale listing (created before the pivot) never shows in public search or detail
+    const legacy = await prisma.listing.create({ data: { slug: `legacy-sale-${Date.now()}`, purpose: 'SALE', propertyType: 'APARTMENT', category: 'RESIDENTIAL', status: 'ACTIVE', title: 'Legacy sale flat', localityId, price: 9000000, postedByType: 'BROKER', postedById: (await prisma.user.findFirstOrThrow({ where: { organizationId: brokerA.orgId } })).id, organizationId: brokerA.orgId } });
+    const s = await http.get('/api/listings?localities=sector-65-gurgaon&purpose=SALE').expect(200);
+    expect(s.body.items.find((x: any) => x.id === legacy.id)).toBeUndefined();
+    await http.get(`/api/listings/${legacy.slug}`).expect(404);
+    // partial PATCH must not wipe photos / amenities (no schema defaults on update)
+    const before = await prisma.listingMedia.count({ where: { listingId } });
+    await http.patch(`/api/listings/${listingId}`).set(auth(brokerA.token)).send({ priceNegotiable: true }).expect(200);
+    expect(await prisma.listingMedia.count({ where: { listingId } })).toBe(before);
   });
 
   it('every listing needs admin approval: edits and re-activation go back to review', async () => {
@@ -220,7 +239,8 @@ describe('BrokerIQ API (e2e)', () => {
     const h = await http.get('/api/public/homepage').expect(200);
     expect(h.body.find((s: any) => s.type === 'HERO')).toBeTruthy();
     const loc = await http.get('/api/public/localities/sector-65-gurgaon').expect(200);
-    expect(loc.body.listingsSale).toBeGreaterThanOrEqual(1);
+    expect(loc.body.listingsRent).toBeGreaterThanOrEqual(1);
+    expect(loc.body.listingsSale).toBe(0); // rental marketplace
     const t = await http.get('/api/public/taxonomies').expect(200);
     expect(t.body.amenities.length).toBeGreaterThan(10);
   });

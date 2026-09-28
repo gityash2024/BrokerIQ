@@ -46,8 +46,7 @@ export class MaintenanceService {
           .filter(([, v]) => v != null && v !== '')
           .map(([k, v]): [string, string] => [k, String(v)]),
       ).toString();
-      const purpose = (s.filters as any)?.purpose === 'RENT' ? 'rent' : 'buy';
-      const link = `/${purpose}?${qs}`;
+      const link = `/rent?${qs}`;
       await this.notifications.notify(s.userId, { kind: 'SAVED_SEARCH_MATCH', title: `"${s.name}" में ${count} नई properties`, link });
       await this.mail.trySendTemplate('search.alert', s.user.email, { search: s, count, link: `${env().PUBLIC_WEB_URL}${link}` });
       await this.prisma.savedSearch.update({ where: { id: s.id }, data: { lastNotifiedAt: new Date() } });

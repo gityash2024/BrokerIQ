@@ -19,7 +19,7 @@ export default function SearchesPage() {
     <>
       <PageHeader title="Saved searches & alerts" subtitle="नई matching property आते ही app, email पर notification" />
       {!q.data?.length ? (
-        <Empty icon={<Search className="size-6" />} title="कोई saved search नहीं" text="Search page पर “Save search” दबाएँ।" action={<Button href="/buy">Search करें</Button>} />
+        <Empty icon={<Search className="size-6" />} title="कोई saved search नहीं" text="Search page पर “Save search” दबाएँ।" action={<Button href="/rent">Search करें</Button>} />
       ) : (
         <div className="space-y-3">
           {q.data.map((s) => (

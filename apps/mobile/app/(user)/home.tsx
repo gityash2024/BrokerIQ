@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, Bell, Building2, Calculator, Home, KeyRound, Landmark, MapPinned, Search, Sparkles, Store } from 'lucide-react-native';
+import { ArrowRight, BedDouble, Bell, Building2, Calculator, KeyRound, Landmark, Search, Sofa, Sparkles, Store } from 'lucide-react-native';
 import { api, img } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -15,11 +15,12 @@ import { BrokerCard, LocalityCard, ProjectCard } from '@/components/cards';
 import { ListingCard } from '@/components/listing';
 import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
 
+// Rental marketplace quick filters (search is always RENT).
 const QUICK = [
-  { label: 'Buy', icon: Home, purpose: 'SALE', category: 'RESIDENTIAL' },
-  { label: 'Rent', icon: KeyRound, purpose: 'RENT', category: 'RESIDENTIAL' },
-  { label: 'Commercial', icon: Store, category: 'COMMERCIAL' },
-  { label: 'Plots', icon: MapPinned, category: 'PLOT' },
+  { label: 'Rent', icon: KeyRound, params: { category: 'RESIDENTIAL' } },
+  { label: 'Furnished', icon: Sofa, params: { category: 'RESIDENTIAL', furnishing: 'FULLY_FURNISHED' } },
+  { label: 'PG', icon: BedDouble, params: { types: 'PG' } },
+  { label: 'Commercial', icon: Store, params: { category: 'COMMERCIAL' } },
 ] as const;
 
 function Hero({ s }: { s: any }) {
@@ -57,7 +58,7 @@ function Hero({ s }: { s: any }) {
         <Row style={{ marginTop: 18, justifyContent: 'space-between' }}>
           {QUICK.map((q, i) => (
             <Animated.View key={q.label} entering={FadeInDown.delay(200 + i * 60)}>
-              <PressableScale onPress={() => router.push({ pathname: '/(user)/search', params: { ...('purpose' in q ? { purpose: q.purpose } : {}), category: q.category } })} style={{ alignItems: 'center', gap: 6, width: 72 }}>
+              <PressableScale onPress={() => router.push({ pathname: '/(user)/search', params: q.params })} style={{ alignItems: 'center', gap: 6, width: 72 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
                   <q.icon size={22} color="#fff" />
                 </View>
@@ -145,9 +146,9 @@ function Section({ s }: { s: any }) {
           <SectionTitle title={s.title} subtitle={s.subtitle} />
           <Row gap={12}>
             {[
-              { label: 'EMI', icon: Calculator, tint: c.brand, tab: 'emi' },
-              { label: 'Stamp duty', icon: Landmark, tint: c.accent, tab: 'stamp' },
-              { label: 'Affordability', icon: Sparkles, tint: c.success, tab: 'afford' },
+              { label: 'Rent budget', icon: Sparkles, tint: c.success, tab: 'rent' },
+              { label: 'Move-in cost', icon: Calculator, tint: c.brand, tab: 'movein' },
+              { label: 'Rent split', icon: Landmark, tint: c.accent, tab: 'split' },
             ].map((t) => (
               <Card key={t.label} onPress={() => router.push({ pathname: '/tools', params: { tab: t.tab } })} style={{ flex: 1, padding: 14, gap: 8, alignItems: 'flex-start' }}>
                 <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: `${t.tint}22`, alignItems: 'center', justifyContent: 'center' }}>

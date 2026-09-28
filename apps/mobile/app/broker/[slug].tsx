@@ -24,7 +24,7 @@ export default function BrokerMicrosite() {
   const chatOn = useFlag('chat');
   const reviewsOn = useFlag('reviews');
   const q = useQuery({ queryKey: ['broker', slug], queryFn: () => api<any>(`/brokers/${slug}`, { auth: false }) });
-  const [tab, setTab] = useState<'SALE' | 'RENT'>('SALE');
+  const [tab, setTab] = useState<'SALE' | 'RENT'>('RENT');
   const [review, setReview] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -102,7 +102,7 @@ export default function BrokerMicrosite() {
                 </>
               )}
               <SectionTitle title="Listings" />
-              <Segmented value={tab} onChange={setTab} options={[{ value: 'SALE', label: 'Sale', count: b.stats?.SALE }, { value: 'RENT', label: 'Rent', count: b.stats?.RENT }]} />
+              <Txt v="small" color="muted">{b.stats?.RENT ?? 0} homes for rent</Txt>
               <View style={{ height: 8 }} />
             </View>
           </>

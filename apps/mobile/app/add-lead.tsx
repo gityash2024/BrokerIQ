@@ -15,7 +15,7 @@ export default function AddLead() {
   const qc = useQueryClient();
   const { isBrokerAdmin } = useAuth();
   const team = useTeam();
-  const [f, setF] = useState({ name: '', phone: '', email: '', source: 'CALL', notes: '', assignedToId: '', bedrooms: [] as number[], maxBudget: '', purpose: 'SALE' });
+  const [f, setF] = useState({ name: '', phone: '', email: '', source: 'CALL', notes: '', assignedToId: '', bedrooms: [] as number[], maxBudget: '', purpose: 'RENT' });
   const save = useApiMutation(
     () =>
       post<any>('/leads', {
@@ -46,11 +46,9 @@ export default function AddLead() {
       <Row wrap>{SOURCES.map((s) => <Chip key={s} label={LEAD_SOURCE_LABELS[s]} active={f.source === s} onPress={() => setF({ ...f, source: s })} />)}</Row>
       <Txt v="label" color="subtle" style={{ marginTop: 16, marginBottom: 8 }}>Requirement</Txt>
       <Row wrap>
-        <Chip label="Buy" active={f.purpose === 'SALE'} onPress={() => setF({ ...f, purpose: 'SALE' })} />
-        <Chip label="Rent" active={f.purpose === 'RENT'} onPress={() => setF({ ...f, purpose: 'RENT' })} />
         {[1, 2, 3, 4, 5].map((b) => <Chip key={b} label={`${b} BHK`} active={f.bedrooms.includes(b)} onPress={() => setF({ ...f, bedrooms: f.bedrooms.includes(b) ? f.bedrooms.filter((x) => x !== b) : [...f.bedrooms, b] })} />)}
       </Row>
-      <Input label="Max budget (₹)" value={f.maxBudget} onChangeText={(v) => setF({ ...f, maxBudget: v.replace(/\D/g, '') })} keyboardType="numeric" containerStyle={{ marginTop: 12 }} />
+      <Input label="Max rent budget (₹/month)" value={f.maxBudget} onChangeText={(v) => setF({ ...f, maxBudget: v.replace(/\D/g, '') })} keyboardType="numeric" containerStyle={{ marginTop: 12 }} />
       {isBrokerAdmin && (
         <>
           <Txt v="label" color="subtle" style={{ marginTop: 16, marginBottom: 8 }}>Assign to</Txt>

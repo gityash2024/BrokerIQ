@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellPlus, List, Map as MapIcon, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, formatPriceShort, type PropertyType, plural } from '@brokeriq/shared';
+import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, type PropertyType, plural } from '@brokeriq/shared';
 import { api, post, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useDebounced } from '@/lib/hooks';
@@ -28,7 +28,13 @@ export default function SearchScreen() {
   const { c } = useTheme();
   const { user } = useAuth();
   const params = useLocalSearchParams<F>();
-  const [f, setF] = useState<F>({ purpose: params.purpose ?? 'SALE', category: params.category, localities: params.localities, sort: 'relevance' });
+  // Rental marketplace: search is always RENT; quick filters (furnished / PG / commercial) arrive as params.
+  const initialF = (): F => ({ purpose: 'RENT', category: params.category, localities: params.localities, furnishing: params.furnishing, types: params.types, maxPrice: params.maxPrice, sort: 'relevance' });
+  const [f, setF] = useState<F>(initialF);
+  useEffect(() => {
+    if (params.category || params.localities || params.furnishing || params.types || params.maxPrice) setF(initialF());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.category, params.localities, params.furnishing, params.types, params.maxPrice]);
   const [text, setText] = useState('');
   const q = useDebounced(text);
   const [filters, setFilters] = useState(false);
@@ -50,12 +56,12 @@ export default function SearchScreen() {
     const cur = (f[k] ?? '').split(',').filter(Boolean);
     set({ [k]: cur.includes(v) ? cur.filter((x) => x !== v).join(',') : [...cur, v].join(',') } as any);
   };
-  const budgets: number[] = tax.data?.budgets?.[f.purpose === 'RENT' ? 'RENT' : 'SALE'] ?? [];
+  const budgets: number[] = tax.data?.budgets?.RENT ?? [];
   const activeCount = ['types', 'bedrooms', 'minPrice', 'maxPrice', 'furnishing', 'postedBy', 'verified'].filter((k) => (f as any)[k]).length;
   const saveSearch = async () => {
     if (!user) return router.push('/login');
     try {
-      await post('/me/saved-searches', { name: [f.bedrooms && `${f.bedrooms} BHK`, f.purpose === 'RENT' ? 'Rent' : 'Buy', f.localities ?? q].filter(Boolean).join(' · ') || 'My search', filters: query, alertsEnabled: true });
+      await post('/me/saved-searches', { name: [f.bedrooms && `${f.bedrooms} BHK`, 'Rent', f.localities ?? q].filter(Boolean).join(' · ') || 'My search', filters: query, alertsEnabled: true });
       toast.success('Search saved — नई matching listings पर alert मिलेगा 🔔');
     } catch (e) {
       showError(e);
@@ -103,19 +109,25 @@ export default function SearchScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         data={[
-          { k: 'SALE', l: 'Buy' },
-          { k: 'RENT', l: 'Rent' },
+          { k: 'FURNISHED', l: 'Furnished' },
+          { k: 'PG', l: 'PG / Co-living' },
         ]}
         keyExtractor={(x) => x.k}
         contentContainerStyle={{ gap: 8 }}
         ListFooterComponent={
           <Row gap={8} style={{ marginLeft: 8 }}>
-            {(['RESIDENTIAL', 'COMMERCIAL', 'PLOT'] as const).map((cat) => (
+            {(['RESIDENTIAL', 'COMMERCIAL'] as const).map((cat) => (
               <Chip key={cat} label={cat[0] + cat.slice(1).toLowerCase()} active={f.category === cat} onPress={() => set({ category: f.category === cat ? undefined : cat, types: undefined })} />
             ))}
           </Row>
         }
-        renderItem={({ item }) => <Chip label={item.l} active={f.purpose === item.k} onPress={() => set({ purpose: item.k, minPrice: undefined, maxPrice: undefined })} />}
+        renderItem={({ item }) =>
+          item.k === 'FURNISHED' ? (
+            <Chip label={item.l} active={(f.furnishing ?? '').split(',').includes('FULLY_FURNISHED')} onPress={() => toggleCsv('furnishing', 'FULLY_FURNISHED')} />
+          ) : (
+            <Chip label={item.l} active={(f.types ?? '').split(',').includes('PG')} onPress={() => toggleCsv('types', 'PG')} />
+          )
+        }
       />
       <Row style={{ justifyContent: 'space-between' }}>
         <Txt v="small" color="muted">{total != null ? plural(total, 'property', 'properties') : ' '}</Txt>
@@ -173,7 +185,7 @@ export default function SearchScreen() {
         <Row wrap>{['1', '2', '3', '4', '5+'].map((b) => <Chip key={b} label={`${b} BHK`} active={(f.bedrooms ?? '').split(',').includes(b)} onPress={() => toggleCsv('bedrooms', b)} />)}</Row>
         <Txt v="label" color="subtle">Property type</Txt>
         <Row wrap>
-          {(tax.data?.propertyTypes ?? []).filter((t: any) => !f.category || t.category === f.category).map((t: any) => (
+          {(tax.data?.propertyTypes ?? []).filter((t: any) => (!f.category || t.category === f.category) && RENTABLE_TYPES.includes(t.value)).map((t: any) => (
             <Chip key={t.value} label={PROPERTY_TYPE_LABELS[t.value as PropertyType] ?? t.label} active={(f.types ?? '').split(',').includes(t.value)} onPress={() => toggleCsv('types', t.value)} />
           ))}
         </Row>
@@ -189,7 +201,7 @@ export default function SearchScreen() {
           <Chip label="✔ Verified only" active={f.verified === 'true'} onPress={() => set({ verified: f.verified ? undefined : 'true' })} />
         </Row>
         <Row style={{ marginTop: 8 }}>
-          <Button title="Reset" variant="secondary" style={{ flex: 1 }} onPress={() => setF({ purpose: f.purpose, sort: 'relevance' })} />
+          <Button title="Reset" variant="secondary" style={{ flex: 1 }} onPress={() => setF({ purpose: 'RENT', sort: 'relevance' })} />
           <Button title={total != null ? `${total} results दिखाएँ` : 'Apply'} style={{ flex: 2 }} onPress={() => setFilters(false)} />
         </Row>
       </Sheet>

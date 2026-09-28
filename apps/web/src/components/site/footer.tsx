@@ -49,11 +49,10 @@ export async function SiteFooter() {
         <FooterCol
           title="Explore"
           links={[
-            ['/buy', 'Buy property'],
-            ['/rent', 'Rent property'],
-            ['/commercial', 'Commercial'],
-            ['/plots', 'Plots & land'],
-            ['/projects', 'New projects'],
+            ['/rent', 'Homes for rent'],
+            ['/rent?furnishing=FULLY_FURNISHED', 'Furnished flats'],
+            ['/rent?types=PG', 'PG & co-living'],
+            ['/commercial', 'Commercial for rent'],
             ['/brokers', 'Find a broker'],
           ]}
         />

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BadgeCheck, BedDouble, Bath, Building, CalendarDays, ChevronLeft, Compass, Flag, IndianRupee, Layers, MapPin, Maximize2, MessageCircle, MessagesSquare, Phone, Share2, Sofa, Star, TrendingDown, TrendingUp } from 'lucide-react-native';
-import { FACING_LABELS, FURNISHING_LABELS, POSSESSION_LABELS, PROPERTY_TYPE_LABELS, calculateEmi, formatINR, formatPriceShort, whatsappLink, type Furnishing, type PropertyType } from '@brokeriq/shared';
+import { FACING_LABELS, FURNISHING_LABELS, POSSESSION_LABELS, PROPERTY_TYPE_LABELS, brokerageText, formatINR, formatPriceShort, moveInCost, whatsappLink, type Furnishing, type PropertyType } from '@brokeriq/shared';
 import { api, img, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig, useFlag } from '@/lib/config';
@@ -63,7 +63,8 @@ export default function Property() {
   const avg: number | null = l.localityAvgPsf;
   const diff = psf && avg ? Math.round(((psf - avg) / avg) * 100) : null;
   const amenityLabel = (k: string) => tax.data?.amenities?.find((a: any) => a.key === k)?.label ?? k;
-  const emi = l.purpose === 'SALE' ? calculateEmi(l.price * 0.8, app.finance?.defaultInterestRate ?? 8.5, 20) : null;
+  // Upfront cash to move in: advance rent + deposit + brokerage (rental marketplace).
+  const moveIn = l.purpose === 'RENT' ? moveInCost({ rent: l.price, depositMonths: l.securityDeposit ? l.securityDeposit / l.price : 0, brokerage: l.brokerageType ?? 'NONE', brokerageFixed: l.brokerageAmount ?? 0, maintenance: l.maintenance ?? 0 }) : null;
 
   const reveal = async () => {
     if (!user && app.listing?.contactRevealRequiresLogin !== false) return router.push('/login');
@@ -131,7 +132,7 @@ export default function Property() {
           </Animated.View>
           {!!psf && (
             <Row gap={6}>
-              <Txt v="small" color="muted">₹{Math.round(psf).toLocaleString('en-IN')}/sqft</Txt>
+              {l.purpose === 'SALE' && <Txt v="small" color="muted">₹{Math.round(psf).toLocaleString('en-IN')}/sqft</Txt>}
               {diff != null && diff !== 0 && (
                 <Badge label={`Locality avg से ${Math.abs(diff)}% ${diff < 0 ? 'कम' : 'ज़्यादा'}`} color={diff < 0 ? c.success : c.warning} icon={diff < 0 ? <TrendingDown size={11} color={c.success} /> : <TrendingUp size={11} color={c.warning} />} />
               )}
@@ -155,6 +156,7 @@ export default function Property() {
             <Fact icon={<CalendarDays size={20} color={c.brand} />} label="Possession" value={l.possession ? POSSESSION_LABELS[l.possession as keyof typeof POSSESSION_LABELS] : null} />
             <Fact icon={<Compass size={20} color={c.brand} />} label="Facing" value={l.facing ? FACING_LABELS[l.facing as keyof typeof FACING_LABELS] : null} />
             {l.purpose === 'RENT' && <Fact icon={<IndianRupee size={20} color={c.brand} />} label="Deposit" value={l.securityDeposit ? formatINR(l.securityDeposit) : null} />}
+            <Fact icon={<IndianRupee size={20} color={c.brand} />} label="Brokerage" value={brokerageText(l.brokerageType, l.brokerageAmount, l.price)} />
             <Fact icon={<IndianRupee size={20} color={c.brand} />} label="Maintenance" value={l.maintenance ? `${formatINR(l.maintenance)}/mo` : null} />
           </View>
 
@@ -180,10 +182,10 @@ export default function Property() {
             </>
           )}
 
-          {emi && (
-            <Card style={{ marginTop: 20, padding: 16, gap: 4 }} onPress={() => router.push({ pathname: '/tools', params: { tab: 'emi', price: String(l.price) } })}>
-              <Txt v="caption" color="muted">Estimated EMI (80% loan, 20 yrs, {app.finance?.defaultInterestRate ?? 8.5}%)</Txt>
-              <Txt v="h2" color="brand">{formatINR(Math.round(emi))}/month</Txt>
+          {moveIn && (
+            <Card style={{ marginTop: 20, padding: 16, gap: 4 }} onPress={() => router.push({ pathname: '/tools', params: { tab: 'movein' } })}>
+              <Txt v="caption" color="muted">Move-in cost (advance rent + deposit + brokerage)</Txt>
+              <Txt v="h2" color="brand">≈ {formatINR(moveIn.total)}</Txt>
               <Txt v="caption" color="brand">Calculator खोलें →</Txt>
             </Card>
           )}

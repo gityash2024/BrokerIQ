@@ -14,6 +14,8 @@ import {
   LeadTemperature,
   PROPERTY_TYPES,
   PossessionStatus,
+  RENTABLE_TYPES,
+  BrokerageType,
   ReportReason,
   VisitStatus,
 } from '../enums';
@@ -79,8 +81,9 @@ export const inviteMemberSchema = z.object({ email: emailSchema, name: z.string(
 
 // ------------------------------------------------------------------ Listings
 export const listingInputSchema = z.object({
-  purpose: z.enum(LISTING_PURPOSES),
-  propertyType: z.enum(PROPERTY_TYPES),
+  // Rental marketplace: only RENT listings of rentable property types are accepted.
+  purpose: z.enum(LISTING_PURPOSES).refine((p) => p === 'RENT', 'BrokerIQ पर अभी सिर्फ़ rent listings होती हैं').default('RENT'),
+  propertyType: z.enum(PROPERTY_TYPES).refine((t) => RENTABLE_TYPES.includes(t), 'यह property type rent के लिए उपलब्ध नहीं है'),
   title: z.string().trim().min(8).max(140).optional(),
   description: z.string().trim().max(5000).optional().nullable(),
   localityId: z.string().min(1),
@@ -91,6 +94,8 @@ export const listingInputSchema = z.object({
   longitude: z.number().min(-180).max(180).optional().nullable(),
   price: z.number().positive(),
   maintenance: z.number().min(0).optional().nullable(),
+  brokerageType: enumOf(BrokerageType).optional().nullable(),
+  brokerageAmount: z.number().min(0).optional().nullable(),
   securityDeposit: z.number().min(0).optional().nullable(),
   priceNegotiable: z.boolean().default(false),
   bedrooms: z.number().int().min(0).max(20).optional().nullable(),
@@ -120,6 +125,16 @@ export const listingInputSchema = z.object({
   submit: z.boolean().default(true),
 });
 export type ListingInput = z.infer<typeof listingInputSchema>;
+/**
+ * PATCH schema: every field optional and **no defaults** — `.partial()` alone would still inject
+ * defaults (photos: [], submit: true …) and silently wipe data on partial updates.
+ */
+export const listingUpdateSchema = z.object(
+  Object.fromEntries(
+    Object.entries(listingInputSchema.shape).map(([k, v]) => [k, ((v as any)._zod?.def?.type === 'default' ? (v as any)._zod.def.innerType : v).optional()]),
+  ) as { [K in keyof typeof listingInputSchema.shape]: z.ZodOptional<z.ZodTypeAny> },
+);
+export type ListingUpdateInput = Partial<ListingInput>;
 
 export const listingSearchSchema = z.object({
   q: z.string().trim().max(120).optional(),

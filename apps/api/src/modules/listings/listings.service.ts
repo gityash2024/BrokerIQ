@@ -3,6 +3,7 @@ import { Prisma, type Listing } from '@prisma/client';
 import {
   PROPERTY_TYPE_CATEGORY,
   PROPERTY_TYPE_LABELS,
+  RENTAL_ONLY,
   maskPhone,
   normalizeIndianPhone,
   pricePerSqft,
@@ -39,6 +40,9 @@ export const LISTING_CARD_SELECT = {
   superArea: true,
   plotArea: true,
   furnishing: true,
+  brokerageType: true,
+  brokerageAmount: true,
+  securityDeposit: true,
   possession: true,
   floor: true,
   totalFloors: true,
@@ -85,7 +89,9 @@ export class ListingsService {
   buildWhere(f: Partial<ListingSearchInput>, opts: { publicOnly?: boolean } = { publicOnly: true }): Prisma.ListingWhereInput {
     const and: Prisma.ListingWhereInput[] = [{ deletedAt: null }];
     if (opts.publicOnly) and.push({ status: 'ACTIVE' });
-    if (f.purpose) and.push({ purpose: f.purpose });
+    // Rental marketplace: public search only ever shows rent listings (legacy sale listings stay hidden).
+    if (opts.publicOnly && RENTAL_ONLY) and.push({ purpose: 'RENT' });
+    else if (f.purpose) and.push({ purpose: f.purpose });
     if (f.category) and.push({ category: f.category });
     const types = csv(f.types);
     if (types.length) and.push({ propertyType: { in: types as any } });
@@ -205,6 +211,8 @@ export class ListingsService {
     if (!listing) throw new NotFoundException('Property नहीं मिली');
     const manage = this.canEdit(listing, user);
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
+    // Legacy sale listings stay visible to their owners/admins only.
+    if (RENTAL_ONLY && listing.purpose === 'SALE' && !manage && user?.role !== 'SUPER_ADMIN') throw new NotFoundException('Property नहीं मिली');
 
     if (!manage && track) {
       await this.prisma.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } });
@@ -267,7 +275,7 @@ export class ListingsService {
   private autoTitle(input: ListingInput, localityName: string) {
     const typeLabel = PROPERTY_TYPE_LABELS[input.propertyType];
     const bhk = input.bedrooms && PROPERTY_TYPE_CATEGORY[input.propertyType] === 'RESIDENTIAL' && input.propertyType !== 'PG' ? `${input.bedrooms} BHK ` : '';
-    return `${bhk}${typeLabel} for ${input.purpose === 'SALE' ? 'Sale' : 'Rent'} in ${localityName}, Gurgaon`;
+    return `${bhk}${typeLabel} for Rent in ${localityName}, Gurgaon`;
   }
 
   private area(input: Partial<ListingInput>) {

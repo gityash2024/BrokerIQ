@@ -6,8 +6,7 @@ import {
   INTEGRATIONS,
   getIntegration,
   type AppConfig,
-  type IntegrationDef,
-} from '@brokeriq/shared';
+  type IntegrationDef, LEGACY_SEO_DEFAULTS } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from './crypto.service';
 import { IntegrationNotConfiguredException } from '../../common/exceptions';
@@ -73,7 +72,11 @@ export class SettingsService {
   async getAppConfig(): Promise<AppConfig> {
     const stored = await this.getJson<Partial<AppConfig>>(APP_CONFIG_KEY);
     const parsed = appConfigSchema.safeParse(stored ?? {});
-    return parsed.success ? parsed.data : DEFAULT_APP_CONFIG;
+    const cfg = parsed.success ? parsed.data : DEFAULT_APP_CONFIG;
+    // Rental pivot: untouched sale-era SEO defaults are replaced by the rental defaults.
+    if (cfg.seo.defaultTitle === LEGACY_SEO_DEFAULTS.title) cfg.seo.defaultTitle = DEFAULT_APP_CONFIG.seo.defaultTitle;
+    if (cfg.seo.defaultDescription === LEGACY_SEO_DEFAULTS.description) cfg.seo.defaultDescription = DEFAULT_APP_CONFIG.seo.defaultDescription;
+    return cfg;
   }
 
   async updateAppConfig(patch: Partial<AppConfig>, userId?: string): Promise<AppConfig> {

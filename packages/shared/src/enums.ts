@@ -77,6 +77,18 @@ export const PROPERTY_TYPE_CATEGORY: Record<PropertyType, PropertyCategory> = {
   INDUSTRIAL: 'COMMERCIAL',
 };
 
+/** BrokerIQ is a rental & brokerage marketplace for Gurgaon, Haryana — new listings are rent-only. */
+export const RENTAL_ONLY = true;
+export const MARKET_CITY = 'Gurgaon';
+export const MARKET_STATE = 'Haryana';
+/** Property types that make sense to rent (plots / industrial land are sale-only). */
+export const RENTABLE_TYPES = PROPERTY_TYPES.filter((t) => !['RESIDENTIAL_PLOT', 'COMMERCIAL_PLOT', 'INDUSTRIAL'].includes(t)) as PropertyType[];
+
+/** Brokerage charged by the broker on a rental deal. */
+export const BrokerageType = { NONE: 'NONE', DAYS_15: 'DAYS_15', MONTH_1: 'MONTH_1', FIXED: 'FIXED' } as const;
+export type BrokerageType = (typeof BrokerageType)[keyof typeof BrokerageType];
+export const BROKERAGE_TYPES = values(BrokerageType);
+
 export const Furnishing = { UNFURNISHED: 'UNFURNISHED', SEMI_FURNISHED: 'SEMI_FURNISHED', FULLY_FURNISHED: 'FULLY_FURNISHED' } as const;
 export type Furnishing = (typeof Furnishing)[keyof typeof Furnishing];
 export const FURNISHINGS = values(Furnishing);

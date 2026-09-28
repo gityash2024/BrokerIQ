@@ -14,7 +14,7 @@ import { requireOrg, shortCode } from '../../common/utils';
 
 const scanSchema = z.object({ image: z.string().startsWith('data:image/').max(12_000_000), hint: z.string().max(300).optional() });
 const rowSchema = z.object({
-  purpose: z.enum(['SALE', 'RENT']).default('SALE'),
+  purpose: z.enum(['SALE', 'RENT']).default('RENT'),
   propertyType: z.enum(PROPERTY_TYPES).default('APARTMENT'),
   localityId: z.string().nullable().optional(),
   societyName: z.string().max(120).nullable().optional(),
@@ -73,7 +73,7 @@ export class AiController {
     const rows = (parsed.rows ?? []).map((r) => {
       const loc = this.matchLocality(locs, r.sector ?? r.society);
       return {
-        purpose: r.purpose === 'RENT' ? 'RENT' : 'SALE',
+        purpose: 'RENT',
         propertyType: PROPERTY_TYPES.includes(r.propertyType) ? r.propertyType : 'APARTMENT',
         localityId: loc?.id ?? null,
         localityName: loc?.name ?? r.sector ?? null,
@@ -120,7 +120,7 @@ export class AiController {
       const l = await this.prisma.listing.create({
         data: {
           slug: `${slugify(title)}-${shortCode(6).toLowerCase()}`,
-          purpose: r.purpose,
+          purpose: 'RENT',
           propertyType: r.propertyType,
           category: PROPERTY_TYPE_CATEGORY[r.propertyType as keyof typeof PROPERTY_TYPE_CATEGORY],
           status,

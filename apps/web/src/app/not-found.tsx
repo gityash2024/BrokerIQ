@@ -12,7 +12,7 @@ export default function NotFound() {
           <p className="mt-2 text-muted">हो सकता है property sold हो गई हो या link बदल गया हो।</p>
           <div className="mt-6 flex justify-center gap-2">
             <Button href="/">Home</Button>
-            <Button href="/buy" variant="secondary">Properties खोजें</Button>
+            <Button href="/rent" variant="secondary">Properties खोजें</Button>
           </div>
         </div>
       </div>

@@ -18,7 +18,7 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const { user } = useAuth();
   const team = useTeam();
   const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000, enabled: open });
-  const [f, setF] = useState({ name: '', phone: '', email: '', source: 'MANUAL', assignedToId: '', notes: '', purpose: 'SALE', types: [] as string[], localityIds: [] as string[], minBudget: '', maxBudget: '', bedrooms: [] as number[] });
+  const [f, setF] = useState({ name: '', phone: '', email: '', source: 'MANUAL', assignedToId: '', notes: '', purpose: 'RENT', types: [] as string[], localityIds: [] as string[], minBudget: '', maxBudget: '', bedrooms: [] as number[] });
   const m = useApiMutation(
     () =>
       post<any>('/leads', {
@@ -73,13 +73,8 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       </div>
       <div className="mt-6 space-y-4 rounded-2xl bg-surface-2 p-4">
         <p className="text-sm font-bold">Requirement</p>
-        <div className="flex gap-2">
-          {(['SALE', 'RENT'] as const).map((p) => (
-            <Chip key={p} active={f.purpose === p} onClick={() => setF({ ...f, purpose: p })}>{p === 'SALE' ? 'Buy' : 'Rent'}</Chip>
-          ))}
-        </div>
         <div className="flex flex-wrap gap-2">
-          {['APARTMENT', 'BUILDER_FLOOR', 'VILLA', 'RESIDENTIAL_PLOT', 'OFFICE', 'SHOP'].map((t) => (
+          {['APARTMENT', 'BUILDER_FLOOR', 'VILLA', 'PG', 'OFFICE', 'SHOP'].map((t) => (
             <Chip key={t} active={f.types.includes(t)} onClick={() => setF({ ...f, types: toggle(f.types, t) })}>{PROPERTY_TYPE_LABELS[t as keyof typeof PROPERTY_TYPE_LABELS]}</Chip>
           ))}
         </div>

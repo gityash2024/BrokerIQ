@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInRight, FadeOutLeft, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, Check, ImagePlus, LocateFixed, Sparkles, Star, X } from 'lucide-react-native';
-import { FURNISHING_LABELS, POSSESSION_LABELS, formatPriceShort } from '@brokeriq/shared';
+import { FURNISHING_LABELS, POSSESSION_LABELS, formatPriceShort, BROKERAGE_LABELS, RENTABLE_TYPES } from '@brokeriq/shared';
 import { api, img, post, patch, uploadUri } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
@@ -31,7 +31,7 @@ export default function PostProperty() {
   const [aiBusy, setAiBusy] = useState(false);
   const [locQ, setLocQ] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [f, setF] = useState<any>({ purpose: 'SALE', category: 'RESIDENTIAL', propertyType: 'APARTMENT', localityId: '', amenities: [], priceNegotiable: false, contactName: user?.name ?? '', contactPhone: user?.phone ?? '' });
+  const [f, setF] = useState<any>({ purpose: 'RENT', category: 'RESIDENTIAL', propertyType: 'APARTMENT', localityId: '', amenities: [], priceNegotiable: false, contactName: user?.name ?? '', contactPhone: user?.phone ?? '' });
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const tax = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
   const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
@@ -39,12 +39,12 @@ export default function PostProperty() {
   useEffect(() => {
     const l = existing.data;
     if (!l) return;
-    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'priceNegotiable', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
+    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
     setF({ ...Object.fromEntries(keys.map((k) => [k, l[k] ?? (k === 'amenities' ? [] : '')])), category: l.category, localityId: l.localityId ?? l.locality?.id });
     setPhotos((l.media ?? []).map((m: any) => ({ url: m.url })));
   }, [existing.data]);
 
-  const types = useMemo(() => (tax.data?.propertyTypes ?? []).filter((t: any) => t.category === f.category), [tax.data, f.category]);
+  const types = useMemo(() => (tax.data?.propertyTypes ?? []).filter((t: any) => t.category === f.category && RENTABLE_TYPES.includes(t.value)), [tax.data, f.category]);
   const loc = locs.data?.find((l) => l.id === f.localityId);
   const residential = f.category === 'RESIDENTIAL';
   const plot = f.category === 'PLOT';
@@ -105,7 +105,7 @@ export default function PostProperty() {
   const payload = (submit: boolean) => {
     const n = (k: string) => (f[k] === '' || f[k] == null ? null : Number(f[k]));
     return {
-      purpose: f.purpose,
+      purpose: 'RENT' as const, // rental marketplace
       propertyType: f.propertyType,
       title: f.title?.length >= 8 ? f.title : undefined,
       description: f.description || null,
@@ -117,6 +117,8 @@ export default function PostProperty() {
       price: Number(f.price),
       maintenance: n('maintenance'),
       securityDeposit: n('securityDeposit'),
+      brokerageType: f.brokerageType || null,
+      brokerageAmount: f.brokerageType === 'FIXED' ? n('brokerageAmount') : null,
       priceNegotiable: !!f.priceNegotiable,
       bedrooms: n('bedrooms'),
       bathrooms: n('bathrooms'),
@@ -171,24 +173,27 @@ export default function PostProperty() {
         <Animated.View key={step} entering={FadeInRight.duration(250)} exiting={FadeOutLeft.duration(150)} style={{ gap: 16 }}>
           {step === 0 && (
             <>
-              <Txt v="label" color="subtle">मैं चाहता हूँ</Txt>
-              <Row>
-                <Chip label="बेचना (Sell)" active={f.purpose === 'SALE'} onPress={() => set({ purpose: 'SALE' })} />
-                <Chip label="किराये पर देना (Rent)" active={f.purpose === 'RENT'} onPress={() => set({ purpose: 'RENT' })} />
-              </Row>
+              <Txt v="label" color="subtle">किराये पर क्या देना है?</Txt>
               <Txt v="label" color="subtle">Category</Txt>
               <Row wrap>
-                {(['RESIDENTIAL', 'COMMERCIAL', 'PLOT'] as const).map((cat) => (
-                  <Chip key={cat} label={cat[0] + cat.slice(1).toLowerCase()} active={f.category === cat} onPress={() => set({ category: cat, propertyType: (tax.data?.propertyTypes ?? []).find((t: any) => t.category === cat)?.value })} />
+                {(['RESIDENTIAL', 'COMMERCIAL'] as const).map((cat) => (
+                  <Chip key={cat} label={cat[0] + cat.slice(1).toLowerCase()} active={f.category === cat} onPress={() => set({ category: cat, propertyType: (tax.data?.propertyTypes ?? []).find((t: any) => t.category === cat && RENTABLE_TYPES.includes(t.value))?.value })} />
                 ))}
               </Row>
               <Txt v="label" color="subtle">Property type</Txt>
               <Row wrap>{types.map((t: any) => <Chip key={t.value} label={t.label} active={f.propertyType === t.value} onPress={() => set({ propertyType: t.value })} />)}</Row>
               <Input label={f.purpose === 'RENT' ? 'Monthly rent (₹)' : 'Expected price (₹)'} value={f.price ? String(f.price) : ''} onChangeText={(v) => set({ price: num(v) })} keyboardType="numeric" hint={f.price ? formatPriceShort(Number(f.price)) : undefined} />
               <Row>
-                {f.purpose === 'RENT' && numInput('securityDeposit', 'Deposit (₹)')}
+                {numInput('securityDeposit', 'Deposit (₹)')}
                 {numInput('maintenance', 'Maintenance / month')}
               </Row>
+              <Txt v="label" color="subtle">Brokerage (tenant से)</Txt>
+              <Row wrap>
+                {Object.entries(BROKERAGE_LABELS).map(([k, l]) => (
+                  <Chip key={k} label={l} active={f.brokerageType === k} onPress={() => set({ brokerageType: f.brokerageType === k ? null : k })} />
+                ))}
+              </Row>
+              {f.brokerageType === 'FIXED' && numInput('brokerageAmount', 'Brokerage amount (₹)')}
               <Chip label="Price negotiable" active={f.priceNegotiable} onPress={() => set({ priceNegotiable: !f.priceNegotiable })} />
             </>
           )}

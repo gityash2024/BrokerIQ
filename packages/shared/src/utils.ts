@@ -127,3 +127,63 @@ export function plural(n: number | null | undefined, one: string, many = `${one}
   const v = Number(n ?? 0);
   return `${v.toLocaleString('en-IN')} ${v === 1 ? one : many}`;
 }
+
+/** Human text for a rental listing's brokerage, e.g. "1 month rent (₹45,000)" or "No brokerage". */
+export function brokerageText(type: string | null | undefined, amount?: number | null, rent?: number | null): string | null {
+  if (!type) return null;
+  if (type === 'NONE') return 'No brokerage';
+  if (type === 'FIXED') return amount ? formatINR(amount) : null;
+  const months = type === 'DAYS_15' ? 0.5 : 1;
+  const label = type === 'DAYS_15' ? '15 days rent' : '1 month rent';
+  return rent ? `${label} (${formatINR(Math.round(rent * months))})` : label;
+}
+
+// ------------------------------------------------------------------ Rent tools (web + app)
+
+/** Comfortable / stretch monthly rent for a take-home income (30% / 40% rule, minus existing EMIs). */
+export function rentAffordability(income: number, existingEmis = 0) {
+  const comfortable = Math.max(0, Math.min(income * 0.3, income * 0.5 - existingEmis));
+  const stretch = Math.max(0, Math.min(income * 0.4, income * 0.6 - existingEmis));
+  return { comfortable: Math.round(comfortable / 500) * 500, stretch: Math.round(stretch / 500) * 500 };
+}
+
+export interface MoveInInput {
+  rent: number;
+  depositMonths: number;
+  brokerage: 'NONE' | 'DAYS_15' | 'MONTH_1' | 'FIXED';
+  brokerageFixed?: number;
+  brokerageGst?: boolean;
+  maintenance?: number;
+  advanceMonths?: number;
+  shifting?: number;
+}
+
+/** Upfront cash needed to move into a rented home. */
+export function moveInCost(i: MoveInInput) {
+  const advance = i.rent * (i.advanceMonths ?? 1);
+  const deposit = i.rent * i.depositMonths;
+  const brokerageBase = i.brokerage === 'NONE' ? 0 : i.brokerage === 'DAYS_15' ? i.rent / 2 : i.brokerage === 'MONTH_1' ? i.rent : i.brokerageFixed ?? 0;
+  const gst = i.brokerageGst ? brokerageBase * 0.18 : 0;
+  const maintenance = i.maintenance ?? 0;
+  const shifting = i.shifting ?? 0;
+  const lines = [
+    { label: 'Advance rent', amount: Math.round(advance) },
+    { label: 'Security deposit (refundable)', amount: Math.round(deposit) },
+    { label: 'Brokerage', amount: Math.round(brokerageBase) },
+    ...(gst ? [{ label: 'GST on brokerage (18%)', amount: Math.round(gst) }] : []),
+    ...(maintenance ? [{ label: 'Maintenance (first month)', amount: Math.round(maintenance) }] : []),
+    ...(shifting ? [{ label: 'Packers & shifting', amount: Math.round(shifting) }] : []),
+  ];
+  const total = lines.reduce((s, l) => s + l.amount, 0);
+  return { lines, total, refundable: Math.round(deposit) };
+}
+
+/** Split rent + bills between flatmates; the master-room occupant pays a premium. */
+export function rentSplit(rent: number, bills: number, people: number, masterPremiumPct = 0) {
+  const n = Math.max(1, Math.round(people));
+  const total = rent + bills;
+  if (n === 1) return { perPerson: total, master: total, others: 0, total };
+  const unit = total / (n + masterPremiumPct / 100);
+  const master = unit * (1 + masterPremiumPct / 100);
+  return { perPerson: Math.round(total / n), master: Math.round(master), others: Math.round(unit), total };
+}

@@ -8,19 +8,20 @@ import { api } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
+// Rental marketplace: every tab searches rent listings.
 const TABS = [
-  { key: 'SALE', label: 'Buy', path: '/buy' },
   { key: 'RENT', label: 'Rent', path: '/rent' },
+  { key: 'FURNISHED', label: 'Furnished', path: '/rent?furnishing=FULLY_FURNISHED' },
+  { key: 'PG', label: 'PG / Co-living', path: '/rent?types=PG' },
   { key: 'COMMERCIAL', label: 'Commercial', path: '/commercial' },
-  { key: 'PLOT', label: 'Plots', path: '/plots' },
-  { key: 'PROJECTS', label: 'New Projects', path: '/projects' },
 ] as const;
 
 const RECENT_KEY = 'biq.recent-searches';
 
-export function HeroSearch({ tabs = TABS.map((t) => t.key) }: { tabs?: string[] }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('SALE');
-  const visible = TABS.filter((t) => tabs.includes(t.key));
+// `tabs` (homepage config) is kept for compatibility; rental tabs are always shown.
+export function HeroSearch(_props: { tabs?: string[] }) {
+  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('RENT');
+  const visible = TABS;
   return (
     <div className="w-full max-w-3xl">
       <div className="mb-3 flex flex-wrap gap-1">
@@ -40,7 +41,7 @@ export function HeroSearch({ tabs = TABS.map((t) => t.key) }: { tabs?: string[] 
   );
 }
 
-export function SearchInput({ basePath = '/buy', large, defaultValue = '', className }: { basePath?: string; large?: boolean; defaultValue?: string; className?: string }) {
+export function SearchInput({ basePath = '/rent', large, defaultValue = '', className }: { basePath?: string; large?: boolean; defaultValue?: string; className?: string }) {
   const router = useRouter();
   const [q, setQ] = useState(defaultValue);
   const [open, setOpen] = useState(false);
@@ -66,8 +67,8 @@ export function SearchInput({ basePath = '/buy', large, defaultValue = '', class
     setOpen(false);
     router.push(href);
   };
-  const submit = () => (q.trim() ? go(`${basePath}?q=${encodeURIComponent(q.trim())}`, q.trim()) : router.push(basePath));
   const withParam = (key: string, val: string) => `${basePath}${basePath.includes('?') ? '&' : '?'}${key}=${val}`;
+  const submit = () => (q.trim() ? go(withParam('q', encodeURIComponent(q.trim())), q.trim()) : router.push(basePath));
   const hasResults = data && (data.localities.length || data.projects.length || data.brokers.length);
 
   return (

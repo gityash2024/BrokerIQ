@@ -10,6 +10,7 @@ import type {
   VisitStatus,
   Facing,
   LeadTemperature,
+  BrokerageType,
 } from './enums';
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
@@ -38,6 +39,13 @@ export const CATEGORY_LABELS: Record<PropertyCategory, string> = {
 };
 
 export const PURPOSE_LABELS: Record<ListingPurpose, string> = { SALE: 'Buy', RENT: 'Rent' };
+
+export const BROKERAGE_LABELS: Record<BrokerageType, string> = {
+  NONE: 'No brokerage',
+  DAYS_15: '15 days rent',
+  MONTH_1: '1 month rent',
+  FIXED: 'Fixed amount',
+};
 
 export const FURNISHING_LABELS: Record<Furnishing, string> = {
   UNFURNISHED: 'Unfurnished',

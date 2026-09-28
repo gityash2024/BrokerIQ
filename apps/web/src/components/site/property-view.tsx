@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, BadgeCheck, Calendar, ChevronRight, Compass, Eye, Flag, Layers, MapPin, Pencil, Share2, Sofa, Sparkles } from 'lucide-react';
-import { FACING_LABELS, FURNISHING_LABELS, POSSESSION_LABELS, PROPERTY_TYPE_LABELS, formatINR, formatPriceShort, timeAgo } from '@brokeriq/shared';
+import { FACING_LABELS, FURNISHING_LABELS, POSSESSION_LABELS, PROPERTY_TYPE_LABELS, brokerageText, formatINR, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { formatDate, SITE_URL } from '@/lib/utils';
 import { Badge } from '../ui/misc';
@@ -45,6 +45,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
     [<Icons.Hourglass key="ag" />, 'Age', l.ageYears != null ? `${l.ageYears} yrs` : null],
     [<Icons.Wallet key="m" />, 'Maintenance', l.maintenance ? `${formatINR(l.maintenance)}/mo` : null],
     [<Icons.ShieldCheck key="d" />, 'Deposit', l.securityDeposit ? formatPriceShort(l.securityDeposit) : null],
+    [<Icons.HandCoins key="br" />, 'Brokerage', brokerageText(l.brokerageType, l.brokerageAmount, l.price)],
     [<Icons.CalendarCheck key="av" />, 'Available from', l.availableFrom ? formatDate(l.availableFrom) : null],
   ];
 
@@ -62,8 +63,8 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
       <nav className="mb-4 flex flex-wrap items-center gap-1 text-xs text-muted">
         <Link href="/" className="hover:text-fg">Home</Link>
         <ChevronRight className="size-3" />
-        <Link href={l.purpose === 'RENT' ? '/rent' : l.category === 'COMMERCIAL' ? '/commercial' : '/buy'} className="hover:text-fg">
-          {l.purpose === 'RENT' ? 'Rent' : 'Buy'}
+        <Link href={l.category === 'COMMERCIAL' ? '/commercial' : '/rent'} className="hover:text-fg">
+          Rent
         </Link>
         <ChevronRight className="size-3" />
         <Link href={`/locality/${l.locality.slug}`} className="hover:text-fg">{l.locality.name}</Link>

@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
-import { listingInputSchema, listingSearchSchema, reportSchema, PROPERTY_TYPE_LABELS } from '@brokeriq/shared';
+import { listingInputSchema, listingSearchSchema, listingUpdateSchema, reportSchema, PROPERTY_TYPE_LABELS } from '@brokeriq/shared';
 import { ListingsService } from './listings.service';
 import { CurrentUser, Public, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
@@ -80,7 +80,7 @@ export class ListingsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @CurrentUser() user: RequestUser, @Body(new ZodPipe(listingInputSchema.partial())) body: any) {
+  update(@Param('id') id: string, @CurrentUser() user: RequestUser, @Body(new ZodPipe(listingUpdateSchema)) body: any) {
     return this.listings.update(id, body, user);
   }
 

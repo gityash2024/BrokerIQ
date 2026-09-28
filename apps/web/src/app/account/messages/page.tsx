@@ -20,7 +20,7 @@ function Inner() {
     <>
       <PageHeader title="Messages" subtitle="Brokers के साथ आपकी बातचीत" />
       {!q.data?.length ? (
-        <Empty icon={<MessagesSquare className="size-6" />} title="कोई conversation नहीं" text="Property page पर “Chat” दबाकर broker से बात शुरू करें।" action={<Button href="/buy">Properties देखें</Button>} />
+        <Empty icon={<MessagesSquare className="size-6" />} title="कोई conversation नहीं" text="Property page पर “Chat” दबाकर broker से बात शुरू करें।" action={<Button href="/rent">Properties देखें</Button>} />
       ) : (
         <div className="card grid h-[70vh] overflow-hidden md:grid-cols-[300px_1fr]">
           <div className={cn('overflow-y-auto border-r border-line', active && 'hidden md:block')}>

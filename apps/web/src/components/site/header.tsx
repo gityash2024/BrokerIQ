@@ -14,10 +14,8 @@ import { Sheet } from '../ui/dialog';
 import { ThemeToggle } from '../ui/theme-toggle';
 
 const NAV = [
-  { href: '/buy', label: 'Buy' },
   { href: '/rent', label: 'Rent' },
   { href: '/commercial', label: 'Commercial' },
-  { href: '/projects', label: 'New Projects' },
   { href: '/localities', label: 'Localities' },
   { href: '/brokers', label: 'Brokers' },
   { href: '/tools', label: 'Tools' },

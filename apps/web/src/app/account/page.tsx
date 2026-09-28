@@ -39,7 +39,7 @@ export default function AccountHome() {
         <div className="card p-6">
           <h3 className="font-display text-lg font-bold">Property खोज रहे हैं?</h3>
           <p className="mt-1 text-sm text-muted">अपनी requirement के हिसाब से search save करें — नई property आते ही alert मिलेगा।</p>
-          <Button href="/buy" className="mt-4">Search properties <ArrowRight className="size-4" /></Button>
+          <Button href="/rent" className="mt-4">Search properties <ArrowRight className="size-4" /></Button>
         </div>
         <div className="card bg-gradient-to-br from-saffron-50 to-transparent p-6 dark:from-saffron-500/10">
           <h3 className="font-display text-lg font-bold">Property बेचनी या किराये पर देनी है?</h3>

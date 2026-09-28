@@ -47,16 +47,16 @@ export const appConfigSchema = z.object({
     .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: true }),
   seo: z
     .object({
-      defaultTitle: z.string().default('BrokerIQ — Buy, Rent & Invest in Gurgaon Property'),
+      defaultTitle: z.string().default('BrokerIQ — Flats, Houses & PG for Rent in Gurgaon'),
       defaultDescription: z
         .string()
-        .default('Verified flats, builder floors, villas, offices and plots for sale & rent in Gurgaon. Compare localities, prices and connect with trusted brokers.'),
+        .default('Verified furnished flats, builder floors, PG and offices for rent in Gurgaon, Haryana. Compare rents by locality and connect with trusted local brokers.'),
       ogImage: z.string().default(''),
     })
     .default({
-      defaultTitle: 'BrokerIQ — Buy, Rent & Invest in Gurgaon Property',
+      defaultTitle: 'BrokerIQ — Flats, Houses & PG for Rent in Gurgaon',
       defaultDescription:
-        'Verified flats, builder floors, villas, offices and plots for sale & rent in Gurgaon. Compare localities, prices and connect with trusted brokers.',
+        'Verified furnished flats, builder floors, PG and offices for rent in Gurgaon, Haryana. Compare rents by locality and connect with trusted local brokers.',
       ogImage: '',
     }),
   monetization: z
@@ -91,3 +91,9 @@ export interface PublicConfig {
   integrations: Record<string, Record<string, unknown> & { configured: boolean }>;
   apiVersion: string;
 }
+
+/** Pre-rental-pivot SEO defaults, swapped for the rental copy when an install still carries them. */
+export const LEGACY_SEO_DEFAULTS = {
+  title: 'BrokerIQ — Buy, Rent & Invest in Gurgaon Property',
+  description: 'Verified flats, builder floors, villas, offices and plots for sale & rent in Gurgaon. Compare localities, prices and connect with trusted brokers.',
+};

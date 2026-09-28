@@ -6,7 +6,7 @@ import * as Pop from '@radix-ui/react-popover';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { BellPlus, Check, ChevronDown, LayoutGrid, List, Map as MapIcon, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
-import { formatPriceShort, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS } from '@brokeriq/shared';
+import { formatPriceShort, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, plural } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn, qs } from '@/lib/utils';
@@ -22,11 +22,12 @@ import { SearchInput } from './search-box';
 
 export type SearchMode = 'buy' | 'rent' | 'commercial' | 'plots';
 
+// Rental marketplace: every mode searches rent listings ('buy' / 'plots' routes redirect to /rent).
 const MODE: Record<SearchMode, { purpose?: 'SALE' | 'RENT'; category?: string; title: string; base: string }> = {
-  buy: { purpose: 'SALE', category: 'RESIDENTIAL', title: 'Properties for sale', base: '/buy' },
-  rent: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Properties for rent', base: '/rent' },
-  commercial: { category: 'COMMERCIAL', title: 'Commercial properties', base: '/commercial' },
-  plots: { category: 'PLOT', title: 'Plots & land', base: '/plots' },
+  buy: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/rent' },
+  rent: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/rent' },
+  commercial: { purpose: 'RENT', category: 'COMMERCIAL', title: 'Commercial space for rent', base: '/commercial' },
+  plots: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/rent' },
 };
 
 const BEDS = ['1', '2', '3', '4', '5+'];
@@ -44,7 +45,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
   const [pendingBbox, setPendingBbox] = useState<string | null>(null);
 
   const f = useMemo(() => Object.fromEntries(sp.entries()) as Record<string, string>, [sp]);
-  const purpose = m.purpose ?? (f.purpose as 'SALE' | 'RENT' | undefined) ?? 'SALE';
+  const purpose = m.purpose ?? 'RENT';
   const filters = { ...f, purpose, category: m.category, sort: f.sort ?? 'relevance' };
 
   const setF = (patch: Record<string, string | null | undefined>) => {
@@ -75,7 +76,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
 
   const mapQ = useQuery({ queryKey: ['search-map', key], queryFn: () => api<any[]>(`/listings/map${key}`, { auth: false }), enabled: view === 'map' });
 
-  const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && t.value !== 'PG');
+  const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && RENTABLE_TYPES.includes(t.value));
   const budgets: number[] = tax?.budgets?.[purpose] ?? [];
   const selectedLocs = (f.localities ?? '').split(',').filter(Boolean);
   const activeCount = ['types', 'minPrice', 'maxPrice', 'bedrooms', 'furnishing', 'possession', 'postedBy', 'verified', 'amenities', 'localities', 'q', 'minArea', 'maxArea'].filter((k) => f[k]).length;
@@ -119,17 +120,6 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
             </div>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {mode === 'commercial' && (
-              <>
-                <Chip active={purpose === 'SALE'} onClick={() => setF({ purpose: 'SALE' })}>
-                  Buy
-                </Chip>
-                <Chip active={purpose === 'RENT'} onClick={() => setF({ purpose: 'RENT' })}>
-                  Lease
-                </Chip>
-                <span className="mx-1 h-6 w-px bg-line" />
-              </>
-            )}
             <LocalityPicker locs={locs ?? []} selected={selectedLocs} onChange={(v) => setF({ localities: v.join(',') })} />
             <Pop.Root>
               <Pop.Trigger asChild>
@@ -167,6 +157,11 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                   {b} BHK
                 </Chip>
               ))}
+            {m.category === 'RESIDENTIAL' && (
+              <Chip active={csvHas('furnishing', 'FULLY_FURNISHED')} onClick={() => toggleCsv('furnishing', 'FULLY_FURNISHED')}>
+                Furnished
+              </Chip>
+            )}
             <Chip active={f.verified === 'true'} onClick={() => setF({ verified: f.verified === 'true' ? null : 'true' })}>
               <Check className="size-3.5" /> Verified
             </Chip>
@@ -194,7 +189,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                 {m.title}
                 {selectedLocs.length ? ` in ${selectedLocs.map((s) => locs?.find((l) => l.slug === s)?.name ?? s).join(', ')}` : ' in Gurgaon'}
               </h1>
-              <p className="mt-1 text-sm text-muted">{q.isLoading ? 'Searching…' : `${total.toLocaleString('en-IN')} properties found`}</p>
+              <p className="mt-1 text-sm text-muted">{q.isLoading ? 'Searching…' : `${plural(total, 'property', 'properties')} found`}</p>
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="secondary" onClick={saveSearch}>

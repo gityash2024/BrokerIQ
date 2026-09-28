@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
+import { RENTAL_ONLY } from '@brokeriq/shared';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
 
 @Injectable()
@@ -19,31 +20,34 @@ export class PublicService {
 
   async stats() {
     const [listings, sale, rent, brokers, localities, projects] = await Promise.all([
-      this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+      this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null, ...(RENTAL_ONLY ? { purpose: 'RENT' as const } : {}) } }),
       this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null, purpose: 'SALE' } }),
       this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null, purpose: 'RENT' } }),
       this.prisma.organization.count({ where: { status: 'ACTIVE', onboarded: true } }),
       this.prisma.locality.count({ where: { isActive: true } }),
       this.prisma.project.count({ where: { isActive: true } }),
     ]);
-    return { listings, sale, rent, brokers, localities, projects };
+    return { listings, sale: RENTAL_ONLY ? 0 : sale, rent, brokers, localities, projects: RENTAL_ONLY ? 0 : projects };
   }
 
-  /** Localities with live listing counts and computed average ₹/sqft. */
+  /** Localities with live listing counts, average rent (2 BHK) and — for legacy clients — average sale ₹/sqft. */
   async localitiesWithStats(where: Prisma.LocalityWhereInput, take = 200) {
     const locs = await this.prisma.locality.findMany({ where: { isActive: true, ...where }, orderBy: [{ isPopular: 'desc' }, { sortOrder: 'asc' }], take });
     if (!locs.length) return [];
     const ids = locs.map((l) => l.id);
-    const [counts, psf] = await Promise.all([
+    const [counts, psf, rent2] = await Promise.all([
       this.prisma.listing.groupBy({ by: ['localityId', 'purpose'], where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null }, _count: { _all: true } }),
       this.prisma.listing.groupBy({ by: ['localityId'], where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null, purpose: 'SALE', category: 'RESIDENTIAL', pricePerSqft: { not: null } }, _avg: { pricePerSqft: true }, _count: { _all: true } }),
+      this.prisma.listing.groupBy({ by: ['localityId'], where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null, purpose: 'RENT', category: 'RESIDENTIAL', bedrooms: 2 }, _avg: { price: true }, _count: { _all: true } }),
     ]);
     return locs.map((l) => {
-      const sale = counts.find((c) => c.localityId === l.id && c.purpose === 'SALE')?._count._all ?? 0;
+      const sale = RENTAL_ONLY ? 0 : (counts.find((c) => c.localityId === l.id && c.purpose === 'SALE')?._count._all ?? 0);
       const rent = counts.find((c) => c.localityId === l.id && c.purpose === 'RENT')?._count._all ?? 0;
       const p = psf.find((x) => x.localityId === l.id);
       const computed = p && p._count._all >= 3 ? Math.round(p._avg.pricePerSqft ?? 0) : null;
-      return { ...l, listingsSale: sale, listingsRent: rent, avgPsf: computed ?? l.avgPriceSale ?? null };
+      const r = rent2.find((x) => x.localityId === l.id);
+      const avgRent = r && r._count._all >= 3 ? Math.round(r._avg.price ?? 0) : (l.avgRent2Bhk ?? null);
+      return { ...l, listingsSale: sale, listingsRent: rent, avgRent, avgPsf: RENTAL_ONLY ? null : (computed ?? l.avgPriceSale ?? null) };
     });
   }
 
@@ -64,7 +68,7 @@ export class PublicService {
         case 'FEATURED_LISTINGS': {
           const ids: string[] = Array.isArray(cfg.listingIds) ? cfg.listingIds : [];
           data = await this.prisma.listing.findMany({
-            where: { status: 'ACTIVE', deletedAt: null, ...(ids.length ? { id: { in: ids } } : {}), ...(cfg.purpose === 'SALE' || cfg.purpose === 'RENT' ? { purpose: cfg.purpose } : {}) },
+            where: { status: 'ACTIVE', deletedAt: null, ...(ids.length ? { id: { in: ids } } : {}), ...(RENTAL_ONLY ? { purpose: 'RENT' as const } : cfg.purpose === 'SALE' || cfg.purpose === 'RENT' ? { purpose: cfg.purpose } : {}) },
             orderBy: [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { publishedAt: 'desc' }],
             take: cfg.limit ?? 8,
             select: LISTING_CARD_SELECT,
@@ -72,7 +76,8 @@ export class PublicService {
           break;
         }
         case 'FEATURED_PROJECTS':
-          data = await this.prisma.project.findMany({
+          // New-launch projects are sale inventory — hidden on the rental marketplace.
+          data = RENTAL_ONLY ? [] : await this.prisma.project.findMany({
             where: { isActive: true },
             orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
             take: cfg.limit ?? 6,
@@ -113,11 +118,11 @@ export class PublicService {
     const trend = await this.prisma.$queryRaw<{ month: Date; avg: number; count: bigint }[]>`
       SELECT date_trunc('month', "createdAt") AS month, AVG("pricePerSqft")::float AS avg, COUNT(*) AS count
       FROM "Listing"
-      WHERE "localityId" = ${loc.id} AND purpose = 'SALE' AND category = 'RESIDENTIAL' AND "pricePerSqft" IS NOT NULL
+      WHERE "localityId" = ${loc.id} AND purpose = 'RENT' AND category = 'RESIDENTIAL' AND "pricePerSqft" IS NOT NULL
         AND "createdAt" >= ${since} AND "deletedAt" IS NULL
       GROUP BY 1 ORDER BY 1`;
     const [projects, brokers, rentAgg, bhkMix] = await Promise.all([
-      this.prisma.project.findMany({ where: { localityId: loc.id, isActive: true }, take: 12, include: { builder: { select: { name: true } } } }),
+      RENTAL_ONLY ? Promise.resolve([]) : this.prisma.project.findMany({ where: { localityId: loc.id, isActive: true }, take: 12, include: { builder: { select: { name: true } } } }),
       this.prisma.organization.findMany({
         where: { status: 'ACTIVE', onboarded: true, OR: [{ localities: { some: { id: loc.id } } }, { listings: { some: { localityId: loc.id, status: 'ACTIVE' } } }] },
         orderBy: [{ verification: 'desc' }, { rating: 'desc' }],
@@ -147,7 +152,7 @@ export class PublicService {
     if (s.length < 2) return { localities: [], projects: [], brokers: [] };
     const [localities, projects, brokers] = await Promise.all([
       this.prisma.locality.findMany({ where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { zone: { contains: s, mode: 'insensitive' } }] }, take: 8, orderBy: [{ isPopular: 'desc' }], select: { id: true, name: true, slug: true, zone: true } }),
-      this.prisma.project.findMany({ where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { builder: { name: { contains: s, mode: 'insensitive' } } }] }, take: 6, select: { id: true, name: true, slug: true, builder: { select: { name: true } }, locality: { select: { name: true } } } }),
+      RENTAL_ONLY ? Promise.resolve([]) : this.prisma.project.findMany({ where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { builder: { name: { contains: s, mode: 'insensitive' } } }] }, take: 6, select: { id: true, name: true, slug: true, builder: { select: { name: true } }, locality: { select: { name: true } } } }),
       this.prisma.organization.findMany({ where: { status: 'ACTIVE', onboarded: true, name: { contains: s, mode: 'insensitive' } }, take: 4, select: { id: true, name: true, slug: true, logoUrl: true } }),
     ]);
     return { localities, projects, brokers };

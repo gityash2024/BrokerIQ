@@ -84,7 +84,7 @@ export default function Profile() {
             <Item icon={<PlusCircle size={20} color={c.accent} />} tint={c.accent} label="Property post करें (FREE)" sub="Owners के लिए — सीधे buyers/tenants से leads" onPress={() => router.push(user ? '/post-property' : '/login')} />
             <Item icon={<Building2 size={20} color={c.brand} />} label="मेरी listings" onPress={() => router.push(user ? '/my-listings' : '/login')} />
             <Item icon={<Send size={20} color={c.info} />} tint={c.info} label="मेरी enquiries" onPress={() => router.push(user ? '/enquiries' : '/login')} />
-            <Item icon={<Calculator size={20} color={c.success} />} tint={c.success} label="EMI, stamp duty & affordability" onPress={() => router.push('/tools')} />
+            <Item icon={<Calculator size={20} color={c.success} />} tint={c.success} label="Rent budget, move-in cost & split" onPress={() => router.push('/tools')} />
           </Group>
           <Group title="Account">
             {user && <Item icon={<Bell size={20} color={c.brand} />} label="Notifications" onPress={() => router.push('/notifications')} />}

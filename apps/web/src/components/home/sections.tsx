@@ -104,7 +104,7 @@ export function ListingsSection({ s }: { s: any }) {
   return (
     <section className="bg-surface/60 py-16">
       <div className="container-x">
-        <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/buy" variant="secondary" size="sm">View all <ArrowRight className="size-4" /></Button>} />
+        <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/rent" variant="secondary" size="sm">View all <ArrowRight className="size-4" /></Button>} />
         <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((l) => (
             <StaggerItem key={l.id}>
@@ -174,15 +174,14 @@ export function BrokersSection({ s }: { s: any }) {
 
 export function ToolsSection({ s }: { s: any }) {
   const tools = [
-    { href: '/tools?t=emi', icon: Calculator, title: 'EMI Calculator', text: 'Monthly EMI और total interest तुरंत', c: 'from-indigo-500 to-violet-600' },
-    { href: '/tools?t=afford', icon: Wallet, title: 'Affordability', text: 'आपकी income में कितना घर', c: 'from-emerald-500 to-teal-600' },
-    { href: '/tools?t=stamp', icon: Landmark, title: 'Stamp Duty (Haryana)', text: 'Registration cost का सही अंदाज़ा', c: 'from-amber-400 to-orange-600' },
-    { href: '/tools?t=rentbuy', icon: Scale, title: 'Rent vs Buy', text: 'कौन सा option बेहतर है', c: 'from-sky-500 to-blue-600' },
+    { href: '/tools?t=rent', icon: Wallet, title: 'Rent budget', text: 'आपकी income में कितना किराया ठीक है', c: 'from-emerald-500 to-teal-600' },
+    { href: '/tools?t=movein', icon: Calculator, title: 'Move-in cost', text: 'Deposit + brokerage + advance — कुल कितना चाहिए', c: 'from-indigo-500 to-violet-600' },
+    { href: '/tools?t=split', icon: Scale, title: 'Rent split', text: 'Flatmates के बीच किराया और bills बाँटें', c: 'from-sky-500 to-blue-600' },
   ];
   return (
     <section className="container-x py-16">
       <SectionTitle title={s.title} subtitle={s.subtitle} />
-      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map((t) => (
           <StaggerItem key={t.href}>
             <Link href={t.href} className="group card flex h-full flex-col p-6 transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">

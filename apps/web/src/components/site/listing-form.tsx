@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowRight, Building2, Check, Home, Landmark, MapPin, Sparkles, Store, Wand2 } from 'lucide-react';
-import { FACING_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, formatPriceShort, pricePerSqft, formatINR } from '@brokeriq/shared';
+import { BROKERAGE_LABELS, FACING_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, pricePerSqft, formatINR } from '@brokeriq/shared';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { useFlag } from '@/lib/config';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,8 @@ export interface ListingFormValue {
   price?: number | null;
   maintenance?: number | null;
   securityDeposit?: number | null;
+  brokerageType?: string | null;
+  brokerageAmount?: number | null;
   priceNegotiable?: boolean;
   bedrooms?: number | null;
   bathrooms?: number | null;
@@ -56,7 +58,7 @@ export interface ListingFormValue {
   contactPhone?: string | null;
 }
 
-const EMPTY: ListingFormValue = { purpose: 'SALE', propertyType: 'APARTMENT', localityId: '', amenities: [], photos: [], priceNegotiable: false, preferredTenants: [] };
+const EMPTY: ListingFormValue = { purpose: 'RENT', propertyType: 'APARTMENT', localityId: '', amenities: [], photos: [], priceNegotiable: false, preferredTenants: [] };
 
 export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: { initial?: Partial<ListingFormValue>; listingId?: string; afterSave: (l: any) => void; role?: 'owner' | 'broker' }) {
   const [step, setStep] = useState(0);
@@ -101,6 +103,10 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
       price: Number(v.price),
       maintenance: num(v.maintenance),
       securityDeposit: num(v.securityDeposit),
+      // Rental marketplace: every listing (incl. edits of legacy sale listings) is a rent listing.
+      purpose: 'RENT' as const,
+      brokerageType: v.brokerageType || null,
+      brokerageAmount: v.brokerageType === 'FIXED' ? num(v.brokerageAmount) : null,
       bedrooms: num(v.bedrooms),
       bathrooms: num(v.bathrooms),
       balconies: num(v.balconies),
@@ -154,7 +160,7 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
     }
   };
 
-  const types = useMemo(() => (tax?.propertyTypes ?? []).filter((t: any) => t.category === cat), [tax, cat]);
+  const types = useMemo(() => (tax?.propertyTypes ?? []).filter((t: any) => t.category === cat && RENTABLE_TYPES.includes(t.value)), [tax, cat]);
   const amenities = (tax?.amenities ?? []).filter((a: any) => (cat === 'COMMERCIAL' ? a.category !== 'flat' : a.category !== 'commercial'));
 
   return (
@@ -178,28 +184,14 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
         <motion.div key={step} custom={dir} initial={{ opacity: 0, x: dir * 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -dir * 40 }} transition={{ duration: 0.25 }} className="card space-y-6 p-6 sm:p-8">
           {step === 0 && (
             <>
-              <h2 className="font-display text-2xl font-bold">आप क्या करना चाहते हैं?</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {(
-                  [
-                    ['SALE', 'Sell', 'Property बेचनी है'],
-                    ['RENT', cat === 'COMMERCIAL' ? 'Lease' : 'Rent out', 'किराये पर देनी है'],
-                  ] as const
-                ).map(([p, t, d]) => (
-                  <button type="button" key={p} onClick={() => set({ purpose: p })} className={cn('rounded-2xl border-2 p-4 text-left transition', v.purpose === p ? 'border-brand-600 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
-                    <p className="font-display text-lg font-bold">{t}</p>
-                    <p className="text-sm text-muted">{d}</p>
-                  </button>
-                ))}
-              </div>
+              <h2 className="font-display text-2xl font-bold">किराये पर क्या देना है?</h2>
               <div>
                 <p className="mb-2 text-sm font-semibold">Category</p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {(
                     [
                       ['RESIDENTIAL', Home, 'Residential', 'APARTMENT'],
                       ['COMMERCIAL', Store, 'Commercial', 'OFFICE'],
-                      ['PLOT', Landmark, 'Plot / Land', 'RESIDENTIAL_PLOT'],
                     ] as const
                   ).map(([c, Icon, label, def]) => (
                     <button type="button" key={c} onClick={() => set({ propertyType: def })} className={cn('flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition', cat === c ? 'border-brand-600 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
@@ -383,7 +375,18 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                   <Input inputMode="numeric" value={v.price ?? ''} onChange={(e) => set({ price: e.target.value ? Number(e.target.value.replace(/\D/g, '')) : null })} placeholder={v.purpose === 'RENT' ? '45000' : '15000000'} />
                 </Field>
                 <NumField label="Maintenance (₹/month)" value={v.maintenance} onChange={(x) => set({ maintenance: x })} />
-                {v.purpose === 'RENT' && <NumField label="Security deposit (₹)" value={v.securityDeposit} onChange={(x) => set({ securityDeposit: x })} />}
+                <NumField label="Security deposit (₹)" value={v.securityDeposit} onChange={(x) => set({ securityDeposit: x })} />
+                <Field label="Brokerage" hint="Tenant से ली जाने वाली brokerage — listing पर साफ़ दिखेगी">
+                  <Select value={v.brokerageType ?? ''} onChange={(e) => set({ brokerageType: e.target.value || null })}>
+                    <option value="">Select</option>
+                    {Object.entries(BROKERAGE_LABELS).map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {l}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {v.brokerageType === 'FIXED' && <NumField label="Brokerage amount (₹)" value={v.brokerageAmount} onChange={(x) => set({ brokerageAmount: x })} />}
                 <label className="flex items-center gap-3 rounded-xl border border-line px-4 py-3">
                   <Switch checked={!!v.priceNegotiable} onCheckedChange={(x) => set({ priceNegotiable: x })} />
                   <span className="text-sm font-medium">Price negotiable</span>
@@ -471,7 +474,7 @@ function NumField({ label, value, onChange, required }: { label: string; value: 
 
 /** Map an API listing to form values (for edit). */
 export function listingToForm(l: any): Partial<ListingFormValue> {
-  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'priceNegotiable', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
+  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
   const out: any = {};
   for (const k of keys) out[k] = l[k] ?? (k === 'amenities' || k === 'preferredTenants' ? [] : null);
   out.localityId = l.localityId ?? l.locality?.id;
