@@ -52,19 +52,19 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
       )}
       <header className={cn('sticky top-0 z-40 transition-all duration-300', solid ? 'border-b border-line/70 bg-surface/80 backdrop-blur-xl' : 'bg-transparent')}>
         <div className="container-x flex h-16 items-center gap-4">
-          <button className={cn('rounded-xl p-2 lg:hidden', solid ? 'text-fg' : 'text-white')} onClick={() => setOpen(true)} aria-label="Menu">
+          <button className={cn('rounded-xl p-2 xl:hidden', solid ? 'text-fg' : 'text-white')} onClick={() => setOpen(true)} aria-label="Menu">
             <Menu className="size-6" />
           </button>
           <Link href="/" aria-label="Home">
             <Logo light={!solid} name={app.siteName} />
           </Link>
-          <nav className="ml-6 hidden items-center gap-1 lg:flex">
+          <nav className="ml-6 hidden items-center gap-1 xl:flex">
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 className={cn(
-                  'relative rounded-lg px-3 py-2 text-sm font-semibold transition',
+                  'relative rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition',
                   solid ? 'text-muted hover:text-fg' : 'text-white/80 hover:text-white',
                   pathname.startsWith(n.href) && (solid ? 'text-brand-600' : 'text-white'),
                 )}
