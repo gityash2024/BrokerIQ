@@ -45,6 +45,8 @@ const config: ExpoConfig = {
     ['expo-notifications', { color: '#4F46E5' }],
     ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 220, resizeMode: 'contain', backgroundColor: '#1D2530' }],
     'expo-font',
+    // Google ML Kit document scanner (auto edge-detect, crop, clean-up, multi-page) for the broker listing-book scanner.
+    'react-native-document-scanner-plugin',
   ],
   experiments: { typedRoutes: false },
   extra: {

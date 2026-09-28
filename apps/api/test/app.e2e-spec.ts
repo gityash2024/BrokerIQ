@@ -122,6 +122,19 @@ describe('BrokerIQ API (e2e)', () => {
     expect(await prisma.listingMedia.count({ where: { listingId } })).toBe(before);
   });
 
+  it('scanner import creates rent listings with deposit/brokerage, drafts or straight to approval', async () => {
+    const row = { propertyType: 'APARTMENT', localityId, price: 40000, securityDeposit: 80000, brokerageType: 'DAYS_15', bedrooms: 2, societyName: 'Test Society', contactPhone: '9811122233' };
+    const d = await http.post('/api/ai/scan/import').set(auth(brokerA.token)).send({ rows: [row] }).expect(201);
+    expect(d.body.status).toBe('DRAFT');
+    const s = await http.post('/api/ai/scan/import').set(auth(brokerA.token)).send({ rows: [{ ...row, unit: 'B-1204' }], submit: true }).expect(201);
+    expect(s.body.status).toBe('PENDING_REVIEW');
+    const l = await prisma.listing.findUniqueOrThrow({ where: { id: s.body.ids[0] } });
+    expect(l).toMatchObject({ purpose: 'RENT', status: 'PENDING_REVIEW', securityDeposit: 80000, brokerageType: 'DAYS_15' });
+    expect(l.title).toContain('for Rent');
+    await http.post('/api/ai/scan/import').set(auth(brokerA.token)).send({ rows: [{ ...row, propertyType: 'RESIDENTIAL_PLOT' }] }).expect(400);
+    await http.post('/api/ai/scan/import').set(auth(user.token)).send({ rows: [row] }).expect(403);
+  });
+
   it('every listing needs admin approval: edits and re-activation go back to review', async () => {
     // content edit on an approved listing → back to review, hidden from public
     const e = await http.patch(`/api/listings/${listingId}`).set(auth(brokerA.token)).send({ description: 'Updated description with more details' }).expect(200);
