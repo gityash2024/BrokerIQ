@@ -21,7 +21,7 @@ function Item({ focused, label, icon, onPress, badge }: { focused: boolean; labe
           </View>
         )}
       </View>
-      <Txt v="caption" style={{ fontSize: 10.5, fontFamily: focused ? fonts.bold : fonts.medium, color: focused ? c.brand : c.subtle }}>{label}</Txt>
+      <Txt v="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: 10.5, fontFamily: focused ? fonts.bold : fonts.medium, color: focused ? c.brand : c.subtle }}>{label}</Txt>
     </PressableScale>
   );
 }

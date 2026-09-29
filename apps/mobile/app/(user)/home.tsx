@@ -62,13 +62,13 @@ function Hero({ s }: { s: any }) {
                 <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
                   <q.icon size={22} color="#fff" />
                 </View>
-                <Txt v="caption" color="white">{q.label}</Txt>
+                <Txt v="caption" color="white" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{q.label}</Txt>
               </PressableScale>
             </Animated.View>
           ))}
         </Row>
         {(stats.listings != null || stats.brokers != null) && (
-          <Row style={{ marginTop: 20, gap: 20 }}>
+          <Row gap={20} wrap style={{ marginTop: 20, rowGap: 10, alignItems: 'flex-start' }}>
             {[
               [stats.listings, 'Live properties'],
               [stats.localities, 'Localities'],
@@ -76,9 +76,9 @@ function Hero({ s }: { s: any }) {
             ]
               .filter(([n]) => n != null)
               .map(([n, l]) => (
-                <View key={l as string}>
+                <View key={l as string} style={{ maxWidth: 160 }}>
                   <Txt v="h2" color="white">{Number(n).toLocaleString('en-IN')}+</Txt>
-                  <Txt v="caption" color="rgba(255,255,255,0.6)">{l}</Txt>
+                  <Txt v="caption" color="rgba(255,255,255,0.6)" numberOfLines={2}>{l}</Txt>
                 </View>
               ))}
           </Row>
