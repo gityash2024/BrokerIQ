@@ -63,3 +63,315 @@
 215	Verified properties, trusted brokers and smart tools for every sector of Gurgaon — in one place.
 218	🔥 New lead: {n}
 219	🎉 Your listing is live
+235	(Tap here)
+237	11-month draft agreement PDF — with e-stamp and police verification steps
+238	3 trusted brokers
+239	Is this a 360° photo? Mark it
+241	Couldn't load the 360° viewer
+244	7 days · today
+245	Leads in 7 days · today
+247	Agreement created
+248	Create agreement
+249	Alerts on
+250	Pause alerts
+252	Tell us BHK, budget and sector — we'll find matching properties and send them to you.
+259	Tap 'Visit' on a broker listing and pick a free slot.
+260	Broker referrals are off for now
+261	Broker's UPI:
+262	Broker's UPI: {n}
+263	Awaiting broker confirmation
+264	Pick from the broker's free slots — booking is confirmed instantly.
+265	Paid a token to the broker? Keep a record
+266	If you pay a token/advance to a broker, record it from the property page — the broker will confirm.
+267	Broker confirmed
+268	The BrokerIQ team will turn this on soon.
+269	BrokerIQ will add trusted partners soon.
+270	Create brokerage invoices and send them on WhatsApp — clients pay straight to your UPI
+271	How much are brokerage and deposit?
+273	Invite brokers
+274	Invite brokers
+275	Calling — your phone will ring first
+276	Request a callback
+278	Share the caption or open the post image and save it.
+280	Estimated peak-hour time by car and metro
+283	Click-to-call (Exotel) — recording saved to the lead
+284	Add Exotel in Lead connectors to use click-to-call
+286	Client name
+287	Clients pay straight to your UPI
+289	Co-broke request sent
+290	Co-broke request sent — you'll get the contact once the listing firm accepts
+293	Open to co-broking (other brokers can request)
+294	Open to co-broking — other BrokerIQ brokers can request it for their clients
+295	Co-ed (all)
+298	Connect
+300	Create a brokerage invoice when a deal closes.
+301	Deal closed
+303	Fill in the details — the 11-month draft PDF is created instantly.
+306	Drag to reorder — the first photo is the cover. Tap "360°" on photos from a 360° camera.
+310	Leave the end date empty for 11 months
+311	Call via Exotel — recording and duration are saved to the lead
+313	Flatmate (I have a flat)
+314	Looking for
+315	Looking for a flatmate
+317	Food not included
+321	Not Gmail / Yahoo — your company email
+322	Find a flatmate or a room to share in Gurgaon — numbers are shown only after both agree
+324	Housing connected — leads will start coming in
+325	From Housing
+326	Key from Housing — don't share it with anyone
+328	Incoming calls create a lead and ring the assigned agent
+334	Invoice created
+335	Create invoice
+336	Invoice sent
+339	Change key
+341	Lease renewed for 11 months
+342	Lease renewed
+343	Lease {n} days
+344	You'll get reminders 60, 30 and 7 days before the lease ends.
+345	Reminder before the lease ends
+346	Lease added
+347	Add lease
+348	Lease closed
+351	Copy link
+352	Add the owner's name and number in listings — they'll appear here automatically.
+358	The bigger the network, the more inventory for everyone
+359	Send requests on listings from the network.
+369	Only after both agree
+373	Via office email — brokers reply faster
+374	Near office
+375	Near office (estimated time)
+376	Distance to office
+378	Optional — enter it if a broker invited you
+380	Owner name
+381	Owner added
+382	Add owner
+385	Download PDF
+386	Open PDF
+387	Create PDF
+391	Mark paid
+392	Marked paid
+393	Partner broker's share (% of brokerage)
+394	Contact the broker for payment
+395	Payment goes directly to the broker. Keep a record here so the broker confirms and the accounts stay clear.
+396	Payment goes directly to the broker. Keep a record here so the broker confirms.
+403	Portals don't offer a public API for posting listings, so listings aren't posted there automatically. Leads from those portals come into BrokerIQ automatically via Connectors.
+406	Show profile
+408	Full property address
+409	Don't pay a token / advance without seeing the property. Always pay after the visit and agreement — if in doubt, report the listing.
+411	Record
+412	Recorded — the broker will confirm
+413	Recorded — we'll tell you when the broker confirms
+414	Recording not found
+415	Listen to recording
+422	Renew (11 months)
+425	Rent agreement (11 months)
+428	Closing a rent deal creates a lease automatically (11 months).
+429	Closing a rent deal creates a lease automatically (11 months). Add older leases here.
+431	Request sent
+432	Request sent — you'll get the contact once accepted
+433	Request sent — the number is shown once accepted
+435	Room / share a flat
+436	Looking for a room
+438	Save
+439	Saved — {n} matching properties
+440	Search sector / area
+441	Sector, society or title…
+442	Sectors / areas
+445	Share
+447	Shifting, furniture, internet — get a callback from BrokerIQ's trusted partners.
+449	Book a site visit
+452	This is a standard template, not legal advice. Print on e-stamp paper and sign; police verification: harsamay.gov.in
+457	Tenant name
+458	Get the tenant's police verification done online via Haryana Police's Harsamay service.
+459	The tenant says they paid a token/advance — if you received it, mark 'Received'; the property will show 'Token received' and the lead moves to negotiation
+460	Tenants can book visits on your listings during these times themselves — every booking creates a lead and a site visit.
+461	Token / advance record
+463	Token received
+469	From a UPI app
+470	Pay with a UPI app
+471	Send {n} with a UPI app
+473	Name shown on UPI
+474	UPI: {n} · change
+480	Become a verified tenant
+481	Verified tenants' enquiries show brokers a badge and get faster replies. Verify with your office email, or upload Aadhaar/PAN above.
+482	Verified tenants' enquiries show brokers a badge and get faster replies.
+484	Video must be under 100 MB
+485	Video uploaded
+486	Book visit
+487	Visit booked: {n}
+488	Visit booked: {n} 🎉 — you'll get reminders a day before and 1 hour before
+489	Cancel this visit?
+490	Visit cancelled
+495	Ready-made images for WhatsApp status and Instagram posts/stories — every visit from the link is counted.
+496	Paste a YouTube link or upload a video from your phone (up to 100 MB)
+497	alerts sent
+498	is the deposit, refunded when you move out.
+499	Pay the stamp duty via "e-Stamp" on egrashry.nic.in and get the e-stamp paper (an 11-month agreement usually needs low duty).
+500	free.
+501	invites left
+502	km straight-line
+505	{n} copied
+506	{n} invites left
+510	{n} · {n} min
+512	{n} areas
+513	{n} hours
+514	{n} selected
+515	{n} will call you soon
+516	{n} will call you soon
+517	up to {n} ·
+518	{n} days left
+519	{n} months
+520	{n} min
+521	up to {n} min
+522	For rent in {n}
+523	{n} — payment received
+524	{n} — what residents say
+526	~{n} min
+530	· sent to {n} brokers
+532	· up to {n}
+533	· average rent {n}/month
+535	No free slot in the next 7 days — send an enquiry and the broker will fix a time.
+536	No free slot in the next 7 days — send an enquiry.
+537	Good things
+538	Estimated, peak hours
+539	Estimated, in peak hours ·
+540	Add your UPI ID so invoices show "Pay by UPI".
+541	Add your UPI ID so invoices show a "Pay by UPI" button and QR.
+542	Your share (₹/month)
+543	Open your listings to co-broking and invite brokers.
+544	Turn on 'Open to co-broking' in your listings and invite brokers — the network will grow.
+545	Tell us what you need
+546	Tell us what you need — get alerts for matching properties
+547	Bring brokers you know to BrokerIQ — the bigger the co-broking network, the more inventory for everyone
+548	About you
+549	Sync Housing now
+550	Broker accounts are invite-only for now — ask the BrokerIQ team or a broker on BrokerIQ for a code.
+551	Broker accounts are invite-only for now. No code? Ask the BrokerIQ team or a broker on BrokerIQ.
+552	No listings in the network yet
+553	No agreements yet
+554	No invoices yet
+555	No leases yet
+556	No live listings yet — tell us what you need and we'll notify you when one arrives.
+557	No matches yet
+558	No matching properties yet
+559	No owners yet
+560	No reviews yet. Live here? Tell us about water, power backup and safety.
+561	No token records yet
+562	No visits yet
+563	You haven't told us your needs yet
+564	None yet — share your link.
+565	None yet — we'll tell you as soon as one comes.
+566	Add now
+567	Your invite code
+568	Where is your office?
+569	Your booked site visits and tokens paid to brokers
+570	Your landlords, their properties and running leases — you get a renewal / re-rent reminder before a lease ends
+571	Brokers who join with your link get
+572	Brokers you brought (
+573	Brokers you brought ({n})
+574	Request for you
+575	Areas
+576	Try a wider area or budget.
+577	A token has already been taken on this property — talk to the broker.
+578	Includes
+579	More in this area
+580	Visits per slot
+581	Anything else
+582	More terms (one per line)
+583	Avg. reply
+584	When needed
+585	Needed from
+586	Downsides
+587	For whom
+588	Scan the QR with any UPI app (GPay, PhonePe, Paytm) · UPI ID:
+589	Tap 'Book visit' on any broker listing and pick a free slot.
+590	Paid via
+591	Received via
+592	so they can show matching properties. (If off, you'll only get BrokerIQ alerts)
+593	No leases
+594	No requests
+595	No token records
+596	Any
+597	Any BHK
+598	Are listings verified?
+599	Ended
+600	Empty = all of Gurgaon
+601	Leave empty for all of Gurgaon
+602	Open
+603	Drag or turn your phone to look around
+604	When a broker requests one of your co-broking listings, it shows here.
+605	Coming soon
+606	Need saved — {n} matching properties now{n}
+607	Brokers who join get the {n} plan {n} free
+608	Joined
+609	e.g. SR → SR-0001
+610	e.g. sharmarealty@okicici
+611	e.g. sharmarealty@okicici — client payments come straight here
+612	We'll tell you as soon as one arrives.
+613	We'll notify you as soon as a matching property arrives.
+614	e.g. 2 BHK household items, lift available
+615	e.g. near metro, pets allowed, family
+616	e.g. Software engineer
+617	e.g. early riser, work from office, love cooking
+618	e.g. coming with family
+619	New leads come straight from the Housing API every 5 minutes — no email needed.
+620	Days
+621	Use other BrokerIQ brokers' co-broking listings for your clients — split the commission, grow your inventory
+622	Other brokers' inventory, with a commission split
+623	Thank you! Your review will show after a check.
+624	New
+625	Reply to new Housing leads on WhatsApp instantly — turn on "Welcome WhatsApp" in Automations
+626	We'll notify you by app, email and WhatsApp as soon as a matching property arrives
+627	New
+628	New agreement
+629	New invoice
+630	Name or number…
+631	Be the first inviter!
+632	Create your profile first
+633	Create your profile first
+634	First month total ~
+635	First month total ~{n}
+636	First month total cost
+637	Water
+638	All of Gurgaon
+639	Money goes straight to the broker — BrokerIQ does not hold payments.
+640	months
+641	min
+642	min (
+643	min max
+644	Alert when a matching property arrives
+645	We'll tell you when a matching property arrives
+646	Mark Received if you got it
+647	Requests on my listings
+648	My profile
+649	Send my needs and number to the
+650	Send my needs and number to 3 trusted brokers in these areas so they can show matching properties.
+651	My needs
+652	Requests I sent
+653	I am
+654	I'm looking for
+655	I live / have lived here
+656	This is the broker's BrokerIQ business number — the call connects straight to the broker
+657	This is a standard template, not legal advice. Have a lawyer check it if needed.
+658	Delete this need?
+659	Everything ready to post this listing on Housing / 99acres / MagicBricks — copy and paste on the portal.
+660	What residents say
+661	Withdraw
+662	Get started
+663	Honest reviews help other tenants
+664	Copy all
+665	See with all filters
+666	Flatmate / room to share
+667	Safety
+668	from
+669	from ~
+670	Forever
+671	Every listing goes live only after the BrokerIQ team checks it. Properties with the "Visit verified" badge were visited on site by our team.
+672	Every listing clearly shows brokerage (e.g. 15 days' or 1 month's rent) and security deposit, along with the first month's total cost.
+673	Each slot
+674	Weekly report every Monday (leads, visits, deals)
+675	— invited by {n}
+676	— Select —
+677	— No deal —
+681	💼 ~{2} min from {1}
+682	📞 Calling — your phone will ring first
