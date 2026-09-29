@@ -5,8 +5,8 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import * as Pop from '@radix-ui/react-popover';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
-import { BellPlus, Check, ChevronDown, LayoutGrid, List, Map as MapIcon, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
-import { formatPriceShort, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, plural } from '@brokeriq/shared';
+import { BadgeCheck, BellPlus, Briefcase, Check, ChevronDown, LayoutGrid, List, Map as MapIcon, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { formatPriceShort, FURNISHING_LABELS, OFFICE_HUBS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, plural } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn, qs } from '@/lib/utils';
@@ -80,7 +80,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
   const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && RENTABLE_TYPES.includes(t.value));
   const budgets: number[] = tax?.budgets?.[purpose] ?? [];
   const selectedLocs = (f.localities ?? '').split(',').filter(Boolean);
-  const activeCount = ['types', 'minPrice', 'maxPrice', 'bedrooms', 'furnishing', 'possession', 'postedBy', 'verified', 'amenities', 'localities', 'q', 'minArea', 'maxArea'].filter((k) => f[k]).length;
+  const activeCount = ['types', 'minPrice', 'maxPrice', 'bedrooms', 'furnishing', 'possession', 'postedBy', 'verified', 'amenities', 'localities', 'q', 'minArea', 'maxArea', 'officeHub', 'visitVerified'].filter((k) => f[k]).length;
 
   const saveSearch = async () => {
     if (!user) return router.push(`/login?next=${encodeURIComponent(pathname + '?' + sp.toString())}`);
@@ -169,6 +169,33 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
             <Chip active={f.postedBy === 'OWNER'} onClick={() => setF({ postedBy: f.postedBy === 'OWNER' ? null : 'OWNER' })}>
               Owner
             </Chip>
+            <Chip active={f.visitVerified === 'true'} onClick={() => setF({ visitVerified: f.visitVerified === 'true' ? null : 'true' })}>
+              <BadgeCheck className="size-3.5" /> Visit verified
+            </Chip>
+            <Pop.Root>
+              <Pop.Trigger asChild>
+                <button type="button" className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium', f.officeHub ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
+                  <Briefcase className="size-3.5" /> {f.officeHub ? `${OFFICE_HUBS.find((h) => h.key === f.officeHub)?.name ?? 'Office'} · ${f.maxCommute ?? 45} मिनट` : 'Office के पास'} <ChevronDown className="size-3.5" />
+                </button>
+              </Pop.Trigger>
+              <Pop.Portal>
+                <Pop.Content align="start" sideOffset={8} className="z-50 w-72 space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-xl">
+                  <p className="text-sm font-semibold">आपका office कहाँ है?</p>
+                  <Select value={f.officeHub ?? ''} onChange={(e) => setF({ officeHub: e.target.value || null, maxCommute: e.target.value ? f.maxCommute ?? '45' : null, sort: e.target.value ? 'commute' : null })}>
+                    <option value="">— चुनें —</option>
+                    {OFFICE_HUBS.map((h) => <option key={h.key} value={h.key}>{h.name}</option>)}
+                  </Select>
+                  {f.officeHub && (
+                    <div className="flex flex-wrap gap-2">
+                      {['20', '30', '45', '60'].map((m) => (
+                        <Chip key={m} active={(f.maxCommute ?? '45') === m} onClick={() => setF({ maxCommute: m })}>{m} मिनट तक</Chip>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-subtle">Car और metro का अनुमानित peak-hour समय</p>
+                </Pop.Content>
+              </Pop.Portal>
+            </Pop.Root>
             <Button size="sm" variant="secondary" className="shrink-0 rounded-full" onClick={() => setMoreOpen(true)}>
               <SlidersHorizontal className="size-4" /> Filters {activeCount > 0 && <span className="grid size-5 place-items-center rounded-full bg-brand-600 text-[10px] text-white">{activeCount}</span>}
             </Button>

@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { BadgeCheck, CalendarCheck, CheckCircle2, MessageCircle, MessagesSquare, Phone, Star } from 'lucide-react';
-import { whatsappLink } from '@brokeriq/shared';
+import { BadgeCheck, CalendarCheck, CheckCircle2, MessageCircle, MessagesSquare, Phone, Star, Wallet, Zap } from 'lucide-react';
+import { responseBadge, whatsappLink } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useFlag } from '@/lib/config';
@@ -13,12 +13,16 @@ import { Button } from '../ui/button';
 import { Field, Input, Textarea } from '../ui/field';
 import { Avatar } from '../ui/misc';
 import { Dialog } from '../ui/dialog';
+import { SafetyNote, SlotBooking, TokenDialog } from './visit-token';
 
 export function ContactCard({ listing }: { listing: any }) {
   const { user } = useAuth();
   const router = useRouter();
   const chatOn = useFlag('chat');
-  const [contact, setContact] = useState<{ name: string; phone: string; whatsapp?: string } | null>(null);
+  const [contact, setContact] = useState<{ name: string; phone: string; whatsapp?: string; tracked?: boolean } | null>(null);
+  const [slotsOpen, setSlotsOpen] = useState(false);
+  const [tokenOpen, setTokenOpen] = useState(false);
+  const [booked, setBooked] = useState<string | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [sent, setSent] = useState(false);
   const [visitOpen, setVisitOpen] = useState(false);
@@ -95,6 +99,9 @@ export function ContactCard({ listing }: { listing: any }) {
               {org.experienceYears ? ` · ${org.experienceYears}+ yrs` : ''}
             </p>
           )}
+          {org && responseBadge(org.responseMinutes) && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-600"><Zap className="size-3.5" /> {responseBadge(org.responseMinutes)}</p>
+          )}
         </div>
       </div>
       <div className="space-y-3 p-5">
@@ -105,6 +112,7 @@ export function ContactCard({ listing }: { listing: any }) {
             <Button href={`tel:${contact.phone}`} className="w-full" size="lg">
               <Phone className="size-5" /> {contact.phone}
             </Button>
+            {contact.tracked && <p className="text-center text-[11px] text-subtle">यह broker का BrokerIQ business number है — call सीधे broker से जुड़ेगी</p>}
             <Button href={whatsappLink(contact.whatsapp ?? contact.phone, `Hi, ${SITE_URL}/property/${listing.slug} के बारे में पूछना था।`)} external variant="whatsapp" className="w-full">
               <MessageCircle className="size-5" /> WhatsApp करें
             </Button>
@@ -116,8 +124,8 @@ export function ContactCard({ listing }: { listing: any }) {
         )}
         {!isOwn && (
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => setVisitOpen(true)}>
-              <CalendarCheck className="size-4" /> Visit
+            <Button variant="secondary" onClick={() => (org ? (user ? setSlotsOpen(true) : router.push(`/login?next=/property/${listing.slug}`)) : setVisitOpen(true))}>
+              <CalendarCheck className="size-4" /> {booked ? 'Booked ✓' : org ? 'Visit book करें' : 'Visit'}
             </Button>
             {org && chatOn ? (
               <Button variant="secondary" onClick={startChat}>
@@ -130,7 +138,15 @@ export function ContactCard({ listing }: { listing: any }) {
             )}
           </div>
         )}
+        {!isOwn && <SafetyNote />}
+        {!isOwn && org && user && (
+          <button type="button" onClick={() => setTokenOpen(true)} className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-muted hover:text-brand-600">
+            <Wallet className="size-3.5" /> Broker को token दिया है? Record रखें
+          </button>
+        )}
       </div>
+      {!isOwn && org && <SlotBooking listingId={listing.id} open={slotsOpen} onClose={() => setSlotsOpen(false)} onBooked={setBooked} />}
+      {!isOwn && org && user && <TokenDialog listingId={listing.id} open={tokenOpen} onClose={() => setTokenOpen(false)} />}
       {!isOwn && (
         <div id="enquiry" className="border-t border-line p-5">
           {sent ? (

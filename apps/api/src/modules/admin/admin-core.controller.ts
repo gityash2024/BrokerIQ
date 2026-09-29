@@ -367,6 +367,8 @@ export class AdminCoreController {
   @Patch('kyc/:id')
   async reviewKyc(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['VERIFIED', 'REJECTED']), note: z.string().max(500).optional(), verifyOrganization: z.boolean().default(true) }))) body: any) {
     const doc = await this.prisma.kycDocument.update({ where: { id }, data: { status: body.status, reviewNote: body.note, reviewedById: user.id, reviewedAt: new Date() } });
+    // A tenant's approved ID makes them a "Verified tenant" (brokers see the badge on enquiries).
+    if (doc.userId && body.status === 'VERIFIED') await this.prisma.user.updateMany({ where: { id: doc.userId, role: 'USER', tenantVerifiedAt: null }, data: { tenantVerifiedAt: new Date() } });
     if (doc.organizationId && body.verifyOrganization) {
       await this.updateOrg(user, doc.organizationId, { verification: body.status } as any);
     }

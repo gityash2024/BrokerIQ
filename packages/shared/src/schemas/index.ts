@@ -123,7 +123,8 @@ export const listingInputSchema = z.object({
   preferredTenants: z.array(z.string()).max(6).default([]),
   amenities: z.array(z.string()).max(80).default([]),
   reraNumber: z.string().trim().max(60).optional().nullable(),
-  photos: z.array(z.object({ url: z.string().url(), caption: z.string().max(80).optional().nullable(), publicId: z.string().optional().nullable() })).max(50).default([]),
+  // kind PANORAMA = 360° photo (equirectangular), shown in the 360 viewer.
+  photos: z.array(z.object({ url: z.string().url(), caption: z.string().max(80).optional().nullable(), publicId: z.string().optional().nullable(), kind: z.enum(['PHOTO', 'PANORAMA']).optional() })).max(50).default([]),
   videoUrl: z.string().url().optional().nullable().or(z.literal('')),
   floorPlanUrl: z.string().url().optional().nullable().or(z.literal('')),
   contactName: z.string().trim().max(80).optional().nullable(),
@@ -161,7 +162,12 @@ export const listingSearchSchema = z.object({
   maxArea: z.coerce.number().optional(),
   amenities: z.string().optional(),
   bbox: z.string().optional(), // "minLng,minLat,maxLng,maxLat"
-  sort: z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'area_desc', 'psf_asc']).default('relevance'),
+  visitVerified: z.coerce.boolean().optional(),
+  // "Office के पास": hub key from OFFICE_HUBS + max estimated commute in minutes.
+  officeHub: z.string().max(40).optional(),
+  maxCommute: z.coerce.number().int().min(10).max(120).optional(),
+  preferredTenant: z.string().max(40).optional(),
+  sort: z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'area_desc', 'psf_asc', 'commute']).default('relevance'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(60).default(20),
 });

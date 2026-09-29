@@ -232,7 +232,8 @@ describe('Growth features (e2e)', () => {
     const owner = owners.body.find((o: any) => o.phone.includes('9898989898'));
     expect(owner?.name).toBe('Mr Owner');
     const lead = await http.post('/api/leads').set(auth(broker.token)).send({ name: 'Lease Tenant', phone: '9876543299', source: 'MANUAL' }).expect(201);
-    const deal = await http.post('/api/deals').set(auth(broker.token)).send({ leadId: lead.body.id, listingId: coListing.id, title: 'Lease', dealValue: 58000, commissionAmount: 58000, closedAt: new Date().toISOString() }).expect(201);
+    const leaseListing = await createAndApprove(broker.token);
+    const deal = await http.post('/api/deals').set(auth(broker.token)).send({ leadId: lead.body.id, listingId: leaseListing.id, title: 'Lease', dealValue: 58000, commissionAmount: 58000, closedAt: new Date().toISOString() }).expect(201);
     await sleep(500);
     const t = await prisma.tenancy.findFirstOrThrow({ where: { dealId: deal.body.id } });
     expect(t.ownerId).toBe(owner.id);
@@ -304,5 +305,113 @@ describe('Growth features (e2e)', () => {
     expect(l.rankBoost).toBe(org.rankScore);
     const wr = await http.get('/api/broker/weekly-report').set(auth(broker.token)).expect(200);
     expect(wr.body.summary.leads).toBeGreaterThan(0);
+  });
+
+  // ------------------------------------------------------------------ Phase C
+  it('commute search: listings near an office hub with estimated minutes', async () => {
+    const r = await http.get('/api/listings?officeHub=golf-course-extension&maxCommute=60&sort=commute').expect(200);
+    const mine = r.body.items.find((i: any) => i.id === coListing.id);
+    expect(mine?.commute?.hub).toBe('Golf Course Extension');
+    expect(mine.commute.minutes).toBeLessThanOrEqual(60);
+    const far = await http.get('/api/listings?officeHub=manesar&maxCommute=15').expect(200);
+    expect(far.body.items.map((i: any) => i.id)).not.toContain(coListing.id);
+  });
+
+  it('SEO landing pages resolve to filters and appear in combos', async () => {
+    const ok = await http.get('/api/public/seo/3-bhk-furnished-flats-for-rent-in-sector-65-gurgaon').expect(200);
+    expect(ok.body.title).toBe('3 BHK Furnished Flats for Rent in Sector 65, Gurgaon');
+    expect(ok.body.count).toBeGreaterThan(0);
+    expect(ok.body.filters).toMatchObject({ localities: 'sector-65-gurgaon', bedrooms: '3', furnishing: 'FULLY_FURNISHED' });
+    await http.get('/api/public/seo/2-bhk-pg-for-rent-in-sector-65-gurgaon').expect(404);
+    await http.get('/api/public/seo/flats-for-rent-in-no-such-place').expect(404);
+    const combos = await http.get('/api/public/seo-combos?locality=sector-65-gurgaon').expect(200);
+    expect(combos.body.map((c: any) => c.slug)).toContain('3-bhk-flats-for-rent-in-sector-65-gurgaon');
+  });
+
+  it('visit slot booking creates lead + visit; full slots are refused; tenant gets reminders', async () => {
+    await http.patch('/api/broker/visit-slots').set(auth(broker.token)).send({ days: [0, 1, 2, 3, 4, 5, 6], start: '09:00', end: '21:00', slotMinutes: 60, maxPerSlot: 1 }).expect(200);
+    const s1 = await http.get(`/api/listings/${coListing.id}/slots?days=3`).expect(200);
+    expect(s1.body.bookable).toBe(true);
+    const slot = s1.body.days.flatMap((d: any) => d.slots).find((x: any) => x.available > 0);
+    const b = await http.post(`/api/listings/${coListing.id}/book-visit`).set(auth(tenant.token)).send({ at: slot.at, note: 'Evening better' }).expect(201);
+    expect(b.body.visit.bookedByTenant).toBe(true);
+    await http.post(`/api/listings/${coListing.id}/book-visit`).set(auth(tenant.token)).send({ at: slot.at }).expect(400);
+    const s2 = await http.get(`/api/listings/${coListing.id}/slots?days=3`).expect(200);
+    expect(s2.body.days.flatMap((d: any) => d.slots).find((x: any) => x.at === slot.at).available).toBe(0);
+    const mine = await http.get('/api/me/visits').set(auth(tenant.token)).expect(200);
+    expect(mine.body[0].id).toBe(b.body.visit.id);
+    const svc = app.get(require('../src/modules/trust/visit-booking.service').VisitBookingService);
+    const sent = await svc.sendTenantReminders(new Date(new Date(slot.at).getTime() - 60 * 60_000));
+    expect(sent).toBeGreaterThanOrEqual(1);
+    expect(await prisma.notification.findFirst({ where: { userId: tenant.id, kind: 'VISIT_REMINDER' } })).toBeTruthy();
+  });
+
+  it('visit verification needs a geo-tagged photo near the property', async () => {
+    const loc = await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } });
+    const far = { url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg', lat: loc.latitude + 0.05, lng: loc.longitude };
+    await http.post(`/api/admin/listings/${coListing.id}/visit-verify`).set(auth(admin)).send({ photos: [far] }).expect(400);
+    await http.post(`/api/admin/listings/${coListing.id}/visit-verify`).set(auth(broker.token)).send({ photos: [far] }).expect(403);
+    const ok = await http.post(`/api/admin/listings/${coListing.id}/visit-verify`).set(auth(admin)).send({ photos: [{ ...far, lat: loc.latitude + 0.002 }] }).expect(201);
+    expect(ok.body.visitVerifiedAt).toBeTruthy();
+    const filtered = await http.get('/api/listings?visitVerified=true').expect(200);
+    expect(filtered.body.items.map((i: any) => i.id)).toContain(coListing.id);
+  });
+
+  it('verified tenant via office email (free domains refused)', async () => {
+    await http.post('/api/me/work-email').set(auth(tenant.token)).send({ email: 'me@gmail.com' }).expect(400);
+    await prisma.user.update({ where: { id: tenant.id }, data: { workEmail: `t.${uniq}@acme-corp.in` } });
+    await prisma.otpCode.create({ data: { email: `t.${uniq}@acme-corp.in`, purpose: 'WORK_EMAIL', codeHash: require('crypto').createHash('sha256').update('424242').digest('hex'), expiresAt: new Date(Date.now() + 600_000) } });
+    await http.post('/api/me/work-email/verify').set(auth(tenant.token)).send({ code: '111111' }).expect(400);
+    const v = await http.post('/api/me/work-email/verify').set(auth(tenant.token)).send({ code: '424242' }).expect(201);
+    expect(v.body.tenantVerifiedAt).toBeTruthy();
+    const e = await http.post('/api/enquiries').set(auth(tenant.token)).send({ listingId: coListing.id, name: 'Tenant', phone: '9811100077', message: 'Interested' }).expect(201);
+    void e;
+    const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9811100077' } } });
+    expect(lead.tags).toContain('verified-tenant');
+  });
+
+  it('locality reviews are public only after moderation', async () => {
+    const society = `Test Towers ${uniq}`;
+    const body = { societyName: society, water: 4, power: 5, safety: 4, parking: 3, connectivity: 4, maintenance: 4, pros: 'Quiet' };
+    const r = await http.post('/api/localities/sector-65-gurgaon/reviews').set(auth(tenant.token)).send(body).expect(201);
+    let pub = await http.get(`/api/public/localities/sector-65-gurgaon/reviews?society=${encodeURIComponent(society)}`).expect(200);
+    expect(pub.body.count).toBe(0);
+    await http.patch(`/api/admin/locality-reviews/${r.body.id}`).set(auth(admin)).send({ status: 'APPROVED' }).expect(200);
+    pub = await http.get(`/api/public/localities/sector-65-gurgaon/reviews?society=${encodeURIComponent(society)}`).expect(200);
+    expect(pub.body.count).toBe(1);
+    expect(pub.body.avg.power).toBe(5);
+    expect(pub.body.items[0].userId).toBeUndefined();
+  });
+
+  it('token record: tenant claims, broker confirms → listing on hold + lead in negotiation', async () => {
+    const info = await http.get(`/api/listings/${coListing.id}/token-info`).set(auth(tenant.token)).expect(200);
+    expect(info.body.org.upiId).toBe('arjun@okicici');
+    const t = await http.post(`/api/listings/${coListing.id}/token`).set(auth(tenant.token)).send({ amount: 10000, mode: 'UPI', ref: 'UTR999' }).expect(201);
+    const list = await http.get('/api/broker/tokens').set(auth(broker.token)).expect(200);
+    expect(list.body.map((x: any) => x.id)).toContain(t.body.id);
+    await http.patch(`/api/broker/tokens/${t.body.id}`).set(auth(referred.token)).send({ status: 'RECEIVED' }).expect(404);
+    await http.patch(`/api/broker/tokens/${t.body.id}`).set(auth(broker.token)).send({ status: 'RECEIVED' }).expect(200);
+    const l = await prisma.listing.findUniqueOrThrow({ where: { id: coListing.id } });
+    expect(l.tokenReceivedAt).toBeTruthy();
+    const lead = await prisma.lead.findUniqueOrThrow({ where: { id: t.body.leadId } });
+    expect(lead.stage).toBe('NEGOTIATION');
+    await http.patch(`/api/broker/tokens/${t.body.id}`).set(auth(broker.token)).send({ status: 'REFUNDED' }).expect(200);
+    expect((await prisma.listing.findUniqueOrThrow({ where: { id: coListing.id } })).tokenReceivedAt).toBeNull();
+  });
+
+  it('contact reveal shows the tracked ExoPhone for firms using Exotel', async () => {
+    const r = await http.post(`/api/listings/${coListing.id}/contact`).set(auth(tenant.token)).expect(201);
+    expect(r.body).toMatchObject({ phone: '08047112345', tracked: true });
+  });
+
+  it('three distinct reports send a live listing back to review', async () => {
+    const victim = await createAndApprove(broker.token, { price: 45000 });
+    const reporters = await Promise.all([1, 2, 3].map(async (n) => (await http.post('/api/auth/register').send({ name: `Reporter ${n}`, email: email(`rep${n}`), password: 'Passw0rd!' }).expect(201)).body.accessToken));
+    for (const [i, tok] of reporters.entries()) {
+      await http.post(`/api/listings/${victim.id}/report`).set(auth(tok)).send({ reason: 'FAKE', details: `r${i}` }).expect(201);
+      const l = await prisma.listing.findUniqueOrThrow({ where: { id: victim.id } });
+      expect(l.status).toBe(i < 2 ? 'ACTIVE' : 'PENDING_REVIEW');
+    }
+    expect((await prisma.listing.findUniqueOrThrow({ where: { id: victim.id } })).moderationFlags).toContain('REPORTED');
   });
 });

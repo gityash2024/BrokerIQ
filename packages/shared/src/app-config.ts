@@ -40,8 +40,10 @@ export const appConfigSchema = z.object({
       expiryDays: z.number().int().min(7).default(90),
       maxPhotos: z.number().int().min(1).max(50).default(25),
       contactRevealRequiresLogin: z.boolean().default(true),
+      /** Pending reports from different people that send a live listing back to review (0 = off). */
+      autoHideReports: z.number().int().min(0).max(50).default(3),
     })
-    .default({ requireModeration: true, expiryDays: 90, maxPhotos: 25, contactRevealRequiresLogin: true }),
+    .default({ requireModeration: true, expiryDays: 90, maxPhotos: 25, contactRevealRequiresLogin: true, autoHideReports: 3 }),
   auth: z
     // allowBrokerSignup = open signup. When off, new broker firms join only with a valid invite code.
     .object({ allowPasswordLogin: z.boolean().default(true), allowEmailOtp: z.boolean().default(true), allowGoogle: z.boolean().default(true), allowBrokerSignup: z.boolean().default(false) })

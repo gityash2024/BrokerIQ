@@ -120,6 +120,7 @@ enum MediaKind {
   PHOTO
   VIDEO
   FLOOR_PLAN
+  PANORAMA
 }
 
 enum EnquiryStatus {
@@ -306,6 +307,19 @@ enum TenancyStatus {
   ENDED
 }
 
+enum LocalityReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TokenStatus {
+  CLAIMED
+  RECEIVED
+  REFUNDED
+  CANCELLED
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -387,22 +401,27 @@ enum TicketStatus {
 // ============================================================ Identity
 
 model User {
-  id             String     @id @default(cuid())
-  name           String
-  email          String     @unique
-  phone          String?
-  passwordHash   String?
-  googleId       String?    @unique
-  avatarUrl      String?
-  role           Role       @default(USER)
-  status         UserStatus @default(ACTIVE)
-  emailVerified  Boolean    @default(false)
-  locale         String     @default("en")
-  organizationId String?
-  lastLoginAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  deletedAt      DateTime?
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  phone               String?
+  passwordHash        String?
+  googleId            String?    @unique
+  avatarUrl           String?
+  role                Role       @default(USER)
+  status              UserStatus @default(ACTIVE)
+  emailVerified       Boolean    @default(false)
+  locale              String     @default("en")
+  organizationId      String?
+  lastLoginAt         DateTime?
+  occupation          String?
+  employer            String?
+  workEmail           String?
+  workEmailVerifiedAt DateTime?
+  tenantVerifiedAt    DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
 
   organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   refreshTokens  RefreshToken[]
@@ -563,6 +582,8 @@ model Organization {
   responseRate     Float?
   rankScore        Float              @default(0)
   rankUpdatedAt    DateTime?
+  /// Visit booking slots: { days: number[] (0=Sun), start: "10:00", end: "19:00", slotMinutes: 60, maxPerSlot: 2 }
+  visitSlots       Json?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -641,10 +662,10 @@ model KycDocument {
 // ============================================================ Master data
 
 model Locality {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   name         String
-  slug         String   @unique
-  city         String   @default("Gurgaon")
+  slug         String           @unique
+  city         String           @default("Gurgaon")
   zone         String?
   latitude     Float
   longitude    Float
@@ -654,11 +675,12 @@ model Locality {
   coverUrl     String?
   avgPriceSale Float?
   avgRent2Bhk  Float?
-  isPopular    Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isPopular    Boolean          @default(false)
+  reviews      LocalityReview[]
+  isActive     Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   listings      Listing[]
   projects      Project[]
@@ -783,6 +805,9 @@ model Listing {
   coBrokingSharePct Float?
   /// Denormalised broker rank (Organization.rankScore) used by search relevance; 0 for owner listings.
   rankBoost         Float             @default(0)
+  visitVerifiedAt   DateTime?
+  visitVerifiedById String?
+  tokenReceivedAt   DateTime?
   ownerId           String?
   views             Int               @default(0)
   enquiryCount      Int               @default(0)
@@ -795,22 +820,24 @@ model Listing {
   updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
 
-  locality        Locality         @relation(fields: [localityId], references: [id])
-  project         Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  postedBy        User             @relation("ListingPostedBy", fields: [postedById], references: [id])
-  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  media           ListingMedia[]
-  saved           SavedListing[]
-  recentViews     RecentView[]
-  enquiries       Enquiry[]
-  reports         ListingReport[]
-  leads           Lead[]
-  visits          SiteVisit[]
-  deals           Deal[]
-  shareLinks      ShareLink[]
-  owner           Owner?           @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  coBrokeRequests CoBrokeRequest[]
-  tenancies       Tenancy[]
+  locality           Locality                   @relation(fields: [localityId], references: [id])
+  project            Project?                   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  postedBy           User                       @relation("ListingPostedBy", fields: [postedById], references: [id])
+  organization       Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  media              ListingMedia[]
+  saved              SavedListing[]
+  recentViews        RecentView[]
+  enquiries          Enquiry[]
+  reports            ListingReport[]
+  leads              Lead[]
+  visits             SiteVisit[]
+  deals              Deal[]
+  shareLinks         ShareLink[]
+  owner              Owner?                     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  coBrokeRequests    CoBrokeRequest[]
+  tenancies          Tenancy[]
+  tokenPayments      TokenPayment[]
+  verificationPhotos ListingVerificationPhoto[]
 
   @@index([status, purpose, category])
   @@index([coBroking, status])
@@ -1050,23 +1077,27 @@ model FollowUp {
 }
 
 model SiteVisit {
-  id             String      @id @default(cuid())
-  organizationId String
-  leadId         String
-  listingId      String?
-  assignedToId   String?
-  scheduledAt    DateTime
-  address        String?
-  note           String?
-  status         VisitStatus @default(SCHEDULED)
-  feedback       String?
-  rating         Int?
-  checkInAt      DateTime?
-  checkInLat     Float?
-  checkInLng     Float?
-  reminderSentAt DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id                   String      @id @default(cuid())
+  organizationId       String
+  leadId               String
+  listingId            String?
+  assignedToId         String?
+  scheduledAt          DateTime
+  address              String?
+  note                 String?
+  status               VisitStatus @default(SCHEDULED)
+  feedback             String?
+  rating               Int?
+  checkInAt            DateTime?
+  checkInLat           Float?
+  checkInLng           Float?
+  reminderSentAt       DateTime?
+  tenantUserId         String?
+  bookedByTenant       Boolean     @default(false)
+  tenantDayReminderAt  DateTime?
+  tenantHourReminderAt DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -1816,4 +1847,70 @@ model ClientInvoice {
 
   @@unique([organizationId, number])
   @@index([organizationId, status])
+}
+
+// ------------------------------------------------------------------ growth: tenant trust
+
+/// Resident review of a locality / society (moderated by Super Admin before it shows).
+model LocalityReview {
+  id           String               @id @default(cuid())
+  localityId   String
+  societyName  String?
+  userId       String
+  water        Int
+  power        Int
+  safety       Int
+  parking      Int
+  connectivity Int
+  maintenance  Int
+  pros         String?
+  cons         String?
+  isResident   Boolean              @default(true)
+  livedYears   Int?
+  status       LocalityReviewStatus @default(PENDING)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  locality Locality @relation(fields: [localityId], references: [id], onDelete: Cascade)
+
+  @@unique([localityId, userId, societyName])
+  @@index([localityId, status])
+}
+
+/// Token / advance a tenant paid the broker outside BrokerIQ; recorded here, never processed.
+model TokenPayment {
+  id             String      @id @default(cuid())
+  listingId      String
+  organizationId String?
+  leadId         String?
+  userId         String?
+  amount         Float
+  mode           String      @default("UPI")
+  ref            String?
+  status         TokenStatus @default(CLAIMED)
+  markedById     String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([userId])
+}
+
+/// Geo-tagged photo taken on site by the BrokerIQ team for the "Visit verified" badge.
+model ListingVerificationPhoto {
+  id        String   @id @default(cuid())
+  listingId String
+  url       String
+  lat       Float
+  lng       Float
+  distanceM Int
+  takenById String
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
 }

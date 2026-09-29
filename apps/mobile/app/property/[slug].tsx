@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BadgeCheck, BedDouble, Bath, Building, CalendarDays, ChevronLeft, Compass, Flag, IndianRupee, Layers, MapPin, Maximize2, MessageCircle, MessagesSquare, Phone, Share2, Sofa, Star, TrendingDown, TrendingUp } from 'lucide-react-native';
+import { BadgeCheck, BedDouble, Bath, Building, CalendarDays, ChevronLeft, Compass, Flag, IndianRupee, Layers, MapPin, Maximize2, MessageCircle, MessagesSquare, Orbit, Phone, PlayCircle, Share2, Sofa, Star, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native';
 import { FACING_LABELS, FURNISHING_LABELS, POSSESSION_LABELS, PROPERTY_TYPE_LABELS, brokerageText, formatINR, formatPriceShort, moveInCost, whatsappLink, type Furnishing, type PropertyType } from '@brokeriq/shared';
 import { api, img, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -16,6 +16,7 @@ import { toast } from '@/lib/toast';
 import { palette, useTheme } from '@/lib/theme';
 import { ListingCard, SaveButton, areaOf } from '@/components/listing';
 import { MapView } from '@/components/map';
+import { CommuteCard, PanoramaSheet, ReviewsSummary, SafetyNote, SlotSheet, TokenSheet } from '@/components/property-extras';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, SectionTitle, Sheet, Txt } from '@/ui';
 
 const W = Dimensions.get('window').width;
@@ -48,6 +49,9 @@ export default function Property() {
   const [photo, setPhoto] = useState(0);
   const [enquire, setEnquire] = useState(false);
   const [report, setReport] = useState(false);
+  const [slots, setSlots] = useState(false);
+  const [token, setToken] = useState(false);
+  const [pano, setPano] = useState<string | null>(null);
   const [contact, setContact] = useState<{ name: string; phone: string; whatsapp: string } | null>(null);
   const y = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => (y.value = e.contentOffset.y));
@@ -57,7 +61,8 @@ export default function Property() {
   if (q.isLoading) return <Loader />;
   if (q.isError || !q.data) return <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.bg }}><ErrorView error={q.error} onRetry={() => q.refetch()} /></View>;
   const l = q.data;
-  const photos: string[] = l.media?.length ? l.media.map((m: any) => m.url) : l.coverUrl ? [l.coverUrl] : [];
+  const photos: string[] = l.media?.some((m: any) => m.kind === 'PHOTO') ? l.media.filter((m: any) => m.kind === 'PHOTO').map((m: any) => m.url) : l.coverUrl ? [l.coverUrl] : [];
+  const panoramas: string[] = (l.media ?? []).filter((m: any) => m.kind === 'PANORAMA').map((m: any) => m.url);
   const area = areaOf(l);
   const psf = l.pricePerSqft;
   const avg: number | null = l.localityAvgPsf;
@@ -121,6 +126,8 @@ export default function Property() {
           <Row wrap gap={6}>
             {l.isVerified && <Badge label="Verified" color={c.success} icon={<BadgeCheck size={11} color={c.success} />} />}
             {l.isFeatured && <Badge label="Featured" color={palette.saffron[600]} />}
+            {!!l.visitVerifiedAt && <Badge label="Visit verified" color={c.success} icon={<BadgeCheck size={11} color={c.success} />} />}
+            {!!l.tokenReceivedAt && <Badge label="Token मिल चुका" color={c.warning} />}
             <Badge label={l.purpose === 'RENT' ? 'For rent' : 'For sale'} color={c.brand} />
             {['SOLD', 'RENTED'].includes(l.status) && <Badge label={l.status} color={c.danger} solid />}
           </Row>
@@ -182,6 +189,16 @@ export default function Property() {
             </>
           )}
 
+          {(!!l.videoUrl || panoramas.length > 0) && (
+            <Row style={{ marginTop: 16 }}>
+              {!!l.videoUrl && <Button title="Video tour" variant="secondary" size="sm" icon={<PlayCircle size={16} color={c.fg} />} onPress={() => Linking.openURL(l.videoUrl)} />}
+              {panoramas.length > 0 && <Button title="360° view" variant="secondary" size="sm" icon={<Orbit size={16} color={c.fg} />} onPress={() => setPano(panoramas[0])} />}
+            </Row>
+          )}
+
+          <CommuteCard l={l} />
+          <ReviewsSummary localitySlug={l.locality.slug} society={l.societyName} />
+
           {moveIn && (
             <Card style={{ marginTop: 20, padding: 16, gap: 4 }} onPress={() => router.push({ pathname: '/tools', params: { tab: 'movein' } })}>
               <Txt v="caption" color="muted">Move-in cost (advance rent + deposit + brokerage)</Txt>
@@ -190,6 +207,7 @@ export default function Property() {
             </Card>
           )}
 
+          <SafetyNote />
           <SectionTitle title={l.organization ? 'Listed by broker' : 'Listed by owner'} />
           <Card style={{ padding: 16 }} onPress={l.organization ? () => router.push(`/broker/${l.organization.slug}`) : undefined}>
             <Row gap={12}>
@@ -211,6 +229,12 @@ export default function Property() {
               </View>
             </Row>
           </Card>
+
+          {!!l.organization && !!user && !l.canManage && (
+            <PressableScale onPress={() => setToken(true)} style={{ alignSelf: 'center', marginTop: 10 }}>
+              <Row gap={6}><Wallet size={14} color={c.muted} /><Txt v="small" color="muted">Broker को token दिया है? Record रखें</Txt></Row>
+            </PressableScale>
+          )}
 
           {!!similar.data?.length && (
             <>
@@ -251,11 +275,15 @@ export default function Property() {
         <Button icon={<Phone size={18} color={c.fg} />} variant="secondary" onPress={call} style={{ width: 52, paddingHorizontal: 0 }} />
         <Button icon={<MessageCircle size={18} color="#fff" />} variant="whatsapp" onPress={wa} style={{ width: 52, paddingHorizontal: 0 }} />
         {chatOn && l.organization && <Button icon={<MessagesSquare size={18} color={c.fg} />} variant="secondary" onPress={chat} style={{ width: 52, paddingHorizontal: 0 }} />}
-        <Button title="Enquire / Visit" style={{ flex: 1 }} onPress={() => setEnquire(true)} />
+        {l.organization && <Button title="Visit" variant="secondary" style={{ paddingHorizontal: 14 }} onPress={() => (user ? setSlots(true) : router.push('/login'))} />}
+        <Button title={l.organization ? 'Enquire' : 'Enquire / Visit'} style={{ flex: 1 }} onPress={() => setEnquire(true)} />
       </View>
 
       <EnquirySheet open={enquire} onClose={() => setEnquire(false)} listing={l} />
       <ReportSheet open={report} onClose={() => setReport(false)} listingId={l.id} />
+      {!!l.organization && <SlotSheet listingId={l.id} open={slots} onClose={() => setSlots(false)} />}
+      {!!l.organization && <TokenSheet listingId={l.id} open={token} onClose={() => setToken(false)} />}
+      <PanoramaSheet url={pano} open={!!pano} onClose={() => setPano(null)} />
     </View>
   );
 }

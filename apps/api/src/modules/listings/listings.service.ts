@@ -10,6 +10,10 @@ import {
   slugify,
   type ListingInput,
   type ListingSearchInput,
+  commuteRadiusKm,
+  estimateCommute,
+  officeHub,
+  type OfficeHub,
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
@@ -54,6 +58,8 @@ export const LISTING_CARD_SELECT = {
   isVerified: true,
   isFeatured: true,
   coBroking: true,
+  visitVerifiedAt: true,
+  tokenReceivedAt: true,
   views: true,
   enquiryCount: true,
   publishedAt: true,
@@ -116,6 +122,8 @@ export class ListingsService {
     if (f.possession) and.push({ possession: f.possession });
     if (f.postedBy) and.push({ postedByType: f.postedBy });
     if (f.verified) and.push({ isVerified: true });
+    if (f.visitVerified) and.push({ visitVerifiedAt: { not: null } });
+    if (f.preferredTenant) and.push({ preferredTenants: { has: f.preferredTenant } });
     if (f.minArea != null || f.maxArea != null) {
       const range = { ...(f.minArea != null ? { gte: f.minArea } : {}), ...(f.maxArea != null ? { lte: f.maxArea } : {}) };
       and.push({ OR: [{ carpetArea: range }, { superArea: range }, { builtUpArea: range }, { plotArea: range }] });
@@ -161,12 +169,47 @@ export class ListingsService {
 
   async search(f: ListingSearchInput) {
     await this.expireFeatured();
+    const hub = officeHub(f.officeHub);
+    if (hub) return this.searchByCommute(f, hub);
     const where = this.buildWhere(f);
     const [items, total] = await Promise.all([
       this.prisma.listing.findMany({ where, orderBy: this.orderBy(f.sort), skip: (f.page - 1) * f.pageSize, take: f.pageSize, select: LISTING_CARD_SELECT }),
       this.prisma.listing.count({ where }),
     ]);
     return paged(items, total, f.page, f.pageSize);
+  }
+
+  /**
+   * "Office के पास": pre-filter by a radius around the hub, estimate each listing's commute (listing pin,
+   * else locality centre), keep those within maxCommute, sort by time (or the chosen sort) and paginate.
+   */
+  private async searchByCommute(f: ListingSearchInput, hub: OfficeHub) {
+    const max = f.maxCommute ?? 45;
+    const r = commuteRadiusKm(max);
+    const dLat = r / 111;
+    const dLng = r / (111 * Math.cos((hub.lat * Math.PI) / 180));
+    const near: Prisma.ListingWhereInput = {
+      OR: [
+        { latitude: { gte: hub.lat - dLat, lte: hub.lat + dLat }, longitude: { gte: hub.lng - dLng, lte: hub.lng + dLng } },
+        { latitude: null, locality: { latitude: { gte: hub.lat - dLat, lte: hub.lat + dLat }, longitude: { gte: hub.lng - dLng, lte: hub.lng + dLng } } },
+      ],
+    };
+    const rows = await this.prisma.listing.findMany({
+      where: { AND: [this.buildWhere({ ...f, bbox: undefined }), near] },
+      orderBy: this.orderBy(f.sort === 'commute' ? 'relevance' : f.sort),
+      take: 1500,
+      select: { ...LISTING_CARD_SELECT, locality: { select: { id: true, name: true, slug: true, zone: true, latitude: true, longitude: true } } },
+    });
+    const scored = rows
+      .map((l) => {
+        const from = l.latitude != null && l.longitude != null ? { lat: l.latitude, lng: l.longitude } : { lat: l.locality.latitude, lng: l.locality.longitude };
+        const c = estimateCommute(from, hub);
+        return { ...l, commute: { hub: hub.name, minutes: c.bestMin, mode: c.mode, carMin: c.carMin, metroMin: c.metroMin } };
+      })
+      .filter((l) => l.commute.minutes <= max);
+    if (f.sort === 'commute') scored.sort((a, b) => a.commute.minutes - b.commute.minutes);
+    const items = scored.slice((f.page - 1) * f.pageSize, f.page * f.pageSize);
+    return paged(items, scored.length, f.page, f.pageSize);
   }
 
   async mapPoints(f: ListingSearchInput) {
@@ -177,6 +220,23 @@ export class ListingsService {
       orderBy: this.orderBy(f.sort),
       select: { id: true, slug: true, price: true, purpose: true, propertyType: true, bedrooms: true, latitude: true, longitude: true, title: true, coverUrl: true },
     });
+  }
+
+  /** Scam protection: enough distinct pending reports send a live listing back to admin review. */
+  async autoHideIfReported(listingId: string) {
+    const app = await this.settings.getAppConfig();
+    const threshold = app.listing.autoHideReports ?? 3;
+    if (!threshold) return false;
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId }, select: { id: true, status: true, title: true, moderationFlags: true } });
+    if (!listing || listing.status !== 'ACTIVE') return false;
+    const reports = await this.prisma.listingReport.findMany({ where: { listingId, status: 'OPEN' }, select: { userId: true } });
+    // Logged-in reporters count individually; all anonymous reports together count once (limits abuse).
+    const reporters = new Set(reports.map((r) => r.userId ?? 'anon'));
+    if (reporters.size < threshold) return false;
+    await this.prisma.listing.update({ where: { id: listingId }, data: { status: 'PENDING_REVIEW', moderationFlags: [...new Set([...listing.moderationFlags, 'REPORTED'])] } });
+    const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
+    await this.notifications.notify(admins.map((a) => a.id), { kind: 'LISTING_REPORTED', title: `🚩 ${reporters.size} reports — listing review में भेजी`, body: listing.title, link: '/admin/moderation' });
+    return true;
   }
 
   private lastFeaturedCheck = 0;
@@ -268,6 +328,9 @@ export class ListingsService {
     if (app.listing.contactRevealRequiresLogin && !user) throw new ForbiddenException('Number देखने के लिए login करें');
     const l = await this.prisma.listing.findFirst({ where: { id, status: 'ACTIVE', deletedAt: null }, include: { organization: true, postedBy: true } });
     if (!l) throw new NotFoundException();
+    // Firms using Exotel show their tracked ExoPhone: calls are recorded as leads and routed to an agent.
+    const exotel = l.organizationId ? await this.settings.resolve('exotel', l.organizationId).catch(() => null) : null;
+    if (exotel?.exoPhone) return { name: l.organization?.name ?? l.contactName ?? l.postedBy.name, phone: String(exotel.exoPhone), whatsapp: l.organization?.whatsapp ?? l.organization?.phone ?? null, tracked: true };
     const phone = l.contactPhone ?? l.organization?.phone ?? l.postedBy.phone;
     const whatsapp = l.organization?.whatsapp ?? phone;
     return { name: l.contactName ?? l.organization?.name ?? l.postedBy.name, phone, whatsapp };
@@ -339,7 +402,7 @@ export class ListingsService {
         pricePerSqft: pricePerSqft(input.price, this.area(input)),
         latitude: input.latitude ?? locality.latitude,
         longitude: input.longitude ?? locality.longitude,
-        coverUrl: input.photos[0]?.url ?? null,
+        coverUrl: (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null,
         status,
         moderationFlags: flags,
         postedByType: user.role === 'SUPER_ADMIN' ? 'BUILDER' : isBroker ? 'BROKER' : 'OWNER',
@@ -347,7 +410,7 @@ export class ListingsService {
         organizationId: isBroker ? user.orgId : null,
         publishedAt: status === 'ACTIVE' ? new Date() : null,
         expiresAt: status === 'ACTIVE' ? new Date(Date.now() + app.listing.expiryDays * 86400_000) : null,
-        media: { create: input.photos.map((p, i) => ({ url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i })) },
+        media: { create: input.photos.map((p, i) => ({ url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })) },
       } as Prisma.ListingUncheckedCreateInput,
     });
     if (status === 'ACTIVE') this.events.emit('listing.published', { listingId: listing.id });
@@ -387,8 +450,8 @@ export class ListingsService {
     return this.prisma.$transaction(async (tx) => {
       if (input.photos) {
         await tx.listingMedia.deleteMany({ where: { listingId: id } });
-        await tx.listingMedia.createMany({ data: input.photos.map((p, i) => ({ listingId: id, url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i })) });
-        data.coverUrl = input.photos[0]?.url ?? null;
+        await tx.listingMedia.createMany({ data: input.photos.map((p, i) => ({ listingId: id, url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })) });
+        data.coverUrl = (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null;
       }
       const updated = await tx.listing.update({ where: { id }, data });
       if (status === 'ACTIVE' && existing.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });

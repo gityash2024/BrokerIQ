@@ -1,5 +1,5 @@
 'use client';
-import { Bell, Building, Heart, LayoutDashboard, MessageSquareHeart, MessagesSquare, Search, Send, UserCircle, ShieldCheck , ClipboardList } from 'lucide-react';
+import { Bell, Building, Heart, LayoutDashboard, MessageSquareHeart, MessagesSquare, Search, Send, UserCircle, ShieldCheck , ClipboardList, CalendarCheck } from 'lucide-react';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
@@ -12,6 +12,7 @@ const GROUPS = [
       { href: '/account/saved', label: 'Saved properties', icon: Heart },
       { href: '/account/searches', label: 'Saved searches & alerts', icon: Search },
       { href: '/account/requirements', label: 'मेरी ज़रूरतें', icon: ClipboardList },
+      { href: '/account/visits', label: 'Visits & tokens', icon: CalendarCheck },
       { href: '/account/enquiries', label: 'Enquiries', icon: Send },
       { href: '/account/messages', label: 'Messages', icon: MessagesSquare },
     ],

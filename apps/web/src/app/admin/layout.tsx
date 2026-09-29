@@ -50,6 +50,8 @@ function Inner({ children }: { children: React.ReactNode }) {
       items: [
         { href: '/admin/moderation', label: 'Moderation queue', icon: ListChecks, badge: k?.pendingListings || null },
         { href: '/admin/kyc', label: 'KYC & verification', icon: BadgeCheck, badge: k?.kycPending || null },
+        { href: '/admin/visit-verification', label: 'Visit verification', icon: BadgeCheck },
+        { href: '/admin/locality-reviews', label: 'Locality reviews', icon: ListChecks },
         { href: '/admin/reports', label: 'Reported listings', icon: ShieldAlert, badge: k?.reportsOpen || null },
         { href: '/admin/listings', label: 'All listings', icon: Home },
       ],

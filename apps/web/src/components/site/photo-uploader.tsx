@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, Reorder } from 'motion/react';
 import { toast } from 'sonner';
-import { GripVertical, ImagePlus, Loader2, Star, Trash2 } from 'lucide-react';
+import { GripVertical, ImagePlus, Loader2, Orbit, Star, Trash2 } from 'lucide-react';
 import { compressImage, uploadFile, ApiError } from '@/lib/api';
 import { cn, img } from '@/lib/utils';
 import { IntegrationBanner } from '../ui/api-error';
@@ -11,6 +11,8 @@ export interface Photo {
   url: string;
   caption?: string | null;
   publicId?: string | null;
+  /** PANORAMA = 360° (equirectangular) photo, opened in the 360 viewer. */
+  kind?: 'PHOTO' | 'PANORAMA';
 }
 
 export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: { value: Photo[]; onChange: (v: Photo[]) => void; max?: number; kind?: string }) {
@@ -82,6 +84,14 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
                   </span>
                 )}
                 <GripVertical className="absolute top-1.5 right-1.5 size-4 text-white opacity-0 drop-shadow transition group-hover:opacity-100" />
+                <button
+                  type="button"
+                  onClick={() => onChange(value.map((x) => (x.url === p.url ? { ...x, kind: x.kind === 'PANORAMA' ? 'PHOTO' : 'PANORAMA' } : x)))}
+                  className={cn('absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-bold transition', p.kind === 'PANORAMA' ? 'bg-brand-600 text-white' : 'bg-black/50 text-white opacity-0 group-hover:opacity-100')}
+                  title="360° photo है? निशान लगाएँ"
+                >
+                  <Orbit className="size-3" /> 360°
+                </button>
                 <button type="button" onClick={() => onChange(value.filter((x) => x.url !== p.url))} className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-lg bg-rose-600 text-white opacity-0 transition group-hover:opacity-100" aria-label="Remove">
                   <Trash2 className="size-3.5" />
                 </button>
@@ -104,7 +114,7 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
           ))}
         </Reorder.Group>
       )}
-      {value.length > 1 && <p className="mt-2 text-xs text-subtle">Drag करके order बदलें — पहली photo cover बनेगी।</p>}
+      {value.length > 1 && <p className="mt-2 text-xs text-subtle">Drag करके order बदलें — पहली photo cover बनेगी। 360° camera वाली photo पर "360°" दबाएँ।</p>}
     </div>
   );
 }

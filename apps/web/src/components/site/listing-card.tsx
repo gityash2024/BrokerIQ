@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { BadgeCheck, Bath, BedDouble, Camera, Maximize2, MapPin, Sparkles, Zap } from 'lucide-react';
+import { BadgeCheck, Bath, BedDouble, Briefcase, Camera, Maximize2, MapPin, Sparkles, Zap } from 'lucide-react';
 import { firstMonthCost, formatINR, formatPriceShort, PROPERTY_TYPE_LABELS, FURNISHING_LABELS, responseBadge, timeAgo } from '@brokeriq/shared';
 import type { ListingCard as L } from '@/lib/types';
 import { areaOf } from '@/lib/types';
@@ -88,6 +88,10 @@ export function ListingCard({ l, layout = 'grid', active, onHover }: { l: L; lay
             पहले महीने का कुल ~<b className="text-fg">{formatPriceShort(firstMonthCost(l))}</b> <span className="text-subtle">(rent + deposit + brokerage)</span>
           </p>
         ) : null}
+        {(l as any).commute && (
+          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600"><Briefcase className="size-3" /> {(l as any).commute.hub} से ~{(l as any).commute.minutes} मिनट ({(l as any).commute.mode === 'metro' ? 'metro' : 'car'})</p>
+        )}
+        {(l as any).visitVerifiedAt && <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><BadgeCheck className="size-3" /> Visit verified</p>}
         {responseBadge(l.organization?.responseMinutes) && (
           <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Zap className="size-3" /> {responseBadge(l.organization?.responseMinutes)}</p>
         )}

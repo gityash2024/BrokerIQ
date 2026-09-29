@@ -72,6 +72,11 @@ export class EnquiriesService {
         message: [input.message, input.wantsVisit ? `Site visit requested${input.visitDate ? ` on ${new Date(input.visitDate).toLocaleDateString('en-IN')}` : ''}` : ''].filter(Boolean).join('\n') || null,
       });
       await this.prisma.enquiry.update({ where: { id: enquiry.id }, data: { leadId: lead.id } });
+      // Verified tenants (work email / KYC) are flagged so brokers can prioritise them.
+      if (user && !lead.tags.includes('verified-tenant')) {
+        const u = await this.prisma.user.findUnique({ where: { id: user.id }, select: { tenantVerifiedAt: true } });
+        if (u?.tenantVerifiedAt) await this.prisma.lead.update({ where: { id: lead.id }, data: { tags: { push: 'verified-tenant' } } });
+      }
     } else if (ownerUserId) {
       await this.notifications.notify(ownerUserId, { kind: 'ENQUIRY', title: `नई enquiry: ${input.name}`, body: listing?.title, link: '/account/enquiries?tab=received', data: { enquiryId: enquiry.id } });
       const owner = await this.prisma.user.findUnique({ where: { id: ownerUserId } });

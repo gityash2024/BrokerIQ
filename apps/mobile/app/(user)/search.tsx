@@ -5,7 +5,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellPlus, List, Map as MapIcon, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, type PropertyType, plural } from '@brokeriq/shared';
+import { FURNISHING_LABELS, OFFICE_HUBS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, type PropertyType, plural } from '@brokeriq/shared';
 import { api, post, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useDebounced } from '@/lib/hooks';
@@ -15,7 +15,7 @@ import { ListingCard, type ListingCardData } from '@/components/listing';
 import { MapView, toPoints } from '@/components/map';
 import { Button, Chip, ErrorView, Empty, IconBtn, Input, PressableScale, Row, Sheet, Skeleton, Txt } from '@/ui';
 
-type F = { q?: string; purpose?: string; category?: string; types?: string; bedrooms?: string; minPrice?: string; maxPrice?: string; furnishing?: string; postedBy?: string; verified?: string; sort?: string; localities?: string };
+type F = { q?: string; purpose?: string; category?: string; types?: string; bedrooms?: string; minPrice?: string; maxPrice?: string; furnishing?: string; postedBy?: string; verified?: string; sort?: string; localities?: string; visitVerified?: string; officeHub?: string; maxCommute?: string };
 const SORTS = [
   ['relevance', 'Relevant'],
   ['newest', 'Newest'],
@@ -57,7 +57,7 @@ export default function SearchScreen() {
     set({ [k]: cur.includes(v) ? cur.filter((x) => x !== v).join(',') : [...cur, v].join(',') } as any);
   };
   const budgets: number[] = tax.data?.budgets?.RENT ?? [];
-  const activeCount = ['types', 'bedrooms', 'minPrice', 'maxPrice', 'furnishing', 'postedBy', 'verified'].filter((k) => (f as any)[k]).length;
+  const activeCount = ['types', 'bedrooms', 'minPrice', 'maxPrice', 'furnishing', 'postedBy', 'verified', 'visitVerified', 'officeHub'].filter((k) => (f as any)[k]).length;
   const saveSearch = async () => {
     if (!user) return router.push('/login');
     try {
@@ -199,7 +199,15 @@ export default function SearchScreen() {
         <Row wrap>
           {(['OWNER', 'BROKER', 'BUILDER'] as const).map((p) => <Chip key={p} label={p[0] + p.slice(1).toLowerCase()} active={f.postedBy === p} onPress={() => set({ postedBy: f.postedBy === p ? undefined : p })} />)}
           <Chip label="✔ Verified only" active={f.verified === 'true'} onPress={() => set({ verified: f.verified ? undefined : 'true' })} />
+          <Chip label="✔ Visit verified" active={f.visitVerified === 'true'} onPress={() => set({ visitVerified: f.visitVerified ? undefined : 'true' })} />
         </Row>
+        <Txt v="label" color="subtle">Office के पास (अनुमानित समय)</Txt>
+        <Row wrap>
+          {OFFICE_HUBS.map((h) => (
+            <Chip key={h.key} label={h.name} active={f.officeHub === h.key} onPress={() => set(f.officeHub === h.key ? { officeHub: undefined, maxCommute: undefined, sort: 'relevance' } : { officeHub: h.key, maxCommute: f.maxCommute ?? '45', sort: 'commute' })} />
+          ))}
+        </Row>
+        {!!f.officeHub && <Row wrap>{['20', '30', '45', '60'].map((m) => <Chip key={m} label={`${m} मिनट तक`} active={(f.maxCommute ?? '45') === m} onPress={() => set({ maxCommute: m })} />)}</Row>}
         <Row style={{ marginTop: 8 }}>
           <Button title="Reset" variant="secondary" style={{ flex: 1 }} onPress={() => setF({ purpose: 'RENT', sort: 'relevance' })} />
           <Button title={total != null ? `${total} results दिखाएँ` : 'Apply'} style={{ flex: 2 }} onPress={() => setFilters(false)} />

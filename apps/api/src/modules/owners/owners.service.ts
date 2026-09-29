@@ -166,6 +166,10 @@ export class OwnersService implements OnModuleInit {
     const d = await this.prisma.deal.findUnique({ where: { id: dealId }, include: { lead: { select: { name: true, phone: true } }, listing: { select: { id: true, purpose: true, price: true, ownerId: true } } } });
     if (!d?.listing || d.listing.purpose !== 'RENT') return null;
     if (await this.prisma.tenancy.findFirst({ where: { dealId } })) return null;
+    if (!d.listing.ownerId) {
+      await this.syncFromListings(d.organizationId);
+      d.listing.ownerId = (await this.prisma.listing.findUnique({ where: { id: d.listing.id }, select: { ownerId: true } }))?.ownerId ?? null;
+    }
     const start = d.closedAt ?? new Date();
     return this.prisma.tenancy.create({
       data: { organizationId: d.organizationId, listingId: d.listing.id, ownerId: d.listing.ownerId, dealId, tenantName: d.lead.name, tenantPhone: d.lead.phone, rent: d.listing.price, startDate: start, endDate: addMonths(start, DEFAULT_LEASE_MONTHS) },

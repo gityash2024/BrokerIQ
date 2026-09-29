@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
+import { VisitSlotsButton } from '@/components/broker/visit-slots';
 import { LeadPicker, ListingPicker } from '@/components/broker/lead-picker';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
@@ -52,7 +53,12 @@ export default function VisitsPage() {
       <PageHeader
         title="Site visits"
         subtitle="Client को visit से पहले automatic reminder जाता है (WhatsApp/push, अगर connected है)"
-        actions={<Button size="sm" onClick={() => setAddOpen(true)}><CalendarPlus className="size-4" /> Visit schedule करें</Button>}
+        actions={
+          <div className="flex gap-2">
+            <VisitSlotsButton />
+            <Button size="sm" onClick={() => setAddOpen(true)}><CalendarPlus className="size-4" /> Visit schedule करें</Button>
+          </div>
+        }
       />
 
       <div className="card mb-5 p-3">

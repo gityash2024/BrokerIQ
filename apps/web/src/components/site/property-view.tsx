@@ -13,6 +13,7 @@ import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { Select, Textarea } from '../ui/field';
 import { Gallery } from './gallery';
+import { CommuteCard, MoveInCard, PanoramaButton, ResidentReviews, VideoTour } from './property-extras';
 import { ContactCard } from './contact-card';
 import { EmiCalculator } from './emi';
 import { ListingCard } from './listing-card';
@@ -85,6 +86,11 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
       )}
 
       <Gallery photos={photos} title={l.title} />
+      {(l.media ?? []).some((m: any) => m.kind === 'PANORAMA') && (
+        <div className="mt-3 flex justify-end">
+          <PanoramaButton urls={(l.media ?? []).filter((m: any) => m.kind === 'PANORAMA').map((m: any) => m.url)} />
+        </div>
+      )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-8">
@@ -102,6 +108,12 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
                   <Sparkles className="size-3.5" /> Featured
                 </Badge>
               )}
+              {l.visitVerifiedAt && (
+                <Badge tone="success">
+                  <BadgeCheck className="size-3.5" /> Visit verified
+                </Badge>
+              )}
+              {l.tokenReceivedAt && <Badge tone="warning">Token मिल चुका</Badge>}
               {l.reraNumber && <Badge>RERA: {l.reraNumber}</Badge>}
             </div>
             <h1 className="mt-3 font-display text-2xl leading-tight font-extrabold tracking-tight sm:text-3xl">{l.title}</h1>
@@ -206,11 +218,16 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
           {l.videoUrl && (
             <section>
               <h2 className="font-display text-xl font-bold">Video tour</h2>
-              <a href={l.videoUrl} target="_blank" rel="noopener noreferrer" className="card mt-4 flex items-center gap-3 p-4 font-semibold text-brand-600">
-                <Icons.PlayCircle className="size-8" /> Video देखें
-              </a>
+              <VideoTour url={l.videoUrl} />
             </section>
           )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <MoveInCard l={l} />
+            <CommuteCard l={l} />
+          </div>
+
+          <ResidentReviews localitySlug={l.locality.slug} society={l.societyName} />
 
           {l.purpose === 'SALE' && (
             <section>

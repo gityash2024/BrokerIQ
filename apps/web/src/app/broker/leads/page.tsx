@@ -166,6 +166,7 @@ function LeadsInner() {
                     <p className="flex items-center gap-2 truncate font-semibold">
                       {l.name} <TempBadge t={l.temperature} />
                       {l.repeatCount > 0 && <span className="rounded bg-violet-100 px-1.5 text-[10px] font-bold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">×{l.repeatCount + 1}</span>}
+                      {l.tags?.includes('verified-tenant') && <span className="rounded bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">✓ Verified tenant</span>}
                     </p>
                     <p className="truncate text-xs text-muted">{l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}{l.nextFollowUpAt ? ` · ⏰ ${new Date(l.nextFollowUpAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}</p>
                     <div className="mt-1 flex gap-1.5 lg:hidden"><SourceBadge source={l.source} /><StageBadge stage={l.stage} /></div>

@@ -137,6 +137,8 @@ export function ListingCard({ l, width }: { l: ListingCardData; width?: number }
         {l.purpose === 'RENT' && (!!l.securityDeposit || (!!l.brokerageType && l.brokerageType !== 'NONE')) && (
           <Txt v="caption" color="muted" numberOfLines={1}>{`पहले महीने का कुल ~${formatPriceShort(firstMonthCost(l))}`}</Txt>
         )}
+        {!!(l as any).commute && <Txt v="caption" color="brand" numberOfLines={1}>{`💼 ${(l as any).commute.hub} से ~${(l as any).commute.minutes} मिनट`}</Txt>}
+        {!!(l as any).visitVerifiedAt && <Txt v="caption" color={c.success} numberOfLines={1}>✔ Visit verified</Txt>}
         {!!responseBadge(l.organization?.responseMinutes) && <Txt v="caption" color={c.success} numberOfLines={1}>{`⚡ ${responseBadge(l.organization?.responseMinutes)}`}</Txt>}
       </View>
     </PressableScale>

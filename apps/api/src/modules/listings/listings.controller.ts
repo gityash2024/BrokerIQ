@@ -109,6 +109,7 @@ export class ListingsController {
   @Post(':id/report')
   async report(@Param('id') id: string, @CurrentUser() user: RequestUser | undefined, @Body(new ZodPipe(reportSchema.omit({ listingId: true }))) body: any) {
     await this.prisma.listingReport.create({ data: { listingId: id, userId: user?.id, reason: body.reason, details: body.details } });
+    await this.listings.autoHideIfReported(id);
     return { ok: true };
   }
 

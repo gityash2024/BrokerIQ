@@ -1,12 +1,12 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowRight, Building2, Check, Home, Landmark, MapPin, Sparkles, Store, Wand2 } from 'lucide-react';
 import { BROKERAGE_LABELS, FACING_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, pricePerSqft, formatINR } from '@brokeriq/shared';
-import { api, ApiError, errorMessage } from '@/lib/api';
+import { api, ApiError, errorMessage, uploadFile } from '@/lib/api';
 import { useFlag } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
@@ -405,8 +405,11 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                 )}
               </div>
               <PhotoUploader value={v.photos} onChange={(photos) => set({ photos })} />
-              <Field label="Video tour link (YouTube / Drive)">
-                <Input value={v.videoUrl ?? ''} onChange={(e) => set({ videoUrl: e.target.value })} placeholder="https://" />
+              <Field label="Video tour" hint="YouTube link डालें या phone से video upload करें (100 MB तक)">
+                <div className="flex gap-2">
+                  <Input className="flex-1" value={v.videoUrl ?? ''} onChange={(e) => set({ videoUrl: e.target.value })} placeholder="https://youtube.com/…" />
+                  <VideoUpload onUploaded={(url) => set({ videoUrl: url })} />
+                </div>
               </Field>
             </>
           )}
@@ -490,6 +493,34 @@ export function listingToForm(l: any): Partial<ListingFormValue> {
   const out: any = {};
   for (const k of keys) out[k] = l[k] ?? (k === 'amenities' || k === 'preferredTenants' ? [] : null);
   out.localityId = l.localityId ?? l.locality?.id;
-  out.photos = (l.media ?? []).filter((m: any) => m.kind === 'PHOTO').map((m: any) => ({ url: m.url, caption: m.caption, publicId: m.publicId }));
+  out.photos = (l.media ?? []).filter((m: any) => m.kind === 'PHOTO' || m.kind === 'PANORAMA').map((m: any) => ({ url: m.url, caption: m.caption, publicId: m.publicId, kind: m.kind }));
   return out;
+}
+
+/** Uploads a walkthrough video (stored like photos; played inline on the property page). */
+function VideoUpload({ onUploaded }: { onUploaded: (url: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [pct, setPct] = useState<number | null>(null);
+  const pick = async (file?: File) => {
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) return toast.error('Video 100 MB से छोटा होना चाहिए');
+    setPct(0);
+    try {
+      const r = await uploadFile(file, 'listing', setPct);
+      onUploaded(r.url);
+      toast.success('Video upload हो गया');
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setPct(null);
+    }
+  };
+  return (
+    <>
+      <Button type="button" variant="secondary" onClick={() => ref.current?.click()} loading={pct != null}>
+        {pct != null ? `${pct}%` : 'Upload'}
+      </Button>
+      <input ref={ref} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => pick(e.target.files?.[0])} />
+    </>
+  );
 }

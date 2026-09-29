@@ -11,6 +11,7 @@ import { PriceTrendChart, RentBarChart } from '@/components/site/trend-chart';
 import { Map } from '@/components/site/map';
 import { Button } from '@/components/ui/button';
 import { Stat } from '@/components/ui/misc';
+import { ResidentReviews } from '@/components/site/property-extras';
 
 export const revalidate = 300;
 type Props = { params: Promise<{ slug: string }> };
@@ -27,6 +28,7 @@ export default async function LocalityPage({ params }: Props) {
   const l = await sget<any>(`/public/localities/${slug}`, 300);
   if (!l) notFound();
   const rent = await sget<any>(`/listings?localities=${slug}&purpose=RENT&pageSize=8`, 120);
+  const combos = (await sget<any[]>(`/public/seo-combos?locality=${slug}`, 600)) ?? [];
   return (
     <PageShell>
       <section className="relative overflow-hidden">
@@ -110,6 +112,21 @@ export default async function LocalityPage({ params }: Props) {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {l.projects.map((p: any) => (
               <ProjectCard key={p.id} p={{ ...p, locality: { name: l.name } }} />
+            ))}
+          </div>
+        </section>
+      )}
+      <section className="container-x mt-16">
+        <ResidentReviews localitySlug={l.slug} title={`${l.name} — रहने वालों की राय`} />
+      </section>
+      {combos.length > 0 && (
+        <section className="container-x mt-16">
+          <SectionTitle title={`${l.name} में rent पर`} />
+          <div className="flex flex-wrap gap-2">
+            {combos.slice(0, 16).map((c: any) => (
+              <Link key={c.slug} href={`/rent/${c.slug}`} className="rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium hover:border-brand-400 hover:text-brand-600">
+                <span data-no-i18n>{c.title.replace(/, Gurgaon$/, '')}</span> <span className="text-subtle">· {c.count}</span>
+              </Link>
             ))}
           </div>
         </section>

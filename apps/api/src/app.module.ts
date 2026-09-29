@@ -33,6 +33,7 @@ import { RequirementsModule } from './modules/requirements/requirements.module';
 import { OwnersModule } from './modules/owners/owners.module';
 import { CallsModule } from './modules/calls/calls.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { TrustModule } from './modules/trust/trust.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -68,6 +69,7 @@ import { isInternalCall } from './common/internal';
     OwnersModule,
     CallsModule,
     InvoicesModule,
+    TrustModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

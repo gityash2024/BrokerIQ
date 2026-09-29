@@ -97,7 +97,7 @@ describe('BrokerIQ API (e2e)', () => {
     expect(s.body.items.find((x: any) => x.id === listingId)).toBeUndefined();
 
     await http.post(`/api/admin/moderation/listings/${listingId}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
-    s = await http.get('/api/listings?localities=sector-65-gurgaon&bedrooms=3&minPrice=40000').expect(200);
+    s = await http.get('/api/listings?localities=sector-65-gurgaon&bedrooms=3&minPrice=40000&sort=newest').expect(200);
     expect(s.body.items.map((x: any) => x.id)).toContain(listingId);
 
     const d = await http.get(`/api/listings/${listingSlug}`).expect(200);

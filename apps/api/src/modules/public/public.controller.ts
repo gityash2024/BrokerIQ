@@ -10,6 +10,11 @@ import {
   PROPERTY_TYPE_CATEGORY,
   PROPERTY_TYPE_LABELS,
   FACING_LABELS,
+  SEO_KIND_TYPES,
+  buildSeoSlug,
+  parseSeoSlug,
+  seoTitle,
+  type SeoCombo,
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PublicService } from './public.service';
@@ -161,6 +166,68 @@ export class PublicController {
     return { slug: link.listing.slug };
   }
 
+  // ------------------------------------------------------------------ programmatic SEO pages (/rent/<slug>)
+  /** Combos that have at least one live listing — used for the sitemap and internal links. */
+  @Get('seo-combos')
+  async seoCombos(@Query('locality') localitySlug?: string) {
+    return this.combos(localitySlug);
+  }
+
+  private async combos(localitySlug?: string) {
+    const kindOf = (t: string) => (Object.entries(SEO_KIND_TYPES).find(([, types]) => types.includes(t))?.[0] ?? null) as SeoCombo['kind'] | null;
+    const rows = await this.prisma.listing.groupBy({
+      by: ['localityId', 'propertyType', 'bedrooms', 'furnishing'],
+      where: { status: 'ACTIVE', deletedAt: null, purpose: 'RENT', ...(localitySlug ? { locality: { slug: localitySlug } } : {}) },
+      _count: { _all: true },
+    });
+    const locs = await this.prisma.locality.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.localityId))] } }, select: { id: true, slug: true, name: true } });
+    const out = new Map<string, { slug: string; title: string; count: number }>();
+    for (const r of rows) {
+      const kind = kindOf(r.propertyType);
+      const loc = locs.find((l) => l.id === r.localityId);
+      if (!kind || !loc) continue;
+      const variants: SeoCombo[] = [{ kind, localitySlug: loc.slug }];
+      if (kind !== 'pg' && r.bedrooms && r.bedrooms <= 5) variants.push({ kind, localitySlug: loc.slug, bedrooms: r.bedrooms });
+      if (kind !== 'pg' && r.furnishing) variants.push({ kind, localitySlug: loc.slug, furnishing: r.furnishing as SeoCombo['furnishing'] });
+      if (kind !== 'pg' && r.bedrooms && r.bedrooms <= 5 && r.furnishing) variants.push({ kind, localitySlug: loc.slug, bedrooms: r.bedrooms, furnishing: r.furnishing as SeoCombo['furnishing'] });
+      for (const v of variants) {
+        const slug = buildSeoSlug(v);
+        const cur = out.get(slug);
+        out.set(slug, { slug, title: seoTitle(v, loc.name), count: (cur?.count ?? 0) + r._count._all });
+      }
+    }
+    return [...out.values()].sort((a, b) => b.count - a.count).slice(0, 5000);
+  }
+
+  /** Resolves a landing-page slug to search filters + copy; 404 for unknown or empty combos. */
+  @Get('seo/:slug')
+  async seo(@Param('slug') slug: string) {
+    const combo = parseSeoSlug(slug);
+    if (!combo) throw new NotFoundException();
+    const locality = await this.prisma.locality.findUnique({ where: { slug: combo.localitySlug }, select: { id: true, name: true, slug: true, zone: true, avgRent2Bhk: true, highlights: true } });
+    if (!locality) throw new NotFoundException();
+    const where = {
+      status: 'ACTIVE' as const,
+      deletedAt: null,
+      purpose: 'RENT' as const,
+      localityId: locality.id,
+      propertyType: { in: SEO_KIND_TYPES[combo.kind] as any[] },
+      ...(combo.bedrooms ? { bedrooms: combo.bedrooms } : {}),
+      ...(combo.furnishing ? { furnishing: combo.furnishing } : {}),
+    };
+    const [count, agg] = await Promise.all([this.prisma.listing.count({ where }), this.prisma.listing.aggregate({ where, _avg: { price: true }, _min: { price: true }, _max: { price: true } })]);
+    const related = (await this.combos(locality.slug)).filter((c) => c.slug !== slug).slice(0, 12);
+    return {
+      combo,
+      title: seoTitle(combo, locality.name),
+      locality,
+      count,
+      rent: { avg: agg._avg.price ? Math.round(agg._avg.price) : null, min: agg._min.price, max: agg._max.price },
+      filters: { localities: locality.slug, types: SEO_KIND_TYPES[combo.kind].join(','), ...(combo.bedrooms ? { bedrooms: String(combo.bedrooms) } : {}), ...(combo.furnishing ? { furnishing: combo.furnishing } : {}) },
+      related,
+    };
+  }
+
   @Get('sitemap')
   async sitemap() {
     const [listings, localities, projects, brokers, posts] = await Promise.all([
@@ -170,7 +237,7 @@ export class PublicController {
       this.prisma.organization.findMany({ where: { status: 'ACTIVE', onboarded: true }, select: { slug: true, updatedAt: true } }),
       this.prisma.blogPost.findMany({ where: { isPublished: true }, select: { slug: true, updatedAt: true } }),
     ]);
-    return { listings, localities, projects, brokers, posts };
+    return { listings, localities, projects, brokers, posts, seo: (await this.combos()).map((c) => c.slug) };
   }
 
   /** Meta / WhatsApp webhook verification needs to know the public URL of the API. */
