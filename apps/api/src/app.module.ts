@@ -28,6 +28,11 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 import { MediaModule } from './modules/media/media.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
+import { CoBrokingModule } from './modules/cobroking/cobroking.module';
+import { RequirementsModule } from './modules/requirements/requirements.module';
+import { OwnersModule } from './modules/owners/owners.module';
+import { CallsModule } from './modules/calls/calls.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -58,6 +63,11 @@ import { isInternalCall } from './common/internal';
     MediaModule,
     PrivacyModule,
     AssistantModule,
+    CoBrokingModule,
+    RequirementsModule,
+    OwnersModule,
+    CallsModule,
+    InvoicesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

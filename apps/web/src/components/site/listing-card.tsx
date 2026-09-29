@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { BadgeCheck, Bath, BedDouble, Camera, Maximize2, MapPin, Sparkles } from 'lucide-react';
-import { formatINR, formatPriceShort, PROPERTY_TYPE_LABELS, FURNISHING_LABELS, timeAgo } from '@brokeriq/shared';
+import { BadgeCheck, Bath, BedDouble, Camera, Maximize2, MapPin, Sparkles, Zap } from 'lucide-react';
+import { firstMonthCost, formatINR, formatPriceShort, PROPERTY_TYPE_LABELS, FURNISHING_LABELS, responseBadge, timeAgo } from '@brokeriq/shared';
 import type { ListingCard as L } from '@/lib/types';
 import { areaOf } from '@/lib/types';
 import { cn, img } from '@/lib/utils';
@@ -83,6 +83,14 @@ export function ListingCard({ l, layout = 'grid', active, onHover }: { l: L; lay
             </span>
           )}
         </div>
+        {l.purpose === 'RENT' && (l.securityDeposit || (l.brokerageType && l.brokerageType !== 'NONE')) ? (
+          <p className="mt-2 text-[11px] text-muted">
+            पहले महीने का कुल ~<b className="text-fg">{formatPriceShort(firstMonthCost(l))}</b> <span className="text-subtle">(rent + deposit + brokerage)</span>
+          </p>
+        ) : null}
+        {responseBadge(l.organization?.responseMinutes) && (
+          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Zap className="size-3" /> {responseBadge(l.organization?.responseMinutes)}</p>
+        )}
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
           <span className="truncate text-xs text-subtle">
             {PROPERTY_TYPE_LABELS[l.propertyType]}

@@ -99,6 +99,9 @@ export const listingInputSchema = z.object({
   maintenance: z.number().min(0).optional().nullable(),
   brokerageType: enumOf(BrokerageType).optional().nullable(),
   brokerageAmount: z.number().min(0).optional().nullable(),
+  // Co-broking: other BrokerIQ brokers may request to work this listing for a commission split.
+  coBroking: z.boolean().optional(),
+  coBrokingSharePct: z.number().min(0).max(100).optional().nullable(),
   securityDeposit: z.number().min(0).optional().nullable(),
   priceNegotiable: z.boolean().default(false),
   bedrooms: z.number().int().min(0).max(20).optional().nullable(),
@@ -196,6 +199,23 @@ export const leadRequirementSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 export type LeadRequirementInput = z.infer<typeof leadRequirementSchema>;
+
+/** A tenant's stated need, posted from the site / app ("अपनी ज़रूरत बताएँ"). */
+export const tenantRequirementSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  phone: phoneSchema,
+  bedrooms: z.array(z.number().int().min(0).max(10)).max(6).default([]),
+  minBudget: z.number().min(0).optional().nullable(),
+  maxBudget: z.number().min(1000).optional().nullable(),
+  localityIds: z.array(z.string()).max(10).default([]),
+  furnishing: enumOf(Furnishing).optional().nullable(),
+  propertyTypes: z.array(z.enum(PROPERTY_TYPES)).max(6).default([]),
+  moveInBy: z.coerce.date().optional().nullable(),
+  officeHub: z.string().max(40).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+  shareWithBrokers: z.boolean().default(true),
+});
+export type TenantRequirementInput = z.infer<typeof tenantRequirementSchema>;
 
 export const leadInputSchema = z.object({
   name: z.string().trim().min(1).max(80),

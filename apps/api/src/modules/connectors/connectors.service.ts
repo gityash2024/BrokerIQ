@@ -16,7 +16,7 @@ import { fetchHousingLeads, housingBedrooms, housingLeadDate, housingLeadDetail,
 import { sha256 } from '../../common/utils';
 import { env } from '../../config/env';
 
-const ORG_KEY_TO_TYPE: Record<string, ConnectorType> = { email_inbox: 'EMAIL_INBOX', meta_leads: 'META_LEAD_ADS', whatsapp: 'WHATSAPP', housing_api: 'HOUSING_API' };
+const ORG_KEY_TO_TYPE: Record<string, ConnectorType> = { email_inbox: 'EMAIL_INBOX', meta_leads: 'META_LEAD_ADS', whatsapp: 'WHATSAPP', housing_api: 'HOUSING_API', exotel: 'EXOTEL' };
 /** Lead connectors that count towards the plan's `connectors` limit. */
 const LIMITED_TYPES: ConnectorType[] = ['EMAIL_INBOX', 'META_LEAD_ADS', 'HOUSING_API'];
 const HOUSING_FIRST_SYNC_DAYS = 7;
@@ -56,6 +56,7 @@ export class ConnectorsService implements OnModuleInit {
         const extra: Record<string, string> = {};
         if (isAdmin && d.key === 'whatsapp') Object.assign(extra, { webhookUrl: `${api}/api/webhooks/whatsapp/${org.webhookKey}`, verifyToken: this.wa.orgVerifyToken(org.webhookKey) });
         if (isAdmin && d.key === 'meta_leads') Object.assign(extra, { webhookUrl: `${api}/api/webhooks/meta-leads/${org.webhookKey}`, verifyToken: this.metaVerifyToken(org.webhookKey) });
+        if (isAdmin && d.key === 'exotel') Object.assign(extra, { connectUrl: `${api}/api/webhooks/exotel/${org.webhookKey}/connect` });
         return { ...d, steps: renderSteps(d, api), config: isAdmin ? await this.settings.view(d.key, orgId) : { configured: await this.settings.isConfigured(d.key, orgId) }, state: state ?? null, extra };
       }),
     );

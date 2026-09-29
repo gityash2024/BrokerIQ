@@ -7,6 +7,7 @@ import { AiService } from '../../core/ai/ai.service';
 import { MediaService } from '../../core/media/media.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { fetchHousingLeads } from '../connectors/portals/housing.client';
+import { exotelAuth, exotelBase } from '../calls/calls.service';
 
 export const GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -83,6 +84,12 @@ export class IntegrationTesterService {
         const now = Math.floor(Date.now() / 1000);
         const rows = await fetchHousingLeads({ profileId: v.profileId, encryptionKey: v.encryptionKey, accountType: v.accountType, listingIds: v.listingIds }, now - 7 * 86400, now);
         return `Housing connected — पिछले 7 दिन में ${rows.length} leads`;
+      }
+      case 'exotel': {
+        const res = await fetch(`${exotelBase(v as any)}.json`, { headers: { Authorization: exotelAuth(v as any) } });
+        const data: any = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(`Exotel ${res.status}: ${data?.RestException?.Message ?? 'API key / token / SID गलत है'}`);
+        return `Exotel connected: ${data?.Account?.FriendlyName ?? v.accountSid} (${data?.Account?.Status ?? 'active'})`;
       }
       case 'maptiler': {
         const res = await fetch(`https://api.maptiler.com/maps/${v.style ?? 'streets-v2'}/style.json?key=${v.apiKey}`);

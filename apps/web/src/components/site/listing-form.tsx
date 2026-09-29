@@ -33,6 +33,8 @@ export interface ListingFormValue {
   brokerageType?: string | null;
   brokerageAmount?: number | null;
   priceNegotiable?: boolean;
+  coBroking?: boolean;
+  coBrokingSharePct?: number | null;
   bedrooms?: number | null;
   bathrooms?: number | null;
   balconies?: number | null;
@@ -107,6 +109,7 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
       purpose: 'RENT' as const,
       brokerageType: v.brokerageType || null,
       brokerageAmount: v.brokerageType === 'FIXED' ? num(v.brokerageAmount) : null,
+      ...(role === 'broker' ? { coBroking: !!v.coBroking, coBrokingSharePct: v.coBroking ? num(v.coBrokingSharePct) ?? 50 : null } : {}),
       bedrooms: num(v.bedrooms),
       bathrooms: num(v.bathrooms),
       balconies: num(v.balconies),
@@ -391,6 +394,15 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                   <Switch checked={!!v.priceNegotiable} onCheckedChange={(x) => set({ priceNegotiable: x })} />
                   <span className="text-sm font-medium">Price negotiable</span>
                 </label>
+                {role === 'broker' && (
+                  <div className="space-y-3 rounded-xl border border-line px-4 py-3 sm:col-span-2">
+                    <label className="flex items-center gap-3">
+                      <Switch checked={!!v.coBroking} onCheckedChange={(x) => set({ coBroking: x })} />
+                      <span className="text-sm font-medium">Co-broking के लिए खुला — दूसरे BrokerIQ brokers अपने clients के लिए request कर सकें</span>
+                    </label>
+                    {v.coBroking && <NumField label="Partner broker का हिस्सा (% brokerage)" value={v.coBrokingSharePct ?? 50} onChange={(x) => set({ coBrokingSharePct: x })} />}
+                  </div>
+                )}
               </div>
               <PhotoUploader value={v.photos} onChange={(photos) => set({ photos })} />
               <Field label="Video tour link (YouTube / Drive)">
@@ -474,7 +486,7 @@ function NumField({ label, value, onChange, required }: { label: string; value: 
 
 /** Map an API listing to form values (for edit). */
 export function listingToForm(l: any): Partial<ListingFormValue> {
-  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
+  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
   const out: any = {};
   for (const k of keys) out[k] = l[k] ?? (k === 'amenities' || k === 'preferredTenants' ? [] : null);
   out.localityId = l.localityId ?? l.locality?.id;

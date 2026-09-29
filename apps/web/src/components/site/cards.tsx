@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { BadgeCheck, Building2, MapPin, Star, TrendingUp } from 'lucide-react';
-import { formatINR, formatPriceShort, POSSESSION_LABELS } from '@brokeriq/shared';
+import { BadgeCheck, Building2, MapPin, Star, TrendingUp, Zap } from 'lucide-react';
+import { formatINR, formatPriceShort, POSSESSION_LABELS, responseBadge } from '@brokeriq/shared';
 import { cn, img } from '@/lib/utils';
 import { Avatar, Badge } from '../ui/misc';
 
@@ -52,6 +52,7 @@ export function BrokerCard({ b }: { b: any }) {
         {b.experienceYears ? ` · ${b.experienceYears}+ yrs` : ''}
       </div>
       <p className="mt-2 text-xs font-semibold text-brand-600">{listings} active {listings === 1 ? 'listing' : 'listings'}</p>
+      {responseBadge(b.responseMinutes) && <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Zap className="size-3" /> {responseBadge(b.responseMinutes)}</p>}
     </Link>
   );
 }

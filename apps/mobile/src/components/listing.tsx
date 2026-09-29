@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 import { BadgeCheck, BedDouble, Heart, Images, MapPin, Maximize2, Sparkles } from 'lucide-react-native';
-import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, formatPriceShort, type Furnishing, type PropertyType } from '@brokeriq/shared';
+import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, firstMonthCost, formatPriceShort, responseBadge, type Furnishing, type PropertyType } from '@brokeriq/shared';
 import { api, img } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
@@ -31,7 +31,12 @@ export interface ListingCardData {
   isFeatured?: boolean;
   postedByType?: string;
   locality?: { name: string; slug: string } | null;
-  organization?: { name: string; logoUrl?: string | null } | null;
+  organization?: { name: string; logoUrl?: string | null; responseMinutes?: number | null } | null;
+  securityDeposit?: number | null;
+  maintenance?: number | null;
+  brokerageType?: string | null;
+  brokerageAmount?: number | null;
+  coBroking?: boolean;
   _count?: { media: number };
 }
 
@@ -129,6 +134,10 @@ export function ListingCard({ l, width }: { l: ListingCardData; width?: number }
           )}
           <Txt v="caption" color="subtle" numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{l.furnishing ? FURNISHING_LABELS[l.furnishing as Furnishing] : PROPERTY_TYPE_LABELS[l.propertyType as PropertyType]}</Txt>
         </Row>
+        {l.purpose === 'RENT' && (!!l.securityDeposit || (!!l.brokerageType && l.brokerageType !== 'NONE')) && (
+          <Txt v="caption" color="muted" numberOfLines={1}>{`पहले महीने का कुल ~${formatPriceShort(firstMonthCost(l))}`}</Txt>
+        )}
+        {!!responseBadge(l.organization?.responseMinutes) && <Txt v="caption" color={c.success} numberOfLines={1}>{`⚡ ${responseBadge(l.organization?.responseMinutes)}`}</Txt>}
       </View>
     </PressableScale>
   );

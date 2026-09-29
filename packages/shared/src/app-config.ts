@@ -46,6 +46,10 @@ export const appConfigSchema = z.object({
     // allowBrokerSignup = open signup. When off, new broker firms join only with a valid invite code.
     .object({ allowPasswordLogin: z.boolean().default(true), allowEmailOtp: z.boolean().default(true), allowGoogle: z.boolean().default(true), allowBrokerSignup: z.boolean().default(false) })
     .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: false }),
+  /** Approved WhatsApp template names (platform number) for messages sent outside the 24h window. Empty = skip WhatsApp. */
+  whatsappTemplates: z
+    .object({ requirementMatch: z.string().default(''), weeklyReport: z.string().default(''), visitReminder: z.string().default(''), searchAlert: z.string().default(''), language: z.string().default('hi') })
+    .default({ requirementMatch: '', weeklyReport: '', visitReminder: '', searchAlert: '', language: 'hi' }),
   /** Brokers inviting other brokers: each firm gets a personal code; joiners get this plan free. */
   brokerReferrals: z
     .object({ enabled: z.boolean().default(true), planCode: z.string().default('BUSINESS'), months: z.number().int().min(0).max(60).default(12), maxUsesPerBroker: z.number().int().min(1).max(1000).default(25) })

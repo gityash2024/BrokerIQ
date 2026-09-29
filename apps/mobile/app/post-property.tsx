@@ -39,7 +39,7 @@ export default function PostProperty() {
   useEffect(() => {
     const l = existing.data;
     if (!l) return;
-    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
+    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
     setF({ ...Object.fromEntries(keys.map((k) => [k, l[k] ?? (k === 'amenities' ? [] : '')])), category: l.category, localityId: l.localityId ?? l.locality?.id });
     setPhotos((l.media ?? []).map((m: any) => ({ url: m.url })));
   }, [existing.data]);
@@ -120,6 +120,7 @@ export default function PostProperty() {
       brokerageType: f.brokerageType || null,
       brokerageAmount: f.brokerageType === 'FIXED' ? n('brokerageAmount') : null,
       priceNegotiable: !!f.priceNegotiable,
+      ...(isBroker ? { coBroking: !!f.coBroking, coBrokingSharePct: f.coBroking ? n('coBrokingSharePct') ?? 50 : null } : {}),
       bedrooms: n('bedrooms'),
       bathrooms: n('bathrooms'),
       balconies: n('balconies'),
@@ -195,6 +196,8 @@ export default function PostProperty() {
               </Row>
               {f.brokerageType === 'FIXED' && numInput('brokerageAmount', 'Brokerage amount (₹)')}
               <Chip label="Price negotiable" active={f.priceNegotiable} onPress={() => set({ priceNegotiable: !f.priceNegotiable })} />
+              {isBroker && <Chip label="Co-broking के लिए खुला (दूसरे brokers request कर सकें)" active={!!f.coBroking} onPress={() => set({ coBroking: !f.coBroking })} />}
+              {isBroker && f.coBroking && numInput('coBrokingSharePct', 'Partner broker का हिस्सा (% brokerage)')}
             </>
           )}
           {step === 1 && (

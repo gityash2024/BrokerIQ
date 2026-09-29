@@ -84,6 +84,13 @@ export default function LeadDetail() {
             <Button title="Call" icon={<Phone size={17} color="#fff" />} style={{ flex: 1 }} onPress={call} />
             <Button title="WhatsApp" variant="whatsapp" icon={<MessageCircle size={17} color="#fff" />} style={{ flex: 1 }} onPress={() => (waConv ? router.push({ pathname: '/wa/[id]', params: { id: waConv.id } }) : setSheet('wa'))} />
           </Row>
+          <Button
+            title="Click-to-call (Exotel) — recording lead में save"
+            size="sm"
+            variant="secondary"
+            icon={<PhoneCall size={15} color={c.fg} />}
+            onPress={() => post(`/leads/${id}/call`).then(() => (toast.success('Call लग रही है — पहले आपका phone बजेगा'), refresh())).catch(showError)}
+          />
           {!!l.listing && <Txt v="small" color="muted">Enquiry for: <Txt v="small" color="brand" onPress={() => router.push(`/property/${l.listing.slug}`)}>{l.listing.title}</Txt></Txt>}
           {!!l.sourceDetail && <Txt v="caption" color="subtle">{l.sourceDetail}</Txt>}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
@@ -338,6 +345,10 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
       showError(e);
     }
   };
+  const coBroke = (listingId: string) =>
+    post('/cobroking/requests', { listingId, leadId: lead.id })
+      .then(() => toast.success('Co-broke request भेजी'))
+      .catch(showError);
   return (
     <>
       <Segmented value={scope} onChange={setScope} options={[{ value: 'org', label: 'मेरी inventory' }, { value: 'all', label: 'पूरा marketplace' }]} />
@@ -349,7 +360,7 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
           keyExtractor={(x) => x.id}
           contentContainerStyle={{ gap: 10 }}
           renderItem={({ item }) => (
-            <ListingRow l={item} right={<View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}><Badge label={`${item.matchScore}%`} color="#10B981" /><IconBtn onPress={() => share(item.id)}><Share2 size={18} color="#16A34A" /></IconBtn></View>} />
+            <ListingRow l={item} right={<View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}><Badge label={`${item.matchScore}%`} color="#10B981" /><IconBtn onPress={() => share(item.id)}><Share2 size={18} color="#16A34A" /></IconBtn>{item.coBroking && item.organization && item.organization.id !== lead.organizationId && <IconBtn onPress={() => coBroke(item.id)}><Handshake size={18} color="#4F46E5" /></IconBtn>}</View>} />
           )}
         />
       )}

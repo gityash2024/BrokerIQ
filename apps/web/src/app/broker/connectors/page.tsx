@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2, CheckCircle2, Facebook, FlaskConical, Mail, MessageCircle, RefreshCw, RotateCcw, Webhook, Zap } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Facebook, FlaskConical, Mail, MessageCircle, PhoneCall, RefreshCw, RotateCcw, Webhook, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { LEAD_SOURCE_LABELS, type IntegrationDef, type LeadSource } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
@@ -24,6 +24,7 @@ const ICONS: Record<string, React.ReactNode> = {
   email_inbox: <Mail className="size-5" />,
   meta_leads: <Facebook className="size-5" />,
   housing_api: <Building2 className="size-5" />,
+  exotel: <PhoneCall className="size-5" />,
 };
 
 const PORTALS = [
@@ -106,6 +107,7 @@ function ConnectorsInner() {
               )}
               {c.extra?.webhookUrl && <CopyField label="Callback URL (Meta में paste करें)" value={c.extra.webhookUrl} />}
               {c.extra?.verifyToken && <CopyField label="Verify token" value={c.extra.verifyToken} />}
+              {c.extra?.connectUrl && <CopyField label="Connect URL (Exotel flow → Connect applet → Dynamic URL)" value={c.extra.connectUrl} hint="Incoming calls पर lead बनेगी और assigned agent का phone बजेगा" />}
               {c.key === 'email_inbox' && (
                 <p className="text-sm text-muted">
                   Tip: Housing / 99acres / MagicBricks / NoBroker के <b>lead alert emails</b> इसी inbox पर आने चाहिए। हर 2 मिनट में नई emails पढ़ी जाती हैं।

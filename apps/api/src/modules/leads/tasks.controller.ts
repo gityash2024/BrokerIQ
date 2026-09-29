@@ -171,6 +171,7 @@ export class TasksController {
         const listing = await this.prisma.listing.findFirst({ where: { id: body.listingId, organizationId: lead.organizationId } });
         if (listing) await this.prisma.listing.update({ where: { id: listing.id }, data: { status: listing.purpose === 'RENT' ? 'RENTED' : 'SOLD' } });
       }
+      this.events.emit('deal.closed', { dealId: deal.id, orgId: lead.organizationId, userId: user.id });
     }
     return deal;
   }
@@ -185,7 +186,10 @@ export class TasksController {
       where: { id },
       data: { ...rest, closedAt: closedAt ? new Date(closedAt) : rest.status === 'CLOSED' && !d.closedAt ? new Date() : undefined },
     });
-    if (rest.status === 'CLOSED' && d.status !== 'CLOSED') await this.leads.changeStage(d.leadId, 'WON', user);
+    if (rest.status === 'CLOSED' && d.status !== 'CLOSED') {
+      await this.leads.changeStage(d.leadId, 'WON', user);
+      this.events.emit('deal.closed', { dealId: d.id, orgId: d.organizationId, userId: user.id });
+    }
     return updated;
   }
 }

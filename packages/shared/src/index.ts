@@ -9,3 +9,4 @@ export * from './integrations/registry';
 export * from './privacy';
 export * from './i18n/languages';
 export * from './i18n/translate';
+export * from './matching';

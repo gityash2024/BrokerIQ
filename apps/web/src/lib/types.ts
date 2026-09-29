@@ -19,6 +19,10 @@ export interface ListingCard {
   price: number;
   pricePerSqft: number | null;
   maintenance?: number | null;
+  securityDeposit?: number | null;
+  brokerageType?: string | null;
+  brokerageAmount?: number | null;
+  coBroking?: boolean;
   priceNegotiable?: boolean;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -43,7 +47,7 @@ export interface ListingCard {
   createdAt: string;
   locality: LocalityLite;
   project: { id: string; name: string; slug: string } | null;
-  organization: { id: string; name: string; slug: string; logoUrl: string | null; verification: string; rating: number } | null;
+  organization: { id: string; name: string; slug: string; logoUrl: string | null; verification: string; rating: number; responseMinutes?: number | null } | null;
   _count?: { media: number };
   rejectionReason?: string | null;
   moderationFlags?: string[];

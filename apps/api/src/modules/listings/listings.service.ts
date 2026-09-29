@@ -53,6 +53,7 @@ export const LISTING_CARD_SELECT = {
   postedByType: true,
   isVerified: true,
   isFeatured: true,
+  coBroking: true,
   views: true,
   enquiryCount: true,
   publishedAt: true,
@@ -60,7 +61,7 @@ export const LISTING_CARD_SELECT = {
   updatedAt: true,
   locality: { select: { id: true, name: true, slug: true, zone: true } },
   project: { select: { id: true, name: true, slug: true } },
-  organization: { select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true } },
+  organization: { select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true, responseMinutes: true } },
   _count: { select: { media: true } },
 } satisfies Prisma.ListingSelect;
 
@@ -153,7 +154,8 @@ export class ListingsService {
       case 'psf_asc':
         return [{ pricePerSqft: { sort: 'asc', nulls: 'last' } }];
       default:
-        return [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { publishedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
+        // Relevance: paid boost → verified → broker quality (rating + response speed) → newest.
+        return [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { rankBoost: 'desc' }, { publishedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
     }
   }
 

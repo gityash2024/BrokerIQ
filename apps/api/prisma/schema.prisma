@@ -283,6 +283,34 @@ enum ConnectorType {
   META_LEAD_ADS
   WHATSAPP
   HOUSING_API
+  EXOTEL
+}
+
+enum CoBrokeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  CLOSED
+}
+
+enum RequirementStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+enum TenancyStatus {
+  ACTIVE
+  RENEWED
+  ENDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
 }
 
 enum ConnectorStatus {
@@ -526,6 +554,15 @@ model Organization {
   roundRobinCursor Int                @default(0)
   referredByOrgId  String?
   brokerInviteId   String?
+  upiId            String?
+  upiName          String?
+  invoicePrefix    String?
+  invoiceSeq       Int                @default(0)
+  weeklyReport     Boolean            @default(true)
+  responseMinutes  Int?
+  responseRate     Float?
+  rankScore        Float              @default(0)
+  rankUpdatedAt    DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -534,6 +571,12 @@ model Organization {
   brokerInvite         BrokerInvite?      @relation("BrokerInviteOrgs", fields: [brokerInviteId], references: [id], onDelete: SetNull)
   brokerInvitesCreated BrokerInvite[]     @relation("BrokerInvitesCreated")
   externalLeadRefs     ExternalLeadRef[]
+  coBrokeOutgoing      CoBrokeRequest[]   @relation("CoBrokeRequester")
+  coBrokeIncoming      CoBrokeRequest[]   @relation("CoBrokeOwner")
+  owners               Owner[]
+  tenancies            Tenancy[]
+  calls                Call[]
+  clientInvoices       ClientInvoice[]
   members              User[]
   invites              Invite[]
   localities           Locality[]         @relation("OrgLocalities")
@@ -684,84 +727,94 @@ model Amenity {
 // ============================================================ Marketplace
 
 model Listing {
-  id               String            @id @default(cuid())
-  refNo            Int               @unique @default(autoincrement())
-  slug             String            @unique
-  purpose          ListingPurpose
-  category         PropertyCategory
-  propertyType     PropertyType
-  status           ListingStatus     @default(DRAFT)
-  title            String
-  description      String?
-  localityId       String
-  projectId        String?
-  societyName      String?
-  address          String?
-  latitude         Float?
-  longitude        Float?
-  price            Float
-  pricePerSqft     Float?
-  maintenance      Float?
-  securityDeposit  Float?
-  brokerageType    BrokerageType?
-  brokerageAmount  Float?
-  priceNegotiable  Boolean           @default(false)
-  bedrooms         Int?
-  bathrooms        Int?
-  balconies        Int?
-  carpetArea       Float?
-  builtUpArea      Float?
-  superArea        Float?
-  plotArea         Float?
-  floor            Int?
-  totalFloors      Int?
-  furnishing       Furnishing?
-  possession       PossessionStatus?
-  possessionDate   DateTime?
-  ageYears         Int?
-  facing           Facing?
-  parking          Int?
-  availableFrom    DateTime?
-  preferredTenants String[]
-  amenities        String[]
-  reraNumber       String?
-  videoUrl         String?
-  floorPlanUrl     String?
-  coverUrl         String?
-  contactName      String?
-  contactPhone     String?
-  postedByType     PostedByType
-  postedById       String
-  organizationId   String?
-  isVerified       Boolean           @default(false)
-  isFeatured       Boolean           @default(false)
-  featuredUntil    DateTime?
-  views            Int               @default(0)
-  enquiryCount     Int               @default(0)
-  shortlistCount   Int               @default(0)
-  rejectionReason  String?
-  moderationFlags  String[]
-  publishedAt      DateTime?
-  expiresAt        DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  deletedAt        DateTime?
+  id                String            @id @default(cuid())
+  refNo             Int               @unique @default(autoincrement())
+  slug              String            @unique
+  purpose           ListingPurpose
+  category          PropertyCategory
+  propertyType      PropertyType
+  status            ListingStatus     @default(DRAFT)
+  title             String
+  description       String?
+  localityId        String
+  projectId         String?
+  societyName       String?
+  address           String?
+  latitude          Float?
+  longitude         Float?
+  price             Float
+  pricePerSqft      Float?
+  maintenance       Float?
+  securityDeposit   Float?
+  brokerageType     BrokerageType?
+  brokerageAmount   Float?
+  priceNegotiable   Boolean           @default(false)
+  bedrooms          Int?
+  bathrooms         Int?
+  balconies         Int?
+  carpetArea        Float?
+  builtUpArea       Float?
+  superArea         Float?
+  plotArea          Float?
+  floor             Int?
+  totalFloors       Int?
+  furnishing        Furnishing?
+  possession        PossessionStatus?
+  possessionDate    DateTime?
+  ageYears          Int?
+  facing            Facing?
+  parking           Int?
+  availableFrom     DateTime?
+  preferredTenants  String[]
+  amenities         String[]
+  reraNumber        String?
+  videoUrl          String?
+  floorPlanUrl      String?
+  coverUrl          String?
+  contactName       String?
+  contactPhone      String?
+  postedByType      PostedByType
+  postedById        String
+  organizationId    String?
+  isVerified        Boolean           @default(false)
+  isFeatured        Boolean           @default(false)
+  featuredUntil     DateTime?
+  coBroking         Boolean           @default(false)
+  coBrokingSharePct Float?
+  /// Denormalised broker rank (Organization.rankScore) used by search relevance; 0 for owner listings.
+  rankBoost         Float             @default(0)
+  ownerId           String?
+  views             Int               @default(0)
+  enquiryCount      Int               @default(0)
+  shortlistCount    Int               @default(0)
+  rejectionReason   String?
+  moderationFlags   String[]
+  publishedAt       DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
 
-  locality     Locality        @relation(fields: [localityId], references: [id])
-  project      Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  postedBy     User            @relation("ListingPostedBy", fields: [postedById], references: [id])
-  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  media        ListingMedia[]
-  saved        SavedListing[]
-  recentViews  RecentView[]
-  enquiries    Enquiry[]
-  reports      ListingReport[]
-  leads        Lead[]
-  visits       SiteVisit[]
-  deals        Deal[]
-  shareLinks   ShareLink[]
+  locality        Locality         @relation(fields: [localityId], references: [id])
+  project         Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  postedBy        User             @relation("ListingPostedBy", fields: [postedById], references: [id])
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  media           ListingMedia[]
+  saved           SavedListing[]
+  recentViews     RecentView[]
+  enquiries       Enquiry[]
+  reports         ListingReport[]
+  leads           Lead[]
+  visits          SiteVisit[]
+  deals           Deal[]
+  shareLinks      ShareLink[]
+  owner           Owner?           @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  coBrokeRequests CoBrokeRequest[]
+  tenancies       Tenancy[]
 
   @@index([status, purpose, category])
+  @@index([coBroking, status])
+  @@index([status, isFeatured, isVerified, rankBoost])
   @@index([localityId, status])
   @@index([organizationId, status])
   @@index([postedById])
@@ -915,17 +968,19 @@ model Lead {
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
 
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assignedTo     User?            @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  listing        Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  requirement    LeadRequirement?
-  activities     Activity[]
-  followUps      FollowUp[]
-  visits         SiteVisit[]
-  deals          Deal[]
-  conversations  Conversation[]
-  automationRuns AutomationRun[]
-  shareLinks     ShareLink[]
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo      User?            @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  listing         Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  requirement     LeadRequirement?
+  activities      Activity[]
+  followUps       FollowUp[]
+  visits          SiteVisit[]
+  deals           Deal[]
+  conversations   Conversation[]
+  automationRuns  AutomationRun[]
+  shareLinks      ShareLink[]
+  calls           Call[]
+  coBrokeRequests CoBrokeRequest[]
 
   @@unique([organizationId, phone])
   @@index([organizationId, stage])
@@ -1036,13 +1091,17 @@ model Deal {
   status             DealStatus @default(OPEN)
   closedAt           DateTime?
   notes              String?
+  coBrokeRequestId   String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  listing      Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  agent        User?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  listing        Listing?        @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  agent          User?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  coBrokeRequest CoBrokeRequest? @relation(fields: [coBrokeRequestId], references: [id], onDelete: SetNull)
+  tenancies      Tenancy[]
+  invoices       ClientInvoice[]
 
   @@index([organizationId, status])
 }
@@ -1598,4 +1657,163 @@ model FeedbackComment {
   feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
 
   @@index([feedbackId, createdAt])
+}
+
+// ------------------------------------------------------------------ growth: co-broking, requirements, owners, calls, invoices
+
+/// A broker asks the listing's firm to work its property for a client (commission split).
+model CoBrokeRequest {
+  id              String        @id @default(cuid())
+  listingId       String
+  ownerOrgId      String
+  requesterOrgId  String
+  requesterUserId String
+  leadId          String?
+  sharePct        Float         @default(50)
+  message         String?
+  status          CoBrokeStatus @default(PENDING)
+  respondedAt     DateTime?
+  respondedById   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  listing   Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  ownerOrg  Organization @relation("CoBrokeOwner", fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  requester Organization @relation("CoBrokeRequester", fields: [requesterOrgId], references: [id], onDelete: Cascade)
+  lead      Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  deals     Deal[]
+
+  @@unique([listingId, requesterOrgId])
+  @@index([ownerOrgId, status])
+  @@index([requesterOrgId, status])
+}
+
+/// A tenant's stated need ("2 BHK, Sector 54, ₹40k"): matched against every new listing.
+model TenantRequirement {
+  id               String            @id @default(cuid())
+  userId           String
+  name             String
+  phone            String
+  bedrooms         Int[]
+  minBudget        Float?
+  maxBudget        Float?
+  localityIds      String[]
+  furnishing       Furnishing?
+  propertyTypes    PropertyType[]
+  moveInBy         DateTime?
+  officeHub        String?
+  notes            String?
+  shareWithBrokers Boolean           @default(true)
+  sharedOrgIds     String[]
+  status           RequirementStatus @default(ACTIVE)
+  lastMatchedAt    DateTime?
+  matchCount       Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+/// Property owners a firm works with (landlord CRM).
+model Owner {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  phone          String
+  email          String?
+  notes          String?
+  tags           String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  listings     Listing[]
+  tenancies    Tenancy[]
+
+  @@unique([organizationId, phone])
+}
+
+/// A lease the firm closed — drives renewal / re-rent reminders before it ends.
+model Tenancy {
+  id             String        @id @default(cuid())
+  organizationId String
+  listingId      String?
+  ownerId        String?
+  dealId         String?
+  tenantName     String
+  tenantPhone    String?
+  rent           Float
+  startDate      DateTime
+  endDate        DateTime
+  status         TenancyStatus @default(ACTIVE)
+  remindersSent  Int[]
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  listing      Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  owner        Owner?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, endDate])
+}
+
+/// Click-to-call / incoming call via the firm's Exotel account.
+model Call {
+  id             String    @id @default(cuid())
+  organizationId String
+  leadId         String?
+  agentId        String?
+  direction      String
+  fromNumber     String?
+  toNumber       String?
+  exoPhone       String?
+  externalSid    String?   @unique
+  status         String    @default("queued")
+  durationSec    Int?
+  recordingUrl   String?
+  source         String?
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, startedAt])
+}
+
+/// Brokerage invoice a firm sends its client; paid via the firm's own UPI (no gateway).
+model ClientInvoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  dealId         String?
+  leadId         String?
+  number         String
+  clientName     String
+  clientPhone    String?
+  clientEmail    String?
+  items          Json
+  subtotal       Float
+  gstPct         Float         @default(0)
+  total          Float
+  dueDate        DateTime?
+  status         InvoiceStatus @default(SENT)
+  paidAt         DateTime?
+  paidMode       String?
+  paidRef        String?
+  publicToken    String        @unique
+  remindersSent  Int           @default(0)
+  lastReminderAt DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
 }

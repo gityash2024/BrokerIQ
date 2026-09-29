@@ -7,6 +7,7 @@ export interface DomainEvents {
   'visit.scheduled': { visitId: string; orgId: string; leadId: string };
   'message.inbound': { conversationId: string; orgId: string | null; leadId?: string | null };
   'listing.published': { listingId: string };
+  'deal.closed': { dealId: string; orgId: string; userId?: string };
 }
 
 /** Tiny in-process domain event bus (decouples modules, avoids circular DI). */

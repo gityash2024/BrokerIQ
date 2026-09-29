@@ -1,4 +1,5 @@
 'use client';
+import { RequirementButton } from '../site/requirement';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { ArrowRight, BadgeCheck, Calculator, IndianRupee, Landmark, MapPinned, MessagesSquare, Scale, ShieldCheck, Smartphone, Sparkles, Star, Wallet } from 'lucide-react';
@@ -51,6 +52,9 @@ export function HeroSection({ s }: { s: any }) {
         </motion.div>
         <motion.div className="mt-9" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}>
           <HeroSearch tabs={s.config?.tabs} />
+          <div className="mt-3">
+            <RequirementButton variant="secondary" className="bg-white/10 text-white ring-1 ring-white/25 backdrop-blur hover:bg-white/20" />
+          </div>
         </motion.div>
         {s.config?.stats !== false && (
           <motion.div className="mt-10 flex flex-wrap gap-x-10 gap-y-4 text-white" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>

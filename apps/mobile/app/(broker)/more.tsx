@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages, UserPlus } from 'lucide-react-native';
+import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages, UserPlus, Network, KeyRound, FileText } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
@@ -16,6 +16,9 @@ export default function More() {
     { label: 'Site visits', icon: CalendarCheck, to: '/visits', tint: c.accent },
     { label: 'Pipeline', icon: KanbanSquare, to: '/pipeline', tint: c.brand },
     { label: 'Deals', icon: Handshake, to: '/deals', tint: c.success },
+    { label: 'Invoices', icon: FileText, to: '/invoices', tint: '#059669' },
+    { label: 'Owners & leases', icon: KeyRound, to: '/owners', tint: '#B45309' },
+    { label: 'Co-broking', icon: Network, to: '/network', tint: '#4F46E5' },
     { label: 'AI book scan', icon: ScanLine, to: '/scanner', tint: '#7C3AED' },
     { label: 'Analytics', icon: BarChart3, to: '/analytics', tint: c.info },
     { label: 'Team', icon: Users, to: '/team', tint: '#0D9488' },

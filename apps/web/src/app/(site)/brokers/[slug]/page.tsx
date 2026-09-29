@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { BadgeCheck, Briefcase, Home, KeyRound, MapPin, Star } from 'lucide-react';
+import { BadgeCheck, Briefcase, Home, KeyRound, MapPin, Star, Zap } from 'lucide-react';
+import { responseBadge } from '@brokeriq/shared';
 import { sget } from '@/lib/server';
 import { img, formatDate } from '@/lib/utils';
 import { PageShell, SectionTitle } from '@/components/site/page-shell';
@@ -44,6 +45,11 @@ export default async function BrokerPage({ params }: Props) {
               <span className="flex items-center gap-1">
                 <Star className="size-4 fill-amber-400 text-amber-400" /> {b.reviewCount ? `${b.rating.toFixed(1)} · ${b.reviewCount} reviews` : 'New'}
               </span>
+              {responseBadge(b.responseMinutes) && (
+                <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                  <Zap className="size-4" /> {responseBadge(b.responseMinutes)}
+                </span>
+              )}
               {b.experienceYears && (
                 <span className="flex items-center gap-1">
                   <Briefcase className="size-4" /> {b.experienceYears}+ years

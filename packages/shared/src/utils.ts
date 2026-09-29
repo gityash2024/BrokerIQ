@@ -178,6 +178,20 @@ export function moveInCost(i: MoveInInput) {
   return { lines, total, refundable: Math.round(deposit) };
 }
 
+/** What a tenant pays to move in: first month's rent + deposit + brokerage + first maintenance (shown on cards). */
+export function firstMonthCost(l: { price: number; securityDeposit?: number | null; maintenance?: number | null; brokerageType?: string | null; brokerageAmount?: number | null }) {
+  const brokerage = !l.brokerageType || l.brokerageType === 'NONE' ? 0 : l.brokerageType === 'DAYS_15' ? l.price / 2 : l.brokerageType === 'MONTH_1' ? l.price : l.brokerageAmount ?? 0;
+  return Math.round(l.price + (l.securityDeposit ?? 0) + brokerage + (l.maintenance ?? 0));
+}
+
+/** Short label for a broker's typical first response time, e.g. "15 मिनट में जवाब". */
+export function responseBadge(minutes: number | null | undefined): string | null {
+  if (minutes == null) return null;
+  if (minutes <= 15) return '15 मिनट में जवाब';
+  if (minutes <= 60) return '1 घंटे में जवाब';
+  return null;
+}
+
 /** Split rent + bills between flatmates; the master-room occupant pays a premium. */
 export function rentSplit(rent: number, bills: number, people: number, masterPremiumPct = 0) {
   const n = Math.max(1, Math.round(people));

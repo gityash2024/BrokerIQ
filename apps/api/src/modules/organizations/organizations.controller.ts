@@ -17,6 +17,7 @@ import { env } from '../../config/env';
 
 const PUBLIC_ORG_SELECT = {
   id: true,
+  responseMinutes: true,
   name: true,
   slug: true,
   logoUrl: true,
@@ -227,7 +228,7 @@ export class OrganizationsController {
   // ------------------------------------------------------------------ public directory & microsite
   @Public()
   @Get('brokers')
-  async directory(@Query() q: { q?: string; locality?: string; verified?: string; page?: string }) {
+  async directory(@Query() q: { q?: string; locality?: string; verified?: string; page?: string; sort?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
     const where: Prisma.OrganizationWhereInput = {
       status: 'ACTIVE',
@@ -239,7 +240,7 @@ export class OrganizationsController {
     const [items, total] = await Promise.all([
       this.prisma.organization.findMany({
         where,
-        orderBy: [{ verification: 'desc' }, { rating: 'desc' }, { reviewCount: 'desc' }, { createdAt: 'asc' }],
+        orderBy: q.sort === 'top' ? [{ rankScore: 'desc' }, { verification: 'desc' }, { rating: 'desc' }] : [{ verification: 'desc' }, { rankScore: 'desc' }, { rating: 'desc' }, { reviewCount: 'desc' }, { createdAt: 'asc' }],
         skip: (page - 1) * 24,
         take: 24,
         select: { ...PUBLIC_ORG_SELECT, _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } } },

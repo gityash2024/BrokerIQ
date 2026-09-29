@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, BedDouble, Bell, Building2, Calculator, KeyRound, Landmark, Search, Sofa, Sparkles, Store } from 'lucide-react-native';
+import { ArrowRight, BedDouble, Bell, Building2, Calculator, KeyRound, Landmark, Search, Sofa, Sparkles, Store , ClipboardList } from 'lucide-react-native';
 import { api, img } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -67,6 +67,10 @@ function Hero({ s }: { s: any }) {
             </Animated.View>
           ))}
         </Row>
+        <PressableScale onPress={() => router.push(user ? '/requirements' : '/login')} style={{ marginTop: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }}>
+          <ClipboardList size={16} color="#fff" />
+          <Txt v="small" color="white">अपनी ज़रूरत बताएँ — मिलती property पर alert</Txt>
+        </PressableScale>
         {(stats.listings != null || stats.brokers != null) && (
           <Row gap={20} wrap style={{ marginTop: 20, rowGap: 10, alignItems: 'flex-start' }}>
             {[

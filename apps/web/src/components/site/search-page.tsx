@@ -14,6 +14,7 @@ import type { ListingCard as LC, Paged } from '@/lib/types';
 import { Chip, Input, Select } from '../ui/field';
 import { Button } from '../ui/button';
 import { Empty, Switch } from '../ui/misc';
+import { RequirementButton } from './requirement';
 import { Sheet } from '../ui/dialog';
 import { ApiErrorState } from '../ui/api-error';
 import { ListingCard, ListingCardSkeleton } from './listing-card';
@@ -227,6 +228,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                   <Button onClick={saveSearch}>
                     <BellPlus className="size-4" /> Alert me
                   </Button>
+                  <RequirementButton prefill={{ bedrooms: (f.bedrooms ?? '').split(',').map(Number).filter((n: number) => n > 0), maxBudget: f.maxPrice ? Number(f.maxPrice) : undefined, localitySlugs: selectedLocs }} />
                 </div>
               }
             />

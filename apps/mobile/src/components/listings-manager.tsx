@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, FlatList, Share, View } from 'react-native';
+import { Alert, FlatList, Linking, Share, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Building2, Eye, MessageSquare, Pencil, Plus, Rocket } from 'lucide-react-native';
 import { LISTING_STATUS_LABELS, formatPriceShort, type ListingStatus, plural } from '@brokeriq/shared';
-import { api, patch } from '@/lib/api';
+import { api, patch, post } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
@@ -25,6 +25,19 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
   const counts = q.data?.statusCounts ?? {};
   const { user } = useAuth();
   const isBroker = user?.role === 'BROKER_ADMIN' || user?.role === 'BROKER_AGENT';
+  /** Tracked link + caption; the post/story image opens in the browser for saving. */
+  const shareKit = async (id: string) => {
+    try {
+      const k = await post<any>(`/broker/share-kit/${id}`, {});
+      alert('Share kit', 'Caption share करें या post image खोलकर save करें।', [
+        { text: 'Caption share', onPress: () => Share.share({ message: k.caption }) },
+        { text: 'Post image', onPress: () => Linking.openURL(`${k.images.post}&download=1`) },
+        { text: 'Story image', onPress: () => Linking.openURL(`${k.images.story}&download=1`) },
+      ]);
+    } catch (e) {
+      showError(e);
+    }
+  };
   /** Copy-ready text for posting the same listing on Housing / 99acres / MagicBricks. */
   const portalPack = async (id: string) => {
     try {
@@ -37,6 +50,7 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
   const actions = (l: any) =>
     alert(l.title, undefined, [
       { text: 'Edit', onPress: () => router.push({ pathname: '/post-property', params: { id: l.id } }) },
+      ...(isBroker && l.status === 'ACTIVE' ? [{ text: 'Share kit (WhatsApp / Insta)', onPress: () => shareKit(l.id) }] : []),
       ...(isBroker ? [{ text: 'Portal pack (Housing / 99acres)', onPress: () => portalPack(l.id) }] : []),
       ...(l.status === 'ACTIVE' ? [{ text: l.purpose === 'RENT' ? 'Rented mark करें' : 'Sold mark करें', onPress: () => setSt.mutate({ id: l.id, status: l.purpose === 'RENT' ? 'RENTED' : 'SOLD' }) }] : []),
       ...(l.status !== 'ARCHIVED' ? [{ text: 'Archive (hide)', style: 'destructive' as const, onPress: () => setSt.mutate({ id: l.id, status: 'ARCHIVED' }) }] : [{ text: 'फिर से active करें', onPress: () => setSt.mutate({ id: l.id, status: 'ACTIVE' }) }]),

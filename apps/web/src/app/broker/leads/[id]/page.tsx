@@ -12,6 +12,7 @@ import {
   CalendarPlus,
   Check,
   Handshake,
+  Headphones,
   Home,
   Mail,
   MessageCircle,
@@ -37,10 +38,10 @@ import {
   whatsappLink,
   RENTABLE_TYPES,
 } from '@brokeriq/shared';
-import { api, ApiError, errorMessage } from '@/lib/api';
+import { api, ApiError, authStore, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
-import { cn, formatDateTime, img, toLocalInput } from '@/lib/utils';
+import { API_URL, cn, formatDateTime, img, toLocalInput } from '@/lib/utils';
 import { SourceBadge, TempBadge, useTeam } from '@/components/broker/bits';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button href={`tel:${l.phone}`} onClick={() => setTimeout(() => setTab('timeline'), 300)}><Phone className="size-4" /> Call</Button>
+            <ClickToCall leadId={l.id} onDone={refresh} />
             <Button variant="whatsapp" href={whatsappLink(l.phone, `नमस्ते ${l.name.split(' ')[0]} जी,`)} external><MessageCircle className="size-4" /> WhatsApp</Button>
             {admin && (
               <Select className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
@@ -141,6 +143,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         </div>
         <div className="space-y-4">
           <AiCard lead={l} onChange={refresh} />
+          <CallsCard leadId={l.id} />
           <DealsCard lead={l} onChange={refresh} />
           <div className="card space-y-3 p-5 text-sm">
             <h3 className="font-display font-bold">Details</h3>
@@ -269,6 +272,14 @@ function Matches({ lead }: { lead: any }) {
       toast.error(errorMessage(e));
     }
   };
+  const coBroke = async (listingId: string) => {
+    try {
+      await post('/cobroking/requests', { listingId, leadId: lead.id });
+      toast.success('Co-broke request भेजी — listing firm के accept करने पर contact मिलेगा');
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  };
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -292,7 +303,12 @@ function Matches({ lead }: { lead: any }) {
               <p className="text-sm font-bold">{formatPriceShort(m.price)}{m.purpose === 'RENT' ? '/mo' : ''}</p>
               <p className="text-xs text-muted">{m.locality.name}{m.organization && m.organization.id !== lead.organizationId ? ` · ${m.organization.name}` : ''}</p>
             </div>
-            <Button size="sm" variant="whatsapp" onClick={() => share(m.id, true)}><Share2 className="size-4" /> Share</Button>
+            <div className="flex flex-col gap-1.5">
+              <Button size="sm" variant="whatsapp" onClick={() => share(m.id, true)}><Share2 className="size-4" /> Share</Button>
+              {m.coBroking && m.organization && m.organization.id !== lead.organizationId && (
+                <Button size="xs" variant="secondary" onClick={() => coBroke(m.id)}><Handshake className="size-3.5" /> Co-broke</Button>
+              )}
+            </div>
           </div>
         ))
       )}
@@ -491,3 +507,55 @@ function TagEditor({ lead, onChange }: { lead: any; onChange: () => void }) {
   );
 }
 
+/** Exotel click-to-call: the agent's phone rings first, then the lead. */
+function ClickToCall({ leadId, onDone }: { leadId: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      await post(`/leads/${leadId}/call`);
+      toast.success('📞 Call लग रही है — पहले आपका phone बजेगा');
+      onDone();
+    } catch (e) {
+      if (e instanceof ApiError && e.isNotConfigured) toast.error('Click-to-call के लिए Lead connectors में Exotel जोड़ें', { action: { label: 'Setup', onClick: () => (window.location.href = '/broker/connectors?key=exotel') } });
+      else toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button variant="secondary" onClick={run} loading={busy} title="Exotel से call — recording और duration lead में save होगी">
+      <PhoneCall className="size-4" /> Click-to-call
+    </Button>
+  );
+}
+
+function CallsCard({ leadId }: { leadId: string }) {
+  const q = useQuery({ queryKey: ['lead-calls', leadId], queryFn: () => api<any[]>(`/leads/${leadId}/calls`), retry: false });
+  const [audio, setAudio] = useState<Record<string, string>>({});
+  if (!q.data?.length) return null;
+  const play = async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/calls/${id}/recording`, { headers: { Authorization: `Bearer ${authStore.get()?.accessToken ?? ''}` } });
+      if (!res.ok) throw new Error('Recording नहीं मिली');
+      const url = URL.createObjectURL(new Blob([await res.arrayBuffer()], { type: res.headers.get('content-type') ?? 'audio/mpeg' }));
+      setAudio((a) => ({ ...a, [id]: url }));
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  };
+  return (
+    <div className="card space-y-2 p-5 text-sm">
+      <h3 className="font-display font-bold">Calls</h3>
+      {q.data.slice(0, 8).map((c) => (
+        <div key={c.id} className="space-y-1.5 border-b border-line pb-2 last:border-0">
+          <div className="flex items-center justify-between gap-2">
+            <span>{c.direction === 'inbound' ? '📲 Incoming' : '📞 Outgoing'} · {c.status}{c.durationSec ? ` · ${Math.ceil(c.durationSec / 60)} min` : ''}</span>
+            <span className="text-xs text-muted">{timeAgo(c.startedAt)}</span>
+          </div>
+          {c.recordingUrl && (audio[c.id] ? <audio controls src={audio[c.id]} className="h-9 w-full" /> : <Button size="xs" variant="ghost" onClick={() => play(c.id)}><Headphones className="size-3.5" /> Recording सुनें</Button>)}
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -98,6 +98,7 @@ export default function DealsPage() {
                       <Badge tone={x.status === 'CLOSED' ? 'success' : x.status === 'OPEN' ? 'brand' : 'neutral'}>{x.status === 'CLOSED' ? `Closed ${formatDate(x.closedAt, { day: 'numeric', month: 'short' })}` : x.status === 'OPEN' ? 'Open' : 'Cancelled'}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      {x.status === 'CLOSED' && <Button size="xs" variant="ghost" href={`/broker/invoices?deal=${x.id}`}>Invoice</Button>}
                       <Button size="icon-sm" variant="ghost" onClick={() => setEdit(x)} aria-label="Edit"><Pencil className="size-4" /></Button>
                     </td>
                   </motion.tr>

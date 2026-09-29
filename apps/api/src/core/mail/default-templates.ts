@@ -57,6 +57,27 @@ export const DEFAULT_TEMPLATES: { key: string; channel: 'EMAIL' | 'WHATSAPP' | '
     body: '<p>आपकी saved search <b>{{search.name}}</b> से मिलती {{count}} नई properties आई हैं।</p><p><a href="{{link}}">अभी देखें →</a></p>',
   },
   {
+    key: 'requirement.match',
+    channel: 'EMAIL',
+    name: 'Requirement match (tenant)',
+    subject: 'आपकी ज़रूरत से मिलती नई property: {{listing.title}}',
+    body: '<p>नमस्ते {{name}},</p><p>आपकी बताई ज़रूरत से मिलती एक नई property अभी live हुई है:</p><p><b>{{listing.title}}</b><br/>₹{{rent}} / month · {{locality}}</p><p><a href="{{link}}" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none">Property देखें</a></p>',
+  },
+  {
+    key: 'report.weekly',
+    channel: 'EMAIL',
+    name: 'Weekly broker report',
+    subject: '{{orgName}} — हफ़्ते की report: {{leads}} leads, {{deals}} deals',
+    body: '<p>नमस्ते,</p><p>पिछले 7 दिन का हाल:</p>{{summaryHtml}}<p><a href="{{link}}">पूरी analytics देखें →</a></p>',
+  },
+  {
+    key: 'invoice.send',
+    channel: 'EMAIL',
+    name: 'Brokerage invoice (client)',
+    subject: '{{orgName}} — Invoice {{number}} (₹{{total}})',
+    body: '<p>नमस्ते {{clientName}},</p><p>{{orgName}} की ओर से invoice <b>{{number}}</b>: ₹{{total}}{{dueText}}</p><p><a href="{{link}}" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none">Invoice देखें / UPI से pay करें</a></p>',
+  },
+  {
     key: 'payment.receipt',
     channel: 'EMAIL',
     name: 'Payment receipt',

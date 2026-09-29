@@ -8,6 +8,7 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { MailService } from '../../core/mail/mail.service';
+import { EventsService } from '../../core/events/events.service';
 import { IntegrationTesterService } from '../integrations/integration-tester.service';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
@@ -31,6 +32,7 @@ export class AdminCoreController {
     private readonly mail: MailService,
     private readonly tester: IntegrationTesterService,
     private readonly auth: AuthService,
+    private readonly events: EventsService,
   ) {}
 
   // ------------------------------------------------------------------ dashboard
@@ -301,6 +303,7 @@ export class AdminCoreController {
     });
     const poster = await this.prisma.user.findUnique({ where: { id: l.postedById } });
     if (poster) this.mail.trySendTemplate(approve ? 'listing.approved' : 'listing.rejected', poster.email, { listing: l, reason: body.reason, link }).catch(() => undefined);
+    if (approve && l.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
     await this.audit.log(user, `listing.${body.action}`, 'Listing', id, { reason: body.reason });
     return updated;
   }
