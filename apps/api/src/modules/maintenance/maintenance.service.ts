@@ -5,6 +5,9 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import { MailService } from '../../core/mail/mail.service';
 import { ListingsService } from '../listings/listings.service';
 import { ListingsModule } from '../listings/listings.module';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import { SettingsService } from '../../core/settings/settings.service';
 import { env } from '../../config/env';
 
 /** Periodic housekeeping: listing expiry, saved-search alerts, cleanup. */
@@ -16,6 +19,8 @@ export class MaintenanceService {
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
     private readonly listings: ListingsService,
+    private readonly wa: WhatsAppService,
+    private readonly settings: SettingsService,
   ) {}
 
   @Cron('0 30 3 * * *') // 09:00 IST
@@ -49,10 +54,27 @@ export class MaintenanceService {
       const link = `/rent?${qs}`;
       await this.notifications.notify(s.userId, { kind: 'SAVED_SEARCH_MATCH', title: `"${s.name}" में ${count} नई properties`, link });
       await this.mail.trySendTemplate('search.alert', s.user.email, { search: s, count, link: `${env().PUBLIC_WEB_URL}${link}` });
+      if (s.whatsappAlerts && s.user.phone) await this.whatsappAlert(s.user.phone, s.name, count, `${env().PUBLIC_WEB_URL}${link}`);
       await this.prisma.savedSearch.update({ where: { id: s.id }, data: { lastNotifiedAt: new Date() } });
+    }
+  }
+
+  /** Saved-search alert on WhatsApp (platform number): text inside the 24h window, else approved template. */
+  private async whatsappAlert(phone: string, name: string, count: number, link: string) {
+    try {
+      const conv = await this.prisma.conversation.findFirst({ where: { organizationId: null, contactPhone: phone }, orderBy: { lastMessageAt: 'desc' }, select: { lastInboundAt: true } });
+      if (conv?.lastInboundAt && Date.now() - conv.lastInboundAt.getTime() < 23 * 3600_000) {
+        await this.wa.send(null, phone, { type: 'text', text: `🔔 "${name}" में ${count} नई properties: ${link}` }, { meta: { alert: true } });
+        return;
+      }
+      const app = await this.settings.getAppConfig();
+      const tpl = app.whatsappTemplates?.searchAlert;
+      if (tpl) await this.wa.send(null, phone, { type: 'template', name: tpl, language: app.whatsappTemplates.language || 'hi', params: [String(count), name, link] }, { meta: { alert: true } });
+    } catch (e) {
+      this.logger.warn(`saved search WA ${phone}: ${(e as Error).message}`);
     }
   }
 }
 
-@Module({ imports: [ListingsModule], providers: [MaintenanceService] })
+@Module({ imports: [ListingsModule, WhatsAppModule], providers: [MaintenanceService] })
 export class MaintenanceModule {}

@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BadgeCheck, Bell, Briefcase, Building2, Calculator, CalendarCheck, ChevronRight, ClipboardList, HelpCircle, Languages, LogIn, LogOut, MessageSquareHeart, Moon, PlusCircle, Send, ShieldCheck, Sun, SunMoon, UserCog } from 'lucide-react-native';
+import { BadgeCheck, FileSignature, Truck, Users, Bell, Briefcase, Building2, Calculator, CalendarCheck, ChevronRight, ClipboardList, HelpCircle, Languages, LogIn, LogOut, MessageSquareHeart, Moon, PlusCircle, Send, ShieldCheck, Sun, SunMoon, UserCog } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { useLightStatusBar } from '@/lib/hooks';
@@ -86,6 +86,9 @@ export default function Profile() {
             <Item icon={<Building2 size={20} color={c.brand} />} label="मेरी listings" onPress={() => router.push(user ? '/my-listings' : '/login')} />
             <Item icon={<ClipboardList size={20} color={c.brand} />} label="मेरी ज़रूरतें" sub="मिलती property आते ही alert" onPress={() => router.push(user ? '/requirements' : '/login')} />
             <Item icon={<CalendarCheck size={20} color={c.info} />} tint={c.info} label="Visits & tokens" onPress={() => router.push(user ? '/my-visits' : '/login')} />
+            <Item icon={<Users size={20} color={c.brand} />} label="Flatmates" sub="साथ रहने के लिए flatmate / room" onPress={() => router.push(user ? '/flatmates' : '/login')} />
+            <Item icon={<FileSignature size={20} color={c.accent} />} tint={c.accent} label="Rent agreement (PDF)" onPress={() => router.push(user ? '/agreements' : '/login')} />
+            <Item icon={<Truck size={20} color={c.success} />} tint={c.success} label="Move-in services" onPress={() => router.push('/services')} />
             <Item icon={<BadgeCheck size={20} color={c.success} />} tint={c.success} label="Verified tenant बनें" sub="Office email से — brokers जल्दी जवाब देते हैं" onPress={() => router.push(user ? '/verify-tenant' : '/login')} />
             <Item icon={<Send size={20} color={c.info} />} tint={c.info} label="मेरी enquiries" onPress={() => router.push(user ? '/enquiries' : '/login')} />
             <Item icon={<Calculator size={20} color={c.success} />} tint={c.success} label="Rent budget, move-in cost & split" onPress={() => router.push('/tools')} />

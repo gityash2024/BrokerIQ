@@ -808,6 +808,11 @@ model Listing {
   visitVerifiedAt   DateTime?
   visitVerifiedById String?
   tokenReceivedAt   DateTime?
+  /// PG / co-living details
+  pgSharing         String[]
+  pgGender          String?
+  pgFood            String?
+  pgRules           String[]
   ownerId           String?
   views             Int               @default(0)
   enquiryCount      Int               @default(0)
@@ -894,6 +899,8 @@ model SavedSearch {
   filters        Json
   alertsEnabled  Boolean   @default(true)
   lastNotifiedAt DateTime?
+  /// Also alert on WhatsApp (platform number)
+  whatsappAlerts Boolean   @default(false)
   createdAt      DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1913,4 +1920,126 @@ model ListingVerificationPhoto {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
+}
+
+// ------------------------------------------------------------------ growth: community & services
+
+/// Someone looking for a flatmate or a room to share; phone shared only after both accept.
+model FlatmateProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  lookingFor  String
+  gender      String
+  prefGender  String    @default("ANY")
+  age         Int?
+  budgetMin   Float?
+  budgetMax   Float?
+  localityIds String[]
+  officeHub   String?
+  food        String    @default("ANY")
+  smoking     Boolean   @default(false)
+  drinking    Boolean   @default(false)
+  pets        Boolean   @default(false)
+  moveInBy    DateTime?
+  occupation  String?
+  about       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+model FlatmateConnect {
+  id         String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  message    String?
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, status])
+}
+
+/// Draft 11-month rent agreement generated as a PDF (not legal advice).
+model RentAgreement {
+  id              String   @id @default(cuid())
+  createdById     String
+  organizationId  String?
+  listingId       String?
+  landlordName    String
+  landlordAddress String?
+  landlordPhone   String?
+  tenantName      String
+  tenantAddress   String?
+  tenantPhone     String?
+  propertyAddress String
+  rent            Float
+  deposit         Float
+  maintenance     Float?
+  startDate       DateTime
+  months          Int      @default(11)
+  lockInMonths    Int      @default(0)
+  noticeMonths    Int      @default(1)
+  escalationPct   Float    @default(0)
+  furnishing      String?
+  extraClauses    String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([createdById])
+}
+
+/// Move-in service partners managed by Super Admin (packers, furniture rental, broadband, cleaning).
+model ServicePartner {
+  id          String   @id @default(cuid())
+  category    String
+  name        String
+  logoUrl     String?
+  description String?
+  offer       String?
+  phone       String?
+  email       String?
+  website     String?
+  localityIds String[]
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requests ServiceRequest[]
+
+  @@index([category, isActive])
+}
+
+model ServiceRequest {
+  id            String    @id @default(cuid())
+  partnerId     String
+  userId        String
+  listingId     String?
+  name          String
+  phone         String
+  preferredDate DateTime?
+  notes         String?
+  status        String    @default("NEW")
+  createdAt     DateTime  @default(now())
+
+  partner ServicePartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId, status])
+}
+
+/// WhatsApp-bot users (no BrokerIQ account needed) who asked for listing alerts.
+model WhatsAppSubscriber {
+  id             String    @id @default(cuid())
+  phone          String    @unique
+  userId         String?
+  filters        Json
+  label          String?
+  active         Boolean   @default(true)
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

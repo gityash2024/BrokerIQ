@@ -102,6 +102,11 @@ export const listingInputSchema = z.object({
   // Co-broking: other BrokerIQ brokers may request to work this listing for a commission split.
   coBroking: z.boolean().optional(),
   coBrokingSharePct: z.number().min(0).max(100).optional().nullable(),
+  // PG / co-living
+  pgSharing: z.array(z.enum(['SINGLE', 'DOUBLE', 'TRIPLE', 'DORM'])).max(4).optional(),
+  pgGender: z.enum(['MALE', 'FEMALE', 'ANY']).optional().nullable(),
+  pgFood: z.enum(['VEG', 'NONVEG', 'BOTH', 'NONE']).optional().nullable(),
+  pgRules: z.array(z.string().max(60)).max(10).optional(),
   securityDeposit: z.number().min(0).optional().nullable(),
   priceNegotiable: z.boolean().default(false),
   bedrooms: z.number().int().min(0).max(20).optional().nullable(),
@@ -167,6 +172,8 @@ export const listingSearchSchema = z.object({
   officeHub: z.string().max(40).optional(),
   maxCommute: z.coerce.number().int().min(10).max(120).optional(),
   preferredTenant: z.string().max(40).optional(),
+  pgGender: z.enum(['MALE', 'FEMALE', 'ANY']).optional(),
+  pgFood: z.enum(['VEG', 'NONVEG', 'BOTH']).optional(),
   sort: z.enum(['relevance', 'newest', 'price_asc', 'price_desc', 'area_desc', 'psf_asc', 'commute']).default('relevance'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(60).default(20),
@@ -189,7 +196,7 @@ export type EnquiryInput = z.infer<typeof enquirySchema>;
 
 export const reportSchema = z.object({ listingId: z.string(), reason: enumOf(ReportReason), details: z.string().max(1000).optional() });
 export const reviewSchema = z.object({ organizationId: z.string(), rating: z.number().int().min(1).max(5), comment: z.string().trim().max(1500).optional() });
-export const savedSearchSchema = z.object({ name: z.string().trim().min(2).max(80), filters: z.record(z.string(), z.unknown()), alertsEnabled: z.boolean().default(true) });
+export const savedSearchSchema = z.object({ name: z.string().trim().min(2).max(80), filters: z.record(z.string(), z.unknown()), alertsEnabled: z.boolean().default(true), whatsappAlerts: z.boolean().optional() });
 
 // ------------------------------------------------------------------ CRM
 export const leadRequirementSchema = z.object({

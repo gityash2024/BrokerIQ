@@ -15,7 +15,7 @@ import { ListingCard, type ListingCardData } from '@/components/listing';
 import { MapView, toPoints } from '@/components/map';
 import { Button, Chip, ErrorView, Empty, IconBtn, Input, PressableScale, Row, Sheet, Skeleton, Txt } from '@/ui';
 
-type F = { q?: string; purpose?: string; category?: string; types?: string; bedrooms?: string; minPrice?: string; maxPrice?: string; furnishing?: string; postedBy?: string; verified?: string; sort?: string; localities?: string; visitVerified?: string; officeHub?: string; maxCommute?: string };
+type F = { q?: string; purpose?: string; category?: string; types?: string; bedrooms?: string; minPrice?: string; maxPrice?: string; furnishing?: string; postedBy?: string; verified?: string; sort?: string; localities?: string; visitVerified?: string; officeHub?: string; maxCommute?: string; pgGender?: string; pgFood?: string };
 const SORTS = [
   ['relevance', 'Relevant'],
   ['newest', 'Newest'],
@@ -201,6 +201,16 @@ export default function SearchScreen() {
           <Chip label="✔ Verified only" active={f.verified === 'true'} onPress={() => set({ verified: f.verified ? undefined : 'true' })} />
           <Chip label="✔ Visit verified" active={f.visitVerified === 'true'} onPress={() => set({ visitVerified: f.visitVerified ? undefined : 'true' })} />
         </Row>
+        {(f.types ?? '').split(',').includes('PG') && (
+          <>
+            <Txt v="label" color="subtle">PG</Txt>
+            <Row wrap>
+              <Chip label="Girls" active={f.pgGender === 'FEMALE'} onPress={() => set({ pgGender: f.pgGender === 'FEMALE' ? undefined : 'FEMALE' })} />
+              <Chip label="Boys" active={f.pgGender === 'MALE'} onPress={() => set({ pgGender: f.pgGender === 'MALE' ? undefined : 'MALE' })} />
+              <Chip label="Veg food" active={f.pgFood === 'VEG'} onPress={() => set({ pgFood: f.pgFood === 'VEG' ? undefined : 'VEG' })} />
+            </Row>
+          </>
+        )}
         <Txt v="label" color="subtle">Office के पास (अनुमानित समय)</Txt>
         <Row wrap>
           {OFFICE_HUBS.map((h) => (

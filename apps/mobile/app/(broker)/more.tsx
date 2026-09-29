@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages, UserPlus, Network, KeyRound, FileText, Wallet } from 'lucide-react-native';
+import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages, UserPlus, Network, KeyRound, FileText, Wallet, FileSignature } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
@@ -18,6 +18,7 @@ export default function More() {
     { label: 'Deals', icon: Handshake, to: '/deals', tint: c.success },
     { label: 'Invoices', icon: FileText, to: '/invoices', tint: '#059669' },
     { label: 'Token records', icon: Wallet, to: '/tokens', tint: '#CA8A04' },
+    { label: 'Rent agreements', icon: FileSignature, to: '/agreements', tint: '#0891B2' },
     { label: 'Owners & leases', icon: KeyRound, to: '/owners', tint: '#B45309' },
     { label: 'Co-broking', icon: Network, to: '/network', tint: '#4F46E5' },
     { label: 'AI book scan', icon: ScanLine, to: '/scanner', tint: '#7C3AED' },

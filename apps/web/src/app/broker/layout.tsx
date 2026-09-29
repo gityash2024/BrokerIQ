@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow, ShieldCheck, UserPlus, Network, KeyRound, FileText, Wallet } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow, ShieldCheck, UserPlus, Network, KeyRound, FileText, Wallet, FileSignature } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
@@ -43,6 +43,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/broker/deals', label: 'Deals & commission', icon: Handshake },
         { href: '/broker/invoices', label: 'Invoices', icon: FileText },
         { href: '/broker/tokens', label: 'Token records', icon: Wallet },
+        { href: '/broker/agreements', label: 'Rent agreements', icon: FileSignature },
         { href: '/broker/owners', label: 'Owners & leases', icon: KeyRound },
         { href: '/broker/network', label: 'Co-broking network', icon: Network },
       ],

@@ -12,3 +12,4 @@ export * from './i18n/translate';
 export * from './matching';
 export * from './commute';
 export * from './seo-slugs';
+export * from './query-parser';

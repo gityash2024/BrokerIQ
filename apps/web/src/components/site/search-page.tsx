@@ -163,6 +163,13 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                 Furnished
               </Chip>
             )}
+            {csvHas('types', 'PG') && (
+              <>
+                <Chip active={f.pgGender === 'FEMALE'} onClick={() => setF({ pgGender: f.pgGender === 'FEMALE' ? null : 'FEMALE' })}>Girls PG</Chip>
+                <Chip active={f.pgGender === 'MALE'} onClick={() => setF({ pgGender: f.pgGender === 'MALE' ? null : 'MALE' })}>Boys PG</Chip>
+                <Chip active={f.pgFood === 'VEG'} onClick={() => setF({ pgFood: f.pgFood === 'VEG' ? null : 'VEG' })}>Veg food</Chip>
+              </>
+            )}
             <Chip active={f.verified === 'true'} onClick={() => setF({ verified: f.verified === 'true' ? null : 'true' })}>
               <Check className="size-3.5" /> Verified
             </Chip>

@@ -34,6 +34,8 @@ import { OwnersModule } from './modules/owners/owners.module';
 import { CallsModule } from './modules/calls/calls.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { TrustModule } from './modules/trust/trust.module';
+import { CommunityModule } from './modules/community/community.module';
+import { WaBotModule } from './modules/wabot/wabot.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -70,6 +72,8 @@ import { isInternalCall } from './common/internal';
     CallsModule,
     InvoicesModule,
     TrustModule,
+    CommunityModule,
+    WaBotModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

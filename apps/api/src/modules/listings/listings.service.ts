@@ -124,6 +124,9 @@ export class ListingsService {
     if (f.verified) and.push({ isVerified: true });
     if (f.visitVerified) and.push({ visitVerifiedAt: { not: null } });
     if (f.preferredTenant) and.push({ preferredTenants: { has: f.preferredTenant } });
+    // PG gender: "ANY" listings suit everyone; a food preference also matches "BOTH".
+    if (f.pgGender && f.pgGender !== 'ANY') and.push({ OR: [{ pgGender: f.pgGender }, { pgGender: 'ANY' }, { pgGender: null }] });
+    if (f.pgFood) and.push({ pgFood: { in: [f.pgFood, 'BOTH'] } });
     if (f.minArea != null || f.maxArea != null) {
       const range = { ...(f.minArea != null ? { gte: f.minArea } : {}), ...(f.maxArea != null ? { lte: f.maxArea } : {}) };
       and.push({ OR: [{ carpetArea: range }, { superArea: range }, { builtUpArea: range }, { plotArea: range }] });

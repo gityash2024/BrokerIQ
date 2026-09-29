@@ -39,7 +39,7 @@ export default function PostProperty() {
   useEffect(() => {
     const l = existing.data;
     if (!l) return;
-    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
+    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'pgSharing', 'pgGender', 'pgFood', 'pgRules', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
     setF({ ...Object.fromEntries(keys.map((k) => [k, l[k] ?? (k === 'amenities' ? [] : '')])), category: l.category, localityId: l.localityId ?? l.locality?.id });
     setPhotos((l.media ?? []).map((m: any) => ({ url: m.url })));
   }, [existing.data]);
@@ -120,6 +120,7 @@ export default function PostProperty() {
       brokerageType: f.brokerageType || null,
       brokerageAmount: f.brokerageType === 'FIXED' ? n('brokerageAmount') : null,
       priceNegotiable: !!f.priceNegotiable,
+      ...(f.propertyType === 'PG' ? { pgSharing: f.pgSharing ?? [], pgGender: f.pgGender ?? null, pgFood: f.pgFood ?? null, pgRules: f.pgRules ?? [] } : {}),
       ...(isBroker ? { coBroking: !!f.coBroking, coBrokingSharePct: f.coBroking ? n('coBrokingSharePct') ?? 50 : null } : {}),
       bedrooms: n('bedrooms'),
       bathrooms: n('bathrooms'),
@@ -196,6 +197,16 @@ export default function PostProperty() {
               </Row>
               {f.brokerageType === 'FIXED' && numInput('brokerageAmount', 'Brokerage amount (₹)')}
               <Chip label="Price negotiable" active={f.priceNegotiable} onPress={() => set({ priceNegotiable: !f.priceNegotiable })} />
+              {f.propertyType === 'PG' && (
+                <>
+                  <Txt v="label" color="subtle">PG sharing</Txt>
+                  <Row wrap>{[['SINGLE', 'Single'], ['DOUBLE', 'Double'], ['TRIPLE', 'Triple'], ['DORM', 'Dorm']].map(([k, lb]) => <Chip key={k} label={lb} active={(f.pgSharing ?? []).includes(k)} onPress={() => set({ pgSharing: (f.pgSharing ?? []).includes(k) ? f.pgSharing.filter((x: string) => x !== k) : [...(f.pgSharing ?? []), k] })} />)}</Row>
+                  <Txt v="label" color="subtle">किसके लिए</Txt>
+                  <Row wrap>{[['FEMALE', 'Girls'], ['MALE', 'Boys'], ['ANY', 'Co-ed']].map(([k, lb]) => <Chip key={k} label={lb} active={f.pgGender === k} onPress={() => set({ pgGender: f.pgGender === k ? null : k })} />)}</Row>
+                  <Txt v="label" color="subtle">Food</Txt>
+                  <Row wrap>{[['VEG', 'Veg'], ['NONVEG', 'Non-veg'], ['BOTH', 'Both'], ['NONE', 'No food']].map(([k, lb]) => <Chip key={k} label={lb} active={f.pgFood === k} onPress={() => set({ pgFood: f.pgFood === k ? null : k })} />)}</Row>
+                </>
+              )}
               {isBroker && <Chip label="Co-broking के लिए खुला (दूसरे brokers request कर सकें)" active={!!f.coBroking} onPress={() => set({ coBroking: !f.coBroking })} />}
               {isBroker && f.coBroking && numInput('coBrokingSharePct', 'Partner broker का हिस्सा (% brokerage)')}
             </>

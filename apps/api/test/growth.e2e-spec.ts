@@ -414,4 +414,64 @@ describe('Growth features (e2e)', () => {
     }
     expect((await prisma.listing.findUniqueOrThrow({ where: { id: victim.id } })).moderationFlags).toContain('REPORTED');
   });
+
+  // ------------------------------------------------------------------ Phase D
+  it('flatmates: compatible matches, phone only after mutual accept', async () => {
+    const other = (await http.post('/api/auth/register').send({ name: 'Flat Mate', email: email('fm2'), password: 'Passw0rd!', phone: '9811100088' }).expect(201)).body;
+    const base = { lookingFor: 'FLATMATE', gender: 'FEMALE', prefGender: 'FEMALE', budgetMax: 20000, localityIds: [localityId], officeHub: 'cyber-city', food: 'VEG' };
+    await http.post('/api/flatmates/me').set(auth(tenant.token)).send(base).expect(201);
+    await http.post('/api/flatmates/me').set(auth(other.accessToken)).send({ ...base, lookingFor: 'ROOM', budgetMax: 18000 }).expect(201);
+    const m = await http.get('/api/flatmates/matches').set(auth(tenant.token)).expect(200);
+    const hit = m.body.find((x: any) => x.userId === other.user.id);
+    expect(hit.score).toBeGreaterThan(80);
+    expect(hit.phone).toBeUndefined();
+    await http.post(`/api/flatmates/connect/${other.user.id}`).set(auth(tenant.token)).send({ message: 'Hi!' }).expect(201);
+    let mine = await http.get('/api/flatmates/connections').set(auth(tenant.token)).expect(200);
+    expect(mine.body[0].other.phone).toBeNull();
+    const theirs = await http.get('/api/flatmates/connections').set(auth(other.accessToken)).expect(200);
+    await http.patch(`/api/flatmates/connections/${theirs.body[0].id}`).set(auth(other.accessToken)).send({ status: 'ACCEPTED' }).expect(200);
+    mine = await http.get('/api/flatmates/connections').set(auth(tenant.token)).expect(200);
+    expect(mine.body[0].other.phone).toContain('9811100088');
+  });
+
+  it('rent agreement draft PDF', async () => {
+    const a = await http.post('/api/agreements').set(auth(tenant.token)).send({ landlordName: 'Mr Owner', tenantName: 'Tenant', propertyAddress: 'Flat 101, Sector 65, Gurugram', rent: 45000, deposit: 90000, startDate: '2026-11-01', lockInMonths: 6, escalationPct: 5 }).expect(201);
+    const pdf = await http.get(`/api/agreements/${a.body.id}/pdf`).set(auth(tenant.token)).expect(200);
+    expect(pdf.headers['content-type']).toBe('application/pdf');
+    await http.get(`/api/agreements/${a.body.id}/pdf`).set(auth(broker.token)).expect(404);
+  });
+
+  it('move-in services: admin partners, public list, user request', async () => {
+    const p = await http.post('/api/admin/services').set(auth(admin)).send({ category: 'PACKERS', name: `Gurgaon Movers ${uniq}`, offer: '10% off' }).expect(201);
+    const list = await http.get('/api/public/services?category=PACKERS').expect(200);
+    expect(list.body.map((x: any) => x.id)).toContain(p.body.id);
+    expect(list.body[0].phone).toBeUndefined();
+    await http.post('/api/services/requests').set(auth(tenant.token)).send({ partnerId: p.body.id, name: 'Tenant', phone: '9811100077' }).expect(201);
+    const reqs = await http.get('/api/admin/service-requests').set(auth(admin)).expect(200);
+    expect(reqs.body.some((r: any) => r.partnerId === p.body.id)).toBe(true);
+    await http.get('/api/admin/services').set(auth(tenant.token)).expect(403);
+  });
+
+  it('WhatsApp bot: search replies, alert and stop', async () => {
+    const bot = app.get(require('../src/modules/wabot/wabot.service').WaBotService);
+    const phone = `+9198${String(Date.now()).slice(-8)}`;
+    expect(await bot.handle(phone, 'kuch bhi random', null)).toBeNull();
+    expect(await bot.handle(phone, 'hi', 'Ravi')).toContain('नमस्ते Ravi');
+    expect(await bot.handle(phone, 'alert', null)).toContain('पहले बताइए');
+    const r = await bot.handle(phone, '3 BHK furnished sector 65 under 70k', null);
+    expect(r).toContain('Sector 65');
+    expect(r).toContain('/property/');
+    expect(await bot.handle(phone, 'alert', null)).toContain('Alert चालू');
+    expect((await prisma.whatsAppSubscriber.findUniqueOrThrow({ where: { phone } })).active).toBe(true);
+    await bot.handle(phone, 'stop', null);
+    expect((await prisma.whatsAppSubscriber.findUniqueOrThrow({ where: { phone } })).active).toBe(false);
+  });
+
+  it('PG listings carry sharing/food/gender and filter by them', async () => {
+    const pg = await createAndApprove(broker.token, { propertyType: 'PG', price: 14000, bedrooms: undefined, pgSharing: ['DOUBLE'], pgGender: 'FEMALE', pgFood: 'VEG', pgRules: ['No smoking'] });
+    const f = await http.get('/api/listings?types=PG&pgGender=FEMALE&pgFood=VEG').expect(200);
+    expect(f.body.items.map((i: any) => i.id)).toContain(pg.id);
+    const m = await http.get('/api/listings?types=PG&pgGender=MALE').expect(200);
+    expect(m.body.items.map((i: any) => i.id)).not.toContain(pg.id);
+  });
 });

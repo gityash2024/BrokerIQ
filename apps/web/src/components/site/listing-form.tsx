@@ -50,6 +50,10 @@ export interface ListingFormValue {
   parking?: number | null;
   availableFrom?: string | null;
   preferredTenants?: string[];
+  pgSharing?: string[];
+  pgGender?: string | null;
+  pgFood?: string | null;
+  pgRules?: string[];
   amenities: string[];
   reraNumber?: string | null;
   title?: string | null;
@@ -357,6 +361,7 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                   </div>
                 </div>
               )}
+              {v.propertyType === 'PG' && <PgFields v={v} set={set} />}
               <div>
                 <p className="mb-2 text-sm font-semibold">Amenities</p>
                 <div className="flex flex-wrap gap-2">
@@ -489,7 +494,7 @@ function NumField({ label, value, onChange, required }: { label: string; value: 
 
 /** Map an API listing to form values (for edit). */
 export function listingToForm(l: any): Partial<ListingFormValue> {
-  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
+  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'pgSharing', 'pgGender', 'pgFood', 'pgRules', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
   const out: any = {};
   for (const k of keys) out[k] = l[k] ?? (k === 'amenities' || k === 'preferredTenants' ? [] : null);
   out.localityId = l.localityId ?? l.locality?.id;
@@ -522,5 +527,43 @@ function VideoUpload({ onUploaded }: { onUploaded: (url: string) => void }) {
       </Button>
       <input ref={ref} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => pick(e.target.files?.[0])} />
     </>
+  );
+}
+
+const PG_SHARING: [string, string][] = [['SINGLE', 'Single room'], ['DOUBLE', 'Double sharing'], ['TRIPLE', 'Triple sharing'], ['DORM', 'Dormitory']];
+const PG_RULES = ['No smoking', 'No alcohol', 'No non-veg', 'Gate closes 11 pm', 'Visitors allowed', 'Pets allowed'];
+
+/** PG / co-living specifics: sharing, who it's for, food and house rules. */
+function PgFields({ v, set }: { v: ListingFormValue; set: (p: Partial<ListingFormValue>) => void }) {
+  const toggle = (arr: string[] | undefined, x: string) => (arr?.includes(x) ? arr.filter((y) => y !== x) : [...(arr ?? []), x]);
+  return (
+    <div className="space-y-4 rounded-2xl border border-line p-4">
+      <p className="font-semibold">PG details</p>
+      <div className="flex flex-wrap gap-2">
+        {PG_SHARING.map(([k, l]) => <Chip key={k} active={v.pgSharing?.includes(k)} onClick={() => set({ pgSharing: toggle(v.pgSharing, k) })}>{l}</Chip>)}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="किसके लिए">
+          <Select value={v.pgGender ?? ''} onChange={(e) => set({ pgGender: e.target.value || null })}>
+            <option value="">—</option>
+            <option value="FEMALE">Girls</option>
+            <option value="MALE">Boys</option>
+            <option value="ANY">Co-ed (सभी)</option>
+          </Select>
+        </Field>
+        <Field label="Food">
+          <Select value={v.pgFood ?? ''} onChange={(e) => set({ pgFood: e.target.value || null })}>
+            <option value="">—</option>
+            <option value="VEG">Veg meals</option>
+            <option value="NONVEG">Non-veg meals</option>
+            <option value="BOTH">Veg + non-veg</option>
+            <option value="NONE">Food शामिल नहीं</option>
+          </Select>
+        </Field>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {PG_RULES.map((r) => <Chip key={r} active={v.pgRules?.includes(r)} onClick={() => set({ pgRules: toggle(v.pgRules, r) })}>{r}</Chip>)}
+      </div>
+    </div>
   );
 }

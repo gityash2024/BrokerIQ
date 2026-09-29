@@ -14,6 +14,7 @@ import { Dialog } from '../ui/dialog';
 import { Select, Textarea } from '../ui/field';
 import { Gallery } from './gallery';
 import { CommuteCard, MoveInCard, PanoramaButton, ResidentReviews, VideoTour } from './property-extras';
+import { MoveInServices } from './services';
 import { ContactCard } from './contact-card';
 import { EmiCalculator } from './emi';
 import { ListingCard } from './listing-card';
@@ -227,7 +228,22 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
             <CommuteCard l={l} />
           </div>
 
+          {(l.propertyType === 'PG' || l.preferredTenants?.length > 0) && (
+            <section className="card space-y-3 p-5 text-sm">
+              <h2 className="font-display text-lg font-bold">{l.propertyType === 'PG' ? 'PG details' : 'किसके लिए'}</h2>
+              <div className="flex flex-wrap gap-2">
+                {l.pgGender && <Badge tone="brand">{({ FEMALE: 'Girls', MALE: 'Boys', ANY: 'Co-ed' } as Record<string, string>)[l.pgGender]}</Badge>}
+                {l.pgFood && <Badge tone="success">{({ VEG: 'Veg food', NONVEG: 'Non-veg food', BOTH: 'Veg + non-veg', NONE: 'Food शामिल नहीं' } as Record<string, string>)[l.pgFood]}</Badge>}
+                {(l.pgSharing ?? []).map((x: string) => <Badge key={x}>{({ SINGLE: 'Single room', DOUBLE: 'Double sharing', TRIPLE: 'Triple sharing', DORM: 'Dormitory' } as Record<string, string>)[x] ?? x}</Badge>)}
+                {(l.preferredTenants ?? []).map((x: string) => <Badge key={x}>{x}</Badge>)}
+              </div>
+              {l.pgRules?.length > 0 && <p className="text-muted">Rules: {l.pgRules.join(' · ')}</p>}
+            </section>
+          )}
+
           <ResidentReviews localitySlug={l.locality.slug} society={l.societyName} />
+
+          <MoveInServices localityId={l.localityId} listingId={l.id} />
 
           {l.purpose === 'SALE' && (
             <section>

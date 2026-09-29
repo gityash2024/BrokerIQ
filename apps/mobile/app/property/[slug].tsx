@@ -167,6 +167,16 @@ export default function Property() {
             <Fact icon={<IndianRupee size={20} color={c.brand} />} label="Maintenance" value={l.maintenance ? `${formatINR(l.maintenance)}/mo` : null} />
           </View>
 
+          {(l.propertyType === 'PG' || l.preferredTenants?.length > 0) && (
+            <Row wrap style={{ marginTop: 12 }}>
+              {!!l.pgGender && <Badge label={({ FEMALE: 'Girls PG', MALE: 'Boys PG', ANY: 'Co-ed' } as Record<string, string>)[l.pgGender]} color={c.brand} />}
+              {!!l.pgFood && <Badge label={({ VEG: 'Veg food', NONVEG: 'Non-veg food', BOTH: 'Veg + non-veg', NONE: 'Food नहीं' } as Record<string, string>)[l.pgFood]} color={c.success} />}
+              {(l.pgSharing ?? []).map((x: string) => <Badge key={x} label={`${x.toLowerCase()} sharing`} color={c.muted} />)}
+              {(l.preferredTenants ?? []).map((x: string) => <Badge key={x} label={x} color={c.muted} />)}
+              {(l.pgRules ?? []).map((x: string) => <Badge key={x} label={x} color={c.warning} />)}
+            </Row>
+          )}
+
           {!!l.description && (
             <>
               <SectionTitle title="About this property" />
