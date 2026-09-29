@@ -1,0 +1,65 @@
+0	A start for solo brokers — all the basic CRM features.
+6	Lead automation for small teams.
+12	Full automation and analytics for a growing brokerage.
+19	For large agencies and channel partners.
+31	Find your next rental home in Gurgaon
+32	Verified furnished flats, builder floors, PG and offices — with trusted local brokers.
+33	Popular localities of Gurgaon
+34	Average rent, connectivity and live rentals
+36	Verified and featured rent listings
+37	Explore Gurgaon on the map
+38	Live listings of every sector at a glance
+41	Top brokers of Gurgaon
+43	Rent budget, move-in cost and rent split with flatmates
+44	Why BrokerIQ?
+45	Built for Gurgaon, by Gurgaon
+47	Every listing goes through moderation and verified brokers get a badge.
+48	Accurate information on every sector, society and corridor.
+49	Direct contact
+50	WhatsApp, call or chat directly with the owner or broker.
+52	Rent budget, move-in cost and saved-search alerts.
+53	Get instant alerts on the BrokerIQ app
+54	New listings, price drops and broker replies — straight to your phone
+56	The latest on renting a home in Gurgaon
+57	All leads from Housing, 99acres, MagicBricks and Facebook in one app — with WhatsApp automation. Start free.
+58	What our users say
+59	Is searching for property on BrokerIQ free?
+60	Yes, searching, saving properties and contacting brokers/owners is completely free.
+61	How do I post a property as an owner?
+62	Log in and go to "Post Property", add details and photos in 4 easy steps. The listing goes live after moderation.
+63	What does the Verified badge mean?
+64	Verified brokers have submitted their RERA / ID documents, which our team has checked.
+65	How will leads from Housing.com and 99acres come into BrokerIQ?
+66	In Broker panel → Connectors, add the email inbox that receives the portal lead emails. BrokerIQ reads new lead emails every 2 minutes and creates leads.
+67	Can automatic messages go out on WhatsApp?
+68	Yes — add your WhatsApp Business (Cloud API) number in Connectors and create rules in Automations, like a welcome message as soon as a new lead arrives.
+72	Write the message in the WhatsApp text action
+73	Choose the template name
+74	Write the email subject and body
+75	Choose a team member to assign
+76	Instant WhatsApp welcome to a new lead
+77	Assign leads to the team in turns
+78	New lead — call within 15 minutes
+79	Portal leads — 3-day drip
+81	Alert if no activity for 48 hours
+82	Confirmation as soon as a site visit is scheduled
+83	Leads from every portal, ad and WhatsApp in one place — duplicates merged automatically.
+85	A welcome message from your number within 5 seconds of a new lead.
+87	Automatic messages and call reminders on day 0, 1 and 3 — no lead goes cold.
+88	Take a photo of your register — AI puts all the listings into your inventory.
+90	A summary, hot/warm/cold score and the best next step for every lead.
+92	Invite agents, assign leads in turns, performance leaderboard.
+94	Visit calendar, GPS check-in, commission tracking and invoices.
+96	Your own website with listings, reviews and a WhatsApp button.
+98	Which portal brings the most deals — clear analytics.
+99	Connect the Housing / 99acres / MagicBricks inbox
+100	Add your WhatsApp Business number
+101	Turn on your first automation (auto WhatsApp welcome)
+102	Add your first listing or scan your register
+154	Automatic messages, team inbox and templates for leads from your own WhatsApp Business number.
+159	Reads Housing.com, 99acres, MagicBricks and NoBroker lead emails from your inbox and creates leads automatically (every 2 minutes).
+167	Leads from your Facebook/Instagram lead-form ads straight into BrokerIQ.
+214	Gurgaon's trusted property companion
+215	Verified properties, trusted brokers and smart tools for every sector of Gurgaon — in one place.
+218	🔥 New lead: {n}
+219	🎉 Your listing is live

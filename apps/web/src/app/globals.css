@@ -175,3 +175,8 @@ body {
   transform: translate(-50%, -50%) scale(1.4);
   background: #f59e0b;
 }
+
+/* i18n: hidden for a moment until the chosen language is applied (see lib/i18n.tsx) */
+html.i18n-pending body {
+  visibility: hidden;
+}

@@ -19,11 +19,11 @@ const HIDDEN = ['/login', '/signup', '/forgot'];
 const storeKey = (uid: string) => `biq.assistant.${uid}`;
 
 function useLang() {
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState('hi');
   useEffect(() => {
     const read = () => {
       try {
-        setLang(localStorage.getItem('biq.lang') || document.documentElement.lang || 'en');
+        setLang(localStorage.getItem('biq.lang') || 'hi');
       } catch {
         /* ignore */
       }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Plus_Jakarta_Sans, Noto_Sans_Devanagari } from 'next/font/google';
 import './globals.css';
+import { I18N_BOOT_SCRIPT } from '@/lib/i18n-boot';
 import { Providers } from './providers';
 import { getConfig } from '@/lib/server';
 import { SITE_URL } from '@/lib/utils';
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jakarta.variable} ${deva.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: I18N_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-dvh font-sans">
         <Providers config={config}>{children}</Providers>

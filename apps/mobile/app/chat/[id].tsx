@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { fonts, useTheme } from '@/lib/theme';
+import { tr } from '@/lib/i18n';
 import { ErrorView, Header, IconBtn, Loader, Txt } from '@/ui';
 
 /** In-app chat thread. Works for both sides: the user (INBOUND = mine) and broker (OUTBOUND = mine). */
@@ -69,7 +70,7 @@ export default function ChatScreen() {
           />
         )}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
-          <TextInput value={text} onChangeText={setText} placeholder="Message लिखें…" placeholderTextColor={c.subtle} multiline style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: 22, backgroundColor: c.surface2, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, color: c.fg, fontFamily: fonts.body, fontSize: 15 }} />
+          <TextInput value={text} onChangeText={setText} placeholder={tr('Message लिखें…')} placeholderTextColor={c.subtle} multiline style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: 22, backgroundColor: c.surface2, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, color: c.fg, fontFamily: fonts.body, fontSize: 15 }} />
           <IconBtn onPress={send} style={{ backgroundColor: c.brand, width: 46, height: 46, borderRadius: 23, opacity: sending || !text.trim() ? 0.5 : 1 }}>
             <Send size={19} color="#fff" />
           </IconBtn>

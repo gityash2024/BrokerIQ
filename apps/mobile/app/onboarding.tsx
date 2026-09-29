@@ -10,11 +10,12 @@ import { BellRing, Building2, MessageCircle, Search, ShieldCheck, Sparkles } fro
 import { useConfig } from '@/lib/config';
 import { palette } from '@/lib/theme';
 import { Button, Txt } from '@/ui';
+import { LanguagePill } from '@/components/language';
 
 const { width } = Dimensions.get('window');
 
 const SLIDES = [
-  { icon: Search, title: 'Gurgaon की हर verified property', text: 'Flats, builder floors, villas, offices और plots — sector-wise price trends और map के साथ।', colors: ['#312E81', '#4F46E5'] as const },
+  { icon: Search, title: 'Gurgaon के verified rental घर', text: 'Furnished flats, builder floors, PG और offices — sector-wise rent, brokerage और map के साथ।', colors: ['#312E81', '#4F46E5'] as const },
   { icon: ShieldCheck, title: 'भरोसेमंद brokers, असली listings', text: 'RERA verified brokers, reviews, और एक tap में call, WhatsApp या site visit।', colors: ['#4338CA', '#7C3AED'] as const },
   { icon: Sparkles, title: 'Brokers के लिए सबसे smart CRM', text: 'Housing, 99acres, Facebook की सारी leads एक app में — WhatsApp automation और AI के साथ।', colors: ['#7C2D12', '#D97706'] as const },
 ];
@@ -39,7 +40,10 @@ export default function Onboarding() {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 }}>
           <Txt v="h3" color="white">{app.siteName}</Txt>
-          <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/(user)/home')}>Skip</Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <LanguagePill light />
+            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/(user)/home')}>Skip</Txt>
+          </View>
         </View>
         <FlatList
           ref={list}

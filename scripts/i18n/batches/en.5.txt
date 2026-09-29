@@ -1,0 +1,263 @@
+1450	Your posted properties, views and enquiries
+1451	Your property journey at a glance
+1452	Your property is live! 🎉
+1453	Your shortlist
+1454	Your speciality — e.g. Golf Course Road luxury rentals, Dwarka Expressway new homes…
+1455	Your information, your choice
+1456	Your choice — change anytime
+1457	Your opinion matters 💬
+1458	Your phone contacts
+1459	To show the right rent properties and localities around you.
+1460	Suggestions you sent and their status
+1461	Your suggestions shape the app 💜
+1462	Leads will show up here as soon as they are assigned to you.
+1463	Comfortably affordable
+1464	Comfortably affordable (monthly rent)
+1465	Nearby areas
+1466	No visits in these 7 days
+1467	Leads from all these places land in BrokerIQ automatically
+1468	Keep this URL secret — it contains your firm's key
+1469	Location is not available in this browser
+1470	See homes in this budget
+1471	See homes in this budget →
+1472	No lead (phone number) found in this email. Paste the full email.
+1473	No leads in this period
+1474	No visits on this day
+1475	This month
+1476	Commission this month
+1477	Required for this:
+1478	should arrive at this inbox. New emails are read every 2 minutes.
+1479	Start with the recipes above — 'Instant WhatsApp welcome' and 'round-robin' give the biggest benefit.
+1480	one app
+1481	Post another
+1482	Up to 20 pages at once. Good light, page straight and fully in frame. Both Hindi and English handwriting work.
+1483	in one place
+1484	and
+1485	More details
+1486	See more
+1487	When
+1488	Never
+1489	At least 8 characters
+1490	At least 8 characters, one number
+1491	Tomorrow
+1492	Tomorrow 10 am
+1493	Tomorrow 4 pm
+1494	see the full guide
+1495	Reason:
+1496	How many hours
+1497	What do you want to rent out?
+1498	When it reaches which stage
+1499	Paste the text/HTML of a portal lead email — see what gets extracted.
+1500	Tap "Enquire" on any property.
+1501	Tap 'Chat' on any property to start talking with the broker.
+1502	Click on any sector
+1503	Some details (optional)
+1504	Something went wrong
+1505	Total monthly
+1506	How it works
+1507	How to get it (steps)
+1508	No approved template
+1509	No approved template. Create a template in Meta WhatsApp Manager and get it approved, then web CRM → Inbox → “Sync from Meta”.
+1510	No conversations
+1511	No data
+1512	No enquiries
+1513	No leads
+1514	No leads found
+1515	No listings
+1516	No matching property
+1517	No notifications
+1518	No overdue follow-ups 🎉
+1519	No property found
+1520	No saved property
+1521	No saved search
+1522	No visits
+1523	Never miss a client — timely reminders come by push and email too
+1524	Any stage
+1525	Which feature do you need?
+1526	Which source is earning money, how fast the team is, and where deals get stuck
+1527	Are you a broker?
+1528	What went wrong?
+1529	What to talk about…
+1530	What should happen, why it matters…
+1531	What:
+1532	Why:
+1533	Empty
+1534	Empty = business phone
+1535	Empty = firm name
+1536	Generated automatically if left empty
+1537	Wrong price
+1538	Thu
+1539	Turned on
+1540	Allow selected items
+1541	Choose
+1542	Articles coming soon
+1543	Brokers joining soon
+1544	We'll contact you soon.
+1545	Didn't find an answer?
+1546	Required: {n}
+1547	Update the app to continue.
+1548	The more detail you give, the sooner we can fix it.
+1549	e.g. 1 or 2
+1550	e.g.: 3 BHK, DLF Park Place — furnished
+1551	e.g.: Golf Course Road luxury rental specialist
+1552	e.g.: Liked the layout, wants to negotiate on price
+1553	e.g.: Show metro stations on the map
+1554	e.g.: Society main gate
+1555	e.g.: Ready to visit on Sunday, budget up to 60k
+1556	e.g.: portal, hot, nri
+1557	Date and time
+1558	Come back in a little while
+1559	View
+1560	Analyse again
+1561	Thank you 🙏 — you can turn it off anytime from Privacy settings
+1562	Thank you 🙏 — you can change this anytime from Profile → Privacy
+1563	Thank you! Your feedback has reached the team 🙏
+1564	Thank you! You'll get a call soon
+1565	Thank you! We'll be in touch soon.
+1566	Thank you! …
+1567	Thank you! 🙏 Your feedback has reached the team
+1568	New automation
+1569	New deal
+1570	New lead
+1571	As soon as a new lead arrives
+1572	Add new lead: Rahul 98xxxxxxx
+1573	Add new lead: Rahul 98xxxxxxxx
+1574	New leads · 🔁
+1575	New leads today
+1576	Focus on new leads.
+1577	New leads, messages and updates will appear here.
+1578	New listing
+1579	Notification on the app and email as soon as a new matching property arrives
+1580	Hello
+1581	Hello {{lead.name}} …
+1582	Hello 👋
+1583	Hello, I'd like information about "{n}".
+1584	Hello, {n} 👋
+1585	Hello, I need a property.
+1586	Create a new URL? The old URL and WhatsApp/Meta webhook URLs will change.
+1587	New account?
+1588	New feature
+1589	New follow-up
+1590	New password
+1591	New password (8+ characters)
+1592	A new version is available
+1593	New webhook URL created — old URLs will no longer work
+1594	Name
+1595	Name (for a new account)
+1596	Name *
+1597	Name / number
+1598	Name or phone…
+1599	Name, phone, project…
+1600	invited you (
+1601	Add photos of the pages
+1602	Invite your first agent
+1603	Be the first to suggest an idea!
+1604	Be the first to suggest!
+1605	Add your first deal
+1606	Post your first property — it's free.
+1607	The first row should have headers: Name, Phone, Email, Source, Notes. Save the Excel file as “CSV” and upload it.
+1608	Become a broker first
+1609	Already have an account?
+1610	Reassign even if already assigned
+1611	Already sold / rented
+1612	Based on listings from the last 12 months
+1613	No leads in the last 7 days.
+1614	Back
+1615	Full commission received ✓
+1616	Full marketplace
+1617	Full name
+1618	Whole team
+1619	Do the maths before you decide — completely free
+1620	Do the maths before you decide — completely free.
+1621	Try again
+1622	Reactivate
+1623	The moment you turn it off, this data held by BrokerIQ is deleted permanently.
+1624	Turn off
+1625	Turned off — location data deleted
+1626	Turned off — this data has been deleted
+1627	Each person, if split equally
+1628	Choose a template on the left
+1629	Every other person
+1630	Wed
+1631	By speaking or typing — in your account, with your permission
+1632	Trusted brokers, genuine listings
+1633	Language
+1634	Language / भाषा
+1635	Choose language
+1636	Send
+1637	Tue
+1638	Need help?
+1639	Original text (OCR)
+1640	welcome to
+1641	and add photos
+1642	. Every reply,
+1643	My account
+1644	My enquiries
+1645	Show my enquiries
+1646	My inventory
+1647	My listings
+1648	Received on my listings
+1649	Mine
+1650	Sent by me
+1651	Sent by me
+1652	Only BrokerIQ admin can see this data — never any broker, agent or other user. We do not sell your data.
+1653	Delete this lead?
+1654	Page not found
+1655	This is your listing.
+1656	This information will appear on your public microsite and leads. You can change it later from Settings.
+1657	This is entirely your choice — BrokerIQ works fully even if you say no.
+1658	Drop here
+1659	No leads here
+1660	or
+1661	or write your own reason…
+1662	or write your own reason
+1663	or add rows manually without a photo.
+1664	Delete this automation?
+1665	Cancelled
+1666	Sun
+1667	Not now
+1668	Type or tap the mic to speak…
+1669	Sat
+1670	Fri
+1671	All clear
+1672	All clear 🎉
+1673	See all
+1674	All quiet
+1675	All sources
+1676	FAQs
+1677	All portal leads + WhatsApp automation
+1678	All portal leads in one app
+1679	All portal leads in one place
+1680	Send only in business hours
+1681	Only the firm admin can change the plan.
+1682	Suggest
+1683	Suggest, vote on the roadmap
+1684	Listening… (■ to stop)
+1685	to contact you by call/WhatsApp.
+1686	Sign up with
+1687	.
+1688	Thinking…
+1689	Mon
+1690	Welcome, {n} 👋
+1691	We're making the app better.
+1692	Talk to us
+1693	Our team will reply within 24 hours.
+1694	Our team will check it soon. You'll get a notification as soon as it's approved.
+1695	Every closed deal, commission and agent share accounted for in one place
+1696	Every lead,
+1697	Every listing goes live only after admin approval.
+1698	How many leads came from each portal and how many converted — decide where to spend here
+1699	Every page is read with OCR + AI (Groq / Gemini vision) — you can see the original text too
+1700	Yes, do it
+1701	Hinglish (original)
+1702	The property may have been rented out or the link may have changed.
+1704	— live as soon as admin approves, or
+1705	— tap to edit
+1709	← Back to login
+1710	← Last 7 days
+1711	⏰ Call {{lead.name}}
+1734	🗓 Site visit needed
+1735	🚀 Boost listing
+1736	🚀 Listing boosted — it will now appear at the top of search
+1724	💡 Listings with 3+ photos get 5x more enquiries
+1723	👋 How can I help you?

@@ -83,7 +83,7 @@ export function Avatar({ name, src, size = 36, className }: { name?: string | nu
 
 export function Logo({ className, light, name = 'BrokerIQ' }: { className?: string; light?: boolean; name?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-2 font-display text-xl font-extrabold tracking-tight', light ? 'text-white' : 'text-fg', className)}>
+    <span translate="no" data-no-i18n className={cn('inline-flex items-center gap-2 font-display text-xl font-extrabold tracking-tight', light ? 'text-white' : 'text-fg', className)}>
       <svg viewBox="0 0 64 64" className="size-8 drop-shadow-sm" aria-hidden>
         <defs>
           <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">

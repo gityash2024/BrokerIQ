@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, Badge, Logo } from '../ui/misc';
 import { Sheet } from '../ui/dialog';
 import { ThemeToggle } from '../ui/theme-toggle';
+import { LanguagePicker } from '../i18n/language-picker';
 
 export interface NavItem {
   href: string;
@@ -155,6 +156,7 @@ export function PanelShell({ groups, children, title, accent = 'brand', headerEx
           <Link href="/" target="_blank" className="hidden items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface-2 sm:flex">
             Website <ExternalLink className="size-3.5" />
           </Link>
+          {title !== 'Super Admin' && <LanguagePicker />}
           <ThemeToggle />
           <NotificationsBell href={notificationsHref} />
         </header>

@@ -8,6 +8,7 @@ import { setConsent, syncContacts, usePrivacyStatus } from '@/lib/privacy';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { Button, Card, Header, Loader, Row, Screen, Txt } from '@/ui';
+import { alert } from '@/lib/i18n';
 
 /** Privacy & data sharing: turn location/contacts sharing on or off (off = data deleted). */
 export default function PrivacyScreen() {
@@ -33,7 +34,7 @@ export default function PrivacyScreen() {
       }
     };
     if (on) return apply();
-    Alert.alert('Sharing बंद करें?', 'बंद करते ही BrokerIQ के पास मौजूद यह data हमेशा के लिए delete हो जाएगा।', [
+    alert('Sharing बंद करें?', 'बंद करते ही BrokerIQ के पास मौजूद यह data हमेशा के लिए delete हो जाएगा।', [
       { text: 'रहने दें', style: 'cancel' },
       { text: 'बंद करें', style: 'destructive', onPress: apply },
     ]);

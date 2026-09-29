@@ -10,12 +10,17 @@ import { SectionTitle } from '../site/page-shell';
 import { Map } from '../site/map';
 import { Button } from '../ui/button';
 import { useConfig } from '@/lib/config';
+import { useI18n } from '@/lib/i18n';
 import { img } from '@/lib/utils';
 
 const ICONS: Record<string, any> = { 'shield-check': ShieldCheck, 'map-pinned': MapPinned, 'messages-square': MessagesSquare, sparkles: Sparkles, star: Star, 'badge-check': BadgeCheck };
 
 export function HeroSection({ s }: { s: any }) {
   const stats = s.data ?? {};
+  // Translated as one sentence (the highlighted city is found again in the translation).
+  const { t, lang } = useI18n();
+  const title: string | undefined = s.title && lang ? t(s.title) : s.title;
+  const city = lang ? t('Gurgaon') : 'Gurgaon';
   const bg = s.config?.backgroundUrl;
   return (
     <section className="relative -mt-16 overflow-hidden pt-16">
@@ -31,15 +36,15 @@ export function HeroSection({ s }: { s: any }) {
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Gurgaon का सबसे smart property hub
           </span>
-          <h1 className="mt-5 max-w-3xl font-display text-4xl leading-[1.05] font-extrabold tracking-tight text-white sm:text-6xl">
-            {s.title?.includes('Gurgaon') ? (
+          <h1 data-no-i18n={lang ? '' : undefined} className="mt-5 max-w-3xl font-display text-4xl leading-[1.05] font-extrabold tracking-tight text-white sm:text-6xl">
+            {title?.includes(city) ? (
               <>
-                {s.title.split('Gurgaon')[0]}
-                <span className="text-gradient">Gurgaon</span>
-                {s.title.split('Gurgaon').slice(1).join('Gurgaon')}
+                {title.split(city)[0]}
+                <span className="text-gradient">{city}</span>
+                {title.split(city).slice(1).join(city)}
               </>
             ) : (
-              s.title
+              title
             )}
           </h1>
           {s.subtitle && <p className="mt-5 max-w-2xl text-lg text-white/75">{s.subtitle}</p>}

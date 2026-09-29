@@ -4,12 +4,13 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Briefcase, Building2, Calculator, ChevronRight, HelpCircle, LogIn, LogOut, MessageSquareHeart, Moon, PlusCircle, Send, ShieldCheck, Sun, SunMoon, UserCog } from 'lucide-react-native';
+import { Bell, Briefcase, Building2, Calculator, ChevronRight, HelpCircle, Languages, LogIn, LogOut, MessageSquareHeart, Moon, PlusCircle, Send, ShieldCheck, Sun, SunMoon, UserCog } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { useLightStatusBar } from '@/lib/hooks';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { Avatar, Badge, Card, PressableScale, Row, Txt, useStatusScrim } from '@/ui';
+import { LanguageSwitch } from '@/components/language';
 
 function Item({ icon, label, sub, onPress, tint, right }: { icon: React.ReactNode; label: string; sub?: string; onPress?: () => void; tint?: string; right?: React.ReactNode }) {
   const { c } = useTheme();
@@ -90,6 +91,7 @@ export default function Profile() {
             {user && <Item icon={<Bell size={20} color={c.brand} />} label="Notifications" onPress={() => router.push('/notifications')} />}
             {user && <Item icon={<UserCog size={20} color={c.brand} />} label="Profile, password & KYC" onPress={() => router.push('/edit-profile')} />}
             {user && <Item icon={<ShieldCheck size={20} color={c.success} />} tint={c.success} label="Privacy & data sharing" sub="Location / contacts — आपकी मर्ज़ी" onPress={() => router.push('/privacy')} />}
+            <LanguageSwitch render={(label, open) => <Item icon={<Languages size={20} color={c.brand} />} label="भाषा / Language" sub={label} onPress={open} />} />
             <Item
               icon={mode === 'dark' ? <Moon size={20} color={c.brand} /> : mode === 'light' ? <Sun size={20} color={c.brand} /> : <SunMoon size={20} color={c.brand} />}
               label="Theme"

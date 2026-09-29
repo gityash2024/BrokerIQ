@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, Logo } from '../ui/misc';
 import { Button } from '../ui/button';
 import { Sheet } from '../ui/dialog';
+import { LanguagePicker } from '../i18n/language-picker';
 import { ThemeToggle } from '../ui/theme-toggle';
 
 const NAV = [
@@ -73,6 +74,7 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <LanguagePicker light={!solid} />
             <ThemeToggle className={cn('hidden sm:grid', !solid && 'text-white hover:bg-white/10 hover:text-white')} />
             {!isBroker && !isAdmin && (
               <Button href="/post-property" size="sm" variant={solid ? 'accent' : 'accent'} className="hidden sm:inline-flex">

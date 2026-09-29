@@ -11,6 +11,7 @@ import { ApiError, errorMessage, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/lang';
 import { fonts, useTheme } from '@/lib/theme';
+import { tr } from '@/lib/i18n';
 import { Button, Card, PressableScale, Row, Txt } from '@/ui';
 
 /**
@@ -43,7 +44,7 @@ export function AssistantButton() {
 function AssistantSheet({ onClose }: { onClose: () => void }) {
   const { c } = useTheme();
   const { user } = useAuth();
-  const lang = useLang((s) => s.lang);
+  const lang = useLang((s) => s.lang) ?? 'hi';
   const insets = useSafeAreaInsets();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
@@ -199,7 +200,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder={recording ? 'सुन रहा हूँ… (■ दबाकर भेजें)' : 'लिखें या mic दबाकर बोलें…'}
+            placeholder={tr(recording ? 'सुन रहा हूँ… (■ दबाकर भेजें)' : 'लिखें या mic दबाकर बोलें…')}
             placeholderTextColor={c.subtle}
             onSubmitEditing={() => send(text)}
             returnKeyType="send"

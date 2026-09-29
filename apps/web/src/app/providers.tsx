@@ -8,6 +8,7 @@ import { ConfigProvider } from '@/lib/config';
 import { ApiError } from '@/lib/api';
 import { FeedbackWidget } from '@/components/feedback/feedback-widget';
 import { AssistantWidget } from '@/components/assistant/assistant';
+import { I18nProvider } from '@/lib/i18n';
 
 export function Providers({ children, config }: { children: React.ReactNode; config: PublicConfig | null }) {
   const [qc] = useState(
@@ -26,10 +27,12 @@ export function Providers({ children, config }: { children: React.ReactNode; con
     <QueryClientProvider client={qc}>
       <ConfigProvider initial={config}>
         <AuthProvider>
-          {children}
-          <FeedbackWidget />
-          <AssistantWidget />
-          <Toaster position="top-center" richColors closeButton />
+          <I18nProvider>
+            {children}
+            <FeedbackWidget />
+            <AssistantWidget />
+            <Toaster position="top-center" richColors closeButton />
+          </I18nProvider>
         </AuthProvider>
       </ConfigProvider>
     </QueryClientProvider>

@@ -29,6 +29,7 @@ import { initials } from '@brokeriq/shared';
 import { ApiError, errorMessage, img } from '../lib/api';
 import { fonts, palette, radius, useTheme } from '../lib/theme';
 import { useToasts } from '../lib/toast';
+import { translateChildren, useT } from '../lib/i18n';
 
 // ------------------------------------------------------------------ Text
 type Variant = 'display' | 'h1' | 'h2' | 'h3' | 'title' | 'body' | 'bodyStrong' | 'small' | 'caption' | 'label';
@@ -44,10 +45,11 @@ const V: Record<Variant, TextStyle> = {
   caption: { fontFamily: fonts.medium, fontSize: 11.5, lineHeight: 15 },
   label: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.8, textTransform: 'uppercase' },
 };
-export function Txt({ v = 'body', color, style, ...p }: TextProps & { v?: Variant; color?: 'fg' | 'muted' | 'subtle' | 'brand' | 'white' | 'danger' | 'success' | 'accent' | string }) {
+export function Txt({ v = 'body', color, style, children, ...p }: TextProps & { v?: Variant; color?: 'fg' | 'muted' | 'subtle' | 'brand' | 'white' | 'danger' | 'success' | 'accent' | string }) {
   const { c } = useTheme();
+  const t = useT();
   const col = color === 'white' ? '#fff' : color && color in c ? (c as any)[color] : color ?? c.fg;
-  return <Text {...p} style={[V[v], { color: col }, style]} />;
+  return <Text {...p} style={[V[v], { color: col }, style]}>{translateChildren(t, children)}</Text>;
 }
 
 // ------------------------------------------------------------------ Layout
@@ -179,6 +181,7 @@ export function IconBtn({ children, onPress, style, badge }: { children: React.R
 type BtnVariant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger' | 'success' | 'whatsapp' | 'dark';
 export function Button({ title, onPress, variant = 'primary', size = 'md', loading, disabled, icon, style, full, color }: { color?: string; title?: string; onPress?: () => void; variant?: BtnVariant; size?: 'sm' | 'md' | 'lg'; loading?: boolean; disabled?: boolean; icon?: React.ReactNode; style?: StyleProp<ViewStyle>; full?: boolean }) {
   const { c } = useTheme();
+  const t = useT();
   const bg = { primary: c.brand, accent: c.accent, secondary: c.surface, ghost: 'transparent', danger: c.danger, success: c.success, whatsapp: palette.whatsapp, dark: '#0F172A' }[variant];
   const fg = color ?? (variant === 'secondary' || variant === 'ghost' ? c.fg : variant === 'accent' ? '#111827' : '#fff');
   const h = { sm: 38, md: 48, lg: 56 }[size];
@@ -195,7 +198,7 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', loadi
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon}
-      {!!title && <Text style={{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15 }}>{title}</Text>}
+      {!!title && <Text style={{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15 }}>{t(title)}</Text>}
     </PressableScale>
   );
 }
@@ -204,6 +207,7 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', loadi
 export function Input({ label, icon, error, hint, style, containerStyle, ...p }: TextInputProps & { label?: string; icon?: React.ReactNode; error?: string | null; hint?: string; containerStyle?: StyleProp<ViewStyle> }) {
   const { c } = useTheme();
   const [focus, setFocus] = useState(false);
+  const t = useT();
   return (
     <View style={containerStyle}>
       {!!label && <Txt v="caption" color="muted" style={{ marginBottom: 6, fontFamily: fonts.semibold, fontSize: 12.5 }}>{label}</Txt>}
@@ -212,6 +216,7 @@ export function Input({ label, icon, error, hint, style, containerStyle, ...p }:
         <TextInput
           placeholderTextColor={c.subtle}
           {...p}
+          placeholder={p.placeholder && t(p.placeholder)}
           onFocus={(e) => (setFocus(true), p.onFocus?.(e))}
           onBlur={(e) => (setFocus(false), p.onBlur?.(e))}
           style={[{ flex: 1, color: c.fg, fontFamily: fonts.body, fontSize: 15, paddingVertical: 12 }, p.multiline && { minHeight: 96, textAlignVertical: 'top' }, style]}
@@ -224,23 +229,25 @@ export function Input({ label, icon, error, hint, style, containerStyle, ...p }:
 
 export function Chip({ label, active, onPress, icon, color }: { label: string; active?: boolean; onPress?: () => void; icon?: React.ReactNode; color?: string }) {
   const { c } = useTheme();
+  const t = useT();
   return (
     <PressableScale onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 36, borderRadius: 999, borderWidth: 1.5, borderColor: active ? color ?? c.brand : c.line, backgroundColor: active ? (color ? `${color}22` : c.brandSoft) : c.surface }}>
       {icon}
-      <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: active ? color ?? c.brand : c.muted }}>{label}</Text>
+      <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: active ? color ?? c.brand : c.muted }}>{t(label)}</Text>
     </PressableScale>
   );
 }
 
 export function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; count?: number }[] }) {
   const { c } = useTheme();
+  const t = useT();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ flexGrow: 1, gap: 6, padding: 4, backgroundColor: c.surface2, borderRadius: 16 }}>
       {options.map((o) => {
         const on = o.value === value;
         return (
           <PressableScale key={o.value} onPress={() => onChange(o.value)} style={{ flexGrow: 1, paddingHorizontal: 14, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: on ? c.surface : 'transparent', shadowColor: '#000', shadowOpacity: on ? 0.06 : 0, shadowRadius: 6, elevation: on ? 1 : 0 }}>
-            <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: on ? c.fg : c.muted }}>{o.label}</Text>
+            <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: on ? c.fg : c.muted }}>{t(o.label)}</Text>
             {!!o.count && <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: c.brand }}>{o.count}</Text>}
           </PressableScale>
         );
@@ -258,11 +265,12 @@ export function Card({ children, style, onPress }: { children: React.ReactNode; 
 
 export function Badge({ label, color, icon, solid }: { label: string; color?: string; icon?: React.ReactNode; solid?: boolean }) {
   const { c } = useTheme();
+  const t = useT();
   const col = color ?? c.muted;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: solid ? col : `${col}1f` }}>
       {icon}
-      <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: solid ? '#fff' : col }}>{label}</Text>
+      <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: solid ? '#fff' : col }}>{t(label)}</Text>
     </View>
   );
 }

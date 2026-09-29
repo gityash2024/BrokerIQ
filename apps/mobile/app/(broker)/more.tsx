@@ -2,10 +2,11 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck } from 'lucide-react-native';
+import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
+import { LanguageSwitch } from '@/components/language';
 
 export default function More() {
   const { c } = useTheme();
@@ -51,6 +52,13 @@ export default function More() {
           <PressableScale onPress={() => router.push('/privacy')} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
             <Row><ShieldCheck size={20} color={c.brand} /><Txt v="bodyStrong">Privacy & data sharing</Txt></Row>
           </PressableScale>
+          <LanguageSwitch
+            render={(label, open) => (
+              <PressableScale onPress={open} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
+                <Row><Languages size={20} color={c.brand} /><Txt v="bodyStrong" style={{ flex: 1 }}>भाषा / Language</Txt><Txt v="small" color="muted">{label}</Txt></Row>
+              </PressableScale>
+            )}
+          />
           <PressableScale onPress={logout} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
             <Txt v="bodyStrong" color="danger">Logout</Txt>
           </PressableScale>

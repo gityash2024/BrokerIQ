@@ -11,6 +11,7 @@ import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { fonts, useTheme } from '@/lib/theme';
+import { tr } from '@/lib/i18n';
 import { Button, Card, ErrorView, Header, IconBtn, Input, Loader, PressableScale, Row, Sheet, Txt } from '@/ui';
 
 export default function WaThread() {
@@ -81,7 +82,7 @@ export default function WaThread() {
         )}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
           <IconBtn onPress={() => setTpl(true)}><FileText size={21} color={c.muted} /></IconBtn>
-          <TextInput value={text} onChangeText={setText} editable={windowOpen} placeholder={windowOpen ? 'Message…' : 'Template भेजें'} placeholderTextColor={c.subtle} multiline style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: 22, backgroundColor: c.surface2, paddingHorizontal: 16, paddingVertical: 11, color: c.fg, fontFamily: fonts.body, fontSize: 15 }} />
+          <TextInput value={text} onChangeText={setText} editable={windowOpen} placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')} placeholderTextColor={c.subtle} multiline style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: 22, backgroundColor: c.surface2, paddingHorizontal: 16, paddingVertical: 11, color: c.fg, fontFamily: fonts.body, fontSize: 15 }} />
           <IconBtn onPress={() => text.trim() && send({ text })} style={{ backgroundColor: '#25D366', width: 46, height: 46, borderRadius: 23, opacity: !windowOpen || sending || !text.trim() ? 0.5 : 1 }}>
             <Send size={19} color="#fff" />
           </IconBtn>

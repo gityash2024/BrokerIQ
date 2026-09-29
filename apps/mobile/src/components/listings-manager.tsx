@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/theme';
 import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Row, Screen, Skeleton, Txt } from '@/ui';
 import { Image } from 'expo-image';
 import { img } from '@/lib/api';
+import { alert } from '../lib/i18n';
 
 const TONE: Record<string, string> = { ACTIVE: '#10B981', PENDING_REVIEW: '#F59E0B', REJECTED: '#E11D48', DRAFT: '#64748B', SOLD: '#0EA5E9', RENTED: '#0EA5E9', EXPIRED: '#94A3B8', ARCHIVED: '#94A3B8' };
 
@@ -21,7 +22,7 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
   const setSt = useApiMutation((b: { id: string; status: string }) => patch(`/listings/${b.id}/status`, { status: b.status }), { success: 'Updated', invalidate: [['my-listings']] });
   const counts = q.data?.statusCounts ?? {};
   const actions = (l: any) =>
-    Alert.alert(l.title, undefined, [
+    alert(l.title, undefined, [
       { text: 'Edit', onPress: () => router.push({ pathname: '/post-property', params: { id: l.id } }) },
       ...(l.status === 'ACTIVE' ? [{ text: l.purpose === 'RENT' ? 'Rented mark करें' : 'Sold mark करें', onPress: () => setSt.mutate({ id: l.id, status: l.purpose === 'RENT' ? 'RENTED' : 'SOLD' }) }] : []),
       ...(l.status !== 'ARCHIVED' ? [{ text: 'Archive (hide)', style: 'destructive' as const, onPress: () => setSt.mutate({ id: l.id, status: 'ARCHIVED' }) }] : [{ text: 'फिर से active करें', onPress: () => setSt.mutate({ id: l.id, status: 'ACTIVE' }) }]),

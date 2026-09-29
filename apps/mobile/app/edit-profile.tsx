@@ -10,6 +10,7 @@ import { showError, useApiMutation } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Badge, Button, Card, Chip, Header, Input, PressableScale, Row, Screen, SectionTitle, Txt } from '@/ui';
+import { alert } from '@/lib/i18n';
 
 const DOCS_USER = [
   ['OWNERSHIP_PROOF', 'Ownership proof'],
@@ -69,7 +70,7 @@ export default function EditProfile() {
     }
   };
   const deleteAccount = () =>
-    Alert.alert('Account delete करें?', 'आपकी listings, saved properties और chats हट जाएँगी। यह वापस नहीं होगा।', [
+    alert('Account delete करें?', 'आपकी listings, saved properties और chats हट जाएँगी। यह वापस नहीं होगा।', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
