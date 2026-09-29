@@ -37,6 +37,7 @@ export const registerSchema = z.object({
   password: passwordSchema,
   accountType: z.enum(['USER', 'BROKER']).default('USER'),
   firmName: z.string().trim().min(2).max(120).optional(),
+  inviteCode: z.string().trim().max(40).optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -47,8 +48,9 @@ export const otpVerifySchema = z.object({
   code: z.string().regex(/^\d{6}$/),
   name: z.string().trim().min(2).max(80).optional(),
   accountType: z.enum(['USER', 'BROKER']).optional(),
+  inviteCode: z.string().trim().max(40).optional(),
 });
-export const googleLoginSchema = z.object({ idToken: z.string().min(10), accountType: z.enum(['USER', 'BROKER']).optional() });
+export const googleLoginSchema = z.object({ idToken: z.string().min(10), accountType: z.enum(['USER', 'BROKER']).optional(), inviteCode: z.string().trim().max(40).optional() });
 export const refreshSchema = z.object({ refreshToken: z.string().min(10) });
 export const resetPasswordSchema = z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/), password: passwordSchema });
 export const changePasswordSchema = z.object({ currentPassword: z.string().optional(), newPassword: passwordSchema });
@@ -74,6 +76,7 @@ export const brokerOnboardingSchema = z.object({
   address: z.string().max(300).optional().nullable(),
   experienceYears: z.number().int().min(0).max(80).optional().nullable(),
   website: z.string().url().optional().nullable().or(z.literal('')),
+  inviteCode: z.string().trim().max(40).optional(),
 });
 export type BrokerOnboardingInput = z.infer<typeof brokerOnboardingSchema>;
 

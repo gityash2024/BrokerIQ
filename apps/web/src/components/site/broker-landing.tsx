@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Bot, CalendarClock, Check, ChevronDown, Inbox, LineChart, MessageCircle, ScanLine, Sparkles, Users, Zap, Globe } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
@@ -34,6 +34,12 @@ const FEATURES = [
 export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
   const [cycle, setCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [open, setOpen] = useState<number | null>(0);
+  // An invite link (/for-brokers?invite=CODE) carries the code through to signup.
+  const [signupHref, setSignupHref] = useState('/signup?type=broker');
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('invite');
+    if (code) setSignupHref(`/signup?type=broker&invite=${encodeURIComponent(code)}`);
+  }, []);
   return (
     <>
       <section className="relative -mt-16 overflow-hidden pt-16">
@@ -48,7 +54,7 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
             </h1>
             <p className="mt-5 max-w-xl text-lg text-white/75">Housing, 99acres, MagicBricks, Facebook और WhatsApp की leads को एक inbox में लाइए। Automatic WhatsApp, follow-up reminders और AI के साथ ज़्यादा deals close करें।</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button href="/signup?type=broker" size="lg" variant="accent">
+              <Button href={signupHref} size="lg" variant="accent">
                 Free में शुरू करें <ArrowRight className="size-5" />
               </Button>
               <Button href="#pricing" size="lg" variant="secondary" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
@@ -153,7 +159,7 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
                       </li>
                     ))}
                   </ul>
-                  <Button href="/signup?type=broker" className="mt-6 w-full" variant={p.isPopular ? 'primary' : 'secondary'}>
+                  <Button href={signupHref} className="mt-6 w-full" variant={p.isPopular ? 'primary' : 'secondary'}>
                     {price ? 'Start trial' : 'Start free'}
                   </Button>
                 </div>
@@ -188,7 +194,7 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
           <div className="absolute -top-24 left-1/2 size-80 -translate-x-1/2 rounded-full bg-brand-600/40 blur-3xl" />
           <h2 className="relative font-display text-3xl font-extrabold">आज ही शुरू करें — setup 5 मिनट</h2>
           <p className="relative mt-2 text-white/70">Account बनाइए, portal inbox और WhatsApp जोड़िए, और leads आने दीजिए।</p>
-          <Button href="/signup?type=broker" size="lg" variant="accent" className="relative mt-6">
+          <Button href={signupHref} size="lg" variant="accent" className="relative mt-6">
             Free broker account <ArrowRight className="size-5" />
           </Button>
         </div>

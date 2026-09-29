@@ -43,8 +43,13 @@ export const appConfigSchema = z.object({
     })
     .default({ requireModeration: true, expiryDays: 90, maxPhotos: 25, contactRevealRequiresLogin: true }),
   auth: z
-    .object({ allowPasswordLogin: z.boolean().default(true), allowEmailOtp: z.boolean().default(true), allowGoogle: z.boolean().default(true), allowBrokerSignup: z.boolean().default(true) })
-    .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: true }),
+    // allowBrokerSignup = open signup. When off, new broker firms join only with a valid invite code.
+    .object({ allowPasswordLogin: z.boolean().default(true), allowEmailOtp: z.boolean().default(true), allowGoogle: z.boolean().default(true), allowBrokerSignup: z.boolean().default(false) })
+    .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: false }),
+  /** Brokers inviting other brokers: each firm gets a personal code; joiners get this plan free. */
+  brokerReferrals: z
+    .object({ enabled: z.boolean().default(true), planCode: z.string().default('BUSINESS'), months: z.number().int().min(0).max(60).default(12), maxUsesPerBroker: z.number().int().min(1).max(1000).default(25) })
+    .default({ enabled: true, planCode: 'BUSINESS', months: 12, maxUsesPerBroker: 25 }),
   seo: z
     .object({
       defaultTitle: z.string().default('BrokerIQ — Flats, Houses & PG for Rent in Gurgaon'),

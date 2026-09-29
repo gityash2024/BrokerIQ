@@ -5,6 +5,7 @@ import { json } from 'express';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { SettingsService } from '../src/core/settings/settings.service';
 
 /**
  * End-to-end suite against a real PostgreSQL database.
@@ -37,6 +38,8 @@ describe('BrokerIQ API (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
     http = request(app.getHttpServer());
+    // These suites create broker firms directly; open signup (default is invite-only).
+    await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);
 
     const a = await http.post('/api/auth/login').send({ email: email('admin'), password: 'Admin@12345' }).expect(200);
     admin = a.body.accessToken;

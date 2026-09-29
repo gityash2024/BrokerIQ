@@ -55,9 +55,8 @@ export class OrganizationsController {
     if (user.role === 'BROKER_AGENT') throw new ForbiddenException('सिर्फ firm admin profile बदल सकता है');
     let orgId = user.orgId;
     if (!orgId) {
-      const app = await this.prisma.systemSetting.findUnique({ where: { key: 'app.config' } });
-      if ((app?.value as any)?.auth?.allowBrokerSignup === false) throw new ForbiddenException('Broker signup अभी बंद है।');
-      orgId = (await this.auth.createBrokerOrg(user.id, body.firmName)).id;
+      const invite = await this.auth.brokerGate(body.inviteCode);
+      orgId = (await this.auth.createBrokerOrg(user.id, body.firmName, undefined, invite)).id;
     }
     await this.prisma.organization.update({
       where: { id: orgId },

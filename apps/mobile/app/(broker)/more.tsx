@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages } from 'lucide-react-native';
+import { AlarmClock, BarChart3, Bell, CalendarCheck, CircleDollarSign, Handshake, KanbanSquare, MessageSquareHeart, Plug, ScanLine, Settings, Users, UserRound, ShieldCheck, Languages, UserPlus } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
@@ -19,6 +19,7 @@ export default function More() {
     { label: 'AI book scan', icon: ScanLine, to: '/scanner', tint: '#7C3AED' },
     { label: 'Analytics', icon: BarChart3, to: '/analytics', tint: c.info },
     { label: 'Team', icon: Users, to: '/team', tint: '#0D9488' },
+    { label: 'Brokers को invite करें', icon: UserPlus, to: '/invite-brokers', tint: '#7C3AED' },
     ...(isBrokerAdmin ? [{ label: 'Lead connectors', icon: Plug, to: '/connectors', tint: '#E11D48' }] : []),
     { label: 'Notifications', icon: Bell, to: '/notifications', tint: c.brand },
     { label: 'Feedback', icon: MessageSquareHeart, to: '/feedback', tint: '#DB2777' },

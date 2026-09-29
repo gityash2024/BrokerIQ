@@ -58,6 +58,19 @@ export class ConnectorsController {
     return this.connectors.pollInbox(requireOrg(user));
   }
 
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Get('broker/portal-pack/:listingId')
+  portalPack(@CurrentUser() user: RequestUser, @Param('listingId') listingId: string) {
+    return this.connectors.portalPack(requireOrg(user), listingId);
+  }
+
+  @Roles('BROKER_ADMIN')
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @Post('broker/connectors/housing_api/sync')
+  syncHousing(@CurrentUser() user: RequestUser) {
+    return this.connectors.pollHousing(requireOrg(user));
+  }
+
   /** Paste a portal email to preview what the parser extracts (helps brokers verify setup). */
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('broker/connectors/email_inbox/preview')

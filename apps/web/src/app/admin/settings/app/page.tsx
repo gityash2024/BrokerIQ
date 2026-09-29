@@ -88,7 +88,18 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
       { key: 'auth.allowEmailOtp', label: 'Email OTP', type: 'switch' },
       { key: 'auth.allowPasswordLogin', label: 'Password login', type: 'switch' },
       { key: 'auth.allowGoogle', label: 'Google login', type: 'switch', hint: 'Credentials center में Google OAuth भी चाहिए' },
-      { key: 'auth.allowBrokerSignup', label: 'नए broker signups', type: 'switch' },
+      { key: 'auth.allowBrokerSignup', label: 'नए broker signups (open)', type: 'switch', hint: 'OFF = नया broker सिर्फ़ invite code से जुड़ेगा (Admin → Broker invites)' },
+    ],
+  },
+  {
+    id: 'brokerReferrals',
+    title: 'Broker referrals',
+    desc: 'हर broker को अपना invite link मिलता है — उससे जुड़ने वाले broker को यह plan free मिलता है',
+    fields: [
+      { key: 'brokerReferrals.enabled', label: 'Broker referrals चालू', type: 'switch' },
+      { key: 'brokerReferrals.planCode', label: 'Free plan code', hint: 'जैसे BUSINESS / PRO' },
+      { key: 'brokerReferrals.months', label: 'कितने महीने free', type: 'number', hint: '0 = हमेशा' },
+      { key: 'brokerReferrals.maxUsesPerBroker', label: 'हर broker कितने invite कर सकता है', type: 'number' },
     ],
   },
   {

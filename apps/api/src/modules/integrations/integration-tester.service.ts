@@ -6,6 +6,7 @@ import { MailService } from '../../core/mail/mail.service';
 import { AiService } from '../../core/ai/ai.service';
 import { MediaService } from '../../core/media/media.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { fetchHousingLeads } from '../connectors/portals/housing.client';
 
 export const GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -77,6 +78,11 @@ export class IntegrationTesterService {
         const box = await client.mailboxOpen('INBOX');
         await client.logout();
         return `Inbox connected — ${box.exists} emails`;
+      }
+      case 'housing_api': {
+        const now = Math.floor(Date.now() / 1000);
+        const rows = await fetchHousingLeads({ profileId: v.profileId, encryptionKey: v.encryptionKey, accountType: v.accountType, listingIds: v.listingIds }, now - 7 * 86400, now);
+        return `Housing connected — पिछले 7 दिन में ${rows.length} leads`;
       }
       case 'maptiler': {
         const res = await fetch(`https://api.maptiler.com/maps/${v.style ?? 'streets-v2'}/style.json?key=${v.apiKey}`);

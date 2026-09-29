@@ -72,6 +72,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
         { href: '/admin/payments', label: 'Payments', icon: BadgeIndianRupee },
         { href: '/admin/coupons', label: 'Coupons', icon: TicketPercent },
+        { href: '/admin/broker-invites', label: 'Broker invites', icon: TicketPercent },
       ],
     },
     {

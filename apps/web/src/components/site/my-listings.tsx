@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import * as DM from '@radix-ui/react-dropdown-menu';
-import { Archive, BadgeCheck, CheckCircle2, Eye, Heart, MessageSquare, MoreVertical, Pencil, Plus, RotateCcw, Rocket, Trash2 } from 'lucide-react';
+import { Archive, BadgeCheck, CheckCircle2, Eye, Heart, MessageSquare, MoreVertical, Package, Pencil, Plus, RotateCcw, Rocket, Trash2 } from 'lucide-react';
 import { LISTING_STATUS_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { del, patch, useApiMutation } from '@/lib/hooks';
@@ -16,6 +16,7 @@ import { Badge, Empty, Skeleton } from '../ui/misc';
 import { Button } from '../ui/button';
 import { Input } from '../ui/field';
 import { Dialog } from '../ui/dialog';
+import { PortalPackDialog } from '../broker/portal-pack';
 
 const TONES: Record<string, any> = { ACTIVE: 'success', PENDING_REVIEW: 'warning', DRAFT: 'neutral', REJECTED: 'danger', SOLD: 'info', RENTED: 'info', EXPIRED: 'danger', ARCHIVED: 'neutral' };
 
@@ -23,6 +24,8 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [boost, setBoost] = useState<any>(null);
+  const [pack, setPack] = useState<string | null>(null);
+  const isBroker = base.startsWith('/broker');
   const { app, flags } = useConfig();
   const q = useQuery({ queryKey: ['my-listings', status, search], queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`) });
   const setSt = useApiMutation((v: { id: string; status: string }) => patch(`/listings/${v.id}/status`, { status: v.status }), { invalidate: [['my-listings']], success: 'Updated' });
@@ -110,6 +113,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
                         <MI onSelect={() => setSt.mutate({ id: l.id, status: l.purpose === 'RENT' ? 'RENTED' : 'SOLD' })} icon={<CheckCircle2 className="size-4" />}>Mark {l.purpose === 'RENT' ? 'rented' : 'sold'}</MI>
                       )}
                       {['ARCHIVED', 'EXPIRED', 'SOLD', 'RENTED'].includes(l.status) && <MI onSelect={() => setSt.mutate({ id: l.id, status: 'ACTIVE' })} icon={<RotateCcw className="size-4" />}>Re-activate</MI>}
+                      {isBroker && <MI onSelect={() => setPack(l.id)} icon={<Package className="size-4" />}>Portal pack</MI>}
                       {l.status !== 'ARCHIVED' && <MI onSelect={() => setSt.mutate({ id: l.id, status: 'ARCHIVED' })} icon={<Archive className="size-4" />}>Archive</MI>}
                       <MI danger onSelect={() => confirm('Listing delete करें?') && remove.mutate(l.id)} icon={<Trash2 className="size-4" />}>Delete</MI>
                     </DM.Content>
@@ -120,6 +124,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
           ))}
         </div>
       )}
+      {isBroker && <PortalPackDialog listingId={pack} onClose={() => setPack(null)} />}
       <Dialog open={!!boost} onOpenChange={(v) => !v && setBoost(null)} title="🚀 Listing boost करें" description="Featured listings search में सबसे ऊपर और homepage पर दिखती हैं — 5-10x ज़्यादा views।">
         <div className="grid gap-3 sm:grid-cols-3">
           {[1, 2, 4].map((w) => (

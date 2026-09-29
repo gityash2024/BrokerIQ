@@ -6,7 +6,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Building2, KeyRound, Lock, Mail, User, X } from 'lucide-react-native';
+import { Building2, KeyRound, Lock, Mail, Ticket, User, X } from 'lucide-react-native';
 import type { AuthResponse } from '@brokeriq/shared';
 import { post } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
@@ -20,11 +20,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 type Mode = 'otp' | 'password' | 'signup';
 
-function GoogleButton({ clientIds, accountType, onDone }: { clientIds: { web?: string; android?: string; ios?: string }; accountType: 'USER' | 'BROKER'; onDone: (r: AuthResponse) => void }) {
+function GoogleButton({ clientIds, accountType, inviteCode, onDone }: { clientIds: { web?: string; android?: string; ios?: string }; accountType: 'USER' | 'BROKER'; inviteCode?: string; onDone: (r: AuthResponse) => void }) {
   const [req, res, prompt] = Google.useIdTokenAuthRequest({ webClientId: clientIds.web, androidClientId: clientIds.android, iosClientId: clientIds.ios });
   useEffect(() => {
-    if (res?.type === 'success' && res.params.id_token) post<AuthResponse>('/auth/google', { idToken: res.params.id_token, accountType }).then(onDone).catch(showError);
-  }, [res, accountType, onDone]);
+    if (res?.type === 'success' && res.params.id_token) post<AuthResponse>('/auth/google', { idToken: res.params.id_token, accountType, inviteCode: accountType === 'BROKER' && inviteCode ? inviteCode : undefined }).then(onDone).catch(showError);
+  }, [res, accountType, inviteCode, onDone]);
   return <Button title="Google से continue करें" variant="secondary" disabled={!req} onPress={() => prompt()} icon={<Txt v="h3" color="#EA4335">G</Txt>} />;
 }
 
@@ -36,7 +36,9 @@ export default function Login() {
   const { setSession } = useAuth();
   const [mode, setMode] = useState<Mode>(app.auth?.allowEmailOtp === false ? 'password' : 'otp');
   const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
-  const [f, setF] = useState({ email: '', password: '', name: '', phone: '', firmName: '', code: '' });
+  const [f, setF] = useState({ email: '', password: '', name: '', phone: '', firmName: '', code: '', inviteCode: '' });
+  const inviteOnly = app.auth?.allowBrokerSignup === false;
+  const invite = accountType === 'BROKER' && f.inviteCode ? f.inviteCode : undefined;
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const g = integrations.google_oauth as any;
@@ -68,10 +70,10 @@ export default function Login() {
         toast.info(`Dev mode: OTP ${r.devCode} (SMTP configure नहीं है)`);
       } else toast.success('OTP आपके email पर भेजा गया');
     });
-  const verifyOtp = () => run(async () => done(await post<AuthResponse>('/auth/otp/verify', { email: f.email.trim(), code: f.code, name: f.name || undefined, accountType })));
+  const verifyOtp = () => run(async () => done(await post<AuthResponse>('/auth/otp/verify', { email: f.email.trim(), code: f.code, name: f.name || undefined, accountType, inviteCode: invite })));
   const login = () => run(async () => done(await post<AuthResponse>('/auth/login', { email: f.email.trim(), password: f.password })));
   const signup = () =>
-    run(async () => done(await post<AuthResponse>('/auth/register', { name: f.name, email: f.email.trim(), password: f.password, phone: f.phone || undefined, accountType, firmName: accountType === 'BROKER' ? f.firmName || undefined : undefined })));
+    run(async () => done(await post<AuthResponse>('/auth/register', { name: f.name, email: f.email.trim(), password: f.password, phone: f.phone || undefined, accountType, firmName: accountType === 'BROKER' ? f.firmName || undefined : undefined, inviteCode: invite })));
 
   const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
   const modes = [
@@ -115,6 +117,16 @@ export default function Login() {
           )}
           {(mode === 'password' || mode === 'signup') && <Input label="Password" value={f.password} onChangeText={set('password')} secureTextEntry icon={<Lock size={18} color={c.subtle} />} hint={mode === 'signup' ? 'कम से कम 8 अक्षर, एक number' : undefined} />}
           {mode === 'signup' && <Input label="Mobile (optional)" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" />}
+          {(mode === 'signup' || (mode === 'otp' && otpSent)) && accountType === 'BROKER' && (
+            <Input
+              label={inviteOnly ? 'Invite code' : 'Invite code (optional)'}
+              value={f.inviteCode}
+              onChangeText={(v) => set('inviteCode')(v.toUpperCase().replace(/\s/g, ''))}
+              autoCapitalize="characters"
+              icon={<Ticket size={18} color={c.subtle} />}
+              hint={inviteOnly ? 'अभी broker account सिर्फ़ invite से बनता है — BrokerIQ team या किसी जुड़े broker से code माँगें।' : undefined}
+            />
+          )}
           {mode === 'signup' && accountType === 'BROKER' && <Input label="Firm / Agency name" value={f.firmName} onChangeText={set('firmName')} icon={<Building2 size={18} color={c.subtle} />} />}
 
           {mode === 'otp' && !otpSent && <Button title="OTP भेजें" size="lg" loading={busy} disabled={!/.+@.+\..+/.test(f.email)} onPress={sendOtp} />}
@@ -134,7 +146,7 @@ export default function Login() {
               <Txt v="caption" color="subtle">या</Txt>
               <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
             </Row>
-            <GoogleButton clientIds={{ web: g.webClientId, android: g.androidClientId, ios: g.iosClientId }} accountType={accountType} onDone={done} />
+            <GoogleButton clientIds={{ web: g.webClientId, android: g.androidClientId, ios: g.iosClientId }} accountType={accountType} inviteCode={invite} onDone={done} />
           </>
         )}
         <Txt v="caption" color="subtle" style={{ textAlign: 'center' }}>Continue करके आप हमारी Terms और Privacy policy से सहमत हैं।</Txt>

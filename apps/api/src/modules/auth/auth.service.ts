@@ -8,6 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { MailService } from '../../core/mail/mail.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { BrokerInvitesService } from './broker-invites.service';
+import type { BrokerInvite } from '@prisma/client';
 import { AppException, IntegrationNotConfiguredException } from '../../common/exceptions';
 import { randomOtp, randomToken, sha256, shortCode } from '../../common/utils';
 import { env } from '../../config/env';
@@ -27,6 +29,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly settings: SettingsService,
     private readonly mail: MailService,
     private readonly audit: AuditService,
+    private readonly invites: BrokerInvitesService,
   ) {}
 
   /** Ensure the Super Admin from env exists (idempotent). */
@@ -92,9 +95,14 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   /** Creates a broker firm for the user and makes them BROKER_ADMIN with the default plan. */
-  async createBrokerOrg(userId: string, firmName: string, tx = this.prisma) {
+  async createBrokerOrg(userId: string, firmName: string, tx = this.prisma, invite: BrokerInvite | null = null) {
     const org = await tx.organization.create({ data: { name: firmName, slug: await this.uniqueOrgSlug(firmName) } });
-    const plan = (await tx.plan.findFirst({ where: { isActive: true, priceMonthly: 0 }, orderBy: { sortOrder: 'asc' } })) ?? (await tx.plan.findFirst({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }));
+    const granted = await this.invites.grantedPlan(invite, tx);
+    if (granted) {
+      await tx.subscription.create({ data: { organizationId: org.id, planId: granted.plan.id, status: 'ACTIVE', currentPeriodEnd: granted.periodEnd } });
+    }
+    if (invite) await this.invites.consume(invite, org.id, tx);
+    const plan = granted ? null : (await tx.plan.findFirst({ where: { isActive: true, priceMonthly: 0 }, orderBy: { sortOrder: 'asc' } })) ?? (await tx.plan.findFirst({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }));
     if (plan) {
       await tx.subscription.create({
         data: {
@@ -109,22 +117,22 @@ export class AuthService implements OnApplicationBootstrap {
     return org;
   }
 
-  private async assertBrokerSignupAllowed() {
-    const app = await this.settings.getAppConfig();
-    if (!app.auth.allowBrokerSignup) throw new ForbiddenException('Broker signup अभी बंद है।');
+  /** Open signup or a valid invite code; returns the invite to consume (if any). */
+  brokerGate(inviteCode?: string | null) {
+    return this.invites.gate(inviteCode);
   }
 
   // ------------------------------------------------------------------ flows
   async register(input: RegisterInput, meta: ClientMeta) {
     const app = await this.settings.getAppConfig();
     if (!app.auth.allowPasswordLogin) throw new ForbiddenException('Password signup बंद है — Email OTP से login करें।');
-    if (input.accountType === 'BROKER') await this.assertBrokerSignupAllowed();
+    const invite = input.accountType === 'BROKER' ? await this.brokerGate(input.inviteCode) : null;
     const exists = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (exists) throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'इस email से account पहले से है — login करें।');
     const user = await this.prisma.user.create({
       data: { name: input.name, email: input.email, phone: input.phone, passwordHash: await bcrypt.hash(input.password, 12) },
     });
-    if (input.accountType === 'BROKER') await this.createBrokerOrg(user.id, input.firmName || `${input.name} Realty`);
+    if (input.accountType === 'BROKER') await this.createBrokerOrg(user.id, input.firmName || `${input.name} Realty`, this.prisma, invite);
     await this.audit.log({ id: user.id, role: user.role }, 'auth.register', 'User', user.id, { accountType: input.accountType }, meta.ip);
     this.requestOtp(input.email, 'VERIFY_EMAIL').catch(() => undefined);
     return this.issue((await this.findUser({ id: user.id }))!, meta);
@@ -173,13 +181,13 @@ export class AuthService implements OnApplicationBootstrap {
     await this.prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
   }
 
-  async verifyOtp(input: { email: string; code: string; name?: string; accountType?: 'USER' | 'BROKER' }, meta: ClientMeta) {
+  async verifyOtp(input: { email: string; code: string; name?: string; accountType?: 'USER' | 'BROKER'; inviteCode?: string }, meta: ClientMeta) {
     await this.consumeOtp(input.email, input.code, ['LOGIN', 'VERIFY_EMAIL']);
     let user = await this.findUser({ email: input.email });
     if (!user) {
-      if (input.accountType === 'BROKER') await this.assertBrokerSignupAllowed();
+      const invite = input.accountType === 'BROKER' ? await this.brokerGate(input.inviteCode) : null;
       const created = await this.prisma.user.create({ data: { email: input.email, name: input.name || input.email.split('@')[0], emailVerified: true } });
-      if (input.accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`);
+      if (input.accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`, this.prisma, invite);
       user = await this.findUser({ id: created.id });
     } else if (!user.emailVerified) {
       await this.prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
@@ -189,7 +197,7 @@ export class AuthService implements OnApplicationBootstrap {
     return this.issue(user!, meta);
   }
 
-  async google(idToken: string, accountType: 'USER' | 'BROKER' | undefined, meta: ClientMeta) {
+  async google(idToken: string, accountType: 'USER' | 'BROKER' | undefined, meta: ClientMeta, inviteCode?: string) {
     const cfg = await this.settings.require('google_oauth');
     const audience = [cfg.webClientId, cfg.androidClientId, cfg.iosClientId].filter(Boolean).map(String);
     const client = new OAuth2Client();
@@ -203,11 +211,11 @@ export class AuthService implements OnApplicationBootstrap {
     const email = payload.email.toLowerCase();
     let user = (await this.findUser({ googleId: payload.sub })) ?? (await this.findUser({ email }));
     if (!user) {
-      if (accountType === 'BROKER') await this.assertBrokerSignupAllowed();
+      const invite = accountType === 'BROKER' ? await this.brokerGate(inviteCode) : null;
       const created = await this.prisma.user.create({
         data: { email, name: payload.name ?? email.split('@')[0], googleId: payload.sub, avatarUrl: payload.picture, emailVerified: true },
       });
-      if (accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`);
+      if (accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`, this.prisma, invite);
       user = await this.findUser({ id: created.id });
     } else if (!user.googleId) {
       await this.prisma.user.update({ where: { id: user.id }, data: { googleId: payload.sub, emailVerified: true, avatarUrl: user.avatarUrl ?? payload.picture } });

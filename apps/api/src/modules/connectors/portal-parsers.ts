@@ -184,3 +184,41 @@ export function sourceFromLabel(label?: string | null) {
   if (l.includes('whatsapp')) return 'WHATSAPP' as const;
   return null;
 }
+
+// ------------------------------------------------------------------ requirement hints (BHK / budget / sector)
+export interface RequirementHints {
+  bedrooms: number[];
+  minBudget: number | null;
+  maxBudget: number | null;
+  localityText: string | null;
+}
+
+/** "25k" / "25,000" / "0.3 Lac" / "1.2 L" → rupees. */
+export function parseRupees(raw: string): number | null {
+  const m = raw.replace(/,/g, '').match(/(\d+(?:\.\d+)?)\s*(k|thousand|l|lac|lakh|lakhs|cr|crore)?/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const unit = (m[2] ?? '').toLowerCase();
+  const mult = unit.startsWith('k') || unit === 'thousand' ? 1e3 : unit.startsWith('l') ? 1e5 : unit.startsWith('c') ? 1e7 : 1;
+  const v = Math.round(n * mult);
+  return v >= 1000 ? v : null;
+}
+
+/** Pulls BHK, budget and a sector/locality phrase out of a portal lead's text. */
+export function extractRequirementHints(text: string): RequirementHints {
+  const t = text.replace(/\s+/g, ' ');
+  const bedrooms = [...new Set([...t.matchAll(/(\d)\s*(?:BHK|RK|bed(?:room)?s?)\b/gi)].map((m) => Number(m[1])))].filter((n) => n > 0 && n < 10);
+  let minBudget: number | null = null;
+  let maxBudget: number | null = null;
+  const range = t.match(/(?:₹|rs\.?|inr|budget[:\s]*)\s*([\d.,]+\s*(?:k|l|lac|lakh|cr)?)\s*(?:-|to|–)\s*(?:₹|rs\.?)?\s*([\d.,]+\s*(?:k|l|lac|lakh|cr)?)/i);
+  if (range) {
+    minBudget = parseRupees(range[1]);
+    maxBudget = parseRupees(range[2]);
+  } else {
+    const one = t.match(/(?:budget|rent|price|₹|rs\.?)\s*[:\-]?\s*(?:₹|rs\.?)?\s*([\d.,]+\s*(?:k|l|lac|lakh|cr)?)/i);
+    if (one) maxBudget = parseRupees(one[1]);
+  }
+  const sector = t.match(/\b(sector[\s-]*\d{1,3}[a-z]?)\b/i)?.[1] ?? null;
+  const road = t.match(/\b((?:golf course|sohna|mg|southern peripheral|dwarka expressway|nh[\s-]?48|udyog vihar|cyber city|dlf phase[\s-]*\d)[a-z\s]{0,20}?(?:road|extension|ext|phase \d)?)\b/i)?.[1] ?? null;
+  return { bedrooms, minBudget, maxBudget, localityText: (sector ?? road)?.replace(/\s+/g, ' ').trim() ?? null };
+}

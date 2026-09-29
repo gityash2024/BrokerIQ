@@ -282,6 +282,7 @@ enum ConnectorType {
   WEBHOOK
   META_LEAD_ADS
   WHATSAPP
+  HOUSING_API
 }
 
 enum ConnectorStatus {
@@ -375,28 +376,28 @@ model User {
   updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
 
-  organization   Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   refreshTokens  RefreshToken[]
   pushTokens     PushToken[]
-  listings       Listing[]        @relation("ListingPostedBy")
+  listings       Listing[]       @relation("ListingPostedBy")
   savedListings  SavedListing[]
   recentViews    RecentView[]
   savedSearches  SavedSearch[]
-  enquiries      Enquiry[]        @relation("EnquiryUser")
-  ownerEnquiries Enquiry[]        @relation("EnquiryOwner")
+  enquiries      Enquiry[]       @relation("EnquiryUser")
+  ownerEnquiries Enquiry[]       @relation("EnquiryOwner")
   reviews        Review[]
   reports        ListingReport[]
-  kycDocuments   KycDocument[]    @relation("KycUser")
+  kycDocuments   KycDocument[]   @relation("KycUser")
   notifications  Notification[]
-  assignedLeads  Lead[]           @relation("LeadAssignee")
-  followUps      FollowUp[]       @relation("FollowUpAssignee")
-  visits         SiteVisit[]      @relation("VisitAssignee")
+  assignedLeads  Lead[]          @relation("LeadAssignee")
+  followUps      FollowUp[]      @relation("FollowUpAssignee")
+  visits         SiteVisit[]     @relation("VisitAssignee")
   activities     Activity[]
   deals          Deal[]
   sentMessages   Message[]
   auditLogs      AuditLog[]
   blogPosts      BlogPost[]
-  chats          Conversation[]   @relation("ConversationUser")
+  chats          Conversation[]  @relation("ConversationUser")
   shareLinks     ShareLink[]
   consents       UserConsent[]
   locations      UserLocation[]
@@ -460,14 +461,14 @@ model UserContact {
 }
 
 model RefreshToken {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  userAgent  String?
-  ip         String?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -523,45 +524,52 @@ model Organization {
   reviewCount      Int                @default(0)
   businessHours    Json?
   roundRobinCursor Int                @default(0)
+  referredByOrgId  String?
+  brokerInviteId   String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
-  members      User[]
-  invites      Invite[]
-  localities   Locality[]           @relation("OrgLocalities")
-  listings     Listing[]
-  enquiries    Enquiry[]
-  reviews      Review[]
-  leads        Lead[]
-  activities   Activity[]
-  followUps    FollowUp[]
-  visits       SiteVisit[]
-  deals        Deal[]
-  settings     OrgSetting[]
-  connectors   ConnectorState[]
-  automations  AutomationRule[]
-  conversations Conversation[]
-  templates    WhatsAppTemplate[]
-  subscription Subscription?
-  payments     Payment[]
-  usage        UsageCounter[]
-  kycDocuments KycDocument[]
-  shareLinks   ShareLink[]
+  referredBy           Organization?      @relation("OrgReferrals", fields: [referredByOrgId], references: [id], onDelete: SetNull)
+  referrals            Organization[]     @relation("OrgReferrals")
+  brokerInvite         BrokerInvite?      @relation("BrokerInviteOrgs", fields: [brokerInviteId], references: [id], onDelete: SetNull)
+  brokerInvitesCreated BrokerInvite[]     @relation("BrokerInvitesCreated")
+  externalLeadRefs     ExternalLeadRef[]
+  members              User[]
+  invites              Invite[]
+  localities           Locality[]         @relation("OrgLocalities")
+  listings             Listing[]
+  enquiries            Enquiry[]
+  reviews              Review[]
+  leads                Lead[]
+  activities           Activity[]
+  followUps            FollowUp[]
+  visits               SiteVisit[]
+  deals                Deal[]
+  settings             OrgSetting[]
+  connectors           ConnectorState[]
+  automations          AutomationRule[]
+  conversations        Conversation[]
+  templates            WhatsAppTemplate[]
+  subscription         Subscription?
+  payments             Payment[]
+  usage                UsageCounter[]
+  kycDocuments         KycDocument[]
+  shareLinks           ShareLink[]
 
   @@index([status])
 }
 
 model Invite {
-  id           String    @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
-  email        String
-  name         String
-  role         Role      @default(BROKER_AGENT)
-  tokenHash    String    @unique
-  expiresAt    DateTime
-  acceptedAt   DateTime?
-  invitedById  String?
-  createdAt    DateTime  @default(now())
+  email          String
+  name           String
+  role           Role      @default(BROKER_AGENT)
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  invitedById    String?
+  createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -907,17 +915,17 @@ model Lead {
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
 
-  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assignedTo    User?            @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  listing       Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  requirement   LeadRequirement?
-  activities    Activity[]
-  followUps     FollowUp[]
-  visits        SiteVisit[]
-  deals         Deal[]
-  conversations Conversation[]
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo     User?            @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  listing        Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  requirement    LeadRequirement?
+  activities     Activity[]
+  followUps      FollowUp[]
+  visits         SiteVisit[]
+  deals          Deal[]
+  conversations  Conversation[]
   automationRuns AutomationRun[]
-  shareLinks    ShareLink[]
+  shareLinks     ShareLink[]
 
   @@unique([organizationId, phone])
   @@index([organizationId, stage])
@@ -1149,6 +1157,43 @@ model OrgSetting {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, key])
+}
+
+/// Dedupe for pull-based portal connectors (e.g. Housing API) whose time windows overlap.
+model ExternalLeadRef {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String
+  ref            String
+  leadId         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider, ref])
+}
+
+/// Invite codes that let a new broker firm sign up while open signup is off; may grant a free plan.
+model BrokerInvite {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  note           String?
+  email          String?
+  createdById    String?
+  createdByOrgId String?
+  grantPlanCode  String?
+  grantMonths    Int       @default(12)
+  maxUses        Int       @default(1)
+  uses           Int       @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  createdByOrg Organization?  @relation("BrokerInvitesCreated", fields: [createdByOrgId], references: [id], onDelete: SetNull)
+  orgs         Organization[] @relation("BrokerInviteOrgs")
+
+  @@index([createdByOrgId])
 }
 
 model ConnectorState {

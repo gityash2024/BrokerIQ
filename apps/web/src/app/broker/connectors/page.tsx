@@ -4,7 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle2, Facebook, FlaskConical, Mail, MessageCircle, RefreshCw, RotateCcw, Webhook } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Facebook, FlaskConical, Mail, MessageCircle, RefreshCw, RotateCcw, Webhook, Zap } from 'lucide-react';
+import Link from 'next/link';
 import { LEAD_SOURCE_LABELS, type IntegrationDef, type LeadSource } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -22,10 +23,11 @@ const ICONS: Record<string, React.ReactNode> = {
   whatsapp: <MessageCircle className="size-5" />,
   email_inbox: <Mail className="size-5" />,
   meta_leads: <Facebook className="size-5" />,
+  housing_api: <Building2 className="size-5" />,
 };
 
 const PORTALS = [
-  { name: 'Housing.com', color: '#6D28D9', how: 'Email alerts' },
+  { name: 'Housing.com', color: '#6D28D9', how: 'Lead API + Email' },
   { name: '99acres', color: '#0B5ED7', how: 'Email alerts' },
   { name: 'MagicBricks', color: '#D8232A', how: 'Email alerts' },
   { name: 'NoBroker', color: '#FD3752', how: 'Email alerts' },
@@ -41,6 +43,7 @@ function ConnectorsInner() {
   const admin = user?.role === 'BROKER_ADMIN';
   const q = useQuery({ queryKey: ['connectors'], queryFn: () => api<any>('/broker/connectors') });
   const sync = useApiMutation(() => post<any>('/broker/connectors/email_inbox/sync'), { invalidate: [['connectors'], ['leads']], success: (r: any) => `Inbox checked — ${r?.imported ?? 0} नई leads` });
+  const syncHousing = useApiMutation(() => post<any>('/broker/connectors/housing_api/sync'), { invalidate: [['connectors'], ['leads']], success: (r: any) => `Housing checked — ${r?.imported ?? 0} नई leads` });
   const rotate = useApiMutation(() => post('/broker/webhook-key/rotate'), { success: 'नया webhook URL बना — पुराने URL अब काम नहीं करेंगे', invalidate: [['connectors']] });
   const [preview, setPreview] = useState(false);
 
@@ -75,6 +78,19 @@ function ConnectorsInner() {
         </div>
       </div>
 
+      {(d.portalStats as any[])?.length > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {(d.portalStats as any[]).map((p) => (
+            <div key={p.source} className="card p-4">
+              <p className="truncate text-xs font-semibold text-muted">{LEAD_SOURCE_LABELS[p.source as LeadSource] ?? p.source}</p>
+              <p className="mt-1 font-display text-2xl font-extrabold">{p.week}</p>
+              <p className="text-xs text-muted">7 दिन में leads · आज {p.today}</p>
+              {p.medianResponseMin != null && <p className="mt-1 text-xs text-muted">औसत जवाब {p.medianResponseMin < 60 ? `${p.medianResponseMin} मिनट` : `${Math.round(p.medianResponseMin / 60)} घंटे`}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
       {!admin && (
         <div className="mb-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">Connectors सिर्फ़ firm admin बदल सकते हैं। आप status देख सकते हैं।</div>
       )}
@@ -95,6 +111,16 @@ function ConnectorsInner() {
                   Tip: Housing / 99acres / MagicBricks / NoBroker के <b>lead alert emails</b> इसी inbox पर आने चाहिए। हर 2 मिनट में नई emails पढ़ी जाती हैं।
                 </p>
               )}
+              {c.key === 'housing_api' && (
+                <div className="space-y-2 text-sm text-muted">
+                  <p>Housing से मिली <b>Profile ID</b> और <b>Encryption Key</b> डालें। हर 5 मिनट में नई leads सीधे Housing API से आती हैं — email की ज़रूरत नहीं।</p>
+                  {c.config?.configured && (
+                    <Link href="/broker/automations" className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline">
+                      <Zap className="size-3.5" /> नई Housing lead को तुरंत WhatsApp जवाब — Automations में "Welcome WhatsApp" चालू करें
+                    </Link>
+                  )}
+                </div>
+              )}
               {state && (
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   <Badge tone={state.status === 'ACTIVE' ? 'success' : state.status === 'ERROR' ? 'danger' : 'neutral'}>{state.status}</Badge>
@@ -102,6 +128,9 @@ function ConnectorsInner() {
                   {state.lastSyncAt && <span className="text-muted">Last sync {formatDateTime(state.lastSyncAt)}</span>}
                   {c.key === 'email_inbox' && admin && c.config?.configured && (
                     <Button size="xs" variant="secondary" onClick={() => sync.mutate(undefined)} loading={sync.isPending}><RefreshCw className="size-3.5" /> अभी check करें</Button>
+                  )}
+                  {c.key === 'housing_api' && admin && c.config?.configured && (
+                    <Button size="xs" variant="secondary" onClick={() => syncHousing.mutate(undefined)} loading={syncHousing.isPending}><RefreshCw className="size-3.5" /> अभी sync करें</Button>
                   )}
                 </div>
               )}

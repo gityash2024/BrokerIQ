@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { Alert, FlatList, Share, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -8,6 +8,8 @@ import { LISTING_STATUS_LABELS, formatPriceShort, type ListingStatus, plural } f
 import { api, patch } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
+import { useAuth } from '@/lib/auth';
+import { showError } from '@/lib/hooks';
 import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Row, Screen, Skeleton, Txt } from '@/ui';
 import { Image } from 'expo-image';
 import { img } from '@/lib/api';
@@ -21,9 +23,21 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
   const q = useQuery({ queryKey: ['my-listings', status], queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}`) });
   const setSt = useApiMutation((b: { id: string; status: string }) => patch(`/listings/${b.id}/status`, { status: b.status }), { success: 'Updated', invalidate: [['my-listings']] });
   const counts = q.data?.statusCounts ?? {};
+  const { user } = useAuth();
+  const isBroker = user?.role === 'BROKER_ADMIN' || user?.role === 'BROKER_AGENT';
+  /** Copy-ready text for posting the same listing on Housing / 99acres / MagicBricks. */
+  const portalPack = async (id: string) => {
+    try {
+      const d = await api<any>(`/broker/portal-pack/${id}`);
+      await Share.share({ message: `${d.text}${d.photos.length ? `\n\nPhotos:\n${d.photos.join('\n')}` : ''}` });
+    } catch (e) {
+      showError(e);
+    }
+  };
   const actions = (l: any) =>
     alert(l.title, undefined, [
       { text: 'Edit', onPress: () => router.push({ pathname: '/post-property', params: { id: l.id } }) },
+      ...(isBroker ? [{ text: 'Portal pack (Housing / 99acres)', onPress: () => portalPack(l.id) }] : []),
       ...(l.status === 'ACTIVE' ? [{ text: l.purpose === 'RENT' ? 'Rented mark करें' : 'Sold mark करें', onPress: () => setSt.mutate({ id: l.id, status: l.purpose === 'RENT' ? 'RENTED' : 'SOLD' }) }] : []),
       ...(l.status !== 'ARCHIVED' ? [{ text: 'Archive (hide)', style: 'destructive' as const, onPress: () => setSt.mutate({ id: l.id, status: 'ARCHIVED' }) }] : [{ text: 'फिर से active करें', onPress: () => setSt.mutate({ id: l.id, status: 'ACTIVE' }) }]),
       { text: 'Cancel', style: 'cancel' },

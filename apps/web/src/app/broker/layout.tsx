@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow, ShieldCheck } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow, ShieldCheck, UserPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
@@ -55,6 +55,7 @@ function Inner({ children }: { children: React.ReactNode }) {
       title: 'Firm',
       items: [
         { href: '/broker/team', label: 'Team', icon: Users },
+        { href: '/broker/invite-brokers', label: 'Brokers को invite करें', icon: UserPlus },
         ...(admin ? [{ href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign }, { href: '/broker/settings', label: 'Settings', icon: Settings }] : []),
         { href: '/broker/notifications', label: 'Notifications', icon: Bell },
         { href: '/broker/privacy', label: 'Privacy & data sharing', icon: ShieldCheck },

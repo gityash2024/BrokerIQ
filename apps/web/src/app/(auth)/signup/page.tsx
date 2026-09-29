@@ -1,10 +1,10 @@
 'use client';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { Briefcase, Check, Home } from 'lucide-react';
+import { BadgeCheck, Briefcase, Check, Home, Ticket } from 'lucide-react';
 import type { AuthResponse } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
@@ -20,9 +20,11 @@ function SignupInner() {
   const { app } = useConfig();
   const router = useRouter();
   const sp = useSearchParams();
-  const [type, setType] = useState<'USER' | 'BROKER'>(sp.get('type') === 'broker' ? 'BROKER' : 'USER');
-  const [f, setF] = useState({ name: '', email: '', phone: '', password: '', firmName: '' });
+  const [type, setType] = useState<'USER' | 'BROKER'>(sp.get('type') === 'broker' || sp.get('invite') ? 'BROKER' : 'USER');
+  const [f, setF] = useState({ name: '', email: '', phone: '', password: '', firmName: '', inviteCode: (sp.get('invite') ?? '').toUpperCase() });
   const [loading, setLoading] = useState(false);
+  const inviteOnly = !app.auth.allowBrokerSignup;
+  const invite = useInviteCheck(type === 'BROKER' ? f.inviteCode : '');
   const done = (r: AuthResponse) => {
     setSession(r);
     toast.success('Account बन गया 🎉');
@@ -33,7 +35,13 @@ function SignupInner() {
     e.preventDefault();
     setLoading(true);
     try {
-      done(await api('/auth/register', { method: 'POST', auth: false, body: { ...f, phone: f.phone || undefined, firmName: type === 'BROKER' ? f.firmName || undefined : undefined, accountType: type } }));
+      done(
+        await api('/auth/register', {
+          method: 'POST',
+          auth: false,
+          body: { ...f, phone: f.phone || undefined, firmName: type === 'BROKER' ? f.firmName || undefined : undefined, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined, accountType: type },
+        }),
+      );
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -42,7 +50,7 @@ function SignupInner() {
   };
   const options = [
     { v: 'USER' as const, icon: Home, t: 'Buyer / Tenant / Owner', d: 'Property खोजें, save करें या अपनी property free post करें' },
-    ...(app.auth.allowBrokerSignup ? [{ v: 'BROKER' as const, icon: Briefcase, t: 'Broker / Agency', d: 'Leads CRM, WhatsApp automation, team और listings' }] : []),
+    { v: 'BROKER' as const, icon: Briefcase, t: 'Broker / Agency', d: inviteOnly ? 'Invite code से — Leads CRM, WhatsApp automation, team और listings' : 'Leads CRM, WhatsApp automation, team और listings' },
   ];
   return (
     <AuthShell title="Account बनाएँ" subtitle="30 seconds में शुरू करें — बिल्कुल free">
@@ -67,7 +75,7 @@ function SignupInner() {
       </div>
       <GoogleButton text="signup_with" onCredential={async (idToken) => {
         try {
-          done(await api('/auth/google', { method: 'POST', body: { idToken, accountType: type }, auth: false }));
+          done(await api('/auth/google', { method: 'POST', body: { idToken, accountType: type, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined }, auth: false }));
         } catch (err) {
           toast.error(errorMessage(err));
         }
@@ -76,6 +84,20 @@ function SignupInner() {
         <Field label="पूरा नाम" required>
           <Input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoComplete="name" />
         </Field>
+        {type === 'BROKER' && (
+          <Field label="Invite code" required={inviteOnly} hint={inviteOnly ? 'अभी broker account सिर्फ़ invite से बनता है। Code नहीं है? BrokerIQ team या किसी जुड़े broker से माँगें।' : 'Optional — किसी broker ने invite किया है तो डालें'}>
+            <div className="relative">
+              <Ticket className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
+              <Input className="pl-9 uppercase" required={inviteOnly} value={f.inviteCode} onChange={(e) => setF({ ...f, inviteCode: e.target.value.toUpperCase().replace(/\s/g, '') })} placeholder="BIQXXXXXX" />
+            </div>
+            {invite?.valid && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                <BadgeCheck className="size-3.5" /> Invite valid{invite.invitedBy ? ` — ${invite.invitedBy} ने बुलाया` : ''}{invite.plan ? ` · ${invite.plan.name} plan ${invite.months ? `${invite.months} महीने` : ''} free` : ''}
+              </p>
+            )}
+            {invite && !invite.valid && <p className="mt-1.5 text-xs text-rose-600">{invite.message}</p>}
+          </Field>
+        )}
         {type === 'BROKER' && (
           <Field label="Firm / Agency name" required>
             <Input required value={f.firmName} onChange={(e) => setF({ ...f, firmName: e.target.value })} placeholder="Sharma Realty" />
@@ -107,6 +129,25 @@ function SignupInner() {
       </p>
     </AuthShell>
   );
+}
+
+/** Debounced check of an invite code against the API (shows what it grants). */
+function useInviteCheck(code: string) {
+  const [res, setRes] = useState<any>(null);
+  useEffect(() => {
+    const c = code.trim();
+    if (c.length < 4) {
+      setRes(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      api<any>(`/broker-invites/check/${encodeURIComponent(c)}`, { auth: false })
+        .then(setRes)
+        .catch(() => setRes(null));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [code]);
+  return res;
 }
 
 export default function SignupPage() {

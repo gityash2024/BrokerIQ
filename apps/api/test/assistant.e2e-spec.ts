@@ -5,6 +5,7 @@ import { json } from 'express';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { SettingsService } from '../src/core/settings/settings.service';
 import { AiService } from '../src/core/ai/ai.service';
 
 /**
@@ -51,6 +52,8 @@ describe('AI assistant (e2e)', () => {
     process.env.INTERNAL_API_URL = await app.getUrl();
     prisma = app.get(PrismaService);
     http = request(app.getHttpServer());
+    // These suites create broker firms directly; open signup (default is invite-only).
+    await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);
     localityId = (await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } })).id;
     const reg = async (p: string, extra: object = {}) => (await http.post('/api/auth/register').send({ name: `Test ${p}`, email: email(p), password: 'Passw0rd!', phone: '9811100999', ...extra }).expect(201)).body.accessToken;
     user = await reg('user');
