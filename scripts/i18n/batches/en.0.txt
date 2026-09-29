@@ -1,0 +1,111 @@
+0	All properties for "{n}"
+2	% saved
+3	Automations set to “Send in business hours” won't message at night — they'll send in the next working hours.
+5	(you)
+6	) invited you to their team
+7	) is returned when you vacate the house.
+10	+ Add locality
+12	+ Add preferred locality
+16	+ New suggestion
+19	, Gurgaon — homes for rent, average rent and complete neighbourhood details.
+22	1 hour
+23	In 1 hour
+24	1 year
+28	Post your property free in 2 minutes.
+29	24-hour window is closed — send a template first.
+30	The 24-hour window is closed — as per WhatsApp rules, only approved templates can be sent.
+31	The 24-hour window is closed — only approved templates can be sent. Tap here.
+34	3 hours
+35	In 3 hours
+36	3 days
+37	After 3 days
+38	Get started in 30 seconds — completely free
+39	30 days
+40	What will the move-in cost be at 40k rent?
+41	5 easy steps — reach thousands of verified tenants
+44	8+ characters, one number
+45	90 days
+55	AI credits (this month)
+56	AI credits are included in your plan —
+60	AI wrote the description ✨ — edit if needed
+61	AI is reading…
+62	Write description with AI
+63	Analyse lead with AI
+64	Get an AI summary, intent score and the best next step for this lead.
+65	Write with AI
+71	Delete account
+72	Delete account?
+73	Don't have an account?
+74	Account created 🎉
+75	Create an account, connect your portal inbox and WhatsApp, and let the leads come in.
+76	Create account
+87	Make admin
+88	Ask your admin to connect WhatsApp.
+89	Admin: billing, connectors, automations, the whole team's leads. Agent: only their assigned leads.
+93	To agent {n}
+94	Make agent
+96	Invite agents, assign roles, track performance
+97	Add agents — leads are distributed round-robin and each agent's performance shows here.
+122	Rate the app
+123	Your approximate location when you open the app (once a day).
+125	How many listings are pending approval?
+126	Send for approval
+136	The assistant works inside your account
+137	Auto / me
+138	Turn on auto-renew
+139	Edit automation
+141	Automation name
+142	Automation live 🚀
+143	Automation removed
+157	Import from book scan
+161	Get brochure & price list
+162	Brochure downloads after you submit the enquiry
+165	Create broker account
+166	Add it in Broker app → More → Lead connectors.
+167	Switch to Broker mode
+170	Join as a broker
+171	Broker posted as owner
+172	Become a broker
+173	Are you a broker? Start the free CRM
+174	Broker posing as owner
+179	BrokerIQ is a registered rental brokerage platform. Before you continue, we are telling you clearly what we are asking for and why.
+180	So that BrokerIQ's internal team can offer our rental services to people you know (leads).
+181	How many stars would you give BrokerIQ?
+182	Help make BrokerIQ better — suggest new features, vote and see the roadmap.
+185	Brokerage (from tenant)
+188	18% GST on brokerage
+191	Higher ranking in the brokers directory
+192	For brokers
+193	The smartest CRM for brokers
+194	Your conversations with brokers
+195	Visible to brokers for enquiries
+196	Chat directly with brokers
+197	Browsers can't read contacts — turn this on in the BrokerIQ mobile app under Profile → Privacy.
+198	Location permission was not granted in the browser
+205	Report a bug or suggest a new feature — we read every piece of feedback.
+206	A bug, new feature or suggestion —
+209	If Business WhatsApp is connected it is sent from the app (saved in the inbox), otherwise the WhatsApp app opens.
+216	More trust from tenants = more enquiries
+217	Visible to tenants after login
+219	Choose CSV file
+221	Open calculator →
+225	What was discussed on the call?
+229	Allow camera permission
+232	Long-press a card to change its stage
+238	Checked in 📍
+244	Messages from clients on WhatsApp will show up here.
+246	Client feedback
+247	Client interest and feedback — helps decide the next step.
+248	The client gets an automatic reminder before the visit (WhatsApp/push, if connected)
+249	What the client said…
+250	Client reviews appear on your microsite and in the broker directory — reply to every review
+252	Close
+258	Send code
+261	Log in to comment
+262	Write a comment…
+279	Set up connectors
+280	Open connectors
+281	Add connectors →
+282	Only the firm admin can change connectors. You can view their status.
+285	View contact number
+289	Turn off contacts sharing? All your contacts held by BrokerIQ will be deleted.

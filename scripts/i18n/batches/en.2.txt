@@ -1,0 +1,97 @@
+580	Lead removed
+584	Leads this month
+587	Link copied
+593	Boost listing
+594	Delete listing?
+595	Edit listing
+596	Listing is live 🎉
+597	Report listing
+598	Choose listing
+599	Something wrong with the listing? Report · Ref #
+600	Listing, account, partnership or any question — we're here to help.
+602	Your own website with listings, reviews and a WhatsApp button. Put it in your Instagram bio, visiting card and WhatsApp status — every enquiry from it lands straight in your CRM.
+605	From live rental listings
+611	Search locality / sector
+612	{n}% {n} than locality avg
+614	Locality and price are required in every row
+615	Search locality
+616	Choose locality
+618	Location / contacts — your choice
+619	Location / contacts — entirely your choice, change anytime
+620	Allow location
+623	Allow location permission
+624	Location sharing on
+625	Turn off location sharing? Your location history held by BrokerIQ will be deleted.
+628	Log in to accept
+629	Log in to save properties, chat with brokers and post your property free.
+630	Log in to find homes, send enquiries and post listings — just by speaking.
+631	Log in
+632	Log in — ask questions about the property and get real-time answers.
+633	Log in — saved homes, searches and alerts will sync across all devices.
+634	Logo (optional) — shown on your microsite and WhatsApp
+635	Upload logo (optional)
+644	Search as I move the map
+649	View marketplace (tenant view)
+652	With master room
+662	Invite member
+663	Assign to member
+664	Choose member
+665	Member removed — their leads are now unassigned
+668	Message received!
+669	Write a message…
+670	Write a message… (Enter = send)
+671	Write a message… (sent from your connected WhatsApp number)
+673	Create a template in Meta Business Manager → WhatsApp Manager and get it approved, then tap 'Sync from Meta'.
+674	Templates approved by Meta — can be sent even after 24 hours
+675	Sync from Meta
+677	View microsite
+698	Total for move-in
+699	Total needed for move-in
+705	Enter name and mobile number
+728	No credit card · Free plan forever
+738	Write a note…
+739	Note: the first message goes free-form only within the 24-hour window (after the lead's message) — otherwise use a template action.
+743	If you log in with OTP / Google, leave the current password empty
+744	OTP sent to {n}
+745	OTP sent to your email
+746	Resend OTP
+747	Send OTP
+753	Online payment is not enabled on the platform yet (Super Admin hasn't added Razorpay). Contact support to upgrade.
+754	Online payment is not enabled yet (platform admin hasn't added Razorpay).
+764	For owners — leads directly from tenants
+766	Ownership proof adds a “Verified” badge to your listings.
+767	Verified badge on the listing once ownership is verified
+774	Page {n} — original text (OCR)
+776	Parse
+779	Password changed
+780	Password changed — log in now
+781	Change password
+782	Forgot password?
+785	Payment successful 🎉 Plan upgraded
+786	GST invoice on payment
+791	Cancel at period end
+792	Allow permission
+794	Allow the permission in phone settings, then turn it on again
+795	{n} permission not granted in phone settings — you can turn it on later from Profile → Privacy
+796	Names, mobile numbers and emails from your phonebook.
+798	Upload photo
+799	Uploading photos…
+800	Photos coming soon
+801	Drag photos here or click to choose
+802	Listings with photos, the right price and locality get approved faster
+807	Upgrade plan, view usage and download GST invoices
+808	Plan upgraded 🎉
+817	Test portal email
+818	Connect portals (More → Lead connectors) or add leads manually.
+833	Get price list & brochure
+834	Enquire for price list
+836	Price and photos
+843	View pricing
+847	Read privacy policy →
+858	Projects coming soon
+859	Search properties
+860	View properties
+861	Tap ♥ on properties to save them here.
+863	Property sent on WhatsApp ✓
+866	Tap ❤️ on a property card to build a shortlist.
+869	Tap “Chat” on the property page to start talking with the broker.

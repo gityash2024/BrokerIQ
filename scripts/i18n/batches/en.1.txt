@@ -1,0 +1,111 @@
+290	Contacts sharing turned off — data deleted
+291	Contacts sharing happens only in the BrokerIQ mobile app (with your separate permission).
+292	Contacts synced
+293	By continuing you agree to our Terms and Privacy policy.
+295	Choose a conversation
+300	Change cover photo
+302	Fill in credentials (app passwords, API tokens) on the web CRM — every connector has a step-by-step guide:
+303	Fill credentials →
+304	Credentials removed
+305	Add current location (if you are at the property)
+307	Current password (if set)
+314	Data stays encrypted. Turn it off anytime from Profile → Privacy — the data is deleted as soon as you turn it off.
+318	Close deal 🎉
+319	Record it here as soon as the deal closes — commission is tracked automatically.
+320	After a deal closes, ask clients for a review on your microsite — copy the microsite link from Settings.
+321	Deal closed (mark the lead as WON)
+327	Deal added 🎉
+328	Add deal
+331	Everything you need to close deals, in one place
+333	Default (Hinglish)
+339	Deposit + brokerage + advance — how much you need in total
+344	Request details
+345	Dev mode: OTP {n} (SMTP is not configured)
+350	Document sent for review
+351	Upload document (image / PDF)
+352	Document sent — it will be verified within 24–48 hours
+354	Done (14 days)
+359	Draft saved
+362	Save to drafts
+363	Save to drafts (photos later)
+364	Drag to reorder — the first photo becomes the cover.
+373	Email (SMTP) is not configured — send this link on WhatsApp yourself:
+381	You'll get a 6-digit code by email
+382	Change email
+383	Change email / resend OTP
+384	Send email
+392	Enquiries will arrive on your dashboard and by email.
+393	Required for enquiries and chat
+395	Enquiry sent — you'll get a call/WhatsApp soon ✅
+396	Enquiry sent — we'll be in touch soon
+397	Enquiry sent!
+398	Send enquiry
+400	Exact location (click on the map to drop a pin)
+401	Exact location added ✓
+402	Exact location added 📍
+413	Explore
+414	Apply filters in Explore and tap 'Alert' — you'll be notified as soon as a new listing arrives.
+421	Fake / wrong listing
+426	Featured listings appear at the top of search and on the homepage — 5-10x more views.
+432	Give feedback
+433	Send feedback
+434	Fields: name, phone (required), email, source (housing / 99acres / magicbricks / facebook …), property, budget, message. Fields with different names are recognised automatically.
+438	Reduce filters or try another locality. Set an alert — we'll tell you when a new listing arrives.
+439	Try fewer filters, or save the search — we'll let you know as soon as a new property arrives.
+447	Firm profile, microsite, business hours and verification
+448	All listings of the firm
+449	All the firm's listings — live on the marketplace, views, enquiries and boost
+453	Split rent and bills between flatmates
+457	Schedule follow-up
+460	Add follow-up
+461	Follow-up completed
+462	Create follow-up
+463	Follow-up removed
+473	Free CRM — all leads from Housing, 99acres and Facebook in one app, with WhatsApp automation.
+476	Post for free and get enquiries directly from tenants.
+477	Start for free
+478	Start free, upgrade as you grow.
+479	From (e.g. alerts@housing.com)
+484	Furnished flats, builder floors, PG and offices — with sector-wise rent, brokerage and map.
+489	Allow gallery permission
+495	Directions in Google Maps
+496	Open in Google Maps →
+497	Continue with Google
+501	A CRM built for Gurgaon brokers
+504	The latest on Gurgaon real estate
+505	Gurgaon's smartest property hub
+506	Every property in Gurgaon,
+507	Verified rental homes in Gurgaon
+508	Trusted brokers of Gurgaon
+509	Find your next home in Gurgaon
+511	Upload your HRERA agent certificate (and GST, if any) — admin will verify within 24–48 hours.
+514	Verified broker badge with HRERA certificate
+518	Hi, I want to know about "{n}".
+520	Hi, I'm interested in "{n}". Please share the details.
+521	Hint (optional): e.g. 'all are for rent, Sector 57'
+526	Show hot leads
+527	Connect Housing / 99acres / MagicBricks inbox and WhatsApp — leads will come in automatically.
+528	All leads from Housing, 99acres and Facebook in one app — with WhatsApp automation and AI.
+529	Bring leads from Housing, 99acres, MagicBricks, Facebook and WhatsApp into one inbox. Close more deals with automatic WhatsApp, follow-up reminders and AI.
+530	Housing, 99acres, MagicBricks, NoBroker, Facebook/Instagram ads and WhatsApp — all leads land here automatically, in your own database
+542	View inventory
+543	Accept invite
+545	Invite email sent
+547	Invite link is valid for 7 days
+548	Invite created — share the link
+549	Send invite
+550	JPG / PNG · max
+561	Lead added
+564	Schedule a follow-up from the lead detail page or the button above.
+566	Mark lead as lost
+567	Why was the lead lost?
+568	Schedule a visit from the lead page.
+569	Schedule a visit from the lead page or the button above.
+570	Save lead
+572	Lead sources (7 days)
+574	Welcome, assignment and drip follow-ups the moment a lead arrives — work goes on even while your team sleeps
+575	Type lead name or phone…
+576	A deal is added when you mark a lead as WON.
+577	Search leads — name / phone
+578	Add a deal here when you win a lead — commission and agent payout will be tracked.
+579	Lead received —
