@@ -1,0 +1,86 @@
+870	Post property
+871	Post property (FREE)
+872	Share property
+875	Where is the property?
+876	Highlights of the property — view, ventilation, nearby school/metro, society facilities…
+877	Looking for a property?
+878	Want to rent out your property?
+883	Upload RERA / GST documents — a verified badge brings 3x more trust and leads.
+887	RERA registered launches — prices, configurations, possession and brochures.
+888	RERA verified brokers, reviews, and call, WhatsApp or site visit in one tap.
+892	Razorpay did not load
+900	The reason shows in analytics where leads are being lost.
+907	Add photos of one or more register / diary pages — OCR + AI turns every rent property into a row. Check them and send for approval.
+908	Scan register pages
+909	Scan register pages → rent listings
+927	Enter rent
+931	Mark as rented
+932	Edit reply
+934	Reply
+936	Report sent — our team will look into it
+937	Send report
+938	Report received — our team will look into it
+943	Fill in the requirement (budget, BHK, locality) for better matching. (Web CRM → Requirement)
+945	Change the requirement or browse the marketplace.
+946	Fill in the requirement for better matching
+949	Mark as responded
+952	Review and description
+953	Thanks for the review!
+954	Sent for review
+955	Sent for review — it will go live after admin approval ✅
+956	Write a review
+963	Edit row
+964	Check the rows against this text
+965	Check the rows against this text.
+966	Rule of thumb: keep rent around 30% of take-home pay (at most 40%).
+982	Saved — enter a new one to change it
+984	Scanned rows will appear here
+986	The scanner detects page edges automatically, crops and cleans them. Many pages at once — both Hindi and English handwriting work.
+993	Tap “Save search” on the search page.
+996	Search saved — you'll get alerts for new matching listings 🔔
+997	Search saved — you'll get an alert as soon as new properties arrive 🔔
+998	✔ Verified badge in search and on your microsite
+999	Search
+1000	Top of search, “Handpicked” on the homepage, and a Featured badge — many times more views and enquiries on average.
+1001	Search removed
+1007	3 BHK furnished in Sector 65, up to 60k
+1009	Search sector…
+1010	Search sector or locality
+1011	Search sector, locality, society, project or builder…
+1012	Search sector, society or project…
+1013	Sector, society, BHK, rent, deposit, brokerage and owner contact are extracted
+1027	Couldn't connect to the server — check your internet
+1030	Complete setup 🚀
+1031	Setup complete! 🎉 Now connect your leads
+1034	Turn off sharing?
+1039	Added to shortlist ❤️
+1043	By signing up you agree to our
+1044	Sign up
+1048	Site visit request sent 🎉
+1049	Schedule site visit
+1050	When a site visit is scheduled
+1061	Mark as sold
+1071	Choose stage
+1072	When the stage changes
+1073	Change stage
+1088	By submitting you
+1097	Write posts from Super Admin → CMS → Blog.
+1098	New projects can be added from Super Admin → Master Data → Projects.
+1099	Add it in Super Admin → Settings → Credentials center (website).
+1100	Talk to support
+1104	Add tag
+1111	Notify team
+1112	Joined the team 🎉
+1113	Remove from team
+1115	Choose template
+1116	Template sent
+1117	Send template
+1119	Brokerage charged to the tenant — shown clearly on the listing
+1125	Then (add an action)
+1127	Tip: responding within 5 minutes multiplies conversion — keep the “Instant WhatsApp welcome” automation on.
+1128	Tip: Housing / 99acres / MagicBricks / NoBroker's
+1130	Title (optional — generated automatically if left empty)
+1131	Title, price, locality and link will go on WhatsApp.
+1142	Rotate URL
+1145	Unassigned (automation will decide)
+1158	Update
