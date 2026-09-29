@@ -24,7 +24,9 @@ for (const f of fs.readdirSync(dir).filter((f) => /^[a-z]{2}\.\d+\.txt$/.test(f)
       continue;
     }
     const warn = [];
-    if (count(key, /\{n\}/g) !== count(val, /\{n\}/g)) warn.push('{n} count');
+    const slots = count(key, /\{n\}/g);
+    const idx = [...val.matchAll(/\{(\d)\}/g)].map((m) => Number(m[1]));
+    if (idx.length ? idx.length !== slots || idx.some((i) => i < 1 || i > slots) || count(val, /\{n\}/g) : slots !== count(val, /\{n\}/g)) warn.push('{n} count');
     const keyDigits = (key.match(/\d+/g) ?? []).join(',');
     const valDigits = (val.match(/\d+/g) ?? []).join(',');
     if (keyDigits && keyDigits.split(',').some((d) => !val.includes(d))) warn.push(`digits ${keyDigits}→${valDigits}`);

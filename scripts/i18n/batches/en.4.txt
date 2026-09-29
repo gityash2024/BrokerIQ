@@ -1,0 +1,136 @@
+1173	Verified agencies, ratings and live listings — pick the expert for your area.
+1174	Required for the verified badge
+1184	Watch video
+1188	Schedule visit
+1189	Visit scheduled — lead moved to the "Site visit" stage
+1191	How was the visit?
+1192	Reminder before the visit
+1200	Chats started by users on the website will appear here.
+1201	Weekend (Saturday 11)
+1206	WhatsApp Business is not connected
+1207	Open in the WhatsApp app
+1208	WhatsApp is not connected
+1214	WhatsApp and website chat — all client messages in one place, in real time. Every conversation is linked to its lead.
+1215	WhatsApp
+1216	Share on WhatsApp
+1217	Sent on WhatsApp
+1218	Send on WhatsApp
+1219	WhatsApp sent
+1220	WhatsApp sent ✓
+1222	Window closed — send a template
+1228	No activity for X hours
+1230	Yearly (save)
+1233	activities (30 days)
+1235	sent for admin approval
+1236	Send for approval
+1242	leads received from connectors so far · duplicate phones are merged automatically
+1245	added to drafts
+1261	localities — live listings, average ₹/sq.ft and a neighbourhood guide for every sector.
+1269	setup pending
+1270	shared (from the mobile app)
+1274	steps — full setup = 3x more converted leads
+1276	View usage
+1287	{n} active leads · budget pipeline {n} · drag cards to change stage
+1288	{n} sent for admin approval ✅
+1289	Send {n} for approval
+1296	{n} draft listings created
+1301	Delete {n} leads?
+1303	{n} leads — from every portal, ad and WhatsApp in one place
+1304	{n} listings sent for admin approval
+1308	Show {n} results
+1310	{n} setup pending
+1318	{n} {n} read — check and import
+1324	Expert brokers of {n}
+1325	Experts of {n}
+1326	Remove saved credentials of {n}?
+1327	I'd like the price list and site visit details for {n}.
+1328	Rate {n}
+1329	Remove {n} from the team? Their leads will become unassigned.
+1330	Your enquiry was sent to {n}
+1331	{n} read ✨
+1332	Email sent to {n}. You can also send the link on WhatsApp:
+1333	{n} created — add photos and send for approval
+1334	Properties in {n}
+1335	Find your next home in {n}
+1336	Welcome to {n}
+1337	How was the call with {n}?
+1338	Contact {n}
+1341	{n} — need price list / brochure
+1345	{n} — what was discussed? (saved to the timeline)
+1352	{n}, join our team: {n}
+1362	· in business hours
+1370	· {n} rows need fixing
+1373	· well-lit photos bring more enquiries
+1377	Working alone?
+1378	Frequently asked questions
+1379	If this email is registered, a code has been sent
+1380	Next 7 days →
+1381	5+ well-lit photos bring more enquiries. The first photo becomes the cover (tap ★ to change).
+1382	Connect your WhatsApp Business number — only then will messages arrive here and automation run.
+1383	Connect your number — client messages will arrive here and automation will run. (Firm admin → More → Lead connectors)
+1384	Set up your firm
+1385	Post your property
+1386	Post your property — tenant enquiries will arrive here.
+1387	Save a search that matches your requirement — you'll get an alert as soon as a new property arrives.
+1388	Your website forms, Google Ads lead forms (via Zapier/Make/Pabbly), any CRM or landing page — send JSON or a form POST to this URL.
+1389	Save your favourite properties
+1390	Write your opinion…
+1391	Choose a time that suits you — you'll get confirmation on WhatsApp/call.
+1392	Log in to your account
+1393	Check now
+1394	Check inbox now
+1395	The platform's shared WhatsApp number is in use right now. Add your own number so messages go in your name and replies land in your inbox.
+1396	Sync now
+1397	Nothing saved yet
+1398	Nothing yet
+1399	Nothing viewed yet
+1400	No active listings yet
+1401	No automations yet
+1402	No chats yet
+1403	No completed follow-ups yet
+1404	No deals yet
+1405	No enquiries received yet
+1406	No enquiries sent yet
+1407	No feedback yet
+1408	You haven't given any feedback yet
+1409	No leads yet
+1410	No leads yet.
+1411	No listings yet
+1412	No messages yet
+1413	No payments yet
+1414	No public ideas yet
+1415	No reviews yet
+1416	No reviews yet — be the first to write one.
+1417	No reviews yet.
+1418	No tasks yet
+1419	Add now →
+1420	Hasn't run yet
+1421	Not now
+1422	Next
+1423	Today's agenda
+1424	Tell me today's agenda
+1425	Today's platform overview
+1426	Today's site visits
+1427	Today's new leads
+1428	Today's follow-ups
+1429	No follow-ups today 🎉
+1430	No pending tasks today 🎉
+1431	No visits scheduled today.
+1432	Till date
+1433	Today 6 pm
+1434	From today
+1435	Start today — setup takes 5 minutes
+1436	You check / edit
+1437	Which areas are you an expert in?
+1438	Who are you?
+1439	You tell us, we build it. Suggest new features, vote on others' ideas and see what's being built.
+1440	Your email (for replies)
+1441	Your experience
+1442	How was your experience?
+1443	Your answer
+1444	Your name
+1445	Your automations
+1446	How much rent is right for your income
+1447	Your listings, saved properties and chats will be removed. This cannot be undone.
+1448	Your location
+1449	Your microsite
