@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { normalizeIndianPhone } from '@brokeriq/shared';
+import { normalizeIndianPhone, videoRoomUrl } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -9,7 +9,8 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { LeadsService } from '../leads/leads.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import type { RequestUser } from '../../common/decorators';
-import { requireOrg } from '../../common/utils';
+import { randomToken, requireOrg } from '../../common/utils';
+import { FeaturesService } from '../../core/features/features.service';
 import { env } from '../../config/env';
 
 export interface VisitSlotConfig {
@@ -61,6 +62,7 @@ export class VisitBookingService {
     private readonly settings: SettingsService,
     private readonly leads: LeadsService,
     private readonly wa: WhatsAppService,
+    private readonly features: FeaturesService,
   ) {}
 
   config(raw: unknown): VisitSlotConfig {
@@ -116,7 +118,13 @@ export class VisitBookingService {
     return { bookable: true, days: [...byDay.entries()].map(([date, slots]) => ({ date, slots })) };
   }
 
-  async book(user: RequestUser, listingId: string, body: { at: string; name?: string | null; phone?: string | null; note?: string | null }) {
+  async book(
+    user: RequestUser,
+    listingId: string,
+    body: { at: string; name?: string | null; phone?: string | null; note?: string | null; mode?: 'IN_PERSON' | 'VIDEO' },
+  ) {
+    const video = body.mode === 'VIDEO';
+    if (video) await this.features.assertEnabled('video_visits');
     const l = await this.bookableListing(listingId);
     if (!l.organization) throw new BadRequestException('इस listing पर slot booking नहीं है — enquiry भेजें');
     const at = new Date(body.at);
@@ -138,7 +146,7 @@ export class VisitBookingService {
       sourceRef: `visit:${l.id}:${at.toISOString()}`,
       sourceDetail: `Visit booked: ${l.title}`,
       listingId: l.id,
-      message: `Site visit ${when}${body.note ? ` — ${body.note}` : ''}`,
+      message: `${video ? 'Video visit' : 'Site visit'} ${when}${body.note ? ` — ${body.note}` : ''}`,
     });
     if (me.tenantVerifiedAt && !lead.tags.includes('verified-tenant'))
       await this.prisma.lead.update({ where: { id: lead.id }, data: { tags: { push: 'verified-tenant' } } });
@@ -153,6 +161,8 @@ export class VisitBookingService {
         note: body.note ?? null,
         tenantUserId: user.id,
         bookedByTenant: true,
+        mode: video ? 'VIDEO' : 'IN_PERSON',
+        meetingUrl: video ? videoRoomUrl(randomToken(12)) : null,
       },
     });
     await this.prisma.enquiry.create({
@@ -176,12 +186,17 @@ export class VisitBookingService {
         organizationId: l.organization.id,
         leadId: lead.id,
         type: 'SITE_VISIT',
-        content: `📅 Tenant ने visit book की: ${when}`,
+        content: `${video ? '🎥 Tenant ने video visit book की' : '📅 Tenant ने visit book की'}: ${when}${visit.meetingUrl ? ` · ${visit.meetingUrl}` : ''}`,
         meta: { visitId: visit.id },
       },
     });
     this.events.emit('visit.scheduled', { visitId: visit.id, orgId: l.organization.id, leadId: lead.id });
-    const note = { kind: 'VISIT_BOOKED', title: `📅 नई visit booking: ${name}`, body: `${l.title} · ${when}`, link: `/broker/visits` };
+    const note = {
+      kind: 'VISIT_BOOKED',
+      title: `${video ? '🎥 नई video visit' : '📅 नई visit booking'}: ${name}`,
+      body: `${l.title} · ${when}${visit.meetingUrl ? ` · ${visit.meetingUrl}` : ''}`,
+      link: `/broker/visits`,
+    };
     if (lead.assignedToId) await this.notifications.notify(lead.assignedToId, note);
     else await this.notifications.notifyOrg(l.organization.id, note, { adminsOnly: true });
     return { visit, when };
@@ -251,12 +266,13 @@ export class VisitBookingService {
         hour: 'numeric',
         minute: '2-digit',
       });
-      const title = hour ? `⏰ 1 घंटे में site visit: ${v.listing?.title ?? ''}` : `📅 कल site visit: ${when}`;
+      const what = v.mode === 'VIDEO' ? 'video visit' : 'site visit';
+      const title = hour ? `⏰ 1 घंटे में ${what}: ${v.listing?.title ?? ''}` : `📅 कल ${what}: ${when}`;
       await this.notifications.notify(v.tenantUserId!, {
         kind: 'VISIT_REMINDER',
         title,
-        body: `${v.address ?? ''} · ${v.organization.name}`,
-        link: v.listing ? `/property/${v.listing.slug}` : '/account/visits',
+        body: v.meetingUrl ? `Video call link: ${v.meetingUrl} · ${v.organization.name}` : `${v.address ?? ''} · ${v.organization.name}`,
+        link: v.meetingUrl ?? (v.listing ? `/property/${v.listing.slug}` : '/account/visits'),
       });
       const tpl = app.whatsappTemplates?.visitReminder;
       if (tpl && v.lead?.phone) {

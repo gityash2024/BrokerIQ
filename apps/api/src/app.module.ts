@@ -39,6 +39,7 @@ import { CommunityModule } from './modules/community/community.module';
 import { WaBotModule } from './modules/wabot/wabot.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { GrowthModule } from './modules/growth/growth.module';
+import { RentalsModule } from './modules/rentals/rentals.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -79,6 +80,7 @@ import { isInternalCall } from './common/internal';
     WaBotModule,
     CampaignsModule,
     GrowthModule,
+    RentalsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

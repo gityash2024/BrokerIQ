@@ -26,6 +26,16 @@ export const GROWTH_FEATURES = [
   { key: 'broker_reports', name: 'Reports export', description: 'Monthly deals, commission, invoices and GST — CSV & PDF' },
   { key: 'owner_reports', name: 'Owner report link', description: 'Read-only page for property owners: views, enquiries, visits' },
   {
+    key: 'rent_tracker',
+    name: 'Rent reminders & receipts',
+    description: 'Monthly rent reminders with the owner’s UPI link, rent receipts (HRA), “मेरा किराया”',
+  },
+  { key: 'inspections', name: 'Move-in/out checklist', description: 'Room-wise condition, meters, keys, deposit settlement — both sides confirm by OTP' },
+  { key: 'fair_rent', name: 'Fair rent estimator', description: 'Median rent for locality + BHK from real listings (/tools/fair-rent, property page)' },
+  { key: 'video_visits', name: 'Video visits', description: 'Book a video site visit (free Jitsi Meet link)' },
+  { key: 'agreement_esign', name: 'Agreement OTP-sign', description: 'Landlord and tenant confirm the rent agreement by OTP (certificate page + SHA-256)' },
+  { key: 'compare_shortlist', name: 'Compare & shared shortlist', description: 'Compare 2–4 homes side by side; share saved homes with family' },
+  {
     key: 'sale_listings',
     name: 'Sale & new projects',
     description: 'Buy, plots, new-launch projects, EMI tools (rental-only launch: keep OFF)',

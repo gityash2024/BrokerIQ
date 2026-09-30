@@ -295,6 +295,8 @@ export const visitInputSchema = z.object({
   address: z.string().max(300).optional().nullable(),
   note: z.string().max(1000).optional().nullable(),
   assignedToId: z.string().optional().nullable(),
+  /** VIDEO = free Jitsi Meet room instead of meeting at the property */
+  mode: z.enum(['IN_PERSON', 'VIDEO']).default('IN_PERSON'),
 });
 export const visitUpdateSchema = z.object({
   status: enumOf(VisitStatus).optional(),
@@ -559,3 +561,72 @@ export const comparisonSchema = z.object({
   listingIds: z.array(z.string().min(1).max(40)).min(2, 'कम से कम 2 properties चुनें').max(5, 'ज़्यादा से ज़्यादा 5 properties'),
   leadId: z.string().max(40).optional().nullable(),
 });
+
+// ------------------------------------------------------------------ Tenant & owner tools
+export const tenancyRentSchema = z.object({
+  rentDueDay: z.number().int().min(1).max(28).nullable().optional(),
+  tenantEmail: z.string().trim().email('Email सही नहीं है').max(200).nullable().optional().or(z.literal('')),
+  tenantPhone: z.string().trim().max(20).nullable().optional(),
+});
+export const rentPaymentSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'महीना YYYY-MM में'),
+  amount: z.number().positive().max(1e8),
+  paidOn: z.string().date().optional(),
+  mode: z.enum(['UPI', 'BANK', 'CASH', 'CHEQUE']).default('UPI'),
+  reference: z.string().trim().max(100).optional().nullable(),
+});
+export const ownerPaymentSchema = z.object({
+  upiId: z
+    .string()
+    .trim()
+    .regex(/^[\w.-]{2,256}@[a-zA-Z][\w]{2,64}$/, 'UPI ID सही नहीं है (जैसे name@okhdfcbank)')
+    .nullable()
+    .optional()
+    .or(z.literal('')),
+  pan: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{5}\d{4}[A-Z]$/, 'PAN सही नहीं है')
+    .nullable()
+    .optional()
+    .or(z.literal('')),
+  email: z.string().trim().email().max(200).nullable().optional().or(z.literal('')),
+});
+
+export const INSPECTION_CONDITIONS = ['GOOD', 'OK', 'DAMAGED', 'MISSING'] as const;
+export const inspectionSchema = z.object({
+  kind: z.enum(['MOVE_IN', 'MOVE_OUT']),
+  rooms: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(40),
+        items: z
+          .array(
+            z.object({ name: z.string().trim().min(1).max(60), condition: z.enum(INSPECTION_CONDITIONS), note: z.string().max(200).optional().nullable() }),
+          )
+          .max(40),
+      }),
+    )
+    .max(20),
+  meters: z
+    .object({ electricity: z.string().max(20).optional(), water: z.string().max(20).optional(), gas: z.string().max(20).optional() })
+    .optional()
+    .nullable(),
+  keys: z.number().int().min(0).max(50).optional().nullable(),
+  photos: z.array(z.string().url().max(500)).max(40).default([]),
+  notes: z.string().max(2000).optional().nullable(),
+  depositAmount: z.number().nonnegative().max(1e8).optional().nullable(),
+  deductions: z
+    .array(z.object({ reason: z.string().trim().min(2).max(100), amount: z.number().nonnegative().max(1e8) }))
+    .max(20)
+    .optional()
+    .nullable(),
+});
+export type InspectionInput = z.infer<typeof inspectionSchema>;
+
+export const signStartSchema = z.object({
+  landlordEmail: z.string().trim().email('Landlord का email डालें').max(200),
+  tenantEmail: z.string().trim().email('Tenant का email डालें').max(200),
+});
+export const otpSchema = z.object({ otp: z.string().regex(/^\d{6}$/, '6 अंकों का OTP डालें') });

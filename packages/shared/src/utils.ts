@@ -216,5 +216,8 @@ export function rentSplit(rent: number, bills: number, people: number, masterPre
 }
 
 /** Public counters (live properties, brokers…) are shown only once they look credible — no "0+" at launch. */
+/** Free video-call room for a site visit (Jitsi Meet: no account or app needed). */
+export const videoRoomUrl = (seed: string) => `https://meet.jit.si/BrokerIQ-${seed.replace(/[^A-Za-z0-9]/g, '').slice(0, 24)}`;
+
 export const STAT_MIN = 10;
 export const showStat = (n: unknown): n is number => typeof n === 'number' && n >= STAT_MIN;

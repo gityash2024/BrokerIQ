@@ -153,7 +153,12 @@ export class CommunityService {
 
   // ------------------------------------------------------------------ rent agreement
   listAgreements(userId: string) {
-    return this.prisma.rentAgreement.findMany({ where: { createdById: userId }, orderBy: { createdAt: 'desc' }, take: 50 });
+    return this.prisma.rentAgreement.findMany({
+      where: { createdById: userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: { signatures: { select: { party: true, name: true, email: true, signedAt: true } } },
+    });
   }
 
   createAgreement(user: RequestUser, input: Omit<Prisma.RentAgreementUncheckedCreateInput, 'id' | 'createdById'>) {
@@ -166,7 +171,8 @@ export class CommunityService {
     return this.renderAgreement(a);
   }
 
-  renderAgreement(a: RentAgreement): Promise<Buffer> {
+  /** `appendix` adds pages at the end (e.g. the e-sign certificate). */
+  renderAgreement(a: RentAgreement, appendix?: (doc: PDFKit.PDFDocument) => void): Promise<Buffer> {
     const start = a.startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
     const end = new Date(a.startDate);
     end.setMonth(end.getMonth() + a.months);
@@ -203,7 +209,7 @@ export class CommunityService {
         .text('DRAFT — to be printed on e-stamp paper of the applicable value and signed by both parties with two witnesses.', { align: 'center' });
       doc.moveDown().fillColor('#0f172a').fontSize(10.5);
       doc.text(
-        `This agreement is made on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} at Gurugram, Haryana, between:`,
+        `This agreement is made on ${a.createdAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })} at Gurugram, Haryana, between:`,
       );
       doc
         .moveDown(0.5)
@@ -240,6 +246,7 @@ export class CommunityService {
         .fontSize(8)
         .fillColor('#94a3b8')
         .text('Generated with BrokerIQ. This is a template, not legal advice — consult a lawyer for your situation.', 56, doc.y, { align: 'center' });
+      appendix?.(doc);
       doc.end();
     });
   }

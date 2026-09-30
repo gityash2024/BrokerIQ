@@ -2,13 +2,14 @@ import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Q
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { dealInputSchema, followUpInputSchema, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
+import { dealInputSchema, followUpInputSchema, videoRoomUrl, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LeadsService } from './leads.service';
 import { EventsService } from '../../core/events/events.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
-import { requireOrg } from '../../common/utils';
+import { randomToken, requireOrg } from '../../common/utils';
+import { FeaturesService } from '../../core/features/features.service';
 
 const followUpUpdate = z.object({
   status: z.enum(['PENDING', 'DONE', 'MISSED', 'CANCELLED']).optional(),
@@ -29,6 +30,7 @@ export class TasksController {
     private readonly prisma: PrismaService,
     private readonly leads: LeadsService,
     private readonly events: EventsService,
+    private readonly features: FeaturesService,
   ) {}
 
   private mineFilter(user: RequestUser) {
@@ -147,6 +149,8 @@ export class TasksController {
   @Post('visits')
   async createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: z.infer<typeof visitInputSchema>) {
     const lead = await this.leads.getScoped(body.leadId, user);
+    const video = body.mode === 'VIDEO';
+    if (video) await this.features.assertEnabled('video_visits');
     const visit = await this.prisma.siteVisit.create({
       data: {
         organizationId: lead.organizationId,
@@ -156,6 +160,8 @@ export class TasksController {
         address: body.address,
         note: body.note,
         assignedToId: body.assignedToId ?? lead.assignedToId ?? user.id,
+        mode: video ? 'VIDEO' : 'IN_PERSON',
+        meetingUrl: video ? videoRoomUrl(randomToken(12)) : null,
       },
       include: { listing: { select: { title: true } } },
     });
@@ -165,7 +171,7 @@ export class TasksController {
         leadId: lead.id,
         userId: user.id,
         type: 'SITE_VISIT',
-        content: `Site visit scheduled: ${new Date(body.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${visit.listing ? ` — ${visit.listing.title}` : ''}`,
+        content: `${video ? '🎥 Video visit' : 'Site visit'} scheduled: ${new Date(body.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${visit.listing ? ` — ${visit.listing.title}` : ''}${visit.meetingUrl ? ` · ${visit.meetingUrl}` : ''}`,
       },
     });
     if (['NEW', 'CONTACTED', 'INTERESTED'].includes(lead.stage)) await this.leads.changeStage(lead.id, 'SITE_VISIT', user);

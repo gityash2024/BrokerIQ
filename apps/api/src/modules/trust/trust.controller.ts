@@ -22,6 +22,7 @@ const bookSchema = z.object({
   name: z.string().trim().min(2).max(80).optional().nullable(),
   phone: phoneSchema.optional().nullable(),
   note: z.string().max(300).optional().nullable(),
+  mode: z.enum(['IN_PERSON', 'VIDEO']).default('IN_PERSON'),
 });
 const rating = z.number().int().min(1).max(5);
 const reviewSchema = z.object({

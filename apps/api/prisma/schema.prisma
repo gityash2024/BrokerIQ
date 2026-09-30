@@ -1146,6 +1146,9 @@ model SiteVisit {
   bookedByTenant       Boolean     @default(false)
   tenantDayReminderAt  DateTime?
   tenantHourReminderAt DateTime?
+  /// IN_PERSON or VIDEO (video visits use a free Jitsi Meet room)
+  mode                 String      @default("IN_PERSON")
+  meetingUrl           String?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -1809,6 +1812,10 @@ model Owner {
   reportToken    String?  @unique
   /// Email the owner a weekly report (needs email + SMTP)
   weeklyReport   Boolean  @default(false)
+  /// Rent goes straight to the owner's UPI (rent reminders show a UPI link)
+  upiId          String?
+  /// Printed on rent receipts (tenants need it for HRA when rent > ₹1 lakh/year)
+  pan            String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -1834,15 +1841,25 @@ model Tenancy {
   status         TenancyStatus @default(ACTIVE)
   remindersSent  Int[]
   notes          String?
+  /// Day of month rent is due (1–28); null = no rent reminders
+  rentDueDay     Int?
+  tenantEmail    String?
+  /// Tenant's BrokerIQ account (matched by phone/email) — shows up in "मेरा किराया"
+  tenantUserId   String?
+  /// Rent reminders already sent, e.g. "2026-10:pre", "2026-10:due"
+  rentReminders  String[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  listing      Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  owner        Owner?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  listing      Listing?            @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  owner        Owner?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  deal         Deal?               @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  rentPayments RentPayment[]
+  inspections  TenancyInspection[]
 
   @@index([organizationId, status, endDate])
+  @@index([tenantUserId])
 }
 
 /// Click-to-call / incoming call via the firm's Exotel account.
@@ -2012,7 +2029,7 @@ model FlatmateConnect {
 
 /// Draft 11-month rent agreement generated as a PDF (not legal advice).
 model RentAgreement {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   createdById     String
   organizationId  String?
   listingId       String?
@@ -2027,14 +2044,23 @@ model RentAgreement {
   deposit         Float
   maintenance     Float?
   startDate       DateTime
-  months          Int      @default(11)
-  lockInMonths    Int      @default(0)
-  noticeMonths    Int      @default(1)
-  escalationPct   Float    @default(0)
+  months          Int       @default(11)
+  lockInMonths    Int       @default(0)
+  noticeMonths    Int       @default(1)
+  escalationPct   Float     @default(0)
   furnishing      String?
   extraClauses    String[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  landlordEmail   String?
+  tenantEmail     String?
+  /// DRAFT → SIGNING (OTP links sent) → SIGNED (both confirmed)
+  signStatus      String    @default("DRAFT")
+  /// SHA-256 of the agreement PDF both parties confirmed
+  documentHash    String?
+  signedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  signatures AgreementSignature[]
 
   @@index([createdById])
 }
@@ -2246,4 +2272,99 @@ model Comparison {
   lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
+}
+
+// ---------------------------------------------------------------- tenant & owner tools (v4)
+
+/// A month's rent marked paid by the broker/owner; the receipt PDF is public via token.
+model RentPayment {
+  id             String   @id @default(cuid())
+  tenancyId      String
+  organizationId String
+  /// "YYYY-MM"
+  month          String
+  amount         Float
+  paidOn         DateTime
+  mode           String?
+  reference      String?
+  receiptNo      String
+  token          String   @unique
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@unique([tenancyId, month])
+  @@index([organizationId, paidOn])
+}
+
+enum InspectionKind {
+  MOVE_IN
+  MOVE_OUT
+}
+
+/// Move-in / move-out checklist: room-wise condition, meter readings, keys, photos, deposit settlement.
+/// Landlord and tenant each confirm with an OTP sent to them.
+model TenancyInspection {
+  id                  String         @id @default(cuid())
+  tenancyId           String
+  organizationId      String
+  kind                InspectionKind
+  /// [{ name, items: [{ name, condition: GOOD|OK|DAMAGED|MISSING, note? }] }]
+  rooms               Json
+  /// { electricity?, water?, gas? }
+  meters              Json?
+  keys                Int?
+  photos              String[]
+  notes               String?
+  depositAmount       Float?
+  /// [{ reason, amount }]
+  deductions          Json?
+  refundAmount        Float?
+  token               String         @unique
+  landlordConfirmedAt DateTime?
+  tenantConfirmedAt   DateTime?
+  /// { LANDLORD: { hash, exp, tries }, TENANT: {...} } — OTPs are stored hashed only
+  otp                 Json?
+  /// { LANDLORD: { ip, ua }, TENANT: {...} } captured at confirmation
+  confirmMeta         Json?
+  createdById         String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@unique([tenancyId, kind])
+}
+
+/// One party's electronic confirmation of a rent agreement (OTP to their email/phone).
+model AgreementSignature {
+  id           String    @id @default(cuid())
+  agreementId  String
+  /// LANDLORD | TENANT
+  party        String
+  name         String
+  email        String?
+  phone        String?
+  token        String    @unique
+  otpHash      String?
+  otpExpiresAt DateTime?
+  attempts     Int       @default(0)
+  signedAt     DateTime?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  agreement RentAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  @@unique([agreementId, party])
+}
+
+/// Read-only link to a user's saved properties (share the shortlist with family).
+model ShortlistShare {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  token     String   @unique
+  opens     Int      @default(0)
+  createdAt DateTime @default(now())
 }

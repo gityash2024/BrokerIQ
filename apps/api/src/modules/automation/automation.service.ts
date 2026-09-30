@@ -430,8 +430,8 @@ export class AutomationService implements OnModuleInit {
       const who = v.assignedToId ?? v.lead.assignedToId;
       const input = {
         kind: 'VISIT_REMINDER',
-        title: `🏠 Site visit 1 घंटे में: ${v.lead.name}`,
-        body: v.listing?.title ?? v.address ?? '',
+        title: v.mode === 'VIDEO' ? `🎥 Video visit 1 घंटे में: ${v.lead.name}` : `🏠 Site visit 1 घंटे में: ${v.lead.name}`,
+        body: v.meetingUrl ? `Video call: ${v.meetingUrl}` : (v.listing?.title ?? v.address ?? ''),
         link: `/broker/leads/${v.leadId}`,
       };
       if (who) await this.notifications.notify(who, input);
