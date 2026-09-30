@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../../core/ai/ai.service';
 import { UsageService } from '../../core/usage/usage.service';
 import { AccessService } from '../../core/access/access.service';
+import { descriptionSystem } from '../../core/ai/prompts';
 
 const statusSchema = z.object({ status: z.enum(['SOLD', 'RENTED', 'ARCHIVED', 'ACTIVE']) });
 const aiDescSchema = listingInputSchema.partial().extend({ tone: z.enum(['professional', 'friendly', 'luxury']).default('professional'), language: z.enum(['en', 'hi']).default('en') });
@@ -142,11 +143,11 @@ export class ListingsController {
       [
         {
           role: 'system',
-          content: `You write property listing descriptions for a Gurgaon real-estate portal. Write 120-180 words, ${body.tone} tone, in ${body.language === 'hi' ? 'simple Hindi (Devanagari) with common English property terms' : 'English'}. Use only the given facts — never invent amenities, distances or prices. No phone numbers, no links, no emojis. Return plain text in 2 short paragraphs.`,
+          content: descriptionSystem(body.tone, body.language),
         },
         { role: 'user', content: JSON.stringify(facts) },
       ],
-      { feature: 'listing_description', orgId: user.orgId, userId: user.id, maxTokens: 500, temperature: 0.6 },
+      { feature: 'listing_description', orgId: user.orgId, userId: user.id, maxTokens: 600, temperature: 0.6, cacheMs: 10 * 60_000 },
     );
     return { description: text.trim() };
   }

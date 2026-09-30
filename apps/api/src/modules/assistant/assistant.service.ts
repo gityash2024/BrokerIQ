@@ -8,6 +8,7 @@ import { env } from '../../config/env';
 import { INTERNAL_CALL_HEADER, INTERNAL_CALL_TOKEN } from '../../common/internal';
 import type { RequestUser } from '../../common/decorators';
 import { TOOLS, toOpenAi, toolsFor, type Call, type Tool, type ToolCtx } from './tools';
+import { assistantSystem } from '../../core/ai/prompts';
 
 interface Pending {
   userId: string;
@@ -80,15 +81,7 @@ export class AssistantService {
       SUPPORT: 'a BrokerIQ support team member (helps users and brokers)',
     };
     const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
-    return [
-      `You are "BrokerIQ Assistant", the in-app AI agent of BrokerIQ — a rental property & brokerage platform for Gurgaon (Gurugram), Haryana, India. Only rentals (flats, builder floors, PG, offices…), no property sales.`,
-      `You are helping ${user.name ?? 'the user'}, ${roleText[user.role]}. Current date/time (IST): ${now}.${context?.path ? ` They are on the screen "${context.path}"${context.entityId ? ` (id ${context.entityId})` : ''}.` : ''}`,
-      `Reply in ${L.name}${L.code === 'en' ? '' : ` (${L.native} script)`} — short, friendly, practical. Money in ₹ with Indian formatting.`,
-      `Use the tools to look things up and to act for THIS user only. Never invent listings, leads, numbers or ids — use tool results. If something needs more details (e.g. locality or rent), ask a short question.`,
-      `Tools that change data are confirmed by the user before they run: call them with complete arguments and tell the user what will happen; never claim an action is done until it is confirmed.`,
-      `Every listing goes live only after admin approval. You cannot see or share anyone's private contacts or locations, other firms' data, or anything outside this user's own permissions — say so politely if asked.`,
-      `When you list properties or leads, mention the key facts (rent, BHK, locality / stage) — the app shows them as tappable cards.`,
-    ].join('\n');
+    return assistantSystem({ userName: user.name ?? 'the user', roleText: roleText[user.role], now, languageName: L.name, languageNative: L.code === 'en' ? undefined : L.native, path: context?.path, entityId: context?.entityId });
   }
 
   async chat(user: RequestUser & { name?: string }, auth: string, body: { messages: { role: 'user' | 'assistant'; content: string }[]; lang: string; context?: { path?: string; entityId?: string } }, ip?: string): Promise<AssistantReply> {

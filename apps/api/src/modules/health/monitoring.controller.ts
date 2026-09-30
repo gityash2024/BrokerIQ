@@ -59,6 +59,37 @@ export class MonitoringController {
     return r;
   }
 
+  /**
+   * Cost & usage (last 24 h / 30 days): AI calls per provider (and failures), emails sent, WhatsApp messages
+   * sent, disk — so the free tiers of each provider are not crossed.
+   */
+  @Roles('SUPER_ADMIN')
+  @Get('admin/usage/costs')
+  async costs() {
+    const day = new Date(Date.now() - 86400_000);
+    const month = new Date(Date.now() - 30 * 86400_000);
+    const [ai24, ai30, mail24, mail30, wa24, wa30, checks] = await Promise.all([
+      this.prisma.aiUsage.groupBy({ by: ['provider', 'success'], where: { createdAt: { gte: day } }, _count: { _all: true }, _sum: { tokens: true } }),
+      this.prisma.aiUsage.groupBy({ by: ['provider', 'success'], where: { createdAt: { gte: month } }, _count: { _all: true }, _sum: { tokens: true } }),
+      this.prisma.integrationLog.count({ where: { integration: 'smtp', action: 'send', success: true, createdAt: { gte: day } } }),
+      this.prisma.integrationLog.count({ where: { integration: 'smtp', action: 'send', success: true, createdAt: { gte: month } } }),
+      this.prisma.message.count({ where: { direction: 'OUTBOUND', createdAt: { gte: day }, conversation: { channel: 'WHATSAPP' } } }).catch(() => 0),
+      this.prisma.message.count({ where: { direction: 'OUTBOUND', createdAt: { gte: month }, conversation: { channel: 'WHATSAPP' } } }).catch(() => 0),
+      this.monitoring.checks().catch(() => null),
+    ]);
+    const shape = (rows: typeof ai24) =>
+      Object.values(
+        rows.reduce<Record<string, { provider: string; ok: number; failed: number; tokens: number }>>((acc, r) => {
+          const x = (acc[r.provider] ??= { provider: r.provider, ok: 0, failed: 0, tokens: 0 });
+          if (r.success) x.ok += r._count._all;
+          else x.failed += r._count._all;
+          x.tokens += r._sum.tokens ?? 0;
+          return acc;
+        }, {}),
+      );
+    return { ai: { day: shape(ai24), month: shape(ai30) }, email: { day: mail24, month: mail30 }, whatsapp: { day: wa24, month: wa30 }, disk: checks?.disk ?? null };
+  }
+
   /** Run the uptime checks now (website, database, disk, watchdog). */
   @Roles('SUPER_ADMIN')
   @HttpCode(200)

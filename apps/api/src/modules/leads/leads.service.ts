@@ -19,6 +19,7 @@ import { paged, requireOrg, shortCode } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
 import { env } from '../../config/env';
+import { LEAD_INSIGHTS_SYSTEM, leadInsightsSchema, type LeadInsights } from '../../core/ai/prompts';
 
 export interface IngestInput {
   orgId: string;
@@ -490,16 +491,12 @@ export class LeadsService {
       visits: lead.visits.map((v) => ({ at: v.scheduledAt, status: v.status, feedback: v.feedback })),
       whatsapp: convo.reverse().map((m) => ({ dir: m.direction, text: m.body })),
     };
-    const out = await this.ai.json<{ summary: string; temperature: 'HOT' | 'WARM' | 'COLD'; score: number; nextAction: string; suggestedReply: string }>(
+    const out = await this.ai.json<LeadInsights>(
       [
-        {
-          role: 'system',
-          content:
-            'You are a sales assistant for an Indian real-estate broker in Gurgaon. Analyse the lead and respond ONLY as JSON: {"summary": string (3-4 lines, Hinglish ok), "temperature": "HOT"|"WARM"|"COLD", "score": 0-100 purchase-intent score, "nextAction": string (one concrete next step), "suggestedReply": string (short friendly WhatsApp message in Hinglish, no emojis overload)}. Base everything strictly on the data given.',
-        },
+        { role: 'system', content: LEAD_INSIGHTS_SYSTEM },
         { role: 'user', content: JSON.stringify(context) },
       ],
-      { feature: 'lead_insights', orgId: lead.organizationId, userId: user.id, maxTokens: 700 },
+      { feature: 'lead_insights', orgId: lead.organizationId, userId: user.id, maxTokens: 700, temperature: 0.2, schema: leadInsightsSchema },
     );
     const score = Math.max(0, Math.min(100, Math.round(Number(out.score) || 0)));
     await this.prisma.lead.update({ where: { id }, data: { aiSummary: out.summary, temperature: ['HOT', 'WARM', 'COLD'].includes(out.temperature) ? out.temperature : undefined, score } });

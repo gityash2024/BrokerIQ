@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Activity, AlertTriangle, Bug, CheckCircle2, Clock, Cpu, Database, RefreshCw, Server, Webhook, XCircle } from 'lucide-react';
+import { Activity, AlertTriangle, Bug, CheckCircle2, Gauge, Clock, Cpu, Database, RefreshCw, Server, Webhook, XCircle } from 'lucide-react';
 import { INTEGRATIONS } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -92,6 +92,7 @@ export default function HealthPage() {
               </div>
             </div>
           )}
+          <CostsCard />
           <ErrorsCard />
         </div>
       )}
@@ -142,6 +143,50 @@ function ErrorsCard() {
               )}
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Free-tier watch: AI calls per provider, emails and WhatsApp sends, disk — last 24 h and 30 days. */
+function CostsCard() {
+  const q = useQuery({ queryKey: ['admin-costs'], queryFn: () => api<any>('/admin/usage/costs'), refetchInterval: 300_000 });
+  const d = q.data;
+  return (
+    <div className="card p-5">
+      <p className="mb-1 flex items-center gap-2 font-display font-bold"><Gauge className="size-5 text-brand-600" /> Cost & usage (free limits)</p>
+      <p className="mb-4 text-xs text-muted">OpenRouter free models, Groq/Gemini free tier और free SMTP की रोज़ की limits के अंदर रहें। AI firm-wise daily cap: App config → Free mode, AI.</p>
+      {!d ? (
+        <Skeleton className="h-24" />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl bg-surface-2 p-4 text-sm">
+            <p className="mb-2 font-semibold">AI calls (24 h · 30 d)</p>
+            {d.ai.month.length ? (
+              d.ai.month.map((m: any) => {
+                const day = d.ai.day.find((x: any) => x.provider === m.provider) ?? { ok: 0, failed: 0 };
+                return (
+                  <p key={m.provider} className="flex justify-between gap-2" data-no-i18n>
+                    <span>{m.provider}</span>
+                    <span className="text-muted">{day.ok}{day.failed ? ` (+${day.failed} failed)` : ''} · {m.ok}</span>
+                  </p>
+                );
+              })
+            ) : (
+              <p className="text-muted">अभी कोई AI call नहीं</p>
+            )}
+          </div>
+          <div className="rounded-xl bg-surface-2 p-4 text-sm">
+            <p className="mb-2 font-semibold">Messages (24 h · 30 d)</p>
+            <p className="flex justify-between"><span>Emails</span><span className="text-muted">{d.email.day} · {d.email.month}</span></p>
+            <p className="flex justify-between"><span>WhatsApp (sent)</span><span className="text-muted">{d.whatsapp.day} · {d.whatsapp.month}</span></p>
+          </div>
+          <div className="rounded-xl bg-surface-2 p-4 text-sm">
+            <p className="mb-2 font-semibold">Server disk</p>
+            <p className={cn('font-display text-2xl font-extrabold', d.disk >= 85 ? 'text-rose-600' : 'text-emerald-600')}>{d.disk != null ? `${d.disk}%` : '—'}</p>
+            <p className="text-xs text-muted">85% पर alert आता है</p>
+          </div>
         </div>
       )}
     </div>

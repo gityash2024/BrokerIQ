@@ -40,7 +40,15 @@ export class MailService {
   async send(input: MailInput) {
     const { tx, from } = await this.transport();
     const app = await this.settings.getAppConfig();
-    await tx.sendMail({ from, to: input.to, bcc: input.bcc, subject: input.subject, html: wrapHtml(input.html, app.siteName, app.primaryColor), text: input.text, replyTo: input.replyTo });
+    const count = [input.to, input.bcc].flat().filter(Boolean).length;
+    try {
+      await tx.sendMail({ from, to: input.to, bcc: input.bcc, subject: input.subject, html: wrapHtml(input.html, app.siteName, app.primaryColor), text: input.text, replyTo: input.replyTo });
+      // Counted for Admin → Cost & usage (free SMTP plans have daily limits).
+      await this.prisma.integrationLog.create({ data: { integration: 'smtp', action: 'send', success: true, meta: { recipients: count } } }).catch(() => undefined);
+    } catch (e) {
+      await this.prisma.integrationLog.create({ data: { integration: 'smtp', action: 'send', success: false, message: (e as Error).message.slice(0, 300) } }).catch(() => undefined);
+      throw e;
+    }
   }
 
   /** Send using an admin-editable template (Template table, falling back to built-in defaults). */

@@ -82,10 +82,14 @@ export const appConfigSchema = z.object({
       companyGstin: z.string().default(''),
     })
     .default({ freeMode: true, boostPricePerWeek: 499, gstPercent: 18, invoicePrefix: 'BIQ', companyName: '', companyAddress: '', companyGstin: '' }),
-  /** AI usage: fair-use cap per broker firm per day (keeps free-tier providers within limits). */
+  /** AI: fair-use cap per broker firm per day (keeps free-tier providers within limits) and provider order. */
   ai: z
-    .object({ dailyCap: z.number().int().min(0).max(100000).default(200) })
-    .default({ dailyCap: 200 }),
+    .object({
+      dailyCap: z.number().int().min(0).max(100000).default(200),
+      /** Comma list; unconfigured providers are skipped, the next one is tried when one fails. */
+      providerOrder: z.string().default('openrouter,groq,gemini'),
+    })
+    .default({ dailyCap: 200, providerOrder: 'openrouter,groq,gemini' }),
   finance: z
     .object({ defaultInterestRate: z.number().default(8.5), stampDutyMalePct: z.number().default(7), stampDutyFemalePct: z.number().default(5), stampDutyJointPct: z.number().default(6), registrationFeeMax: z.number().default(50000) })
     .default({ defaultInterestRate: 8.5, stampDutyMalePct: 7, stampDutyFemalePct: 5, stampDutyJointPct: 6, registrationFeeMax: 50000 }),

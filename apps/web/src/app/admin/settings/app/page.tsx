@@ -119,6 +119,7 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
     fields: [
       { key: 'monetization.freeMode', label: 'Free mode — कोई plan limit, pricing, billing या boost नहीं', type: 'switch' },
       { key: 'ai.dailyCap', label: 'AI calls / firm / दिन (free mode में, 0 = कोई limit नहीं)', type: 'number', hint: 'Free AI providers की limit में रहने के लिए' },
+      { key: 'ai.providerOrder', label: 'AI provider क्रम', hint: 'openrouter,groq,gemini — पहला fail हो तो अगला' },
       { key: 'monetization.boostPricePerWeek', label: 'Listing boost price / week (₹)', type: 'number' },
       { key: 'monetization.gstPercent', label: 'GST %', type: 'number' },
       { key: 'monetization.invoicePrefix', label: 'Invoice prefix' },

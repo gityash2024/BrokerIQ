@@ -47,9 +47,10 @@ export class IntegrationTesterService {
       case 'smtp':
         await this.mail.test(v, actorEmail);
         return `SMTP connected — test email ${actorEmail} पर भेजा गया`;
+      case 'openrouter':
       case 'groq':
       case 'gemini':
-        return `AI response: ${await this.ai.test(key, v)}`;
+        return `AI response — ${await this.ai.test(key, v)}`;
       case 'cloudinary':
         return `Cloudinary: ${await this.media.testCloudinary(v)}`;
       case 's3':

@@ -12,6 +12,7 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg, shortCode } from '../../common/utils';
 import { AccessService } from '../../core/access/access.service';
+import { SCAN_PROMPT, SCAN_SYSTEM, scanSchema as scanResultSchema } from '../../core/ai/prompts';
 
 const scanSchema = z.object({
   image: z.string().startsWith('data:image/').max(12_000_000),
@@ -40,25 +41,6 @@ const rowSchema = z.object({
 });
 
 /** OCR + structuring prompt for a Gurgaon rental broker's listing register (handwritten or printed, Hindi/English/Hinglish). */
-const SCAN_PROMPT = `You are an OCR and data-entry assistant for a RENTAL property broker in Gurgaon (Gurugram), Haryana, India.
-The image is one page of the broker's listing register / diary — handwritten or printed, in Hindi, English or Hinglish, often with abbreviations.
-
-Step 1 (OCR): transcribe the page faithfully, line by line, into "rawText" (keep numbers and names exactly as written; unreadable parts → "[?]").
-Step 2 (structure): turn every property entry into one row. Respond ONLY with JSON:
-{"rawText": string,
- "rows":[{"propertyType":"APARTMENT"|"BUILDER_FLOOR"|"INDEPENDENT_HOUSE"|"VILLA"|"PENTHOUSE"|"STUDIO"|"SERVICE_APARTMENT"|"PG"|"OFFICE"|"COWORKING"|"SHOP"|"SHOWROOM"|"WAREHOUSE",
-  "sector":string|null,"society":string|null,"unit":string|null,"floor":number|null,"bedrooms":number|null,"areaSqft":number|null,
-  "rentInr":number|null,"depositInr":number|null,"brokerage":"NONE"|"DAYS_15"|"MONTH_1"|"FIXED"|null,"brokerageInr":number|null,
-  "furnishing":"UNFURNISHED"|"SEMI_FURNISHED"|"FULLY_FURNISHED"|null,"availableFrom":string|null,
-  "contactName":string|null,"contactPhone":string|null,"notes":string|null,"confidence":0-1}]}
-Rules:
-- Every listing is for RENT (monthly). "45k"/"45 हज़ार"/"45000 pm" → 45000. "1.2 L" rent → 120000.
-- Deposit: "2 month deposit" → depositInr = 2 × rent; "dep 1L" → 100000.
-- Brokerage: "1 month"/"full month" → MONTH_1, "15 days"/"half month" → DAYS_15, "no brokerage"/"NB" → NONE, a fixed ₹ amount → FIXED with brokerageInr.
-- "Sec 65"/"S-65"/"सेक्टर 65" → "Sector 65". "FF"/"fully furnished" → FULLY_FURNISHED, "SF"/"semi" → SEMI_FURNISHED, "UF"/"bare" → UNFURNISHED.
-- "3BHK" → bedrooms 3; "BF"/"builder floor" → BUILDER_FLOOR; "PG" / "co-living" → PG.
-- Indian mobile numbers are 10 digits (may start with +91/0). Keep contact name as written.
-- Never invent values: use null when unreadable or absent. confidence reflects how legible and complete the row is.`;
 
 @ApiTags('ai')
 @Roles('BROKER_ADMIN', 'BROKER_AGENT')
@@ -96,8 +78,9 @@ export class AiController {
     const flag = await this.prisma.featureFlag.findUnique({ where: { key: 'ai_scanner' } });
     if (flag && !flag.enabled) throw new ForbiddenException('AI scanner अभी बंद है');
     await this.usage.assertAiCredit(orgId);
-    const text = await this.ai.vision(body.image, `${SCAN_PROMPT}${body.hint ? `\nHint from broker: ${body.hint}` : ''}`, { feature: 'scanner', orgId, userId: user.id, json: true, maxTokens: 4000 });
-    const parsed = parseJsonLoose<{ rows?: any[]; rawText?: string }>(text);
+    const text = await this.ai.vision(body.image, `${SCAN_PROMPT}${body.hint ? `\nHint from broker: ${body.hint}` : ''}`, { system: SCAN_SYSTEM, feature: 'scanner', orgId, userId: user.id, json: true, maxTokens: 4000, temperature: 0.1 });
+    const check = scanResultSchema.safeParse(parseJsonLoose(text));
+    const parsed: { rows?: any[]; rawText?: string } = check.success ? check.data : { rows: [] };
     const locs = await this.localityIndex();
     const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
     const rows = (parsed.rows ?? []).map((r) => {

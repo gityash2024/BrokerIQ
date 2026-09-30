@@ -154,6 +154,31 @@ export const INTEGRATIONS: IntegrationDef[] = [
   },
   // ---------------------------------------------------------------- AI
   {
+    key: 'openrouter',
+    name: 'OpenRouter AI (free open-source models)',
+    category: 'ai',
+    scope: 'platform',
+    group: 'ai',
+    description: 'एक key से कई free open-source models (Llama, DeepSeek, Qwen, Gemini) — एक model busy हो तो अगला अपने-आप। Scanner, lead summary, assistant, description writer.',
+    freeTier: 'Free models (":free") — बिना credit card; rate limits के अंदर ₹0',
+    docsUrl: 'https://openrouter.ai/docs/quickstart',
+    steps: [
+      'https://openrouter.ai पर Google/GitHub/email से sign up करें।',
+      'ऊपर-दाएँ menu → "Keys" → "Create Key" → नाम BrokerIQ → key copy करें (sk-or-…)।',
+      'Key नीचे paste करें। Models default free हैं — "Test" दबाने पर अभी के free models की list दिखेगी; चाहें तो नाम बदलें।',
+      'Settings → Privacy में "Free model training" वाली शर्तें पढ़ लें (free models अपने providers की policy पर चलते हैं)।',
+    ],
+    fields: [
+      { key: 'apiKey', label: 'API key', type: 'password', required: true, secret: true, placeholder: 'sk-or-v1-...' },
+      { key: 'textModel', label: 'Text model', type: 'text', default: 'meta-llama/llama-3.3-70b-instruct:free' },
+      { key: 'fallbackModels', label: 'Backup text models (comma)', type: 'text', default: 'deepseek/deepseek-chat-v3-0324:free,qwen/qwen-2.5-72b-instruct:free,google/gemini-2.0-flash-exp:free' },
+      { key: 'visionModel', label: 'Vision model (scanner)', type: 'text', default: 'qwen/qwen2.5-vl-72b-instruct:free' },
+      { key: 'visionFallbackModels', label: 'Backup vision models (comma)', type: 'text', default: 'google/gemini-2.0-flash-exp:free,meta-llama/llama-3.2-11b-vision-instruct:free' },
+    ],
+    usedFor: ['AI scanner', 'Lead summary', 'Reply suggestions', 'Description writer', 'AI assistant'],
+    testable: true,
+  },
+  {
     key: 'groq',
     name: 'Groq AI',
     category: 'ai',
