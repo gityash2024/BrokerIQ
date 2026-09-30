@@ -13,6 +13,8 @@ const ROOTS = [
   ['apps/mobile/src', () => true],
   ['packages/shared/src/labels.ts', () => true],
   ['packages/shared/src/privacy', () => true],
+  // User-facing API error messages (`throw new BadRequestException('...')`) — shown in toasts/alerts.
+  ['apps/api/src', (f) => !f.endsWith('.spec.ts') && !f.includes('/modules/admin/') && !f.includes('/prisma/')],
 ];
 const ATTRS = new Set(['placeholder', 'title', 'label', 'subtitle', 'hint', 'text', 'description', 'aria-label', 'alt', 'sub', 'caption', 'message', 'confirmLabel', 'emptyText', 'loadingText', 'ctaLabel']);
 const PROPS = new Set(['label', 'title', 'text', 'subtitle', 'description', 'placeholder', 'hint', 'sub', 'desc', 'what', 'why', 'who', 'security', 'optional', 'allow', 'notNow', 'intro', 'l', 'name', 'summary', 'tagline', 'cta', 'empty', 'success', 'caption', 'message']);
@@ -55,9 +57,12 @@ function collectExpr(node, file) {
   if (ts.isParenthesizedExpression(node)) return collectExpr(node.expression, file);
 }
 function walk(file) {
+  const apiOnly = file.startsWith('apps/api/'); // API: only the messages of thrown exceptions
   const src = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const visit = (n) => {
-    if (ts.isJsxText(n)) add(n.text, file);
+    if (apiOnly) {
+      if (ts.isNewExpression(n) && /Exception$/.test(n.expression.getText())) n.arguments?.forEach((a) => collectExpr(a, file));
+    } else if (ts.isJsxText(n)) add(n.text, file);
     else if (ts.isJsxExpression(n) && n.expression && (ts.isJsxElement(n.parent) || ts.isJsxFragment(n.parent))) collectExpr(n.expression, file);
     else if (ts.isJsxAttribute(n) && ATTRS.has(n.name.getText()) && n.initializer) {
       const init = n.initializer;

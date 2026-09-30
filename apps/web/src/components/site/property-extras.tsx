@@ -308,7 +308,7 @@ function ReviewDialog({ open, onClose, localitySlug, society }: { open: boolean;
       description="सच्ची राय दूसरे tenants की मदद करती है"
       footer={
         <Button onClick={save} loading={busy} disabled={!ready}>
-          Submit
+          भेजें
         </Button>
       }
     >

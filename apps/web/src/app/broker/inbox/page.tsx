@@ -379,7 +379,7 @@ function ShareListing({ onSend, disabled }: { onSend: (id: string) => void; disa
       <ListingPicker value={id} onChange={setId} placeholder="Listing चुनें" />
       {disabled && <p className="text-xs text-amber-600">24-घंटे window बंद है — पहले template भेजें।</p>}
       <Button className="w-full" variant="whatsapp" disabled={!id || disabled} onClick={() => onSend(id)}>
-        <ImageIcon className="size-4" /> Send
+        <ImageIcon className="size-4" /> भेजें
       </Button>
     </div>
   );

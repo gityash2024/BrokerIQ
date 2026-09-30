@@ -473,7 +473,7 @@ function WaSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () =
       <Txt v="caption" color="muted">
         Business WhatsApp connected है तो app से जाएगा (inbox में save होगा), नहीं तो WhatsApp app खुलेगा।
       </Txt>
-      <Button title="Send" variant="whatsapp" icon={<Send size={17} color="#fff" />} loading={busy} disabled={!t.trim()} onPress={send} />
+      <Button title="भेजें" variant="whatsapp" icon={<Send size={17} color="#fff" />} loading={busy} disabled={!t.trim()} onPress={send} />
     </Sheet>
   );
 }

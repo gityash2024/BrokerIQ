@@ -221,7 +221,7 @@ export default function BrokerMicrosite() {
           ))}
         </Row>
         <Input label="आपका अनुभव" value={comment} onChangeText={setComment} multiline />
-        <Button title="Submit" onPress={submitReview} />
+        <Button title="भेजें" onPress={submitReview} />
       </Sheet>
     </View>
   );

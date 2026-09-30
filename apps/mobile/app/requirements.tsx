@@ -164,7 +164,7 @@ function RequirementSheet({ open, onClose, onSaved }: { open: boolean; onClose: 
             मेरी ज़रूरत और नंबर इन इलाकों के 3 भरोसेमंद brokers को भेजें, ताकि वे मिलती properties दिखा सकें।
           </Txt>
         </Row>
-        <Button title="Save करें" loading={busy} disabled={!f.name || !f.phone} onPress={save} />
+        <Button title="Save" loading={busy} disabled={!f.name || !f.phone} onPress={save} />
       </View>
     </Sheet>
   );

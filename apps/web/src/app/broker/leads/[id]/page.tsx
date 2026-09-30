@@ -313,7 +313,7 @@ function Timeline({ lead, onChange }: { lead: any; onChange: () => void }) {
         <div className="mt-3 flex justify-end">
           {type === 'WHATSAPP' ? (
             <Button variant="whatsapp" onClick={sendWa} disabled={!content.trim()}>
-              <Send className="size-4" /> Send
+              <Send className="size-4" /> भेजें
             </Button>
           ) : (
             <Button onClick={() => add.mutate(undefined)} loading={add.isPending} disabled={type === 'NOTE' && !content.trim()}>

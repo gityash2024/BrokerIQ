@@ -3,7 +3,7 @@ import { reportAppError } from '../report-error';
 describe('app error reporting', () => {
   const fetchMock = jest.fn(async () => ({ ok: true }));
   beforeAll(() => {
-    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    (globalThis as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
   });
 
   it('sends a crash once per session and never throws', () => {

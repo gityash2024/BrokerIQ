@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { isApiErrorBody, type ApiErrorBody, type AuthResponse, type AuthUser } from '@brokeriq/shared';
 import { create } from './store';
+import { tr } from './i18n';
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:3000/api').replace(/\/$/, '');
 export const SOCKET_URL = API_URL.replace(/\/api$/, '');
@@ -111,10 +112,11 @@ export const post = <T = any>(p: string, body: unknown = {}) => api<T>(p, { meth
 export const patch = <T = any>(p: string, body: unknown = {}) => api<T>(p, { method: 'PATCH', body });
 export const del = <T = any>(p: string) => api<T>(p, { method: 'DELETE' });
 
+/** User-facing error text in the chosen app language (API messages are in the i18n catalog). */
 export function errorMessage(e: unknown) {
-  if (e instanceof ApiError) return e.body.message;
-  if (e instanceof Error) return e.message;
-  return 'कुछ गड़बड़ हुई';
+  if (e instanceof ApiError) return tr(e.body.message);
+  if (e instanceof Error) return tr(e.message);
+  return tr('कुछ गड़बड़ हुई');
 }
 
 export const qs = (o: Record<string, unknown>) => {
