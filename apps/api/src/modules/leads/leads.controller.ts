@@ -8,6 +8,7 @@ import { activityInputSchema, leadInputSchema, leadStageSchema, leadUpdateSchema
 import { LeadsService } from './leads.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { AccessService } from '../../core/access/access.service';
 
 const bulkSchema = z.object({ ids: z.array(z.string()).min(1).max(500), action: z.enum(['assign', 'stage', 'tag', 'delete']), value: z.string().nullable().optional() });
 const assignSchema = z.object({ assignedToId: z.string().nullable() });
@@ -17,7 +18,10 @@ const importSchema = z.object({ csv: z.string().min(5).max(5_000_000) });
 @Roles('BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('leads')
 export class LeadsController {
-  constructor(private readonly leads: LeadsService) {}
+  constructor(
+    private readonly leads: LeadsService,
+    private readonly access: AccessService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: RequestUser, @Query() q: any) {
@@ -90,7 +94,8 @@ export class LeadsController {
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/ai')
-  ai(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async ai(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    await this.access.assertAllowed(user, 'ai');
     return this.leads.aiInsights(id, user);
   }
 

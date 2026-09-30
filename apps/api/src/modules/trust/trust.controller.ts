@@ -7,6 +7,7 @@ import { TrustService } from './trust.service';
 import { VisitBookingService } from './visit-booking.service';
 import { CurrentUser, Public, Roles, type RequestUser, Feature } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { AccessService } from '../../core/access/access.service';
 
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/);
 const slotsSchema = z.object({ days: z.array(z.number().int().min(0).max(6)).min(1).max(7), start: hhmm, end: hhmm, slotMinutes: z.number().int(), maxPerSlot: z.number().int().min(1).max(10) });
@@ -20,6 +21,7 @@ const photoSchema = z.object({ photos: z.array(z.object({ url: z.string().url(),
 @Controller()
 export class TrustController {
   constructor(
+    private readonly access: AccessService,
     private readonly trust: TrustService,
     private readonly booking: VisitBookingService,
   ) {}
@@ -66,19 +68,19 @@ export class TrustController {
   }
 
   // ------------------------------------------------------------------ visit verification (BrokerIQ team)
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Get('admin/visit-verification')
   queue(@Query('near') near?: string) {
     return this.trust.verificationQueue(near);
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Post('admin/listings/:id/visit-verify')
   verify(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(photoSchema)) body: any) {
     return this.trust.verifyVisit(user, id, body.photos);
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Delete('admin/listings/:id/visit-verify')
   unverify(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.trust.removeVisitVerification(user, id);
@@ -111,7 +113,8 @@ export class TrustController {
   @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Feature('locality_reviews')
   @Post('localities/:slug/reviews')
-  review(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body(new ZodPipe(reviewSchema)) body: any) {
+  async review(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body(new ZodPipe(reviewSchema)) body: any) {
+    await this.access.assertAllowed(user, 'review');
     return this.trust.submitReview(user, slug, body);
   }
 
@@ -122,13 +125,13 @@ export class TrustController {
     return this.trust.publicReviews(slug, society);
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Get('admin/locality-reviews')
   adminReviews(@Query('status') status?: string) {
     return this.trust.adminReviews(status);
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Patch('admin/locality-reviews/:id')
   moderate(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['APPROVED', 'REJECTED']) }))) body: any) {
     return this.trust.moderateReview(user, id, body.status);

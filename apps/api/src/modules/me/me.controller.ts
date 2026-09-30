@@ -91,40 +91,7 @@ export class MeController {
    * kept anonymised so enquiries, deals and invoices of brokers stay consistent.
    */
   async deleteAccount(@CurrentUser() user: RequestUser) {
-    const id = user.id;
-    await this.prisma.$transaction([
-      this.prisma.userLocation.deleteMany({ where: { userId: id } }),
-      this.prisma.userContact.deleteMany({ where: { userId: id } }),
-      this.prisma.pushToken.deleteMany({ where: { userId: id } }),
-      this.prisma.savedListing.deleteMany({ where: { userId: id } }),
-      this.prisma.recentView.deleteMany({ where: { userId: id } }),
-      this.prisma.savedSearch.deleteMany({ where: { userId: id } }),
-      this.prisma.notification.deleteMany({ where: { userId: id } }),
-      this.prisma.tenantRequirement.deleteMany({ where: { userId: id } }),
-      this.prisma.flatmateConnect.deleteMany({ where: { OR: [{ fromUserId: id }, { toUserId: id }] } }),
-      this.prisma.flatmateProfile.deleteMany({ where: { userId: id } }),
-      this.prisma.kycDocument.deleteMany({ where: { userId: id } }),
-      this.prisma.listing.updateMany({ where: { postedById: id, organizationId: null, deletedAt: null }, data: { status: 'ARCHIVED' } }),
-      this.prisma.user.update({
-        where: { id },
-        data: {
-          status: 'DELETED',
-          deletedAt: new Date(),
-          name: 'Deleted user',
-          email: `deleted+${id}@brokeriq.invalid`,
-          phone: null,
-          googleId: null,
-          passwordHash: null,
-          avatarUrl: null,
-          occupation: null,
-          employer: null,
-          workEmail: null,
-          workEmailVerifiedAt: null,
-          tenantVerifiedAt: null,
-        },
-      }),
-    ]);
-    await this.auth.revokeAll(id);
+    await this.auth.deleteAccount(user.id);
     return { ok: true };
   }
 }

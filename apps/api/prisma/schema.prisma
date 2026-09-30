@@ -17,6 +17,14 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
+  /**
+   * BrokerIQ staff: listings, reviews and reports moderation.
+   */
+  MODERATOR
+  /**
+   * BrokerIQ staff: users, brokers and support tickets (limited actions).
+   */
+  SUPPORT
   BROKER_ADMIN
   BROKER_AGENT
   USER
@@ -108,6 +116,10 @@ enum ListingStatus {
   RENTED
   EXPIRED
   ARCHIVED
+  /**
+   * Taken down by BrokerIQ (Super Admin/moderator); statusBeforeBlock is restored on unblock.
+   */
+  BLOCKED
 }
 
 enum PostedByType {
@@ -401,6 +413,11 @@ enum TicketStatus {
 // ============================================================ Identity
 
 model User {
+  blockedReason       String?
+  /**
+   * Per-user limits set by BrokerIQ: post, chat, enquire, review, ai.
+   */
+  restrictions        String[]
   id                  String     @id @default(cuid())
   name                String
   email               String     @unique
@@ -549,6 +566,11 @@ model PushToken {
 }
 
 model Organization {
+  blockedReason    String?
+  /**
+   * Per-firm limits set by BrokerIQ: post, cobroking, campaigns, connectors, ai.
+   */
+  restrictions     String[]
   id               String             @id @default(cuid())
   name             String
   slug             String             @unique
@@ -749,6 +771,10 @@ model Amenity {
 // ============================================================ Marketplace
 
 model Listing {
+  blockedReason     String?
+  blockedAt         DateTime?
+  blockedById       String?
+  statusBeforeBlock ListingStatus?
   id                String            @id @default(cuid())
   refNo             Int               @unique @default(autoincrement())
   slug              String            @unique
@@ -2051,7 +2077,9 @@ enum ErrorSource {
   MOBILE
 }
 
-/** Grouped runtime errors (API 5xx, web/app crashes). Same fingerprint = same row with a counter. */
+/**
+ * Grouped runtime errors (API 5xx, web/app crashes). Same fingerprint = same row with a counter.
+ */
 model ErrorLog {
   id          String      @id @default(cuid())
   fingerprint String      @unique
@@ -2070,4 +2098,26 @@ model ErrorLog {
   resolvedAt  DateTime?
 
   @@index([resolvedAt, lastSeenAt])
+}
+
+// ------------------------------------------------------------------ blocklist
+enum BlockKind {
+  EMAIL
+  PHONE
+  DOMAIN
+  IP
+}
+
+/**
+ * Banned identities: checked on signup, OTP/login, enquiries and contact reveal.
+ */
+model Blocklist {
+  id          String    @id @default(cuid())
+  kind        BlockKind
+  value       String
+  reason      String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([kind, value])
 }

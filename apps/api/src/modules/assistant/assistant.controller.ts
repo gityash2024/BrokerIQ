@@ -7,12 +7,14 @@ import { ClientIp, CurrentUser, type RequestUser } from '../../common/decorators
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AssistantService } from './assistant.service';
+import { AccessService } from '../../core/access/access.service';
 
 /** In-app AI agent (web + app floating button). Works only for the signed-in user. */
 @ApiTags('assistant')
 @Controller('assistant')
 export class AssistantController {
   constructor(
+    private readonly access: AccessService,
     private readonly assistant: AssistantService,
     private readonly prisma: PrismaService,
   ) {}
@@ -25,6 +27,7 @@ export class AssistantController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('chat')
   async chat(@CurrentUser() user: RequestUser, @Req() req: Request, @Body(new ZodPipe(assistantChatSchema)) body: any, @ClientIp() ip?: string) {
+    await this.access.assertAllowed(user, 'ai');
     return this.assistant.chat(await this.withName(user), String(req.headers.authorization ?? ''), body, ip);
   }
 
@@ -41,7 +44,8 @@ export class AssistantController {
 
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('transcribe')
-  transcribe(@CurrentUser() user: RequestUser, @Body(new ZodPipe(transcribeSchema)) body: any) {
+  async transcribe(@CurrentUser() user: RequestUser, @Body(new ZodPipe(transcribeSchema)) body: any) {
+    await this.access.assertAllowed(user, 'ai');
     return this.assistant.transcribe(user, body.audio, body.mime, body.lang);
   }
 }

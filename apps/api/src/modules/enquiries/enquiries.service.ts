@@ -6,10 +6,12 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import { MailService } from '../../core/mail/mail.service';
 import type { RequestUser } from '../../common/decorators';
 import { env } from '../../config/env';
+import { AccessService } from '../../core/access/access.service';
 
 @Injectable()
 export class EnquiriesService {
   constructor(
+    private readonly access: AccessService,
     private readonly prisma: PrismaService,
     private readonly leads: LeadsService,
     private readonly notifications: NotificationsService,
@@ -23,6 +25,8 @@ export class EnquiriesService {
    *  - project → super admins
    */
   async create(input: EnquiryInput, user?: RequestUser) {
+    await this.access.assertNotBlocked({ email: input.email ?? user?.email, phone: input.phone });
+    await this.access.assertAllowed(user, 'enquire');
     const phone = normalizeIndianPhone(input.phone);
     if (!phone) throw new BadRequestException('Valid mobile number डालें');
     let orgId = input.organizationId ?? null;

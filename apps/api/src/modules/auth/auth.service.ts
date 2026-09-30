@@ -13,6 +13,7 @@ import type { BrokerInvite } from '@prisma/client';
 import { AppException, IntegrationNotConfiguredException } from '../../common/exceptions';
 import { randomOtp, randomToken, sha256, shortCode } from '../../common/utils';
 import { env } from '../../config/env';
+import { AccessService } from '../../core/access/access.service';
 
 type UserWithOrg = User & { organization: Organization | null };
 interface ClientMeta {
@@ -24,6 +25,7 @@ interface ClientMeta {
 export class AuthService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AuthService.name);
   constructor(
+    private readonly access: AccessService,
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly settings: SettingsService,
@@ -124,6 +126,7 @@ export class AuthService implements OnApplicationBootstrap {
 
   // ------------------------------------------------------------------ flows
   async register(input: RegisterInput, meta: ClientMeta) {
+    await this.access.assertNotBlocked({ email: input.email, phone: input.phone, ip: meta.ip });
     const app = await this.settings.getAppConfig();
     if (!app.auth.allowPasswordLogin) throw new ForbiddenException('Password signup बंद है — Email OTP से login करें।');
     const invite = input.accountType === 'BROKER' ? await this.brokerGate(input.inviteCode) : null;
@@ -139,6 +142,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async login(email: string, password: string, meta: ClientMeta) {
+    await this.access.assertNotBlocked({ email, ip: meta.ip });
     const user = await this.findUser({ email });
     if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Email या password गलत है');
@@ -148,6 +152,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async requestOtp(email: string, purpose: 'LOGIN' | 'VERIFY_EMAIL' | 'RESET_PASSWORD') {
+    await this.access.assertNotBlocked({ email });
     const recent = await this.prisma.otpCode.count({ where: { email, createdAt: { gt: new Date(Date.now() - 15 * 60_000) } } });
     if (recent >= 5) throw new AppException(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMITED, 'बहुत ज़्यादा OTP requests — 15 मिनट बाद try करें।');
     if (purpose === 'RESET_PASSWORD' && !(await this.prisma.user.findUnique({ where: { email } }))) return { sent: true };
@@ -209,6 +214,7 @@ export class AuthService implements OnApplicationBootstrap {
     }
     if (!payload?.email || !payload.email_verified) throw new UnauthorizedException('Google email verified नहीं है');
     const email = payload.email.toLowerCase();
+    await this.access.assertNotBlocked({ email, ip: meta.ip });
     let user = (await this.findUser({ googleId: payload.sub })) ?? (await this.findUser({ email }));
     if (!user) {
       const invite = accountType === 'BROKER' ? await this.brokerGate(inviteCode) : null;
@@ -242,6 +248,47 @@ export class AuthService implements OnApplicationBootstrap {
   async logout(refreshToken?: string) {
     if (refreshToken) await this.prisma.refreshToken.updateMany({ where: { tokenHash: sha256(refreshToken), revokedAt: null }, data: { revokedAt: new Date() } });
     return { ok: true };
+  }
+
+  /**
+   * Deletes an account (by the user, or by Super Admin): personal data, saved items, requirements,
+   * location/contacts, push tokens and KYC files are removed; own (owner) listings are archived; the
+   * user row stays anonymised so brokers' enquiries, deals and invoices remain consistent.
+   */
+  async deleteAccount(id: string) {
+    await this.prisma.$transaction([
+      this.prisma.userLocation.deleteMany({ where: { userId: id } }),
+      this.prisma.userContact.deleteMany({ where: { userId: id } }),
+      this.prisma.pushToken.deleteMany({ where: { userId: id } }),
+      this.prisma.savedListing.deleteMany({ where: { userId: id } }),
+      this.prisma.recentView.deleteMany({ where: { userId: id } }),
+      this.prisma.savedSearch.deleteMany({ where: { userId: id } }),
+      this.prisma.notification.deleteMany({ where: { userId: id } }),
+      this.prisma.tenantRequirement.deleteMany({ where: { userId: id } }),
+      this.prisma.flatmateConnect.deleteMany({ where: { OR: [{ fromUserId: id }, { toUserId: id }] } }),
+      this.prisma.flatmateProfile.deleteMany({ where: { userId: id } }),
+      this.prisma.kycDocument.deleteMany({ where: { userId: id } }),
+      this.prisma.listing.updateMany({ where: { postedById: id, organizationId: null, deletedAt: null }, data: { status: 'ARCHIVED' } }),
+      this.prisma.user.update({
+        where: { id },
+        data: {
+          status: 'DELETED',
+          deletedAt: new Date(),
+          name: 'Deleted user',
+          email: `deleted+${id}@brokeriq.invalid`,
+          phone: null,
+          googleId: null,
+          passwordHash: null,
+          avatarUrl: null,
+          occupation: null,
+          employer: null,
+          workEmail: null,
+          workEmailVerifiedAt: null,
+          tenantVerifiedAt: null,
+        },
+      }),
+    ]);
+    await this.revokeAll(id);
   }
 
   async revokeAll(userId: string) {

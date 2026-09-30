@@ -38,6 +38,7 @@ export class AdminCoreController {
   ) {}
 
   // ------------------------------------------------------------------ dashboard
+  @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('dashboard')
   async dashboard() {
     const day = 86400_000;
@@ -144,6 +145,7 @@ export class AdminCoreController {
   }
 
   // ------------------------------------------------------------------ users
+  @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('users')
   async users(@Query() q: { q?: string; role?: string; status?: string; page?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
@@ -159,7 +161,7 @@ export class AdminCoreController {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * 30,
         take: 30,
-        select: { id: true, name: true, email: true, phone: true, role: true, status: true, emailVerified: true, createdAt: true, lastLoginAt: true, organization: { select: { id: true, name: true, slug: true } }, _count: { select: { listings: true, enquiries: true } } },
+        select: { id: true, name: true, email: true, phone: true, role: true, status: true, blockedReason: true, restrictions: true, emailVerified: true, createdAt: true, lastLoginAt: true, organization: { select: { id: true, name: true, slug: true } }, _count: { select: { listings: true, enquiries: true } } },
       }),
       this.prisma.user.count({ where }),
     ]);
@@ -167,14 +169,15 @@ export class AdminCoreController {
   }
 
   @Patch('users/:id')
-  async updateUser(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']).optional(), role: z.enum(['USER', 'SUPER_ADMIN']).optional() }))) body: any) {
+  async updateUser(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']).optional(), role: z.enum(['USER', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT']).optional() }))) body: any) {
     if (id === user.id) throw new BadRequestException('अपना account खुद नहीं बदल सकते');
     const target = await this.prisma.user.findUnique({ where: { id } });
     if (!target) throw new NotFoundException();
     const data: Prisma.UserUpdateInput = { status: body.status };
     if (body.role) {
       data.role = body.role;
-      if (body.role === 'SUPER_ADMIN') data.organization = { disconnect: true };
+      // BrokerIQ staff never belong to a broker firm.
+      if (['SUPER_ADMIN', 'MODERATOR', 'SUPPORT'].includes(body.role)) data.organization = { disconnect: true };
     }
     const updated = await this.prisma.user.update({ where: { id }, data });
     if (body.status === 'SUSPENDED' || body.role) await this.auth.revokeAll(id);
@@ -183,6 +186,7 @@ export class AdminCoreController {
   }
 
   // ------------------------------------------------------------------ organizations (brokers)
+  @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('organizations')
   async orgs(@Query() q: { q?: string; status?: string; verification?: string; page?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
@@ -204,6 +208,7 @@ export class AdminCoreController {
     return paged(items.map(({ webhookKey, ...o }) => (void webhookKey, o)), total, page, 30);
   }
 
+  @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('organizations/:id')
   async org(@Param('id') id: string) {
     const org = await this.prisma.organization.findUnique({
@@ -256,6 +261,7 @@ export class AdminCoreController {
   }
 
   // ------------------------------------------------------------------ moderation
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Get('moderation/listings')
   async moderation(@Query() q: { status?: string; q?: string; page?: string; flagged?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
@@ -284,6 +290,7 @@ export class AdminCoreController {
     return paged(items, total, page, 20);
   }
 
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Post('moderation/listings/:id')
   async moderate(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(moderateSchema)) body: any) {
     const l = await this.prisma.listing.findUnique({ where: { id } });
@@ -324,12 +331,14 @@ export class AdminCoreController {
     return l;
   }
 
+  @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('listings')
   async allListings(@Query() q: { q?: string; status?: string; page?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
+    // status=DELETED lists soft-deleted listings (restorable).
     const where: Prisma.ListingWhereInput = {
-      deletedAt: null,
-      ...(q.status ? { status: q.status as any } : {}),
+      deletedAt: q.status === 'DELETED' ? { not: null } : null,
+      ...(q.status && q.status !== 'DELETED' ? { status: q.status as any } : {}),
       ...(q.q ? { OR: [{ title: { contains: q.q, mode: 'insensitive' } }, { slug: { contains: q.q } }] } : {}),
     };
     const [items, total] = await Promise.all([
@@ -339,6 +348,7 @@ export class AdminCoreController {
     return paged(items, total, page, 30);
   }
 
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Get('reports')
   reports(@Query('status') status = 'OPEN') {
     return this.prisma.listingReport.findMany({
@@ -349,6 +359,7 @@ export class AdminCoreController {
     });
   }
 
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Patch('reports/:id')
   async resolveReport(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['RESOLVED', 'DISMISSED']), resolution: z.string().max(500).optional(), archiveListing: z.boolean().optional() }))) body: any) {
     const r = await this.prisma.listingReport.update({ where: { id }, data: { status: body.status, resolution: body.resolution, resolvedAt: new Date() } });
@@ -397,11 +408,13 @@ export class AdminCoreController {
     return paged(items, total, page, 50);
   }
 
+  @Roles('SUPER_ADMIN', 'SUPPORT')
   @Get('support')
   support(@Query('status') status = 'OPEN') {
     return this.prisma.contactMessage.findMany({ where: { status: status as any }, orderBy: { createdAt: 'desc' }, take: 200 });
   }
 
+  @Roles('SUPER_ADMIN', 'SUPPORT')
   @Patch('support/:id')
   updateTicket(@Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['OPEN', 'CLOSED']), note: z.string().max(2000).optional() }))) body: any) {
     return this.prisma.contactMessage.update({ where: { id }, data: body });

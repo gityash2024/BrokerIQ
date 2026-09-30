@@ -76,6 +76,8 @@ export class AssistantService {
       BROKER_ADMIN: 'a broker firm admin using the BrokerIQ CRM',
       BROKER_AGENT: 'a broker agent using the BrokerIQ CRM',
       SUPER_ADMIN: 'the BrokerIQ platform Super Admin',
+      MODERATOR: 'a BrokerIQ moderator (reviews listings, reviews and reports)',
+      SUPPORT: 'a BrokerIQ support team member (helps users and brokers)',
     };
     const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
     return [

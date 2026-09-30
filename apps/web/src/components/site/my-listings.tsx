@@ -19,7 +19,7 @@ import { Dialog } from '../ui/dialog';
 import { PortalPackDialog } from '../broker/portal-pack';
 import { ShareKitDialog } from '../broker/share-kit';
 
-const TONES: Record<string, any> = { ACTIVE: 'success', PENDING_REVIEW: 'warning', DRAFT: 'neutral', REJECTED: 'danger', SOLD: 'info', RENTED: 'info', EXPIRED: 'danger', ARCHIVED: 'neutral' };
+const TONES: Record<string, any> = { ACTIVE: 'success', PENDING_REVIEW: 'warning', DRAFT: 'neutral', REJECTED: 'danger', SOLD: 'info', RENTED: 'info', EXPIRED: 'danger', ARCHIVED: 'neutral', BLOCKED: 'danger' };
 
 export function MyListings({ base, newHref }: { base: string; newHref: string }) {
   const [status, setStatus] = useState('');
@@ -93,6 +93,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
                 <Link href={`/property/${l.slug}`} className="mt-1 block truncate font-semibold hover:text-brand-600">{l.title}</Link>
                 <p className="text-sm font-bold">{formatPriceShort(l.price)}{l.purpose === 'RENT' ? '/mo' : ''}</p>
                 {l.rejectionReason && l.status === 'REJECTED' && <p className="mt-1 text-xs text-rose-600">कारण: {l.rejectionReason}</p>}
+                {l.status === 'BLOCKED' && <p className="mt-1 text-xs text-rose-600">BrokerIQ ने यह listing हटाई है{l.blockedReason ? ` — ${l.blockedReason.replace(/^(ACCOUNT|FIRM): /, '')}` : ''}। Support से संपर्क करें।</p>}
                 <div className="mt-2 flex gap-4 text-xs text-muted">
                   <span className="flex items-center gap-1"><Eye className="size-3.5" /> {l.views}</span>
                   <span className="flex items-center gap-1"><MessageSquare className="size-3.5" /> {l.enquiryCount}</span>

@@ -28,7 +28,7 @@ async function position() {
 export default function FieldVerify() {
   const { c } = useTheme();
   const { user } = useAuth();
-  const admin = user?.role === 'SUPER_ADMIN';
+  const admin = user?.role === 'SUPER_ADMIN' || user?.role === 'MODERATOR';
   const [near, setNear] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const q = useQuery({ queryKey: ['visit-queue', near], queryFn: () => api<any[]>(`/admin/visit-verification${near ? `?near=${near}` : ''}`), enabled: admin });

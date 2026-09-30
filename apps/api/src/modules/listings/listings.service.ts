@@ -23,6 +23,7 @@ import { AuditService } from '../../core/audit/audit.service';
 import { paged, shortCode } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
 import { FeaturesService } from '../../core/features/features.service';
+import { AccessService } from '../../core/access/access.service';
 
 export const LISTING_CARD_SELECT = {
   id: true,
@@ -76,6 +77,7 @@ const CONTENT_FIELDS: (keyof ListingInput)[] = ['title', 'description', 'photos'
 @Injectable()
 export class ListingsService {
   constructor(
+    private readonly access: AccessService,
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly usage: UsageService,
@@ -334,6 +336,7 @@ export class ListingsService {
 
   /** Reveals the real contact number (and records it as an enquiry signal). */
   async revealContact(id: string, user?: RequestUser) {
+    if (user) await this.access.assertAllowed(user, 'enquire');
     const app = await this.settings.getAppConfig();
     if (app.listing.contactRevealRequiresLogin && !user) throw new ForbiddenException('Number देखने के लिए login करें');
     const l = await this.prisma.listing.findFirst({ where: { id, status: 'ACTIVE', deletedAt: null }, include: { organization: true, postedBy: true } });
@@ -388,6 +391,7 @@ export class ListingsService {
   }
 
   async create(input: ListingInput, user: RequestUser) {
+    await this.access.assertAllowed(user, 'post');
     if (input.purpose === 'SALE') await this.features.assertEnabled('sale_listings');
     const locality = await this.prisma.locality.findUnique({ where: { id: input.localityId } });
     if (!locality) throw new BadRequestException('Locality select करें');

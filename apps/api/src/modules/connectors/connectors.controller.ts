@@ -11,6 +11,7 @@ import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decor
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
 import { parsePortalEmail } from './portal-parsers';
+import { AccessService } from '../../core/access/access.service';
 
 const saveSchema = z.object({ enabled: z.boolean().optional(), fields: z.record(z.string(), z.unknown()).default({}) });
 
@@ -18,6 +19,7 @@ const saveSchema = z.object({ enabled: z.boolean().optional(), fields: z.record(
 @Controller()
 export class ConnectorsController {
   constructor(
+    private readonly access: AccessService,
     private readonly connectors: ConnectorsService,
     private readonly tester: IntegrationTesterService,
     private readonly audit: AuditService,
@@ -32,6 +34,7 @@ export class ConnectorsController {
   @Roles('BROKER_ADMIN')
   @Patch('broker/connectors/:key')
   async save(@CurrentUser() user: RequestUser, @Param('key') key: string, @Body(new ZodPipe(saveSchema)) body: any) {
+    await this.access.assertAllowed(user, 'connectors');
     const r = await this.connectors.saveConnector(requireOrg(user), key, body, user.id);
     await this.audit.log(user, 'connector.update', 'Connector', key, { fields: Object.keys(body.fields ?? {}) });
     return r;

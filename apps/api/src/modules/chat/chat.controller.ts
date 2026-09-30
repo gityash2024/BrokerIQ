@@ -8,6 +8,7 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import { LeadsService } from '../leads/leads.service';
 import { CurrentUser, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { AccessService } from '../../core/access/access.service';
 
 const startSchema = z.object({ organizationId: z.string(), listingId: z.string().optional(), message: z.string().min(1).max(2000) });
 const msgSchema = z.object({ text: z.string().min(1).max(4000) });
@@ -17,6 +18,7 @@ const msgSchema = z.object({ text: z.string().min(1).max(4000) });
 @Controller('chat')
 export class ChatController {
   constructor(
+    private readonly accessCtl: AccessService,
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly notifications: NotificationsService,
@@ -72,7 +74,8 @@ export class ChatController {
   }
 
   @Post('threads/:id')
-  send(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(msgSchema)) body: any) {
+  async send(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(msgSchema)) body: any) {
+    await this.accessCtl.assertAllowed(user, 'chat');
     return this.post(id, user, body.text);
   }
 

@@ -72,6 +72,7 @@ export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
   RENTED: 'Rented out',
   EXPIRED: 'Expired',
   ARCHIVED: 'Archived',
+  BLOCKED: 'Blocked',
 };
 
 export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {

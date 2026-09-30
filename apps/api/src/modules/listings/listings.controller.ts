@@ -9,6 +9,7 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../../core/ai/ai.service';
 import { UsageService } from '../../core/usage/usage.service';
+import { AccessService } from '../../core/access/access.service';
 
 const statusSchema = z.object({ status: z.enum(['SOLD', 'RENTED', 'ARCHIVED', 'ACTIVE']) });
 const aiDescSchema = listingInputSchema.partial().extend({ tone: z.enum(['professional', 'friendly', 'luxury']).default('professional'), language: z.enum(['en', 'hi']).default('en') });
@@ -17,6 +18,7 @@ const aiDescSchema = listingInputSchema.partial().extend({ tone: z.enum(['profes
 @Controller('listings')
 export class ListingsController {
   constructor(
+    private readonly access: AccessService,
     private readonly listings: ListingsService,
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
@@ -117,6 +119,7 @@ export class ListingsController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('ai/description')
   async aiDescription(@CurrentUser() user: RequestUser, @Body(new ZodPipe(aiDescSchema)) body: any) {
+    await this.access.assertAllowed(user, 'ai');
     await this.usage.assertAiCredit(user.orgId);
     const locality = body.localityId ? await this.prisma.locality.findUnique({ where: { id: body.localityId } }) : null;
     const facts = {

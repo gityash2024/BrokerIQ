@@ -7,11 +7,22 @@ const values = <T extends Record<string, string>>(o: T) => Object.values(o) as [
 
 export const Role = {
   SUPER_ADMIN: 'SUPER_ADMIN',
+  MODERATOR: 'MODERATOR',
+  SUPPORT: 'SUPPORT',
   BROKER_ADMIN: 'BROKER_ADMIN',
   BROKER_AGENT: 'BROKER_AGENT',
   USER: 'USER',
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
+/** BrokerIQ's own team (admin panel access). Super Admin can do everything; others get a subset. */
+export const STAFF_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'SUPPORT'] as const;
+export const isStaff = (role?: string | null) => !!role && (STAFF_ROLES as readonly string[]).includes(role);
+
+/** Limits BrokerIQ can put on a user or a broker firm without blocking the whole account. */
+export const USER_RESTRICTIONS = { post: 'Listing डालना', chat: 'Chat / messages', enquire: 'Enquiry भेजना', review: 'Review लिखना', ai: 'AI features' } as const;
+export const ORG_RESTRICTIONS = { post: 'Listing डालना', cobroking: 'Co-broking', campaigns: 'WhatsApp campaigns', connectors: 'Lead connectors', ai: 'AI features' } as const;
+export type UserRestriction = keyof typeof USER_RESTRICTIONS;
+export type OrgRestriction = keyof typeof ORG_RESTRICTIONS;
 export const ROLES = values(Role);
 export const BROKER_ROLES: Role[] = [Role.BROKER_ADMIN, Role.BROKER_AGENT];
 
@@ -105,6 +116,7 @@ export const ListingStatus = {
   RENTED: 'RENTED',
   EXPIRED: 'EXPIRED',
   ARCHIVED: 'ARCHIVED',
+  BLOCKED: 'BLOCKED',
 } as const;
 export type ListingStatus = (typeof ListingStatus)[keyof typeof ListingStatus];
 export const LISTING_STATUSES = values(ListingStatus);

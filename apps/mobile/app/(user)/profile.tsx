@@ -11,6 +11,7 @@ import { useLightStatusBar } from '@/lib/hooks';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { Avatar, Badge, Card, PressableScale, Row, Txt, useStatusScrim } from '@/ui';
 import { LanguageSwitch } from '@/components/language';
+import { isStaff } from '@brokeriq/shared';
 
 function Item({ icon, label, sub, onPress, tint, right }: { icon: React.ReactNode; label: string; sub?: string; onPress?: () => void; tint?: string; right?: React.ReactNode }) {
   const { c } = useTheme();
@@ -89,7 +90,7 @@ export default function Profile() {
             {flags.flatmates !== false && <Item icon={<Users size={20} color={c.brand} />} label="Flatmates" sub="साथ रहने के लिए flatmate / room" onPress={() => router.push(user ? '/flatmates' : '/login')} />}
             {flags.rent_agreement !== false && <Item icon={<FileSignature size={20} color={c.accent} />} tint={c.accent} label="Rent agreement (PDF)" onPress={() => router.push(user ? '/agreements' : '/login')} />}
             {flags.move_in_services !== false && <Item icon={<Truck size={20} color={c.success} />} tint={c.success} label="Move-in services" onPress={() => router.push('/services')} />}
-            {user?.role === 'SUPER_ADMIN' && <Item icon={<BadgeCheck size={20} color={c.success} />} tint={c.success} label="Field verification" sub="Property पर जाकर GPS photo से verify करें" onPress={() => router.push('/field-verify')} />}
+            {isStaff(user?.role) && <Item icon={<ShieldCheck size={20} color={c.danger} />} tint={c.danger} label="Admin (BrokerIQ team)" sub="Listings review, reports, block/unblock, field verification" onPress={() => router.push('/admin')} />}
             <Item icon={<BadgeCheck size={20} color={c.success} />} tint={c.success} label="Verified tenant बनें" sub="Office email से — brokers जल्दी जवाब देते हैं" onPress={() => router.push(user ? '/verify-tenant' : '/login')} />
             <Item icon={<Send size={20} color={c.info} />} tint={c.info} label="मेरी enquiries" onPress={() => router.push(user ? '/enquiries' : '/login')} />
             <Item icon={<Calculator size={20} color={c.success} />} tint={c.success} label="Rent budget, move-in cost & split" onPress={() => router.push('/tools')} />

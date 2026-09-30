@@ -25,6 +25,8 @@ export interface NavItem {
   exact?: boolean;
   /** Hidden while Super Admin has this feature flag switched off ('paid' = hidden in free mode). */
   flag?: string;
+  /** Only these roles see the item (Super Admin always does). */
+  roles?: string[];
 }
 export interface NavGroup {
   title?: string;
@@ -38,10 +40,11 @@ function isActive(pathname: string, item: NavItem) {
 function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   const config = useConfig();
+  const role = useAuth().user?.role;
   return (
     <nav className="space-y-6">
       {groups
-        .map((g) => ({ ...g, items: g.items.filter((it) => isGateOpen(config, it.flag)) }))
+        .map((g) => ({ ...g, items: g.items.filter((it) => isGateOpen(config, it.flag) && (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role)))) }))
         .filter((g) => g.items.length)
         .map((g, gi) => (
         <div key={gi}>

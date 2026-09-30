@@ -16,7 +16,7 @@ import { img } from '@/lib/api';
 import { alert } from '../lib/i18n';
 import { useFreeMode } from '@/lib/config';
 
-const TONE: Record<string, string> = { ACTIVE: '#10B981', PENDING_REVIEW: '#F59E0B', REJECTED: '#E11D48', DRAFT: '#64748B', SOLD: '#0EA5E9', RENTED: '#0EA5E9', EXPIRED: '#94A3B8', ARCHIVED: '#94A3B8' };
+const TONE: Record<string, string> = { ACTIVE: '#10B981', PENDING_REVIEW: '#F59E0B', REJECTED: '#E11D48', DRAFT: '#64748B', SOLD: '#0EA5E9', RENTED: '#0EA5E9', EXPIRED: '#94A3B8', ARCHIVED: '#94A3B8', BLOCKED: '#E11D48' };
 
 export function ListingsManager({ header }: { header: React.ReactNode }) {
   const freeMode = useFreeMode();
@@ -91,6 +91,7 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
                   <IconBtn onPress={() => actions(l)}><Pencil size={18} color={c.muted} /></IconBtn>
                 </Row>
                 {l.status === 'REJECTED' && !!l.rejectionReason && <Txt v="small" color="danger">Reason: {l.rejectionReason}</Txt>}
+                {l.status === 'BLOCKED' && <Txt v="small" color="danger">BrokerIQ ने यह listing हटाई है{l.blockedReason ? ` — ${String(l.blockedReason).replace(/^(ACCOUNT|FIRM): /, '')}` : ''}। Support से संपर्क करें।</Txt>}
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Row gap={14}>
                     <Row gap={4}><Eye size={14} color={c.muted} /><Txt v="caption" color="muted">{plural(l.views, 'view')}</Txt></Row>

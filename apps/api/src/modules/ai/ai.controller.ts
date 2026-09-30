@@ -11,6 +11,7 @@ import { ListingsService } from '../listings/listings.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg, shortCode } from '../../common/utils';
+import { AccessService } from '../../core/access/access.service';
 
 const scanSchema = z.object({
   image: z.string().startsWith('data:image/').max(12_000_000),
@@ -64,6 +65,7 @@ Rules:
 @Controller('ai')
 export class AiController {
   constructor(
+    private readonly access: AccessService,
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly usage: UsageService,
@@ -89,6 +91,7 @@ export class AiController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('scan')
   async scan(@CurrentUser() user: RequestUser, @Body(new ZodPipe(scanSchema)) body: any) {
+    await this.access.assertAllowed(user, 'ai');
     const orgId = requireOrg(user);
     const flag = await this.prisma.featureFlag.findUnique({ where: { key: 'ai_scanner' } });
     if (flag && !flag.enabled) throw new ForbiddenException('AI scanner अभी बंद है');

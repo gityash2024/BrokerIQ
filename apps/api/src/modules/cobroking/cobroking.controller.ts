@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { CoBrokingService, type NetworkQuery } from './cobroking.service';
 import { CurrentUser, Roles, type RequestUser, Feature } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { AccessService } from '../../core/access/access.service';
 
 const requestSchema = z.object({ listingId: z.string().min(1), leadId: z.string().optional().nullable(), sharePct: z.number().min(0).max(100).optional().nullable(), message: z.string().max(500).optional().nullable() });
 
@@ -12,7 +13,10 @@ const requestSchema = z.object({ listingId: z.string().min(1), leadId: z.string(
 @Feature('cobroking')
 @Controller('cobroking')
 export class CoBrokingController {
-  constructor(private readonly svc: CoBrokingService) {}
+  constructor(
+    private readonly svc: CoBrokingService,
+    private readonly access: AccessService,
+  ) {}
 
   @Get('network')
   network(@CurrentUser() user: RequestUser, @Query() q: NetworkQuery) {
@@ -20,7 +24,8 @@ export class CoBrokingController {
   }
 
   @Post('requests')
-  request(@CurrentUser() user: RequestUser, @Body(new ZodPipe(requestSchema)) body: z.infer<typeof requestSchema>) {
+  async request(@CurrentUser() user: RequestUser, @Body(new ZodPipe(requestSchema)) body: z.infer<typeof requestSchema>) {
+    await this.access.assertAllowed(user, 'cobroking');
     return this.svc.request(user, body);
   }
 

@@ -2,10 +2,12 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BadgeCheck, Ban, CheckCircle2, ExternalLink, Search } from 'lucide-react';
-import { timeAgo } from '@brokeriq/shared';
+import { BadgeCheck, Ban, CheckCircle2, ExternalLink, Search, SlidersHorizontal, UserMinus } from 'lucide-react';
+import { ORG_RESTRICTIONS, timeAgo } from '@brokeriq/shared';
 import { api } from '@/lib/api';
-import { patch, useApiMutation, useDebounced } from '@/lib/hooks';
+import { del, patch, post, useApiMutation, useDebounced } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
+import { ReasonDialog, RestrictionsDialog } from '@/components/admin/controls';
 import { cn, formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
@@ -34,7 +36,7 @@ export default function BrokersPage() {
         <Select className="h-10 w-36" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value, page: 1 })}>
           <option value="">All status</option>
           <option value="ACTIVE">Active</option>
-          <option value="SUSPENDED">Suspended</option>
+          <option value="SUSPENDED">Blocked</option>
         </Select>
       </div>
       {q.isError ? (
@@ -55,7 +57,7 @@ export default function BrokersPage() {
                   <tr key={o.id} onClick={() => setOpen(o.id)} className={cn('cursor-pointer border-b border-line last:border-0 hover:bg-surface-2/50', o.status === 'SUSPENDED' && 'opacity-60')}>
                     <td className="px-4 py-2.5"><div className="flex items-center gap-3"><Avatar name={o.name} src={o.logoUrl} size={34} /><div><p className="font-semibold">{o.name}</p><p className="text-xs text-muted">{o.phone ?? '—'} · /{o.slug}</p></div></div></td>
                     <td className="px-4 py-2.5"><Badge tone="brand">{o.subscription?.plan?.name ?? 'Free'}</Badge></td>
-                    <td className="px-4 py-2.5"><Badge tone={VTONE[o.verification]}>{o.verification}</Badge>{o.status === 'SUSPENDED' && <Badge tone="danger" className="ml-1">Suspended</Badge>}</td>
+                    <td className="px-4 py-2.5"><Badge tone={VTONE[o.verification]}>{o.verification}</Badge>{o.status === 'SUSPENDED' && <Badge tone="danger" className="ml-1">Blocked</Badge>}</td>
                     <td className="px-4 py-2.5 text-center">{o._count.members}</td>
                     <td className="px-4 py-2.5 text-center">{o._count.listings}</td>
                     <td className="px-4 py-2.5 text-center">{o._count.leads}</td>
@@ -79,6 +81,14 @@ function OrgSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   const [plan, setPlan] = useState('');
   const [days, setDays] = useState(30);
   const upd = useApiMutation((b: any) => patch(`/admin/organizations/${id}`, b), { success: 'Updated', invalidate: [['admin-org', id], ['admin-orgs']] });
+  const { user: me } = useAuth();
+  const isSuper = me?.role === 'SUPER_ADMIN';
+  const inv = [['admin-org', id], ['admin-orgs']];
+  const [dialog, setDialog] = useState<null | 'block' | 'restrict'>(null);
+  const block = useApiMutation((reason: string) => post<any>(`/admin/organizations/${id}/block`, { reason }), { success: (r: any) => `Firm block — ${r.listingsHidden} listings छिपीं`, invalidate: inv, onSuccess: () => setDialog(null) });
+  const unblock = useApiMutation(() => post<any>(`/admin/organizations/${id}/unblock`, {}), { success: (r: any) => `Firm चालू — ${r.listingsRestored} listings वापस`, invalidate: inv });
+  const restrict = useApiMutation((restrictions: string[]) => patch(`/admin/organizations/${id}/restrictions`, { restrictions }), { success: 'Restrictions saved', invalidate: inv, onSuccess: () => setDialog(null) });
+  const removeMember = useApiMutation((userId: string) => del(`/admin/organizations/${id}/members/${userId}`), { success: 'Member हटाया', invalidate: inv });
   const o = q.data;
   return (
     <Sheet open={!!id} onOpenChange={(v) => !v && onClose()} className="max-w-xl">
@@ -104,12 +114,19 @@ function OrgSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
             <Badge tone={VTONE[o.verification]}>{o.verification}</Badge>
             {o.verification !== 'VERIFIED' && <Button size="xs" variant="success" onClick={() => upd.mutate({ verification: 'VERIFIED' })}><BadgeCheck className="size-3.5" /> Verify firm</Button>}
             {o.verification === 'VERIFIED' && <Button size="xs" variant="secondary" onClick={() => upd.mutate({ verification: 'UNVERIFIED' })}>Remove verification</Button>}
-            {o.status === 'ACTIVE' ? (
-              <Button size="xs" variant="danger" onClick={() => confirm('Firm suspend करें? सभी members logout हो जाएँगे।') && upd.mutate({ status: 'SUSPENDED' })}><Ban className="size-3.5" /> Suspend</Button>
+            {isSuper && (o.status === 'ACTIVE' ? (
+              <Button size="xs" variant="danger" onClick={() => setDialog('block')}><Ban className="size-3.5" /> Block firm</Button>
             ) : (
-              <Button size="xs" variant="success" onClick={() => upd.mutate({ status: 'ACTIVE' })}><CheckCircle2 className="size-3.5" /> Reactivate</Button>
-            )}
+              <Button size="xs" variant="success" loading={unblock.isPending} onClick={() => unblock.mutate()}><CheckCircle2 className="size-3.5" /> Unblock</Button>
+            ))}
+            {isSuper && <Button size="xs" variant="secondary" onClick={() => setDialog('restrict')}><SlidersHorizontal className="size-3.5" /> Restrictions{o.restrictions?.length ? ` (${o.restrictions.length})` : ''}</Button>}
           </div>
+          {o.blockedReason && <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">Block कारण: {o.blockedReason}</p>}
+          {o.restrictions?.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">{o.restrictions.map((r: string) => <Badge key={r} tone="warning">{(ORG_RESTRICTIONS as Record<string, string>)[r] ?? r} बंद</Badge>)}</div>
+          )}
+          <ReasonDialog open={dialog === 'block'} title={`${o.name} को block करें?`} confirmLabel="Block firm" busy={block.isPending} onClose={() => setDialog(null)} onConfirm={(r) => block.mutate(r)} />
+          <RestrictionsDialog open={dialog === 'restrict'} title={`${o.name} — restrictions`} options={ORG_RESTRICTIONS} value={o.restrictions ?? []} busy={restrict.isPending} onClose={() => setDialog(null)} onSave={(v) => restrict.mutate(v)} />
 
           <div className="mt-6 rounded-2xl border border-line p-4">
             <p className="font-semibold">Subscription</p>
@@ -135,6 +152,11 @@ function OrgSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                 <div className="min-w-0 flex-1"><p className="font-medium">{m.name}</p><p className="truncate text-xs text-muted">{m.email}</p></div>
                 <Badge>{m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}</Badge>
                 <span className="text-xs text-subtle">{m.lastLoginAt ? timeAgo(m.lastLoginAt) : '—'}</span>
+                {isSuper && (
+                  <button className="rounded-lg p-1.5 text-subtle hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10" aria-label="Remove member" onClick={() => confirm(`${m.name} को firm से हटाएँ? उनका normal user account रहेगा।`) && removeMember.mutate(m.id)}>
+                    <UserMinus className="size-4" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

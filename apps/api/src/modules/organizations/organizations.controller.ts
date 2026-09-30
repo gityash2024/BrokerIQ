@@ -15,6 +15,7 @@ import { paged, randomToken, requireOrg, sha256 } from '../../common/utils';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
 import { env } from '../../config/env';
 import { FeaturesService } from '../../core/features/features.service';
+import { AccessService } from '../../core/access/access.service';
 
 const PUBLIC_ORG_SELECT = {
   id: true,
@@ -41,6 +42,7 @@ const meta = (req: any) => ({ ip: (req.headers['x-forwarded-for']?.split(',')[0]
 @Controller()
 export class OrganizationsController {
   constructor(
+    private readonly access: AccessService,
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly usage: UsageService,
@@ -269,6 +271,7 @@ export class OrganizationsController {
 
   @Post('brokers/:id/reviews')
   async review(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(reviewSchema.omit({ organizationId: true }))) body: any) {
+    await this.access.assertAllowed(user, 'review');
     if (user.orgId === id) throw new ForbiddenException('अपनी firm को review नहीं कर सकते');
     const org = await this.prisma.organization.findUnique({ where: { id } });
     if (!org) throw new NotFoundException();
