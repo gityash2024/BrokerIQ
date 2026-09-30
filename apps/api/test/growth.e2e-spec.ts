@@ -1,7 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { GROWTH_FEATURES } from '@brokeriq/shared';
+import { GROWTH_FEATURES, featureDefault } from '@brokeriq/shared';
+import { FeaturesService } from '../src/core/features/features.service';
 import { json, urlencoded } from 'express';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
@@ -43,7 +44,8 @@ describe('Growth features (e2e)', () => {
     // (matches, search) only see this suite's data. Soft delete; this suite creates its own listings.
     await prisma.listing.updateMany({ where: { deletedAt: null, createdAt: { lt: suiteStart } }, data: { deletedAt: suiteStart } });
     // A run that stopped mid-way may have left a feature switched off.
-    await prisma.featureFlag.updateMany({ where: { key: { in: GROWTH_FEATURES.map((f) => f.key) } }, data: { enabled: true } });
+    for (const f of GROWTH_FEATURES) await prisma.featureFlag.updateMany({ where: { key: f.key }, data: { enabled: featureDefault(f.key) } });
+    app.get(FeaturesService).invalidate();
   });
 
   afterAll(async () => {

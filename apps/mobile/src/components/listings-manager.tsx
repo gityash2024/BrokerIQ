@@ -14,10 +14,12 @@ import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Row, Scre
 import { Image } from 'expo-image';
 import { img } from '@/lib/api';
 import { alert } from '../lib/i18n';
+import { useFreeMode } from '@/lib/config';
 
 const TONE: Record<string, string> = { ACTIVE: '#10B981', PENDING_REVIEW: '#F59E0B', REJECTED: '#E11D48', DRAFT: '#64748B', SOLD: '#0EA5E9', RENTED: '#0EA5E9', EXPIRED: '#94A3B8', ARCHIVED: '#94A3B8' };
 
 export function ListingsManager({ header }: { header: React.ReactNode }) {
+  const freeMode = useFreeMode();
   const { c } = useTheme();
   const [status, setStatus] = useState('');
   const q = useQuery({ queryKey: ['my-listings', status], queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}`) });
@@ -94,7 +96,7 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
                     <Row gap={4}><Eye size={14} color={c.muted} /><Txt v="caption" color="muted">{plural(l.views, 'view')}</Txt></Row>
                     <Row gap={4}><MessageSquare size={14} color={c.muted} /><Txt v="caption" color="muted">{plural(l.enquiryCount, 'enquiry', 'enquiries')}</Txt></Row>
                   </Row>
-                  {l.status === 'ACTIVE' && !l.isFeatured && (
+                  {l.status === 'ACTIVE' && !freeMode && !l.isFeatured && (
                     <Button title="Boost" size="sm" variant="accent" icon={<Rocket size={14} color="#111" />} onPress={() => router.push({ pathname: '/boost', params: { id: l.id, title: l.title } })} />
                   )}
                   {l.isFeatured && <Badge label="Featured" color="#D97706" />}

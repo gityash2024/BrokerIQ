@@ -33,12 +33,13 @@ export class HealthController {
   @Get('details')
   async details() {
     const base = await this.health();
-    const [jobStats, failedJobs, integrations, webhookFailures, integrationErrors] = await Promise.all([
+    const [jobStats, failedJobs, integrations, webhookFailures, integrationErrors, errorsOpen] = await Promise.all([
       this.jobs.stats(),
       this.prisma.job.findMany({ where: { status: 'FAILED' }, orderBy: { updatedAt: 'desc' }, take: 10 }),
       this.settings.platformOverview(),
       this.prisma.webhookEvent.count({ where: { status: 'FAILED', createdAt: { gt: new Date(Date.now() - 86400_000) } } }),
       this.prisma.integrationLog.findMany({ where: { success: false }, orderBy: { createdAt: 'desc' }, take: 20 }),
+      this.prisma.errorLog.count({ where: { resolvedAt: null } }),
     ]);
     return {
       ...base,
@@ -49,6 +50,7 @@ export class HealthController {
       integrations: integrations.map((i) => ({ key: i.key, configured: i.configured, lastTestOk: i.lastTestOk, lastTestedAt: i.lastTestedAt })),
       webhookFailures24h: webhookFailures,
       integrationErrors,
+      errorsOpen,
     };
   }
 }

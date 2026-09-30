@@ -7,6 +7,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
+import { HttpStatus } from '@nestjs/common';
+import { ErrorCode } from '@brokeriq/shared';
+import { SettingsService } from '../../core/settings/settings.service';
+import { AppException } from '../../common/exceptions';
 
 @ApiTags('billing')
 @Controller()
@@ -14,11 +18,18 @@ export class BillingController {
   constructor(
     private readonly billing: BillingService,
     private readonly prisma: PrismaService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /** Free mode (launch phase): no paid plans, boosts or checkouts. */
+  private async assertPaidMode() {
+    if ((await this.settings.getAppConfig()).monetization.freeMode) throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FEATURE_DISABLED, 'अभी BrokerIQ पूरी तरह free है — paid plans और boost बंद हैं।', { feature: 'billing' });
+  }
 
   @Public()
   @Get('billing/plans')
-  plans() {
+  async plans() {
+    if ((await this.settings.getAppConfig()).monetization.freeMode) return [];
     return this.billing.publicPlans();
   }
 
@@ -30,12 +41,14 @@ export class BillingController {
 
   @Roles('BROKER_ADMIN')
   @Post('broker/billing/checkout')
-  checkout(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ planCode: z.string(), cycle: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'), coupon: z.string().optional() }))) body: any) {
+  async checkout(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ planCode: z.string(), cycle: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'), coupon: z.string().optional() }))) body: any) {
+    await this.assertPaidMode();
     return this.billing.checkout(user, requireOrg(user), body);
   }
 
   @Post('billing/boost')
-  boost(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ listingId: z.string(), weeks: z.number().int().min(1).max(12).default(1) }))) body: any) {
+  async boost(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ listingId: z.string(), weeks: z.number().int().min(1).max(12).default(1) }))) body: any) {
+    await this.assertPaidMode();
     return this.billing.boostCheckout(user, body.listingId, body.weeks);
   }
 

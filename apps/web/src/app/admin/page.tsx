@@ -12,12 +12,14 @@ import { PageHeader } from '@/components/panel/shell';
 import { Skeleton, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { CountUp } from '@/components/motion/reveal';
+import { useFreeMode } from '@/lib/config';
 
 const tip = { contentStyle: { background: 'var(--color-surface)', border: '1px solid var(--color-line)', borderRadius: 12, fontSize: 12 } };
 const PIE = ['#4F46E5', '#F59E0B', '#10B981', '#0EA5E9', '#E11D48', '#8B5CF6'];
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const freeMode = useFreeMode();
   const q = useQuery({ queryKey: ['admin-dashboard'], queryFn: () => api<any>('/admin/dashboard') });
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   const d = q.data;
@@ -52,7 +54,11 @@ export default function AdminDashboard() {
       ) : (
         <div className="space-y-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Stat label="MRR" value={formatINR(k.mrr)} icon={<TrendingUp className="size-5" />} tone="success" hint={`30 दिन revenue ${formatINR(k.revenue30)}`} />
+            {freeMode ? (
+              <Stat label="Leads (30d)" value={<CountUp to={k.leads30} />} icon={<TrendingUp className="size-5" />} tone="success" hint="Free mode — billing बंद" />
+            ) : (
+              <Stat label="MRR" value={formatINR(k.mrr)} icon={<TrendingUp className="size-5" />} tone="success" hint={`30 दिन revenue ${formatINR(k.revenue30)}`} />
+            )}
             <Stat label="Users" value={<CountUp to={k.users} />} icon={<Users className="size-5" />} />
             <Stat label="Broker firms" value={<CountUp to={k.brokers} />} icon={<Building2 className="size-5" />} tone="info" />
             <Stat label="Live listings" value={<CountUp to={k.listings} />} icon={<Home className="size-5" />} tone="warning" hint={`${k.leads30} leads · ${k.enquiries30} enquiries (30d)`} />
@@ -120,6 +126,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-2">
+            {!freeMode && (
             <div className="card p-5">
               <p className="mb-4 flex items-center gap-2 font-display font-bold"><BadgeIndianRupee className="size-5 text-emerald-600" /> Revenue (12 महीने)</p>
               {d.revenue.length ? (
@@ -138,6 +145,7 @@ export default function AdminDashboard() {
                 <p className="grid h-60 place-items-center text-center text-sm text-muted">अभी कोई payment नहीं।<br />Razorpay जोड़ें और plans/boosts बेचना शुरू करें।</p>
               )}
             </div>
+            )}
             <div className="card p-5">
               <p className="mb-4 flex items-center gap-2 font-display font-bold"><Inbox className="size-5 text-brand-600" /> Lead sources (platform-wide, 30d)</p>
               {d.leadSources.length ? (

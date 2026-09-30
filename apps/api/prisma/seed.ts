@@ -4,9 +4,10 @@
  */
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { GROWTH_FEATURES, slugify } from '@brokeriq/shared';
+import { GROWTH_FEATURES, featureDefault, slugify } from '@brokeriq/shared';
 import { GURGAON_LOCALITIES, AMENITIES } from './data/gurgaon';
 import { DEFAULT_TEMPLATES } from '../src/core/mail/default-templates';
+import { DRAFT_MARKER, PRIVACY_HTML, TERMS_HTML } from './legal-pages';
 
 const prisma = new PrismaClient();
 
@@ -67,7 +68,7 @@ const FLAGS = [
   { key: 'projects', description: 'New projects section' },
   { key: 'boosts', description: 'Paid listing boosts' },
   { key: 'chat', description: 'In-app chat between users and brokers' },
-  ...GROWTH_FEATURES.map((f) => ({ key: f.key, description: `${f.name} — ${f.description}` })),
+  ...GROWTH_FEATURES.map((f) => ({ key: f.key, description: `${f.name} — ${f.description}`, enabled: featureDefault(f.key) })),
 ];
 
 const HOMEPAGE = [
@@ -112,8 +113,8 @@ const FAQS = [
 
 const PAGES = [
   { slug: 'about', title: 'About BrokerIQ', content: '<h2>BrokerIQ</h2><p>BrokerIQ Gurgaon के लिए बना property marketplace और broker CRM है। (Super Admin → CMS → Pages से यह content edit करें।)</p>', isPublished: true },
-  { slug: 'terms', title: 'Terms of Use', content: '<p>Draft — publish करने से पहले अपने legal advisor से review करवाकर Super Admin → CMS → Pages में भरें।</p>', isPublished: false },
-  { slug: 'privacy', title: 'Privacy Policy', content: '<p>Draft — publish करने से पहले अपने legal advisor से review करवाकर Super Admin → CMS → Pages में भरें।</p>', isPublished: false },
+  { slug: 'terms', title: 'Terms of Use', content: TERMS_HTML, isPublished: true },
+  { slug: 'privacy', title: 'Privacy Policy', content: PRIVACY_HTML, isPublished: true },
 ];
 
 async function main() {
@@ -136,7 +137,7 @@ async function main() {
     await prisma.plan.upsert({ where: { code: p.code }, create: { ...p, limits: p.limits as Prisma.InputJsonValue }, update: {} });
   }
   // Feature flags
-  for (const f of FLAGS) await prisma.featureFlag.upsert({ where: { key: f.key }, create: { ...f, enabled: true }, update: {} });
+  for (const f of FLAGS) await prisma.featureFlag.upsert({ where: { key: f.key }, create: { key: f.key, description: f.description, enabled: 'enabled' in f ? f.enabled : true }, update: {} });
   // Templates
   for (const t of DEFAULT_TEMPLATES) {
     await prisma.template.upsert({ where: { key: t.key }, create: { key: t.key, channel: t.channel, name: t.name, subject: t.subject, body: t.body }, update: {} });
@@ -167,7 +168,12 @@ async function main() {
     });
   }
   if ((await prisma.faq.count()) === 0) await prisma.faq.createMany({ data: FAQS.map((f, idx) => ({ ...f, sortOrder: idx })) });
-  for (const p of PAGES) await prisma.page.upsert({ where: { slug: p.slug }, create: p, update: {} });
+  for (const p of PAGES) {
+    const existing = await prisma.page.findUnique({ where: { slug: p.slug }, select: { content: true } });
+    if (!existing) await prisma.page.create({ data: p });
+    // Replace only the old placeholder — admin-edited pages are left alone.
+    else if (existing.content.includes(DRAFT_MARKER)) await prisma.page.update({ where: { slug: p.slug }, data: { content: p.content, isPublished: p.isPublished } });
+  }
 
   // Super admin from env
   const email = process.env.SUPER_ADMIN_EMAIL?.toLowerCase();

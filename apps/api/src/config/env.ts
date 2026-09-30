@@ -5,6 +5,10 @@ const devDefault = <T extends z.ZodTypeAny>(schema: T, value: string) => (isProd
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  /** Interactive API docs at /api/docs — off in production unless explicitly enabled. */
+  SWAGGER_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Server watchdog writes auto-restarts here; the API reports them to Super Admins. */
+  WATCHDOG_INCIDENTS_FILE: z.string().optional(),
   PORT: z.coerce.number().default(3000),
   /** Bind address; self-hosted deployments behind nginx use 127.0.0.1. */
   HOST: z.string().default('0.0.0.0'),

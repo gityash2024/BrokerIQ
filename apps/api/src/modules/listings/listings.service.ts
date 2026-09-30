@@ -3,7 +3,6 @@ import { Prisma, type Listing } from '@prisma/client';
 import {
   PROPERTY_TYPE_CATEGORY,
   PROPERTY_TYPE_LABELS,
-  RENTAL_ONLY,
   maskPhone,
   normalizeIndianPhone,
   pricePerSqft,
@@ -95,11 +94,12 @@ export class ListingsService {
   }
 
   // ------------------------------------------------------------------ search
-  buildWhere(f: Partial<ListingSearchInput>, opts: { publicOnly?: boolean } = { publicOnly: true }): Prisma.ListingWhereInput {
+  /** `rentalOnly` (default on): public results are rent listings unless Super Admin enabled sale listings. */
+  buildWhere(f: Partial<ListingSearchInput>, opts: { publicOnly?: boolean; rentalOnly?: boolean } = { publicOnly: true }): Prisma.ListingWhereInput {
     const and: Prisma.ListingWhereInput[] = [{ deletedAt: null }];
     if (opts.publicOnly) and.push({ status: 'ACTIVE' });
     // Rental marketplace: public search only ever shows rent listings (legacy sale listings stay hidden).
-    if (opts.publicOnly && RENTAL_ONLY) and.push({ purpose: 'RENT' });
+    if (opts.publicOnly && (opts.rentalOnly ?? true)) and.push({ purpose: 'RENT' });
     else if (f.purpose) and.push({ purpose: f.purpose });
     if (f.category) and.push({ category: f.category });
     const types = csv(f.types);
@@ -154,7 +154,8 @@ export class ListingsService {
     return { AND: and };
   }
 
-  orderBy(sort: ListingSearchInput['sort']): Prisma.ListingOrderByWithRelationInput[] {
+  /** `freeMode`: no paid placement — featured listings keep their badge but don't jump the queue. */
+  orderBy(sort: ListingSearchInput['sort'], freeMode = false): Prisma.ListingOrderByWithRelationInput[] {
     switch (sort) {
       case 'newest':
         return [{ publishedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
@@ -167,18 +168,22 @@ export class ListingsService {
       case 'psf_asc':
         return [{ pricePerSqft: { sort: 'asc', nulls: 'last' } }];
       default:
-        // Relevance: paid boost → verified → broker quality (rating + response speed) → newest.
-        return [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { rankBoost: 'desc' }, { publishedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
+        // Relevance: (paid boost) → verified → broker quality (rating + response speed) → newest.
+        return [...(freeMode ? [] : [{ isFeatured: 'desc' as const }]), { isVerified: 'desc' }, { rankBoost: 'desc' }, { publishedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
     }
+  }
+
+  private async freeMode() {
+    return (await this.settings.getAppConfig()).monetization.freeMode;
   }
 
   async search(f: ListingSearchInput) {
     await this.expireFeatured();
     const hub = officeHub(f.officeHub);
     if (hub && (await this.features.isEnabled('commute'))) return this.searchByCommute(f, hub);
-    const where = this.buildWhere(f);
+    const where = this.buildWhere(f, { publicOnly: true, rentalOnly: await this.features.rentalOnly() });
     const [items, total] = await Promise.all([
-      this.prisma.listing.findMany({ where, orderBy: this.orderBy(f.sort), skip: (f.page - 1) * f.pageSize, take: f.pageSize, select: LISTING_CARD_SELECT }),
+      this.prisma.listing.findMany({ where, orderBy: this.orderBy(f.sort, await this.freeMode()), skip: (f.page - 1) * f.pageSize, take: f.pageSize, select: LISTING_CARD_SELECT }),
       this.prisma.listing.count({ where }),
     ]);
     return paged(items, total, f.page, f.pageSize);
@@ -200,8 +205,8 @@ export class ListingsService {
       ],
     };
     const rows = await this.prisma.listing.findMany({
-      where: { AND: [this.buildWhere({ ...f, bbox: undefined }), near] },
-      orderBy: this.orderBy(f.sort === 'commute' ? 'relevance' : f.sort),
+      where: { AND: [this.buildWhere({ ...f, bbox: undefined }, { publicOnly: true, rentalOnly: await this.features.rentalOnly() }), near] },
+      orderBy: this.orderBy(f.sort === 'commute' ? 'relevance' : f.sort, await this.freeMode()),
       take: 1500,
       select: { ...LISTING_CARD_SELECT, locality: { select: { id: true, name: true, slug: true, zone: true, latitude: true, longitude: true } } },
     });
@@ -218,11 +223,11 @@ export class ListingsService {
   }
 
   async mapPoints(f: ListingSearchInput) {
-    const where = { AND: [this.buildWhere({ ...f, bbox: f.bbox }), { latitude: { not: null } }, { longitude: { not: null } }] };
+    const where = { AND: [this.buildWhere({ ...f, bbox: f.bbox }, { publicOnly: true, rentalOnly: await this.features.rentalOnly() }), { latitude: { not: null } }, { longitude: { not: null } }] };
     return this.prisma.listing.findMany({
       where,
       take: 600,
-      orderBy: this.orderBy(f.sort),
+      orderBy: this.orderBy(f.sort, await this.freeMode()),
       select: { id: true, slug: true, price: true, purpose: true, propertyType: true, bedrooms: true, latitude: true, longitude: true, title: true, coverUrl: true },
     });
   }
@@ -279,7 +284,7 @@ export class ListingsService {
     const manage = this.canEdit(listing, user);
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
     // Legacy sale listings stay visible to their owners/admins only.
-    if (RENTAL_ONLY && listing.purpose === 'SALE' && !manage && user?.role !== 'SUPER_ADMIN') throw new NotFoundException('Property नहीं मिली');
+    if (listing.purpose === 'SALE' && (await this.features.rentalOnly()) && !manage && user?.role !== 'SUPER_ADMIN') throw new NotFoundException('Property नहीं मिली');
 
     if (!manage && track) {
       await this.prisma.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } });
@@ -383,6 +388,7 @@ export class ListingsService {
   }
 
   async create(input: ListingInput, user: RequestUser) {
+    if (input.purpose === 'SALE') await this.features.assertEnabled('sale_listings');
     const locality = await this.prisma.locality.findUnique({ where: { id: input.localityId } });
     if (!locality) throw new BadRequestException('Locality select करें');
     const isBroker = user.role === 'BROKER_ADMIN' || user.role === 'BROKER_AGENT';
@@ -428,6 +434,7 @@ export class ListingsService {
     const existing = await this.prisma.listing.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundException();
     if (!this.canEdit(existing, user)) throw new ForbiddenException();
+    if (input.purpose === 'SALE' && existing.purpose !== 'SALE') await this.features.assertEnabled('sale_listings');
     const app = await this.settings.getAppConfig();
     const contentChanged = CONTENT_FIELDS.some((k) => input[k] !== undefined);
     const isAdmin = user.role === 'SUPER_ADMIN';

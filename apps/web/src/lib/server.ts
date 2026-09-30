@@ -1,4 +1,5 @@
 import 'server-only';
+import { redirect } from 'next/navigation';
 import { API_URL } from './utils';
 
 /** Server-side fetch for SEO pages (ISR). Returns null on 404. */
@@ -15,4 +16,10 @@ export async function sget<T = any>(path: string, revalidate = 60): Promise<T | 
 
 export async function getConfig() {
   return sget<any>('/public/config', 120);
+}
+
+/** Sale / new-project pages exist only while Super Admin has "sale_listings" on (off by default). */
+export async function requireSaleListings() {
+  const cfg = await getConfig();
+  if (cfg?.flags?.sale_listings !== true) redirect('/rent');
 }

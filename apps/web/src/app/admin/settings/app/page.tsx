@@ -114,9 +114,11 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
   },
   {
     id: 'money',
-    title: 'Monetization & invoices',
-    desc: 'Boost price, GST और invoice पर company details',
+    title: 'Free mode, AI & invoices',
+    desc: 'Launch phase में सब free · AI fair-use limit · boost price, GST और invoice पर company details',
     fields: [
+      { key: 'monetization.freeMode', label: 'Free mode — कोई plan limit, pricing, billing या boost नहीं', type: 'switch' },
+      { key: 'ai.dailyCap', label: 'AI calls / firm / दिन (free mode में, 0 = कोई limit नहीं)', type: 'number', hint: 'Free AI providers की limit में रहने के लिए' },
       { key: 'monetization.boostPricePerWeek', label: 'Listing boost price / week (₹)', type: 'number' },
       { key: 'monetization.gstPercent', label: 'GST %', type: 'number' },
       { key: 'monetization.invoicePrefix', label: 'Invoice prefix' },

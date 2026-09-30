@@ -13,6 +13,7 @@ import { Button } from '../ui/button';
 import { useConfig } from '@/lib/config';
 import { useI18n } from '@/lib/i18n';
 import { img } from '@/lib/utils';
+import { showStat } from '@brokeriq/shared';
 
 const ICONS: Record<string, any> = { 'shield-check': ShieldCheck, 'map-pinned': MapPinned, 'messages-square': MessagesSquare, sparkles: Sparkles, star: Star, 'badge-check': BadgeCheck };
 
@@ -63,7 +64,7 @@ export function HeroSection({ s }: { s: any }) {
               [stats.localities, 'Localities covered'],
               [stats.brokers, 'Verified brokers'],
             ]
-              .filter(([n]) => n != null)
+              .filter(([n]) => showStat(n))
               .map(([n, label]) => (
                 <div key={label as string}>
                   <p className="font-display text-3xl font-extrabold">

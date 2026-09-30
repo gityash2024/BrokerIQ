@@ -1,6 +1,7 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ErrorCode, type ApiErrorBody } from '@brokeriq/shared';
+import { MonitoringService } from '../../core/monitoring/monitoring.service';
 
 const STATUS_CODE: Record<number, ErrorCode> = {
   400: ErrorCode.VALIDATION_FAILED,
@@ -14,6 +15,7 @@ const STATUS_CODE: Record<number, ErrorCode> = {
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('Exceptions');
+  constructor(@Optional() private readonly monitoring?: MonitoringService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -23,6 +25,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (body.statusCode >= 500) {
       const req = ctx.getRequest();
       this.logger.error(`${req?.method} ${req?.url} → ${body.statusCode}`, exception instanceof Error ? exception.stack : String(exception));
+      void this.monitoring?.record({
+        source: 'API',
+        message: exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? exception.stack : null,
+        route: req?.route?.path ?? req?.url,
+        method: req?.method,
+        userId: req?.user?.id,
+        userAgent: req?.headers?.['user-agent'],
+      });
     }
     res.status(body.statusCode).json(body);
   }

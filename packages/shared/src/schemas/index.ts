@@ -85,7 +85,8 @@ export const inviteMemberSchema = z.object({ email: emailSchema, name: z.string(
 // ------------------------------------------------------------------ Listings
 export const listingInputSchema = z.object({
   // Rental marketplace: only RENT listings of rentable property types are accepted.
-  purpose: z.enum(LISTING_PURPOSES).refine((p) => p === 'RENT', 'BrokerIQ पर अभी सिर्फ़ rent listings होती हैं').default('RENT'),
+  // SALE is accepted only while Super Admin has "sale_listings" on (checked by the API).
+  purpose: z.enum(LISTING_PURPOSES).default('RENT'),
   propertyType: z.enum(PROPERTY_TYPES).refine((t) => RENTABLE_TYPES.includes(t), 'यह property type rent के लिए उपलब्ध नहीं है'),
   title: z.string().trim().min(8).max(140).optional(),
   description: z.string().trim().max(5000).optional().nullable(),

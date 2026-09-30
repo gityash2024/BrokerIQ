@@ -8,7 +8,7 @@ import { Archive, BadgeCheck, CheckCircle2, Eye, Heart, MessageSquare, MoreVerti
 import { LISTING_STATUS_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { del, patch, useApiMutation } from '@/lib/hooks';
-import { useConfig } from '@/lib/config';
+import { useConfig, useFreeMode } from '@/lib/config';
 import { payWithRazorpay } from '@/lib/razorpay';
 import { cn, img } from '@/lib/utils';
 import { Segmented } from '../ui/tabs';
@@ -29,6 +29,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
   const [kit, setKit] = useState<string | null>(null);
   const isBroker = base.startsWith('/broker');
   const { app, flags } = useConfig();
+  const freeMode = useFreeMode();
   const q = useQuery({ queryKey: ['my-listings', status, search], queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`) });
   const setSt = useApiMutation((v: { id: string; status: string }) => patch(`/listings/${v.id}/status`, { status: v.status }), { invalidate: [['my-listings']], success: 'Updated' });
   const remove = useApiMutation((id: string) => del(`/listings/${id}`), { invalidate: [['my-listings']], success: 'Deleted' });
@@ -99,7 +100,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {l.status === 'ACTIVE' && flags.boosts !== false && !l.isFeatured && (
+                {l.status === 'ACTIVE' && !freeMode && flags.boosts !== false && !l.isFeatured && (
                   <Button size="sm" variant="accent" onClick={() => setBoost(l)}>
                     <Rocket className="size-4" /> Boost
                   </Button>

@@ -21,7 +21,7 @@ module.exports = {
       name: 'brokeriq-api',
       cwd: `${BASE}/app/apps/api`,
       script: 'dist/src/main.js',
-      env: loadEnv(`${BASE}/secrets/api.env`),
+      env: { WATCHDOG_INCIDENTS_FILE: `${BASE}/logs/incidents.log`, ...loadEnv(`${BASE}/secrets/api.env`) },
       max_memory_restart: '1200M',
       out_file: `${BASE}/logs/api.out.log`,
       error_file: `${BASE}/logs/api.err.log`,

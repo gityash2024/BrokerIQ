@@ -15,8 +15,11 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   configureApp(app);
 
-  const doc = SwaggerModule.createDocument(app, new DocumentBuilder().setTitle('BrokerIQ API').setVersion('2.0').addBearerAuth().build());
-  SwaggerModule.setup('api/docs', app, doc);
+  // The full API map is not published in production (enable with SWAGGER_ENABLED=true when needed).
+  if (e.SWAGGER_ENABLED === 'true' || (e.NODE_ENV !== 'production' && e.SWAGGER_ENABLED !== 'false')) {
+    const doc = SwaggerModule.createDocument(app, new DocumentBuilder().setTitle('BrokerIQ API').setVersion('2.0').addBearerAuth().build());
+    SwaggerModule.setup('api/docs', app, doc);
+  }
 
   await app.listen(e.PORT, e.HOST);
   Logger.log(`BrokerIQ API listening on :${e.PORT} (${e.NODE_ENV})`, 'Bootstrap');

@@ -201,3 +201,7 @@ export function rentSplit(rent: number, bills: number, people: number, masterPre
   const master = unit * (1 + masterPremiumPct / 100);
   return { perPerson: Math.round(total / n), master: Math.round(master), others: Math.round(unit), total };
 }
+
+/** Public counters (live properties, brokers…) are shown only once they look credible — no "0+" at launch. */
+export const STAT_MIN = 10;
+export const showStat = (n: unknown): n is number => typeof n === 'number' && n >= STAT_MIN;

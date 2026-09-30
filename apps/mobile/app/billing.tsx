@@ -10,7 +10,8 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { RazorpayCheckout, type RzpOrder } from '@/components/razorpay';
-import { Badge, Button, Card, ErrorView, Header, Loader, Row, Screen, Segmented, Txt } from '@/ui';
+import { Badge, Button, Card, ErrorView, Header, Loader, Row, Screen, Segmented, Txt, Empty } from '@/ui';
+import { useFreeMode } from '@/lib/config';
 
 const METERS = [
   ['leadsPerMonth', 'Leads (month)'],
@@ -21,7 +22,19 @@ const METERS = [
   ['connectors', 'Connectors'],
 ] as const;
 
-export default function Billing() {
+export default function BillingScreen() {
+  const blocked = useFreeMode();
+  if (blocked)
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <Header title="Plan & billing" />
+        <Empty icon={<Sparkles size={28} color="#4F46E5" />} title="अभी BrokerIQ पूरी तरह free है — कोई plan, limit या payment नहीं।" />
+      </Screen>
+    );
+  return <Billing />;
+}
+
+function Billing() {
   const { c } = useTheme();
   const { isBrokerAdmin } = useAuth();
   const qc = useQueryClient();

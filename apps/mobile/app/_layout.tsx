@@ -25,6 +25,11 @@ import { Button, Toaster, Txt } from '@/ui';
 import { AssistantButton } from '@/components/assistant';
 import { LanguageSuggestion } from '@/components/language';
 import { loadLang } from '@/lib/lang';
+import { installGlobalErrorHandler } from '@/lib/report-error';
+import { AppErrorBoundary } from '@/components/error-boundary';
+
+/** A crashing screen shows a friendly retry screen and is reported to Admin → Health. */
+export { AppErrorBoundary as ErrorBoundary };
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
@@ -60,6 +65,7 @@ export default function RootLayout() {
   const loggedIn = useSession((s) => !!s.session);
   const { c, isDark } = useTheme();
   useEffect(() => {
+    installGlobalErrorHandler();
     authStore.load();
     loadLang();
   }, []);

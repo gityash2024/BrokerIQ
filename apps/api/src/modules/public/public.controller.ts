@@ -18,7 +18,7 @@ import {
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PublicService } from './public.service';
-import { CurrentUser, Public, type RequestUser } from '../../common/decorators';
+import { CurrentUser, Public, type RequestUser, Feature } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { env } from '../../config/env';
@@ -86,6 +86,7 @@ export class PublicController {
     return this.pub.localityDetail(slug);
   }
 
+  @Feature('sale_listings')
   @Get('projects')
   projects(@Query() q: { locality?: string; q?: string; featured?: string; possession?: string }) {
     return this.prisma.project.findMany({
@@ -102,6 +103,7 @@ export class PublicController {
     });
   }
 
+  @Feature('sale_listings')
   @Get('projects/:slug')
   async project(@Param('slug') slug: string) {
     const p = await this.prisma.project.findFirst({

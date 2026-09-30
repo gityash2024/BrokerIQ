@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Reveal, Stagger, StaggerItem } from '../motion/reveal';
 import { Button } from '../ui/button';
 import { Segmented } from '../ui/tabs';
+import { useFreeMode } from '@/lib/config';
 
 const SOURCES = [
   ['Housing.com', '#6D28D9'],
@@ -32,6 +33,7 @@ const FEATURES = [
 ];
 
 export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
+  const freeMode = useFreeMode();
   const [cycle, setCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [open, setOpen] = useState<number | null>(0);
   // An invite link (/for-brokers?invite=CODE) carries the code through to signup.
@@ -58,7 +60,7 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
                 Free में शुरू करें <ArrowRight className="size-5" />
               </Button>
               <Button href="#pricing" size="lg" variant="secondary" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                Pricing देखें
+                {freeMode ? 'क्या-क्या free है' : 'Pricing देखें'}
               </Button>
             </div>
             <p className="mt-4 text-sm text-white/60">No credit card · Free plan हमेशा के लिए</p>
@@ -132,6 +134,9 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
         </Stagger>
       </section>
 
+      {freeMode ? (
+        <FreeForBrokers signupHref={signupHref} />
+      ) : (
       <section id="pricing" className="bg-surface/70 py-20">
         <div className="container-x">
           <div className="text-center">
@@ -169,6 +174,7 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
           <p className="mt-6 text-center text-xs text-subtle">Prices exclusive of GST.</p>
         </div>
       </section>
+      )}
 
       {faqs.length > 0 && (
         <section className="container-x max-w-3xl py-20">
@@ -200,5 +206,39 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
         </div>
       </section>
     </>
+  );
+}
+
+const FREE_POINTS = [
+  'Unlimited listings, leads और team members',
+  'Housing, 99acres, MagicBricks, Facebook leads — सब connectors',
+  'WhatsApp automation, follow-ups और AI assistant',
+  'Co-broking network, share kit, visiting card',
+  'Invoices, rent agreements, owner reports',
+  'Microsite, reviews और analytics',
+];
+
+/** Launch phase (free mode): no plans or prices — every feature is free for invited brokers. */
+function FreeForBrokers({ signupHref }: { signupHref: string }) {
+  return (
+    <section id="pricing" className="bg-surface/70 py-20">
+      <div className="container-x max-w-4xl text-center">
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+          <Sparkles className="size-3.5" /> Launch offer
+        </span>
+        <h2 className="mt-4 font-display text-3xl font-extrabold sm:text-4xl">अभी सब कुछ free है</h2>
+        <p className="mt-2 text-muted">कोई plan नहीं, कोई limit नहीं, कोई card नहीं — invite से जुड़ें और पूरा BrokerIQ इस्तेमाल करें।</p>
+        <ul className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-2">
+          {FREE_POINTS.map((p) => (
+            <li key={p} className="card flex gap-2 p-4 text-sm">
+              <Check className="mt-0.5 size-4 shrink-0 text-emerald-500" /> {p}
+            </li>
+          ))}
+        </ul>
+        <Button href={signupHref} size="lg" className="mt-8">
+          Free में शुरू करें <ArrowRight className="size-5" />
+        </Button>
+      </div>
+    </section>
   );
 }

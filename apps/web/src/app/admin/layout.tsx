@@ -68,12 +68,12 @@ function Inner({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      title: 'Revenue',
+      title: 'Growth & revenue',
       items: [
-        { href: '/admin/plans', label: 'Plans & pricing', icon: Sparkles },
-        { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
-        { href: '/admin/payments', label: 'Payments', icon: BadgeIndianRupee },
-        { href: '/admin/coupons', label: 'Coupons', icon: TicketPercent },
+        { href: '/admin/plans', label: 'Plans & pricing', icon: Sparkles, flag: 'paid' },
+        { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard, flag: 'paid' },
+        { href: '/admin/payments', label: 'Payments', icon: BadgeIndianRupee, flag: 'paid' },
+        { href: '/admin/coupons', label: 'Coupons', icon: TicketPercent, flag: 'paid' },
         { href: '/admin/broker-invites', label: 'Broker invites', icon: TicketPercent },
         { href: '/admin/services', label: 'Move-in services', icon: TicketPercent },
       ],
@@ -92,8 +92,8 @@ function Inner({ children }: { children: React.ReactNode }) {
       title: 'Master data',
       items: [
         { href: '/admin/localities', label: 'Localities', icon: MapPin },
-        { href: '/admin/projects', label: 'Projects', icon: Building },
-        { href: '/admin/builders', label: 'Builders', icon: HardHat },
+        { href: '/admin/projects', label: 'Projects', icon: Building, flag: 'sale_listings' },
+        { href: '/admin/builders', label: 'Builders', icon: HardHat, flag: 'sale_listings' },
         { href: '/admin/amenities', label: 'Amenities', icon: Flag },
       ],
     },

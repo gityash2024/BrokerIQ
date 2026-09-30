@@ -13,7 +13,8 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
-import { Badge, PageLoader } from '@/components/ui/misc';
+import { Badge, Empty, PageLoader } from '@/components/ui/misc';
+import { useFreeMode } from '@/lib/config';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
 
 const METERS: { key: string; label: string }[] = [
@@ -27,7 +28,20 @@ const METERS: { key: string; label: string }[] = [
 
 const fmtLimit = (n: number) => (n >= 100000 ? 'Unlimited' : n.toLocaleString('en-IN'));
 
+/** Free mode (launch phase): no plans to buy — say so instead of showing checkout. */
 export default function BillingPage() {
+  const freeMode = useFreeMode();
+  if (freeMode)
+    return (
+      <>
+        <PageHeader title="Plan & billing" />
+        <Empty icon={<Sparkles className="size-6" />} title="अभी BrokerIQ पूरी तरह free है" text="कोई plan, limit या payment नहीं — सारे features इस्तेमाल करें। Paid plans शुरू होने पर हम पहले से बताएँगे।" />
+      </>
+    );
+  return <PaidBilling />;
+}
+
+function PaidBilling() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['billing'], queryFn: () => api<any>('/broker/billing') });
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => api<any[]>('/billing/plans', { auth: false }) });

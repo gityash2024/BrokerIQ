@@ -71,8 +71,21 @@ export const appConfigSchema = z.object({
       ogImage: '',
     }),
   monetization: z
-    .object({ boostPricePerWeek: z.number().min(0).default(499), gstPercent: z.number().min(0).max(28).default(18), invoicePrefix: z.string().default('BIQ'), companyName: z.string().default(''), companyAddress: z.string().default(''), companyGstin: z.string().default('') })
-    .default({ boostPricePerWeek: 499, gstPercent: 18, invoicePrefix: 'BIQ', companyName: '', companyAddress: '', companyGstin: '' }),
+    .object({
+      /** Free mode: no plan limits, no pricing/billing/boosts anywhere. Turn off when paid plans start. */
+      freeMode: z.boolean().default(true),
+      boostPricePerWeek: z.number().min(0).default(499),
+      gstPercent: z.number().min(0).max(28).default(18),
+      invoicePrefix: z.string().default('BIQ'),
+      companyName: z.string().default(''),
+      companyAddress: z.string().default(''),
+      companyGstin: z.string().default(''),
+    })
+    .default({ freeMode: true, boostPricePerWeek: 499, gstPercent: 18, invoicePrefix: 'BIQ', companyName: '', companyAddress: '', companyGstin: '' }),
+  /** AI usage: fair-use cap per broker firm per day (keeps free-tier providers within limits). */
+  ai: z
+    .object({ dailyCap: z.number().int().min(0).max(100000).default(200) })
+    .default({ dailyCap: 200 }),
   finance: z
     .object({ defaultInterestRate: z.number().default(8.5), stampDutyMalePct: z.number().default(7), stampDutyFemalePct: z.number().default(5), stampDutyJointPct: z.number().default(6), registrationFeeMax: z.number().default(50000) })
     .default({ defaultInterestRate: 8.5, stampDutyMalePct: 7, stampDutyFemalePct: 5, stampDutyJointPct: 6, registrationFeeMax: 50000 }),

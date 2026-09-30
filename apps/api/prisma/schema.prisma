@@ -2043,3 +2043,31 @@ model WhatsAppSubscriber {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
+
+// ------------------------------------------------------------------ monitoring
+enum ErrorSource {
+  API
+  WEB
+  MOBILE
+}
+
+/** Grouped runtime errors (API 5xx, web/app crashes). Same fingerprint = same row with a counter. */
+model ErrorLog {
+  id          String      @id @default(cuid())
+  fingerprint String      @unique
+  source      ErrorSource
+  message     String
+  stack       String?
+  route       String?
+  method      String?
+  userId      String?
+  appVersion  String?
+  userAgent   String?
+  count       Int         @default(1)
+  firstSeenAt DateTime    @default(now())
+  lastSeenAt  DateTime    @default(now())
+  alertedAt   DateTime?
+  resolvedAt  DateTime?
+
+  @@index([resolvedAt, lastSeenAt])
+}

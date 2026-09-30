@@ -14,6 +14,7 @@ import { palette, useTheme } from '@/lib/theme';
 import { BrokerCard, LocalityCard, ProjectCard } from '@/components/cards';
 import { ListingCard } from '@/components/listing';
 import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
+import { showStat } from '@brokeriq/shared';
 
 // Rental marketplace quick filters (search is always RENT).
 const QUICK = [
@@ -74,14 +75,14 @@ function Hero({ s }: { s: any }) {
           <Txt v="small" color="white">अपनी ज़रूरत बताएँ — मिलती property पर alert</Txt>
         </PressableScale>
         )}
-        {(stats.listings != null || stats.brokers != null) && (
+        {[stats.listings, stats.localities, stats.brokers].some(showStat) && (
           <Row gap={20} wrap style={{ marginTop: 20, rowGap: 10, alignItems: 'flex-start' }}>
             {[
               [stats.listings, 'Live properties'],
               [stats.localities, 'Localities'],
               [stats.brokers, 'Verified brokers'],
             ]
-              .filter(([n]) => n != null)
+              .filter(([n]) => showStat(n))
               .map(([n, l]) => (
                 <View key={l as string} style={{ maxWidth: 160 }}>
                   <Txt v="h2" color="white">{Number(n).toLocaleString('en-IN')}+</Txt>

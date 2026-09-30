@@ -1,8 +1,10 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Activity, AlertTriangle, CheckCircle2, Clock, Cpu, Database, RefreshCw, Server, Webhook, XCircle } from 'lucide-react';
+import { Activity, AlertTriangle, Bug, CheckCircle2, Clock, Cpu, Database, RefreshCw, Server, Webhook, XCircle } from 'lucide-react';
 import { INTEGRATIONS } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -10,6 +12,8 @@ import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Badge, Skeleton, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { Segmented } from '@/components/ui/tabs';
+import { patch, post, useApiMutation } from '@/lib/hooks';
 
 function uptime(s: number) {
   const d = Math.floor(s / 86400);
@@ -88,8 +92,58 @@ export default function HealthPage() {
               </div>
             </div>
           )}
+          <ErrorsCard />
         </div>
       )}
     </>
+  );
+}
+
+const SOURCE_TONE = { API: 'danger', WEB: 'warning', MOBILE: 'info' } as const;
+
+/** Grouped runtime errors from the API, website and app — resolve once fixed; a repeat reopens it. */
+function ErrorsCard() {
+  const [status, setStatus] = useState<'open' | 'resolved'>('open');
+  const q = useQuery({ queryKey: ['admin-errors', status], queryFn: () => api<any[]>(`/admin/errors?status=${status}`), refetchInterval: 60_000 });
+  const [open, setOpen] = useState<string | null>(null);
+  const resolve = useApiMutation((b: { id: string; resolved: boolean }) => patch(`/admin/errors/${b.id}`, { resolved: b.resolved }), { invalidate: [['admin-errors'], ['admin-health']] });
+  const resolveAll = useApiMutation(() => post('/admin/errors/resolve-all', {}), { success: 'सब resolved', invalidate: [['admin-errors'], ['admin-health']] });
+  const check = useApiMutation(() => post<any>('/admin/monitoring/check', {}), {
+    onSuccess: (r: any) => (r.found?.length ? toast.warning(`जाँच में मिला: ${r.found.join(', ')}`) : toast.success(`सब ठीक · DB ${r.dbMs} ms${r.disk != null ? ` · disk ${r.disk}%` : ''}`)),
+  });
+  return (
+    <div className="card p-5">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <p className="flex flex-1 items-center gap-2 font-display font-bold"><Bug className="size-5 text-rose-500" /> Errors (API · website · app)</p>
+        <Segmented value={status} onChange={setStatus} options={[{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }]} />
+        <Button size="sm" variant="secondary" loading={check.isPending} onClick={() => check.mutate()}>Uptime जाँचें</Button>
+        {status === 'open' && !!q.data?.length && <Button size="sm" variant="ghost" loading={resolveAll.isPending} onClick={() => resolveAll.mutate()}>सब resolve</Button>}
+      </div>
+      {q.isLoading ? (
+        <Skeleton className="h-24" />
+      ) : !q.data?.length ? (
+        <p className="py-6 text-center text-sm text-muted">{status === 'open' ? 'कोई खुली error नहीं 🎉' : 'कुछ नहीं'}</p>
+      ) : (
+        <div className="divide-y divide-line text-sm">
+          {q.data.map((e) => (
+            <div key={e.id} className="py-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={SOURCE_TONE[e.source as keyof typeof SOURCE_TONE]}>{e.source}</Badge>
+                <button className="min-w-0 flex-1 truncate text-left font-medium hover:text-brand-600" onClick={() => setOpen(open === e.id ? null : e.id)} data-no-i18n>{e.message}</button>
+                <span className="text-xs text-subtle">×{e.count} · {formatDateTime(e.lastSeenAt)}</span>
+                <Button size="sm" variant="ghost" onClick={() => resolve.mutate({ id: e.id, resolved: !e.resolvedAt })}>{e.resolvedAt ? 'Reopen' : 'Resolve'}</Button>
+              </div>
+              {open === e.id && (
+                <div className="mt-2 space-y-1 rounded-xl bg-surface-2 p-3 text-xs" data-no-i18n>
+                  <p className="text-muted">{[e.method, e.route, e.appVersion && `v${e.appVersion}`, e.userId && `user ${e.userId}`].filter(Boolean).join(' · ')}</p>
+                  {e.stack && <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-[11px] leading-4">{e.stack}</pre>}
+                  {e.userAgent && <p className="text-subtle">{e.userAgent}</p>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

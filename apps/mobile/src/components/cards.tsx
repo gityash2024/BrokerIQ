@@ -31,7 +31,7 @@ export function LocalityCard({ l, index = 0 }: { l: any; index?: number }) {
             <Txt v="caption" color="#D1FAE5">₹{Math.round(l.avgPsf).toLocaleString('en-IN')}/sqft</Txt>
           </Row>
         )}
-        <Txt v="caption" color="rgba(255,255,255,0.8)">{plural((l.listingsSale ?? 0) + (l.listingsRent ?? 0), 'listing')}</Txt>
+        <Txt v="caption" color="rgba(255,255,255,0.8)">{(l.listingsSale ?? 0) + (l.listingsRent ?? 0) ? plural((l.listingsSale ?? 0) + (l.listingsRent ?? 0), 'listing') : 'Explore'}</Txt>
       </View>
     </PressableScale>
   );

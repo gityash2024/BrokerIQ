@@ -2,3 +2,5 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 0 21 * * * root /opt/brokeriq/bin/backup.sh >> /opt/brokeriq/logs/backup.log 2>&1
+# Watchdog: restart a BrokerIQ process that fails its health check twice (every 2 minutes).
+*/2 * * * * root /opt/brokeriq/bin/watchdog.sh >> /opt/brokeriq/logs/watchdog.log 2>&1

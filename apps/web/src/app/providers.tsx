@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import type { PublicConfig } from '@brokeriq/shared';
@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/api';
 import { FeedbackWidget } from '@/components/feedback/feedback-widget';
 import { AssistantWidget } from '@/components/assistant/assistant';
 import { I18nProvider } from '@/lib/i18n';
+import { installGlobalErrorHandlers } from '@/lib/report-error';
 
 export function Providers({ children, config }: { children: React.ReactNode; config: PublicConfig | null }) {
   const [qc] = useState(
@@ -23,6 +24,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
         },
       }),
   );
+  useEffect(() => installGlobalErrorHandlers(), []);
   return (
     <QueryClientProvider client={qc}>
       <ConfigProvider initial={config}>

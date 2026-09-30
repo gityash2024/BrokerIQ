@@ -61,7 +61,7 @@ function Inner({ children }: { children: React.ReactNode }) {
       items: [
         { href: '/broker/team', label: 'Team', icon: Users },
         { href: '/broker/invite-brokers', label: 'Brokers को invite करें', icon: UserPlus },
-        ...(admin ? [{ href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign }, { href: '/broker/settings', label: 'Settings', icon: Settings }] : []),
+        ...(admin ? [{ href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign, flag: 'paid' }, { href: '/broker/settings', label: 'Settings', icon: Settings }] : []),
         { href: '/broker/notifications', label: 'Notifications', icon: Bell },
         { href: '/broker/privacy', label: 'Privacy & data sharing', icon: ShieldCheck },
         { href: '/broker/feedback', label: 'Feedback', icon: MessageSquareHeart },

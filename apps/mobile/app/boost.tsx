@@ -4,17 +4,29 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { ZoomIn } from 'react-native-reanimated';
-import { Check, Rocket } from 'lucide-react-native';
+import { Check, Rocket, Sparkles } from 'lucide-react-native';
 import { formatINR } from '@brokeriq/shared';
 import { post } from '@/lib/api';
-import { useConfig } from '@/lib/config';
+import { useConfig, useFreeMode } from '@/lib/config';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { RazorpayCheckout, type RzpOrder } from '@/components/razorpay';
-import { Button, Card, Header, Row, Screen, Txt } from '@/ui';
+import { Button, Card, Header, Row, Screen, Txt, Empty } from '@/ui';
 
-export default function Boost() {
+export default function BoostScreen() {
+  const blocked = useFreeMode();
+  if (blocked)
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <Header title="Boost" />
+        <Empty icon={<Sparkles size={28} color="#4F46E5" />} title="अभी BrokerIQ पूरी तरह free है — boost की ज़रूरत नहीं, सब listings बराबर दिखती हैं।" />
+      </Screen>
+    );
+  return <Boost />;
+}
+
+function Boost() {
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
   const { c } = useTheme();
   const { app } = useConfig();

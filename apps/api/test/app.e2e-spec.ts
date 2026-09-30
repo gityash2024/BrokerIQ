@@ -108,8 +108,9 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('rental marketplace: sale listings and plots are rejected, legacy sale listings stay hidden', async () => {
-    const sale = await http.post('/api/listings').set(auth(brokerA.token)).send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [] }).expect(400);
-    expect(sale.body.code).toBe('VALIDATION_FAILED');
+    // Sale listings stay off until Super Admin switches "sale_listings" on.
+    const sale = await http.post('/api/listings').set(auth(brokerA.token)).send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [] }).expect(403);
+    expect(sale.body.code).toBe('FEATURE_DISABLED');
     await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'RESIDENTIAL_PLOT', localityId, price: 20000, photos: [] }).expect(400);
     // purpose defaults to RENT
     const r = await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'PG', localityId, price: 12000, submit: false, photos: [] }).expect(201);

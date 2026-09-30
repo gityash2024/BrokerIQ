@@ -7,12 +7,13 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
 import { LanguageSwitch } from '@/components/language';
-import { useConfig } from '@/lib/config';
+import { useConfig, useFreeMode } from '@/lib/config';
 
 export default function More() {
   const { c } = useTheme();
   const { user, isBrokerAdmin, logout } = useAuth();
   const { flags } = useConfig();
+  const freeMode = useFreeMode();
   const tiles = [
     { label: 'Follow-ups', icon: AlarmClock, to: '/follow-ups', tint: c.danger },
     { label: 'Site visits', icon: CalendarCheck, to: '/visits', tint: c.accent },
@@ -31,7 +32,7 @@ export default function More() {
     { label: 'Notifications', icon: Bell, to: '/notifications', tint: c.brand },
     { label: 'Feedback', icon: MessageSquareHeart, to: '/feedback', tint: '#DB2777' },
     ...(isBrokerAdmin ? [{ label: 'Firm profile', icon: Settings, to: '/broker-onboarding', tint: c.muted }] : []),
-    { label: 'Plan & billing', icon: CircleDollarSign, to: '/billing', tint: '#D97706' },
+    { label: 'Plan & billing', icon: CircleDollarSign, to: '/billing', tint: '#D97706', flag: 'paid' },
   ];
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
@@ -44,7 +45,7 @@ export default function More() {
           </View>
         </Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-          {tiles.filter((t) => !('flag' in t) || flags[(t as { flag: string }).flag] !== false).map((t, i) => (
+          {tiles.filter((t) => !('flag' in t) || ((t as { flag: string }).flag === 'paid' ? !freeMode : flags[(t as { flag: string }).flag] !== false)).map((t, i) => (
             <Animated.View key={t.label} entering={FadeInDown.delay(i * 30)} style={{ width: '31.5%' }}>
               <PressableScale onPress={() => router.push(t.to as any)} style={{ aspectRatio: 1, borderRadius: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 8 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: `${t.tint}1f`, alignItems: 'center', justifyContent: 'center' }}><t.icon size={22} color={t.tint} /></View>

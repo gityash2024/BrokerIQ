@@ -1,6 +1,6 @@
 # Shared settings for the BrokerIQ self-host scripts. Everything lives under $BASE.
 BASE=/opt/brokeriq
-BRANCH=${BRANCH:-claude/nifty-ritchie-wvtzhc}
+BRANCH=${BRANCH:-feat/production}
 REPO=${REPO:-https://github.com/gityash2024/BrokerIQ.git}
 NODE_VERSION=22.20.0
 PNPM_VERSION=11.25.0

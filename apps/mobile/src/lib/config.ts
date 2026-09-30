@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { DEFAULT_APP_CONFIG, type PublicConfig } from '@brokeriq/shared';
+import { DEFAULT_APP_CONFIG, type PublicConfig, featureDefault } from '@brokeriq/shared';
 import { api } from './api';
 
 const FALLBACK: PublicConfig = { app: DEFAULT_APP_CONFIG, flags: {}, integrations: {}, apiVersion: '' };
@@ -12,7 +12,12 @@ export function useConfig() {
 
 export function useFlag(key: string) {
   const { flags } = useConfig();
-  return flags[key] !== false;
+  return flags[key] ?? featureDefault(key);
+}
+
+/** Launch phase: everything is free — no pricing, billing, boosts or plan limits anywhere. */
+export function useFreeMode() {
+  return useConfig().app.monetization?.freeMode !== false;
 }
 
 export function cmpVersion(a: string, b: string) {

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { BadgeCheck, Building2, CalendarClock, FileDown, Landmark, MapPin, Ruler } from 'lucide-react';
 import { POSSESSION_LABELS, formatINR, formatPriceShort } from '@brokeriq/shared';
-import { sget } from '@/lib/server';
+import { requireSaleListings, sget } from '@/lib/server';
 import { formatDate } from '@/lib/utils';
 import { PageShell, SectionTitle } from '@/components/site/page-shell';
 import { Gallery } from '@/components/site/gallery';
@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProjectPage({ params }: Props) {
+  await requireSaleListings();
   const { slug } = await params;
   const p = await sget<any>(`/public/projects/${slug}`, 300);
   if (!p) notFound();

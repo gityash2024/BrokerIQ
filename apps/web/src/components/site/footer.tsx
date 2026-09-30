@@ -72,6 +72,7 @@ export async function SiteFooter() {
             ['/p/about', 'About'],
             ['/p/terms', 'Terms'],
             ['/p/privacy', 'Privacy'],
+            ['/account-deletion', 'Account deletion'],
           ]}
         />
       </div>

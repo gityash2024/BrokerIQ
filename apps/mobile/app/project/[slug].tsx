@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BadgeCheck, Building2, ChevronLeft, FileDown, MapPin } from 'lucide-react-native';
+import { BadgeCheck, Building2, ChevronLeft, FileDown, MapPin, Sparkles } from 'lucide-react-native';
 import { POSSESSION_LABELS, formatPriceShort } from '@brokeriq/shared';
 import { api, img, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -13,11 +13,24 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { ListingRow } from '@/components/listing';
-import { Badge, Button, Card, ErrorView, IconBtn, Input, Loader, Row, SectionTitle, Sheet, Txt } from '@/ui';
+import { Badge, Button, Card, ErrorView, IconBtn, Input, Loader, Row, SectionTitle, Sheet, Txt, Empty, Screen, Header } from '@/ui';
+import { useFlag } from '@/lib/config';
 
 const W = Dimensions.get('window').width;
 
-export default function Project() {
+export default function ProjectScreen() {
+  const blocked = !useFlag('sale_listings');
+  if (blocked)
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <Header title="Project" />
+        <Empty icon={<Sparkles size={28} color="#4F46E5" />} title="New projects अभी उपलब्ध नहीं हैं।" />
+      </Screen>
+    );
+  return <Project />;
+}
+
+function Project() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { c } = useTheme();
   const insets = useSafeAreaInsets();

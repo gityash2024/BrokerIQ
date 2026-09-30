@@ -77,8 +77,7 @@ export const PROPERTY_TYPE_CATEGORY: Record<PropertyType, PropertyCategory> = {
   INDUSTRIAL: 'COMMERCIAL',
 };
 
-/** BrokerIQ is a rental & brokerage marketplace for Gurgaon, Haryana — new listings are rent-only. */
-export const RENTAL_ONLY = true;
+/** BrokerIQ is a rental & brokerage marketplace for Gurgaon, Haryana. Sale listings stay off unless Super Admin enables "sale_listings". */
 export const MARKET_CITY = 'Gurgaon';
 export const MARKET_STATE = 'Haryana';
 /** Property types that make sense to rent (plots / industrial land are sale-only). */

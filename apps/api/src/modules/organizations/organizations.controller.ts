@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get,
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { brokerOnboardingSchema, inviteMemberSchema, kycSubmitSchema, normalizeIndianPhone, reviewSchema, RENTAL_ONLY } from '@brokeriq/shared';
+import { brokerOnboardingSchema, inviteMemberSchema, kycSubmitSchema, normalizeIndianPhone, reviewSchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { UsageService } from '../../core/usage/usage.service';
@@ -14,6 +14,7 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { paged, randomToken, requireOrg, sha256 } from '../../common/utils';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
 import { env } from '../../config/env';
+import { FeaturesService } from '../../core/features/features.service';
 
 const PUBLIC_ORG_SELECT = {
   id: true,
@@ -46,6 +47,7 @@ export class OrganizationsController {
     private readonly mail: MailService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly features: FeaturesService,
   ) {}
 
   // ------------------------------------------------------------------ onboarding & profile
@@ -253,10 +255,11 @@ export class OrganizationsController {
   @Public()
   @Get('brokers/:slug')
   async microsite(@Param('slug') slug: string) {
+    const rentalOnly = await this.features.rentalOnly();
     const org = await this.prisma.organization.findFirst({ where: { slug, status: 'ACTIVE' }, select: { ...PUBLIC_ORG_SELECT, phone: true, whatsapp: true } });
     if (!org) throw new NotFoundException('Broker नहीं मिला');
     const [listings, reviews, team, stats] = await Promise.all([
-      this.prisma.listing.findMany({ where: { organizationId: org.id, status: 'ACTIVE', deletedAt: null, ...(RENTAL_ONLY ? { purpose: 'RENT' as const } : {}) }, orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }], take: 24, select: LISTING_CARD_SELECT }),
+      this.prisma.listing.findMany({ where: { organizationId: org.id, status: 'ACTIVE', deletedAt: null, ...(rentalOnly ? { purpose: 'RENT' as const } : {}) }, orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }], take: 24, select: LISTING_CARD_SELECT }),
       this.prisma.review.findMany({ where: { organizationId: org.id, status: 'PUBLISHED' }, orderBy: { createdAt: 'desc' }, take: 20, include: { user: { select: { name: true, avatarUrl: true } } } }),
       this.prisma.user.findMany({ where: { organizationId: org.id, status: 'ACTIVE' }, select: { id: true, name: true, avatarUrl: true, role: true } }),
       this.prisma.listing.groupBy({ by: ['purpose'], where: { organizationId: org.id, status: 'ACTIVE', deletedAt: null }, _count: { _all: true } }),
