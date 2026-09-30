@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, 
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { INTEGRATIONS, getIntegration, renderSteps } from '@brokeriq/shared';
+import { GROWTH_FEATURES, INTEGRATIONS, featureDefault, getIntegration, renderSteps } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { AuditService } from '../../core/audit/audit.service';
@@ -155,9 +155,19 @@ export class AdminCoreController {
     return cfg;
   }
 
+  /** Stored flags plus every known feature that has no row yet (shown with its default state). */
   @Get('flags')
-  flags() {
-    return this.prisma.featureFlag.findMany({ orderBy: { key: 'asc' } });
+  async flags() {
+    const rows = await this.prisma.featureFlag.findMany({ orderBy: { key: 'asc' } });
+    const missing = GROWTH_FEATURES.filter((f) => !rows.some((r) => r.key === f.key)).map((f) => ({
+      key: f.key,
+      enabled: featureDefault(f.key),
+      description: f.description,
+      updatedAt: null,
+    }));
+    return [...rows.map((r) => ({ ...r, description: r.description ?? GROWTH_FEATURES.find((f) => f.key === r.key)?.description ?? null })), ...missing].sort(
+      (a, b) => a.key.localeCompare(b.key),
+    );
   }
 
   @Patch('flags/:key')

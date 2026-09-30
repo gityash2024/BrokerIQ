@@ -5,6 +5,7 @@ import { ToggleRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { patch, useApiMutation } from '@/lib/hooks';
 import { formatDateTime } from '@/lib/utils';
+import { featureName } from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
 import { Empty, Skeleton, Switch } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -23,7 +24,7 @@ const LABELS: Record<string, string> = {
 export default function FlagsPage() {
   const q = useQuery({ queryKey: ['admin-flags'], queryFn: () => api<any[]>('/admin/flags') });
   const toggle = useApiMutation((f: any) => patch(`/admin/flags/${f.key}`, { enabled: !f.enabled }), {
-    success: (r: any) => `${LABELS[r.key] ?? r.key} ${r.enabled ? 'ON' : 'OFF'}`,
+    success: (r: any) => `${LABELS[r.key] ?? featureName(r.key)} ${r.enabled ? 'ON' : 'OFF'}`,
     invalidate: [['admin-flags']],
   });
   return (
@@ -46,9 +47,10 @@ export default function FlagsPage() {
               className="card flex items-center gap-4 p-5"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">{LABELS[f.key] ?? f.key}</p>
+                <p className="font-semibold">{LABELS[f.key] ?? featureName(f.key)}</p>
                 <p className="text-xs text-muted">
-                  {f.description ?? f.key} · updated {formatDateTime(f.updatedAt)}
+                  {f.description ?? f.key}
+                  {f.updatedAt ? ` · updated ${formatDateTime(f.updatedAt)}` : ' · default'}
                 </p>
               </div>
               <Switch checked={f.enabled} onCheckedChange={() => toggle.mutate(f)} />

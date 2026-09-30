@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
+import { OwnerReportCard } from '@/components/broker/growth-tools';
 
 const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400_000);
 
@@ -142,6 +143,7 @@ function OwnerDialog({ id, onClose }: { id: string | null; onClose: () => void }
               {o.notes}
             </p>
           )}
+          <OwnerReportCard key={o.id} owner={o} />
         </div>
       )}
     </Dialog>

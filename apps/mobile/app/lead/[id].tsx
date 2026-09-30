@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, FlatList, Linking, ScrollView, View } from 'react-native';
+import { AppState, FlatList, Linking, ScrollView, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -115,8 +115,13 @@ export default function LeadDetail() {
               <Row wrap gap={6}>
                 <SourceBadge source={l.source} />
                 <TempBadge t={l.temperature} />
-                {!!l.score && <Badge label={`Score ${l.score}`} color={c.brand} />}
+                {!!l.scoredAt && <Badge label={`Score ${l.score}`} color={c.brand} />}
               </Row>
+              {!!l.scoreReasons?.length && (
+                <Txt v="caption" color="muted" numberOfLines={2}>
+                  {l.scoreReasons.join(' · ')}
+                </Txt>
+              )}
             </View>
           </Row>
           <Row gap={8}>
@@ -555,8 +560,41 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
     post('/cobroking/requests', { listingId, leadId: lead.id })
       .then(() => toast.success('Co-broke request भेजी'))
       .catch(showError);
+  const compareOn = useFlag('comparison_pdf');
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const pick = (id: string) =>
+    setPicked((p) => (!p ? p : p.includes(id) ? p.filter((x) => x !== id) : p.length >= 5 ? (toast.error('ज़्यादा से ज़्यादा 5 properties'), p) : [...p, id]));
+  const compare = useApiMutation(() => post<any>('/broker/comparisons', { listingIds: picked, leadId: lead.id }), {
+    onSuccess: (r) => {
+      setPicked(null);
+      Share.share({ message: `${String(lead.name).split(' ')[0]} जी, आपके लिए properties की तुलना: ${r.pdfUrl}` });
+    },
+  });
   return (
     <>
+      {compareOn && (
+        <Row>
+          {picked ? (
+            <>
+              <Button
+                title={`PDF बनाएँ (${picked.length})`}
+                size="sm"
+                disabled={picked.length < 2}
+                loading={compare.isPending}
+                onPress={() => compare.mutate(undefined)}
+              />
+              <Button title="Cancel" size="sm" variant="ghost" onPress={() => setPicked(null)} />
+            </>
+          ) : (
+            <Button title="Comparison PDF" size="sm" variant="secondary" onPress={() => setPicked([])} />
+          )}
+        </Row>
+      )}
+      {picked && (
+        <Txt v="caption" color="muted">
+          2–5 properties पर tap करके चुनें
+        </Txt>
+      )}
       <Segmented
         value={scope}
         onChange={setScope}
@@ -585,6 +623,8 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
           renderItem={({ item }) => (
             <ListingRow
               l={item}
+              onPress={picked ? () => pick(item.id) : undefined}
+              selected={!!picked?.includes(item.id)}
               right={
                 <View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <Badge label={`${item.matchScore}%`} color="#10B981" />

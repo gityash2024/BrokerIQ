@@ -2,9 +2,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, EyeOff, Star, Trash2, Users } from 'lucide-react';
+import { Ban, Eye, EyeOff, Megaphone, Star, Trash2, Users } from 'lucide-react';
 import { api } from '@/lib/api';
-import { del, patch, useApiMutation } from '@/lib/hooks';
+import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
@@ -14,19 +14,20 @@ import { ApiErrorState } from '@/components/ui/api-error';
 
 /** Moderation of user-written content: broker reviews and flatmate profiles. */
 export default function ContentModerationPage() {
-  const [tab, setTab] = useState<'reviews' | 'flatmates'>('reviews');
+  const [tab, setTab] = useState<'reviews' | 'flatmates' | 'campaigns'>('reviews');
   return (
     <>
-      <PageHeader title="Reviews & profiles" subtitle="गलत, अपमानजनक या fake content छिपाएँ या हटाएँ — broker की rating अपने-आप update होती है" />
+      <PageHeader title="Content moderation" subtitle="गलत, अपमानजनक या fake content छिपाएँ या हटाएँ; spam वाले broker campaigns तुरंत रोकें" />
       <Segmented
         value={tab}
         onChange={setTab}
         options={[
           { value: 'reviews', label: 'Broker reviews' },
           { value: 'flatmates', label: 'Flatmate profiles' },
+          { value: 'campaigns', label: 'Broker campaigns' },
         ]}
       />
-      <div className="mt-5">{tab === 'reviews' ? <Reviews /> : <Flatmates />}</div>
+      <div className="mt-5">{tab === 'reviews' ? <Reviews /> : tab === 'flatmates' ? <Flatmates /> : <Campaigns />}</div>
     </>
   );
 }
@@ -149,5 +150,63 @@ function Flatmates() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Kill switch: BrokerIQ team can see every broker broadcast and stop a spammy one mid-way. */
+function Campaigns() {
+  const [status, setStatus] = useState<'' | 'RUNNING' | 'DONE' | 'CANCELLED'>('RUNNING');
+  const q = useQuery({
+    queryKey: ['admin-campaigns', status],
+    queryFn: () => api<any[]>(`/admin/campaigns${status ? `?status=${status}` : ''}`),
+    refetchInterval: 10_000,
+  });
+  const stop = useApiMutation((id: string) => post(`/admin/campaigns/${id}/cancel`), { success: 'Campaign रोक दिया', invalidate: [['admin-campaigns']] });
+  return (
+    <>
+      <Segmented
+        value={status}
+        onChange={setStatus}
+        options={[
+          { value: 'RUNNING', label: 'Running' },
+          { value: 'DONE', label: 'Done' },
+          { value: 'CANCELLED', label: 'Stopped' },
+          { value: '', label: 'All' },
+        ]}
+      />
+      <div className="mt-4">
+        {q.isError ? (
+          <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
+        ) : !q.data ? (
+          <Skeleton className="h-48" />
+        ) : !q.data.length ? (
+          <Empty icon={<Megaphone className="size-6" />} title="कोई campaign नहीं" />
+        ) : (
+          <div className="space-y-3">
+            {q.data.map((c) => (
+              <div key={c.id} className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-semibold" data-no-i18n>
+                    {c.name}
+                  </p>
+                  <p className="text-xs text-muted">
+                    <Link href={`/brokers/${c.organization.slug}`} target="_blank" className="hover:text-brand-600" data-no-i18n>
+                      {c.organization.name}
+                    </Link>{' '}
+                    · {c.channel} · {formatDate(c.createdAt)} · {c.sent}/{c.total} भेजे{c.failed ? ` · ${c.failed} failed` : ''}
+                  </p>
+                </div>
+                <Badge tone={c.status === 'RUNNING' ? 'warning' : c.status === 'DONE' ? 'success' : 'neutral'}>{c.status}</Badge>
+                {c.status === 'RUNNING' && (
+                  <Button size="sm" variant="danger" onClick={() => confirm('यह campaign अभी रोकें?') && stop.mutate(c.id)}>
+                    <Ban className="size-4" /> रोकें
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

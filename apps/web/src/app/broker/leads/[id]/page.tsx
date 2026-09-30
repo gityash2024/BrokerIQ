@@ -24,6 +24,7 @@ import {
   StickyNote,
   Trash2,
   Zap,
+  FileBarChart,
 } from 'lucide-react';
 import {
   FURNISHING_LABELS,
@@ -48,6 +49,7 @@ import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Avatar, Badge, Empty, PageLoader } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
+import { ComparisonDialog } from '@/components/broker/growth-tools';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
 import { useFlag } from '@/lib/config';
 
@@ -104,7 +106,11 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-2xl font-extrabold">{l.name}</h1>
               <TempBadge t={l.temperature} />
-              {l.score > 0 && <Badge tone="brand">AI score {l.score}</Badge>}
+              {l.scoredAt && (
+                <span title={(l.scoreReasons ?? []).join(' · ')}>
+                  <Badge tone="brand">Score {l.score}</Badge>
+                </span>
+              )}
               {l.repeatCount > 0 && <Badge tone="info">{l.repeatCount + 1}× enquired</Badge>}
             </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
@@ -114,6 +120,15 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               {l.sourceDetail && <span className="text-xs">{l.sourceDetail}</span>}
               <span className="text-xs">· {timeAgo(l.createdAt)}</span>
             </p>
+            {l.scoreReasons?.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Score के कारण">
+                {l.scoreReasons.map((r: string) => (
+                  <span key={r} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button href={`tel:${l.phone}`} onClick={() => setTimeout(() => setTab('timeline'), 300)}>
@@ -392,6 +407,7 @@ function Matches({ lead }: { lead: any }) {
           ]}
         />
         {!lead.requirement && <span className="text-xs text-amber-600">Requirement भरें तो matching बेहतर होगी</span>}
+        <CompareButton lead={lead} />
       </div>
       {!q.data?.length ? (
         <Empty icon={<Home className="size-6" />} title="कोई matching property नहीं" text="Requirement बदलें या marketplace में देखें।" />
@@ -849,5 +865,19 @@ function CallsCard({ leadId }: { leadId: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function CompareButton({ lead }: { lead: { id: string; name: string; phone: string } }) {
+  const on = useFlag('comparison_pdf');
+  const [open, setOpen] = useState(false);
+  if (!on) return null;
+  return (
+    <>
+      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => setOpen(true)}>
+        <FileBarChart className="size-4" /> Comparison PDF
+      </Button>
+      <ComparisonDialog lead={lead} open={open} onOpenChange={setOpen} />
+    </>
   );
 }

@@ -29,6 +29,8 @@ import {
   FileText,
   Wallet,
   FileSignature,
+  Megaphone,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -86,11 +88,13 @@ function Inner({ children }: { children: React.ReactNode }) {
       items: [
         ...(admin
           ? [
+              { href: '/broker/campaigns', label: 'Campaigns', icon: Megaphone, flag: 'campaigns' },
               { href: '/broker/automations', label: 'Automations', icon: Workflow },
               { href: '/broker/connectors', label: 'Lead connectors', icon: Plug },
             ]
           : []),
         { href: '/broker/analytics', label: 'Analytics', icon: BarChart3 },
+        ...(admin ? [{ href: '/broker/reports', label: 'Reports & GST', icon: FileSpreadsheet, flag: 'broker_reports' }] : []),
         ...(admin ? [{ href: '/broker/reviews', label: 'Reviews', icon: Star }] : []),
       ],
     },

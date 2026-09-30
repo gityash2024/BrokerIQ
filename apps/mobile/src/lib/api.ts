@@ -110,6 +110,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
 
 export const post = <T = any>(p: string, body: unknown = {}) => api<T>(p, { method: 'POST', body });
 export const patch = <T = any>(p: string, body: unknown = {}) => api<T>(p, { method: 'PATCH', body });
+export const put = <T = any>(p: string, body: unknown = {}) => api<T>(p, { method: 'PUT', body });
 export const del = <T = any>(p: string) => api<T>(p, { method: 'DELETE' });
 
 /** User-facing error text in the chosen app language (API messages are in the i18n catalog). */

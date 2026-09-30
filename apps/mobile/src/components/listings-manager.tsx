@@ -14,7 +14,8 @@ import { Badge, Button, Card, Chip, Empty, ErrorView, IconBtn, Row, Screen, Skel
 import { Image } from 'expo-image';
 import { img } from '@/lib/api';
 import { alert } from '../lib/i18n';
-import { useFreeMode } from '@/lib/config';
+import { useFlag, useFreeMode } from '@/lib/config';
+import { toast } from '@/lib/toast';
 
 const TONE: Record<string, string> = {
   ACTIVE: '#10B981',
@@ -53,6 +54,19 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
       showError(e);
     }
   };
+  const socialOn = useFlag('social_autopost');
+  /** Posts to the firm's own Facebook Page / Instagram (Connectors → Facebook Page + Instagram). */
+  const socialPost = async (id: string) => {
+    try {
+      const r = await post<{ platform: string; ok: boolean; error?: string }[]>(`/broker/listings/${id}/social-post`);
+      const ok = r.filter((x) => x.ok).map((x) => (x.platform === 'FACEBOOK' ? 'Facebook' : 'Instagram'));
+      if (ok.length) toast.success(`${ok.join(' + ')} पर post हो गया`);
+      r.filter((x) => !x.ok).forEach((x) => toast.error(`${x.platform}: ${x.error}`));
+      if (!r.length) toast.info('पहले ही post हो चुका है');
+    } catch (e) {
+      showError(e);
+    }
+  };
   /** Copy-ready text for posting the same listing on Housing / 99acres / MagicBricks. */
   const portalPack = async (id: string) => {
     try {
@@ -67,6 +81,7 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
       { text: 'Edit', onPress: () => router.push({ pathname: '/post-property', params: { id: l.id } }) },
       ...(isBroker && l.status === 'ACTIVE' ? [{ text: 'Share kit (WhatsApp / Insta)', onPress: () => shareKit(l.id) }] : []),
       ...(isBroker ? [{ text: 'Portal pack (Housing / 99acres)', onPress: () => portalPack(l.id) }] : []),
+      ...(isBroker && socialOn && l.status === 'ACTIVE' ? [{ text: 'Facebook / Instagram पर post', onPress: () => socialPost(l.id) }] : []),
       ...(l.status === 'ACTIVE'
         ? [
             {

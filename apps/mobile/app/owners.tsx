@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Linking } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { KeyRound, MessageCircle, Phone, UserRound } from 'lucide-react-native';
+import { FileBarChart, KeyRound, MessageCircle, Phone, UserRound } from 'lucide-react-native';
 import { formatINR, whatsappLink } from '@brokeriq/shared';
-import { api, patch } from '@/lib/api';
+import { api, patch, post } from '@/lib/api';
+import { useFlag } from '@/lib/config';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { Badge, Button, Card, Empty, Header, Input, Loader, Row, Screen, Segmented, Txt } from '@/ui';
@@ -33,6 +34,14 @@ function OwnerList() {
   const { c } = useTheme();
   const [q, setQ] = useState('');
   const list = useQuery({ queryKey: ['owners', q], queryFn: () => api<any[]>(`/broker/owners${q ? `?q=${encodeURIComponent(q)}` : ''}`) });
+  const reportsOn = useFlag('owner_reports');
+  // Owner report: read-only page for the landlord (views, enquiries, visits); sent on WhatsApp.
+  const report = useApiMutation(
+    (o: { id: string; name: string; phone: string }) => post<{ url: string }>(`/broker/owners/${o.id}/report-link`).then((r) => ({ ...r, o })),
+    {
+      onSuccess: ({ url, o }) => Linking.openURL(whatsappLink(o.phone, `नमस्ते ${o.name} जी, आपकी property की report यहाँ देखें: ${url}`)),
+    },
+  );
   return (
     <>
       <Input placeholder="नाम या number…" value={q} onChangeText={setQ} containerStyle={{ marginTop: 12 }} />
@@ -66,6 +75,9 @@ function OwnerList() {
                 icon={<MessageCircle size={14} color="#fff" />}
                 onPress={() => Linking.openURL(whatsappLink(o.phone, `नमस्ते ${o.name} जी,`))}
               />
+              {reportsOn && (
+                <Button title="Report link" size="sm" variant="ghost" icon={<FileBarChart size={14} color={c.brand} />} onPress={() => report.mutate(o)} />
+              )}
             </Row>
           </Card>
         ))

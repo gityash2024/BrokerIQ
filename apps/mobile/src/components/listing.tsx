@@ -205,12 +205,20 @@ export function ListingCard({ l, width }: { l: ListingCardData; width?: number }
 }
 
 /** Compact horizontal row card (lists, matches, saved). */
-export function ListingRow({ l, right, onPress }: { l: ListingCardData; right?: React.ReactNode; onPress?: () => void }) {
+export function ListingRow({ l, right, onPress, selected }: { l: ListingCardData; right?: React.ReactNode; onPress?: () => void; selected?: boolean }) {
   const { c } = useTheme();
   return (
     <PressableScale
       onPress={onPress ?? (() => router.push(`/property/${l.slug}`))}
-      style={{ flexDirection: 'row', gap: 12, padding: 10, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.line }}
+      style={{
+        flexDirection: 'row',
+        gap: 12,
+        padding: 10,
+        backgroundColor: c.surface,
+        borderRadius: 18,
+        borderWidth: selected ? 2 : 1,
+        borderColor: selected ? c.brand : c.line,
+      }}
     >
       <View style={{ width: 92, height: 92, borderRadius: 14, overflow: 'hidden', backgroundColor: c.surface2 }}>
         {l.coverUrl && <Image source={{ uri: img(l.coverUrl, 300) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />}

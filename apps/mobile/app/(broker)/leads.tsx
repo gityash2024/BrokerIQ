@@ -80,7 +80,14 @@ function LeadItem({ l }: { l: any }) {
             <Txt v="caption" color="subtle">
               {timeAgo(l.lastActivityAt ?? l.createdAt)}
             </Txt>
-            <TempBadge t={l.temperature} />
+            <Row gap={4}>
+              <TempBadge t={l.temperature} />
+              {!!l.scoredAt && (
+                <Txt v="caption" color="muted">
+                  {l.score}
+                </Txt>
+              )}
+            </Row>
           </View>
         </Row>
         {!!summary && (

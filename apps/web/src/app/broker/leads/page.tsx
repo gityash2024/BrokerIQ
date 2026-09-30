@@ -131,7 +131,7 @@ function LeadsInner() {
           <Select className="h-10 w-40 text-sm" value={f.sort ?? ''} onChange={(e) => setF({ sort: e.target.value || null })}>
             <option value="">Recent activity</option>
             <option value="created">Newest</option>
-            <option value="score">AI score</option>
+            <option value="score">Score (hot पहले)</option>
             <option value="followup">Next follow-up</option>
           </Select>
           {Object.keys(f).some((k) => !['view', 'page'].includes(k)) && (
@@ -239,6 +239,11 @@ function LeadsInner() {
                   <Link href={`/broker/leads/${l.id}`} className="min-w-0">
                     <p className="flex items-center gap-2 truncate font-semibold">
                       {l.name} <TempBadge t={l.temperature} />
+                      {l.scoredAt && (
+                        <span className="text-xs font-semibold text-muted" title={(l.scoreReasons ?? []).join(' · ')}>
+                          {l.score}
+                        </span>
+                      )}
                       {l.repeatCount > 0 && (
                         <span className="rounded bg-violet-100 px-1.5 text-[10px] font-bold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
                           ×{l.repeatCount + 1}

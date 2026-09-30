@@ -24,6 +24,10 @@ import {
   FileText,
   Wallet,
   FileSignature,
+  Megaphone,
+  FileSpreadsheet,
+  IdCard,
+  Stamp,
 } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
@@ -48,6 +52,14 @@ export default function More() {
     { label: 'Co-broking', icon: Network, to: '/network', tint: '#4F46E5', flag: 'cobroking' },
     { label: 'AI book scan', icon: ScanLine, to: '/scanner', tint: '#7C3AED' },
     { label: 'Analytics', icon: BarChart3, to: '/analytics', tint: c.info },
+    ...(isBrokerAdmin
+      ? [
+          { label: 'Campaigns', icon: Megaphone, to: '/campaigns', tint: '#16A34A', flag: 'campaigns' },
+          { label: 'Reports & GST', icon: FileSpreadsheet, to: '/reports', tint: '#0369A1', flag: 'broker_reports' },
+        ]
+      : []),
+    { label: 'Visiting card', icon: IdCard, to: '/visiting-card', tint: '#9333EA', flag: 'visiting_card' },
+    { label: 'Photos & social', icon: Stamp, to: '/photo-branding', tint: '#EA580C' },
     { label: 'Team', icon: Users, to: '/team', tint: '#0D9488' },
     { label: 'Brokers को invite करें', icon: UserPlus, to: '/invite-brokers', tint: '#7C3AED' },
     ...(isBrokerAdmin ? [{ label: 'Lead connectors', icon: Plug, to: '/connectors', tint: '#E11D48' }] : []),

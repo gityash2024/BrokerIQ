@@ -15,11 +15,15 @@ import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Textarea } from '@/components/ui/field';
 import { Avatar, Badge, PageLoader, Switch } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { BrandingSettings, VisitingCardPanel } from '@/components/broker/growth-tools';
+import { useFlag, useFreeMode } from '@/lib/config';
 
 const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'firm' | 'hours' | 'verify' | 'me'>('firm');
+  const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me'>('firm');
+  const { user } = useAuth();
+  const cardOn = useFlag('visiting_card');
   const q = useQuery({ queryKey: ['broker-profile'], queryFn: () => api<any>('/broker/profile') });
   if (q.isLoading) return <PageLoader />;
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
@@ -43,12 +47,16 @@ export default function SettingsPage() {
         options={[
           { value: 'firm', label: 'Firm profile' },
           { value: 'hours', label: 'Business hours' },
+          { value: 'branding', label: 'Photos & social' },
+          ...(cardOn ? [{ value: 'card' as const, label: 'Visiting card' }] : []),
           { value: 'verify', label: 'Verification' },
           { value: 'me', label: 'मेरा account' },
         ]}
       />
       {tab === 'firm' && <FirmForm org={org} microsite={microsite} onSaved={() => q.refetch()} />}
       {tab === 'hours' && <Hours org={org} />}
+      {tab === 'branding' && <BrandingSettings isAdmin={user?.role === 'BROKER_ADMIN'} />}
+      {tab === 'card' && <VisitingCardPanel slug={org.slug} />}
       {tab === 'verify' && (
         <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
           <div className="card p-6">
@@ -89,6 +97,7 @@ export default function SettingsPage() {
 
 function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; onSaved: () => void }) {
   const { setSession } = useAuth();
+  const freeMode = useFreeMode();
   const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const [f, setF] = useState<any>(null);
   const [q, setQ] = useState('');
@@ -224,36 +233,38 @@ function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; on
             WhatsApp पर share करें
           </Button>
         </div>
-        <div className="card p-5 text-sm">
-          <p className="font-display font-bold">Plan usage</p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-surface-2 p-3">
-              <p className="text-xs text-muted">Agents</p>
-              <p className="font-bold">
-                {org.usage.agents} / {org.plan.limits.agents}
-              </p>
+        {!freeMode && (
+          <div className="card p-5 text-sm">
+            <p className="font-display font-bold">Plan usage</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-surface-2 p-3">
+                <p className="text-xs text-muted">Agents</p>
+                <p className="font-bold">
+                  {org.usage.agents} / {org.plan.limits.agents}
+                </p>
+              </div>
+              <div className="rounded-xl bg-surface-2 p-3">
+                <p className="text-xs text-muted">Active listings</p>
+                <p className="font-bold">
+                  {org.usage.activeListings} / {org.plan.limits.activeListings}
+                </p>
+              </div>
+              <div className="rounded-xl bg-surface-2 p-3">
+                <p className="text-xs text-muted">AI credits</p>
+                <p className="font-bold">
+                  {org.usage.aiThisMonth} / {org.plan.limits.aiCredits}
+                </p>
+              </div>
+              <div className="rounded-xl bg-surface-2 p-3">
+                <p className="text-xs text-muted">Plan</p>
+                <p className="font-bold">{org.plan.plan}</p>
+              </div>
             </div>
-            <div className="rounded-xl bg-surface-2 p-3">
-              <p className="text-xs text-muted">Active listings</p>
-              <p className="font-bold">
-                {org.usage.activeListings} / {org.plan.limits.activeListings}
-              </p>
-            </div>
-            <div className="rounded-xl bg-surface-2 p-3">
-              <p className="text-xs text-muted">AI credits</p>
-              <p className="font-bold">
-                {org.usage.aiThisMonth} / {org.plan.limits.aiCredits}
-              </p>
-            </div>
-            <div className="rounded-xl bg-surface-2 p-3">
-              <p className="text-xs text-muted">Plan</p>
-              <p className="font-bold">{org.plan.plan}</p>
-            </div>
+            <Button size="sm" variant="link" href="/broker/billing" className="mt-3">
+              Upgrade →
+            </Button>
           </div>
-          <Button size="sm" variant="link" href="/broker/billing" className="mt-3">
-            Upgrade →
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   );

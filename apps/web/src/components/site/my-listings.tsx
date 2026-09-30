@@ -19,11 +19,12 @@ import {
   RotateCcw,
   Rocket,
   Trash2,
+  Megaphone,
 } from 'lucide-react';
 import { LISTING_STATUS_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
-import { del, patch, useApiMutation } from '@/lib/hooks';
-import { useConfig, useFreeMode } from '@/lib/config';
+import { del, patch, post, useApiMutation } from '@/lib/hooks';
+import { useConfig, useFlag, useFreeMode } from '@/lib/config';
 import { payWithRazorpay } from '@/lib/razorpay';
 import { cn, img } from '@/lib/utils';
 import { Segmented } from '../ui/tabs';
@@ -55,6 +56,15 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
   const isBroker = base.startsWith('/broker');
   const { app, flags } = useConfig();
   const freeMode = useFreeMode();
+  const socialOn = useFlag('social_autopost');
+  const social = useApiMutation((id: string) => post<{ platform: string; ok: boolean; error?: string }[]>(`/broker/listings/${id}/social-post`), {
+    onSuccess: (r) => {
+      const ok = r.filter((x) => x.ok).map((x) => (x.platform === 'FACEBOOK' ? 'Facebook' : 'Instagram'));
+      if (ok.length) toast.success(`${ok.join(' + ')} पर post हो गया`);
+      r.filter((x) => !x.ok).forEach((x) => toast.error(`${x.platform}: ${x.error}`));
+      if (!r.length) toast.info('पहले ही post हो चुका है');
+    },
+  });
   const q = useQuery({
     queryKey: ['my-listings', status, search],
     queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
@@ -185,6 +195,11 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
                       {isBroker && (
                         <MI onSelect={() => setPack(l.id)} icon={<Package className="size-4" />}>
                           Portal pack
+                        </MI>
+                      )}
+                      {isBroker && socialOn && l.status === 'ACTIVE' && (
+                        <MI onSelect={() => social.mutate(l.id)} icon={<Megaphone className="size-4" />}>
+                          Facebook / Instagram पर post
                         </MI>
                       )}
                       {l.status !== 'ARCHIVED' && (

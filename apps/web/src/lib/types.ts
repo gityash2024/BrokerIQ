@@ -81,6 +81,10 @@ export interface LeadRow {
   stage: LeadStage;
   temperature: 'HOT' | 'WARM' | 'COLD' | null;
   score: number;
+  /** Why the score is what it is (rule-based lead scoring) */
+  scoreReasons: string[];
+  scoredAt: string | null;
+  optedOutAt: string | null;
   tags: string[];
   notes: string | null;
   createdAt: string;
