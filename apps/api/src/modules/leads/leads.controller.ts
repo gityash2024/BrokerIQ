@@ -52,12 +52,12 @@ export class LeadsController {
   }
 
   @Post('bulk')
-  bulk(@CurrentUser() user: RequestUser, @Body(new ZodPipe(bulkSchema)) body: any) {
+  bulk(@CurrentUser() user: RequestUser, @Body(new ZodPipe(bulkSchema)) body: z.infer<typeof bulkSchema>) {
     return this.leads.bulk(user, body);
   }
 
   @Post()
-  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(leadInputSchema)) body: any) {
+  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(leadInputSchema)) body: z.infer<typeof leadInputSchema>) {
     return this.leads.create(body, user);
   }
 
@@ -67,22 +67,22 @@ export class LeadsController {
   }
 
   @Patch(':id')
-  update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(leadUpdateSchema)) body: any) {
+  update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(leadUpdateSchema)) body: z.infer<typeof leadUpdateSchema>) {
     return this.leads.update(id, body, user);
   }
 
   @Patch(':id/stage')
-  stage(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(leadStageSchema)) body: any) {
+  stage(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(leadStageSchema)) body: z.infer<typeof leadStageSchema>) {
     return this.leads.changeStage(id, body.stage, user, body.lostReason);
   }
 
   @Patch(':id/assign')
-  assign(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(assignSchema)) body: any) {
+  assign(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(assignSchema)) body: z.infer<typeof assignSchema>) {
     return this.leads.assign(id, body.assignedToId, user);
   }
 
   @Post(':id/activities')
-  activity(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(activityInputSchema)) body: any) {
+  activity(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(activityInputSchema)) body: z.infer<typeof activityInputSchema>) {
     return this.leads.addActivity(id, body, user);
   }
 

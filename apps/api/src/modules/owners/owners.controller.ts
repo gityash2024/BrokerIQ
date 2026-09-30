@@ -42,7 +42,7 @@ export class OwnersController {
   }
 
   @Post('owners')
-  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(ownerSchema)) body: any) {
+  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(ownerSchema)) body: z.infer<typeof ownerSchema>) {
     return this.svc.create(requireOrg(user), body);
   }
 
@@ -68,7 +68,7 @@ export class OwnersController {
   }
 
   @Post('tenancies')
-  createTenancy(@CurrentUser() user: RequestUser, @Body(new ZodPipe(tenancySchema)) body: any) {
+  createTenancy(@CurrentUser() user: RequestUser, @Body(new ZodPipe(tenancySchema)) body: z.infer<typeof tenancySchema>) {
     return this.svc.createTenancy(requireOrg(user), body);
   }
 

@@ -33,7 +33,7 @@ export class FeedbackController {
   @Public()
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post()
-  async create(@CurrentUser() user: RequestUser | undefined, @Body(new ZodPipe(feedbackSchema)) body: any) {
+  async create(@CurrentUser() user: RequestUser | undefined, @Body(new ZodPipe(feedbackSchema)) body: z.infer<typeof feedbackSchema>) {
     if (!user && !body.contactEmail) throw new BadRequestException('Login करें या reply के लिए email डालें');
     const fb = await this.prisma.feedback.create({
       data: { ...body, contactEmail: body.contactEmail || null, userId: user?.id, isPublic: false },
@@ -184,7 +184,11 @@ export class FeedbackController {
 
   @Roles('SUPER_ADMIN')
   @Patch(':id')
-  async adminUpdate(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(feedbackAdminSchema)) body: any) {
+  async adminUpdate(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(feedbackAdminSchema)) body: z.infer<typeof feedbackAdminSchema>,
+  ) {
     const fb = await this.prisma.feedback.findUnique({ where: { id } });
     if (!fb) throw new NotFoundException();
     if (body.mergedIntoId) {

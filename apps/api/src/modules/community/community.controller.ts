@@ -82,7 +82,7 @@ export class CommunityController {
 
   @Feature('flatmates')
   @Post('flatmates/me')
-  upsert(@CurrentUser() user: RequestUser, @Body(new ZodPipe(flatmateSchema)) body: any) {
+  upsert(@CurrentUser() user: RequestUser, @Body(new ZodPipe(flatmateSchema)) body: z.infer<typeof flatmateSchema>) {
     return this.svc.upsertProfile(user.id, body);
   }
 
@@ -124,7 +124,7 @@ export class CommunityController {
 
   @Feature('rent_agreement')
   @Post('agreements')
-  createAgreement(@CurrentUser() user: RequestUser, @Body(new ZodPipe(agreementSchema)) body: any) {
+  createAgreement(@CurrentUser() user: RequestUser, @Body(new ZodPipe(agreementSchema)) body: z.infer<typeof agreementSchema>) {
     return this.svc.createAgreement(user, body);
   }
 
@@ -201,7 +201,7 @@ export class CommunityController {
 
   @Roles('SUPER_ADMIN')
   @Post('admin/services')
-  createPartner(@Body(new ZodPipe(partnerSchema)) body: any) {
+  createPartner(@Body(new ZodPipe(partnerSchema)) body: z.infer<typeof partnerSchema>) {
     return this.prisma.servicePartner.create({ data: { ...body, logoUrl: body.logoUrl || null, email: body.email || null, website: body.website || null } });
   }
 

@@ -55,7 +55,7 @@ export class OrganizationsController {
   // ------------------------------------------------------------------ onboarding & profile
   /** Turns a USER into a broker firm owner (or updates the firm profile). Returns fresh tokens. */
   @Post('broker/onboarding')
-  async onboarding(@CurrentUser() user: RequestUser, @Body(new ZodPipe(brokerOnboardingSchema)) body: any, @Req() req: any) {
+  async onboarding(@CurrentUser() user: RequestUser, @Body(new ZodPipe(brokerOnboardingSchema)) body: z.infer<typeof brokerOnboardingSchema>, @Req() req: any) {
     if (user.role === 'SUPER_ADMIN') throw new BadRequestException('Super Admin broker account नहीं बना सकता');
     if (user.role === 'BROKER_AGENT') throw new ForbiddenException('सिर्फ firm admin profile बदल सकता है');
     let orgId = user.orgId;
@@ -155,7 +155,7 @@ export class OrganizationsController {
 
   @Roles('BROKER_ADMIN')
   @Post('broker/team/invite')
-  async invite(@CurrentUser() user: RequestUser, @Body(new ZodPipe(inviteMemberSchema)) body: any) {
+  async invite(@CurrentUser() user: RequestUser, @Body(new ZodPipe(inviteMemberSchema)) body: z.infer<typeof inviteMemberSchema>) {
     const orgId = requireOrg(user);
     const [members, pending] = await Promise.all([
       this.prisma.user.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
@@ -348,7 +348,7 @@ export class OrganizationsController {
 
   // ------------------------------------------------------------------ KYC
   @Post('kyc')
-  async submitKyc(@CurrentUser() user: RequestUser, @Body(new ZodPipe(kycSubmitSchema)) body: any) {
+  async submitKyc(@CurrentUser() user: RequestUser, @Body(new ZodPipe(kycSubmitSchema)) body: z.infer<typeof kycSubmitSchema>) {
     const forOrg = !!user.orgId && user.role === 'BROKER_ADMIN';
     const doc = await this.prisma.kycDocument.create({ data: { ...body, userId: forOrg ? null : user.id, organizationId: forOrg ? user.orgId : null } });
     if (forOrg) await this.prisma.organization.update({ where: { id: user.orgId! }, data: { verification: 'PENDING' } });

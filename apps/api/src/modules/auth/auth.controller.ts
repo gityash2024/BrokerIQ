@@ -14,6 +14,7 @@ import {
 import { AuthService } from './auth.service';
 import { CurrentUser, Public, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import type { z } from 'zod';
 
 const meta = (req: any) => ({ ip: (req.headers['x-forwarded-for']?.split(',')[0] ?? req.ip)?.trim(), userAgent: req.headers['user-agent'] });
 
@@ -25,7 +26,7 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('register')
-  register(@Body(new ZodPipe(registerSchema)) body: any, @Req() req: any) {
+  register(@Body(new ZodPipe(registerSchema)) body: z.infer<typeof registerSchema>, @Req() req: any) {
     return this.auth.register(body, meta(req));
   }
 
@@ -33,7 +34,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(200)
   @Post('login')
-  login(@Body(new ZodPipe(loginSchema)) body: any, @Req() req: any) {
+  login(@Body(new ZodPipe(loginSchema)) body: z.infer<typeof loginSchema>, @Req() req: any) {
     return this.auth.login(body.email, body.password, meta(req));
   }
 
@@ -41,7 +42,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(200)
   @Post('otp/request')
-  requestOtp(@Body(new ZodPipe(otpRequestSchema)) body: any) {
+  requestOtp(@Body(new ZodPipe(otpRequestSchema)) body: z.infer<typeof otpRequestSchema>) {
     return this.auth.requestOtp(body.email, body.purpose);
   }
 
@@ -49,21 +50,21 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(200)
   @Post('otp/verify')
-  verifyOtp(@Body(new ZodPipe(otpVerifySchema)) body: any, @Req() req: any) {
+  verifyOtp(@Body(new ZodPipe(otpVerifySchema)) body: z.infer<typeof otpVerifySchema>, @Req() req: any) {
     return this.auth.verifyOtp(body, meta(req));
   }
 
   @Public()
   @HttpCode(200)
   @Post('google')
-  google(@Body(new ZodPipe(googleLoginSchema)) body: any, @Req() req: any) {
+  google(@Body(new ZodPipe(googleLoginSchema)) body: z.infer<typeof googleLoginSchema>, @Req() req: any) {
     return this.auth.google(body.idToken, body.accountType, meta(req), body.inviteCode);
   }
 
   @Public()
   @HttpCode(200)
   @Post('refresh')
-  refresh(@Body(new ZodPipe(refreshSchema)) body: any, @Req() req: any) {
+  refresh(@Body(new ZodPipe(refreshSchema)) body: z.infer<typeof refreshSchema>, @Req() req: any) {
     return this.auth.refresh(body.refreshToken, meta(req));
   }
 
@@ -78,13 +79,13 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(200)
   @Post('password/reset')
-  reset(@Body(new ZodPipe(resetPasswordSchema)) body: any) {
+  reset(@Body(new ZodPipe(resetPasswordSchema)) body: z.infer<typeof resetPasswordSchema>) {
     return this.auth.resetPassword(body.email, body.code, body.password);
   }
 
   @HttpCode(200)
   @Post('password/change')
-  change(@CurrentUser() user: RequestUser, @Body(new ZodPipe(changePasswordSchema)) body: any) {
+  change(@CurrentUser() user: RequestUser, @Body(new ZodPipe(changePasswordSchema)) body: z.infer<typeof changePasswordSchema>) {
     return this.auth.changePassword(user.id, body.currentPassword, body.newPassword);
   }
 

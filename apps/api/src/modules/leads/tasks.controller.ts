@@ -58,7 +58,7 @@ export class TasksController {
   }
 
   @Post('follow-ups')
-  async createFollowUp(@CurrentUser() user: RequestUser, @Body(new ZodPipe(followUpInputSchema)) body: any) {
+  async createFollowUp(@CurrentUser() user: RequestUser, @Body(new ZodPipe(followUpInputSchema)) body: z.infer<typeof followUpInputSchema>) {
     const lead = await this.leads.getScoped(body.leadId, user);
     const fu = await this.prisma.followUp.create({
       data: {
@@ -85,7 +85,7 @@ export class TasksController {
   }
 
   @Patch('follow-ups/:id')
-  async updateFollowUp(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(followUpUpdate)) body: any) {
+  async updateFollowUp(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(followUpUpdate)) body: z.infer<typeof followUpUpdate>) {
     const fu = await this.prisma.followUp.findFirst({ where: { id, organizationId: requireOrg(user), ...this.mineFilter(user) } });
     if (!fu) throw new NotFoundException();
     const updated = await this.prisma.followUp.update({
@@ -145,7 +145,7 @@ export class TasksController {
   }
 
   @Post('visits')
-  async createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: any) {
+  async createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: z.infer<typeof visitInputSchema>) {
     const lead = await this.leads.getScoped(body.leadId, user);
     const visit = await this.prisma.siteVisit.create({
       data: {
@@ -174,7 +174,7 @@ export class TasksController {
   }
 
   @Patch('visits/:id')
-  async updateVisit(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(visitUpdateSchema)) body: any) {
+  async updateVisit(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(visitUpdateSchema)) body: z.infer<typeof visitUpdateSchema>) {
     const v = await this.prisma.siteVisit.findFirst({ where: { id, organizationId: requireOrg(user), ...this.mineFilter(user) } });
     if (!v) throw new NotFoundException();
     const checkIn =
@@ -224,7 +224,7 @@ export class TasksController {
   }
 
   @Post('deals')
-  async createDeal(@CurrentUser() user: RequestUser, @Body(new ZodPipe(dealInputSchema)) body: any) {
+  async createDeal(@CurrentUser() user: RequestUser, @Body(new ZodPipe(dealInputSchema)) body: z.infer<typeof dealInputSchema>) {
     const lead = await this.leads.getScoped(body.leadId, user);
     const commissionAmount = body.commissionAmount ?? (body.commissionPct ? (body.dealValue * body.commissionPct) / 100 : null);
     const deal = await this.prisma.deal.create({

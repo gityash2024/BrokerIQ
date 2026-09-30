@@ -8,6 +8,7 @@ import { AuthService } from '../auth/auth.service';
 import { CurrentUser, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { MediaService, type UploadKind } from '../../core/media/media.service';
+import type { z } from 'zod';
 
 @ApiTags('me')
 @Controller('me')
@@ -19,14 +20,14 @@ export class MeController {
   ) {}
 
   @Patch()
-  async update(@CurrentUser() user: RequestUser, @Body(new ZodPipe(updateProfileSchema)) body: any) {
+  async update(@CurrentUser() user: RequestUser, @Body(new ZodPipe(updateProfileSchema)) body: z.infer<typeof updateProfileSchema>) {
     if (body.phone) body.phone = normalizeIndianPhone(body.phone) ?? body.phone;
     await this.prisma.user.update({ where: { id: user.id }, data: body });
     return this.auth.me(user.id);
   }
 
   @Post('push-tokens')
-  async addPush(@CurrentUser() user: RequestUser, @Body(new ZodPipe(pushTokenSchema)) body: any) {
+  async addPush(@CurrentUser() user: RequestUser, @Body(new ZodPipe(pushTokenSchema)) body: z.infer<typeof pushTokenSchema>) {
     await this.prisma.pushToken.upsert({
       where: { token: body.token },
       create: { ...body, userId: user.id },
@@ -76,7 +77,7 @@ export class MeController {
   }
 
   @Post('saved-searches')
-  async createSavedSearch(@CurrentUser() user: RequestUser, @Body(new ZodPipe(savedSearchSchema)) body: any) {
+  async createSavedSearch(@CurrentUser() user: RequestUser, @Body(new ZodPipe(savedSearchSchema)) body: z.infer<typeof savedSearchSchema>) {
     const count = await this.prisma.savedSearch.count({ where: { userId: user.id } });
     if (count >= 20) throw new NotFoundException('ज़्यादा से ज़्यादा 20 saved searches');
     return this.prisma.savedSearch.create({

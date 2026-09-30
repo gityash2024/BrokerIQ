@@ -116,7 +116,11 @@ export class AdminCoreController {
   }
 
   @Patch('integrations/:key')
-  async saveIntegration(@CurrentUser() user: RequestUser, @Param('key') key: string, @Body(new ZodPipe(integrationSaveSchema)) body: any) {
+  async saveIntegration(
+    @CurrentUser() user: RequestUser,
+    @Param('key') key: string,
+    @Body(new ZodPipe(integrationSaveSchema)) body: z.infer<typeof integrationSaveSchema>,
+  ) {
     const def = getIntegration(key);
     if (!def || def.scope !== 'platform') throw new NotFoundException();
     const state = await this.settings.save(key, body, { userId: user.id });
@@ -359,7 +363,7 @@ export class AdminCoreController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Post('moderation/listings/:id')
-  async moderate(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(moderateSchema)) body: any) {
+  async moderate(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(moderateSchema)) body: z.infer<typeof moderateSchema>) {
     const l = await this.prisma.listing.findUnique({ where: { id } });
     if (!l) throw new NotFoundException();
     const app = await this.settings.getAppConfig();
@@ -397,7 +401,11 @@ export class AdminCoreController {
   }
 
   @Patch('listings/:id/flags')
-  async listingFlags(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(listingFlagsSchema)) body: any) {
+  async listingFlags(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(listingFlagsSchema)) body: z.infer<typeof listingFlagsSchema>,
+  ) {
     const data: Prisma.ListingUpdateInput = {};
     if (body.isFeatured !== undefined) {
       data.isFeatured = body.isFeatured;

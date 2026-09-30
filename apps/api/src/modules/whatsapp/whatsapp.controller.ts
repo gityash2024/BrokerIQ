@@ -8,6 +8,7 @@ import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decor
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
 import { env } from '../../config/env';
+import type { z } from 'zod';
 
 @ApiTags('whatsapp')
 @Controller()
@@ -85,7 +86,7 @@ export class WhatsAppController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('whatsapp/send')
-  async send(@CurrentUser() user: RequestUser, @Body(new ZodPipe(whatsappSendSchema)) body: any) {
+  async send(@CurrentUser() user: RequestUser, @Body(new ZodPipe(whatsappSendSchema)) body: z.infer<typeof whatsappSendSchema>) {
     const orgId = requireOrg(user);
     let phone: string | null = null;
     let leadId: string | null = body.leadId ?? null;

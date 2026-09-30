@@ -177,7 +177,7 @@ export class PublicController {
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('contact')
-  async contact(@Body(new ZodPipe(contactSchema)) body: any, @CurrentUser() user?: RequestUser) {
+  async contact(@Body(new ZodPipe(contactSchema)) body: z.infer<typeof contactSchema>, @CurrentUser() user?: RequestUser) {
     const t = await this.prisma.contactMessage.create({ data: { ...body, email: body.email || null, userId: user?.id } });
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
     await this.notifications.notify(

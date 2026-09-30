@@ -27,7 +27,7 @@ export class ChatController {
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('start')
-  async start(@CurrentUser() user: RequestUser, @Body(new ZodPipe(startSchema)) body: any) {
+  async start(@CurrentUser() user: RequestUser, @Body(new ZodPipe(startSchema)) body: z.infer<typeof startSchema>) {
     if (user.orgId === body.organizationId) throw new BadRequestException('अपनी firm से chat नहीं कर सकते');
     const org = await this.prisma.organization.findFirst({ where: { id: body.organizationId, status: 'ACTIVE' } });
     if (!org) throw new NotFoundException('Broker नहीं मिला');
@@ -91,7 +91,7 @@ export class ChatController {
   }
 
   @Post('threads/:id')
-  async send(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(msgSchema)) body: any) {
+  async send(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(msgSchema)) body: z.infer<typeof msgSchema>) {
     await this.accessCtl.assertAllowed(user, 'chat');
     return this.post(id, user, body.text);
   }

@@ -33,7 +33,7 @@ export class RequirementsController {
   }
 
   @Patch(':id')
-  update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(updateSchema)) body: any) {
+  update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(updateSchema)) body: z.infer<typeof updateSchema>) {
     return this.svc.update(user.id, id, body);
   }
 

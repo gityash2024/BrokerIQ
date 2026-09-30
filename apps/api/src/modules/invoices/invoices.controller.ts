@@ -43,7 +43,7 @@ export class InvoicesController {
 
   @Roles('BROKER_ADMIN')
   @Patch('broker/payment-settings')
-  updateSettings(@CurrentUser() user: RequestUser, @Body(new ZodPipe(paymentSettingsSchema)) body: any) {
+  updateSettings(@CurrentUser() user: RequestUser, @Body(new ZodPipe(paymentSettingsSchema)) body: z.infer<typeof paymentSettingsSchema>) {
     return this.svc.updatePaymentSettings(requireOrg(user), body);
   }
 
@@ -61,7 +61,7 @@ export class InvoicesController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('broker/invoices')
-  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(invoiceSchema)) body: any) {
+  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(invoiceSchema)) body: z.infer<typeof invoiceSchema>) {
     return this.svc.create(user, body);
   }
 

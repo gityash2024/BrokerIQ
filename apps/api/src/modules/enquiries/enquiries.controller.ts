@@ -15,7 +15,7 @@ export class EnquiriesController {
   @Public()
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post()
-  create(@Body(new ZodPipe(enquirySchema)) body: any, @CurrentUser() user?: RequestUser) {
+  create(@Body(new ZodPipe(enquirySchema)) body: z.infer<typeof enquirySchema>, @CurrentUser() user?: RequestUser) {
     return this.enquiries.create(body, user);
   }
 

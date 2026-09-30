@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
-import { listingInputSchema, listingSearchSchema, listingUpdateSchema, reportSchema, PROPERTY_TYPE_LABELS } from '@brokeriq/shared';
+import { listingInputSchema, listingSearchSchema, listingUpdateSchema, reportSchema, PROPERTY_TYPE_LABELS, type ListingInput } from '@brokeriq/shared';
 import { ListingsService } from './listings.service';
 import { CurrentUser, Public, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
@@ -80,17 +80,17 @@ export class ListingsController {
   }
 
   @Post()
-  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(listingInputSchema)) body: any) {
+  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(listingInputSchema)) body: z.infer<typeof listingInputSchema>) {
     return this.listings.create(body, user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @CurrentUser() user: RequestUser, @Body(new ZodPipe(listingUpdateSchema)) body: any) {
+  update(@Param('id') id: string, @CurrentUser() user: RequestUser, @Body(new ZodPipe(listingUpdateSchema)) body: Partial<ListingInput>) {
     return this.listings.update(id, body, user);
   }
 
   @Patch(':id/status')
-  status(@Param('id') id: string, @CurrentUser() user: RequestUser, @Body(new ZodPipe(statusSchema)) body: any) {
+  status(@Param('id') id: string, @CurrentUser() user: RequestUser, @Body(new ZodPipe(statusSchema)) body: z.infer<typeof statusSchema>) {
     return this.listings.setStatus(id, body.status, user);
   }
 
@@ -121,7 +121,7 @@ export class ListingsController {
   /** AI property description writer. */
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('ai/description')
-  async aiDescription(@CurrentUser() user: RequestUser, @Body(new ZodPipe(aiDescSchema)) body: any) {
+  async aiDescription(@CurrentUser() user: RequestUser, @Body(new ZodPipe(aiDescSchema)) body: z.infer<typeof aiDescSchema>) {
     await this.access.assertAllowed(user, 'ai');
     await this.usage.assertAiCredit(user.orgId);
     const locality = body.localityId ? await this.prisma.locality.findUnique({ where: { id: body.localityId } }) : null;

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { listingUpdateSchema } from '@brokeriq/shared';
+import { listingUpdateSchema, type ListingInput } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { ListingsService } from '../listings/listings.service';
@@ -64,7 +64,7 @@ export class AdminControlController {
   /** Edit any field of any listing (runs the normal update with admin rights). */
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Patch('listings/:id')
-  edit(@CurrentUser() u: RequestUser, @Param('id') id: string, @Body(new ZodPipe(listingUpdateSchema)) body: any) {
+  edit(@CurrentUser() u: RequestUser, @Param('id') id: string, @Body(new ZodPipe(listingUpdateSchema)) body: Partial<ListingInput>) {
     return this.listings.update(id, body, { ...u, role: 'SUPER_ADMIN' });
   }
 

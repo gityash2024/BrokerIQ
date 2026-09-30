@@ -5,6 +5,7 @@ import { AutomationService } from './automation.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
+import type { z } from 'zod';
 
 @ApiTags('automations')
 @Roles('BROKER_ADMIN')
@@ -23,7 +24,7 @@ export class AutomationController {
   }
 
   @Post()
-  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(automationRuleSchema)) body: any) {
+  create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(automationRuleSchema)) body: z.infer<typeof automationRuleSchema>) {
     return this.automation.create(requireOrg(user), body);
   }
 

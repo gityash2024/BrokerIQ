@@ -60,9 +60,11 @@ export class AdminContentController {
   }
 
   @Post('homepage')
-  async addSection(@Body(new ZodPipe(homepageSectionSchema)) body: any) {
+  async addSection(@Body(new ZodPipe(homepageSectionSchema)) body: z.infer<typeof homepageSectionSchema>) {
     const max = await this.prisma.homepageSection.aggregate({ _max: { sortOrder: true } });
-    const s = await this.prisma.homepageSection.create({ data: { ...body, sortOrder: (max._max.sortOrder ?? 0) + 1 } });
+    const s = await this.prisma.homepageSection.create({
+      data: { ...body, config: body.config as Prisma.InputJsonValue, sortOrder: (max._max.sortOrder ?? 0) + 1 },
+    });
     this.pub.invalidateHomepage();
     return s;
   }
@@ -94,7 +96,7 @@ export class AdminContentController {
     return this.prisma.page.findMany({ orderBy: { slug: 'asc' } });
   }
   @Post('pages')
-  createPage(@Body(new ZodPipe(pageSchema)) body: any) {
+  createPage(@Body(new ZodPipe(pageSchema)) body: z.infer<typeof pageSchema>) {
     return this.prisma.page.create({ data: body });
   }
   @Patch('pages/:id')
@@ -121,7 +123,7 @@ export class AdminContentController {
     return p;
   }
   @Post('blog')
-  createPost(@CurrentUser() user: RequestUser, @Body(new ZodPipe(blogPostSchema)) body: any) {
+  createPost(@CurrentUser() user: RequestUser, @Body(new ZodPipe(blogPostSchema)) body: z.infer<typeof blogPostSchema>) {
     return this.prisma.blogPost.create({
       data: { ...body, coverUrl: body.coverUrl || null, authorId: user.id, publishedAt: body.isPublished ? new Date() : null },
     });
@@ -145,7 +147,7 @@ export class AdminContentController {
     return this.prisma.faq.findMany({ orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }] });
   }
   @Post('faqs')
-  createFaq(@Body(new ZodPipe(faqSchema)) body: any) {
+  createFaq(@Body(new ZodPipe(faqSchema)) body: z.infer<typeof faqSchema>) {
     return this.prisma.faq.create({ data: body });
   }
   @Patch('faqs/:id')
@@ -163,7 +165,7 @@ export class AdminContentController {
     return this.prisma.template.findMany({ orderBy: [{ channel: 'asc' }, { key: 'asc' }] });
   }
   @Post('templates')
-  createTemplate(@Body(new ZodPipe(templateSchema)) body: any) {
+  createTemplate(@Body(new ZodPipe(templateSchema)) body: z.infer<typeof templateSchema>) {
     return this.prisma.template.create({ data: body });
   }
   @Patch('templates/:id')
@@ -181,7 +183,7 @@ export class AdminContentController {
     });
   }
   @Post('localities')
-  async createLocality(@CurrentUser() user: RequestUser, @Body(new ZodPipe(localitySchema)) body: any) {
+  async createLocality(@CurrentUser() user: RequestUser, @Body(new ZodPipe(localitySchema)) body: z.infer<typeof localitySchema>) {
     const l = await this.prisma.locality.create({ data: { ...body, coverUrl: body.coverUrl || null, slug: body.slug || slugify(`${body.name} gurgaon`) } });
     await this.audit.log(user, 'locality.create', 'Locality', l.id);
     return l;
@@ -203,7 +205,7 @@ export class AdminContentController {
     return this.prisma.amenity.findMany({ orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }] });
   }
   @Post('amenities')
-  createAmenity(@Body(new ZodPipe(amenitySchema)) body: any) {
+  createAmenity(@Body(new ZodPipe(amenitySchema)) body: z.infer<typeof amenitySchema>) {
     return this.prisma.amenity.create({ data: body });
   }
   @Patch('amenities/:id')
@@ -216,7 +218,7 @@ export class AdminContentController {
     return this.prisma.builder.findMany({ orderBy: { name: 'asc' }, include: { _count: { select: { projects: true } } } });
   }
   @Post('builders')
-  createBuilder(@Body(new ZodPipe(builderSchema)) body: any) {
+  createBuilder(@Body(new ZodPipe(builderSchema)) body: z.infer<typeof builderSchema>) {
     return this.prisma.builder.create({ data: { ...body, logoUrl: body.logoUrl || null, website: body.website || null, slug: slugify(body.name) } });
   }
   @Patch('builders/:id')
@@ -239,7 +241,7 @@ export class AdminContentController {
     return p;
   }
   @Post('projects')
-  async createProject(@CurrentUser() user: RequestUser, @Body(new ZodPipe(projectSchema)) body: any) {
+  async createProject(@CurrentUser() user: RequestUser, @Body(new ZodPipe(projectSchema)) body: z.infer<typeof projectSchema>) {
     const builder = await this.prisma.builder.upsert({
       where: { name: body.builderName },
       create: { name: body.builderName, slug: slugify(body.builderName) },
@@ -288,7 +290,7 @@ export class AdminContentController {
     return this.prisma.plan.findMany({ orderBy: { sortOrder: 'asc' }, include: { _count: { select: { subscriptions: true } } } });
   }
   @Post('plans')
-  async createPlan(@CurrentUser() user: RequestUser, @Body(new ZodPipe(planSchema)) body: any) {
+  async createPlan(@CurrentUser() user: RequestUser, @Body(new ZodPipe(planSchema)) body: z.infer<typeof planSchema>) {
     const p = await this.prisma.plan.create({ data: { ...body, limits: body.limits as Prisma.InputJsonValue } });
     await this.audit.log(user, 'plan.create', 'Plan', p.id);
     return p;
@@ -340,7 +342,7 @@ export class AdminContentController {
     return this.prisma.coupon.findMany({ orderBy: { createdAt: 'desc' } });
   }
   @Post('coupons')
-  createCoupon(@Body(new ZodPipe(couponSchema)) body: any) {
+  createCoupon(@Body(new ZodPipe(couponSchema)) body: z.infer<typeof couponSchema>) {
     return this.prisma.coupon.create({ data: { ...body, validUntil: body.validUntil ? new Date(body.validUntil) : null } });
   }
   @Patch('coupons/:id')

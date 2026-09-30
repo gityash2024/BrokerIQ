@@ -70,7 +70,7 @@ export class TrustController {
   @Roles('BROKER_ADMIN')
   @Feature('slot_booking')
   @Patch('broker/visit-slots')
-  saveSlots(@CurrentUser() user: RequestUser, @Body(new ZodPipe(slotsSchema)) body: any) {
+  saveSlots(@CurrentUser() user: RequestUser, @Body(new ZodPipe(slotsSchema)) body: z.infer<typeof slotsSchema>) {
     return this.booking.saveSettings(user, body);
   }
 
@@ -84,7 +84,7 @@ export class TrustController {
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Feature('slot_booking')
   @Post('listings/:id/book-visit')
-  book(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(bookSchema)) body: any) {
+  book(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(bookSchema)) body: z.infer<typeof bookSchema>) {
     return this.booking.book(user, id, body);
   }
 
@@ -109,7 +109,7 @@ export class TrustController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Post('admin/listings/:id/visit-verify')
-  verify(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(photoSchema)) body: any) {
+  verify(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(photoSchema)) body: z.infer<typeof photoSchema>) {
     return this.trust.verifyVisit(user, id, body.photos);
   }
 
@@ -149,7 +149,7 @@ export class TrustController {
   @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Feature('locality_reviews')
   @Post('localities/:slug/reviews')
-  async review(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body(new ZodPipe(reviewSchema)) body: any) {
+  async review(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body(new ZodPipe(reviewSchema)) body: z.infer<typeof reviewSchema>) {
     await this.access.assertAllowed(user, 'review');
     return this.trust.submitReview(user, slug, body);
   }
@@ -183,7 +183,7 @@ export class TrustController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Feature('visit_tokens')
   @Post('listings/:id/token')
-  claimToken(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(tokenSchema)) body: any) {
+  claimToken(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(tokenSchema)) body: z.infer<typeof tokenSchema>) {
     return this.trust.claimToken(user, id, body);
   }
 

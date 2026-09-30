@@ -33,7 +33,7 @@ export class ConnectorsController {
 
   @Roles('BROKER_ADMIN')
   @Patch('broker/connectors/:key')
-  async save(@CurrentUser() user: RequestUser, @Param('key') key: string, @Body(new ZodPipe(saveSchema)) body: any) {
+  async save(@CurrentUser() user: RequestUser, @Param('key') key: string, @Body(new ZodPipe(saveSchema)) body: z.infer<typeof saveSchema>) {
     await this.access.assertAllowed(user, 'connectors');
     const r = await this.connectors.saveConnector(requireOrg(user), key, body, user.id);
     await this.audit.log(user, 'connector.update', 'Connector', key, { fields: Object.keys(body.fields ?? {}) });
