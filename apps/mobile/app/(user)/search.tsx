@@ -14,6 +14,7 @@ import { useTheme } from '@/lib/theme';
 import { ListingCard, type ListingCardData } from '@/components/listing';
 import { MapView, toPoints } from '@/components/map';
 import { Button, Chip, ErrorView, Empty, IconBtn, Input, PressableScale, Row, Sheet, Skeleton, Txt } from '@/ui';
+import { useFlag } from '@/lib/config';
 
 type F = { q?: string; purpose?: string; category?: string; types?: string; bedrooms?: string; minPrice?: string; maxPrice?: string; furnishing?: string; postedBy?: string; verified?: string; sort?: string; localities?: string; visitVerified?: string; officeHub?: string; maxCommute?: string; pgGender?: string; pgFood?: string };
 const SORTS = [
@@ -25,6 +26,7 @@ const SORTS = [
 ] as const;
 
 export default function SearchScreen() {
+  const commuteOn = useFlag('commute');
   const { c } = useTheme();
   const { user } = useAuth();
   const params = useLocalSearchParams<F>();
@@ -211,6 +213,8 @@ export default function SearchScreen() {
             </Row>
           </>
         )}
+        {commuteOn && (
+          <>
         <Txt v="label" color="subtle">Office के पास (अनुमानित समय)</Txt>
         <Row wrap>
           {OFFICE_HUBS.map((h) => (
@@ -218,6 +222,8 @@ export default function SearchScreen() {
           ))}
         </Row>
         {!!f.officeHub && <Row wrap>{['20', '30', '45', '60'].map((m) => <Chip key={m} label={`${m} मिनट तक`} active={(f.maxCommute ?? '45') === m} onPress={() => set({ maxCommute: m })} />)}</Row>}
+          </>
+        )}
         <Row style={{ marginTop: 8 }}>
           <Button title="Reset" variant="secondary" style={{ flex: 1 }} onPress={() => setF({ purpose: 'RENT', sort: 'relevance' })} />
           <Button title={total != null ? `${total} results दिखाएँ` : 'Apply'} style={{ flex: 2 }} onPress={() => setFilters(false)} />

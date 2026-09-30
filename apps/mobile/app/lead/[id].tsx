@@ -16,6 +16,7 @@ import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge, useTeam } from '@/components/crm';
 import { ListingRow } from '@/components/listing';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, Segmented, Sheet, Txt } from '@/ui';
+import { useFlag } from '@/lib/config';
 
 const OUTCOMES = [
   ['CONNECTED', '✅ Connected'],
@@ -329,6 +330,7 @@ function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void;
 }
 
 function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
+  const coBrokingOn = useFlag('cobroking');
   const [scope, setScope] = useState<'org' | 'all'>('org');
   const q = useQuery({ queryKey: ['matches', lead.id, scope], queryFn: () => api<any[]>(`/leads/${lead.id}/matches?scope=${scope}`) });
   const share = async (listingId: string) => {
@@ -360,7 +362,7 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
           keyExtractor={(x) => x.id}
           contentContainerStyle={{ gap: 10 }}
           renderItem={({ item }) => (
-            <ListingRow l={item} right={<View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}><Badge label={`${item.matchScore}%`} color="#10B981" /><IconBtn onPress={() => share(item.id)}><Share2 size={18} color="#16A34A" /></IconBtn>{item.coBroking && item.organization && item.organization.id !== lead.organizationId && <IconBtn onPress={() => coBroke(item.id)}><Handshake size={18} color="#4F46E5" /></IconBtn>}</View>} />
+            <ListingRow l={item} right={<View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}><Badge label={`${item.matchScore}%`} color="#10B981" /><IconBtn onPress={() => share(item.id)}><Share2 size={18} color="#16A34A" /></IconBtn>{coBrokingOn && item.coBroking && item.organization && item.organization.id !== lead.organizationId && <IconBtn onPress={() => coBroke(item.id)}><Handshake size={18} color="#4F46E5" /></IconBtn>}</View>} />
           )}
         />
       )}

@@ -74,6 +74,7 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<ApiError | null>(null);
   const aiOn = useFlag('ai_assist');
+  const coBrokingOn = useFlag('cobroking');
   const set = (patch: Partial<ListingFormValue>) => setV((p) => ({ ...p, ...patch }));
   const cat: Cat = (PROPERTY_TYPE_CATEGORY as any)[v.propertyType] ?? 'RESIDENTIAL';
 
@@ -399,7 +400,7 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                   <Switch checked={!!v.priceNegotiable} onCheckedChange={(x) => set({ priceNegotiable: x })} />
                   <span className="text-sm font-medium">Price negotiable</span>
                 </label>
-                {role === 'broker' && (
+                {role === 'broker' && coBrokingOn && (
                   <div className="space-y-3 rounded-xl border border-line px-4 py-3 sm:col-span-2">
                     <label className="flex items-center gap-3">
                       <Switch checked={!!v.coBroking} onCheckedChange={(x) => set({ coBroking: x })} />

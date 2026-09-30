@@ -12,6 +12,7 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
 import type { RequestUser } from '../../common/decorators';
 import { env } from '../../config/env';
+import { FeaturesService } from '../../core/features/features.service';
 
 /** Brokers that receive a tenant's requirement (only with the tenant's explicit consent). */
 const SHARE_WITH_TOP_BROKERS = 3;
@@ -33,10 +34,13 @@ export class RequirementsService implements OnModuleInit {
     private readonly audit: AuditService,
     private readonly leads: LeadsService,
     private readonly wa: WhatsAppService,
+    private readonly features: FeaturesService,
   ) {}
 
   onModuleInit() {
-    this.events.on('listing.published', ({ listingId }) => this.onListingPublished(listingId));
+    this.events.on('listing.published', async ({ listingId }) => {
+      if (await this.features.isEnabled('tenant_requirements')) await this.onListingPublished(listingId);
+    });
   }
 
   // ------------------------------------------------------------------ tenant side

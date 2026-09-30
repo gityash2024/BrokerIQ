@@ -40,7 +40,7 @@ export default function Profile() {
   const scrim = useStatusScrim();
   const { c } = useTheme();
   const { user, logout, isBroker } = useAuth();
-  const { app } = useConfig();
+  const { app, flags } = useConfig();
   const mode = useThemeMode((s) => s.mode);
   const setMode = useThemeMode((s) => s.setMode);
   const nextMode = mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
@@ -84,11 +84,12 @@ export default function Profile() {
           <Group title="Property">
             <Item icon={<PlusCircle size={20} color={c.accent} />} tint={c.accent} label="Property post करें (FREE)" sub="Owners के लिए — सीधे buyers/tenants से leads" onPress={() => router.push(user ? '/post-property' : '/login')} />
             <Item icon={<Building2 size={20} color={c.brand} />} label="मेरी listings" onPress={() => router.push(user ? '/my-listings' : '/login')} />
-            <Item icon={<ClipboardList size={20} color={c.brand} />} label="मेरी ज़रूरतें" sub="मिलती property आते ही alert" onPress={() => router.push(user ? '/requirements' : '/login')} />
-            <Item icon={<CalendarCheck size={20} color={c.info} />} tint={c.info} label="Visits & tokens" onPress={() => router.push(user ? '/my-visits' : '/login')} />
-            <Item icon={<Users size={20} color={c.brand} />} label="Flatmates" sub="साथ रहने के लिए flatmate / room" onPress={() => router.push(user ? '/flatmates' : '/login')} />
-            <Item icon={<FileSignature size={20} color={c.accent} />} tint={c.accent} label="Rent agreement (PDF)" onPress={() => router.push(user ? '/agreements' : '/login')} />
-            <Item icon={<Truck size={20} color={c.success} />} tint={c.success} label="Move-in services" onPress={() => router.push('/services')} />
+            {flags.tenant_requirements !== false && <Item icon={<ClipboardList size={20} color={c.brand} />} label="मेरी ज़रूरतें" sub="मिलती property आते ही alert" onPress={() => router.push(user ? '/requirements' : '/login')} />}
+            {(flags.slot_booking !== false || flags.visit_tokens !== false) && <Item icon={<CalendarCheck size={20} color={c.info} />} tint={c.info} label="Visits & tokens" onPress={() => router.push(user ? '/my-visits' : '/login')} />}
+            {flags.flatmates !== false && <Item icon={<Users size={20} color={c.brand} />} label="Flatmates" sub="साथ रहने के लिए flatmate / room" onPress={() => router.push(user ? '/flatmates' : '/login')} />}
+            {flags.rent_agreement !== false && <Item icon={<FileSignature size={20} color={c.accent} />} tint={c.accent} label="Rent agreement (PDF)" onPress={() => router.push(user ? '/agreements' : '/login')} />}
+            {flags.move_in_services !== false && <Item icon={<Truck size={20} color={c.success} />} tint={c.success} label="Move-in services" onPress={() => router.push('/services')} />}
+            {user?.role === 'SUPER_ADMIN' && <Item icon={<BadgeCheck size={20} color={c.success} />} tint={c.success} label="Field verification" sub="Property पर जाकर GPS photo से verify करें" onPress={() => router.push('/field-verify')} />}
             <Item icon={<BadgeCheck size={20} color={c.success} />} tint={c.success} label="Verified tenant बनें" sub="Office email से — brokers जल्दी जवाब देते हैं" onPress={() => router.push(user ? '/verify-tenant' : '/login')} />
             <Item icon={<Send size={20} color={c.info} />} tint={c.info} label="मेरी enquiries" onPress={() => router.push(user ? '/enquiries' : '/login')} />
             <Item icon={<Calculator size={20} color={c.success} />} tint={c.success} label="Rent budget, move-in cost & split" onPress={() => router.push('/tools')} />

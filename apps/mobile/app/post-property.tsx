@@ -16,12 +16,14 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Button, Chip, Header, Input, PressableScale, Row, Txt } from '@/ui';
+import { useFlag } from '@/lib/config';
 
 type Photo = { url?: string; uri?: string; uploading?: boolean };
 const STEPS = ['Basics', 'Location', 'Details', 'Photos'];
 const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(/[^\d.]/g, '')));
 
 export default function PostProperty() {
+  const coBrokingOn = useFlag('cobroking');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { c } = useTheme();
   const { user, isBroker } = useAuth();
@@ -207,8 +209,8 @@ export default function PostProperty() {
                   <Row wrap>{[['VEG', 'Veg'], ['NONVEG', 'Non-veg'], ['BOTH', 'Both'], ['NONE', 'No food']].map(([k, lb]) => <Chip key={k} label={lb} active={f.pgFood === k} onPress={() => set({ pgFood: f.pgFood === k ? null : k })} />)}</Row>
                 </>
               )}
-              {isBroker && <Chip label="Co-broking के लिए खुला (दूसरे brokers request कर सकें)" active={!!f.coBroking} onPress={() => set({ coBroking: !f.coBroking })} />}
-              {isBroker && f.coBroking && numInput('coBrokingSharePct', 'Partner broker का हिस्सा (% brokerage)')}
+              {isBroker && coBrokingOn && <Chip label="Co-broking के लिए खुला (दूसरे brokers request कर सकें)" active={!!f.coBroking} onPress={() => set({ coBroking: !f.coBroking })} />}
+              {isBroker && coBrokingOn && f.coBroking && numInput('coBrokingSharePct', 'Partner broker का हिस्सा (% brokerage)')}
             </>
           )}
           {step === 1 && (

@@ -7,20 +7,22 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Card, PressableScale, Row, Txt } from '@/ui';
 import { LanguageSwitch } from '@/components/language';
+import { useConfig } from '@/lib/config';
 
 export default function More() {
   const { c } = useTheme();
   const { user, isBrokerAdmin, logout } = useAuth();
+  const { flags } = useConfig();
   const tiles = [
     { label: 'Follow-ups', icon: AlarmClock, to: '/follow-ups', tint: c.danger },
     { label: 'Site visits', icon: CalendarCheck, to: '/visits', tint: c.accent },
     { label: 'Pipeline', icon: KanbanSquare, to: '/pipeline', tint: c.brand },
     { label: 'Deals', icon: Handshake, to: '/deals', tint: c.success },
     { label: 'Invoices', icon: FileText, to: '/invoices', tint: '#059669' },
-    { label: 'Token records', icon: Wallet, to: '/tokens', tint: '#CA8A04' },
-    { label: 'Rent agreements', icon: FileSignature, to: '/agreements', tint: '#0891B2' },
+    { label: 'Token records', icon: Wallet, to: '/tokens', tint: '#CA8A04', flag: 'visit_tokens' },
+    { label: 'Rent agreements', icon: FileSignature, to: '/agreements', tint: '#0891B2', flag: 'rent_agreement' },
     { label: 'Owners & leases', icon: KeyRound, to: '/owners', tint: '#B45309' },
-    { label: 'Co-broking', icon: Network, to: '/network', tint: '#4F46E5' },
+    { label: 'Co-broking', icon: Network, to: '/network', tint: '#4F46E5', flag: 'cobroking' },
     { label: 'AI book scan', icon: ScanLine, to: '/scanner', tint: '#7C3AED' },
     { label: 'Analytics', icon: BarChart3, to: '/analytics', tint: c.info },
     { label: 'Team', icon: Users, to: '/team', tint: '#0D9488' },
@@ -42,7 +44,7 @@ export default function More() {
           </View>
         </Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-          {tiles.map((t, i) => (
+          {tiles.filter((t) => !('flag' in t) || flags[(t as { flag: string }).flag] !== false).map((t, i) => (
             <Animated.View key={t.label} entering={FadeInDown.delay(i * 30)} style={{ width: '31.5%' }}>
               <PressableScale onPress={() => router.push(t.to as any)} style={{ aspectRatio: 1, borderRadius: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 8 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: `${t.tint}1f`, alignItems: 'center', justifyContent: 'center' }}><t.icon size={22} color={t.tint} /></View>

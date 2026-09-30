@@ -9,6 +9,7 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Button, Card, Chip, Input, Loader, Row, SectionTitle, Sheet, Txt } from '@/ui';
+import { useFlag } from '@/lib/config';
 
 /** Anti-scam reminder next to contact options. */
 export function SafetyNote() {
@@ -105,8 +106,13 @@ export function TokenSheet({ listingId, open, onClose }: { listingId: string; op
   );
 }
 
+/** Hidden while Super Admin has "commute" switched off. */
+export function CommuteCard(props: { l: any }) {
+  return useFlag('commute') ? <CommuteCardInner {...props} /> : null;
+}
+
 /** Estimated commute to a chosen office hub (car / metro). */
-export function CommuteCard({ l }: { l: any }) {
+function CommuteCardInner({ l }: { l: any }) {
   const { c } = useTheme();
   const [hub, setHub] = useState('cyber-city');
   const from = l.latitude != null ? { lat: l.latitude, lng: l.longitude } : l.locality?.latitude != null ? { lat: l.locality.latitude, lng: l.locality.longitude } : null;
@@ -133,8 +139,13 @@ export function CommuteCard({ l }: { l: any }) {
   );
 }
 
+/** Hidden while Super Admin has "locality_reviews" switched off. */
+export function ReviewsSummary(props: { localitySlug: string; society?: string | null }) {
+  return useFlag('locality_reviews') ? <ReviewsSummaryInner {...props} /> : null;
+}
+
 /** Approved resident ratings for the society (or locality). */
-export function ReviewsSummary({ localitySlug, society }: { localitySlug: string; society?: string | null }) {
+function ReviewsSummaryInner({ localitySlug, society }: { localitySlug: string; society?: string | null }) {
   const q = useQuery({ queryKey: ['loc-reviews', localitySlug, society ?? ''], queryFn: () => api<any>(`/public/localities/${localitySlug}/reviews${society ? `?society=${encodeURIComponent(society)}` : ''}`, { auth: false }) });
   if (!q.data?.count) return null;
   const labels: [string, string][] = [['water', 'पानी'], ['power', 'Power'], ['safety', 'सुरक्षा'], ['parking', 'Parking'], ['connectivity', 'Connectivity'], ['maintenance', 'Maintenance']];

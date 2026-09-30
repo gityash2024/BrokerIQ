@@ -8,6 +8,7 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { ListingsService } from '../listings/listings.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { env } from '../../config/env';
+import { FeaturesService } from '../../core/features/features.service';
 
 const BROKER_THREAD_DAYS = 7;
 const RESULTS = 5;
@@ -26,6 +27,7 @@ export class WaBotService implements OnModuleInit {
     private readonly settings: SettingsService,
     private readonly listings: ListingsService,
     private readonly wa: WhatsAppService,
+    private readonly features: FeaturesService,
   ) {}
 
   onModuleInit() {
@@ -36,9 +38,8 @@ export class WaBotService implements OnModuleInit {
     return env().PUBLIC_WEB_URL.replace(/\/$/, '');
   }
 
-  private async enabled() {
-    const flag = await this.prisma.featureFlag.findUnique({ where: { key: 'whatsapp_bot' } }).catch(() => null);
-    return flag ? flag.enabled : true;
+  private enabled() {
+    return this.features.isEnabled('whatsapp_bot');
   }
 
   async onPlatformMessage(conversationId: string) {

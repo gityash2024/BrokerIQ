@@ -4,13 +4,14 @@ import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { tenantRequirementSchema, type TenantRequirementInput } from '@brokeriq/shared';
 import { RequirementsService } from './requirements.service';
-import { CurrentUser, type RequestUser } from '../../common/decorators';
+import { CurrentUser, type RequestUser, Feature } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 
 const updateSchema = tenantRequirementSchema.partial().extend({ status: z.enum(['ACTIVE', 'PAUSED', 'CLOSED']).optional() });
 
 /** "अपनी ज़रूरत बताएँ" — any logged-in user can post a requirement and get matches + alerts. */
 @ApiTags('requirements')
+@Feature('tenant_requirements')
 @Controller('requirements')
 export class RequirementsController {
   constructor(private readonly svc: RequirementsService) {}

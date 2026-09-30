@@ -13,3 +13,4 @@ export * from './matching';
 export * from './commute';
 export * from './seo-slugs';
 export * from './query-parser';
+export * from './features';

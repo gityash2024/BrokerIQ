@@ -11,11 +11,17 @@ import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Field, Input, Textarea } from '../ui/field';
 import { Avatar } from '../ui/misc';
+import { useFlag } from '@/lib/config';
 
 export const SERVICE_LABELS: Record<string, string> = { PACKERS: 'Packers & movers', FURNITURE: 'Furniture rental', BROADBAND: 'Broadband', CLEANING: 'Deep cleaning', PAINTING: 'Painting', OTHER: 'Other' };
 
+/** Hidden while Super Admin has "move_in_services" switched off. */
+export function MoveInServices(props: { localityId?: string; listingId?: string; title?: string }) {
+  return useFlag('move_in_services') ? <MoveInServicesInner {...props} /> : null;
+}
+
 /** Move-in partners (added by BrokerIQ) — request a callback; hidden when there are none. */
-export function MoveInServices({ localityId, listingId, title = 'Move-in services' }: { localityId?: string; listingId?: string; title?: string }) {
+function MoveInServicesInner({ localityId, listingId, title = 'Move-in services' }: { localityId?: string; listingId?: string; title?: string }) {
   const q = useQuery({ queryKey: ['services', localityId ?? ''], queryFn: () => api<any[]>(`/public/services${localityId ? `?localityId=${localityId}` : ''}`, { auth: false }) });
   const [pick, setPick] = useState<any>(null);
   if (!q.data?.length) return null;

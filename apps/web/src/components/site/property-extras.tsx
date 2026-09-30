@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
+import { useFlag } from '@/lib/config';
 
 // ------------------------------------------------------------------ video tour
 function youtubeId(url: string) {
@@ -116,8 +117,13 @@ export function MoveInCard({ l }: { l: any }) {
   );
 }
 
+/** Hidden while Super Admin has "commute" switched off. */
+export function CommuteCard(props: { l: any }) {
+  return useFlag('commute') ? <CommuteCardInner {...props} /> : null;
+}
+
 // ------------------------------------------------------------------ commute to an office hub
-export function CommuteCard({ l }: { l: any }) {
+function CommuteCardInner({ l }: { l: any }) {
   const [hub, setHub] = useState(() => (typeof window !== 'undefined' && localStorage.getItem('biq.officeHub')) || 'cyber-city');
   const from = l.latitude != null && l.longitude != null ? { lat: l.latitude, lng: l.longitude } : l.locality?.latitude != null ? { lat: l.locality.latitude, lng: l.locality.longitude } : null;
   if (!from) return null;
@@ -161,7 +167,12 @@ function Stars({ value, onChange }: { value: number; onChange?: (v: number) => v
   );
 }
 
-export function ResidentReviews({ localitySlug, society, title }: { localitySlug: string; society?: string | null; title?: string }) {
+/** Hidden while Super Admin has "locality_reviews" switched off. */
+export function ResidentReviews(props: { localitySlug: string; society?: string | null; title?: string }) {
+  return useFlag('locality_reviews') ? <ResidentReviewsInner {...props} /> : null;
+}
+
+function ResidentReviewsInner({ localitySlug, society, title }: { localitySlug: string; society?: string | null; title?: string }) {
   const q = useQuery({ queryKey: ['loc-reviews', localitySlug, society ?? ''], queryFn: () => api<any>(`/public/localities/${localitySlug}/reviews${society ? `?society=${encodeURIComponent(society)}` : ''}`, { auth: false }) });
   const { user } = useAuth();
   const [open, setOpen] = useState(false);

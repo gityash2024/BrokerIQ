@@ -49,6 +49,7 @@ import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Avatar, Badge, Empty, PageLoader } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
+import { useFlag } from '@/lib/config';
 
 const ACT_ICON: Record<string, any> = { NOTE: StickyNote, CALL: PhoneCall, WHATSAPP: MessageCircle, EMAIL: Mail, STAGE_CHANGE: Zap, ASSIGNMENT: Avatar, SITE_VISIT: CalendarCheck, FOLLOW_UP: CalendarPlus, PROPERTY_SHARED: Share2, ENQUIRY: Send, AUTOMATION: Bot, SYSTEM: Sparkles };
 
@@ -254,6 +255,7 @@ function Timeline({ lead, onChange }: { lead: any; onChange: () => void }) {
 
 function Matches({ lead }: { lead: any }) {
   const [scope, setScope] = useState<'org' | 'all'>('org');
+  const coBrokingOn = useFlag('cobroking');
   const q = useQuery({ queryKey: ['matches', lead.id, scope], queryFn: () => api<any[]>(`/leads/${lead.id}/matches?scope=${scope}`) });
   const share = async (listingId: string, viaApi: boolean) => {
     try {
@@ -305,7 +307,7 @@ function Matches({ lead }: { lead: any }) {
             </div>
             <div className="flex flex-col gap-1.5">
               <Button size="sm" variant="whatsapp" onClick={() => share(m.id, true)}><Share2 className="size-4" /> Share</Button>
-              {m.coBroking && m.organization && m.organization.id !== lead.organizationId && (
+              {coBrokingOn && m.coBroking && m.organization && m.organization.id !== lead.organizationId && (
                 <Button size="xs" variant="secondary" onClick={() => coBroke(m.id)}><Handshake className="size-3.5" /> Co-broke</Button>
               )}
             </div>

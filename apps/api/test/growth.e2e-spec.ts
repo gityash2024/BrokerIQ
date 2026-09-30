@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { GROWTH_FEATURES } from '@brokeriq/shared';
 import { json, urlencoded } from 'express';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
@@ -25,6 +26,7 @@ describe('Growth features (e2e)', () => {
   let tenant: { token: string; id: string };
   const realFetch = global.fetch;
 
+  const suiteStart = new Date();
   beforeAll(async () => {
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = mod.createNestApplication({ bodyParser: false });
@@ -37,6 +39,11 @@ describe('Growth features (e2e)', () => {
     http = request(app.getHttpServer());
     admin = (await http.post('/api/auth/login').send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' }).expect(200)).body.accessToken;
     await settings.updateAppConfig({ auth: { allowBrokerSignup: false } } as any);
+    // The e2e database is reused across runs: hide earlier runs' listings so rank-ordered results
+    // (matches, search) only see this suite's data. Soft delete; this suite creates its own listings.
+    await prisma.listing.updateMany({ where: { deletedAt: null, createdAt: { lt: suiteStart } }, data: { deletedAt: suiteStart } });
+    // A run that stopped mid-way may have left a feature switched off.
+    await prisma.featureFlag.updateMany({ where: { key: { in: GROWTH_FEATURES.map((f) => f.key) } }, data: { enabled: true } });
   });
 
   afterAll(async () => {
@@ -473,5 +480,24 @@ describe('Growth features (e2e)', () => {
     expect(f.body.items.map((i: any) => i.id)).toContain(pg.id);
     const m = await http.get('/api/listings?types=PG&pgGender=MALE').expect(200);
     expect(m.body.items.map((i: any) => i.id)).not.toContain(pg.id);
+  });
+
+  it('Super Admin can switch a feature off (403 FEATURE_DISABLED) and back on', async () => {
+    await http.patch('/api/admin/flags/flatmates').set(auth(admin)).send({ enabled: false }).expect(200);
+    const off = await http.get('/api/flatmates/matches').set(auth(tenant.token)).expect(403);
+    expect(off.body.code).toBe('FEATURE_DISABLED');
+    expect(off.body.message).toContain('Flatmates');
+    await http.get('/api/public/services').expect(200); // other features unaffected
+    const cfg = await http.get('/api/public/config').expect(200);
+    expect(cfg.body.flags.flatmates).toBe(false);
+    await http.patch('/api/admin/flags/flatmates').set(auth(admin)).send({ enabled: true }).expect(200);
+    await http.get('/api/flatmates/matches').set(auth(tenant.token)).expect(200);
+
+    // Off-switch also stops the background part: no requirement alerts, and commute params are ignored.
+    await http.patch('/api/admin/flags/commute').set(auth(admin)).send({ enabled: false }).expect(200);
+    const plain = await http.get('/api/listings?officeHub=golf-course-extension&maxCommute=60&sort=newest&pageSize=50').expect(200);
+    expect(plain.body.items.every((i: any) => i.commute === undefined)).toBe(true);
+    expect(plain.body.items.map((i: any) => i.id)).toContain(coListing.id);
+    await http.patch('/api/admin/flags/commute').set(auth(admin)).send({ enabled: true }).expect(200);
   });
 });

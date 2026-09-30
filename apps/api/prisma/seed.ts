@@ -4,7 +4,7 @@
  */
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { slugify } from '@brokeriq/shared';
+import { GROWTH_FEATURES, slugify } from '@brokeriq/shared';
 import { GURGAON_LOCALITIES, AMENITIES } from './data/gurgaon';
 import { DEFAULT_TEMPLATES } from '../src/core/mail/default-templates';
 
@@ -67,6 +67,7 @@ const FLAGS = [
   { key: 'projects', description: 'New projects section' },
   { key: 'boosts', description: 'Paid listing boosts' },
   { key: 'chat', description: 'In-app chat between users and brokers' },
+  ...GROWTH_FEATURES.map((f) => ({ key: f.key, description: `${f.name} — ${f.description}` })),
 ];
 
 const HOMEPAGE = [

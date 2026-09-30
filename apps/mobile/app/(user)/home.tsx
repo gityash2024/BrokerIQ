@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, BedDouble, Bell, Building2, Calculator, KeyRound, Landmark, Search, Sofa, Sparkles, Store , ClipboardList } from 'lucide-react-native';
 import { api, img } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useConfig } from '@/lib/config';
+import { useConfig, useFlag } from '@/lib/config';
 import { useLightStatusBar } from '@/lib/hooks';
 import { palette, useTheme } from '@/lib/theme';
 import { BrokerCard, LocalityCard, ProjectCard } from '@/components/cards';
@@ -25,6 +25,7 @@ const QUICK = [
 
 function Hero({ s }: { s: any }) {
   const { app } = useConfig();
+  const requirementsOn = useFlag('tenant_requirements');
   const { user } = useAuth();
   const stats = s?.data ?? {};
   const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications'), enabled: !!user });
@@ -67,10 +68,12 @@ function Hero({ s }: { s: any }) {
             </Animated.View>
           ))}
         </Row>
+        {requirementsOn && (
         <PressableScale onPress={() => router.push(user ? '/requirements' : '/login')} style={{ marginTop: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }}>
           <ClipboardList size={16} color="#fff" />
           <Txt v="small" color="white">अपनी ज़रूरत बताएँ — मिलती property पर alert</Txt>
         </PressableScale>
+        )}
         {(stats.listings != null || stats.brokers != null) && (
           <Row gap={20} wrap style={{ marginTop: 20, rowGap: 10, alignItems: 'flex-start' }}>
             {[

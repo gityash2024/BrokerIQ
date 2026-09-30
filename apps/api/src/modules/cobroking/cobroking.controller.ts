@@ -2,13 +2,14 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CoBrokingService, type NetworkQuery } from './cobroking.service';
-import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
+import { CurrentUser, Roles, type RequestUser, Feature } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 
 const requestSchema = z.object({ listingId: z.string().min(1), leadId: z.string().optional().nullable(), sharePct: z.number().min(0).max(100).optional().nullable(), message: z.string().max(500).optional().nullable() });
 
 @ApiTags('cobroking')
 @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+@Feature('cobroking')
 @Controller('cobroking')
 export class CoBrokingController {
   constructor(private readonly svc: CoBrokingService) {}

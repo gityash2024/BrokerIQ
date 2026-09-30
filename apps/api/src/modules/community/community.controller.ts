@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { phoneSchema } from '@brokeriq/shared';
 import { CommunityService } from './community.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
+import { CurrentUser, Public, Roles, type RequestUser, Feature } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 
 const flatmateSchema = z.object({
@@ -74,48 +74,57 @@ export class CommunityController {
   ) {}
 
   // ------------------------------------------------------------------ flatmates
+  @Feature('flatmates')
   @Get('flatmates/me')
   me(@CurrentUser() user: RequestUser) {
     return this.svc.myProfile(user.id);
   }
 
+  @Feature('flatmates')
   @Post('flatmates/me')
   upsert(@CurrentUser() user: RequestUser, @Body(new ZodPipe(flatmateSchema)) body: any) {
     return this.svc.upsertProfile(user.id, body);
   }
 
+  @Feature('flatmates')
   @Get('flatmates/matches')
   matches(@CurrentUser() user: RequestUser) {
     return this.svc.matches(user.id);
   }
 
   @Throttle({ default: { limit: 20, ttl: 60 * 60_000 } })
+  @Feature('flatmates')
   @Post('flatmates/connect/:userId')
   connect(@CurrentUser() user: RequestUser, @Param('userId') toUserId: string, @Body(new ZodPipe(z.object({ message: z.string().max(300).optional().nullable() }))) body: any) {
     return this.svc.connect(user.id, toUserId, body.message);
   }
 
+  @Feature('flatmates')
   @Patch('flatmates/connections/:id')
   respond(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['ACCEPTED', 'DECLINED']) }))) body: any) {
     return this.svc.respond(user.id, id, body.status);
   }
 
+  @Feature('flatmates')
   @Get('flatmates/connections')
   connections(@CurrentUser() user: RequestUser) {
     return this.svc.connections(user.id);
   }
 
   // ------------------------------------------------------------------ rent agreement
+  @Feature('rent_agreement')
   @Get('agreements')
   agreements(@CurrentUser() user: RequestUser) {
     return this.svc.listAgreements(user.id);
   }
 
+  @Feature('rent_agreement')
   @Post('agreements')
   createAgreement(@CurrentUser() user: RequestUser, @Body(new ZodPipe(agreementSchema)) body: any) {
     return this.svc.createAgreement(user, body);
   }
 
+  @Feature('rent_agreement')
   @Get('agreements/:id/pdf')
   async agreementPdf(@CurrentUser() user: RequestUser, @Param('id') id: string, @Res() res: Response) {
     res.setHeader('Content-Type', 'application/pdf');
@@ -124,6 +133,7 @@ export class CommunityController {
   }
 
   /** Short-lived signed link so the PDF opens in any browser / the app without an auth header. */
+  @Feature('rent_agreement')
   @Post('agreements/:id/link')
   async agreementLink(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     await this.svc.agreementPdf(user.id, id);
@@ -132,6 +142,7 @@ export class CommunityController {
   }
 
   @Public()
+  @Feature('rent_agreement')
   @Get('public/agreements/:id/pdf')
   async signedPdf(@Param('id') id: string, @Query('e') e: string, @Query('s') s: string, @Res() res: Response) {
     const exp = Number(e);
@@ -149,12 +160,14 @@ export class CommunityController {
 
   // ------------------------------------------------------------------ move-in services
   @Public()
+  @Feature('move_in_services')
   @Get('public/services')
   partners(@Query('category') category?: string, @Query('localityId') localityId?: string) {
     return this.svc.partners(category, localityId);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
+  @Feature('move_in_services')
   @Post('services/requests')
   request(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ partnerId: z.string(), listingId: z.string().optional().nullable(), name: z.string().trim().min(2).max(80), phone: phoneSchema, preferredDate: z.coerce.date().optional().nullable(), notes: z.string().max(400).optional().nullable() }))) body: any) {
     return this.svc.requestService(user, body);

@@ -23,6 +23,7 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import { AuditService } from '../../core/audit/audit.service';
 import { paged, shortCode } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
+import { FeaturesService } from '../../core/features/features.service';
 
 export const LISTING_CARD_SELECT = {
   id: true,
@@ -82,6 +83,7 @@ export class ListingsService {
     private readonly events: EventsService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly features: FeaturesService,
   ) {}
 
   /** Tell every Super Admin that a listing is waiting for approval. */
@@ -173,7 +175,7 @@ export class ListingsService {
   async search(f: ListingSearchInput) {
     await this.expireFeatured();
     const hub = officeHub(f.officeHub);
-    if (hub) return this.searchByCommute(f, hub);
+    if (hub && (await this.features.isEnabled('commute'))) return this.searchByCommute(f, hub);
     const where = this.buildWhere(f);
     const [items, total] = await Promise.all([
       this.prisma.listing.findMany({ where, orderBy: this.orderBy(f.sort), skip: (f.page - 1) * f.pageSize, take: f.pageSize, select: LISTING_CARD_SELECT }),

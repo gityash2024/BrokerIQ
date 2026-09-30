@@ -42,10 +42,10 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/broker/scanner', label: 'AI book scanner', icon: ScanLine },
         { href: '/broker/deals', label: 'Deals & commission', icon: Handshake },
         { href: '/broker/invoices', label: 'Invoices', icon: FileText },
-        { href: '/broker/tokens', label: 'Token records', icon: Wallet },
-        { href: '/broker/agreements', label: 'Rent agreements', icon: FileSignature },
+        { href: '/broker/tokens', label: 'Token records', icon: Wallet, flag: 'visit_tokens' },
+        { href: '/broker/agreements', label: 'Rent agreements', icon: FileSignature, flag: 'rent_agreement' },
         { href: '/broker/owners', label: 'Owners & leases', icon: KeyRound },
-        { href: '/broker/network', label: 'Co-broking network', icon: Network },
+        { href: '/broker/network', label: 'Co-broking network', icon: Network, flag: 'cobroking' },
       ],
     },
     {

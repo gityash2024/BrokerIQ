@@ -43,6 +43,8 @@ export default function Property() {
   const { user } = useAuth();
   const { app } = useConfig();
   const chatOn = useFlag('chat');
+  const slotsOn = useFlag('slot_booking');
+  const tokensOn = useFlag('visit_tokens');
   const q = useQuery({ queryKey: ['listing', slug], queryFn: () => api<any>(`/listings/${slug}`) });
   const tax = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
   const similar = useQuery({ queryKey: ['similar', q.data?.id], queryFn: () => api<any[]>(`/listings/${q.data.id}/similar`, { auth: false }), enabled: !!q.data?.id });
@@ -240,7 +242,7 @@ export default function Property() {
             </Row>
           </Card>
 
-          {!!l.organization && !!user && !l.canManage && (
+          {!!l.organization && !!user && !l.canManage && tokensOn && (
             <PressableScale onPress={() => setToken(true)} style={{ alignSelf: 'center', marginTop: 10 }}>
               <Row gap={6}><Wallet size={14} color={c.muted} /><Txt v="small" color="muted">Broker को token दिया है? Record रखें</Txt></Row>
             </PressableScale>
@@ -285,14 +287,14 @@ export default function Property() {
         <Button icon={<Phone size={18} color={c.fg} />} variant="secondary" onPress={call} style={{ width: 52, paddingHorizontal: 0 }} />
         <Button icon={<MessageCircle size={18} color="#fff" />} variant="whatsapp" onPress={wa} style={{ width: 52, paddingHorizontal: 0 }} />
         {chatOn && l.organization && <Button icon={<MessagesSquare size={18} color={c.fg} />} variant="secondary" onPress={chat} style={{ width: 52, paddingHorizontal: 0 }} />}
-        {l.organization && <Button title="Visit" variant="secondary" style={{ paddingHorizontal: 14 }} onPress={() => (user ? setSlots(true) : router.push('/login'))} />}
+        {l.organization && slotsOn && <Button title="Visit" variant="secondary" style={{ paddingHorizontal: 14 }} onPress={() => (user ? setSlots(true) : router.push('/login'))} />}
         <Button title={l.organization ? 'Enquire' : 'Enquire / Visit'} style={{ flex: 1 }} onPress={() => setEnquire(true)} />
       </View>
 
       <EnquirySheet open={enquire} onClose={() => setEnquire(false)} listing={l} />
       <ReportSheet open={report} onClose={() => setReport(false)} listingId={l.id} />
-      {!!l.organization && <SlotSheet listingId={l.id} open={slots} onClose={() => setSlots(false)} />}
-      {!!l.organization && <TokenSheet listingId={l.id} open={token} onClose={() => setToken(false)} />}
+      {!!l.organization && slotsOn && <SlotSheet listingId={l.id} open={slots} onClose={() => setSlots(false)} />}
+      {!!l.organization && tokensOn && <TokenSheet listingId={l.id} open={token} onClose={() => setToken(false)} />}
       <PanoramaSheet url={pano} open={!!pano} onClose={() => setPano(null)} />
     </View>
   );

@@ -23,6 +23,8 @@ export interface NavItem {
   icon: LucideIcon;
   badge?: number | string | null;
   exact?: boolean;
+  /** Hidden while Super Admin has this feature flag switched off. */
+  flag?: string;
 }
 export interface NavGroup {
   title?: string;
@@ -35,13 +37,14 @@ function isActive(pathname: string, item: NavItem) {
 
 function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { flags } = useConfig();
   return (
     <nav className="space-y-6">
       {groups.map((g, gi) => (
         <div key={gi}>
           {g.title && <p className="mb-2 px-3 text-[11px] font-bold tracking-wider text-subtle uppercase">{g.title}</p>}
           <div className="space-y-0.5">
-            {g.items.map((it) => {
+            {g.items.filter((it) => !it.flag || flags[it.flag] !== false).map((it) => {
               const active = isActive(pathname, it);
               return (
                 <Link key={it.href} href={it.href} onClick={onNavigate} className={cn('group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition', active ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg')}>

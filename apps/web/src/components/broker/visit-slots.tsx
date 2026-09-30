@@ -8,11 +8,17 @@ import { patch, useApiMutation } from '@/lib/hooks';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Chip, Field, Input, Select } from '../ui/field';
+import { useFlag } from '@/lib/config';
 
 const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
 
+/** Hidden while Super Admin has "slot_booking" switched off. */
+export function VisitSlotsButton(props: Record<string, never>) {
+  return useFlag('slot_booking') ? <VisitSlotsButtonInner {...props} /> : null;
+}
+
 /** Weekly slots tenants can self-book from broker listings. */
-export function VisitSlotsButton() {
+function VisitSlotsButtonInner() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const q = useQuery({ queryKey: ['visit-slots'], queryFn: () => api<any>('/broker/visit-slots'), enabled: open });

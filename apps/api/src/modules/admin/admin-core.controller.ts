@@ -15,6 +15,7 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { paged } from '../../common/utils';
 import { env } from '../../config/env';
+import { FeaturesService } from '../../core/features/features.service';
 
 const integrationSaveSchema = z.object({ enabled: z.boolean().optional(), fields: z.record(z.string(), z.unknown()).default({}) });
 const moderateSchema = z.object({ action: z.enum(['approve', 'reject']), reason: z.string().max(500).optional() });
@@ -33,6 +34,7 @@ export class AdminCoreController {
     private readonly tester: IntegrationTesterService,
     private readonly auth: AuthService,
     private readonly events: EventsService,
+    private readonly features: FeaturesService,
   ) {}
 
   // ------------------------------------------------------------------ dashboard
@@ -137,6 +139,7 @@ export class AdminCoreController {
   async flag(@CurrentUser() user: RequestUser, @Param('key') key: string, @Body(new ZodPipe(z.object({ enabled: z.boolean() }))) body: any) {
     const f = await this.prisma.featureFlag.upsert({ where: { key }, create: { key, enabled: body.enabled }, update: { enabled: body.enabled } });
     await this.audit.log(user, 'flag.update', 'FeatureFlag', key, body);
+    this.features.invalidate();
     return f;
   }
 

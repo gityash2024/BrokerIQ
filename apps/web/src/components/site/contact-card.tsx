@@ -19,6 +19,8 @@ export function ContactCard({ listing }: { listing: any }) {
   const { user } = useAuth();
   const router = useRouter();
   const chatOn = useFlag('chat');
+  const slotsOn = useFlag('slot_booking');
+  const tokensOn = useFlag('visit_tokens');
   const [contact, setContact] = useState<{ name: string; phone: string; whatsapp?: string; tracked?: boolean } | null>(null);
   const [slotsOpen, setSlotsOpen] = useState(false);
   const [tokenOpen, setTokenOpen] = useState(false);
@@ -124,8 +126,8 @@ export function ContactCard({ listing }: { listing: any }) {
         )}
         {!isOwn && (
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => (org ? (user ? setSlotsOpen(true) : router.push(`/login?next=/property/${listing.slug}`)) : setVisitOpen(true))}>
-              <CalendarCheck className="size-4" /> {booked ? 'Booked ✓' : org ? 'Visit book करें' : 'Visit'}
+            <Button variant="secondary" onClick={() => (org && slotsOn ? (user ? setSlotsOpen(true) : router.push(`/login?next=/property/${listing.slug}`)) : setVisitOpen(true))}>
+              <CalendarCheck className="size-4" /> {booked ? 'Booked ✓' : org && slotsOn ? 'Visit book करें' : 'Visit'}
             </Button>
             {org && chatOn ? (
               <Button variant="secondary" onClick={startChat}>
@@ -139,14 +141,14 @@ export function ContactCard({ listing }: { listing: any }) {
           </div>
         )}
         {!isOwn && <SafetyNote />}
-        {!isOwn && org && user && (
+        {!isOwn && org && user && tokensOn && (
           <button type="button" onClick={() => setTokenOpen(true)} className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-muted hover:text-brand-600">
             <Wallet className="size-3.5" /> Broker को token दिया है? Record रखें
           </button>
         )}
       </div>
-      {!isOwn && org && <SlotBooking listingId={listing.id} open={slotsOpen} onClose={() => setSlotsOpen(false)} onBooked={setBooked} />}
-      {!isOwn && org && user && <TokenDialog listingId={listing.id} open={tokenOpen} onClose={() => setTokenOpen(false)} />}
+      {!isOwn && org && slotsOn && <SlotBooking listingId={listing.id} open={slotsOpen} onClose={() => setSlotsOpen(false)} onBooked={setBooked} />}
+      {!isOwn && org && user && tokensOn && <TokenDialog listingId={listing.id} open={tokenOpen} onClose={() => setTokenOpen(false)} />}
       {!isOwn && (
         <div id="enquiry" className="border-t border-line p-5">
           {sent ? (

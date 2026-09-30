@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Chip, Field, Input, Select, Textarea } from '../ui/field';
+import { useFlag } from '@/lib/config';
 
 export interface RequirementPrefill {
   bedrooms?: number[];
@@ -109,8 +110,13 @@ export function RequirementDialog({ open, onClose, prefill }: { open: boolean; o
   );
 }
 
+/** Hidden while Super Admin has "tenant_requirements" switched off. */
+export function RequirementButton(props: { prefill?: RequirementPrefill; variant?: 'primary' | 'secondary' | 'accent'; className?: string }) {
+  return useFlag('tenant_requirements') ? <RequirementButtonInner {...props} /> : null;
+}
+
 /** Button that opens the requirement form (sends guests to login first). */
-export function RequirementButton({ prefill, variant = 'secondary', className }: { prefill?: RequirementPrefill; variant?: 'primary' | 'secondary' | 'accent'; className?: string }) {
+function RequirementButtonInner({ prefill, variant = 'secondary', className }: { prefill?: RequirementPrefill; variant?: 'primary' | 'secondary' | 'accent'; className?: string }) {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();

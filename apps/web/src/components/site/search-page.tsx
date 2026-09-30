@@ -20,6 +20,7 @@ import { ApiErrorState } from '../ui/api-error';
 import { ListingCard, ListingCardSkeleton } from './listing-card';
 import { Map } from './map';
 import { SearchInput } from './search-box';
+import { useFlag } from '@/lib/config';
 
 export type SearchMode = 'buy' | 'rent' | 'commercial' | 'plots';
 
@@ -35,6 +36,7 @@ const BEDS = ['1', '2', '3', '4', '5+'];
 
 export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Paged<LC> | null }) {
   const sp = useSearchParams();
+  const commuteOn = useFlag('commute');
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -179,6 +181,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
             <Chip active={f.visitVerified === 'true'} onClick={() => setF({ visitVerified: f.visitVerified === 'true' ? null : 'true' })}>
               <BadgeCheck className="size-3.5" /> Visit verified
             </Chip>
+            {commuteOn && (
             <Pop.Root>
               <Pop.Trigger asChild>
                 <button type="button" className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium', f.officeHub ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
@@ -203,6 +206,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                 </Pop.Content>
               </Pop.Portal>
             </Pop.Root>
+            )}
             <Button size="sm" variant="secondary" className="shrink-0 rounded-full" onClick={() => setMoreOpen(true)}>
               <SlidersHorizontal className="size-4" /> Filters {activeCount > 0 && <span className="grid size-5 place-items-center rounded-full bg-brand-600 text-[10px] text-white">{activeCount}</span>}
             </Button>
