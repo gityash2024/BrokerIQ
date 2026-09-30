@@ -94,10 +94,18 @@ export class WhatsAppService {
       | { type: 'text'; text: string }
       | { type: 'template'; name: string; language: string; params: string[] }
       | { type: 'image' | 'document'; url: string; caption?: string },
-    opts: { leadId?: string | null; userId?: string | null; contactName?: string | null; meta?: Record<string, unknown> } = {},
+    opts: {
+      leadId?: string | null;
+      userId?: string | null;
+      contactName?: string | null;
+      meta?: Record<string, unknown>;
+      /** Never fall back to the platform number (broadcasts: the cost must be the firm's own) */
+      ownNumberOnly?: boolean;
+    } = {},
   ) {
     const phone = normalizeIndianPhone(to) ?? to;
     const creds = await this.requireCreds(orgId);
+    if (opts.ownNumberOnly && creds.scope !== 'organization') throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
     const conv = await this.conversationFor(orgId, phone, { leadId: opts.leadId, name: opts.contactName });
     const body =
       msg.type === 'text'
@@ -279,6 +287,31 @@ export class WhatsAppService {
     }
     this.emit(orgId, 'wa:message', { conversationId: conv.id, message: saved });
     this.events.emit('message.inbound', { conversationId: conv.id, orgId, leadId });
+    if (orgId && leadId) await this.handleOptOut(orgId, leadId, phone, text).catch((e) => this.logger.warn(`opt-out: ${(e as Error).message}`));
+  }
+
+  /** "STOP" stops campaign messages to this lead; "START" turns them back on. Confirmation is free (inside the 24h window). */
+  private async handleOptOut(orgId: string, leadId: string, phone: string, text: string) {
+    const word = text
+      .trim()
+      .toLowerCase()
+      .replace(/[.!]+$/, '');
+    const stop = ['stop', 'unsubscribe', 'stop all', 'band', 'बंद', 'बंद करो'].includes(word);
+    const start = ['start', 'शुरू', 'shuru'].includes(word);
+    if (!stop && !start) return;
+    await this.prisma.lead.update({ where: { id: leadId }, data: { optedOutAt: stop ? new Date() : null } });
+    await this.prisma.activity.create({
+      data: {
+        organizationId: orgId,
+        leadId,
+        type: 'SYSTEM',
+        content: stop ? '🔕 Lead ने campaign messages बंद करवाए (STOP)' : '🔔 Lead ने messages फिर शुरू किए (START)',
+      },
+    });
+    const reply = stop
+      ? 'ठीक है, अब आपको हमारे offers/updates नहीं भेजे जाएँगे। दोबारा शुरू करने के लिए START लिखें।'
+      : 'ठीक है, आपको फिर से नई properties और updates भेजे जाएँगे। बंद करने के लिए STOP लिखें।';
+    await this.send(orgId, phone, { type: 'text', text: reply }, { leadId, ownNumberOnly: true }).catch(() => undefined);
   }
 
   private async onStatus(s: any) {

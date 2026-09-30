@@ -1,6 +1,7 @@
-import { createHash, randomBytes, randomInt } from 'crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { ForbiddenException } from '@nestjs/common';
 import type { RequestUser } from '../decorators';
+import { env } from '../../config/env';
 
 export const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
@@ -31,4 +32,23 @@ export function toNum(v: unknown): number | undefined {
   if (v === null || v === undefined || v === '') return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
+}
+
+/** Calendar day in India (YYYY-MM-DD) — daily caps reset at IST midnight. */
+export const istDay = (d = new Date()) => new Date(d.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
+
+const signature = (purpose: string, id: string) =>
+  createHmac('sha256', env().ENCRYPTION_MASTER_KEY).update(`${purpose}:${id}`).digest('base64url').slice(0, 22);
+
+/** Tamper-proof public token for an id (unsubscribe links etc.): "<id>.<sig>". */
+export const signId = (purpose: string, id: string) => `${id}.${signature(purpose, id)}`;
+
+/** Returns the id when the token was made by signId for the same purpose, else null. */
+export function verifySignedId(purpose: string, token: string): string | null {
+  const dot = token.lastIndexOf('.');
+  if (dot < 1) return null;
+  const id = token.slice(0, dot);
+  const given = Buffer.from(token.slice(dot + 1));
+  const expected = Buffer.from(signature(purpose, id));
+  return given.length === expected.length && timingSafeEqual(given, expected) ? id : null;
 }

@@ -297,6 +297,7 @@ enum ConnectorType {
   WHATSAPP
   HOUSING_API
   EXOTEL
+  META_PAGES
 }
 
 enum CoBrokeStatus {
@@ -606,6 +607,10 @@ model Organization {
   rankUpdatedAt    DateTime?
   /// Visit booking slots: { days: number[] (0=Sun), start: "10:00", end: "19:00", slotMinutes: 60, maxPerSlot: 2 }
   visitSlots       Json?
+  /// Listing photo branding: { watermark: bool, text?: string, position: 'br'|'bl'|'tr'|'tl'|'center', opacity: 0.1–0.9, enhance: bool }
+  photoBranding    Json?
+  /// Post new listings to the firm's own Facebook Page / Instagram (needs the meta_pages integration)
+  socialAutoPost   Boolean            @default(false)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -641,6 +646,9 @@ model Organization {
   usage                UsageCounter[]
   kycDocuments         KycDocument[]
   shareLinks           ShareLink[]
+  campaigns            Campaign[]
+  socialPosts          SocialPost[]
+  comparisons          Comparison[]
 
   @@index([status])
 }
@@ -1000,47 +1008,56 @@ model ListingReport {
 // ============================================================ CRM
 
 model Lead {
-  id              String           @id @default(cuid())
-  organizationId  String
-  name            String
-  phone           String
-  alternatePhone  String?
-  email           String?
-  source          LeadSource       @default(MANUAL)
-  sourceRef       String?
-  sourceDetail    String?
-  stage           LeadStage        @default(NEW)
-  temperature     LeadTemperature?
-  score           Int              @default(0)
-  assignedToId    String?
-  listingId       String?
-  tags            String[]
-  notes           String?
-  lostReason      String?
-  aiSummary       String?
-  lastActivityAt  DateTime?
-  nextFollowUpAt  DateTime?
-  stageChangedAt  DateTime         @default(now())
-  firstResponseAt DateTime?
-  repeatCount     Int              @default(0)
-  rawPayload      Json?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  deletedAt       DateTime?
+  id                String           @id @default(cuid())
+  organizationId    String
+  name              String
+  phone             String
+  alternatePhone    String?
+  email             String?
+  source            LeadSource       @default(MANUAL)
+  sourceRef         String?
+  sourceDetail      String?
+  stage             LeadStage        @default(NEW)
+  temperature       LeadTemperature?
+  score             Int              @default(0)
+  /// Why the score is what it is (shown on the lead), e.g. "Budget match", "Replied on WhatsApp"
+  scoreReasons      String[]
+  scoredAt          DateTime?
+  /// true once a person set HOT/WARM/COLD by hand — automatic scoring then leaves temperature alone
+  temperatureManual Boolean          @default(false)
+  /// Lead said STOP (WhatsApp) or unsubscribed (email): no more campaign messages
+  optedOutAt        DateTime?
+  assignedToId      String?
+  listingId         String?
+  tags              String[]
+  notes             String?
+  lostReason        String?
+  aiSummary         String?
+  lastActivityAt    DateTime?
+  nextFollowUpAt    DateTime?
+  stageChangedAt    DateTime         @default(now())
+  firstResponseAt   DateTime?
+  repeatCount       Int              @default(0)
+  rawPayload        Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
 
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assignedTo      User?            @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  listing         Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  requirement     LeadRequirement?
-  activities      Activity[]
-  followUps       FollowUp[]
-  visits          SiteVisit[]
-  deals           Deal[]
-  conversations   Conversation[]
-  automationRuns  AutomationRun[]
-  shareLinks      ShareLink[]
-  calls           Call[]
-  coBrokeRequests CoBrokeRequest[]
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo         User?               @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  listing            Listing?            @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  requirement        LeadRequirement?
+  activities         Activity[]
+  followUps          FollowUp[]
+  visits             SiteVisit[]
+  deals              Deal[]
+  conversations      Conversation[]
+  automationRuns     AutomationRun[]
+  shareLinks         ShareLink[]
+  calls              Call[]
+  coBrokeRequests    CoBrokeRequest[]
+  campaignRecipients CampaignRecipient[]
+  comparisons        Comparison[]
 
   @@unique([organizationId, phone])
   @@index([organizationId, stage])
@@ -1788,6 +1805,10 @@ model Owner {
   email          String?
   notes          String?
   tags           String[]
+  /// Secret for the owner's read-only report page (/o/<token>); null = no link shared yet
+  reportToken    String?  @unique
+  /// Email the owner a weekly report (needs email + SMTP)
+  weeklyReport   Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2120,4 +2141,109 @@ model Blocklist {
   createdAt   DateTime  @default(now())
 
   @@unique([kind, value])
+}
+
+// ---------------------------------------------------------------- broker growth tools (v4)
+
+enum CampaignStatus {
+  DRAFT
+  RUNNING
+  DONE
+  CANCELLED
+}
+
+enum CampaignChannel {
+  WHATSAPP
+  EMAIL
+  BOTH
+}
+
+enum RecipientStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// Broadcast to a segment of the firm's own leads, through the firm's own WhatsApp number (cost is the firm's) and/or email.
+model Campaign {
+  id               String          @id @default(cuid())
+  organizationId   String
+  createdById      String?
+  name             String
+  channel          CampaignChannel @default(WHATSAPP)
+  /// { stages?, sources?, tags?, temperatures?, bedrooms?, localityIds?, minBudget?, maxBudget?, activeWithinDays? }
+  segment          Json
+  templateName     String?
+  templateLanguage String?
+  /// Template body params; "{name}" is replaced with the lead's first name
+  params           String[]
+  emailSubject     String?
+  emailBody        String?
+  status           CampaignStatus  @default(DRAFT)
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  total            Int             @default(0)
+  sent             Int             @default(0)
+  failed           Int             @default(0)
+  skipped          Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipients   CampaignRecipient[]
+
+  @@index([organizationId, createdAt])
+}
+
+model CampaignRecipient {
+  id         String          @id @default(cuid())
+  campaignId String
+  leadId     String?
+  name       String
+  phone      String?
+  email      String?
+  status     RecipientStatus @default(PENDING)
+  channel    String?
+  error      String?
+  sentAt     DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, status])
+}
+
+/// A listing posted to the firm's Facebook Page / Instagram.
+model SocialPost {
+  id             String   @id @default(cuid())
+  organizationId String
+  listingId      String
+  platform       String
+  status         String
+  externalId     String?
+  error          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, platform])
+  @@index([organizationId, createdAt])
+}
+
+/// Side-by-side comparison of listings a broker sends to a client (public PDF via token).
+model Comparison {
+  id             String   @id @default(cuid())
+  organizationId String
+  leadId         String?
+  createdById    String?
+  listingIds     String[]
+  token          String   @unique
+  opens          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
 }

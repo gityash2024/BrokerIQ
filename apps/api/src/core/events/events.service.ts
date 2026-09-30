@@ -8,6 +8,8 @@ export interface DomainEvents {
   'message.inbound': { conversationId: string; orgId: string | null; leadId?: string | null };
   'listing.published': { listingId: string };
   'deal.closed': { dealId: string; orgId: string; userId?: string };
+  /** Something on the lead changed that can affect its score (note/call logged, requirement edited). */
+  'lead.updated': { leadId: string; orgId: string };
 }
 
 /** Tiny in-process domain event bus (decouples modules, avoids circular DI). */

@@ -4,12 +4,16 @@ import { SkipThrottle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators';
 import { LocalStorageService, RESIZE_WIDTHS } from '../../core/media/local-storage.service';
+import { PhotoBrandingService } from './photo-branding.service';
 
 /** Upload + serve endpoints for the self-hosted media store (MEDIA_ROOT). */
 @ApiExcludeController()
 @Controller('media')
 export class MediaController {
-  constructor(private readonly store: LocalStorageService) {}
+  constructor(
+    private readonly store: LocalStorageService,
+    private readonly branding: PhotoBrandingService,
+  ) {}
 
   /** Body is the raw file; the signed token (from /me/uploads/sign) authorises exactly one key. */
   @Public()
@@ -17,7 +21,7 @@ export class MediaController {
   async upload(@Param('token') token: string, @Req() req: Request) {
     if (!this.store.enabled) throw new NotFoundException();
     const claims = this.store.verifyToken(token);
-    const data = await readBody(req, claims.max);
+    const data = await this.branding.apply(claims.key, claims.ct, await readBody(req, claims.max));
     const contentType = await this.store.store(claims.key, claims.ct, data);
     return { ok: true, key: claims.key, contentType };
   }

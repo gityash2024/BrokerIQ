@@ -74,6 +74,19 @@ export class IntegrationTesterService {
         if (!res.ok) throw new Error(data?.error?.message ?? `Meta ${res.status}`);
         return `Connected: ${data.verified_name ?? ''} ${data.display_phone_number ?? ''} (quality: ${data.quality_rating ?? 'n/a'})`;
       }
+      case 'meta_pages': {
+        const page = await fetch(`${GRAPH}/${v.pageId}?fields=name&access_token=${encodeURIComponent(v.accessToken)}`);
+        const p: any = await page.json().catch(() => ({}));
+        if (!page.ok) throw new Error(p?.error?.message ?? `Meta ${page.status}`);
+        let ig = '';
+        if (v.igUserId) {
+          const res = await fetch(`${GRAPH}/${v.igUserId}?fields=username&access_token=${encodeURIComponent(v.accessToken)}`);
+          const d: any = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(`Instagram: ${d?.error?.message ?? `Meta ${res.status}`}`);
+          ig = ` · Instagram @${d.username}`;
+        }
+        return `Connected: Facebook Page "${p.name}"${ig}`;
+      }
       case 'meta_leads': {
         const res = await fetch(`${GRAPH}/${v.pageId}?fields=name&access_token=${encodeURIComponent(v.pageAccessToken)}`);
         const data: any = await res.json().catch(() => ({}));

@@ -300,7 +300,7 @@ export class LeadsService {
     });
     const data: Prisma.LeadUpdateInput = {};
     if (input.stage && input.stage !== 'NEW') data.stage = input.stage;
-    if (input.temperature) data.temperature = input.temperature;
+    if (input.temperature) Object.assign(data, { temperature: input.temperature, temperatureManual: true });
     if (input.tags?.length) data.tags = input.tags;
     if (input.alternatePhone) data.alternatePhone = normalizeIndianPhone(input.alternatePhone) ?? input.alternatePhone;
     if (Object.keys(data).length) await this.prisma.lead.update({ where: { id: lead.id }, data });
@@ -313,6 +313,8 @@ export class LeadsService {
     if (stage && stage !== lead.stage) await this.changeStage(id, stage, user, input.lostReason);
     if (assignedToId !== undefined && assignedToId !== lead.assignedToId) await this.assign(id, assignedToId, user);
     const data: Prisma.LeadUpdateInput = { ...(rest as any), email: rest.email === '' ? null : rest.email };
+    // A person choosing HOT/WARM/COLD wins over automatic scoring; clearing it hands control back.
+    if (rest.temperature !== undefined) data.temperatureManual = !!rest.temperature;
     if (phone) data.phone = normalizeIndianPhone(phone) ?? phone;
     if (alternatePhone !== undefined) data.alternatePhone = alternatePhone ? (normalizeIndianPhone(alternatePhone) ?? alternatePhone) : null;
     delete (data as any).source;
@@ -323,6 +325,7 @@ export class LeadsService {
       const req = this.requirementData(requirement);
       await this.prisma.leadRequirement.upsert({ where: { leadId: id }, create: { leadId: id, ...req }, update: req });
     }
+    this.events.emit('lead.updated', { leadId: id, orgId: lead.organizationId });
     return this.detail(id, user);
   }
 
@@ -427,6 +430,7 @@ export class LeadsService {
       await this.changeStage(id, 'CONTACTED', user);
     }
     await this.prisma.lead.update({ where: { id }, data: patch });
+    this.events.emit('lead.updated', { leadId: id, orgId: lead.organizationId });
     return activity;
   }
 
@@ -530,10 +534,9 @@ export class LeadsService {
       { feature: 'lead_insights', orgId: lead.organizationId, userId: user.id, maxTokens: 700, temperature: 0.2, schema: leadInsightsSchema },
     );
     const score = Math.max(0, Math.min(100, Math.round(Number(out.score) || 0)));
-    await this.prisma.lead.update({
-      where: { id },
-      data: { aiSummary: out.summary, temperature: ['HOT', 'WARM', 'COLD'].includes(out.temperature) ? out.temperature : undefined, score },
-    });
+    // Score/temperature on the lead come from rule-based scoring (explainable, updated on every event);
+    // the AI's own estimate is returned with the insights only.
+    await this.prisma.lead.update({ where: { id }, data: { aiSummary: out.summary } });
     return { ...out, score };
   }
 

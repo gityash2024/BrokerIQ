@@ -314,6 +314,31 @@ export const INTEGRATIONS: IntegrationDef[] = [
     usedFor: ['Auto WhatsApp replies to new leads', 'Team WhatsApp inbox', 'Templates & drip campaigns'],
     testable: true,
   },
+  {
+    key: 'meta_pages',
+    name: 'Facebook Page + Instagram auto-post',
+    category: 'messaging',
+    scope: 'organization',
+    description: 'नई listing live होते ही उसकी photo और details आपके अपने Facebook Page और Instagram business account पर अपने-आप post होती हैं।',
+    freeTier: 'Free (आपके अपने Page/Instagram पर; Meta कोई पैसा नहीं लेता)',
+    docsUrl: 'https://developers.facebook.com/docs/pages-api/posts',
+    steps: [
+      'Instagram को Professional (Business) account बनाएँ और उसे अपने Facebook Page से जोड़ें (Instagram → Settings → Accounts Center)।',
+      'https://developers.facebook.com → "My Apps" → "Create App" → type "Business" बनाएँ (पहले से WhatsApp वाला app हो तो वही चलेगा)।',
+      'business.facebook.com → Business Settings → Users → System users → Admin user → "Assign assets" में अपना Page और Instagram account दें (Full control)।',
+      '"Generate token" → वही app → permissions: pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish → Expiry "Never" → token copy करें।',
+      'Page ID: Facebook Page → About → Page transparency (या Page settings) में मिलेगा। Instagram user ID: Graph API Explorer में GET /<Page ID>?fields=instagram_business_account।',
+      'नीचे भरें → Save → "Test connection"। फिर Broker → Settings → "नई listings अपने-आप post करें" ON करें।',
+      'नोट: अगर Meta app "Development" mode में है तो posts सिर्फ़ app admins को दिखेंगे — app को "Live" करें (App Review सिर्फ़ दूसरों के Pages के लिए चाहिए, अपने के लिए नहीं)।',
+    ],
+    fields: [
+      { key: 'pageId', label: 'Facebook Page ID', type: 'text', required: true },
+      { key: 'accessToken', label: 'Page / system-user access token', type: 'password', required: true, secret: true },
+      { key: 'igUserId', label: 'Instagram business user ID (optional)', type: 'text', help: 'खाली छोड़ें तो सिर्फ़ Facebook पर post होगा' },
+    ],
+    usedFor: ['Facebook Page auto-post', 'Instagram auto-post'],
+    testable: true,
+  },
   // ---------------------------------------------------------------- Lead sources (broker)
   {
     key: 'email_inbox',

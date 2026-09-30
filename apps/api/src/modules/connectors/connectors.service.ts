@@ -31,6 +31,7 @@ const ORG_KEY_TO_TYPE: Record<string, ConnectorType> = {
   whatsapp: 'WHATSAPP',
   housing_api: 'HOUSING_API',
   exotel: 'EXOTEL',
+  meta_pages: 'META_PAGES',
 };
 /** Lead connectors that count towards the plan's `connectors` limit. */
 const LIMITED_TYPES: ConnectorType[] = ['EMAIL_INBOX', 'META_LEAD_ADS', 'HOUSING_API'];

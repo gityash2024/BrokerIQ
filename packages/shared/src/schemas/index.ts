@@ -511,3 +511,51 @@ export const transcribeSchema = z.object({
   mime: z.string().max(60).default('audio/m4a'),
   lang: z.string().max(5).optional(),
 });
+
+// ------------------------------------------------------------------ Broker growth tools
+export const campaignSegmentSchema = z.object({
+  stages: z.array(z.enum(LEAD_STAGES)).max(20).optional(),
+  sources: z.array(z.enum(LEAD_SOURCES)).max(30).optional(),
+  temperatures: z
+    .array(z.enum(['HOT', 'WARM', 'COLD']))
+    .max(3)
+    .optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  bedrooms: z.array(z.number().int().min(0).max(10)).max(10).optional(),
+  localityIds: z.array(z.string().min(1).max(40)).max(50).optional(),
+  minBudget: z.number().nonnegative().max(1e10).optional().nullable(),
+  maxBudget: z.number().nonnegative().max(1e10).optional().nullable(),
+  /** Only leads with activity in the last N days */
+  activeWithinDays: z.number().int().min(1).max(730).optional().nullable(),
+});
+export type CampaignSegment = z.infer<typeof campaignSegmentSchema>;
+export const campaignSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Campaign का नाम लिखें').max(100),
+    channel: z.enum(['WHATSAPP', 'EMAIL', 'BOTH']).default('WHATSAPP'),
+    segment: campaignSegmentSchema.default({}),
+    templateName: z.string().trim().max(512).optional().nullable(),
+    templateLanguage: z.string().trim().max(15).optional().nullable(),
+    params: z.array(z.string().max(500)).max(10).default([]),
+    emailSubject: z.string().trim().max(200).optional().nullable(),
+    emailBody: z.string().trim().max(10000).optional().nullable(),
+  })
+  .refine((c) => c.channel === 'EMAIL' || !!c.templateName, { message: 'WhatsApp के लिए approved template चुनें', path: ['templateName'] })
+  .refine((c) => c.channel === 'WHATSAPP' || (!!c.emailSubject && !!c.emailBody), { message: 'Email का subject और message लिखें', path: ['emailBody'] });
+export type CampaignInput = z.infer<typeof campaignSchema>;
+
+export const WATERMARK_POSITIONS = ['br', 'bl', 'tr', 'tl', 'center'] as const;
+export const photoBrandingSchema = z.object({
+  watermark: z.boolean().default(false),
+  /** Defaults to the firm name */
+  text: z.string().trim().max(60).optional().nullable(),
+  position: z.enum(WATERMARK_POSITIONS).default('br'),
+  opacity: z.number().min(0.1).max(0.9).default(0.45),
+  enhance: z.boolean().default(false),
+});
+export type PhotoBranding = z.infer<typeof photoBrandingSchema>;
+
+export const comparisonSchema = z.object({
+  listingIds: z.array(z.string().min(1).max(40)).min(2, 'कम से कम 2 properties चुनें').max(5, 'ज़्यादा से ज़्यादा 5 properties'),
+  leadId: z.string().max(40).optional().nullable(),
+});

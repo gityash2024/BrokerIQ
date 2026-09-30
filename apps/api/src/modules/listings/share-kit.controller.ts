@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -27,12 +28,21 @@ export class ShareKitController {
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('public/share-kit/:code')
-  async image(@Param('code') code: string, @Query('format') format: string, @Query('download') download: string, @Res() res: Response) {
+  async image(
+    @Param('code') code: string,
+    @Query('format') format: string,
+    @Query('download') download: string,
+    @Query('type') type: string,
+    @Res() res: Response,
+  ) {
     const fmt = format === 'story' ? 'story' : 'post';
     const png = await this.kit.render(code, fmt);
-    res.setHeader('Content-Type', 'image/png');
+    // Instagram's publishing API only accepts JPEG image URLs.
+    const jpg = type === 'jpg';
+    const body = jpg ? await sharp(png).flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer() : png;
+    res.setHeader('Content-Type', jpg ? 'image/jpeg' : 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=600');
-    if (download) res.setHeader('Content-Disposition', `attachment; filename="brokeriq-${fmt}-${code}.png"`);
-    res.send(png);
+    if (download) res.setHeader('Content-Disposition', `attachment; filename="brokeriq-${fmt}-${code}.${jpg ? 'jpg' : 'png'}"`);
+    res.send(body);
   }
 }

@@ -37,6 +37,8 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { TrustModule } from './modules/trust/trust.module';
 import { CommunityModule } from './modules/community/community.module';
 import { WaBotModule } from './modules/wabot/wabot.module';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { GrowthModule } from './modules/growth/growth.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -75,6 +77,8 @@ import { isInternalCall } from './common/internal';
     TrustModule,
     CommunityModule,
     WaBotModule,
+    CampaignsModule,
+    GrowthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

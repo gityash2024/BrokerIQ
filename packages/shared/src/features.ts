@@ -18,6 +18,13 @@ export const GROWTH_FEATURES = [
   { key: 'rent_agreement', name: 'Rent agreement', description: '11-month draft rent agreement PDF' },
   { key: 'move_in_services', name: 'Move-in services', description: 'Packers, furniture, broadband partner callbacks' },
   { key: 'whatsapp_bot', name: 'WhatsApp search bot', description: 'Search + alerts on the platform WhatsApp number' },
+  { key: 'campaigns', name: 'WhatsApp & email campaigns', description: 'Brokers broadcast to lead segments from their own WhatsApp number / email' },
+  { key: 'photo_branding', name: 'Photo watermark & enhance', description: 'Firm watermark and auto-enhance on listing photos' },
+  { key: 'visiting_card', name: 'Digital visiting card', description: 'Public /card page, QR and contact (.vcf) download' },
+  { key: 'social_autopost', name: 'Facebook/Instagram auto-post', description: 'New listings posted to the firm’s own Page / Instagram' },
+  { key: 'comparison_pdf', name: 'Comparison PDF', description: 'Branded side-by-side PDF of 2–5 listings for a client' },
+  { key: 'broker_reports', name: 'Reports export', description: 'Monthly deals, commission, invoices and GST — CSV & PDF' },
+  { key: 'owner_reports', name: 'Owner report link', description: 'Read-only page for property owners: views, enquiries, visits' },
   {
     key: 'sale_listings',
     name: 'Sale & new projects',
