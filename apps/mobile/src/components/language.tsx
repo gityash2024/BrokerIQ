@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Text, View } from 'react-native';
 import { Check, Languages } from 'lucide-react-native';
 import { LANGUAGES, languageOf, type LanguageCode } from '@brokeriq/shared';
-import { useLang } from '../lib/lang';
+import { languageToSuggest, markLanguagePrompted, useLang } from '../lib/lang';
 import { fonts, useTheme } from '../lib/theme';
 import { PressableScale, Sheet } from '../ui';
 
@@ -65,4 +65,25 @@ export function LanguagePill({ light }: { light?: boolean }) {
       )}
     />
   );
+}
+
+/**
+ * One-time suggestion to switch to the phone's language (e.g. a Tamil phone → தமிழ்). Shown a moment
+ * after launch, only when no language was chosen yet; either answer is remembered.
+ */
+export function LanguageSuggestion() {
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const code = await languageToSuggest();
+      if (!code) return;
+      const l = languageOf(code);
+      markLanguagePrompted();
+      Alert.alert(l.native, `BrokerIQ ${l.native} में देखें?\nUse BrokerIQ in ${l.name}?`, [
+        { text: 'Default', style: 'cancel' },
+        { text: `${l.native} ✓`, onPress: () => useLang.getState().setLang(code) },
+      ]);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+  return null;
 }

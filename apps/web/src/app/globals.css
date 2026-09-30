@@ -180,3 +180,9 @@ body {
 html.i18n-pending body {
   visibility: hidden;
 }
+
+/* Urdu runs right-to-left: each text block takes its direction from its own content, so digits,
+   ":" and "·" sit on the correct side. The page layout itself is not mirrored. */
+html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, th, small, strong, dt, dd) {
+  unicode-bidi: plaintext;
+}

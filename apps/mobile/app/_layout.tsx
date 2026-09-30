@@ -23,6 +23,7 @@ import { registerPush } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
 import { Button, Toaster, Txt } from '@/ui';
 import { AssistantButton } from '@/components/assistant';
+import { LanguageSuggestion } from '@/components/language';
 import { loadLang } from '@/lib/lang';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -87,6 +88,7 @@ export default function RootLayout() {
             </Stack>
           </Gate>
           <AssistantButton />
+          <LanguageSuggestion />
           <Toaster />
         </QueryClientProvider>
       </SafeAreaProvider>

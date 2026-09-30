@@ -1,7 +1,8 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { LANGUAGE_CODES, localizeDates, makeTranslator, type Dictionary, type LanguageCode, type Translator } from '@brokeriq/shared';
+import { toast } from 'sonner';
+import { LANGUAGE_CODES, languageOf, localizeDates, makeTranslator, type Dictionary, type LanguageCode, type Translator } from '@brokeriq/shared';
 
 /**
  * UI language. `null` = the original interface (Hindi/English mix, unchanged). A chosen
@@ -40,6 +41,31 @@ const readLang = (): LanguageCode | null => {
     return null;
   }
 };
+const PROMPTED_KEY = 'biq.lang.prompted';
+const markPrompted = () => {
+  try {
+    localStorage.setItem(PROMPTED_KEY, '1');
+  } catch {
+    /* private mode */
+  }
+};
+/**
+ * The browser's language (e.g. "ta-IN" → "ta"), suggested once. Skipped for English/Hindi browsers —
+ * the default interface is already Hindi + English — and never shown inside the Super Admin panel.
+ */
+const browserLanguageToSuggest = (): LanguageCode | null => {
+  try {
+    if (localStorage.getItem(LANG_KEY) || localStorage.getItem(PROMPTED_KEY) || window.location.pathname.startsWith('/admin')) return null;
+    for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+      const code = tag.toLowerCase().split('-')[0] as LanguageCode;
+      if (code === 'en' || code === 'hi') return null;
+      if (LANGUAGE_CODES.includes(code)) return code;
+    }
+  } catch {
+    /* storage blocked */
+  }
+  return null;
+};
 const release = () => document.documentElement.classList.remove('i18n-pending');
 let activeLang: LanguageCode | null = null;
 if (typeof window !== 'undefined') localizeDates(() => activeLang);
@@ -52,6 +78,19 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     if (!l) release();
     setLangState(l);
   }, []);
+  useEffect(() => {
+    const code = lang ? null : browserLanguageToSuggest();
+    if (!code) return;
+    const timer = setTimeout(() => {
+      const l = languageOf(code);
+      markPrompted();
+      toast(`BrokerIQ ${l.native} में देखें? · Use BrokerIQ in ${l.name}?`, {
+        duration: 15_000,
+        action: { label: `${l.native} ✓`, onClick: () => setLangRef.current(code) },
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [lang]);
   useEffect(() => {
     let alive = true;
     activeLang = lang;
@@ -77,6 +116,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     setLangState(l);
     window.dispatchEvent(new Event('biq-lang'));
   }, []);
+  const setLangRef = useRef(setLang);
+  setLangRef.current = setLang;
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return (
     <I18nCtx.Provider value={value}>

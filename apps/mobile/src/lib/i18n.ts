@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { Alert, type AlertButton, type AlertOptions } from 'react-native';
-import { localizeDates, makeTranslator, type Dictionary, type LanguageCode, type Translator } from '@brokeriq/shared';
+import { languageOf, localizeDates, makeTranslator, type Dictionary, type LanguageCode, type Translator } from '@brokeriq/shared';
 import { useLang } from './lang';
 
 /**
@@ -37,6 +37,13 @@ export const useT = () => {
   const lang = useLang((s) => s.lang);
   return useMemo(() => translatorFor(lang), [lang]);
 };
+/**
+ * Urdu text runs right-to-left. Only the text direction is set (digits, ":" and "·" land on the
+ * correct side); the screen layout itself is not mirrored, so no layout changes for RTL.
+ */
+const RTL_TEXT = { writingDirection: 'rtl' } as const;
+export const useTextDir = () => useLang((s) => (s.lang && languageOf(s.lang).dir === 'rtl' ? RTL_TEXT : undefined));
+
 /** Non-hook variant for Alert / toast / imperative code. */
 export const tr = (s: string) => translatorFor(useLang.getState().lang)(s);
 
