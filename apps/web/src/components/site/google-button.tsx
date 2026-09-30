@@ -9,7 +9,13 @@ declare global {
 }
 
 /** Google Identity Services button. Hidden when Google Sign-In isn't configured in Super Admin. */
-export function GoogleButton({ onCredential, text = 'continue_with' }: { onCredential: (idToken: string) => void; text?: 'signin_with' | 'signup_with' | 'continue_with' }) {
+export function GoogleButton({
+  onCredential,
+  text = 'continue_with',
+}: {
+  onCredential: (idToken: string) => void;
+  text?: 'signin_with' | 'signup_with' | 'continue_with';
+}) {
   const { integrations, app } = useConfig();
   const g = integrations.google_oauth as any;
   const ref = useRef<HTMLDivElement>(null);
@@ -22,7 +28,13 @@ export function GoogleButton({ onCredential, text = 'continue_with' }: { onCrede
     const render = () => {
       if (!window.google || !ref.current) return;
       window.google.accounts.id.initialize({ client_id: g.webClientId, callback: (r: any) => cb.current(r.credential) });
-      window.google.accounts.id.renderButton(ref.current, { theme: document.documentElement.classList.contains('dark') ? 'filled_black' : 'outline', size: 'large', shape: 'pill', text, width: ref.current.offsetWidth || 320 });
+      window.google.accounts.id.renderButton(ref.current, {
+        theme: document.documentElement.classList.contains('dark') ? 'filled_black' : 'outline',
+        size: 'large',
+        shape: 'pill',
+        text,
+        width: ref.current.offsetWidth || 320,
+      });
     };
     if (window.google) return render();
     const s = document.createElement('script');

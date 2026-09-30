@@ -86,7 +86,23 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
   const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && RENTABLE_TYPES.includes(t.value));
   const budgets: number[] = tax?.budgets?.[purpose] ?? [];
   const selectedLocs = (f.localities ?? '').split(',').filter(Boolean);
-  const activeCount = ['types', 'minPrice', 'maxPrice', 'bedrooms', 'furnishing', 'possession', 'postedBy', 'verified', 'amenities', 'localities', 'q', 'minArea', 'maxArea', 'officeHub', 'visitVerified'].filter((k) => f[k]).length;
+  const activeCount = [
+    'types',
+    'minPrice',
+    'maxPrice',
+    'bedrooms',
+    'furnishing',
+    'possession',
+    'postedBy',
+    'verified',
+    'amenities',
+    'localities',
+    'q',
+    'minArea',
+    'maxArea',
+    'officeHub',
+    'visitVerified',
+  ].filter((k) => f[k]).length;
 
   const saveSearch = async () => {
     if (!user) return router.push(`/login?next=${encodeURIComponent(pathname + '?' + sp.toString())}`);
@@ -120,7 +136,15 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                   ['map', MapIcon],
                 ] as const
               ).map(([v, Icon]) => (
-                <button key={v} onClick={() => setView(v)} className={cn('grid size-9 place-items-center rounded-lg transition', view === v ? 'bg-brand-600 text-white' : 'text-muted hover:bg-surface-2')} aria-label={v}>
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    'grid size-9 place-items-center rounded-lg transition',
+                    view === v ? 'bg-brand-600 text-white' : 'text-muted hover:bg-surface-2',
+                  )}
+                  aria-label={v}
+                >
                   <Icon className="size-4" />
                 </button>
               ))}
@@ -130,8 +154,18 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
             <LocalityPicker locs={locs ?? []} selected={selectedLocs} onChange={(v) => setF({ localities: v.join(',') })} />
             <Pop.Root>
               <Pop.Trigger asChild>
-                <button className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium', f.minPrice || f.maxPrice ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300' : 'border-line bg-surface text-muted')}>
-                  {f.minPrice || f.maxPrice ? `${f.minPrice ? formatPriceShort(+f.minPrice) : 'Any'} – ${f.maxPrice ? formatPriceShort(+f.maxPrice) : 'Any'}` : 'Budget'} <ChevronDown className="size-4" />
+                <button
+                  className={cn(
+                    'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium',
+                    f.minPrice || f.maxPrice
+                      ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
+                      : 'border-line bg-surface text-muted',
+                  )}
+                >
+                  {f.minPrice || f.maxPrice
+                    ? `${f.minPrice ? formatPriceShort(+f.minPrice) : 'Any'} – ${f.maxPrice ? formatPriceShort(+f.maxPrice) : 'Any'}`
+                    : 'Budget'}{' '}
+                  <ChevronDown className="size-4" />
                 </button>
               </Pop.Trigger>
               <Pop.Portal>
@@ -171,9 +205,15 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
             )}
             {csvHas('types', 'PG') && (
               <>
-                <Chip active={f.pgGender === 'FEMALE'} onClick={() => setF({ pgGender: f.pgGender === 'FEMALE' ? null : 'FEMALE' })}>Girls PG</Chip>
-                <Chip active={f.pgGender === 'MALE'} onClick={() => setF({ pgGender: f.pgGender === 'MALE' ? null : 'MALE' })}>Boys PG</Chip>
-                <Chip active={f.pgFood === 'VEG'} onClick={() => setF({ pgFood: f.pgFood === 'VEG' ? null : 'VEG' })}>Veg food</Chip>
+                <Chip active={f.pgGender === 'FEMALE'} onClick={() => setF({ pgGender: f.pgGender === 'FEMALE' ? null : 'FEMALE' })}>
+                  Girls PG
+                </Chip>
+                <Chip active={f.pgGender === 'MALE'} onClick={() => setF({ pgGender: f.pgGender === 'MALE' ? null : 'MALE' })}>
+                  Boys PG
+                </Chip>
+                <Chip active={f.pgFood === 'VEG'} onClick={() => setF({ pgFood: f.pgFood === 'VEG' ? null : 'VEG' })}>
+                  Veg food
+                </Chip>
               </>
             )}
             <Chip active={f.verified === 'true'} onClick={() => setF({ verified: f.verified === 'true' ? null : 'true' })}>
@@ -186,33 +226,57 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
               <BadgeCheck className="size-3.5" /> Visit verified
             </Chip>
             {commuteOn && (
-            <Pop.Root>
-              <Pop.Trigger asChild>
-                <button type="button" className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium', f.officeHub ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
-                  <Briefcase className="size-3.5" /> {f.officeHub ? `${OFFICE_HUBS.find((h) => h.key === f.officeHub)?.name ?? 'Office'} · ${f.maxCommute ?? 45} मिनट` : 'Office के पास'} <ChevronDown className="size-3.5" />
-                </button>
-              </Pop.Trigger>
-              <Pop.Portal>
-                <Pop.Content align="start" sideOffset={8} className="z-50 w-72 space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-xl">
-                  <p className="text-sm font-semibold">आपका office कहाँ है?</p>
-                  <Select value={f.officeHub ?? ''} onChange={(e) => setF({ officeHub: e.target.value || null, maxCommute: e.target.value ? f.maxCommute ?? '45' : null, sort: e.target.value ? 'commute' : null })}>
-                    <option value="">— चुनें —</option>
-                    {OFFICE_HUBS.map((h) => <option key={h.key} value={h.key}>{h.name}</option>)}
-                  </Select>
-                  {f.officeHub && (
-                    <div className="flex flex-wrap gap-2">
-                      {['20', '30', '45', '60'].map((m) => (
-                        <Chip key={m} active={(f.maxCommute ?? '45') === m} onClick={() => setF({ maxCommute: m })}>{m} मिनट तक</Chip>
+              <Pop.Root>
+                <Pop.Trigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium',
+                      f.officeHub ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/10' : 'border-line hover:border-brand-300',
+                    )}
+                  >
+                    <Briefcase className="size-3.5" />{' '}
+                    {f.officeHub ? `${OFFICE_HUBS.find((h) => h.key === f.officeHub)?.name ?? 'Office'} · ${f.maxCommute ?? 45} मिनट` : 'Office के पास'}{' '}
+                    <ChevronDown className="size-3.5" />
+                  </button>
+                </Pop.Trigger>
+                <Pop.Portal>
+                  <Pop.Content align="start" sideOffset={8} className="z-50 w-72 space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-xl">
+                    <p className="text-sm font-semibold">आपका office कहाँ है?</p>
+                    <Select
+                      value={f.officeHub ?? ''}
+                      onChange={(e) =>
+                        setF({
+                          officeHub: e.target.value || null,
+                          maxCommute: e.target.value ? (f.maxCommute ?? '45') : null,
+                          sort: e.target.value ? 'commute' : null,
+                        })
+                      }
+                    >
+                      <option value="">— चुनें —</option>
+                      {OFFICE_HUBS.map((h) => (
+                        <option key={h.key} value={h.key}>
+                          {h.name}
+                        </option>
                       ))}
-                    </div>
-                  )}
-                  <p className="text-[11px] text-subtle">Car और metro का अनुमानित peak-hour समय</p>
-                </Pop.Content>
-              </Pop.Portal>
-            </Pop.Root>
+                    </Select>
+                    {f.officeHub && (
+                      <div className="flex flex-wrap gap-2">
+                        {['20', '30', '45', '60'].map((m) => (
+                          <Chip key={m} active={(f.maxCommute ?? '45') === m} onClick={() => setF({ maxCommute: m })}>
+                            {m} मिनट तक
+                          </Chip>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-subtle">Car और metro का अनुमानित peak-hour समय</p>
+                  </Pop.Content>
+                </Pop.Portal>
+              </Pop.Root>
             )}
             <Button size="sm" variant="secondary" className="shrink-0 rounded-full" onClick={() => setMoreOpen(true)}>
-              <SlidersHorizontal className="size-4" /> Filters {activeCount > 0 && <span className="grid size-5 place-items-center rounded-full bg-brand-600 text-[10px] text-white">{activeCount}</span>}
+              <SlidersHorizontal className="size-4" /> Filters{' '}
+              {activeCount > 0 && <span className="grid size-5 place-items-center rounded-full bg-brand-600 text-[10px] text-white">{activeCount}</span>}
             </Button>
             {activeCount > 0 && (
               <button onClick={() => router.replace(pathname)} className="shrink-0 px-2 text-sm font-semibold text-brand-600 hover:underline">
@@ -270,7 +334,16 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
                   <Button onClick={saveSearch}>
                     <BellPlus className="size-4" /> Alert me
                   </Button>
-                  <RequirementButton prefill={{ bedrooms: (f.bedrooms ?? '').split(',').map(Number).filter((n: number) => n > 0), maxBudget: f.maxPrice ? Number(f.maxPrice) : undefined, localitySlugs: selectedLocs }} />
+                  <RequirementButton
+                    prefill={{
+                      bedrooms: (f.bedrooms ?? '')
+                        .split(',')
+                        .map(Number)
+                        .filter((n: number) => n > 0),
+                      maxBudget: f.maxPrice ? Number(f.maxPrice) : undefined,
+                      localitySlugs: selectedLocs,
+                    }}
+                  />
                 </div>
               }
             />
@@ -279,7 +352,12 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
               <div className={cn('grid gap-5', view === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-3' : view === 'map' ? 'sm:grid-cols-2' : 'grid-cols-1')}>
                 <AnimatePresence initial={false}>
                   {items.map((l, i) => (
-                    <motion.div key={l.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(i % 18, 8) * 0.03 }}>
+                    <motion.div
+                      key={l.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: Math.min(i % 18, 8) * 0.03 }}
+                    >
                       <ListingCard l={l} layout={view === 'list' ? 'row' : 'grid'} active={hovered === l.id} onHover={setHovered} />
                     </motion.div>
                   ))}
@@ -319,7 +397,10 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
         )}
       </div>
 
-      <button onClick={() => setView(view === 'map' ? 'grid' : 'map')} className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-2xl md:hidden">
+      <button
+        onClick={() => setView(view === 'map' ? 'grid' : 'map')}
+        className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-2xl md:hidden"
+      >
         {view === 'map' ? <List className="size-4" /> : <MapIcon className="size-4" />} {view === 'map' ? 'List' : 'Map'}
       </button>
 
@@ -346,7 +427,10 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
               <Chip active={f.possession === 'READY_TO_MOVE'} onClick={() => setF({ possession: f.possession === 'READY_TO_MOVE' ? null : 'READY_TO_MOVE' })}>
                 Ready to move
               </Chip>
-              <Chip active={f.possession === 'UNDER_CONSTRUCTION'} onClick={() => setF({ possession: f.possession === 'UNDER_CONSTRUCTION' ? null : 'UNDER_CONSTRUCTION' })}>
+              <Chip
+                active={f.possession === 'UNDER_CONSTRUCTION'}
+                onClick={() => setF({ possession: f.possession === 'UNDER_CONSTRUCTION' ? null : 'UNDER_CONSTRUCTION' })}
+              >
                 Under construction
               </Chip>
             </FilterGroup>
@@ -399,11 +483,20 @@ function FilterGroup({ title, children }: { title: string; children: React.React
 function LocalityPicker({ locs, selected, onChange }: { locs: any[]; selected: string[]; onChange: (v: string[]) => void }) {
   const [q, setQ] = useState('');
   const filtered = locs.filter((l) => !q || l.name.toLowerCase().includes(q.toLowerCase()) || l.zone?.toLowerCase().includes(q.toLowerCase())).slice(0, 60);
-  const label = selected.length ? (selected.length === 1 ? (locs.find((l) => l.slug === selected[0])?.name ?? '1 locality') : `${selected.length} localities`) : 'Locality';
+  const label = selected.length
+    ? selected.length === 1
+      ? (locs.find((l) => l.slug === selected[0])?.name ?? '1 locality')
+      : `${selected.length} localities`
+    : 'Locality';
   return (
     <Pop.Root>
       <Pop.Trigger asChild>
-        <button className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium', selected.length ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300' : 'border-line bg-surface text-muted')}>
+        <button
+          className={cn(
+            'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium',
+            selected.length ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300' : 'border-line bg-surface text-muted',
+          )}
+        >
           <MapPin className="size-4" /> {label} <ChevronDown className="size-4" />
         </button>
       </Pop.Trigger>
@@ -413,7 +506,11 @@ function LocalityPicker({ locs, selected, onChange }: { locs: any[]; selected: s
           {selected.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {selected.map((s) => (
-                <button key={s} onClick={() => onChange(selected.filter((x) => x !== s))} className="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white">
+                <button
+                  key={s}
+                  onClick={() => onChange(selected.filter((x) => x !== s))}
+                  className="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white"
+                >
                   {locs.find((l) => l.slug === s)?.name ?? s} <X className="size-3" />
                 </button>
               ))}
@@ -423,7 +520,11 @@ function LocalityPicker({ locs, selected, onChange }: { locs: any[]; selected: s
             {filtered.map((l) => {
               const on = selected.includes(l.slug);
               return (
-                <button key={l.id} onClick={() => onChange(on ? selected.filter((x) => x !== l.slug) : [...selected, l.slug])} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2">
+                <button
+                  key={l.id}
+                  onClick={() => onChange(on ? selected.filter((x) => x !== l.slug) : [...selected, l.slug])}
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2"
+                >
                   <span>
                     <span className="font-medium">{l.name}</span>
                     <span className="block text-xs text-subtle">{l.zone}</span>

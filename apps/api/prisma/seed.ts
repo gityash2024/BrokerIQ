@@ -97,22 +97,58 @@ const HOMEPAGE = [
       ],
     },
   },
-  { type: 'APP_DOWNLOAD', title: 'BrokerIQ app पर पाइए instant alerts', subtitle: 'नई listings, price drops और broker replies — सीधे आपके phone पर', config: {} },
+  {
+    type: 'APP_DOWNLOAD',
+    title: 'BrokerIQ app पर पाइए instant alerts',
+    subtitle: 'नई listings, price drops और broker replies — सीधे आपके phone पर',
+    config: {},
+  },
   { type: 'BLOG', title: 'Renting guides & news', subtitle: 'Gurgaon में rent पर घर लेने की ताज़ा जानकारी', config: { limit: 3 } },
-  { type: 'CTA_BANNER', title: 'क्या आप broker हैं?', subtitle: 'Housing, 99acres, MagicBricks, Facebook की सारी leads एक app में — WhatsApp automation के साथ। Free शुरू करें।', config: { ctaLabel: 'Broker account बनाएँ', ctaLink: '/for-brokers' } },
+  {
+    type: 'CTA_BANNER',
+    title: 'क्या आप broker हैं?',
+    subtitle: 'Housing, 99acres, MagicBricks, Facebook की सारी leads एक app में — WhatsApp automation के साथ। Free शुरू करें।',
+    config: { ctaLabel: 'Broker account बनाएँ', ctaLink: '/for-brokers' },
+  },
   { type: 'TESTIMONIALS', title: 'हमारे users क्या कहते हैं', subtitle: '', isActive: false, config: { items: [] } },
 ];
 
 const FAQS = [
-  { category: 'general', question: 'क्या BrokerIQ पर property search करना free है?', answer: 'हाँ, property खोजना, save करना और brokers/owners से संपर्क करना पूरी तरह free है।' },
-  { category: 'general', question: 'Owner के तौर पर property कैसे post करें?', answer: 'Login करके "Post Property" पर जाइए, 4 आसान steps में details और photos डालिए। Moderation के बाद listing live हो जाती है।' },
-  { category: 'general', question: 'Verified badge का क्या मतलब है?', answer: 'Verified brokers ने अपना RERA / ID documents जमा किए हैं जिन्हें हमारी team ने जाँचा है।' },
-  { category: 'brokers', question: 'Housing.com और 99acres की leads BrokerIQ में कैसे आएँगी?', answer: 'Broker panel → Connectors में वह email inbox जोड़िए जिस पर portal की lead emails आती हैं। BrokerIQ हर 2 मिनट में नई lead emails पढ़कर leads बना देता है।' },
-  { category: 'brokers', question: 'क्या WhatsApp पर automatic messages जा सकते हैं?', answer: 'हाँ — Connectors में अपना WhatsApp Business (Cloud API) number जोड़िए और Automations में नियम बनाइए, जैसे नई lead आते ही welcome message।' },
+  {
+    category: 'general',
+    question: 'क्या BrokerIQ पर property search करना free है?',
+    answer: 'हाँ, property खोजना, save करना और brokers/owners से संपर्क करना पूरी तरह free है।',
+  },
+  {
+    category: 'general',
+    question: 'Owner के तौर पर property कैसे post करें?',
+    answer: 'Login करके "Post Property" पर जाइए, 4 आसान steps में details और photos डालिए। Moderation के बाद listing live हो जाती है।',
+  },
+  {
+    category: 'general',
+    question: 'Verified badge का क्या मतलब है?',
+    answer: 'Verified brokers ने अपना RERA / ID documents जमा किए हैं जिन्हें हमारी team ने जाँचा है।',
+  },
+  {
+    category: 'brokers',
+    question: 'Housing.com और 99acres की leads BrokerIQ में कैसे आएँगी?',
+    answer:
+      'Broker panel → Connectors में वह email inbox जोड़िए जिस पर portal की lead emails आती हैं। BrokerIQ हर 2 मिनट में नई lead emails पढ़कर leads बना देता है।',
+  },
+  {
+    category: 'brokers',
+    question: 'क्या WhatsApp पर automatic messages जा सकते हैं?',
+    answer: 'हाँ — Connectors में अपना WhatsApp Business (Cloud API) number जोड़िए और Automations में नियम बनाइए, जैसे नई lead आते ही welcome message।',
+  },
 ];
 
 const PAGES = [
-  { slug: 'about', title: 'About BrokerIQ', content: '<h2>BrokerIQ</h2><p>BrokerIQ Gurgaon के लिए बना property marketplace और broker CRM है। (Super Admin → CMS → Pages से यह content edit करें।)</p>', isPublished: true },
+  {
+    slug: 'about',
+    title: 'About BrokerIQ',
+    content: '<h2>BrokerIQ</h2><p>BrokerIQ Gurgaon के लिए बना property marketplace और broker CRM है। (Super Admin → CMS → Pages से यह content edit करें।)</p>',
+    isPublished: true,
+  },
   { slug: 'terms', title: 'Terms of Use', content: TERMS_HTML, isPublished: true },
   { slug: 'privacy', title: 'Privacy Policy', content: PRIVACY_HTML, isPublished: true },
 ];
@@ -137,15 +173,31 @@ async function main() {
     await prisma.plan.upsert({ where: { code: p.code }, create: { ...p, limits: p.limits as Prisma.InputJsonValue }, update: {} });
   }
   // Feature flags
-  for (const f of FLAGS) await prisma.featureFlag.upsert({ where: { key: f.key }, create: { key: f.key, description: f.description, enabled: 'enabled' in f ? f.enabled : true }, update: {} });
+  for (const f of FLAGS)
+    await prisma.featureFlag.upsert({
+      where: { key: f.key },
+      create: { key: f.key, description: f.description, enabled: 'enabled' in f ? f.enabled : true },
+      update: {},
+    });
   // Templates
   for (const t of DEFAULT_TEMPLATES) {
-    await prisma.template.upsert({ where: { key: t.key }, create: { key: t.key, channel: t.channel, name: t.name, subject: t.subject, body: t.body }, update: {} });
+    await prisma.template.upsert({
+      where: { key: t.key },
+      create: { key: t.key, channel: t.channel, name: t.name, subject: t.subject, body: t.body },
+      update: {},
+    });
   }
   // Homepage sections (only when empty so admin ordering is preserved)
   // Rental pivot: refresh sections that still carry the original (sale-oriented) default copy.
   const RENTAL_COPY: [string, string | null, Record<string, unknown>][] = [
-    ['Gurgaon में अपना अगला घर ढूँढिए', null, { title: 'Gurgaon में rent पर अपना अगला घर ढूँढिए', subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।' }],
+    [
+      'Gurgaon में अपना अगला घर ढूँढिए',
+      null,
+      {
+        title: 'Gurgaon में rent पर अपना अगला घर ढूँढिए',
+        subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।',
+      },
+    ],
     ['Handpicked properties', null, { title: 'Handpicked rentals', subtitle: 'Verified और featured rent listings' }],
     ['Smart property tools', null, { title: 'Smart rent tools', subtitle: 'Rent budget, move-in cost और flatmates के साथ rent split' }],
     ['Property guides & news', null, { title: 'Renting guides & news', subtitle: 'Gurgaon में rent पर घर लेने की ताज़ा जानकारी' }],
@@ -154,17 +206,29 @@ async function main() {
   for (const [title, subtitle, data] of RENTAL_COPY) {
     await prisma.homepageSection.updateMany({ where: { title, ...(subtitle ? { subtitle } : {}) }, data });
   }
-  await prisma.homepageSection.updateMany({ where: { type: 'LOCALITIES', subtitle: 'Price trends, connectivity और live listings' }, data: { subtitle: 'औसत किराया, connectivity और live rentals' } });
+  await prisma.homepageSection.updateMany({
+    where: { type: 'LOCALITIES', subtitle: 'Price trends, connectivity और live listings' },
+    data: { subtitle: 'औसत किराया, connectivity और live rentals' },
+  });
   for (const why of await prisma.homepageSection.findMany({ where: { type: 'WHY_US' } })) {
     const cfg = (why.config ?? {}) as { items?: { text?: string }[] };
     if (!cfg.items?.some((i) => i.text === 'EMI, stamp duty, price trends और saved-search alerts।')) continue;
-    const items = cfg.items.map((i) => (i.text === 'EMI, stamp duty, price trends और saved-search alerts।' ? { ...i, text: 'Rent budget, move-in cost और saved-search alerts।' } : i));
+    const items = cfg.items.map((i) =>
+      i.text === 'EMI, stamp duty, price trends और saved-search alerts।' ? { ...i, text: 'Rent budget, move-in cost और saved-search alerts।' } : i,
+    );
     await prisma.homepageSection.update({ where: { id: why.id }, data: { config: { ...cfg, items } as Prisma.InputJsonValue } });
   }
 
   if ((await prisma.homepageSection.count()) === 0) {
     await prisma.homepageSection.createMany({
-      data: HOMEPAGE.map((s, idx) => ({ type: s.type, title: s.title, subtitle: s.subtitle, isActive: s.isActive ?? true, sortOrder: idx, config: s.config as Prisma.InputJsonValue })),
+      data: HOMEPAGE.map((s, idx) => ({
+        type: s.type,
+        title: s.title,
+        subtitle: s.subtitle,
+        isActive: s.isActive ?? true,
+        sortOrder: idx,
+        config: s.config as Prisma.InputJsonValue,
+      })),
     });
   }
   if ((await prisma.faq.count()) === 0) await prisma.faq.createMany({ data: FAQS.map((f, idx) => ({ ...f, sortOrder: idx })) });
@@ -172,7 +236,8 @@ async function main() {
     const existing = await prisma.page.findUnique({ where: { slug: p.slug }, select: { content: true } });
     if (!existing) await prisma.page.create({ data: p });
     // Replace only the old placeholder — admin-edited pages are left alone.
-    else if (existing.content.includes(DRAFT_MARKER)) await prisma.page.update({ where: { slug: p.slug }, data: { content: p.content, isPublished: p.isPublished } });
+    else if (existing.content.includes(DRAFT_MARKER))
+      await prisma.page.update({ where: { slug: p.slug }, data: { content: p.content, isPublished: p.isPublished } });
   }
 
   // Super admin from env
@@ -181,7 +246,15 @@ async function main() {
     const pwd = process.env.SUPER_ADMIN_PASSWORD;
     const existing = await prisma.user.findUnique({ where: { email } });
     if (!existing) {
-      await prisma.user.create({ data: { email, name: process.env.SUPER_ADMIN_NAME ?? 'Super Admin', role: 'SUPER_ADMIN', emailVerified: true, passwordHash: pwd ? await bcrypt.hash(pwd, 12) : null } });
+      await prisma.user.create({
+        data: {
+          email,
+          name: process.env.SUPER_ADMIN_NAME ?? 'Super Admin',
+          role: 'SUPER_ADMIN',
+          emailVerified: true,
+          passwordHash: pwd ? await bcrypt.hash(pwd, 12) : null,
+        },
+      });
     }
   }
   console.log(`Seed complete: ${GURGAON_LOCALITIES.length} localities, ${AMENITIES.length} amenities, ${PLANS.length} plans.`);

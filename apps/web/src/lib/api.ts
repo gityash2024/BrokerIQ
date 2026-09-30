@@ -48,7 +48,11 @@ async function refresh(): Promise<boolean> {
   if (!cur?.refreshToken) return false;
   refreshing ??= (async () => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: cur.refreshToken }) });
+      const res = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: cur.refreshToken }),
+      });
       if (!res.ok) {
         authStore.set(null);
         return false;

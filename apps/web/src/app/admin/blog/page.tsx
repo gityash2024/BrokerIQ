@@ -22,18 +22,30 @@ export default function Page() {
           render: (r) => (
             <div className="flex items-center gap-3">
               {r.coverUrl ? (
-                 
                 <img src={img(r.coverUrl, 120)} alt="" className="size-10 rounded-lg object-cover" />
               ) : (
                 <span className="size-10 rounded-lg bg-surface-2" />
               )}
-              <div><p className="font-semibold">{r.title}</p><Link href={`/blog/${r.slug}`} target="_blank" className="font-mono text-[11px] text-brand-600">/blog/{r.slug}</Link></div>
+              <div>
+                <p className="font-semibold">{r.title}</p>
+                <Link href={`/blog/${r.slug}`} target="_blank" className="font-mono text-[11px] text-brand-600">
+                  /blog/{r.slug}
+                </Link>
+              </div>
             </div>
           ),
         },
-        { key: 'isPublished', label: 'Status', render: (r) => <Badge tone={r.isPublished ? 'success' : 'warning'}>{r.isPublished ? 'Published' : 'Draft'}</Badge> },
+        {
+          key: 'isPublished',
+          label: 'Status',
+          render: (r) => <Badge tone={r.isPublished ? 'success' : 'warning'}>{r.isPublished ? 'Published' : 'Draft'}</Badge>,
+        },
         { key: 'views', label: 'Views' },
-        { key: 'publishedAt', label: 'Published', render: (r) => <span className="text-xs text-muted">{r.publishedAt ? formatDate(r.publishedAt) : '—'}</span> },
+        {
+          key: 'publishedAt',
+          label: 'Published',
+          render: (r) => <span className="text-xs text-muted">{r.publishedAt ? formatDate(r.publishedAt) : '—'}</span>,
+        },
       ]}
       fields={[
         { key: 'title', label: 'Title', required: true, wide: true },
@@ -46,7 +58,17 @@ export default function Page() {
         { key: 'metaTitle', label: 'SEO title' },
         { key: 'metaDescription', label: 'SEO description' },
       ]}
-      toBody={(f) => ({ slug: f.slug || slugify(f.title ?? ''), title: f.title, content: f.content, excerpt: f.excerpt || null, coverUrl: f.coverUrl || '', tags: f.tags ?? [], metaTitle: f.metaTitle || null, metaDescription: f.metaDescription || null, isPublished: !!f.isPublished })}
+      toBody={(f) => ({
+        slug: f.slug || slugify(f.title ?? ''),
+        title: f.title,
+        content: f.content,
+        excerpt: f.excerpt || null,
+        coverUrl: f.coverUrl || '',
+        tags: f.tags ?? [],
+        metaTitle: f.metaTitle || null,
+        metaDescription: f.metaDescription || null,
+        isPublished: !!f.isPublished,
+      })}
     />
   );
 }

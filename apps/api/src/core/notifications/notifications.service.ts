@@ -26,7 +26,14 @@ export class NotificationsService {
     const ids = [...new Set(Array.isArray(userIds) ? userIds : [userIds])].filter(Boolean);
     if (!ids.length) return;
     await this.prisma.notification.createMany({
-      data: ids.map((userId) => ({ userId, kind: input.kind, title: input.title, body: input.body, link: input.link, data: input.data as Prisma.InputJsonValue })),
+      data: ids.map((userId) => ({
+        userId,
+        kind: input.kind,
+        title: input.title,
+        body: input.body,
+        link: input.link,
+        data: input.data as Prisma.InputJsonValue,
+      })),
     });
     for (const id of ids) this.realtime.toUser(id, 'notification', { kind: input.kind, title: input.title, body: input.body, link: input.link });
     if (input.push !== false) await this.push(ids, input.title, input.body ?? '', { link: input.link, kind: input.kind, ...input.data });

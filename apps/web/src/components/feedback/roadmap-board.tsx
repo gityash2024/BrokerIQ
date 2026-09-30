@@ -30,7 +30,15 @@ export function VoteButton({ item, size = 'md' }: { item: { id: string; voteCoun
     qc.invalidateQueries({ queryKey: ['feedback-board'] });
   };
   return (
-    <motion.button whileTap={{ scale: 0.9 }} onClick={vote} className={cn('flex shrink-0 flex-col items-center justify-center rounded-xl border-2 font-bold transition', size === 'lg' ? 'h-20 w-16' : 'h-16 w-14', state.voted ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface text-fg hover:border-brand-400')}>
+    <motion.button
+      whileTap={{ scale: 0.9 }}
+      onClick={vote}
+      className={cn(
+        'flex shrink-0 flex-col items-center justify-center rounded-xl border-2 font-bold transition',
+        size === 'lg' ? 'h-20 w-16' : 'h-16 w-14',
+        state.voted ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface text-fg hover:border-brand-400',
+      )}
+    >
       <ChevronUp className="size-5" />
       <span>{state.count}</span>
     </motion.button>
@@ -41,7 +49,10 @@ export function RoadmapBoard() {
   const [status, setStatus] = useState('');
   const [sort, setSort] = useState<'top' | 'new'>('top');
   const [open, setOpen] = useState(false);
-  const { data, isLoading } = useQuery({ queryKey: ['feedback-board', status, sort], queryFn: () => api<any>(`/feedback/board?sort=${sort}${status ? `&status=${status}` : ''}`) });
+  const { data, isLoading } = useQuery({
+    queryKey: ['feedback-board', status, sort],
+    queryFn: () => api<any>(`/feedback/board?sort=${sort}${status ? `&status=${status}` : ''}`),
+  });
   const counts = data?.statusCounts ?? {};
   return (
     <div className="container-x py-10">
@@ -57,7 +68,15 @@ export function RoadmapBoard() {
           ]}
         />
         <div className="flex gap-2">
-          <Segmented size="sm" value={sort} onChange={setSort} options={[{ value: 'top', label: 'Top' }, { value: 'new', label: 'New' }]} />
+          <Segmented
+            size="sm"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: 'top', label: 'Top' },
+              { value: 'new', label: 'New' },
+            ]}
+          />
           <Button onClick={() => setOpen(true)}>
             <Plus className="size-4" /> Suggest a feature
           </Button>
@@ -74,7 +93,9 @@ export function RoadmapBoard() {
               <VoteButton item={f} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge style={{ background: `${FEEDBACK_STATUS_COLORS[f.status]}22`, color: FEEDBACK_STATUS_COLORS[f.status] }}>{FEEDBACK_STATUS_LABELS[f.status]}</Badge>
+                  <Badge style={{ background: `${FEEDBACK_STATUS_COLORS[f.status]}22`, color: FEEDBACK_STATUS_COLORS[f.status] }}>
+                    {FEEDBACK_STATUS_LABELS[f.status]}
+                  </Badge>
                   <span className="text-xs text-subtle">{FEEDBACK_TYPE_LABELS[f.type]}</span>
                 </div>
                 <h3 className="mt-1 font-semibold">{f.title}</h3>

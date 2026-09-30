@@ -7,7 +7,13 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
 
-const ownerSchema = z.object({ name: z.string().trim().min(2).max(80), phone: phoneSchema, email: z.string().email().optional().nullable().or(z.literal('')), notes: z.string().max(2000).optional().nullable(), tags: z.array(z.string().max(30)).max(10).optional() });
+const ownerSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  phone: phoneSchema,
+  email: z.string().email().optional().nullable().or(z.literal('')),
+  notes: z.string().max(2000).optional().nullable(),
+  tags: z.array(z.string().max(30)).max(10).optional(),
+});
 const tenancySchema = z.object({
   listingId: z.string().optional().nullable(),
   ownerId: z.string().optional().nullable(),
@@ -67,7 +73,16 @@ export class OwnersController {
   }
 
   @Patch('tenancies/:id')
-  updateTenancy(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(tenancySchema.partial().extend({ status: z.enum(['ACTIVE', 'RENEWED', 'ENDED']).optional(), renewMonths: z.number().int().min(1).max(60).optional() }))) body: any) {
+  updateTenancy(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(
+      new ZodPipe(
+        tenancySchema.partial().extend({ status: z.enum(['ACTIVE', 'RENEWED', 'ENDED']).optional(), renewMonths: z.number().int().min(1).max(60).optional() }),
+      ),
+    )
+    body: any,
+  ) {
     return this.svc.updateTenancy(requireOrg(user), id, body);
   }
 }

@@ -68,17 +68,26 @@ export class AuthService implements OnApplicationBootstrap {
       organizationId: u.organizationId,
       emailVerified: u.emailVerified,
       locale: u.locale,
-      organization: u.organization ? { id: u.organization.id, name: u.organization.name, slug: u.organization.slug, logoUrl: u.organization.logoUrl, onboarded: u.organization.onboarded } : null,
+      organization: u.organization
+        ? { id: u.organization.id, name: u.organization.name, slug: u.organization.slug, logoUrl: u.organization.logoUrl, onboarded: u.organization.onboarded }
+        : null,
     };
   }
 
   async issue(user: UserWithOrg, meta: ClientMeta = {}): Promise<AuthResponse> {
     if (user.status !== 'ACTIVE') throw new ForbiddenException('यह account suspend है। Support से संपर्क करें।');
-    if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN') throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
+    if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN')
+      throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
     const accessToken = this.jwt.sign({ sub: user.id, role: user.role, orgId: user.organizationId, email: user.email });
     const refreshToken = randomToken(48);
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash: sha256(refreshToken), expiresAt: new Date(Date.now() + env().REFRESH_TTL_DAYS * 86400_000), ip: meta.ip, userAgent: meta.userAgent?.slice(0, 250) },
+      data: {
+        userId: user.id,
+        tokenHash: sha256(refreshToken),
+        expiresAt: new Date(Date.now() + env().REFRESH_TTL_DAYS * 86400_000),
+        ip: meta.ip,
+        userAgent: meta.userAgent?.slice(0, 250),
+      },
     });
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const decoded: any = this.jwt.decode(accessToken);
@@ -104,7 +113,10 @@ export class AuthService implements OnApplicationBootstrap {
       await tx.subscription.create({ data: { organizationId: org.id, planId: granted.plan.id, status: 'ACTIVE', currentPeriodEnd: granted.periodEnd } });
     }
     if (invite) await this.invites.consume(invite, org.id, tx);
-    const plan = granted ? null : (await tx.plan.findFirst({ where: { isActive: true, priceMonthly: 0 }, orderBy: { sortOrder: 'asc' } })) ?? (await tx.plan.findFirst({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }));
+    const plan = granted
+      ? null
+      : ((await tx.plan.findFirst({ where: { isActive: true, priceMonthly: 0 }, orderBy: { sortOrder: 'asc' } })) ??
+        (await tx.plan.findFirst({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } })));
     if (plan) {
       await tx.subscription.create({
         data: {
@@ -161,7 +173,10 @@ export class AuthService implements OnApplicationBootstrap {
     const smtpReady = await this.settings.isConfigured('smtp');
     const devMode = env().NODE_ENV !== 'production';
     if (!smtpReady && !devMode) {
-      throw new IntegrationNotConfiguredException('smtp', 'Email OTP अभी उपलब्ध नहीं है — Super Admin → Settings → Integrations → Email (SMTP) configure करें। तब तक password से login करें।');
+      throw new IntegrationNotConfiguredException(
+        'smtp',
+        'Email OTP अभी उपलब्ध नहीं है — Super Admin → Settings → Integrations → Email (SMTP) configure करें। तब तक password से login करें।',
+      );
     }
     await this.prisma.otpCode.create({ data: { email, purpose, codeHash: sha256(`${email}:${code}`), expiresAt: new Date(Date.now() + 10 * 60_000) } });
     if (smtpReady) {
@@ -224,7 +239,10 @@ export class AuthService implements OnApplicationBootstrap {
       if (accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`, this.prisma, invite);
       user = await this.findUser({ id: created.id });
     } else if (!user.googleId) {
-      await this.prisma.user.update({ where: { id: user.id }, data: { googleId: payload.sub, emailVerified: true, avatarUrl: user.avatarUrl ?? payload.picture } });
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: payload.sub, emailVerified: true, avatarUrl: user.avatarUrl ?? payload.picture },
+      });
     }
     await this.audit.log({ id: user!.id, role: user!.role, orgId: user!.organizationId }, 'auth.login', 'User', user!.id, { method: 'google' }, meta.ip);
     return this.issue(user!, meta);
@@ -246,7 +264,8 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async logout(refreshToken?: string) {
-    if (refreshToken) await this.prisma.refreshToken.updateMany({ where: { tokenHash: sha256(refreshToken), revokedAt: null }, data: { revokedAt: new Date() } });
+    if (refreshToken)
+      await this.prisma.refreshToken.updateMany({ where: { tokenHash: sha256(refreshToken), revokedAt: null }, data: { revokedAt: new Date() } });
     return { ok: true };
   }
 

@@ -46,7 +46,13 @@ export class RequirementsService implements OnModuleInit {
   // ------------------------------------------------------------------ tenant side
   async create(user: RequestUser, input: TenantRequirementInput) {
     const req = await this.prisma.tenantRequirement.create({
-      data: { ...input, userId: user.id, bedrooms: input.bedrooms ?? [], localityIds: input.localityIds ?? [], propertyTypes: input.propertyTypes ?? [] } as Prisma.TenantRequirementUncheckedCreateInput,
+      data: {
+        ...input,
+        userId: user.id,
+        bedrooms: input.bedrooms ?? [],
+        localityIds: input.localityIds ?? [],
+        propertyTypes: input.propertyTypes ?? [],
+      } as Prisma.TenantRequirementUncheckedCreateInput,
     });
     const shared = input.shareWithBrokers ? await this.shareWithBrokers(req) : [];
     await this.audit.log(user, 'requirement.create', 'TenantRequirement', req.id, { shared: shared.length });
@@ -88,7 +94,9 @@ export class RequirementsService implements OnModuleInit {
         ...(r.localityIds.length ? { localityId: { in: r.localityIds } } : {}),
         ...(r.bedrooms.length ? { bedrooms: { in: r.bedrooms } } : {}),
         ...(r.propertyTypes.length ? { propertyType: { in: r.propertyTypes } } : {}),
-        ...(r.maxBudget || r.minBudget ? { price: { ...(r.maxBudget ? { lte: r.maxBudget * 1.1 } : {}), ...(r.minBudget ? { gte: r.minBudget * 0.8 } : {}) } } : {}),
+        ...(r.maxBudget || r.minBudget
+          ? { price: { ...(r.maxBudget ? { lte: r.maxBudget * 1.1 } : {}), ...(r.minBudget ? { gte: r.minBudget * 0.8 } : {}) } }
+          : {}),
       },
       orderBy: [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { rankBoost: 'desc' }, { publishedAt: 'desc' }],
       take: 60,
@@ -131,7 +139,15 @@ export class RequirementsService implements OnModuleInit {
           sourceRef: `requirement:${r.id}`,
           sourceDetail: 'BrokerIQ पर tenant की ज़रूरत',
           message: summary,
-          requirement: { purpose: 'RENT', bedrooms: r.bedrooms, localityIds: r.localityIds, minBudget: r.minBudget, maxBudget: r.maxBudget, furnishing: r.furnishing as any, propertyTypes: r.propertyTypes as any },
+          requirement: {
+            purpose: 'RENT',
+            bedrooms: r.bedrooms,
+            localityIds: r.localityIds,
+            minBudget: r.minBudget,
+            maxBudget: r.maxBudget,
+            furnishing: r.furnishing as any,
+            propertyTypes: r.propertyTypes as any,
+          },
           rawPayload: { requirementId: r.id },
         });
         shared.push(o.id);
@@ -174,12 +190,29 @@ export class RequirementsService implements OnModuleInit {
     const waTemplate = app.whatsappTemplates?.requirementMatch;
     const users = await this.prisma.user.findMany({ where: { id: { in: [...new Set(reqs.map((r) => r.userId))] } }, select: { id: true, email: true } });
     for (const r of reqs) {
-      await this.notifications.notify(r.userId, { kind: 'REQUIREMENT_MATCH', title: '🏠 आपकी ज़रूरत से मिलती नई property', body: `${l.title} · ${formatINR(l.price)}/month`, link: `/property/${l.slug}` });
+      await this.notifications.notify(r.userId, {
+        kind: 'REQUIREMENT_MATCH',
+        title: '🏠 आपकी ज़रूरत से मिलती नई property',
+        body: `${l.title} · ${formatINR(l.price)}/month`,
+        link: `/property/${l.slug}`,
+      });
       const email = users.find((u) => u.id === r.userId)?.email;
-      if (email) await this.mail.trySendTemplate('requirement.match', email, { name: r.name, listing: l, rent: l.price.toLocaleString('en-IN'), locality: l.locality.name, link });
+      if (email)
+        await this.mail.trySendTemplate('requirement.match', email, {
+          name: r.name,
+          listing: l,
+          rent: l.price.toLocaleString('en-IN'),
+          locality: l.locality.name,
+          link,
+        });
       if (waTemplate) {
         await this.wa
-          .send(null, r.phone, { type: 'template', name: waTemplate, language: app.whatsappTemplates.language || 'hi', params: [r.name, l.title, link] }, { contactName: r.name, meta: { requirementId: r.id } })
+          .send(
+            null,
+            r.phone,
+            { type: 'template', name: waTemplate, language: app.whatsappTemplates.language || 'hi', params: [r.name, l.title, link] },
+            { contactName: r.name, meta: { requirementId: r.id } },
+          )
           .catch((e) => this.logger.warn(`requirement WA ${r.id}: ${(e as Error).message}`));
       }
       await this.prisma.tenantRequirement.update({ where: { id: r.id }, data: { lastMatchedAt: new Date(), matchCount: { increment: 1 } } });
@@ -203,8 +236,17 @@ export class RequirementsService implements OnModuleInit {
         ],
       },
     };
-    const leads = await this.prisma.lead.findMany({ where: leadWhere, take: 200, select: { id: true, organizationId: true, assignedToId: true, requirement: true } });
-    const fit = leads.filter((ld) => ld.requirement && (ld.requirement.localityIds.length || ld.requirement.bedrooms.length || ld.requirement.maxBudget) && isRequirementMatch(ld.requirement, l));
+    const leads = await this.prisma.lead.findMany({
+      where: leadWhere,
+      take: 200,
+      select: { id: true, organizationId: true, assignedToId: true, requirement: true },
+    });
+    const fit = leads.filter(
+      (ld) =>
+        ld.requirement &&
+        (ld.requirement.localityIds.length || ld.requirement.bedrooms.length || ld.requirement.maxBudget) &&
+        isRequirementMatch(ld.requirement, l),
+    );
     const byOrg = new Map<string, typeof fit>();
     for (const ld of fit) byOrg.set(ld.organizationId, [...(byOrg.get(ld.organizationId) ?? []), ld]);
     for (const [orgId, rows] of [...byOrg.entries()].slice(0, 30)) {

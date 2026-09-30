@@ -8,7 +8,10 @@ import { cn } from '@/lib/utils';
 export function SourceBadge({ source, className }: { source: string; className?: string }) {
   const c = LEAD_SOURCE_COLORS[source as LeadSource] ?? '#64748b';
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap', className)} style={{ background: `${c}1a`, color: c }}>
+    <span
+      className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap', className)}
+      style={{ background: `${c}1a`, color: c }}
+    >
       {LEAD_SOURCE_LABELS[source as LeadSource] ?? source}
     </span>
   );
@@ -17,7 +20,10 @@ export function SourceBadge({ source, className }: { source: string; className?:
 export function StageBadge({ stage }: { stage: string }) {
   const c = LEAD_STAGE_COLORS[stage as LeadStage] ?? '#64748b';
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap" style={{ background: `${c}1a`, color: c }}>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
+      style={{ background: `${c}1a`, color: c }}
+    >
       <span className="size-1.5 rounded-full" style={{ background: c }} />
       {LEAD_STAGE_LABELS[stage as LeadStage] ?? stage}
     </span>
@@ -26,7 +32,11 @@ export function StageBadge({ stage }: { stage: string }) {
 
 export function TempBadge({ t }: { t?: string | null }) {
   if (!t) return null;
-  const m = { HOT: ['text-rose-600 bg-rose-50 dark:bg-rose-500/15', Flame], WARM: ['text-amber-600 bg-amber-50 dark:bg-amber-500/15', Sun], COLD: ['text-sky-600 bg-sky-50 dark:bg-sky-500/15', Snowflake] } as const;
+  const m = {
+    HOT: ['text-rose-600 bg-rose-50 dark:bg-rose-500/15', Flame],
+    WARM: ['text-amber-600 bg-amber-50 dark:bg-amber-500/15', Sun],
+    COLD: ['text-sky-600 bg-sky-50 dark:bg-sky-500/15', Snowflake],
+  } as const;
   const [cls, Icon] = m[t as keyof typeof m];
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold', cls)}>

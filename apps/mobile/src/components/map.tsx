@@ -18,11 +18,28 @@ export interface MapPoint {
  * native Google Maps key. Uses MapTiler tiles when the admin configured a key,
  * otherwise OpenStreetMap.
  */
-export function MapView({ points, center, zoom = 12, height = 260, onPick, radiusKm }: { points: MapPoint[]; center?: { lat: number; lng: number }; zoom?: number; height?: number | '100%'; onPick?: (id: string) => void; radiusKm?: number }) {
+export function MapView({
+  points,
+  center,
+  zoom = 12,
+  height = 260,
+  onPick,
+  radiusKm,
+}: {
+  points: MapPoint[];
+  center?: { lat: number; lng: number };
+  zoom?: number;
+  height?: number | '100%';
+  onPick?: (id: string) => void;
+  radiusKm?: number;
+}) {
   const { integrations } = useConfig();
   const { isDark } = useTheme();
   const mt = integrations.maptiler as any;
-  const tiles = mt?.configured && mt.apiKey ? `https://api.maptiler.com/maps/${mt.style || 'streets-v2'}${isDark ? '-dark' : ''}/{z}/{x}/{y}.png?key=${mt.apiKey}` : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const tiles =
+    mt?.configured && mt.apiKey
+      ? `https://api.maptiler.com/maps/${mt.style || 'streets-v2'}${isDark ? '-dark' : ''}/{z}/{x}/{y}.png?key=${mt.apiKey}`
+      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   const c = center ?? (points[0] ? { lat: points[0].lat, lng: points[0].lng } : { lat: 28.4595, lng: 77.0266 });
   const html = useMemo(
     () => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
@@ -45,10 +62,18 @@ if(b.length>1)m.fitBounds(b,{padding:[40,40],maxZoom:15});
   );
   return (
     <View style={{ height, borderRadius: height === '100%' ? 0 : 20, overflow: 'hidden' }}>
-      <WebView originWhitelist={['*']} source={{ html }} onMessage={(e) => onPick?.(e.nativeEvent.data)} scrollEnabled={false} style={{ flex: 1, backgroundColor: 'transparent' }} />
+      <WebView
+        originWhitelist={['*']}
+        source={{ html }}
+        onMessage={(e) => onPick?.(e.nativeEvent.data)}
+        scrollEnabled={false}
+        style={{ flex: 1, backgroundColor: 'transparent' }}
+      />
     </View>
   );
 }
 
 export const toPoints = (items: { id: string; latitude?: number | null; longitude?: number | null; price: number; title?: string }[]): MapPoint[] =>
-  items.filter((l) => l.latitude != null && l.longitude != null).map((l) => ({ id: l.id, lat: l.latitude!, lng: l.longitude!, label: formatPriceShort(l.price), title: l.title }));
+  items
+    .filter((l) => l.latitude != null && l.longitude != null)
+    .map((l) => ({ id: l.id, lat: l.latitude!, lng: l.longitude!, label: formatPriceShort(l.price), title: l.title }));

@@ -39,7 +39,13 @@ function SignupInner() {
         await api('/auth/register', {
           method: 'POST',
           auth: false,
-          body: { ...f, phone: f.phone || undefined, firmName: type === 'BROKER' ? f.firmName || undefined : undefined, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined, accountType: type },
+          body: {
+            ...f,
+            phone: f.phone || undefined,
+            firmName: type === 'BROKER' ? f.firmName || undefined : undefined,
+            inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined,
+            accountType: type,
+          },
         }),
       );
     } catch (err) {
@@ -50,7 +56,12 @@ function SignupInner() {
   };
   const options = [
     { v: 'USER' as const, icon: Home, t: 'Buyer / Tenant / Owner', d: 'Property खोजें, save करें या अपनी property free post करें' },
-    { v: 'BROKER' as const, icon: Briefcase, t: 'Broker / Agency', d: inviteOnly ? 'Invite code से — Leads CRM, WhatsApp automation, team और listings' : 'Leads CRM, WhatsApp automation, team और listings' },
+    {
+      v: 'BROKER' as const,
+      icon: Briefcase,
+      t: 'Broker / Agency',
+      d: inviteOnly ? 'Invite code से — Leads CRM, WhatsApp automation, team और listings' : 'Leads CRM, WhatsApp automation, team और listings',
+    },
   ];
   return (
     <AuthShell title="Account बनाएँ" subtitle="30 seconds में शुरू करें — बिल्कुल free">
@@ -60,7 +71,10 @@ function SignupInner() {
             key={o.v}
             type="button"
             onClick={() => setType(o.v)}
-            className={cn('relative rounded-2xl border-2 p-4 text-left transition', type === o.v ? 'border-brand-600 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}
+            className={cn(
+              'relative rounded-2xl border-2 p-4 text-left transition',
+              type === o.v ? 'border-brand-600 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line hover:border-brand-300',
+            )}
           >
             {type === o.v && (
               <motion.span layoutId="signup-check" className="absolute top-3 right-3 grid size-5 place-items-center rounded-full bg-brand-600 text-white">
@@ -73,26 +87,50 @@ function SignupInner() {
           </button>
         ))}
       </div>
-      <GoogleButton text="signup_with" onCredential={async (idToken) => {
-        try {
-          done(await api('/auth/google', { method: 'POST', body: { idToken, accountType: type, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined }, auth: false }));
-        } catch (err) {
-          toast.error(errorMessage(err));
-        }
-      }} />
+      <GoogleButton
+        text="signup_with"
+        onCredential={async (idToken) => {
+          try {
+            done(
+              await api('/auth/google', {
+                method: 'POST',
+                body: { idToken, accountType: type, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined },
+                auth: false,
+              }),
+            );
+          } catch (err) {
+            toast.error(errorMessage(err));
+          }
+        }}
+      />
       <form onSubmit={submit} className="space-y-4">
         <Field label="पूरा नाम" required>
           <Input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoComplete="name" />
         </Field>
         {type === 'BROKER' && (
-          <Field label="Invite code" required={inviteOnly} hint={inviteOnly ? 'अभी broker account सिर्फ़ invite से बनता है। Code नहीं है? BrokerIQ team या किसी जुड़े broker से माँगें।' : 'Optional — किसी broker ने invite किया है तो डालें'}>
+          <Field
+            label="Invite code"
+            required={inviteOnly}
+            hint={
+              inviteOnly
+                ? 'अभी broker account सिर्फ़ invite से बनता है। Code नहीं है? BrokerIQ team या किसी जुड़े broker से माँगें।'
+                : 'Optional — किसी broker ने invite किया है तो डालें'
+            }
+          >
             <div className="relative">
               <Ticket className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
-              <Input className="pl-9 uppercase" required={inviteOnly} value={f.inviteCode} onChange={(e) => setF({ ...f, inviteCode: e.target.value.toUpperCase().replace(/\s/g, '') })} placeholder="BIQXXXXXX" />
+              <Input
+                className="pl-9 uppercase"
+                required={inviteOnly}
+                value={f.inviteCode}
+                onChange={(e) => setF({ ...f, inviteCode: e.target.value.toUpperCase().replace(/\s/g, '') })}
+                placeholder="BIQXXXXXX"
+              />
             </div>
             {invite?.valid && (
               <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-                <BadgeCheck className="size-3.5" /> Invite valid{invite.invitedBy ? ` — ${invite.invitedBy} ने बुलाया` : ''}{invite.plan ? ` · ${invite.plan.name} plan ${invite.months ? `${invite.months} महीने` : ''} free` : ''}
+                <BadgeCheck className="size-3.5" /> Invite valid{invite.invitedBy ? ` — ${invite.invitedBy} ने बुलाया` : ''}
+                {invite.plan ? ` · ${invite.plan.name} plan ${invite.months ? `${invite.months} महीने` : ''} free` : ''}
               </p>
             )}
             {invite && !invite.valid && <p className="mt-1.5 text-xs text-rose-600">{invite.message}</p>}
@@ -112,13 +150,28 @@ function SignupInner() {
           </Field>
         </div>
         <Field label="Password" required hint="कम से कम 8 अक्षर">
-          <Input type="password" required minLength={8} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" />
+          <Input
+            type="password"
+            required
+            minLength={8}
+            value={f.password}
+            onChange={(e) => setF({ ...f, password: e.target.value })}
+            autoComplete="new-password"
+          />
         </Field>
         <Button type="submit" className="w-full" size="lg" loading={loading}>
           {type === 'BROKER' ? 'Broker account बनाएँ' : 'Account बनाएँ'}
         </Button>
         <p className="text-center text-xs text-subtle">
-          Sign up करके आप हमारी <Link href="/p/terms" className="underline">Terms</Link> और <Link href="/p/privacy" className="underline">Privacy policy</Link> से सहमत हैं।
+          Sign up करके आप हमारी{' '}
+          <Link href="/p/terms" className="underline">
+            Terms
+          </Link>{' '}
+          और{' '}
+          <Link href="/p/privacy" className="underline">
+            Privacy policy
+          </Link>{' '}
+          से सहमत हैं।
         </p>
       </form>
       <p className="mt-8 text-center text-sm text-muted">

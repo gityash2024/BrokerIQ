@@ -14,13 +14,22 @@ export function reportAppError(error: unknown, route?: string) {
   fetch(`${API_URL}/public/client-errors`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source: 'MOBILE', message, stack: e.stack?.slice(0, 8000) ?? null, route: route ?? null, appVersion: Constants.expoConfig?.version ?? null }),
+    body: JSON.stringify({
+      source: 'MOBILE',
+      message,
+      stack: e.stack?.slice(0, 8000) ?? null,
+      route: route ?? null,
+      appVersion: Constants.expoConfig?.version ?? null,
+    }),
   }).catch(() => undefined);
 }
 
 /** JS errors outside React rendering (callbacks, timers). Keeps React Native's default handler (red box / crash). */
 export function installGlobalErrorHandler() {
-  const g = globalThis as { ErrorUtils?: { getGlobalHandler: () => (e: Error, fatal?: boolean) => void; setGlobalHandler: (h: (e: Error, fatal?: boolean) => void) => void }; __biqErr?: boolean };
+  const g = globalThis as {
+    ErrorUtils?: { getGlobalHandler: () => (e: Error, fatal?: boolean) => void; setGlobalHandler: (h: (e: Error, fatal?: boolean) => void) => void };
+    __biqErr?: boolean;
+  };
   if (!g.ErrorUtils || g.__biqErr) return;
   g.__biqErr = true;
   const prev = g.ErrorUtils.getGlobalHandler();

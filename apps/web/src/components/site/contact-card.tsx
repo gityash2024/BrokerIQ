@@ -28,7 +28,12 @@ export function ContactCard({ listing }: { listing: any }) {
   const [revealing, setRevealing] = useState(false);
   const [sent, setSent] = useState(false);
   const [visitOpen, setVisitOpen] = useState(false);
-  const [form, setForm] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', email: user?.email ?? '', message: `Hi, मुझे "${listing.title}" में interest है। कृपया details share करें।` });
+  const [form, setForm] = useState({
+    name: user?.name ?? '',
+    phone: user?.phone ?? '',
+    email: user?.email ?? '',
+    message: `Hi, मुझे "${listing.title}" में interest है। कृपया details share करें।`,
+  });
   useEffect(() => {
     if (user) setForm((x) => ({ ...x, name: x.name || user.name || '', phone: x.phone || user.phone || '', email: x.email || user.email || '' }));
   }, [user]);
@@ -52,7 +57,10 @@ export function ContactCard({ listing }: { listing: any }) {
     if (!form.name.trim() || !form.phone.trim()) return toast.error('Naam और mobile number डालें');
     setSending(true);
     try {
-      await api('/enquiries', { method: 'POST', body: { listingId: listing.id, name: form.name, phone: form.phone, email: form.email || undefined, message: form.message, source: 'WEBSITE', ...extra } });
+      await api('/enquiries', {
+        method: 'POST',
+        body: { listingId: listing.id, name: form.name, phone: form.phone, email: form.email || undefined, message: form.message, source: 'WEBSITE', ...extra },
+      });
       setSent(true);
       setVisitOpen(false);
       toast.success(extra.wantsVisit ? 'Site visit request भेज दी गई 🎉' : 'Enquiry भेज दी गई — जल्द ही संपर्क होगा');
@@ -66,7 +74,10 @@ export function ContactCard({ listing }: { listing: any }) {
   const startChat = async () => {
     if (!user) return router.push(`/login?next=/property/${listing.slug}`);
     try {
-      const c = await api<any>('/chat/start', { method: 'POST', body: { organizationId: org.id, listingId: listing.id, message: `Hi, "${listing.title}" के बारे में जानना है।` } });
+      const c = await api<any>('/chat/start', {
+        method: 'POST',
+        body: { organizationId: org.id, listingId: listing.id, message: `Hi, "${listing.title}" के बारे में जानना है।` },
+      });
       router.push(`/account/messages?c=${c.id}`);
     } catch (e) {
       toast.error(errorMessage(e));
@@ -84,25 +95,30 @@ export function ContactCard({ listing }: { listing: any }) {
       <div className="flex items-center gap-3 border-b border-line bg-gradient-to-br from-brand-50 to-transparent p-5 dark:from-brand-500/10">
         {org ? <Avatar name={org.name} src={org.logoUrl} size={52} /> : <Avatar name={listing.postedBy?.name} src={listing.postedBy?.avatarUrl} size={52} />}
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-muted uppercase">{org ? 'Broker' : listing.postedByType === 'BUILDER' ? 'Builder' : 'Owner'}</p>
+          <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+            {org ? 'Broker' : listing.postedByType === 'BUILDER' ? 'Builder' : 'Owner'}
+          </p>
           <p className="flex items-center gap-1 truncate font-display text-lg font-bold">
             {org ? (
               <a href={`/brokers/${org.slug}`} className="hover:text-brand-600">
                 {org.name}
               </a>
             ) : (
-              listing.contactName ?? listing.postedBy?.name
+              (listing.contactName ?? listing.postedBy?.name)
             )}
             {org?.verification === 'VERIFIED' && <BadgeCheck className="size-5 shrink-0 text-emerald-500" />}
           </p>
           {org && (
             <p className="flex items-center gap-1 text-xs text-muted">
-              <Star className="size-3.5 fill-amber-400 text-amber-400" /> {org.reviewCount ? `${org.rating.toFixed(1)} (${org.reviewCount} reviews)` : 'New on BrokerIQ'}
+              <Star className="size-3.5 fill-amber-400 text-amber-400" />{' '}
+              {org.reviewCount ? `${org.rating.toFixed(1)} (${org.reviewCount} reviews)` : 'New on BrokerIQ'}
               {org.experienceYears ? ` · ${org.experienceYears}+ yrs` : ''}
             </p>
           )}
           {org && responseBadge(org.responseMinutes) && (
-            <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-600"><Zap className="size-3.5" /> {responseBadge(org.responseMinutes)}</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-600">
+              <Zap className="size-3.5" /> {responseBadge(org.responseMinutes)}
+            </p>
           )}
         </div>
       </div>
@@ -115,7 +131,12 @@ export function ContactCard({ listing }: { listing: any }) {
               <Phone className="size-5" /> {contact.phone}
             </Button>
             {contact.tracked && <p className="text-center text-[11px] text-subtle">यह broker का BrokerIQ business number है — call सीधे broker से जुड़ेगी</p>}
-            <Button href={whatsappLink(contact.whatsapp ?? contact.phone, `Hi, ${SITE_URL}/property/${listing.slug} के बारे में पूछना था।`)} external variant="whatsapp" className="w-full">
+            <Button
+              href={whatsappLink(contact.whatsapp ?? contact.phone, `Hi, ${SITE_URL}/property/${listing.slug} के बारे में पूछना था।`)}
+              external
+              variant="whatsapp"
+              className="w-full"
+            >
               <MessageCircle className="size-5" /> WhatsApp करें
             </Button>
           </motion.div>
@@ -126,7 +147,10 @@ export function ContactCard({ listing }: { listing: any }) {
         )}
         {!isOwn && (
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => (org && slotsOn ? (user ? setSlotsOpen(true) : router.push(`/login?next=/property/${listing.slug}`)) : setVisitOpen(true))}>
+            <Button
+              variant="secondary"
+              onClick={() => (org && slotsOn ? (user ? setSlotsOpen(true) : router.push(`/login?next=/property/${listing.slug}`)) : setVisitOpen(true))}
+            >
               <CalendarCheck className="size-4" /> {booked ? 'Booked ✓' : org && slotsOn ? 'Visit book करें' : 'Visit'}
             </Button>
             {org && chatOn ? (
@@ -142,7 +166,11 @@ export function ContactCard({ listing }: { listing: any }) {
         )}
         {!isOwn && <SafetyNote />}
         {!isOwn && org && user && tokensOn && (
-          <button type="button" onClick={() => setTokenOpen(true)} className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-muted hover:text-brand-600">
+          <button
+            type="button"
+            onClick={() => setTokenOpen(true)}
+            className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-muted hover:text-brand-600"
+          >
             <Wallet className="size-3.5" /> Broker को token दिया है? Record रखें
           </button>
         )}

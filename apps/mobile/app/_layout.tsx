@@ -43,16 +43,24 @@ function Gate({ children }: { children: React.ReactNode }) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }}>
         <Wrench size={48} color={c.brand} />
-        <Txt v="h1" style={{ textAlign: 'center' }}>थोड़ी देर में वापस आएँ</Txt>
-        <Txt color="muted" style={{ textAlign: 'center' }}>{app.maintenance.message || 'हम app को बेहतर बना रहे हैं।'}</Txt>
+        <Txt v="h1" style={{ textAlign: 'center' }}>
+          थोड़ी देर में वापस आएँ
+        </Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          {app.maintenance.message || 'हम app को बेहतर बना रहे हैं।'}
+        </Txt>
       </View>
     );
   if (blocked)
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }}>
         <Download size={48} color={c.brand} />
-        <Txt v="h1" style={{ textAlign: 'center' }}>नया version उपलब्ध है</Txt>
-        <Txt color="muted" style={{ textAlign: 'center' }}>{app.mobile.forceUpdateMessage || 'जारी रखने के लिए app update करें।'}</Txt>
+        <Txt v="h1" style={{ textAlign: 'center' }}>
+          नया version उपलब्ध है
+        </Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          {app.mobile.forceUpdateMessage || 'जारी रखने के लिए app update करें।'}
+        </Txt>
         {!!app.playStoreUrl && <Button title="Update करें" onPress={() => Linking.openURL(app.playStoreUrl)} />}
       </View>
     );
@@ -60,7 +68,14 @@ function Gate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
   const ready = useSession((s) => s.ready);
   const loggedIn = useSession((s) => !!s.session);
   const { c, isDark } = useTheme();

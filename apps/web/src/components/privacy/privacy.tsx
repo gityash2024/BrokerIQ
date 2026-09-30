@@ -42,7 +42,10 @@ function position(): Promise<GeolocationPosition> {
 }
 async function sendLocation() {
   const p = await position();
-  await api('/me/location', { method: 'POST', body: { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy, platform: 'web' } });
+  await api('/me/location', {
+    method: 'POST',
+    body: { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy, platform: 'web' },
+  });
   safeSet(LOC_AT, String(Date.now()));
 }
 

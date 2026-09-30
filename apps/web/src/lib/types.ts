@@ -47,7 +47,15 @@ export interface ListingCard {
   createdAt: string;
   locality: LocalityLite;
   project: { id: string; name: string; slug: string } | null;
-  organization: { id: string; name: string; slug: string; logoUrl: string | null; verification: string; rating: number; responseMinutes?: number | null } | null;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+    verification: string;
+    rating: number;
+    responseMinutes?: number | null;
+  } | null;
   _count?: { media: number };
   rejectionReason?: string | null;
   moderationFlags?: string[];
@@ -84,4 +92,5 @@ export interface LeadRow {
   requirement: any;
 }
 
-export const areaOf = (l: Pick<ListingCard, 'carpetArea' | 'builtUpArea' | 'superArea' | 'plotArea'>) => l.superArea ?? l.builtUpArea ?? l.carpetArea ?? l.plotArea;
+export const areaOf = (l: Pick<ListingCard, 'carpetArea' | 'builtUpArea' | 'superArea' | 'plotArea'>) =>
+  l.superArea ?? l.builtUpArea ?? l.carpetArea ?? l.plotArea;

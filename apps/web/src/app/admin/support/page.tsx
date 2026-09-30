@@ -21,7 +21,15 @@ export default function SupportPage() {
   return (
     <>
       <PageHeader title="Support inbox" subtitle="Contact page से आए messages" />
-      <Segmented className="mb-5" value={status} onChange={setStatus} options={[{ value: 'OPEN', label: 'Open' }, { value: 'CLOSED', label: 'Closed' }]} />
+      <Segmented
+        className="mb-5"
+        value={status}
+        onChange={setStatus}
+        options={[
+          { value: 'OPEN', label: 'Open' },
+          { value: 'CLOSED', label: 'Closed' },
+        ]}
+      />
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
@@ -35,21 +43,50 @@ export default function SupportPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{t.subject || 'General enquiry'}</p>
-                  <p className="text-xs text-muted">{t.name} · {formatDateTime(t.createdAt)}</p>
+                  <p className="text-xs text-muted">
+                    {t.name} · {formatDateTime(t.createdAt)}
+                  </p>
                 </div>
                 <div className="flex gap-1">
-                  {t.email && <Button size="icon-sm" variant="ghost" href={`mailto:${t.email}?subject=Re: ${encodeURIComponent(t.subject ?? '')}`} external aria-label="Email"><Mail className="size-4" /></Button>}
-                  {t.phone && <Button size="icon-sm" variant="ghost" href={`tel:${t.phone}`} aria-label="Call"><Phone className="size-4" /></Button>}
-                  {t.phone && <Button size="icon-sm" variant="ghost" href={whatsappLink(t.phone, `Hi ${t.name}`)} external aria-label="WhatsApp"><MessageCircle className="size-4 text-emerald-600" /></Button>}
+                  {t.email && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      href={`mailto:${t.email}?subject=Re: ${encodeURIComponent(t.subject ?? '')}`}
+                      external
+                      aria-label="Email"
+                    >
+                      <Mail className="size-4" />
+                    </Button>
+                  )}
+                  {t.phone && (
+                    <Button size="icon-sm" variant="ghost" href={`tel:${t.phone}`} aria-label="Call">
+                      <Phone className="size-4" />
+                    </Button>
+                  )}
+                  {t.phone && (
+                    <Button size="icon-sm" variant="ghost" href={whatsappLink(t.phone, `Hi ${t.name}`)} external aria-label="WhatsApp">
+                      <MessageCircle className="size-4 text-emerald-600" />
+                    </Button>
+                  )}
                 </div>
               </div>
               <p className="mt-3 text-sm leading-6 whitespace-pre-line">{t.message}</p>
-              <Textarea className="mt-3 min-h-16" placeholder="Internal note…" value={notes[t.id] ?? t.note ?? ''} onChange={(e) => setNotes({ ...notes, [t.id]: e.target.value })} />
+              <Textarea
+                className="mt-3 min-h-16"
+                placeholder="Internal note…"
+                value={notes[t.id] ?? t.note ?? ''}
+                onChange={(e) => setNotes({ ...notes, [t.id]: e.target.value })}
+              />
               <div className="mt-3 flex justify-end">
                 {status === 'OPEN' ? (
-                  <Button size="sm" variant="success" onClick={() => upd.mutate({ id: t.id, status: 'CLOSED', note: notes[t.id] ?? t.note ?? undefined })}><CheckCircle2 className="size-4" /> Close</Button>
+                  <Button size="sm" variant="success" onClick={() => upd.mutate({ id: t.id, status: 'CLOSED', note: notes[t.id] ?? t.note ?? undefined })}>
+                    <CheckCircle2 className="size-4" /> Close
+                  </Button>
                 ) : (
-                  <Button size="sm" variant="secondary" onClick={() => upd.mutate({ id: t.id, status: 'OPEN' })}><RotateCcw className="size-4" /> Reopen</Button>
+                  <Button size="sm" variant="secondary" onClick={() => upd.mutate({ id: t.id, status: 'OPEN' })}>
+                    <RotateCcw className="size-4" /> Reopen
+                  </Button>
                 )}
               </div>
             </div>

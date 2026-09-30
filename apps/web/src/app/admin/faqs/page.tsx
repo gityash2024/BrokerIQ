@@ -20,11 +20,22 @@ export default function Page() {
       fields={[
         { key: 'question', label: 'Question', required: true, wide: true },
         { key: 'answer', label: 'Answer', type: 'textarea', required: true },
-        { key: 'category', label: 'Category', type: 'select', options: ['general', 'buyers', 'owners', 'brokers', 'payments', 'app'].map((v) => ({ value: v, label: v })) },
+        {
+          key: 'category',
+          label: 'Category',
+          type: 'select',
+          options: ['general', 'buyers', 'owners', 'brokers', 'payments', 'app'].map((v) => ({ value: v, label: v })),
+        },
         { key: 'sortOrder', label: 'Sort order', type: 'number' },
         { key: 'isActive', label: 'Active', type: 'switch' },
       ]}
-      toBody={({ question, answer, category, sortOrder, isActive }) => ({ question, answer, category: category || 'general', sortOrder: sortOrder ?? 0, isActive: !!isActive })}
+      toBody={({ question, answer, category, sortOrder, isActive }) => ({
+        question,
+        answer,
+        category: category || 'general',
+        sortOrder: sortOrder ?? 0,
+        isActive: !!isActive,
+      })}
     />
   );
 }

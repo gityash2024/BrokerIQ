@@ -22,8 +22,22 @@ function Tiles() {
   const { integrations } = useConfig();
   const mt = integrations.maptiler as any;
   if (mt?.configured && mt.apiKey)
-    return <TileLayer url={`https://api.maptiler.com/maps/${mt.style || 'streets-v2'}/{z}/{x}/{y}.png?key=${mt.apiKey}`} attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors' tileSize={512} zoomOffset={-1} maxZoom={20} />;
-  return <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' maxZoom={19} />;
+    return (
+      <TileLayer
+        url={`https://api.maptiler.com/maps/${mt.style || 'streets-v2'}/{z}/{x}/{y}.png?key=${mt.apiKey}`}
+        attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors'
+        tileSize={512}
+        zoomOffset={-1}
+        maxZoom={20}
+      />
+    );
+  return (
+    <TileLayer
+      url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      maxZoom={19}
+    />
+  );
 }
 
 function Bounds({ onBounds }: { onBounds?: (bbox: string) => void }) {
@@ -94,7 +108,11 @@ export default function MapView({
         p.id,
         p.dot
           ? L.divIcon({ className: '', html: `<span class="biq-dot"></span>`, iconSize: [0, 0] })
-          : L.divIcon({ className: '', html: `<span class="biq-price-pin ${p.id === activeId ? 'active' : ''}">${p.label ?? (p.price ? formatPriceShort(p.price) : '•')}</span>`, iconSize: [0, 0] }),
+          : L.divIcon({
+              className: '',
+              html: `<span class="biq-price-pin ${p.id === activeId ? 'active' : ''}">${p.label ?? (p.price ? formatPriceShort(p.price) : '•')}</span>`,
+              iconSize: [0, 0],
+            }),
       );
     }
     return m;
@@ -108,8 +126,18 @@ export default function MapView({
       {recenter && <Recenter center={center} />}
       {radius && <Circle center={center} radius={radius} pathOptions={{ color: '#4f46e5', fillColor: '#6366f1', fillOpacity: 0.12, weight: 2 }} />}
       {points.map((p) => (
-        <Marker key={p.id} position={[p.lat, p.lng]} icon={icons.get(p.id)!} zIndexOffset={p.id === activeId ? 1000 : 0} eventHandlers={{ click: () => (onSelect ? onSelect(p) : p.href && (window.location.href = p.href)) }}>
-          {p.dot && p.label ? <Tooltip direction="top" offset={[0, -6]}>{p.label}</Tooltip> : null}
+        <Marker
+          key={p.id}
+          position={[p.lat, p.lng]}
+          icon={icons.get(p.id)!}
+          zIndexOffset={p.id === activeId ? 1000 : 0}
+          eventHandlers={{ click: () => (onSelect ? onSelect(p) : p.href && (window.location.href = p.href)) }}
+        >
+          {p.dot && p.label ? (
+            <Tooltip direction="top" offset={[0, -6]}>
+              {p.label}
+            </Tooltip>
+          ) : null}
         </Marker>
       ))}
     </MapContainer>

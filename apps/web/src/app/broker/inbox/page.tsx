@@ -5,7 +5,21 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
-import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, FileText, Image as ImageIcon, MessageCircle, MessagesSquare, Plug, Search, Send } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  Check,
+  CheckCheck,
+  Clock,
+  FileText,
+  Image as ImageIcon,
+  MessageCircle,
+  MessagesSquare,
+  Plug,
+  Search,
+  Send,
+} from 'lucide-react';
 import { renderTemplate, timeAgo } from '@brokeriq/shared';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -40,7 +54,11 @@ function InboxInner() {
   const [unread, setUnread] = useState(false);
   const dq = useDebounced(search);
   const status = useQuery({ queryKey: ['wa-status'], queryFn: () => api<any>('/whatsapp/status'), staleTime: 60_000 });
-  const convs = useQuery({ queryKey: ['conversations', channel, dq, unread], queryFn: () => api<any[]>(`/whatsapp/conversations${qs({ channel, q: dq, unread: unread ? 'true' : '' })}`), refetchInterval: 60_000 });
+  const convs = useQuery({
+    queryKey: ['conversations', channel, dq, unread],
+    queryFn: () => api<any[]>(`/whatsapp/conversations${qs({ channel, q: dq, unread: unread ? 'true' : '' })}`),
+    refetchInterval: 60_000,
+  });
   useRealtime('wa:message', () => convs.refetch());
   useRealtime('chat:message', () => convs.refetch());
   const current = convs.data?.find((c) => c.id === active);
@@ -53,30 +71,75 @@ function InboxInner() {
           <div className="flex items-center justify-between">
             <h1 className="font-display text-xl font-extrabold">Inbox</h1>
             {channel === 'WHATSAPP' && status.data && (
-              <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold', status.data.connected ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15')}>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold',
+                  status.data.connected
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15',
+                )}
+              >
                 <span className={cn('size-1.5 rounded-full', status.data.connected ? 'bg-emerald-500' : 'bg-amber-500')} />
-                {status.data.connected ? status.data.displayPhone ?? 'Connected' : 'Not connected'}
+                {status.data.connected ? (status.data.displayPhone ?? 'Connected') : 'Not connected'}
               </span>
             )}
           </div>
-          <Segmented size="sm" value={channel} onChange={(v) => setParam({ channel: v, c: null })} options={[{ value: 'WHATSAPP', label: 'WhatsApp' }, { value: 'CHAT', label: 'Website chat' }]} className="w-full" />
+          <Segmented
+            size="sm"
+            value={channel}
+            onChange={(v) => setParam({ channel: v, c: null })}
+            options={[
+              { value: 'WHATSAPP', label: 'WhatsApp' },
+              { value: 'CHAT', label: 'Website chat' },
+            ]}
+            className="w-full"
+          />
           <div className="flex gap-2">
             <Input icon={<Search className="size-4" />} className="h-9" placeholder="नाम / number" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <button onClick={() => setUnread(!unread)} className={cn('shrink-0 rounded-xl border px-3 text-xs font-semibold', unread ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15' : 'border-line text-muted')}>
+            <button
+              onClick={() => setUnread(!unread)}
+              className={cn(
+                'shrink-0 rounded-xl border px-3 text-xs font-semibold',
+                unread ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15' : 'border-line text-muted',
+              )}
+            >
               Unread
             </button>
           </div>
         </div>
         {channel === 'WHATSAPP' && status.data && !status.data.connected && (
           <div className="border-b border-line p-3">
-            <IntegrationBanner compact name="WhatsApp" message={user?.role === 'BROKER_ADMIN' ? 'अपना WhatsApp Business number connect करें — तभी messages यहाँ आएँगे और automation चलेगा।' : 'Admin से WhatsApp connect करवाएँ।'} href="/broker/connectors?key=whatsapp" />
+            <IntegrationBanner
+              compact
+              name="WhatsApp"
+              message={
+                user?.role === 'BROKER_ADMIN'
+                  ? 'अपना WhatsApp Business number connect करें — तभी messages यहाँ आएँगे और automation चलेगा।'
+                  : 'Admin से WhatsApp connect करवाएँ।'
+              }
+              href="/broker/connectors?key=whatsapp"
+            />
           </div>
         )}
         <div className="flex-1 overflow-y-auto">
           {!convs.data && [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="m-3 h-16 rounded-xl" />)}
-          {convs.data && !convs.data.length && <Empty className="mt-10" icon={<MessagesSquare className="size-7" />} title="कोई conversation नहीं" text={channel === 'WHATSAPP' ? 'Client WhatsApp पर message करेगा तो यहाँ दिखेगा।' : 'Website पर users chat शुरू करेंगे तो यहाँ दिखेगा।'} />}
+          {convs.data && !convs.data.length && (
+            <Empty
+              className="mt-10"
+              icon={<MessagesSquare className="size-7" />}
+              title="कोई conversation नहीं"
+              text={channel === 'WHATSAPP' ? 'Client WhatsApp पर message करेगा तो यहाँ दिखेगा।' : 'Website पर users chat शुरू करेंगे तो यहाँ दिखेगा।'}
+            />
+          )}
           {convs.data?.map((c) => (
-            <button key={c.id} onClick={() => setParam({ c: c.id })} className={cn('relative flex w-full gap-3 border-b border-line px-4 py-3 text-left transition hover:bg-surface-2', c.id === active && 'bg-brand-50/70 dark:bg-brand-500/10')}>
+            <button
+              key={c.id}
+              onClick={() => setParam({ c: c.id })}
+              className={cn(
+                'relative flex w-full gap-3 border-b border-line px-4 py-3 text-left transition hover:bg-surface-2',
+                c.id === active && 'bg-brand-50/70 dark:bg-brand-500/10',
+              )}
+            >
               {c.id === active && <motion.span layoutId="inbox-active" className="absolute inset-y-0 left-0 w-1 bg-brand-600" />}
               <Avatar name={c.contactName || c.contactPhone} src={c.user?.avatarUrl} size={42} />
               <div className="min-w-0 flex-1">
@@ -86,7 +149,9 @@ function InboxInner() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <p className={cn('truncate text-xs', c.unreadCount ? 'text-fg' : 'text-muted')}>{c.lastPreview ?? '—'}</p>
-                  {c.unreadCount > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white">{c.unreadCount}</span>}
+                  {c.unreadCount > 0 && (
+                    <span className="grid min-w-5 place-items-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white">{c.unreadCount}</span>
+                  )}
                 </div>
                 {c.lead && <p className="mt-0.5 truncate text-[11px] text-subtle">Lead · {c.lead.assignedTo?.name ?? 'Unassigned'}</p>}
               </div>
@@ -104,7 +169,9 @@ function InboxInner() {
                 <MessageCircle className="size-10" />
               </div>
               <p className="mt-4 font-display text-lg font-bold">Team inbox</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted">WhatsApp और website chat — सारे client messages एक जगह, real-time। हर conversation अपने lead से जुड़ा है।</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
+                WhatsApp और website chat — सारे client messages एक जगह, real-time। हर conversation अपने lead से जुड़ा है।
+              </p>
             </div>
           </div>
         ) : (
@@ -119,7 +186,10 @@ function InboxInner() {
                 <p className="truncate text-xs text-muted">{current?.contactPhone}</p>
               </div>
               {current?.lead && (
-                <Link href={`/broker/leads/${current.lead.id}`} className="flex items-center gap-2 rounded-xl border border-line px-3 py-1.5 text-xs font-semibold hover:bg-surface-2">
+                <Link
+                  href={`/broker/leads/${current.lead.id}`}
+                  className="flex items-center gap-2 rounded-xl border border-line px-3 py-1.5 text-xs font-semibold hover:bg-surface-2"
+                >
                   Lead <StageBadge stage={current.lead.stage} />
                 </Link>
               )}
@@ -201,13 +271,24 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               {g.items.map((m: any) => {
                 const out = m.direction === 'OUTBOUND';
                 return (
-                  <motion.div key={m.id} initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className={cn('flex', out ? 'justify-end' : 'justify-start')}>
-                    <div className={cn('max-w-[78%] rounded-2xl px-3.5 py-2 text-sm shadow-sm', out ? 'rounded-br-md bg-emerald-600 text-white' : 'rounded-bl-md bg-surface')}>
-                      {m.mediaUrl && m.type === 'IMAGE' && (
-                         
-                        <img src={m.mediaUrl} alt="" className="mb-1.5 max-h-64 rounded-xl" />
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className={cn('flex', out ? 'justify-end' : 'justify-start')}
+                  >
+                    <div
+                      className={cn(
+                        'max-w-[78%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
+                        out ? 'rounded-br-md bg-emerald-600 text-white' : 'rounded-bl-md bg-surface',
                       )}
-                      {m.templateName && <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase', out ? 'text-white/70' : 'text-subtle')}><FileText className="size-3" /> {m.templateName}</p>}
+                    >
+                      {m.mediaUrl && m.type === 'IMAGE' && <img src={m.mediaUrl} alt="" className="mb-1.5 max-h-64 rounded-xl" />}
+                      {m.templateName && (
+                        <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase', out ? 'text-white/70' : 'text-subtle')}>
+                          <FileText className="size-3" /> {m.templateName}
+                        </p>
+                      )}
                       <p className="break-words whitespace-pre-line">{m.body ?? (m.type !== 'TEXT' ? `[${m.type.toLowerCase()}]` : '')}</p>
                       <p className={cn('mt-0.5 flex items-center justify-end gap-1 text-[10px]', out ? 'text-white/70' : 'text-subtle')}>
                         {out && m.sender?.name && <span className="mr-1">{m.sender.name} ·</span>}
@@ -226,12 +307,18 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
         <div ref={end} />
       </div>
       <div className="border-t border-line bg-surface p-3">
-        {notConfigured?.body.integration && <div className="mb-3"><IntegrationBanner compact name={notConfigured.body.integration.name} message={notConfigured.body.message} /></div>}
+        {notConfigured?.body.integration && (
+          <div className="mb-3">
+            <IntegrationBanner compact name={notConfigured.body.integration.name} message={notConfigured.body.message} />
+          </div>
+        )}
         {!windowOpen && (
           <div className="mb-2.5 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
             <Clock className="size-3.5" />
             <span className="flex-1">24-घंटे की window बंद है — WhatsApp नियम के अनुसार सिर्फ़ approved template भेज सकते हैं।</span>
-            <Button size="xs" variant="secondary" onClick={() => setTplOpen(true)}>Template भेजें</Button>
+            <Button size="xs" variant="secondary" onClick={() => setTplOpen(true)}>
+              Template भेजें
+            </Button>
           </div>
         )}
         <form
@@ -266,8 +353,19 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           </Button>
         </form>
       </div>
-      <TemplateDialog open={tplOpen} onOpenChange={setTplOpen} name={q.data?.conversation?.contactName} onSend={async (b) => (await send(b)) && setTplOpen(false)} />
-      <Dialog open={shareOpen} onOpenChange={setShareOpen} title="Property share करें" description="Title, price, locality और link WhatsApp पर जाएगा।" size="sm">
+      <TemplateDialog
+        open={tplOpen}
+        onOpenChange={setTplOpen}
+        name={q.data?.conversation?.contactName}
+        onSend={async (b) => (await send(b)) && setTplOpen(false)}
+      />
+      <Dialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        title="Property share करें"
+        description="Title, price, locality और link WhatsApp पर जाएगा।"
+        size="sm"
+      >
         <ShareListing disabled={!windowOpen} onSend={async (listingId) => (await send({ listingId })) && setShareOpen(false)} />
       </Dialog>
     </>
@@ -287,7 +385,17 @@ function ShareListing({ onSend, disabled }: { onSend: (id: string) => void; disa
   );
 }
 
-function TemplateDialog({ open, onOpenChange, onSend, name }: { open: boolean; onOpenChange: (v: boolean) => void; onSend: (b: Record<string, unknown>) => void; name?: string | null }) {
+function TemplateDialog({
+  open,
+  onOpenChange,
+  onSend,
+  name,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSend: (b: Record<string, unknown>) => void;
+  name?: string | null;
+}) {
   const { user } = useAuth();
   const tpls = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: open });
   const [sel, setSel] = useState<any>(null);
@@ -313,8 +421,16 @@ function TemplateDialog({ open, onOpenChange, onSend, name }: { open: boolean; o
       size="lg"
       footer={
         <>
-          {user?.role === 'BROKER_ADMIN' && <Button variant="secondary" onClick={sync}>Meta से sync करें</Button>}
-          <Button variant="whatsapp" disabled={!sel || params.some((p) => !p.trim())} onClick={() => onSend({ templateName: sel.name, templateLanguage: sel.language, templateParams: params })}>
+          {user?.role === 'BROKER_ADMIN' && (
+            <Button variant="secondary" onClick={sync}>
+              Meta से sync करें
+            </Button>
+          )}
+          <Button
+            variant="whatsapp"
+            disabled={!sel || params.some((p) => !p.trim())}
+            onClick={() => onSend({ templateName: sel.name, templateLanguage: sel.language, templateParams: params })}
+          >
             <Send className="size-4" /> Send template
           </Button>
         </>
@@ -323,24 +439,44 @@ function TemplateDialog({ open, onOpenChange, onSend, name }: { open: boolean; o
       {tpls.isLoading ? (
         <Skeleton className="h-40" />
       ) : !approved.length ? (
-        <Empty icon={<Plug className="size-6" />} title="कोई approved template नहीं" text="Meta Business Manager → WhatsApp Manager में template बनाकर approve करवाएँ, फिर 'Meta से sync करें' दबाएँ।" />
+        <Empty
+          icon={<Plug className="size-6" />}
+          title="कोई approved template नहीं"
+          text="Meta Business Manager → WhatsApp Manager में template बनाकर approve करवाएँ, फिर 'Meta से sync करें' दबाएँ।"
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-[220px_1fr]">
           <div className="max-h-80 space-y-1 overflow-y-auto">
             {approved.map((t) => (
-              <button key={t.id} onClick={() => setSel(t)} className={cn('w-full rounded-xl px-3 py-2 text-left text-sm', sel?.id === t.id ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-brand-500/15' : 'hover:bg-surface-2')}>
+              <button
+                key={t.id}
+                onClick={() => setSel(t)}
+                className={cn(
+                  'w-full rounded-xl px-3 py-2 text-left text-sm',
+                  sel?.id === t.id ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-brand-500/15' : 'hover:bg-surface-2',
+                )}
+              >
                 {t.name}
-                <span className="block text-[11px] text-subtle">{t.language} · {t.category?.toLowerCase() ?? 'template'}</span>
+                <span className="block text-[11px] text-subtle">
+                  {t.language} · {t.category?.toLowerCase() ?? 'template'}
+                </span>
               </button>
             ))}
           </div>
           <div>
             {sel ? (
               <>
-                <div className="rounded-2xl rounded-tl-md bg-emerald-50 p-4 text-sm whitespace-pre-line dark:bg-emerald-500/10">{renderTemplate(sel.body ?? '', Object.fromEntries(params.map((p, i) => [String(i + 1), p || `{{${i + 1}}}`])))}</div>
+                <div className="rounded-2xl rounded-tl-md bg-emerald-50 p-4 text-sm whitespace-pre-line dark:bg-emerald-500/10">
+                  {renderTemplate(sel.body ?? '', Object.fromEntries(params.map((p, i) => [String(i + 1), p || `{{${i + 1}}}`])))}
+                </div>
                 <div className="mt-3 space-y-2">
                   {params.map((p, i) => (
-                    <Input key={i} value={p} onChange={(e) => setParams((ps) => ps.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`Variable {{${i + 1}}}`} />
+                    <Input
+                      key={i}
+                      value={p}
+                      onChange={(e) => setParams((ps) => ps.map((x, j) => (j === i ? e.target.value : x)))}
+                      placeholder={`Variable {{${i + 1}}}`}
+                    />
                   ))}
                 </div>
               </>
@@ -361,4 +497,3 @@ export default function InboxPage() {
     </Suspense>
   );
 }
-

@@ -29,9 +29,18 @@ export function HeroSearch(_props: { tabs?: string[] }) {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={cn('relative rounded-full px-4 py-2 text-sm font-semibold transition', tab === t.key ? 'text-slate-950' : 'text-white/80 hover:text-white')}
+            className={cn(
+              'relative rounded-full px-4 py-2 text-sm font-semibold transition',
+              tab === t.key ? 'text-slate-950' : 'text-white/80 hover:text-white',
+            )}
           >
-            {tab === t.key && <motion.span layoutId="hero-tab" className="absolute inset-0 rounded-full bg-white shadow-lg" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}
+            {tab === t.key && (
+              <motion.span
+                layoutId="hero-tab"
+                className="absolute inset-0 rounded-full bg-white shadow-lg"
+                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              />
+            )}
             <span className="relative">{t.label}</span>
           </button>
         ))}
@@ -41,14 +50,28 @@ export function HeroSearch(_props: { tabs?: string[] }) {
   );
 }
 
-export function SearchInput({ basePath = '/rent', large, defaultValue = '', className }: { basePath?: string; large?: boolean; defaultValue?: string; className?: string }) {
+export function SearchInput({
+  basePath = '/rent',
+  large,
+  defaultValue = '',
+  className,
+}: {
+  basePath?: string;
+  large?: boolean;
+  defaultValue?: string;
+  className?: string;
+}) {
   const router = useRouter();
   const [q, setQ] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<{ label: string; href: string }[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const dq = useDebounced(q, 200);
-  const { data, isFetching } = useQuery({ queryKey: ['suggest', dq], queryFn: () => api<any>(`/public/suggest?q=${encodeURIComponent(dq)}`, { auth: false }), enabled: dq.trim().length >= 2 });
+  const { data, isFetching } = useQuery({
+    queryKey: ['suggest', dq],
+    queryFn: () => api<any>(`/public/suggest?q=${encodeURIComponent(dq)}`, { auth: false }),
+    enabled: dq.trim().length >= 2,
+  });
 
   useEffect(() => {
     try {
@@ -78,7 +101,10 @@ export function SearchInput({ basePath = '/rent', large, defaultValue = '', clas
           e.preventDefault();
           submit();
         }}
-        className={cn('flex items-center gap-2 rounded-2xl bg-white p-2 shadow-2xl shadow-brand-950/30 ring-1 ring-black/5 dark:bg-surface dark:ring-white/10', large ? 'pl-4' : 'pl-3')}
+        className={cn(
+          'flex items-center gap-2 rounded-2xl bg-white p-2 shadow-2xl shadow-brand-950/30 ring-1 ring-black/5 dark:bg-surface dark:ring-white/10',
+          large ? 'pl-4' : 'pl-3',
+        )}
       >
         <Search className={cn('shrink-0 text-subtle', large ? 'size-5' : 'size-4')} />
         <input
@@ -89,11 +115,20 @@ export function SearchInput({ basePath = '/rent', large, defaultValue = '', clas
           }}
           onFocus={() => setOpen(true)}
           placeholder="Sector, locality, society, project या builder खोजें…"
-          className={cn('min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400 dark:text-fg', large ? 'h-12 text-base' : 'h-10 text-sm')}
+          className={cn(
+            'min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400 dark:text-fg',
+            large ? 'h-12 text-base' : 'h-10 text-sm',
+          )}
           aria-label="Search"
         />
         {isFetching && <Loader2 className="size-4 animate-spin text-subtle" />}
-        <button type="submit" className={cn('shrink-0 rounded-xl bg-brand-600 font-semibold text-white transition hover:bg-brand-700 active:scale-95', large ? 'h-12 px-6' : 'h-10 px-4 text-sm')}>
+        <button
+          type="submit"
+          className={cn(
+            'shrink-0 rounded-xl bg-brand-600 font-semibold text-white transition hover:bg-brand-700 active:scale-95',
+            large ? 'h-12 px-6' : 'h-10 px-4 text-sm',
+          )}
+        >
           Search
         </button>
       </form>
@@ -106,22 +141,23 @@ export function SearchInput({ basePath = '/rent', large, defaultValue = '', clas
             transition={{ duration: 0.15 }}
             className="absolute inset-x-0 top-full z-30 mt-2 max-h-[60vh] overflow-y-auto rounded-2xl border border-line bg-surface p-2 text-left shadow-2xl"
           >
-            {!q &&
-              recent.map((r) => (
-                <Row key={r.href} icon={<Clock className="size-4" />} title={r.label} onClick={() => go(r.href, r.label)} />
-              ))}
+            {!q && recent.map((r) => <Row key={r.href} icon={<Clock className="size-4" />} title={r.label} onClick={() => go(r.href, r.label)} />)}
             {data?.localities.map((l: any) => (
               <Row key={l.id} icon={<MapPin className="size-4" />} title={l.name} sub={l.zone} onClick={() => go(withParam('localities', l.slug), l.name)} />
             ))}
             {data?.projects.map((p: any) => (
-              <Row key={p.id} icon={<Building2 className="size-4" />} title={p.name} sub={`${p.builder?.name ?? ''} · ${p.locality?.name ?? ''}`} onClick={() => go(`/projects/${p.slug}`, p.name)} />
+              <Row
+                key={p.id}
+                icon={<Building2 className="size-4" />}
+                title={p.name}
+                sub={`${p.builder?.name ?? ''} · ${p.locality?.name ?? ''}`}
+                onClick={() => go(`/projects/${p.slug}`, p.name)}
+              />
             ))}
             {data?.brokers.map((b: any) => (
               <Row key={b.id} icon={<User className="size-4" />} title={b.name} sub="Broker" onClick={() => go(`/brokers/${b.slug}`, b.name)} />
             ))}
-            {q && (
-              <Row icon={<Building className="size-4" />} title={`"${q}" के लिए सभी properties`} onClick={submit} />
-            )}
+            {q && <Row icon={<Building className="size-4" />} title={`"${q}" के लिए सभी properties`} onClick={submit} />}
           </motion.div>
         )}
       </AnimatePresence>

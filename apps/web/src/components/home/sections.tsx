@@ -2,7 +2,20 @@
 import { RequirementButton } from '../site/requirement';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { ArrowRight, BadgeCheck, Calculator, IndianRupee, MapPinned, MessagesSquare, Scale, ShieldCheck, Smartphone, Sparkles, Star, Wallet } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Calculator,
+  IndianRupee,
+  MapPinned,
+  MessagesSquare,
+  Scale,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Star,
+  Wallet,
+} from 'lucide-react';
 import { CountUp, Reveal, Stagger, StaggerItem } from '../motion/reveal';
 import { HeroSearch } from '../site/search-box';
 import { ListingCard } from '../site/listing-card';
@@ -15,7 +28,14 @@ import { useI18n } from '@/lib/i18n';
 import { img } from '@/lib/utils';
 import { showStat } from '@brokeriq/shared';
 
-const ICONS: Record<string, any> = { 'shield-check': ShieldCheck, 'map-pinned': MapPinned, 'messages-square': MessagesSquare, sparkles: Sparkles, star: Star, 'badge-check': BadgeCheck };
+const ICONS: Record<string, any> = {
+  'shield-check': ShieldCheck,
+  'map-pinned': MapPinned,
+  'messages-square': MessagesSquare,
+  sparkles: Sparkles,
+  star: Star,
+  'badge-check': BadgeCheck,
+};
 
 export function HeroSection({ s }: { s: any }) {
   const stats = s.data ?? {};
@@ -27,10 +47,7 @@ export function HeroSection({ s }: { s: any }) {
   return (
     <section className="relative -mt-16 overflow-hidden pt-16">
       <div className="mesh-hero absolute inset-0" />
-      {bg && (
-         
-        <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-overlay" />
-      )}
+      {bg && <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-overlay" />}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><path d=%22M0 39.5h40M39.5 0v40%22 stroke=%22white%22 stroke-opacity=%220.05%22/></svg>')]" />
       <Skyline />
       <div className="container-x relative flex min-h-[640px] flex-col justify-center py-20 lg:min-h-[700px]">
@@ -38,7 +55,10 @@ export function HeroSection({ s }: { s: any }) {
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Gurgaon का सबसे smart property hub
           </span>
-          <h1 data-no-i18n={lang ? '' : undefined} className="mt-5 max-w-3xl font-display text-4xl leading-[1.05] font-extrabold tracking-tight text-white sm:text-6xl">
+          <h1
+            data-no-i18n={lang ? '' : undefined}
+            className="mt-5 max-w-3xl font-display text-4xl leading-[1.05] font-extrabold tracking-tight text-white sm:text-6xl"
+          >
             {title?.includes(city) ? (
               <>
                 {title.split(city)[0]}
@@ -51,14 +71,24 @@ export function HeroSection({ s }: { s: any }) {
           </h1>
           {s.subtitle && <p className="mt-5 max-w-2xl text-lg text-white/75">{s.subtitle}</p>}
         </motion.div>
-        <motion.div className="mt-9" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.div
+          className="mt-9"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+        >
           <HeroSearch tabs={s.config?.tabs} />
           <div className="mt-3">
             <RequirementButton variant="secondary" className="bg-white/10 text-white ring-1 ring-white/25 backdrop-blur hover:bg-white/20" />
           </div>
         </motion.div>
         {s.config?.stats !== false && (
-          <motion.div className="mt-10 flex flex-wrap gap-x-10 gap-y-4 text-white" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+          <motion.div
+            className="mt-10 flex flex-wrap gap-x-10 gap-y-4 text-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
             {[
               [stats.listings, 'Live properties'],
               [stats.localities, 'Localities covered'],
@@ -82,7 +112,12 @@ export function HeroSection({ s }: { s: any }) {
 
 function Skyline() {
   return (
-    <svg className="pointer-events-none absolute right-0 bottom-0 left-0 h-40 w-full text-white/[0.07] sm:h-56" viewBox="0 0 1440 220" preserveAspectRatio="none" aria-hidden>
+    <svg
+      className="pointer-events-none absolute right-0 bottom-0 left-0 h-40 w-full text-white/[0.07] sm:h-56"
+      viewBox="0 0 1440 220"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
       <path
         fill="currentColor"
         d="M0 220V150h40v-30h30v30h20V90h50v130h20V60h60v160h20v-90h40v90h30V30h26l4-20 4 20h26v190h20v-70h60v70h20V80h70v140h20v-50h40v50h30V50h40v-20h20v20h40v170h20v-110h60v110h20V70h50v150h30v-80h40v80h20V20h60v200h20v-60h50v60h30V100h50v120h20V60h70v160h30v-90h40v90h20V40h60v180z"
@@ -96,7 +131,15 @@ export function LocalitiesSection({ s }: { s: any }) {
   if (!items.length) return null;
   return (
     <section className="container-x py-16">
-      <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/localities" variant="secondary" size="sm">All localities <ArrowRight className="size-4" /></Button>} />
+      <SectionTitle
+        title={s.title}
+        subtitle={s.subtitle}
+        action={
+          <Button href="/localities" variant="secondary" size="sm">
+            All localities <ArrowRight className="size-4" />
+          </Button>
+        }
+      />
       <Stagger className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {items.map((l, i) => (
           <StaggerItem key={l.id}>
@@ -114,7 +157,15 @@ export function ListingsSection({ s }: { s: any }) {
   return (
     <section className="bg-surface/60 py-16">
       <div className="container-x">
-        <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/rent" variant="secondary" size="sm">View all <ArrowRight className="size-4" /></Button>} />
+        <SectionTitle
+          title={s.title}
+          subtitle={s.subtitle}
+          action={
+            <Button href="/rent" variant="secondary" size="sm">
+              View all <ArrowRight className="size-4" />
+            </Button>
+          }
+        />
         <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((l) => (
             <StaggerItem key={l.id}>
@@ -129,7 +180,14 @@ export function ListingsSection({ s }: { s: any }) {
 
 export function MapExplorerSection({ s }: { s: any }) {
   const locs = ((s.data ?? []) as any[]).filter((l) => l.latitude && l.longitude);
-  const points = locs.map((l) => ({ id: l.id, lat: l.latitude, lng: l.longitude, label: `${l.name} · ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0)} ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0) === 1 ? 'listing' : 'listings'}`, href: `/locality/${l.slug}`, dot: true }));
+  const points = locs.map((l) => ({
+    id: l.id,
+    lat: l.latitude,
+    lng: l.longitude,
+    label: `${l.name} · ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0)} ${(l.listingsSale ?? 0) + (l.listingsRent ?? 0) === 1 ? 'listing' : 'listings'}`,
+    href: `/locality/${l.slug}`,
+    dot: true,
+  }));
   return (
     <section className="container-x py-16">
       <SectionTitle title={s.title} subtitle={s.subtitle} />
@@ -151,7 +209,15 @@ export function ProjectsSection({ s }: { s: any }) {
   if (!items.length) return null;
   return (
     <section className="container-x py-16">
-      <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/projects" variant="secondary" size="sm">All projects <ArrowRight className="size-4" /></Button>} />
+      <SectionTitle
+        title={s.title}
+        subtitle={s.subtitle}
+        action={
+          <Button href="/projects" variant="secondary" size="sm">
+            All projects <ArrowRight className="size-4" />
+          </Button>
+        }
+      />
       <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((p) => (
           <StaggerItem key={p.id}>
@@ -169,7 +235,15 @@ export function BrokersSection({ s }: { s: any }) {
   return (
     <section className="bg-surface/60 py-16">
       <div className="container-x">
-        <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/brokers" variant="secondary" size="sm">All brokers <ArrowRight className="size-4" /></Button>} />
+        <SectionTitle
+          title={s.title}
+          subtitle={s.subtitle}
+          action={
+            <Button href="/brokers" variant="secondary" size="sm">
+              All brokers <ArrowRight className="size-4" />
+            </Button>
+          }
+        />
         <Stagger className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {items.map((b) => (
             <StaggerItem key={b.id}>
@@ -185,7 +259,13 @@ export function BrokersSection({ s }: { s: any }) {
 export function ToolsSection({ s }: { s: any }) {
   const tools = [
     { href: '/tools?t=rent', icon: Wallet, title: 'Rent budget', text: 'आपकी income में कितना किराया ठीक है', c: 'from-emerald-500 to-teal-600' },
-    { href: '/tools?t=movein', icon: Calculator, title: 'Move-in cost', text: 'Deposit + brokerage + advance — कुल कितना चाहिए', c: 'from-indigo-500 to-violet-600' },
+    {
+      href: '/tools?t=movein',
+      icon: Calculator,
+      title: 'Move-in cost',
+      text: 'Deposit + brokerage + advance — कुल कितना चाहिए',
+      c: 'from-indigo-500 to-violet-600',
+    },
     { href: '/tools?t=split', icon: Scale, title: 'Rent split', text: 'Flatmates के बीच किराया और bills बाँटें', c: 'from-sky-500 to-blue-600' },
   ];
   return (
@@ -309,16 +389,21 @@ export function BlogSection({ s }: { s: any }) {
   if (!items.length) return null;
   return (
     <section className="container-x py-16">
-      <SectionTitle title={s.title} subtitle={s.subtitle} action={<Button href="/blog" variant="secondary" size="sm">All articles <ArrowRight className="size-4" /></Button>} />
+      <SectionTitle
+        title={s.title}
+        subtitle={s.subtitle}
+        action={
+          <Button href="/blog" variant="secondary" size="sm">
+            All articles <ArrowRight className="size-4" />
+          </Button>
+        }
+      />
       <Stagger className="grid gap-5 md:grid-cols-3">
         {items.map((p) => (
           <StaggerItem key={p.id}>
             <Link href={`/blog/${p.slug}`} className="group card block overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
               <div className="aspect-[16/9] bg-gradient-to-br from-brand-100 to-saffron-100 dark:from-brand-950 dark:to-surface-2">
-                {p.coverUrl && (
-                   
-                  <img src={p.coverUrl} alt={p.title} loading="lazy" className="h-full w-full object-cover" />
-                )}
+                {p.coverUrl && <img src={p.coverUrl} alt={p.title} loading="lazy" className="h-full w-full object-cover" />}
               </div>
               <div className="p-5">
                 <h3 className="font-display font-bold group-hover:text-brand-600">{p.title}</h3>
@@ -362,7 +447,7 @@ export function BannerSection({ s }: { s: any }) {
   if (!c.imageUrl) return null;
   const inner = (
     <div className="group relative overflow-hidden rounded-[28px] border border-line bg-surface-2 shadow-sm">
-      { }
+      {}
       <img src={img(c.imageUrl, 1600)} alt={s.title ?? ''} className="aspect-[21/7] w-full object-cover transition duration-700 group-hover:scale-[1.02]" />
       {(s.title || s.subtitle) && (
         <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-black/10 to-transparent p-6 sm:p-10">
@@ -372,12 +457,24 @@ export function BannerSection({ s }: { s: any }) {
           </div>
         </div>
       )}
-      {c.sponsor && <span className="absolute top-4 right-4 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">Sponsored · {c.sponsor}</span>}
+      {c.sponsor && (
+        <span className="absolute top-4 right-4 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+          Sponsored · {c.sponsor}
+        </span>
+      )}
     </div>
   );
   return (
     <section className="container-x py-10">
-      <Reveal>{c.link ? <a href={c.link} target={String(c.link).startsWith('http') ? '_blank' : undefined} rel="noreferrer">{inner}</a> : inner}</Reveal>
+      <Reveal>
+        {c.link ? (
+          <a href={c.link} target={String(c.link).startsWith('http') ? '_blank' : undefined} rel="noreferrer">
+            {inner}
+          </a>
+        ) : (
+          inner
+        )}
+      </Reveal>
     </section>
   );
 }

@@ -53,7 +53,12 @@ export class AssistantService {
     const call = async (c: Call) => {
       const res = await fetch(this.base() + c.path, {
         method: c.method,
-        headers: { Authorization: auth, 'Content-Type': 'application/json', [INTERNAL_CALL_HEADER]: INTERNAL_CALL_TOKEN, ...(ip ? { 'X-Forwarded-For': ip } : {}) },
+        headers: {
+          Authorization: auth,
+          'Content-Type': 'application/json',
+          [INTERNAL_CALL_HEADER]: INTERNAL_CALL_TOKEN,
+          ...(ip ? { 'X-Forwarded-For': ip } : {}),
+        },
         body: c.body === undefined ? undefined : JSON.stringify(c.body),
       });
       const text = await res.text();
@@ -81,10 +86,23 @@ export class AssistantService {
       SUPPORT: 'a BrokerIQ support team member (helps users and brokers)',
     };
     const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
-    return assistantSystem({ userName: user.name ?? 'the user', roleText: roleText[user.role], now, languageName: L.name, languageNative: L.code === 'en' ? undefined : L.native, path: context?.path, entityId: context?.entityId });
+    return assistantSystem({
+      userName: user.name ?? 'the user',
+      roleText: roleText[user.role],
+      now,
+      languageName: L.name,
+      languageNative: L.code === 'en' ? undefined : L.native,
+      path: context?.path,
+      entityId: context?.entityId,
+    });
   }
 
-  async chat(user: RequestUser & { name?: string }, auth: string, body: { messages: { role: 'user' | 'assistant'; content: string }[]; lang: string; context?: { path?: string; entityId?: string } }, ip?: string): Promise<AssistantReply> {
+  async chat(
+    user: RequestUser & { name?: string },
+    auth: string,
+    body: { messages: { role: 'user' | 'assistant'; content: string }[]; lang: string; context?: { path?: string; entityId?: string } },
+    ip?: string,
+  ): Promise<AssistantReply> {
     const allowed = toolsFor(user.role);
     const ctx = this.ctx(auth, ip);
     const msgs: any[] = [{ role: 'system', content: this.system(user, body.lang, body.context) }, ...body.messages.slice(-16)];
@@ -150,7 +168,10 @@ export class AssistantService {
     try {
       const m = await this.ai.chatWithTools(
         [
-          { role: 'system', content: `${this.system(user, lang)}\nThe user confirmed and the action "${tool.name}" was executed. Tell them the outcome in one or two short sentences.` },
+          {
+            role: 'system',
+            content: `${this.system(user, lang)}\nThe user confirmed and the action "${tool.name}" was executed. Tell them the outcome in one or two short sentences.`,
+          },
           { role: 'user', content: `Result: ${JSON.stringify(result).slice(0, 3000)}` },
         ],
         [],

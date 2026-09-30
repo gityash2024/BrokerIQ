@@ -39,7 +39,9 @@ export class BrokerInvitesController {
     const app = await this.settings.getAppConfig();
     try {
       const invite = await this.invites.validate(code);
-      const plan = invite.grantPlanCode ? await this.prisma.plan.findUnique({ where: { code: invite.grantPlanCode }, select: { code: true, name: true } }) : null;
+      const plan = invite.grantPlanCode
+        ? await this.prisma.plan.findUnique({ where: { code: invite.grantPlanCode }, select: { code: true, name: true } })
+        : null;
       const by = invite.createdByOrgId ? await this.prisma.organization.findUnique({ where: { id: invite.createdByOrgId }, select: { name: true } }) : null;
       return { valid: true, openSignup: app.auth.allowBrokerSignup, plan, months: invite.grantMonths, invitedBy: by?.name ?? null };
     } catch (e) {
@@ -65,7 +67,11 @@ export class BrokerInvitesController {
   @Roles('SUPER_ADMIN')
   @Get('admin/broker-invites')
   async list() {
-    const items = await this.prisma.brokerInvite.findMany({ orderBy: { createdAt: 'desc' }, take: 500, include: { createdByOrg: { select: { name: true } }, _count: { select: { orgs: true } } } });
+    const items = await this.prisma.brokerInvite.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      include: { createdByOrg: { select: { name: true } }, _count: { select: { orgs: true } } },
+    });
     return { items: items.map((i) => ({ ...i, link: this.invites.inviteLink(i.code) })), leaderboard: await this.invites.leaderboard(20) };
   }
 
@@ -74,7 +80,17 @@ export class BrokerInvitesController {
   async create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(inviteSchema)) body: z.infer<typeof inviteSchema>) {
     const code = this.invites.normalize(body.code) || (await this.invites.uniqueCode('BIQ'));
     const invite = await this.prisma.brokerInvite.create({
-      data: { code, note: body.note || null, email: body.email || null, grantPlanCode: body.grantPlanCode || null, grantMonths: body.grantMonths, maxUses: body.maxUses, expiresAt: body.expiresAt ?? null, isActive: body.isActive, createdById: user.id },
+      data: {
+        code,
+        note: body.note || null,
+        email: body.email || null,
+        grantPlanCode: body.grantPlanCode || null,
+        grantMonths: body.grantMonths,
+        maxUses: body.maxUses,
+        expiresAt: body.expiresAt ?? null,
+        isActive: body.isActive,
+        createdById: user.id,
+      },
     });
     await this.audit.log(user, 'broker_invite.create', 'BrokerInvite', invite.id, { code });
     return { ...invite, link: this.invites.inviteLink(invite.code) };
@@ -82,7 +98,11 @@ export class BrokerInvitesController {
 
   @Roles('SUPER_ADMIN')
   @Patch('admin/broker-invites/:id')
-  async update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(inviteSchema.partial())) body: Partial<z.infer<typeof inviteSchema>>) {
+  async update(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(inviteSchema.partial())) body: Partial<z.infer<typeof inviteSchema>>,
+  ) {
     const { code: _code, ...rest } = body;
     const invite = await this.prisma.brokerInvite.update({ where: { id }, data: { ...rest, email: rest.email === '' ? null : rest.email } });
     await this.audit.log(user, 'broker_invite.update', 'BrokerInvite', id);

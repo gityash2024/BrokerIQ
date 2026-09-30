@@ -12,7 +12,9 @@ export function configureApp(app: INestApplication) {
   app.setGlobalPrefix('api');
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(compression());
-  const origins = e.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+  const origins = e.CORS_ORIGINS.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
     origin: origins.includes('*') ? true : origins,
     credentials: true,

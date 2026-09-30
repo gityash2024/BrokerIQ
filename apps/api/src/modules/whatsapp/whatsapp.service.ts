@@ -17,7 +17,8 @@ export interface WaCreds {
   values: IntegrationValues;
 }
 
-const NOT_CONNECTED = 'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। तब तक "WhatsApp पर खोलें" button से message भेजें।';
+const NOT_CONNECTED =
+  'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। तब तक "WhatsApp पर खोलें" button से message भेजें।';
 
 @Injectable()
 export class WhatsAppService {
@@ -89,13 +90,21 @@ export class WhatsAppService {
   async send(
     orgId: string | null,
     to: string,
-    msg: { type: 'text'; text: string } | { type: 'template'; name: string; language: string; params: string[] } | { type: 'image' | 'document'; url: string; caption?: string },
+    msg:
+      | { type: 'text'; text: string }
+      | { type: 'template'; name: string; language: string; params: string[] }
+      | { type: 'image' | 'document'; url: string; caption?: string },
     opts: { leadId?: string | null; userId?: string | null; contactName?: string | null; meta?: Record<string, unknown> } = {},
   ) {
     const phone = normalizeIndianPhone(to) ?? to;
     const creds = await this.requireCreds(orgId);
     const conv = await this.conversationFor(orgId, phone, { leadId: opts.leadId, name: opts.contactName });
-    const body = msg.type === 'text' ? msg.text : msg.type === 'template' ? `[Template] ${msg.name}${msg.params.length ? `: ${msg.params.join(' | ')}` : ''}` : (msg.caption ?? '');
+    const body =
+      msg.type === 'text'
+        ? msg.text
+        : msg.type === 'template'
+          ? `[Template] ${msg.name}${msg.params.length ? `: ${msg.params.join(' | ')}` : ''}`
+          : (msg.caption ?? '');
     const type: MessageType = msg.type === 'text' ? 'TEXT' : msg.type === 'template' ? 'TEMPLATE' : msg.type === 'image' ? 'IMAGE' : 'DOCUMENT';
     const record = await this.prisma.message.create({
       data: {
@@ -115,7 +124,11 @@ export class WhatsAppService {
     else if (msg.type === 'template')
       Object.assign(payload, {
         type: 'template',
-        template: { name: msg.name, language: { code: msg.language }, ...(msg.params.length ? { components: [{ type: 'body', parameters: msg.params.map((p) => ({ type: 'text', text: p })) }] } : {}) },
+        template: {
+          name: msg.name,
+          language: { code: msg.language },
+          ...(msg.params.length ? { components: [{ type: 'body', parameters: msg.params.map((p) => ({ type: 'text', text: p })) }] } : {}),
+        },
       });
     else Object.assign(payload, { type: msg.type, [msg.type]: { link: msg.url, ...(msg.caption ? { caption: msg.caption } : {}) } });
 
@@ -124,7 +137,15 @@ export class WhatsAppService {
       const saved = await this.prisma.message.update({ where: { id: record.id }, data: { status: 'SENT', externalId } });
       await this.touchConversation(conv.id, body, false);
       if (opts.leadId && conv.organizationId) {
-        await this.prisma.activity.create({ data: { organizationId: conv.organizationId, leadId: opts.leadId, userId: opts.userId ?? null, type: 'WHATSAPP', content: `📤 ${body.slice(0, 500)}` } });
+        await this.prisma.activity.create({
+          data: {
+            organizationId: conv.organizationId,
+            leadId: opts.leadId,
+            userId: opts.userId ?? null,
+            type: 'WHATSAPP',
+            content: `📤 ${body.slice(0, 500)}`,
+          },
+        });
         await this.prisma.lead.update({ where: { id: opts.leadId }, data: { lastActivityAt: new Date() } });
         await this.prisma.lead.updateMany({ where: { id: opts.leadId, firstResponseAt: null }, data: { firstResponseAt: new Date() } });
       }
@@ -171,7 +192,9 @@ export class WhatsAppService {
 
   async handleWebhook(key: string, body: any) {
     const target = await this.resolveWebhookTarget(key);
-    await this.prisma.webhookEvent.create({ data: { provider: 'whatsapp', organizationId: target.orgId, payload: body as Prisma.InputJsonValue, status: 'PROCESSED', processedAt: new Date() } });
+    await this.prisma.webhookEvent.create({
+      data: { provider: 'whatsapp', organizationId: target.orgId, payload: body as Prisma.InputJsonValue, status: 'PROCESSED', processedAt: new Date() },
+    });
     for (const entry of body?.entry ?? []) {
       for (const change of entry?.changes ?? []) {
         const value = change?.value ?? {};
@@ -216,16 +239,35 @@ export class WhatsAppService {
 
     let leadId: string | null = null;
     if (orgId) {
-      const existing = await this.prisma.lead.findUnique({ where: { organizationId_phone: { organizationId: orgId, phone: normalizeIndianPhone(phone) ?? phone } } });
+      const existing = await this.prisma.lead.findUnique({
+        where: { organizationId_phone: { organizationId: orgId, phone: normalizeIndianPhone(phone) ?? phone } },
+      });
       if (existing) leadId = existing.id;
       else {
-        const { lead } = await this.leads.ingest({ orgId, name: profileName ?? null, phone, source: 'WHATSAPP', sourceRef: m.id, sourceDetail: 'Incoming WhatsApp message', message: text });
+        const { lead } = await this.leads.ingest({
+          orgId,
+          name: profileName ?? null,
+          phone,
+          source: 'WHATSAPP',
+          sourceRef: m.id,
+          sourceDetail: 'Incoming WhatsApp message',
+          message: text,
+        });
         leadId = lead.id;
       }
     }
     const conv = await this.conversationFor(orgId, phone, { name: profileName, leadId });
     const saved = await this.prisma.message.create({
-      data: { conversationId: conv.id, direction: 'INBOUND', type, body: text, mediaUrl, status: 'RECEIVED', externalId: m.id, meta: { raw: m } as Prisma.InputJsonValue },
+      data: {
+        conversationId: conv.id,
+        direction: 'INBOUND',
+        type,
+        body: text,
+        mediaUrl,
+        status: 'RECEIVED',
+        externalId: m.id,
+        meta: { raw: m } as Prisma.InputJsonValue,
+      },
     });
     await this.touchConversation(conv.id, text, true);
     if (leadId && orgId) {
@@ -247,7 +289,10 @@ export class WhatsAppService {
     if (!msg) return;
     const order = ['QUEUED', 'SENT', 'DELIVERED', 'READ'];
     if (status !== 'FAILED' && order.indexOf(status) <= order.indexOf(msg.status)) return;
-    const updated = await this.prisma.message.update({ where: { id: msg.id }, data: { status, error: s.errors?.[0]?.title ?? (status === 'FAILED' ? 'Failed' : null) } });
+    const updated = await this.prisma.message.update({
+      where: { id: msg.id },
+      data: { status, error: s.errors?.[0]?.title ?? (status === 'FAILED' ? 'Failed' : null) },
+    });
     this.emit(msg.conversation.organizationId, 'wa:status', { conversationId: msg.conversationId, messageId: msg.id, status: updated.status });
   }
 
@@ -255,14 +300,25 @@ export class WhatsAppService {
   async syncTemplates(orgId: string) {
     const c = await this.requireCreds(orgId);
     if (c.scope !== 'organization') throw new ForbiddenException('Templates sync के लिए अपना WhatsApp number connect करें');
-    const res = await fetch(`${GRAPH}/${c.values.businessAccountId}/message_templates?limit=200&fields=name,language,status,category,components`, { headers: { Authorization: `Bearer ${c.values.accessToken}` } });
+    const res = await fetch(`${GRAPH}/${c.values.businessAccountId}/message_templates?limit=200&fields=name,language,status,category,components`, {
+      headers: { Authorization: `Bearer ${c.values.accessToken}` },
+    });
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok) throw new IntegrationFailedException('whatsapp', data?.error?.message ?? `Meta ${res.status}`);
     for (const t of data.data ?? []) {
       const bodyText = (t.components ?? []).find((c: any) => c.type === 'BODY')?.text ?? null;
       await this.prisma.whatsAppTemplate.upsert({
         where: { organizationId_name_language: { organizationId: orgId, name: t.name, language: t.language } },
-        create: { organizationId: orgId, name: t.name, language: t.language, status: t.status, category: t.category, body: bodyText, components: t.components, externalId: t.id },
+        create: {
+          organizationId: orgId,
+          name: t.name,
+          language: t.language,
+          status: t.status,
+          category: t.category,
+          body: bodyText,
+          components: t.components,
+          externalId: t.id,
+        },
         update: { status: t.status, category: t.category, body: bodyText, components: t.components, externalId: t.id },
       });
     }

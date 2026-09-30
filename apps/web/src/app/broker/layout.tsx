@@ -2,7 +2,34 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Bell, Building2, CalendarCheck, CircleDollarSign, Handshake, Inbox, KanbanSquare, LayoutDashboard, ListChecks, MessageSquareHeart, MessagesSquare, Plug, Plus, ScanLine, Settings, Star, Users, Workflow, ShieldCheck, UserPlus, Network, KeyRound, FileText, Wallet, FileSignature } from 'lucide-react';
+import {
+  BarChart3,
+  Bell,
+  Building2,
+  CalendarCheck,
+  CircleDollarSign,
+  Handshake,
+  Inbox,
+  KanbanSquare,
+  LayoutDashboard,
+  ListChecks,
+  MessageSquareHeart,
+  MessagesSquare,
+  Plug,
+  Plus,
+  ScanLine,
+  Settings,
+  Star,
+  Users,
+  Workflow,
+  ShieldCheck,
+  UserPlus,
+  Network,
+  KeyRound,
+  FileText,
+  Wallet,
+  FileSignature,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
@@ -18,9 +45,15 @@ function Inner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
-  const dash = useQuery({ queryKey: ['broker-dashboard'], queryFn: () => api<any>('/broker/dashboard'), refetchInterval: 60_000, enabled: pathname !== '/broker/onboarding' });
+  const dash = useQuery({
+    queryKey: ['broker-dashboard'],
+    queryFn: () => api<any>('/broker/dashboard'),
+    refetchInterval: 60_000,
+    enabled: pathname !== '/broker/onboarding',
+  });
   useEffect(() => {
-    if (user?.role === 'BROKER_ADMIN' && user.organization && !user.organization.onboarded && pathname !== '/broker/onboarding') router.replace('/broker/onboarding');
+    if (user?.role === 'BROKER_ADMIN' && user.organization && !user.organization.onboarded && pathname !== '/broker/onboarding')
+      router.replace('/broker/onboarding');
   }, [user, pathname, router]);
   if (pathname === '/broker/onboarding') return <>{children}</>;
   const k = dash.data?.kpis;
@@ -51,7 +84,12 @@ function Inner({ children }: { children: React.ReactNode }) {
     {
       title: 'Growth',
       items: [
-        ...(admin ? [{ href: '/broker/automations', label: 'Automations', icon: Workflow }, { href: '/broker/connectors', label: 'Lead connectors', icon: Plug }] : []),
+        ...(admin
+          ? [
+              { href: '/broker/automations', label: 'Automations', icon: Workflow },
+              { href: '/broker/connectors', label: 'Lead connectors', icon: Plug },
+            ]
+          : []),
         { href: '/broker/analytics', label: 'Analytics', icon: BarChart3 },
         ...(admin ? [{ href: '/broker/reviews', label: 'Reviews', icon: Star }] : []),
       ],
@@ -61,7 +99,12 @@ function Inner({ children }: { children: React.ReactNode }) {
       items: [
         { href: '/broker/team', label: 'Team', icon: Users },
         { href: '/broker/invite-brokers', label: 'Brokers को invite करें', icon: UserPlus },
-        ...(admin ? [{ href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign, flag: 'paid' }, { href: '/broker/settings', label: 'Settings', icon: Settings }] : []),
+        ...(admin
+          ? [
+              { href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign, flag: 'paid' },
+              { href: '/broker/settings', label: 'Settings', icon: Settings },
+            ]
+          : []),
         { href: '/broker/notifications', label: 'Notifications', icon: Bell },
         { href: '/broker/privacy', label: 'Privacy & data sharing', icon: ShieldCheck },
         { href: '/broker/feedback', label: 'Feedback', icon: MessageSquareHeart },

@@ -78,7 +78,22 @@ async function toDataUrl(file: File, max = 1800): Promise<string> {
   return c.toDataURL('image/jpeg', 0.85);
 }
 
-const blank = (): Row => ({ key: Math.random().toString(36).slice(2), purpose: 'RENT', propertyType: 'APARTMENT', localityId: null, societyName: null, unit: null, floor: null, bedrooms: null, area: null, price: null, furnishing: null, contactName: null, contactPhone: null, notes: null });
+const blank = (): Row => ({
+  key: Math.random().toString(36).slice(2),
+  purpose: 'RENT',
+  propertyType: 'APARTMENT',
+  localityId: null,
+  societyName: null,
+  unit: null,
+  floor: null,
+  bedrooms: null,
+  area: null,
+  price: null,
+  furnishing: null,
+  contactName: null,
+  contactPhone: null,
+  notes: null,
+});
 
 export default function ScannerPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -130,7 +145,8 @@ export default function ScannerPage() {
     setDone(null);
     setNotConfigured(null);
     const fresh: Page[] = [];
-    for (const f of Array.from(files).slice(0, 20)) fresh.push({ key: Math.random().toString(36).slice(2), dataUrl: await toDataUrl(f), status: 'pending', rows: 0 });
+    for (const f of Array.from(files).slice(0, 20))
+      fresh.push({ key: Math.random().toString(36).slice(2), dataUrl: await toDataUrl(f), status: 'pending', rows: 0 });
     setPages((ps) => [...ps, ...fresh]);
     await processPages(fresh);
   };
@@ -147,7 +163,16 @@ export default function ScannerPage() {
   const importAll = async (submit: boolean) => {
     setImporting(submit ? 'submit' : 'draft');
     try {
-      const payload = rows.map(({ key, localityName, confidence, error, page, ...r }) => (void key, void localityName, void confidence, void error, void page, { ...r, purpose: 'RENT' }));
+      const payload = rows.map(
+        ({ key, localityName, confidence, error, page, ...r }) => (
+          void key,
+          void localityName,
+          void confidence,
+          void error,
+          void page,
+          { ...r, purpose: 'RENT' }
+        ),
+      );
       const res = await post<{ created: number; errors: { index: number; error: string }[] }>('/ai/scan/import', { rows: payload, submit });
       const failed = new Set(res.errors.map((e) => e.index));
       setRows((rs) => rs.map((r, i) => ({ ...r, error: res.errors.find((e) => e.index === i)?.error })).filter((_, i) => failed.has(i)));
@@ -162,7 +187,10 @@ export default function ScannerPage() {
 
   return (
     <>
-      <PageHeader title="AI listing-book scanner" subtitle="Register / diary के एक या कई पन्नों की photo डालें — OCR + AI हर rent property को row में बदल देगा। Check करें और approval के लिए भेजें।" />
+      <PageHeader
+        title="AI listing-book scanner"
+        subtitle="Register / diary के एक या कई पन्नों की photo डालें — OCR + AI हर rent property को row में बदल देगा। Check करें और approval के लिए भेजें।"
+      />
       {notConfigured?.body.integration && (
         <div className="mb-5">
           <IntegrationBanner name={notConfigured.body.integration.name} message={notConfigured.body.message} />
@@ -174,7 +202,6 @@ export default function ScannerPage() {
           <div className="card relative overflow-hidden p-5">
             <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border-2 border-dashed border-line bg-surface-2">
               {preview ? (
-                 
                 <img src={preview} alt="Scanned page" className="h-full w-full object-contain" />
               ) : (
                 <div className="grid h-full place-items-center p-6 text-center">
@@ -183,16 +210,24 @@ export default function ScannerPage() {
                       <ScanLine className="size-8" />
                     </div>
                     <p className="mt-4 font-semibold">पन्नों की photos डालें</p>
-                    <p className="mt-1 text-sm text-muted">एक साथ 20 पन्ने तक। अच्छी रोशनी, page सीधा और पूरा frame में। Hindi / English handwriting दोनों चलती है।</p>
+                    <p className="mt-1 text-sm text-muted">
+                      एक साथ 20 पन्ने तक। अच्छी रोशनी, page सीधा और पूरा frame में। Hindi / English handwriting दोनों चलती है।
+                    </p>
                   </div>
                 </div>
               )}
               <AnimatePresence>
                 {scanning && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-brand-950/40">
-                    <motion.div className="absolute inset-x-0 h-24 bg-gradient-to-b from-transparent via-brand-400/60 to-transparent" animate={{ top: ['-20%', '100%'] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }} />
+                    <motion.div
+                      className="absolute inset-x-0 h-24 bg-gradient-to-b from-transparent via-brand-400/60 to-transparent"
+                      animate={{ top: ['-20%', '100%'] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                    />
                     <div className="absolute inset-x-0 bottom-4 text-center">
-                      <Badge tone="dark"><Sparkles className="size-3.5" /> AI पढ़ रहा है…</Badge>
+                      <Badge tone="dark">
+                        <Sparkles className="size-3.5" /> AI पढ़ रहा है…
+                      </Badge>
                     </div>
                   </motion.div>
                 )}
@@ -213,15 +248,41 @@ export default function ScannerPage() {
               <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {pages.map((pg, i) => (
                   <div key={pg.key} className="shrink-0 text-center">
-                    <button type="button" onClick={() => setActive(pg.key)} className={cn('relative block h-24 w-[72px] overflow-hidden rounded-xl border-2', pg.status === 'error' ? 'border-rose-500' : pg.status === 'done' ? 'border-emerald-500' : 'border-line', active === pg.key && 'ring-2 ring-brand-500')}>
-                      { }
+                    <button
+                      type="button"
+                      onClick={() => setActive(pg.key)}
+                      className={cn(
+                        'relative block h-24 w-[72px] overflow-hidden rounded-xl border-2',
+                        pg.status === 'error' ? 'border-rose-500' : pg.status === 'done' ? 'border-emerald-500' : 'border-line',
+                        active === pg.key && 'ring-2 ring-brand-500',
+                      )}
+                    >
+                      {}
                       <img src={pg.dataUrl} alt={`Page ${i + 1}`} className="h-full w-full object-cover" />
-                      {pg.status === 'scanning' && <span className="absolute inset-0 grid place-items-center bg-brand-950/40"><Sparkles className="size-5 animate-pulse text-white" /></span>}
+                      {pg.status === 'scanning' && (
+                        <span className="absolute inset-0 grid place-items-center bg-brand-950/40">
+                          <Sparkles className="size-5 animate-pulse text-white" />
+                        </span>
+                      )}
                     </button>
-                    <p className={cn('mt-1 text-[11px]', pg.status === 'error' ? 'font-semibold text-rose-600' : 'text-muted')}>{pg.status === 'done' ? `P${i + 1} · ${pg.rows}` : pg.status === 'error' ? 'Error' : `P${i + 1}`}</p>
+                    <p className={cn('mt-1 text-[11px]', pg.status === 'error' ? 'font-semibold text-rose-600' : 'text-muted')}>
+                      {pg.status === 'done' ? `P${i + 1} · ${pg.rows}` : pg.status === 'error' ? 'Error' : `P${i + 1}`}
+                    </p>
                     <div className="flex justify-center gap-1">
-                      <button type="button" title="Rotate & rescan" disabled={scanning} onClick={() => rotateAndRescan(pg)} className="text-subtle hover:text-brand-600 disabled:opacity-40"><RotateCw className="size-3.5" /></button>
-                      {pg.rawText && <button type="button" title="मूल text (OCR)" onClick={() => setRawOpen(pg.key)} className="text-subtle hover:text-brand-600"><FileText className="size-3.5" /></button>}
+                      <button
+                        type="button"
+                        title="Rotate & rescan"
+                        disabled={scanning}
+                        onClick={() => rotateAndRescan(pg)}
+                        className="text-subtle hover:text-brand-600 disabled:opacity-40"
+                      >
+                        <RotateCw className="size-3.5" />
+                      </button>
+                      {pg.rawText && (
+                        <button type="button" title="मूल text (OCR)" onClick={() => setRawOpen(pg.key)} className="text-subtle hover:text-brand-600">
+                          <FileText className="size-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -234,17 +295,28 @@ export default function ScannerPage() {
               <li>हर पन्ना OCR + AI (Groq / Gemini vision) से पढ़ा जाता है — मूल text भी देख सकते हैं</li>
               <li>Sector, society, BHK, rent, deposit, brokerage, owner contact निकाले जाते हैं</li>
               <li>आप check / edit करते हैं</li>
-              <li><b>Approval के लिए भेजें</b> — admin approve करते ही live, या <b>Drafts</b> में रखकर photos जोड़ें</li>
+              <li>
+                <b>Approval के लिए भेजें</b> — admin approve करते ही live, या <b>Drafts</b> में रखकर photos जोड़ें
+              </li>
             </ol>
           </div>
         </div>
 
         <div className="min-w-0">
           {done && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+            >
               <CheckCircle2 className="size-5" />
-              <p className="flex-1 font-semibold">{done.created} listings {done.submitted ? 'admin approval के लिए भेजी गईं' : 'drafts में जुड़ गईं'}{rows.length ? ` · ${rows.length} rows में सुधार चाहिए` : ''}</p>
-              <Button size="sm" variant="success" href="/broker/listings">Inventory देखें</Button>
+              <p className="flex-1 font-semibold">
+                {done.created} listings {done.submitted ? 'admin approval के लिए भेजी गईं' : 'drafts में जुड़ गईं'}
+                {rows.length ? ` · ${rows.length} rows में सुधार चाहिए` : ''}
+              </p>
+              <Button size="sm" variant="success" href="/broker/listings">
+                Inventory देखें
+              </Button>
             </motion.div>
           )}
           {!rows.length ? (
@@ -253,27 +325,57 @@ export default function ScannerPage() {
                 <FileImage className="mx-auto size-10 text-subtle" />
                 <p className="mt-3 font-semibold">Scan की गई rows यहाँ दिखेंगी</p>
                 <p className="mt-1 text-sm text-muted">या बिना photo के manually rows जोड़ें।</p>
-                <Button className="mt-4" variant="secondary" size="sm" onClick={() => setRows([blank()])}><Plus className="size-4" /> Manual row</Button>
+                <Button className="mt-4" variant="secondary" size="sm" onClick={() => setRows([blank()])}>
+                  <Plus className="size-4" /> Manual row
+                </Button>
               </div>
             </div>
           ) : (
             <div className="card overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 border-b border-line p-4">
-                <p className="font-display font-bold">{rows.length} {rows.length === 1 ? 'row' : 'rows'}</p>
+                <p className="font-display font-bold">
+                  {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+                </p>
                 <p className="text-xs text-muted">Locality और price हर row में ज़रूरी हैं</p>
                 <div className="ml-auto flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => (setRows([]), setPages([]))}><RotateCcw className="size-4" /> Reset</Button>
-                  <Button size="sm" variant="secondary" onClick={() => setRows((r) => [...r, blank()])}><Plus className="size-4" /> Row</Button>
-                  <Button size="sm" variant="secondary" loading={importing === 'draft'} disabled={!!importing} onClick={() => importAll(false)}>Drafts में डालें</Button>
-                  <Button size="sm" loading={importing === 'submit'} disabled={!!importing} onClick={() => importAll(true)}>{rows.length} approval के लिए भेजें</Button>
+                  <Button size="sm" variant="ghost" onClick={() => (setRows([]), setPages([]))}>
+                    <RotateCcw className="size-4" /> Reset
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setRows((r) => [...r, blank()])}>
+                    <Plus className="size-4" /> Row
+                  </Button>
+                  <Button size="sm" variant="secondary" loading={importing === 'draft'} disabled={!!importing} onClick={() => importAll(false)}>
+                    Drafts में डालें
+                  </Button>
+                  <Button size="sm" loading={importing === 'submit'} disabled={!!importing} onClick={() => importAll(true)}>
+                    {rows.length} approval के लिए भेजें
+                  </Button>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1320px] text-sm">
                   <thead className="bg-surface-2/60 text-left text-[11px] font-bold tracking-wide text-subtle uppercase">
                     <tr>
-                      {['', 'Type', 'Locality *', 'Society', 'Unit', 'BHK', 'Floor', 'Area sqft', 'Rent ₹/mo *', 'Deposit ₹', 'Brokerage', 'Furnishing', 'Owner', 'Phone', ''].map((h, i) => (
-                        <th key={i} className="px-2 py-2.5 whitespace-nowrap">{h}</th>
+                      {[
+                        '',
+                        'Type',
+                        'Locality *',
+                        'Society',
+                        'Unit',
+                        'BHK',
+                        'Floor',
+                        'Area sqft',
+                        'Rent ₹/mo *',
+                        'Deposit ₹',
+                        'Brokerage',
+                        'Furnishing',
+                        'Owner',
+                        'Phone',
+                        '',
+                      ].map((h, i) => (
+                        <th key={i} className="px-2 py-2.5 whitespace-nowrap">
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -282,49 +384,153 @@ export default function ScannerPage() {
                       {rows.map((r) => {
                         const c = 'h-9 w-full rounded-lg border border-line bg-surface px-2 text-sm focus:border-brand-500 focus:outline-none';
                         return (
-                          <motion.tr key={r.key} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className={cn('border-t border-line align-top', r.error && 'bg-rose-50/60 dark:bg-rose-500/5')}>
+                          <motion.tr
+                            key={r.key}
+                            layout
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className={cn('border-t border-line align-top', r.error && 'bg-rose-50/60 dark:bg-rose-500/5')}
+                          >
                             <td className="px-2 py-2">
-                              {r.confidence != null && <span title="AI confidence" className={cn('inline-block size-2.5 rounded-full', r.confidence > 0.75 ? 'bg-emerald-500' : r.confidence > 0.5 ? 'bg-amber-500' : 'bg-rose-500')} />}
+                              {r.confidence != null && (
+                                <span
+                                  title="AI confidence"
+                                  className={cn(
+                                    'inline-block size-2.5 rounded-full',
+                                    r.confidence > 0.75 ? 'bg-emerald-500' : r.confidence > 0.5 ? 'bg-amber-500' : 'bg-rose-500',
+                                  )}
+                                />
+                              )}
                             </td>
                             <td className="px-1 py-2">
                               <select className={cn(c, 'w-32')} value={r.propertyType} onChange={(e) => upd(r.key, { propertyType: e.target.value })}>
-                                {RENTABLE_TYPES.map((t) => <option key={t} value={t}>{PROPERTY_TYPE_LABELS[t]}</option>)}
+                                {RENTABLE_TYPES.map((t) => (
+                                  <option key={t} value={t}>
+                                    {PROPERTY_TYPE_LABELS[t]}
+                                  </option>
+                                ))}
                               </select>
                             </td>
                             <td className="px-1 py-2">
-                              <select className={cn(c, 'w-40', !r.localityId && 'border-amber-400')} value={r.localityId ?? ''} onChange={(e) => upd(r.key, { localityId: e.target.value || null })}>
+                              <select
+                                className={cn(c, 'w-40', !r.localityId && 'border-amber-400')}
+                                value={r.localityId ?? ''}
+                                onChange={(e) => upd(r.key, { localityId: e.target.value || null })}
+                              >
                                 <option value="">{r.localityName ? `? ${r.localityName}` : 'चुनें'}</option>
-                                {locs?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                {locs?.map((l) => (
+                                  <option key={l.id} value={l.id}>
+                                    {l.name}
+                                  </option>
+                                ))}
                               </select>
                               {r.error && <p className="mt-1 text-[11px] font-semibold text-rose-600">{r.error}</p>}
                             </td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-36')} value={r.societyName ?? ''} onChange={(e) => upd(r.key, { societyName: e.target.value || null })} /></td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-20')} value={r.unit ?? ''} onChange={(e) => upd(r.key, { unit: e.target.value || null })} /></td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-14')} type="number" value={r.bedrooms ?? ''} onChange={(e) => upd(r.key, { bedrooms: numOrNull(e.target.value) })} /></td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-14')} type="number" value={r.floor ?? ''} onChange={(e) => upd(r.key, { floor: numOrNull(e.target.value) })} /></td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-24')} type="number" value={r.area ?? ''} onChange={(e) => upd(r.key, { area: numOrNull(e.target.value) })} /></td>
                             <td className="px-1 py-2">
-                              <input className={cn(c, 'w-28', !r.price && 'border-amber-400')} type="number" value={r.price ?? ''} onChange={(e) => upd(r.key, { price: numOrNull(e.target.value) })} />
+                              <input
+                                className={cn(c, 'w-36')}
+                                value={r.societyName ?? ''}
+                                onChange={(e) => upd(r.key, { societyName: e.target.value || null })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <input className={cn(c, 'w-20')} value={r.unit ?? ''} onChange={(e) => upd(r.key, { unit: e.target.value || null })} />
+                            </td>
+                            <td className="px-1 py-2">
+                              <input
+                                className={cn(c, 'w-14')}
+                                type="number"
+                                value={r.bedrooms ?? ''}
+                                onChange={(e) => upd(r.key, { bedrooms: numOrNull(e.target.value) })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <input
+                                className={cn(c, 'w-14')}
+                                type="number"
+                                value={r.floor ?? ''}
+                                onChange={(e) => upd(r.key, { floor: numOrNull(e.target.value) })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <input
+                                className={cn(c, 'w-24')}
+                                type="number"
+                                value={r.area ?? ''}
+                                onChange={(e) => upd(r.key, { area: numOrNull(e.target.value) })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <input
+                                className={cn(c, 'w-28', !r.price && 'border-amber-400')}
+                                type="number"
+                                value={r.price ?? ''}
+                                onChange={(e) => upd(r.key, { price: numOrNull(e.target.value) })}
+                              />
                               {r.price ? <p className="mt-0.5 text-[11px] text-muted">{formatPriceShort(r.price)}</p> : null}
                             </td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-28')} type="number" value={r.securityDeposit ?? ''} onChange={(e) => upd(r.key, { securityDeposit: numOrNull(e.target.value) })} /></td>
                             <td className="px-1 py-2">
-                              <select className={cn(c, 'w-32')} value={r.brokerageType ?? ''} onChange={(e) => upd(r.key, { brokerageType: e.target.value || null })}>
+                              <input
+                                className={cn(c, 'w-28')}
+                                type="number"
+                                value={r.securityDeposit ?? ''}
+                                onChange={(e) => upd(r.key, { securityDeposit: numOrNull(e.target.value) })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <select
+                                className={cn(c, 'w-32')}
+                                value={r.brokerageType ?? ''}
+                                onChange={(e) => upd(r.key, { brokerageType: e.target.value || null })}
+                              >
                                 <option value="">—</option>
-                                {Object.entries(BROKERAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                {Object.entries(BROKERAGE_LABELS).map(([k, v]) => (
+                                  <option key={k} value={k}>
+                                    {v}
+                                  </option>
+                                ))}
                               </select>
-                              {r.brokerageType === 'FIXED' && <input className={cn(c, 'mt-1 w-32')} type="number" placeholder="₹" value={r.brokerageAmount ?? ''} onChange={(e) => upd(r.key, { brokerageAmount: numOrNull(e.target.value) })} />}
+                              {r.brokerageType === 'FIXED' && (
+                                <input
+                                  className={cn(c, 'mt-1 w-32')}
+                                  type="number"
+                                  placeholder="₹"
+                                  value={r.brokerageAmount ?? ''}
+                                  onChange={(e) => upd(r.key, { brokerageAmount: numOrNull(e.target.value) })}
+                                />
+                              )}
                             </td>
                             <td className="px-1 py-2">
                               <select className={cn(c, 'w-28')} value={r.furnishing ?? ''} onChange={(e) => upd(r.key, { furnishing: e.target.value || null })}>
                                 <option value="">—</option>
-                                {Object.entries(FURNISHING_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                {Object.entries(FURNISHING_LABELS).map(([k, v]) => (
+                                  <option key={k} value={k}>
+                                    {v}
+                                  </option>
+                                ))}
                               </select>
                             </td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-28')} value={r.contactName ?? ''} onChange={(e) => upd(r.key, { contactName: e.target.value || null })} /></td>
-                            <td className="px-1 py-2"><input className={cn(c, 'w-32')} value={r.contactPhone ?? ''} onChange={(e) => upd(r.key, { contactPhone: e.target.value || null })} /></td>
                             <td className="px-1 py-2">
-                              <button onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} className="grid size-9 place-items-center rounded-lg text-subtle hover:bg-rose-50 hover:text-rose-600" aria-label="Remove row">
+                              <input
+                                className={cn(c, 'w-28')}
+                                value={r.contactName ?? ''}
+                                onChange={(e) => upd(r.key, { contactName: e.target.value || null })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <input
+                                className={cn(c, 'w-32')}
+                                value={r.contactPhone ?? ''}
+                                onChange={(e) => upd(r.key, { contactPhone: e.target.value || null })}
+                              />
+                            </td>
+                            <td className="px-1 py-2">
+                              <button
+                                onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                                className="grid size-9 place-items-center rounded-lg text-subtle hover:bg-rose-50 hover:text-rose-600"
+                                aria-label="Remove row"
+                              >
                                 <Trash2 className="size-4" />
                               </button>
                             </td>
@@ -338,12 +544,17 @@ export default function ScannerPage() {
             </div>
           )}
           <p className="mt-3 text-xs text-subtle">
-            AI credits आपके plan में शामिल हैं — <Link href="/broker/billing" className="font-semibold text-brand-600">usage देखें</Link>
+            AI credits आपके plan में शामिल हैं —{' '}
+            <Link href="/broker/billing" className="font-semibold text-brand-600">
+              usage देखें
+            </Link>
           </p>
         </div>
       </div>
       <Dialog open={!!rawOpen} onOpenChange={(o) => !o && setRawOpen(null)} title="मूल text (OCR)" description="Rows को इस text से मिलाकर check करें">
-        <pre className="max-h-[60vh] overflow-auto rounded-xl bg-surface-2 p-4 font-sans text-sm whitespace-pre-wrap">{pages.find((p) => p.key === rawOpen)?.rawText || '—'}</pre>
+        <pre className="max-h-[60vh] overflow-auto rounded-xl bg-surface-2 p-4 font-sans text-sm whitespace-pre-wrap">
+          {pages.find((p) => p.key === rawOpen)?.rawText || '—'}
+        </pre>
       </Dialog>
     </>
   );

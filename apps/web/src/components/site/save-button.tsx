@@ -37,7 +37,10 @@ export function SaveButton({ listingId, className, withLabel }: { listingId: str
       whileTap={{ scale: 0.8 }}
       onClick={toggle}
       aria-label={saved ? 'Remove from shortlist' : 'Shortlist'}
-      className={cn('inline-flex items-center gap-1.5 rounded-full bg-white/90 p-2 text-slate-700 shadow-md backdrop-blur transition hover:scale-105 dark:bg-slate-900/80 dark:text-slate-200', className)}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full bg-white/90 p-2 text-slate-700 shadow-md backdrop-blur transition hover:scale-105 dark:bg-slate-900/80 dark:text-slate-200',
+        className,
+      )}
     >
       <Heart className={cn('size-[18px] transition', saved && 'fill-rose-500 text-rose-500')} />
       {withLabel && <span className="pr-1 text-sm font-semibold">{saved ? 'Saved' : 'Save'}</span>}

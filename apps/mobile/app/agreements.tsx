@@ -14,13 +14,28 @@ export default function AgreementsScreen() {
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['agreements'], queryFn: () => api<any[]>('/agreements') });
   const [open, setOpen] = useState(false);
-  const pdf = (id: string) => post<{ url: string }>(`/agreements/${id}/link`).then((r) => Linking.openURL(r.url)).catch(showError);
+  const pdf = (id: string) =>
+    post<{ url: string }>(`/agreements/${id}/link`)
+      .then((r) => Linking.openURL(r.url))
+      .catch(showError);
   return (
     <Screen edges={['top', 'bottom']}>
-      <Header title="Rent agreement" subtitle="Draft PDF · e-stamp: egrashry.nic.in" right={<Button title="नया" size="sm" icon={<Plus size={15} color="#fff" />} onPress={() => setOpen(true)} />} />
-      <Txt v="caption" color="muted">Standard template है, legal सलाह नहीं। e-stamp paper पर print करके sign करें; police verification: harsamay.gov.in</Txt>
-      {q.isLoading ? <Loader /> : !q.data?.length ? (
-        <Empty icon={<FileSignature size={26} color={c.brand} />} title="अभी कोई agreement नहीं" action={<Button title="Agreement बनाएँ" onPress={() => setOpen(true)} />} />
+      <Header
+        title="Rent agreement"
+        subtitle="Draft PDF · e-stamp: egrashry.nic.in"
+        right={<Button title="नया" size="sm" icon={<Plus size={15} color="#fff" />} onPress={() => setOpen(true)} />}
+      />
+      <Txt v="caption" color="muted">
+        Standard template है, legal सलाह नहीं। e-stamp paper पर print करके sign करें; police verification: harsamay.gov.in
+      </Txt>
+      {q.isLoading ? (
+        <Loader />
+      ) : !q.data?.length ? (
+        <Empty
+          icon={<FileSignature size={26} color={c.brand} />}
+          title="अभी कोई agreement नहीं"
+          action={<Button title="Agreement बनाएँ" onPress={() => setOpen(true)} />}
+        />
       ) : (
         q.data.map((a) => (
           <Card key={a.id} style={{ padding: 14, gap: 4, marginTop: 10 }}>
@@ -41,7 +56,14 @@ function NewAgreement({ open, onClose, onSaved }: { open: boolean; onClose: () =
   const save = async () => {
     setBusy(true);
     try {
-      const a = await post<any>('/agreements', { landlordName: f.landlordName, tenantName: f.tenantName, propertyAddress: f.propertyAddress, rent: Number(f.rent), deposit: Number(f.deposit || 0), startDate: f.startDate });
+      const a = await post<any>('/agreements', {
+        landlordName: f.landlordName,
+        tenantName: f.tenantName,
+        propertyAddress: f.propertyAddress,
+        rent: Number(f.rent),
+        deposit: Number(f.deposit || 0),
+        startDate: f.startDate,
+      });
       toast.success('Agreement बन गया');
       onClose();
       onSaved(a.id);
@@ -59,7 +81,13 @@ function NewAgreement({ open, onClose, onSaved }: { open: boolean; onClose: () =
       <Input label="Rent (₹/month)" value={f.rent} onChangeText={(v) => setF({ ...f, rent: v.replace(/\D/g, '') })} keyboardType="number-pad" />
       <Input label="Security deposit (₹)" value={f.deposit} onChangeText={(v) => setF({ ...f, deposit: v.replace(/\D/g, '') })} keyboardType="number-pad" />
       <Input label="Start date (YYYY-MM-DD)" value={f.startDate} onChangeText={(v) => setF({ ...f, startDate: v })} placeholder="2026-11-01" />
-      <Button title="PDF बनाएँ" size="lg" loading={busy} disabled={!f.landlordName || !f.tenantName || !f.propertyAddress || !f.rent || !/^\d{4}-\d{2}-\d{2}$/.test(f.startDate)} onPress={save} />
+      <Button
+        title="PDF बनाएँ"
+        size="lg"
+        loading={busy}
+        disabled={!f.landlordName || !f.tenantName || !f.propertyAddress || !f.rent || !/^\d{4}-\d{2}-\d{2}$/.test(f.startDate)}
+        onPress={save}
+      />
     </Sheet>
   );
 }

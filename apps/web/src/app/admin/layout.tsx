@@ -30,7 +30,9 @@ import {
   TicketPercent,
   ToggleRight,
   Ban,
-  Users, Contact } from 'lucide-react';
+  Users,
+  Contact,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';

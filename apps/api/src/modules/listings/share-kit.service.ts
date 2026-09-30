@@ -14,7 +14,12 @@ const SIZES: Record<Format, { w: number; h: number; photoH: number }> = { post: 
 
 /** Finds the bundled fonts from both src (ts-node/jest) and dist (production) layouts. */
 function fontDir() {
-  const candidates = [join(__dirname, '../../../assets/fonts'), join(__dirname, '../../../../assets/fonts'), join(process.cwd(), 'assets/fonts'), join(process.cwd(), 'apps/api/assets/fonts')];
+  const candidates = [
+    join(__dirname, '../../../assets/fonts'),
+    join(__dirname, '../../../../assets/fonts'),
+    join(process.cwd(), 'assets/fonts'),
+    join(process.cwd(), 'apps/api/assets/fonts'),
+  ];
   return candidates.find((d) => existsSync(join(d, 'Inter_700Bold.ttf'))) ?? candidates[0];
 }
 
@@ -49,7 +54,8 @@ export class ShareKitService {
     });
     if (!l) throw new NotFoundException('Listing नहीं मिली');
     if (l.status !== 'ACTIVE') throw new BadRequestException('Share kit सिर्फ़ live listing के लिए बनता है');
-    if (leadId && !(await this.prisma.lead.findFirst({ where: { id: leadId, organizationId: orgId }, select: { id: true } }))) throw new BadRequestException('Lead नहीं मिली');
+    if (leadId && !(await this.prisma.lead.findFirst({ where: { id: leadId, organizationId: orgId }, select: { id: true } })))
+      throw new BadRequestException('Lead नहीं मिली');
     const code = shortCode(8);
     await this.prisma.shareLink.create({ data: { code, organizationId: orgId, listingId, leadId: leadId ?? null, createdById: userId } });
     const web = env().PUBLIC_WEB_URL.replace(/\/$/, '');
@@ -58,12 +64,21 @@ export class ShareKitService {
     const lines = [
       `🏠 ${l.title}`,
       `💰 ${formatINR(l.price)}/month${l.securityDeposit ? ` · Deposit ${formatINR(l.securityDeposit)}` : ''}`,
-      [l.bedrooms ? `${l.bedrooms} BHK` : null, l.furnishing ? FURNISHING_LABELS[l.furnishing] : null, l.superArea ? `${l.superArea} sqft` : null].filter(Boolean).join(' · '),
+      [l.bedrooms ? `${l.bedrooms} BHK` : null, l.furnishing ? FURNISHING_LABELS[l.furnishing] : null, l.superArea ? `${l.superArea} sqft` : null]
+        .filter(Boolean)
+        .join(' · '),
       `📍 ${[l.societyName, l.locality.name, 'Gurgaon'].filter(Boolean).join(', ')}`,
-      l.organization ? `📞 ${l.organization.name}${l.organization.whatsapp || l.organization.phone ? ` — ${l.organization.whatsapp ?? l.organization.phone}` : ''}` : null,
+      l.organization
+        ? `📞 ${l.organization.name}${l.organization.whatsapp || l.organization.phone ? ` — ${l.organization.whatsapp ?? l.organization.phone}` : ''}`
+        : null,
       `👉 Photos और details: ${link}`,
     ].filter(Boolean);
-    return { code, link, caption: lines.join('\n'), images: { post: `${api}/api/public/share-kit/${code}?format=post`, story: `${api}/api/public/share-kit/${code}?format=story` } };
+    return {
+      code,
+      link,
+      caption: lines.join('\n'),
+      images: { post: `${api}/api/public/share-kit/${code}?format=post`, story: `${api}/api/public/share-kit/${code}?format=story` },
+    };
   }
 
   /** Renders the PNG for a share link (public: the listing itself is public). */
@@ -93,7 +108,13 @@ export class ShareKitService {
     const mid = format === 'story' ? 44 : 34;
     const small = format === 'story' ? 34 : 28;
     const y0 = photoH + (format === 'story' ? 150 : 110);
-    const facts = [l.bedrooms ? `${l.bedrooms} BHK` : PROPERTY_TYPE_LABELS[l.propertyType], l.furnishing ? FURNISHING_LABELS[l.furnishing] : null, l.superArea ? `${l.superArea} sqft` : null].filter(Boolean).join(' · ');
+    const facts = [
+      l.bedrooms ? `${l.bedrooms} BHK` : PROPERTY_TYPE_LABELS[l.propertyType],
+      l.furnishing ? FURNISHING_LABELS[l.furnishing] : null,
+      l.superArea ? `${l.superArea} sqft` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
     const place = [l.societyName, l.locality.name].filter(Boolean).join(', ');
     const paths = [
       this.path(f.bold, `${formatINR(l.price)}/month`, pad, y0, big, textW, '#FFFFFF'),
@@ -118,7 +139,10 @@ export class ShareKitService {
     if (photo) layers.push({ input: photo, top: 0, left: 0 });
     layers.push({ input: Buffer.from(svg), top: 0, left: 0 });
     layers.push({ input: qr, top: h - pad - qrSize - (format === 'story' ? 60 : 30), left: w - pad - qrSize });
-    const png = await sharp({ create: { width: w, height: h, channels: 4, background: '#0F172A' } }).composite(layers).png({ compressionLevel: 8 }).toBuffer();
+    const png = await sharp({ create: { width: w, height: h, channels: 4, background: '#0F172A' } })
+      .composite(layers)
+      .png({ compressionLevel: 8 })
+      .toBuffer();
     this.cache.set(key, { at: Date.now(), png });
     if (this.cache.size > 200) this.cache.delete(this.cache.keys().next().value!);
     return png;
@@ -136,7 +160,9 @@ export class ShareKitService {
       const url = src.startsWith('http') ? src : `${env().PUBLIC_API_URL.replace(/\/$/, '')}${src.startsWith('/') ? '' : '/'}${src}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) return null;
-      return await sharp(Buffer.from(await res.arrayBuffer())).resize(w, h, { fit: 'cover' }).toBuffer();
+      return await sharp(Buffer.from(await res.arrayBuffer()))
+        .resize(w, h, { fit: 'cover' })
+        .toBuffer();
     } catch (e) {
       this.logger.warn(`share-kit photo ${src}: ${(e as Error).message}`);
       return null;

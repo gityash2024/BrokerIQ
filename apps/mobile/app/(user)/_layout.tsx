@@ -13,7 +13,10 @@ export default function UserTabs() {
   const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications'), enabled: !!user, refetchInterval: 60_000 });
   const unread = (threads.data ?? []).filter((t) => t.lastInboundAt && t.lastMessageAt && t.lastMessageAt !== t.lastInboundAt).length;
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} badges={{ messages: unread || undefined, profile: notif.data?.unreadCount || undefined }} />}>
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(p) => <TabBar {...p} badges={{ messages: unread || undefined, profile: notif.data?.unreadCount || undefined }} />}
+    >
       <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color }) => <Home size={22} color={color} /> }} />
       <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: ({ color }) => <Search size={22} color={color} /> }} />
       <Tabs.Screen name="saved" options={{ title: 'Saved', tabBarIcon: ({ color }) => <Heart size={22} color={color} /> }} />

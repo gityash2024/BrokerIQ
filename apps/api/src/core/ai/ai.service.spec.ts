@@ -37,7 +37,10 @@ describe('AiService', () => {
 
   it('skips a provider whose key is rejected and moves to the next provider', async () => {
     respond = (u) => (u.includes('openrouter') ? { status: 401, json: { error: { message: 'bad key' } } } : ok('from groq'));
-    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' }, groq: { apiKey: 'g', textModel: 'llama' } }), prisma);
+    const ai = new AiService(
+      settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' }, groq: { apiKey: 'g', textModel: 'llama' } }),
+      prisma,
+    );
     await expect(ai.chat([{ role: 'user', content: 'hi' }], { feature: 't' })).resolves.toBe('from groq');
     expect(calls.map((c) => c.model)).toEqual(['a:free', 'llama']); // b:free not tried after 401
   });

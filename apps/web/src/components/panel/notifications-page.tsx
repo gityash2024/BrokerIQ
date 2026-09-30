@@ -17,7 +17,16 @@ export function NotificationsPage() {
   };
   return (
     <>
-      <PageHeader title="Notifications" actions={q.data?.unreadCount ? <Button variant="secondary" size="sm" onClick={markAll}>Mark all read</Button> : null} />
+      <PageHeader
+        title="Notifications"
+        actions={
+          q.data?.unreadCount ? (
+            <Button variant="secondary" size="sm" onClick={markAll}>
+              Mark all read
+            </Button>
+          ) : null
+        }
+      />
       {!q.data?.items.length ? (
         <Empty icon={<Bell className="size-6" />} title="सब शांत है" text="नई leads, messages और updates यहाँ दिखेंगे।" />
       ) : (

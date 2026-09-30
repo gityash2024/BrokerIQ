@@ -44,16 +44,26 @@ export class WaBotService implements OnModuleInit {
 
   async onPlatformMessage(conversationId: string) {
     if (!(await this.enabled())) return null;
-    const conv = await this.prisma.conversation.findUnique({ where: { id: conversationId }, include: { messages: { where: { direction: 'INBOUND' }, orderBy: { createdAt: 'desc' }, take: 1 } } });
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { messages: { where: { direction: 'INBOUND' }, orderBy: { createdAt: 'desc' }, take: 1 } },
+    });
     const text = conv?.messages[0]?.body?.trim();
     const phone = conv?.contactPhone;
     if (!conv || !text || !phone) return null;
     const recentBroker = await this.prisma.message.count({
-      where: { direction: 'OUTBOUND', createdAt: { gt: new Date(Date.now() - BROKER_THREAD_DAYS * 86400_000) }, conversation: { organizationId: { not: null }, contactPhone: phone } },
+      where: {
+        direction: 'OUTBOUND',
+        createdAt: { gt: new Date(Date.now() - BROKER_THREAD_DAYS * 86400_000) },
+        conversation: { organizationId: { not: null }, contactPhone: phone },
+      },
     });
     if (recentBroker) return null;
     const reply = await this.handle(phone, text, conv.contactName ?? null);
-    if (reply) await this.wa.send(null, phone, { type: 'text', text: reply }, { contactName: conv.contactName ?? undefined, meta: { bot: true } }).catch((e) => this.logger.warn(`bot reply: ${(e as Error).message}`));
+    if (reply)
+      await this.wa
+        .send(null, phone, { type: 'text', text: reply }, { contactName: conv.contactName ?? undefined, meta: { bot: true } })
+        .catch((e) => this.logger.warn(`bot reply: ${(e as Error).message}`));
     return reply;
   }
 
@@ -83,7 +93,11 @@ export class WaBotService implements OnModuleInit {
     const filters = await this.toFilters(q);
     const label = this.label(q, filters.localityName);
     const { localityName: _l, ...stored } = filters;
-    await this.prisma.whatsAppSubscriber.upsert({ where: { phone: norm }, create: { phone: norm, filters: stored as Prisma.InputJsonValue, label, active: false }, update: { filters: stored as Prisma.InputJsonValue, label } });
+    await this.prisma.whatsAppSubscriber.upsert({
+      where: { phone: norm },
+      create: { phone: norm, filters: stored as Prisma.InputJsonValue, label, active: false },
+      update: { filters: stored as Prisma.InputJsonValue, label },
+    });
     return this.results(stored, label, 1);
   }
 
@@ -98,15 +112,32 @@ export class WaBotService implements OnModuleInit {
   }
 
   private label(q: ParsedQuery, localityName: string | null) {
-    return [q.bedrooms.length ? `${q.bedrooms.join('/')} BHK` : null, q.types.includes('PG') ? 'PG' : null, q.furnishing ? q.furnishing.toLowerCase().replace('_', ' ') : null, localityName, q.maxBudget ? `${formatINR(q.maxBudget)} तक` : null].filter(Boolean).join(' · ') || 'Gurgaon rentals';
+    return (
+      [
+        q.bedrooms.length ? `${q.bedrooms.join('/')} BHK` : null,
+        q.types.includes('PG') ? 'PG' : null,
+        q.furnishing ? q.furnishing.toLowerCase().replace('_', ' ') : null,
+        localityName,
+        q.maxBudget ? `${formatINR(q.maxBudget)} तक` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Gurgaon rentals'
+    );
   }
 
   private async toFilters(q: ParsedQuery) {
     let locality: { slug: string; name: string } | null = null;
     if (q.localityText) {
-      locality = await this.prisma.locality.findFirst({ where: { OR: [{ name: { equals: q.localityText, mode: 'insensitive' } }, { name: { startsWith: q.localityText, mode: 'insensitive' } }] }, select: { slug: true, name: true } });
+      locality = await this.prisma.locality.findFirst({
+        where: { OR: [{ name: { equals: q.localityText, mode: 'insensitive' } }, { name: { startsWith: q.localityText, mode: 'insensitive' } }] },
+        select: { slug: true, name: true },
+      });
       if (!locality) {
-        const rows = await this.prisma.$queryRaw<{ slug: string; name: string }[]>`SELECT slug, name FROM "Locality" WHERE similarity(name, ${q.localityText}) > 0.4 ORDER BY similarity(name, ${q.localityText}) DESC LIMIT 1`.catch(() => []);
+        const rows = await this.prisma.$queryRaw<
+          { slug: string; name: string }[]
+        >`SELECT slug, name FROM "Locality" WHERE similarity(name, ${q.localityText}) > 0.4 ORDER BY similarity(name, ${q.localityText}) DESC LIMIT 1`.catch(
+          () => [],
+        );
         locality = rows[0] ?? null;
       }
     }
@@ -124,8 +155,14 @@ export class WaBotService implements OnModuleInit {
   private async results(filters: Record<string, unknown>, label: string, page: number) {
     const input = listingSearchSchema.parse({ ...filters, page, pageSize: RESULTS });
     const r = await this.listings.search(input);
-    if (!r.items.length) return page > 1 ? 'और results नहीं हैं। Alert के लिए "alert" भेजें।' : `"${label}" के लिए अभी कोई property नहीं मिली। "alert" भेजें — नई property आते ही बताएँगे।`;
-    const lines = r.items.map((l: any, i: number) => `${(page - 1) * RESULTS + i + 1}. ${l.title}\n   ${formatINR(l.price)}/month · ${l.locality.name}\n   ${this.web()}/property/${l.slug}`);
+    if (!r.items.length)
+      return page > 1
+        ? 'और results नहीं हैं। Alert के लिए "alert" भेजें।'
+        : `"${label}" के लिए अभी कोई property नहीं मिली। "alert" भेजें — नई property आते ही बताएँगे।`;
+    const lines = r.items.map(
+      (l: any, i: number) =>
+        `${(page - 1) * RESULTS + i + 1}. ${l.title}\n   ${formatINR(l.price)}/month · ${l.locality.name}\n   ${this.web()}/property/${l.slug}`,
+    );
     const more = r.total > page * RESULTS ? `\n\n${r.total - page * RESULTS} और हैं — "more" भेजें।` : '';
     return `🏠 ${label} — ${r.total} properties\n\n${lines.join('\n\n')}${more}\n\nनई property पर alert चाहिए? "alert" भेजें।`;
   }
@@ -148,7 +185,11 @@ export class WaBotService implements OnModuleInit {
       const fresh = await this.prisma.listing.findMany({ where, orderBy: { publishedAt: 'desc' }, take: 3, select: { title: true, slug: true, price: true } });
       if (!fresh.length) continue;
       const count = await this.prisma.listing.count({ where });
-      const conv = await this.prisma.conversation.findFirst({ where: { organizationId: null, contactPhone: s.phone }, orderBy: { lastMessageAt: 'desc' }, select: { lastInboundAt: true } });
+      const conv = await this.prisma.conversation.findFirst({
+        where: { organizationId: null, contactPhone: s.phone },
+        orderBy: { lastMessageAt: 'desc' },
+        select: { lastInboundAt: true },
+      });
       const windowOpen = !!conv?.lastInboundAt && now.getTime() - conv.lastInboundAt.getTime() < 23 * 3600_000;
       const link = `${this.web()}/rent?${new URLSearchParams(Object.entries(s.filters as Record<string, unknown>).map(([k, v]) => [k, String(v)])).toString()}`;
       try {
@@ -156,7 +197,12 @@ export class WaBotService implements OnModuleInit {
           const text = `🔔 ${s.label ?? 'आपकी search'}: ${count} नई properties\n\n${fresh.map((l) => `• ${l.title} — ${formatINR(l.price)}/month\n  ${this.web()}/property/${l.slug}`).join('\n')}\n\nसब देखें: ${link}\n"stop" = alerts बंद`;
           await this.wa.send(null, s.phone, { type: 'text', text }, { meta: { alert: true } });
         } else if (tpl) {
-          await this.wa.send(null, s.phone, { type: 'template', name: tpl, language: app.whatsappTemplates.language || 'hi', params: [String(count), s.label ?? 'Gurgaon rentals', link] }, { meta: { alert: true } });
+          await this.wa.send(
+            null,
+            s.phone,
+            { type: 'template', name: tpl, language: app.whatsappTemplates.language || 'hi', params: [String(count), s.label ?? 'Gurgaon rentals', link] },
+            { meta: { alert: true } },
+          );
         } else continue;
         await this.prisma.whatsAppSubscriber.update({ where: { id: s.id }, data: { lastNotifiedAt: now } });
         sent++;

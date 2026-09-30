@@ -18,7 +18,15 @@ export default function Network() {
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="Co-broking network" subtitle="दूसरे brokers की inventory, commission split के साथ" />
-      <Segmented value={tab} onChange={setTab} options={[{ value: 'network', label: 'Network' }, { value: 'incoming', label: 'Incoming' }, { value: 'outgoing', label: 'Outgoing' }]} />
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'network', label: 'Network' },
+          { value: 'incoming', label: 'Incoming' },
+          { value: 'outgoing', label: 'Outgoing' },
+        ]}
+      />
       <View style={{ marginTop: 12, gap: 10 }}>{tab === 'network' ? <NetworkList /> : <Requests box={tab} />}</View>
     </Screen>
   );
@@ -31,7 +39,9 @@ function NetworkList() {
   return (
     <>
       <Input placeholder="Sector, society या title…" value={q} onChangeText={setQ} />
-      {list.isLoading ? <Loader /> : !list.data?.items.length ? (
+      {list.isLoading ? (
+        <Loader />
+      ) : !list.data?.items.length ? (
         <Empty title="अभी network में कोई listing नहीं" text="अपनी listings co-broking के लिए खोलें और brokers को invite करें।" />
       ) : (
         list.data.items.map((l: any) => (
@@ -41,7 +51,11 @@ function NetworkList() {
             right={
               <View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <Badge label={`${l.coBrokingSharePct ?? 50}%`} color="#4F46E5" />
-                {l.myRequest ? <Badge label={l.myRequest.status} color={TONE[l.myRequest.status]} /> : <Button title="Request" size="sm" onPress={() => req.mutate(l.id)} />}
+                {l.myRequest ? (
+                  <Badge label={l.myRequest.status} color={TONE[l.myRequest.status]} />
+                ) : (
+                  <Button title="Request" size="sm" onPress={() => req.mutate(l.id)} />
+                )}
               </View>
             }
           />
@@ -72,14 +86,24 @@ function Requests({ box }: { box: 'incoming' | 'outgoing' }) {
               <Badge label={r.status} color={TONE[r.status]} />
               <Txt v="caption" color="muted">{`${r.sharePct}% share`}</Txt>
             </Row>
-            <Txt v="bodyStrong" numberOfLines={1}>{r.listing.title}</Txt>
-            <Txt v="small" color="muted">{other.name}</Txt>
+            <Txt v="bodyStrong" numberOfLines={1}>
+              {r.listing.title}
+            </Txt>
+            <Txt v="small" color="muted">
+              {other.name}
+            </Txt>
             {!!r.message && <Txt v="small">{`“${r.message}”`}</Txt>}
             <Row wrap>
               {open && phone && (
                 <>
                   <Button title="Call" size="sm" variant="secondary" icon={<Phone size={14} color={c.fg} />} onPress={() => Linking.openURL(`tel:${phone}`)} />
-                  <Button title="WhatsApp" size="sm" variant="whatsapp" icon={<MessageCircle size={14} color="#fff" />} onPress={() => Linking.openURL(whatsappLink(phone, `नमस्ते, BrokerIQ co-broking: ${r.listing.title}`))} />
+                  <Button
+                    title="WhatsApp"
+                    size="sm"
+                    variant="whatsapp"
+                    icon={<MessageCircle size={14} color="#fff" />}
+                    onPress={() => Linking.openURL(whatsappLink(phone, `नमस्ते, BrokerIQ co-broking: ${r.listing.title}`))}
+                  />
                 </>
               )}
               {box === 'incoming' && r.status === 'PENDING' && (
@@ -88,7 +112,9 @@ function Requests({ box }: { box: 'incoming' | 'outgoing' }) {
                   <Button title="Reject" size="sm" variant="ghost" onPress={() => act(r.id, 'reject')} />
                 </>
               )}
-              {box === 'outgoing' && ['PENDING', 'ACCEPTED'].includes(r.status) && <Button title="वापस लें" size="sm" variant="ghost" onPress={() => act(r.id, 'cancel')} />}
+              {box === 'outgoing' && ['PENDING', 'ACCEPTED'].includes(r.status) && (
+                <Button title="वापस लें" size="sm" variant="ghost" onPress={() => act(r.id, 'cancel')} />
+              )}
             </Row>
           </Card>
         );

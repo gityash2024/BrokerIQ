@@ -46,7 +46,10 @@ export class WhatsAppController {
       },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
       take: 200,
-      include: { lead: { select: { id: true, name: true, stage: true, assignedTo: { select: { id: true, name: true } } } }, user: { select: { id: true, name: true, avatarUrl: true } } },
+      include: {
+        lead: { select: { id: true, name: true, stage: true, assignedTo: { select: { id: true, name: true } } } },
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
     });
   }
 
@@ -94,7 +97,9 @@ export class WhatsAppController {
       name = c.contactName;
     }
     if (leadId) {
-      const lead = await this.prisma.lead.findFirst({ where: { id: leadId, organizationId: orgId, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) } });
+      const lead = await this.prisma.lead.findFirst({
+        where: { id: leadId, organizationId: orgId, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) },
+      });
       if (!lead) throw new NotFoundException('Lead नहीं मिली');
       phone = phone ?? lead.phone;
       name = name ?? lead.name;
@@ -105,7 +110,13 @@ export class WhatsAppController {
       const l = await this.prisma.listing.findFirst({ where: { id: body.listingId }, include: { locality: true } });
       if (l) text = `*${l.title}*\n💰 ${formatPriceShort(l.price)} · 📍 ${l.locality.name}\n${env().PUBLIC_WEB_URL}/property/${l.slug}`;
     }
-    if (body.templateName) return this.wa.send(orgId, phone, { type: 'template', name: body.templateName, language: body.templateLanguage, params: body.templateParams }, { leadId, userId: user.id, contactName: name });
+    if (body.templateName)
+      return this.wa.send(
+        orgId,
+        phone,
+        { type: 'template', name: body.templateName, language: body.templateLanguage, params: body.templateParams },
+        { leadId, userId: user.id, contactName: name },
+      );
     if (body.mediaUrl) return this.wa.send(orgId, phone, { type: 'image', url: body.mediaUrl, caption: text }, { leadId, userId: user.id, contactName: name });
     if (!text) throw new BadRequestException('Message खाली है');
     return this.wa.send(orgId, phone, { type: 'text', text: renderTemplate(text, { lead: { name } }) }, { leadId, userId: user.id, contactName: name });
@@ -137,7 +148,8 @@ export class WhatsAppController {
   @Post('webhooks/whatsapp/:key')
   async webhook(@Param('key') key: string, @Req() req: any, @Body() body: any) {
     const target = await this.wa.resolveWebhookTarget(key);
-    if (!this.wa.verifySignature(target.values?.appSecret as string | undefined, req.rawBody, req.headers['x-hub-signature-256'])) throw new ForbiddenException('bad signature');
+    if (!this.wa.verifySignature(target.values?.appSecret as string | undefined, req.rawBody, req.headers['x-hub-signature-256']))
+      throw new ForbiddenException('bad signature');
     await this.wa.handleWebhook(key, body);
     return { ok: true };
   }

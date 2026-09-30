@@ -10,7 +10,11 @@ export default function BrokerListings() {
       <PageHeader
         title="Inventory"
         subtitle="Firm की सारी listings — marketplace पर live, views, enquiries और boost"
-        actions={<Button size="sm" variant="secondary" href="/broker/scanner"><ScanLine className="size-4" /> Book scan से import</Button>}
+        actions={
+          <Button size="sm" variant="secondary" href="/broker/scanner">
+            <ScanLine className="size-4" /> Book scan से import
+          </Button>
+        }
       />
       <MyListings base="/broker/listings" newHref="/broker/listings/new" />
     </>

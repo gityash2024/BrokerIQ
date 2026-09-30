@@ -19,7 +19,15 @@ function load(): Promise<void> {
 }
 
 /** Opens Razorpay Checkout for an order created by the API and verifies the signature server-side. */
-export async function payWithRazorpay(order: { keyId: string; orderId: string; amount: number; currency: string; name: string; description: string; prefill?: any }): Promise<boolean> {
+export async function payWithRazorpay(order: {
+  keyId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  prefill?: any;
+}): Promise<boolean> {
   await load();
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay({

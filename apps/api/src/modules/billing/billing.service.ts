@@ -77,7 +77,8 @@ export class BillingService {
   private async applyCoupon(code: string | undefined, amount: number) {
     if (!code) return { amount, coupon: null };
     const c = await this.prisma.coupon.findUnique({ where: { code: code.toUpperCase() } });
-    if (!c || !c.isActive || (c.validUntil && c.validUntil < new Date()) || (c.maxRedemptions && c.redeemed >= c.maxRedemptions)) throw new BadRequestException('Coupon valid नहीं है');
+    if (!c || !c.isActive || (c.validUntil && c.validUntil < new Date()) || (c.maxRedemptions && c.redeemed >= c.maxRedemptions))
+      throw new BadRequestException('Coupon valid नहीं है');
     const off = c.percentOff ? (amount * c.percentOff) / 100 : (c.amountOff ?? 0);
     return { amount: Math.max(0, Math.round(amount - off)), coupon: c.code };
   }
@@ -90,19 +91,42 @@ export class BillingService {
     const app = await this.settings.getAppConfig();
     const { amount, coupon } = await this.applyCoupon(input.coupon, base);
     const total = Math.round(amount * (1 + app.monetization.gstPercent / 100));
-    const payment = await this.prisma.payment.create({ data: { organizationId: orgId, userId: user.id, purpose: 'SUBSCRIPTION', planId: plan.id, billingCycle: input.cycle, amount: total * 100, couponCode: coupon, meta: { base, discounted: amount, gstPercent: app.monetization.gstPercent } } });
+    const payment = await this.prisma.payment.create({
+      data: {
+        organizationId: orgId,
+        userId: user.id,
+        purpose: 'SUBSCRIPTION',
+        planId: plan.id,
+        billingCycle: input.cycle,
+        amount: total * 100,
+        couponCode: coupon,
+        meta: { base, discounted: amount, gstPercent: app.monetization.gstPercent },
+      },
+    });
     const { order, keyId } = await this.createOrder(total * 100, payment.id, { paymentId: payment.id, orgId, plan: plan.code });
     await this.prisma.payment.update({ where: { id: payment.id }, data: { razorpayOrderId: order.id } });
     const u = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
-    return { keyId, orderId: order.id, amount: total * 100, currency: 'INR', name: app.siteName, description: `${plan.name} plan (${input.cycle.toLowerCase()})`, prefill: { name: u.name, email: u.email, contact: u.phone ?? '' } };
+    return {
+      keyId,
+      orderId: order.id,
+      amount: total * 100,
+      currency: 'INR',
+      name: app.siteName,
+      description: `${plan.name} plan (${input.cycle.toLowerCase()})`,
+      prefill: { name: u.name, email: u.email, contact: u.phone ?? '' },
+    };
   }
 
   async boostCheckout(user: RequestUser, listingId: string, weeks: number) {
-    const listing = await this.prisma.listing.findFirst({ where: { id: listingId, deletedAt: null, status: 'ACTIVE', OR: [{ postedById: user.id }, ...(user.orgId ? [{ organizationId: user.orgId }] : [])] } });
+    const listing = await this.prisma.listing.findFirst({
+      where: { id: listingId, deletedAt: null, status: 'ACTIVE', OR: [{ postedById: user.id }, ...(user.orgId ? [{ organizationId: user.orgId }] : [])] },
+    });
     if (!listing) throw new NotFoundException('Live listing नहीं मिली');
     const app = await this.settings.getAppConfig();
     const total = Math.round(app.monetization.boostPricePerWeek * weeks * (1 + app.monetization.gstPercent / 100));
-    const payment = await this.prisma.payment.create({ data: { organizationId: user.orgId, userId: user.id, purpose: 'BOOST', listingId, amount: total * 100, meta: { weeks } } });
+    const payment = await this.prisma.payment.create({
+      data: { organizationId: user.orgId, userId: user.id, purpose: 'BOOST', listingId, amount: total * 100, meta: { weeks } },
+    });
     const { order, keyId } = await this.createOrder(total * 100, payment.id, { paymentId: payment.id, listingId });
     await this.prisma.payment.update({ where: { id: payment.id }, data: { razorpayOrderId: order.id } });
     return { keyId, orderId: order.id, amount: total * 100, currency: 'INR', name: app.siteName, description: `Featured boost · ${weeks} week(s)` };
@@ -111,18 +135,25 @@ export class BillingService {
   async verify(input: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
     const v = await this.rzp();
     const expected = createHmac('sha256', String(v.keySecret)).update(`${input.razorpay_order_id}|${input.razorpay_payment_id}`).digest('hex');
-    if (expected.length !== input.razorpay_signature.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(input.razorpay_signature))) throw new BadRequestException('Payment verification failed');
+    if (expected.length !== input.razorpay_signature.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(input.razorpay_signature)))
+      throw new BadRequestException('Payment verification failed');
     return this.markPaid(input.razorpay_order_id, input.razorpay_payment_id);
   }
 
   async webhook(rawBody: Buffer | undefined, signature: string | undefined, body: any) {
     const v = await this.rzp();
-    const expected = createHmac('sha256', String(v.webhookSecret)).update(rawBody ?? Buffer.from('')).digest('hex');
-    if (!signature || expected.length !== signature.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) throw new BadRequestException('bad signature');
-    await this.prisma.webhookEvent.create({ data: { provider: 'razorpay', payload: body as Prisma.InputJsonValue, externalId: body?.payload?.payment?.entity?.id } });
+    const expected = createHmac('sha256', String(v.webhookSecret))
+      .update(rawBody ?? Buffer.from(''))
+      .digest('hex');
+    if (!signature || expected.length !== signature.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(signature)))
+      throw new BadRequestException('bad signature');
+    await this.prisma.webhookEvent.create({
+      data: { provider: 'razorpay', payload: body as Prisma.InputJsonValue, externalId: body?.payload?.payment?.entity?.id },
+    });
     const entity = body?.payload?.payment?.entity;
     if ((body.event === 'payment.captured' || body.event === 'order.paid') && entity?.order_id) await this.markPaid(entity.order_id, entity.id);
-    if (body.event === 'payment.failed' && entity?.order_id) await this.prisma.payment.updateMany({ where: { razorpayOrderId: entity.order_id, status: 'CREATED' }, data: { status: 'FAILED' } });
+    if (body.event === 'payment.failed' && entity?.order_id)
+      await this.prisma.payment.updateMany({ where: { razorpayOrderId: entity.order_id, status: 'CREATED' }, data: { status: 'FAILED' } });
     return { ok: true };
   }
 
@@ -134,31 +165,61 @@ export class BillingService {
     const app = await this.settings.getAppConfig();
     const seq = await this.prisma.payment.count({ where: { status: 'PAID' } });
     const invoiceNumber = `${app.monetization.invoicePrefix}-${new Date().getFullYear()}-${String(seq + 1).padStart(5, '0')}`;
-    const paid = await this.prisma.payment.update({ where: { id: payment.id }, data: { status: 'PAID', razorpayPaymentId: paymentId, paidAt: new Date(), invoiceNumber } });
-    if (payment.couponCode) await this.prisma.coupon.update({ where: { code: payment.couponCode }, data: { redeemed: { increment: 1 } } }).catch(() => undefined);
+    const paid = await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: 'PAID', razorpayPaymentId: paymentId, paidAt: new Date(), invoiceNumber },
+    });
+    if (payment.couponCode)
+      await this.prisma.coupon.update({ where: { code: payment.couponCode }, data: { redeemed: { increment: 1 } } }).catch(() => undefined);
 
     if (payment.purpose === 'SUBSCRIPTION' && payment.organizationId && payment.planId) {
       const current = await this.prisma.subscription.findUnique({ where: { organizationId: payment.organizationId } });
-      const start = current?.planId === payment.planId && current.currentPeriodEnd && current.currentPeriodEnd > new Date() ? current.currentPeriodEnd : new Date();
+      const start =
+        current?.planId === payment.planId && current.currentPeriodEnd && current.currentPeriodEnd > new Date() ? current.currentPeriodEnd : new Date();
       const end = new Date(start);
       if (payment.billingCycle === 'YEARLY') end.setFullYear(end.getFullYear() + 1);
       else end.setMonth(end.getMonth() + 1);
       await this.prisma.subscription.upsert({
         where: { organizationId: payment.organizationId },
-        create: { organizationId: payment.organizationId, planId: payment.planId, status: 'ACTIVE', billingCycle: payment.billingCycle ?? 'MONTHLY', currentPeriodStart: new Date(), currentPeriodEnd: end },
-        update: { planId: payment.planId, status: 'ACTIVE', billingCycle: payment.billingCycle ?? 'MONTHLY', currentPeriodStart: new Date(), currentPeriodEnd: end, cancelAtPeriodEnd: false, trialEndsAt: null },
+        create: {
+          organizationId: payment.organizationId,
+          planId: payment.planId,
+          status: 'ACTIVE',
+          billingCycle: payment.billingCycle ?? 'MONTHLY',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: end,
+        },
+        update: {
+          planId: payment.planId,
+          status: 'ACTIVE',
+          billingCycle: payment.billingCycle ?? 'MONTHLY',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: end,
+          cancelAtPeriodEnd: false,
+          trialEndsAt: null,
+        },
       });
-      await this.notifications.notifyOrg(payment.organizationId, { kind: 'SYSTEM', title: '✅ Subscription active', body: `Valid till ${end.toLocaleDateString('en-IN')}`, link: '/broker/billing' }, { adminsOnly: true });
+      await this.notifications.notifyOrg(
+        payment.organizationId,
+        { kind: 'SYSTEM', title: '✅ Subscription active', body: `Valid till ${end.toLocaleDateString('en-IN')}`, link: '/broker/billing' },
+        { adminsOnly: true },
+      );
     }
     if (payment.purpose === 'BOOST' && payment.listingId) {
       const weeks = Number((payment.meta as any)?.weeks ?? 1);
       const l = await this.prisma.listing.findUnique({ where: { id: payment.listingId } });
       const from = l?.featuredUntil && l.featuredUntil > new Date() ? l.featuredUntil : new Date();
-      await this.prisma.listing.update({ where: { id: payment.listingId }, data: { isFeatured: true, featuredUntil: new Date(from.getTime() + weeks * 7 * 86400_000) } });
+      await this.prisma.listing.update({
+        where: { id: payment.listingId },
+        data: { isFeatured: true, featuredUntil: new Date(from.getTime() + weeks * 7 * 86400_000) },
+      });
     }
     const user = payment.userId ? await this.prisma.user.findUnique({ where: { id: payment.userId } }) : null;
     const plan = payment.planId ? await this.prisma.plan.findUnique({ where: { id: payment.planId } }) : null;
-    if (user) this.mail.trySendTemplate('payment.receipt', user.email, { amount: formatINR(payment.amount / 100, false), invoiceNumber, plan: plan?.name ?? 'Boost' }).catch(() => undefined);
+    if (user)
+      this.mail
+        .trySendTemplate('payment.receipt', user.email, { amount: formatINR(payment.amount / 100, false), invoiceNumber, plan: plan?.name ?? 'Boost' })
+        .catch(() => undefined);
     await this.audit.log({ id: payment.userId ?? undefined, orgId: payment.organizationId }, 'payment.paid', 'Payment', payment.id, { amount: payment.amount });
     return { ok: true, payment: paid };
   }
@@ -185,21 +246,53 @@ export class BillingService {
       const chunks: Buffer[] = [];
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.fillColor(app.primaryColor).fontSize(22).text(app.monetization.companyName || app.siteName, { continued: false });
-      doc.fillColor('#475569').fontSize(9).text(app.monetization.companyAddress || '').text(app.monetization.companyGstin ? `GSTIN: ${app.monetization.companyGstin}` : '');
+      doc
+        .fillColor(app.primaryColor)
+        .fontSize(22)
+        .text(app.monetization.companyName || app.siteName, { continued: false });
+      doc
+        .fillColor('#475569')
+        .fontSize(9)
+        .text(app.monetization.companyAddress || '')
+        .text(app.monetization.companyGstin ? `GSTIN: ${app.monetization.companyGstin}` : '');
       doc.moveDown().fillColor('#0f172a').fontSize(16).text('TAX INVOICE', { align: 'right' });
-      doc.fontSize(10).text(`Invoice #: ${payment.invoiceNumber}`, { align: 'right' }).text(`Date: ${(payment.paidAt ?? payment.createdAt).toLocaleDateString('en-IN')}`, { align: 'right' });
-      doc.moveDown().fontSize(11).text('Billed to:', { underline: true }).fontSize(10).text(org?.name ?? '').text(org?.address ?? '').text(org?.gstNumber ? `GSTIN: ${org.gstNumber}` : '');
+      doc
+        .fontSize(10)
+        .text(`Invoice #: ${payment.invoiceNumber}`, { align: 'right' })
+        .text(`Date: ${(payment.paidAt ?? payment.createdAt).toLocaleDateString('en-IN')}`, { align: 'right' });
+      doc
+        .moveDown()
+        .fontSize(11)
+        .text('Billed to:', { underline: true })
+        .fontSize(10)
+        .text(org?.name ?? '')
+        .text(org?.address ?? '')
+        .text(org?.gstNumber ? `GSTIN: ${org.gstNumber}` : '');
       doc.moveDown(2);
       const line = (label: string, value: string, bold = false) => {
-        doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(11).text(label, 50, doc.y, { continued: true, width: 350 }).text(value, { align: 'right' });
+        doc
+          .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+          .fontSize(11)
+          .text(label, 50, doc.y, { continued: true, width: 350 })
+          .text(value, { align: 'right' });
       };
-      line(payment.purpose === 'SUBSCRIPTION' ? `${plan?.name ?? 'Plan'} subscription (${(payment.billingCycle ?? 'MONTHLY').toLowerCase()})` : `Featured listing boost (${meta.weeks ?? 1} week)`, `Rs. ${formatINR(taxable, false)}`);
+      line(
+        payment.purpose === 'SUBSCRIPTION'
+          ? `${plan?.name ?? 'Plan'} subscription (${(payment.billingCycle ?? 'MONTHLY').toLowerCase()})`
+          : `Featured listing boost (${meta.weeks ?? 1} week)`,
+        `Rs. ${formatINR(taxable, false)}`,
+      );
       if (payment.couponCode) line(`Coupon applied: ${payment.couponCode}`, '');
       line(`GST @ ${gstPct}%`, `Rs. ${formatINR(gst, false)}`);
       doc.moveDown(0.5);
       line('Total paid', `Rs. ${formatINR(total, false)}`, true);
-      doc.moveDown(2).font('Helvetica').fontSize(9).fillColor('#64748b').text(`Razorpay payment ID: ${payment.razorpayPaymentId ?? '-'}`).text('This is a computer generated invoice.');
+      doc
+        .moveDown(2)
+        .font('Helvetica')
+        .fontSize(9)
+        .fillColor('#64748b')
+        .text(`Razorpay payment ID: ${payment.razorpayPaymentId ?? '-'}`)
+        .text('This is a computer generated invoice.');
       doc.end();
     });
   }
@@ -210,13 +303,22 @@ export class BillingService {
     if (!env().JOBS_ENABLED) return;
     const now = new Date();
     const expired = await this.prisma.subscription.findMany({
-      where: { OR: [{ status: 'ACTIVE', currentPeriodEnd: { lt: now } }, { status: 'TRIALING', trialEndsAt: { lt: now } }] },
+      where: {
+        OR: [
+          { status: 'ACTIVE', currentPeriodEnd: { lt: now } },
+          { status: 'TRIALING', trialEndsAt: { lt: now } },
+        ],
+      },
       include: { plan: true },
     });
     for (const s of expired) {
       if (s.plan.priceMonthly === 0) continue;
       await this.prisma.subscription.update({ where: { id: s.id }, data: { status: 'EXPIRED' } });
-      await this.notifications.notifyOrg(s.organizationId, { kind: 'SYSTEM', title: 'आपका plan expire हो गया है', body: 'Free plan की limits लागू हैं — Billing से renew करें।', link: '/broker/billing' }, { adminsOnly: true });
+      await this.notifications.notifyOrg(
+        s.organizationId,
+        { kind: 'SYSTEM', title: 'आपका plan expire हो गया है', body: 'Free plan की limits लागू हैं — Billing से renew करें।', link: '/broker/billing' },
+        { adminsOnly: true },
+      );
     }
   }
 }

@@ -39,7 +39,16 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
   return (
     <>
       {app.announcement.enabled && app.announcement.text && (
-        <div className={cn('relative z-40 px-4 py-2 text-center text-sm font-medium', app.announcement.tone === 'warning' ? 'bg-amber-500 text-slate-950' : app.announcement.tone === 'promo' ? 'bg-gradient-to-r from-brand-600 to-fuchsia-600 text-white' : 'bg-brand-600 text-white')}>
+        <div
+          className={cn(
+            'relative z-40 px-4 py-2 text-center text-sm font-medium',
+            app.announcement.tone === 'warning'
+              ? 'bg-amber-500 text-slate-950'
+              : app.announcement.tone === 'promo'
+                ? 'bg-gradient-to-r from-brand-600 to-fuchsia-600 text-white'
+                : 'bg-brand-600 text-white',
+          )}
+        >
           {app.announcement.link ? (
             <Link href={app.announcement.link} className="underline-offset-2 hover:underline">
               {app.announcement.text} →
@@ -49,7 +58,9 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
           )}
         </div>
       )}
-      <header className={cn('sticky top-0 z-40 transition-all duration-300', solid ? 'border-b border-line/70 bg-surface/80 backdrop-blur-xl' : 'bg-transparent')}>
+      <header
+        className={cn('sticky top-0 z-40 transition-all duration-300', solid ? 'border-b border-line/70 bg-surface/80 backdrop-blur-xl' : 'bg-transparent')}
+      >
         <div className="container-x flex h-16 items-center gap-4">
           <button className={cn('rounded-xl p-2 xl:hidden', solid ? 'text-fg' : 'text-white')} onClick={() => setOpen(true)} aria-label="Menu">
             <Menu className="size-6" />
@@ -69,7 +80,9 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
                 )}
               >
                 {n.label}
-                {pathname.startsWith(n.href) && <motion.span layoutId="nav-underline" className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-saffron-500" />}
+                {pathname.startsWith(n.href) && (
+                  <motion.span layoutId="nav-underline" className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-saffron-500" />
+                )}
               </Link>
             ))}
           </nav>
@@ -82,7 +95,12 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
               </Button>
             )}
             {ready && !user && (
-              <Button href="/login" size="sm" variant={solid ? 'secondary' : 'secondary'} className={cn(!solid && 'border-white/30 bg-white/10 text-white hover:bg-white/20')}>
+              <Button
+                href="/login"
+                size="sm"
+                variant={solid ? 'secondary' : 'secondary'}
+                className={cn(!solid && 'border-white/30 bg-white/10 text-white hover:bg-white/20')}
+              >
                 Login
               </Button>
             )}
@@ -98,19 +116,33 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
                       <p className="truncate text-xs text-muted">{user.email}</p>
                     </div>
                     <DM.Separator className="my-1 h-px bg-line" />
-                    <MenuLink href={homePath} icon={isAdmin ? <Shield className="size-4" /> : isBroker ? <Building2 className="size-4" /> : <LayoutDashboard className="size-4" />}>
+                    <MenuLink
+                      href={homePath}
+                      icon={isAdmin ? <Shield className="size-4" /> : isBroker ? <Building2 className="size-4" /> : <LayoutDashboard className="size-4" />}
+                    >
                       {isAdmin ? 'Super Admin' : isBroker ? 'Broker panel' : 'My dashboard'}
                     </MenuLink>
                     {!isAdmin && !isBroker && (
                       <>
-                        <MenuLink href="/account/saved" icon={<Heart className="size-4" />}>Saved properties</MenuLink>
-                        <MenuLink href="/account/messages" icon={<MessageSquare className="size-4" />}>Messages</MenuLink>
+                        <MenuLink href="/account/saved" icon={<Heart className="size-4" />}>
+                          Saved properties
+                        </MenuLink>
+                        <MenuLink href="/account/messages" icon={<MessageSquare className="size-4" />}>
+                          Messages
+                        </MenuLink>
                       </>
                     )}
-                    <MenuLink href={isBroker ? '/broker/notifications' : '/account/notifications'} icon={<Bell className="size-4" />}>Notifications</MenuLink>
-                    <MenuLink href={isBroker ? '/broker/settings' : '/account/profile'} icon={<UserIcon className="size-4" />}>Profile</MenuLink>
+                    <MenuLink href={isBroker ? '/broker/notifications' : '/account/notifications'} icon={<Bell className="size-4" />}>
+                      Notifications
+                    </MenuLink>
+                    <MenuLink href={isBroker ? '/broker/settings' : '/account/profile'} icon={<UserIcon className="size-4" />}>
+                      Profile
+                    </MenuLink>
                     <DM.Separator className="my-1 h-px bg-line" />
-                    <DM.Item onSelect={() => logout()} className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:hover:bg-rose-500/10">
+                    <DM.Item
+                      onSelect={() => logout()}
+                      className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                    >
                       <LogOut className="size-4" /> Logout
                     </DM.Item>
                   </DM.Content>

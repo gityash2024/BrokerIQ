@@ -20,8 +20,15 @@ export async function searchMetadata(mode: SearchMode, sp: Record<string, string
     if (loc) where = `${loc.name}, Gurgaon`;
   }
   const bhk = sp.bedrooms && !sp.bedrooms.includes(',') ? `${sp.bedrooms} BHK ` : '';
-  const title = TITLES[mode].replace('Gurgaon', where).replace(/^Property/, `${bhk}Property`).trim();
-  return { title, description: `${title} — verified rentals with photos, rent, deposit, brokerage, maps and trusted local brokers on BrokerIQ.`, alternates: { canonical: `/${mode}` } };
+  const title = TITLES[mode]
+    .replace('Gurgaon', where)
+    .replace(/^Property/, `${bhk}Property`)
+    .trim();
+  return {
+    title,
+    description: `${title} — verified rentals with photos, rent, deposit, brokerage, maps and trusted local brokers on BrokerIQ.`,
+    alternates: { canonical: `/${mode}` },
+  };
 }
 
 export async function SearchRoute({ mode }: { mode: SearchMode }) {

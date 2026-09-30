@@ -54,7 +54,10 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
             <h1 className="mt-5 font-display text-4xl leading-[1.05] font-extrabold tracking-tight sm:text-6xl">
               हर lead, <span className="text-gradient">एक app</span> में। हर reply, <span className="text-gradient">automatic</span>।
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-white/75">Housing, 99acres, MagicBricks, Facebook और WhatsApp की leads को एक inbox में लाइए। Automatic WhatsApp, follow-up reminders और AI के साथ ज़्यादा deals close करें।</p>
+            <p className="mt-5 max-w-xl text-lg text-white/75">
+              Housing, 99acres, MagicBricks, Facebook और WhatsApp की leads को एक inbox में लाइए। Automatic WhatsApp, follow-up reminders और AI के साथ ज़्यादा
+              deals close करें।
+            </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button href={signupHref} size="lg" variant="accent">
                 Free में शुरू करें <ArrowRight className="size-5" />
@@ -76,7 +79,13 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
                     ['Amit K.', 'Facebook Ads', 'Plot · New Gurgaon', '#1877F2', '9m'],
                     ['Neha G.', 'WhatsApp', 'Office · Cyber City', '#16A34A', '14m'],
                   ].map(([n, s, r, c, t], i) => (
-                    <motion.div key={n} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.15 }} className="flex items-center gap-3 rounded-xl border border-line p-3">
+                    <motion.div
+                      key={n}
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + i * 0.15 }}
+                      className="flex items-center gap-3 rounded-xl border border-line p-3"
+                    >
                       <span className="grid size-9 place-items-center rounded-full text-sm font-bold text-white" style={{ background: c }}>
                         {n[0]}
                       </span>
@@ -93,7 +102,12 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
                     </motion.div>
                   ))}
                 </div>
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2 }}
+                  className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                >
                   <MessageCircle className="size-4" /> WhatsApp welcome sent to Rahul S. automatically
                 </motion.div>
               </div>
@@ -137,43 +151,58 @@ export function BrokerLanding({ plans, faqs }: { plans: any[]; faqs: any[] }) {
       {freeMode ? (
         <FreeForBrokers signupHref={signupHref} />
       ) : (
-      <section id="pricing" className="bg-surface/70 py-20">
-        <div className="container-x">
-          <div className="text-center">
-            <h2 className="font-display text-3xl font-extrabold sm:text-4xl">Simple pricing</h2>
-            <p className="mt-2 text-muted">Free से शुरू करें, बढ़ने पर upgrade करें।</p>
-            <Segmented className="mt-6" value={cycle} onChange={setCycle} options={[{ value: 'MONTHLY', label: 'Monthly' }, { value: 'YEARLY', label: 'Yearly · 2 months free' }]} />
+        <section id="pricing" className="bg-surface/70 py-20">
+          <div className="container-x">
+            <div className="text-center">
+              <h2 className="font-display text-3xl font-extrabold sm:text-4xl">Simple pricing</h2>
+              <p className="mt-2 text-muted">Free से शुरू करें, बढ़ने पर upgrade करें।</p>
+              <Segmented
+                className="mt-6"
+                value={cycle}
+                onChange={setCycle}
+                options={[
+                  { value: 'MONTHLY', label: 'Monthly' },
+                  { value: 'YEARLY', label: 'Yearly · 2 months free' },
+                ]}
+              />
+            </div>
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+              {plans.map((p) => {
+                const price = cycle === 'YEARLY' ? p.priceYearly : p.priceMonthly;
+                return (
+                  <div
+                    key={p.id}
+                    className={cn('card relative flex flex-col p-6', p.isPopular && 'border-2 border-brand-600 shadow-[var(--shadow-lift)] lg:-translate-y-3')}
+                  >
+                    {p.isPopular && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-600 px-3 py-1 text-xs font-bold text-white">
+                        Most popular
+                      </span>
+                    )}
+                    <h3 className="font-display text-xl font-bold">{p.name}</h3>
+                    <p className="mt-1 min-h-10 text-sm text-muted">{p.description}</p>
+                    <p className="mt-4 font-display text-4xl font-extrabold">
+                      {price ? formatINR(price) : 'Free'}
+                      {price ? <span className="text-sm font-medium text-muted">/{cycle === 'YEARLY' ? 'yr' : 'mo'}</span> : null}
+                    </p>
+                    {p.trialDays > 0 && <p className="mt-1 text-xs font-semibold text-emerald-600">{p.trialDays}-day free trial</p>}
+                    <ul className="mt-5 flex-1 space-y-2.5 text-sm">
+                      {p.features.map((f: string) => (
+                        <li key={f} className="flex gap-2">
+                          <Check className="mt-0.5 size-4 shrink-0 text-emerald-500" /> {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button href={signupHref} className="mt-6 w-full" variant={p.isPopular ? 'primary' : 'secondary'}>
+                      {price ? 'Start trial' : 'Start free'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-6 text-center text-xs text-subtle">Prices exclusive of GST.</p>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {plans.map((p) => {
-              const price = cycle === 'YEARLY' ? p.priceYearly : p.priceMonthly;
-              return (
-                <div key={p.id} className={cn('card relative flex flex-col p-6', p.isPopular && 'border-2 border-brand-600 shadow-[var(--shadow-lift)] lg:-translate-y-3')}>
-                  {p.isPopular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-600 px-3 py-1 text-xs font-bold text-white">Most popular</span>}
-                  <h3 className="font-display text-xl font-bold">{p.name}</h3>
-                  <p className="mt-1 min-h-10 text-sm text-muted">{p.description}</p>
-                  <p className="mt-4 font-display text-4xl font-extrabold">
-                    {price ? formatINR(price) : 'Free'}
-                    {price ? <span className="text-sm font-medium text-muted">/{cycle === 'YEARLY' ? 'yr' : 'mo'}</span> : null}
-                  </p>
-                  {p.trialDays > 0 && <p className="mt-1 text-xs font-semibold text-emerald-600">{p.trialDays}-day free trial</p>}
-                  <ul className="mt-5 flex-1 space-y-2.5 text-sm">
-                    {p.features.map((f: string) => (
-                      <li key={f} className="flex gap-2">
-                        <Check className="mt-0.5 size-4 shrink-0 text-emerald-500" /> {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button href={signupHref} className="mt-6 w-full" variant={p.isPopular ? 'primary' : 'secondary'}>
-                    {price ? 'Start trial' : 'Start free'}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-6 text-center text-xs text-subtle">Prices exclusive of GST.</p>
-        </div>
-      </section>
+        </section>
       )}
 
       {faqs.length > 0 && (

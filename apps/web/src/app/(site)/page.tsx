@@ -39,7 +39,9 @@ export default async function HomePage() {
   const hasHero = sections.some((s) => s.type === 'HERO');
   return (
     <PageShell transparentHeader={hasHero}>
-      {!sections.length && <HeroSection s={{ title: 'Gurgaon में अपना अगला घर ढूँढिए', subtitle: 'Verified properties, trusted brokers.', config: {}, data: null }} />}
+      {!sections.length && (
+        <HeroSection s={{ title: 'Gurgaon में अपना अगला घर ढूँढिए', subtitle: 'Verified properties, trusted brokers.', config: {}, data: null }} />
+      )}
       {sections.map((s) => {
         const R = RENDERERS[s.type];
         return R ? <R key={s.id} s={s} /> : null;

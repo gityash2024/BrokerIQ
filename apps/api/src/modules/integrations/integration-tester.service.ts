@@ -38,7 +38,9 @@ export class IntegrationTesterService {
       result = { ok: false, message: (e as Error).message || 'Test failed' };
     }
     await this.settings.recordTest(key, orgId, result.ok, result.message);
-    await this.prisma.integrationLog.create({ data: { organizationId: orgId, integration: key, action: 'test', success: result.ok, message: result.message.slice(0, 500) } });
+    await this.prisma.integrationLog.create({
+      data: { organizationId: orgId, integration: key, action: 'test', success: result.ok, message: result.message.slice(0, 500) },
+    });
     return result;
   }
 
@@ -57,13 +59,17 @@ export class IntegrationTesterService {
         await this.media.testS3(v);
         return 'Bucket reachable';
       case 'razorpay': {
-        const res = await fetch('https://api.razorpay.com/v1/orders?count=1', { headers: { Authorization: 'Basic ' + Buffer.from(`${v.keyId}:${v.keySecret}`).toString('base64') } });
-        if (!res.ok) throw new Error(`Razorpay ${res.status}: ${(await res.json().catch(() => ({})) as any)?.error?.description ?? 'invalid keys'}`);
+        const res = await fetch('https://api.razorpay.com/v1/orders?count=1', {
+          headers: { Authorization: 'Basic ' + Buffer.from(`${v.keyId}:${v.keySecret}`).toString('base64') },
+        });
+        if (!res.ok) throw new Error(`Razorpay ${res.status}: ${((await res.json().catch(() => ({}))) as any)?.error?.description ?? 'invalid keys'}`);
         return `Razorpay keys valid (${String(v.keyId).startsWith('rzp_live') ? 'LIVE' : 'TEST'} mode)`;
       }
       case 'whatsapp':
       case 'whatsapp_platform': {
-        const res = await fetch(`${GRAPH}/${v.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`, { headers: { Authorization: `Bearer ${v.accessToken}` } });
+        const res = await fetch(`${GRAPH}/${v.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`, {
+          headers: { Authorization: `Bearer ${v.accessToken}` },
+        });
         const data: any = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error?.message ?? `Meta ${res.status}`);
         return `Connected: ${data.verified_name ?? ''} ${data.display_phone_number ?? ''} (quality: ${data.quality_rating ?? 'n/a'})`;
@@ -83,7 +89,11 @@ export class IntegrationTesterService {
       }
       case 'housing_api': {
         const now = Math.floor(Date.now() / 1000);
-        const rows = await fetchHousingLeads({ profileId: v.profileId, encryptionKey: v.encryptionKey, accountType: v.accountType, listingIds: v.listingIds }, now - 7 * 86400, now);
+        const rows = await fetchHousingLeads(
+          { profileId: v.profileId, encryptionKey: v.encryptionKey, accountType: v.accountType, listingIds: v.listingIds },
+          now - 7 * 86400,
+          now,
+        );
         return `Housing connected — पिछले 7 दिन में ${rows.length} leads`;
       }
       case 'exotel': {

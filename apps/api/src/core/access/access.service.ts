@@ -20,7 +20,11 @@ export class AccessService {
   static normalize(kind: BlockKind, value: string) {
     const v = value.trim().toLowerCase();
     if (kind === 'PHONE') return normalizeIndianPhone(v) ?? v.replace(/\D/g, '');
-    if (kind === 'DOMAIN') return v.replace(/^@/, '').replace(/^https?:\/\//, '').split('/')[0];
+    if (kind === 'DOMAIN')
+      return v
+        .replace(/^@/, '')
+        .replace(/^https?:\/\//, '')
+        .split('/')[0];
     return v;
   }
 
@@ -50,7 +54,10 @@ export class AccessService {
   }
 
   async assertNotBlocked(id: { email?: string | null; phone?: string | null; ip?: string | null }) {
-    if (await this.blocked(id)) throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, 'यह account या नंबर BrokerIQ पर इस्तेमाल नहीं हो सकता। Support से संपर्क करें।', { blocked: true });
+    if (await this.blocked(id))
+      throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, 'यह account या नंबर BrokerIQ पर इस्तेमाल नहीं हो सकता। Support से संपर्क करें।', {
+        blocked: true,
+      });
   }
 
   /** Throws when BrokerIQ switched this ability off for the user or their firm. Super Admin is never limited. */
@@ -61,7 +68,12 @@ export class AccessService {
     const firm = (u?.organization?.restrictions ?? []).includes(ability);
     if (own || firm) {
       const label = (USER_RESTRICTIONS as Record<string, string>)[ability] ?? (ORG_RESTRICTIONS as Record<string, string>)[ability] ?? ability;
-      throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, `BrokerIQ ने ${firm ? 'आपकी firm' : 'आपके account'} के लिए "${label}" बंद किया है। Support से संपर्क करें।`, { restriction: ability });
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.FORBIDDEN,
+        `BrokerIQ ने ${firm ? 'आपकी firm' : 'आपके account'} के लिए "${label}" बंद किया है। Support से संपर्क करें।`,
+        { restriction: ability },
+      );
     }
   }
 }

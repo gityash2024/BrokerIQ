@@ -26,7 +26,11 @@ function VisitSlotsButtonInner() {
   useEffect(() => {
     if (q.data) setF(q.data);
   }, [q.data]);
-  const save = useApiMutation(() => patch('/broker/visit-slots', { ...f, slotMinutes: Number(f.slotMinutes), maxPerSlot: Number(f.maxPerSlot) }), { success: 'Visit slots saved', invalidate: [['visit-slots']], onSuccess: () => setOpen(false) });
+  const save = useApiMutation(() => patch('/broker/visit-slots', { ...f, slotMinutes: Number(f.slotMinutes), maxPerSlot: Number(f.maxPerSlot) }), {
+    success: 'Visit slots saved',
+    invalidate: [['visit-slots']],
+    onSuccess: () => setOpen(false),
+  });
   if (user?.role !== 'BROKER_ADMIN') return null;
   return (
     <>
@@ -38,28 +42,46 @@ function VisitSlotsButtonInner() {
         onOpenChange={setOpen}
         title="Online visit booking"
         description="Tenants आपकी listings पर इन समयों में खुद visit book कर सकते हैं — हर booking lead और site visit बनती है।"
-        footer={<Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!f?.days?.length}>Save</Button>}
+        footer={
+          <Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!f?.days?.length}>
+            Save
+          </Button>
+        }
       >
         {f && (
           <div className="space-y-4">
             <Field label="दिन">
               <div className="flex flex-wrap gap-2">
                 {DAYS.map((d, i) => (
-                  <Chip key={d} active={f.days.includes(i)} onClick={() => setF({ ...f, days: f.days.includes(i) ? f.days.filter((x: number) => x !== i) : [...f.days, i].sort() })}>
+                  <Chip
+                    key={d}
+                    active={f.days.includes(i)}
+                    onClick={() => setF({ ...f, days: f.days.includes(i) ? f.days.filter((x: number) => x !== i) : [...f.days, i].sort() })}
+                  >
                     {d}
                   </Chip>
                 ))}
               </div>
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Start"><Input type="time" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /></Field>
-              <Field label="End"><Input type="time" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} /></Field>
+              <Field label="Start">
+                <Input type="time" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} />
+              </Field>
+              <Field label="End">
+                <Input type="time" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} />
+              </Field>
               <Field label="हर slot">
                 <Select value={String(f.slotMinutes)} onChange={(e) => setF({ ...f, slotMinutes: e.target.value })}>
-                  {[30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} मिनट</option>)}
+                  {[30, 45, 60, 90, 120].map((m) => (
+                    <option key={m} value={m}>
+                      {m} मिनट
+                    </option>
+                  ))}
                 </Select>
               </Field>
-              <Field label="एक slot में कितनी visits"><Input type="number" min={1} max={10} value={f.maxPerSlot} onChange={(e) => setF({ ...f, maxPerSlot: e.target.value })} /></Field>
+              <Field label="एक slot में कितनी visits">
+                <Input type="number" min={1} max={10} value={f.maxPerSlot} onChange={(e) => setF({ ...f, maxPerSlot: e.target.value })} />
+              </Field>
             </div>
           </div>
         )}

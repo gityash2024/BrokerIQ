@@ -28,7 +28,12 @@ export const appConfigSchema = z.object({
   playStoreUrl: z.string().default(''),
   appStoreUrl: z.string().default(''),
   announcement: z
-    .object({ enabled: z.boolean().default(false), text: z.string().default(''), link: z.string().default(''), tone: z.enum(['info', 'promo', 'warning']).default('info') })
+    .object({
+      enabled: z.boolean().default(false),
+      text: z.string().default(''),
+      link: z.string().default(''),
+      tone: z.enum(['info', 'promo', 'warning']).default('info'),
+    })
     .default({ enabled: false, text: '', link: '', tone: 'info' }),
   maintenance: z.object({ enabled: z.boolean().default(false), message: z.string().default('') }).default({ enabled: false, message: '' }),
   mobile: z
@@ -46,22 +51,40 @@ export const appConfigSchema = z.object({
     .default({ requireModeration: true, expiryDays: 90, maxPhotos: 25, contactRevealRequiresLogin: true, autoHideReports: 3 }),
   auth: z
     // allowBrokerSignup = open signup. When off, new broker firms join only with a valid invite code.
-    .object({ allowPasswordLogin: z.boolean().default(true), allowEmailOtp: z.boolean().default(true), allowGoogle: z.boolean().default(true), allowBrokerSignup: z.boolean().default(false) })
+    .object({
+      allowPasswordLogin: z.boolean().default(true),
+      allowEmailOtp: z.boolean().default(true),
+      allowGoogle: z.boolean().default(true),
+      allowBrokerSignup: z.boolean().default(false),
+    })
     .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: false }),
   /** Approved WhatsApp template names (platform number) for messages sent outside the 24h window. Empty = skip WhatsApp. */
   whatsappTemplates: z
-    .object({ requirementMatch: z.string().default(''), weeklyReport: z.string().default(''), visitReminder: z.string().default(''), searchAlert: z.string().default(''), language: z.string().default('hi') })
+    .object({
+      requirementMatch: z.string().default(''),
+      weeklyReport: z.string().default(''),
+      visitReminder: z.string().default(''),
+      searchAlert: z.string().default(''),
+      language: z.string().default('hi'),
+    })
     .default({ requirementMatch: '', weeklyReport: '', visitReminder: '', searchAlert: '', language: 'hi' }),
   /** Brokers inviting other brokers: each firm gets a personal code; joiners get this plan free. */
   brokerReferrals: z
-    .object({ enabled: z.boolean().default(true), planCode: z.string().default('BUSINESS'), months: z.number().int().min(0).max(60).default(12), maxUsesPerBroker: z.number().int().min(1).max(1000).default(25) })
+    .object({
+      enabled: z.boolean().default(true),
+      planCode: z.string().default('BUSINESS'),
+      months: z.number().int().min(0).max(60).default(12),
+      maxUsesPerBroker: z.number().int().min(1).max(1000).default(25),
+    })
     .default({ enabled: true, planCode: 'BUSINESS', months: 12, maxUsesPerBroker: 25 }),
   seo: z
     .object({
       defaultTitle: z.string().default('BrokerIQ — Flats, Houses & PG for Rent in Gurgaon'),
       defaultDescription: z
         .string()
-        .default('Verified furnished flats, builder floors, PG and offices for rent in Gurgaon, Haryana. Compare rents by locality and connect with trusted local brokers.'),
+        .default(
+          'Verified furnished flats, builder floors, PG and offices for rent in Gurgaon, Haryana. Compare rents by locality and connect with trusted local brokers.',
+        ),
       ogImage: z.string().default(''),
     })
     .default({
@@ -91,7 +114,13 @@ export const appConfigSchema = z.object({
     })
     .default({ dailyCap: 200, providerOrder: 'openrouter,groq,gemini' }),
   finance: z
-    .object({ defaultInterestRate: z.number().default(8.5), stampDutyMalePct: z.number().default(7), stampDutyFemalePct: z.number().default(5), stampDutyJointPct: z.number().default(6), registrationFeeMax: z.number().default(50000) })
+    .object({
+      defaultInterestRate: z.number().default(8.5),
+      stampDutyMalePct: z.number().default(7),
+      stampDutyFemalePct: z.number().default(5),
+      stampDutyJointPct: z.number().default(6),
+      registrationFeeMax: z.number().default(50000),
+    })
     .default({ defaultInterestRate: 8.5, stampDutyMalePct: 7, stampDutyFemalePct: 5, stampDutyJointPct: 6, registrationFeeMax: 50000 }),
 });
 
@@ -123,5 +152,6 @@ export interface PublicConfig {
 /** Pre-rental-pivot SEO defaults, swapped for the rental copy when an install still carries them. */
 export const LEGACY_SEO_DEFAULTS = {
   title: 'BrokerIQ — Buy, Rent & Invest in Gurgaon Property',
-  description: 'Verified flats, builder floors, villas, offices and plots for sale & rent in Gurgaon. Compare localities, prices and connect with trusted brokers.',
+  description:
+    'Verified flats, builder floors, villas, offices and plots for sale & rent in Gurgaon. Compare localities, prices and connect with trusted brokers.',
 };

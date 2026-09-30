@@ -40,16 +40,34 @@ export default function PrivacyScreen() {
     ]);
   };
 
-  const Item = ({ kind, icon, title, what, on, extra }: { kind: ConsentKind; icon: React.ReactNode; title: string; what: string; on: boolean; extra?: React.ReactNode }) => (
+  const Item = ({
+    kind,
+    icon,
+    title,
+    what,
+    on,
+    extra,
+  }: {
+    kind: ConsentKind;
+    icon: React.ReactNode;
+    title: string;
+    what: string;
+    on: boolean;
+    extra?: React.ReactNode;
+  }) => (
     <Card style={{ padding: 16, gap: 8 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Row gap={10} style={{ flex: 1 }}>
           <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
-          <Txt v="bodyStrong" style={{ flex: 1 }}>{title}</Txt>
+          <Txt v="bodyStrong" style={{ flex: 1 }}>
+            {title}
+          </Txt>
         </Row>
         <Switch value={on} disabled={busy != null} onValueChange={(v) => toggle(kind, v)} trackColor={{ true: c.brand, false: c.line }} thumbColor="#fff" />
       </Row>
-      <Txt v="small" color="muted">{what}</Txt>
+      <Txt v="small" color="muted">
+        {what}
+      </Txt>
       {extra}
     </Card>
   );
@@ -58,7 +76,13 @@ export default function PrivacyScreen() {
     <Screen edges={['top', 'bottom']}>
       <Header title="Privacy & data sharing" subtitle="आपकी मर्ज़ी — कभी भी बदलें" />
       <View style={{ gap: 12, marginTop: 8 }}>
-        <Item kind="LOCATION" icon={<MapPin size={20} color={c.brand} />} title={T.location.title} what={`${T.location.what} ${T.location.why}`} on={!!d.location?.granted} />
+        <Item
+          kind="LOCATION"
+          icon={<MapPin size={20} color={c.brand} />}
+          title={T.location.title}
+          what={`${T.location.what} ${T.location.why}`}
+          on={!!d.location?.granted}
+        />
         <Item
           kind="CONTACTS"
           icon={<Contact size={20} color={c.brand} />}
@@ -68,7 +92,9 @@ export default function PrivacyScreen() {
           extra={
             d.contacts?.granted ? (
               <Row style={{ justifyContent: 'space-between' }}>
-                <Txt v="caption" color="muted">{plural(d.contactsCount, 'contact')} shared</Txt>
+                <Txt v="caption" color="muted">
+                  {plural(d.contactsCount, 'contact')} shared
+                </Txt>
                 <Button
                   title="अभी sync करें"
                   size="sm"
@@ -95,9 +121,13 @@ export default function PrivacyScreen() {
         <Card style={{ padding: 14, gap: 8, backgroundColor: c.surface2 }}>
           <Row gap={8} style={{ alignItems: 'flex-start' }}>
             <Lock size={16} color={c.success} style={{ marginTop: 2 }} />
-            <Txt v="small" style={{ flex: 1 }}>{T.who}</Txt>
+            <Txt v="small" style={{ flex: 1 }}>
+              {T.who}
+            </Txt>
           </Row>
-          <Txt v="small" color="muted">{T.security}</Txt>
+          <Txt v="small" color="muted">
+            {T.security}
+          </Txt>
         </Card>
       </View>
     </Screen>

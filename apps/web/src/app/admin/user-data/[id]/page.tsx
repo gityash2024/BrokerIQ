@@ -33,13 +33,33 @@ export default function UserDataDetail({ params }: { params: Promise<{ id: strin
   const { user, consents, locations, contacts, contactsTotal } = q.data;
   return (
     <>
-      <PageHeader title={user.name} subtitle={`${user.email}${user.phone ? ` · ${user.phone}` : ''} · ${user.organization?.name ?? user.role}`} actions={contactsTotal > 0 && <Button variant="secondary" onClick={exportCsv}><Download className="size-4" /> Contacts CSV</Button>} />
-      <p className="mb-4 flex items-center gap-2 text-xs text-muted"><Lock className="size-3.5" /> यह view audit log में दर्ज हो गया है।</p>
+      <PageHeader
+        title={user.name}
+        subtitle={`${user.email}${user.phone ? ` · ${user.phone}` : ''} · ${user.organization?.name ?? user.role}`}
+        actions={
+          contactsTotal > 0 && (
+            <Button variant="secondary" onClick={exportCsv}>
+              <Download className="size-4" /> Contacts CSV
+            </Button>
+          )
+        }
+      />
+      <p className="mb-4 flex items-center gap-2 text-xs text-muted">
+        <Lock className="size-3.5" /> यह view audit log में दर्ज हो गया है।
+      </p>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="card min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
             <p className="font-display font-bold">Contacts ({contactsTotal})</p>
-            <div className="ml-auto w-full sm:w-64"><Input icon={<Search className="size-4" />} className="h-9" placeholder="नाम / नंबर / email" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+            <div className="ml-auto w-full sm:w-64">
+              <Input
+                icon={<Search className="size-4" />}
+                className="h-9"
+                placeholder="नाम / नंबर / email"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
           {!contacts.length ? (
             <Empty title={contactsTotal ? 'कोई match नहीं' : 'Contacts share नहीं किए गए'} />
@@ -47,7 +67,11 @@ export default function UserDataDetail({ params }: { params: Promise<{ id: strin
             <div className="max-h-[640px] overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-surface-2 text-left text-xs font-bold text-subtle uppercase">
-                  <tr><th className="px-4 py-2">Name</th><th className="px-4 py-2">Phone</th><th className="px-4 py-2">Email</th></tr>
+                  <tr>
+                    <th className="px-4 py-2">Name</th>
+                    <th className="px-4 py-2">Phone</th>
+                    <th className="px-4 py-2">Email</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {contacts.map((c: any) => (
@@ -65,7 +89,15 @@ export default function UserDataDetail({ params }: { params: Promise<{ id: strin
         <div className="space-y-5">
           <div className="card h-72 overflow-hidden">
             {locations.length ? (
-              <Map points={locations.map((l: any, i: number) => ({ id: l.id, lat: l.latitude, lng: l.longitude, label: `${i === 0 ? 'Latest · ' : ''}${formatDate(l.capturedAt)}`, dot: true }))} />
+              <Map
+                points={locations.map((l: any, i: number) => ({
+                  id: l.id,
+                  lat: l.latitude,
+                  lng: l.longitude,
+                  label: `${i === 0 ? 'Latest · ' : ''}${formatDate(l.capturedAt)}`,
+                  dot: true,
+                }))}
+              />
             ) : (
               <div className="grid h-full place-items-center text-sm text-muted">Location share नहीं की गई</div>
             )}
@@ -75,7 +107,12 @@ export default function UserDataDetail({ params }: { params: Promise<{ id: strin
             <div className="space-y-2 text-sm">
               {consents.map((c: any) => (
                 <div key={c.id} className="flex items-center justify-between gap-2">
-                  <span>{c.kind === 'LOCATION' ? 'Location' : 'Contacts'} · <span className="text-xs text-muted">{c.platform ?? '—'} · v{c.policyVersion}</span></span>
+                  <span>
+                    {c.kind === 'LOCATION' ? 'Location' : 'Contacts'} ·{' '}
+                    <span className="text-xs text-muted">
+                      {c.platform ?? '—'} · v{c.policyVersion}
+                    </span>
+                  </span>
                   <span className="flex items-center gap-2">
                     <Badge tone={c.granted ? 'success' : 'warning'}>{c.granted ? 'Allowed' : 'Withdrawn'}</Badge>
                     <span className="text-xs text-subtle">{timeAgo(c.createdAt)}</span>

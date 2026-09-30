@@ -38,9 +38,20 @@ export class FeedbackController {
     const fb = await this.prisma.feedback.create({
       data: { ...body, contactEmail: body.contactEmail || null, userId: user?.id, isPublic: false },
     });
-    if (user) await this.prisma.feedbackVote.create({ data: { feedbackId: fb.id, userId: user.id } }).then(() => this.prisma.feedback.update({ where: { id: fb.id }, data: { voteCount: 1 } }));
+    if (user)
+      await this.prisma.feedbackVote
+        .create({ data: { feedbackId: fb.id, userId: user.id } })
+        .then(() => this.prisma.feedback.update({ where: { id: fb.id }, data: { voteCount: 1 } }));
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-    await this.notifications.notify(admins.map((a) => a.id), { kind: 'SYSTEM', title: `🗣️ नया ${body.type.toLowerCase()} feedback: ${body.title}`, link: `/admin/feedback?id=${fb.id}`, push: body.type === 'BUG' || body.type === 'COMPLAINT' });
+    await this.notifications.notify(
+      admins.map((a) => a.id),
+      {
+        kind: 'SYSTEM',
+        title: `🗣️ नया ${body.type.toLowerCase()} feedback: ${body.title}`,
+        link: `/admin/feedback?id=${fb.id}`,
+        push: body.type === 'BUG' || body.type === 'COMPLAINT',
+      },
+    );
     return { ok: true, id: fb.id };
   }
 
@@ -62,7 +73,18 @@ export class FeedbackController {
         orderBy: q.sort === 'new' ? [{ createdAt: 'desc' }] : [{ voteCount: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * 30,
         take: 30,
-        select: { id: true, type: true, title: true, description: true, status: true, voteCount: true, adminReply: true, createdAt: true, updatedAt: true, _count: { select: { comments: true } } },
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          description: true,
+          status: true,
+          voteCount: true,
+          adminReply: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { comments: true } },
+        },
       }),
       this.prisma.feedback.count({ where }),
       this.prisma.feedback.groupBy({ by: ['status'], where: { isPublic: true, mergedIntoId: null }, _count: { _all: true } }),
@@ -101,14 +123,21 @@ export class FeedbackController {
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/comments')
-  async comment(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ body: z.string().trim().min(1).max(2000) }))) body: any) {
+  async comment(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ body: z.string().trim().min(1).max(2000) }))) body: any,
+  ) {
     const fb = await this.prisma.feedback.findUnique({ where: { id } });
     if (!fb) throw new NotFoundException();
     const isAdmin = user.role === 'SUPER_ADMIN';
     if (!fb.isPublic && fb.userId !== user.id && !isAdmin) throw new ForbiddenException();
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
-    const c = await this.prisma.feedbackComment.create({ data: { feedbackId: id, userId: user.id, authorName: isAdmin ? 'BrokerIQ Team' : me.name, isAdmin, body: body.body } });
-    if (isAdmin && fb.userId) await this.notifications.notify(fb.userId, { kind: 'SYSTEM', title: 'आपके feedback पर team का जवाब आया', body: fb.title, link: `/feedback/${id}` });
+    const c = await this.prisma.feedbackComment.create({
+      data: { feedbackId: id, userId: user.id, authorName: isAdmin ? 'BrokerIQ Team' : me.name, isAdmin, body: body.body },
+    });
+    if (isAdmin && fb.userId)
+      await this.notifications.notify(fb.userId, { kind: 'SYSTEM', title: 'आपके feedback पर team का जवाब आया', body: fb.title, link: `/feedback/${id}` });
     return c;
   }
 
@@ -123,7 +152,13 @@ export class FeedbackController {
       ...(q.q ? { OR: [{ title: { contains: q.q, mode: 'insensitive' } }, { description: { contains: q.q, mode: 'insensitive' } }] } : {}),
     };
     const [items, total, byStatus, byType, avgRating] = await Promise.all([
-      this.prisma.feedback.findMany({ where, orderBy: q.sort === 'votes' ? [{ voteCount: 'desc' }] : [{ createdAt: 'desc' }], skip: (page - 1) * 30, take: 30, include: { _count: { select: { comments: true } } } }),
+      this.prisma.feedback.findMany({
+        where,
+        orderBy: q.sort === 'votes' ? [{ voteCount: 'desc' }] : [{ createdAt: 'desc' }],
+        skip: (page - 1) * 30,
+        take: 30,
+        include: { _count: { select: { comments: true } } },
+      }),
       this.prisma.feedback.count({ where }),
       this.prisma.feedback.groupBy({ by: ['status'], _count: { _all: true } }),
       this.prisma.feedback.groupBy({ by: ['type'], _count: { _all: true } }),
@@ -132,7 +167,12 @@ export class FeedbackController {
     const userIds = [...new Set(items.map((i) => i.userId).filter(Boolean))] as string[];
     const users = await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true, role: true } });
     return {
-      ...paged(items.map((i) => ({ ...i, user: users.find((u) => u.id === i.userId) ?? null })), total, page, 30),
+      ...paged(
+        items.map((i) => ({ ...i, user: users.find((u) => u.id === i.userId) ?? null })),
+        total,
+        page,
+        30,
+      ),
       stats: {
         byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count._all])),
         byType: Object.fromEntries(byType.map((s) => [s.type, s._count._all])),
@@ -151,15 +191,28 @@ export class FeedbackController {
       const target = await this.prisma.feedback.findUnique({ where: { id: body.mergedIntoId } });
       if (!target || target.id === id) throw new BadRequestException('Invalid merge target');
       const votes = await this.prisma.feedbackVote.findMany({ where: { feedbackId: id } });
-      for (const v of votes) await this.prisma.feedbackVote.upsert({ where: { feedbackId_userId: { feedbackId: target.id, userId: v.userId } }, create: { feedbackId: target.id, userId: v.userId }, update: {} });
-      await this.prisma.feedback.update({ where: { id: target.id }, data: { voteCount: await this.prisma.feedbackVote.count({ where: { feedbackId: target.id } }) } });
+      for (const v of votes)
+        await this.prisma.feedbackVote.upsert({
+          where: { feedbackId_userId: { feedbackId: target.id, userId: v.userId } },
+          create: { feedbackId: target.id, userId: v.userId },
+          update: {},
+        });
+      await this.prisma.feedback.update({
+        where: { id: target.id },
+        data: { voteCount: await this.prisma.feedbackVote.count({ where: { feedbackId: target.id } }) },
+      });
       body.isPublic = false;
     }
     const updated = await this.prisma.feedback.update({ where: { id }, data: body });
     if (body.status && body.status !== fb.status) {
       const voters = await this.prisma.feedbackVote.findMany({ where: { feedbackId: id }, select: { userId: true } });
       const ids = [...new Set([fb.userId, ...voters.map((v) => v.userId)].filter(Boolean))] as string[];
-      await this.notifications.notify(ids, { kind: 'SYSTEM', title: `${body.status === 'DONE' ? '🚀' : '📌'} "${fb.title}" → ${FEEDBACK_STATUS_LABELS[body.status]}`, body: body.adminReply ?? undefined, link: `/feedback/${id}` });
+      await this.notifications.notify(ids, {
+        kind: 'SYSTEM',
+        title: `${body.status === 'DONE' ? '🚀' : '📌'} "${fb.title}" → ${FEEDBACK_STATUS_LABELS[body.status]}`,
+        body: body.adminReply ?? undefined,
+        link: `/feedback/${id}`,
+      });
     }
     await this.audit.log(user, 'feedback.update', 'Feedback', id, body);
     return updated;

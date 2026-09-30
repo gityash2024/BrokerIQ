@@ -5,11 +5,19 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Badge } from '@/ui';
 
-export const SourceBadge = ({ source }: { source: string }) => <Badge label={LEAD_SOURCE_LABELS[source as LeadSource] ?? source} color={LEAD_SOURCE_COLORS[source as LeadSource] ?? '#64748B'} />;
+export const SourceBadge = ({ source }: { source: string }) => (
+  <Badge label={LEAD_SOURCE_LABELS[source as LeadSource] ?? source} color={LEAD_SOURCE_COLORS[source as LeadSource] ?? '#64748B'} />
+);
 
 export function StageBadge({ stage }: { stage: string }) {
   const c = LEAD_STAGE_COLORS[stage as LeadStage] ?? '#64748B';
-  return <Badge label={LEAD_STAGE_LABELS[stage as LeadStage] ?? stage} color={c} icon={<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c }} />} />;
+  return (
+    <Badge
+      label={LEAD_STAGE_LABELS[stage as LeadStage] ?? stage}
+      color={c}
+      icon={<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c }} />}
+    />
+  );
 }
 
 export function TempBadge({ t }: { t?: string | null }) {

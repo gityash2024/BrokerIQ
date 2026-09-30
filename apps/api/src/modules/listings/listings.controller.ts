@@ -13,7 +13,9 @@ import { AccessService } from '../../core/access/access.service';
 import { descriptionSystem } from '../../core/ai/prompts';
 
 const statusSchema = z.object({ status: z.enum(['SOLD', 'RENTED', 'ARCHIVED', 'ACTIVE']) });
-const aiDescSchema = listingInputSchema.partial().extend({ tone: z.enum(['professional', 'friendly', 'luxury']).default('professional'), language: z.enum(['en', 'hi']).default('en') });
+const aiDescSchema = listingInputSchema
+  .partial()
+  .extend({ tone: z.enum(['professional', 'friendly', 'luxury']).default('professional'), language: z.enum(['en', 'hi']).default('en') });
 
 @ApiTags('listings')
 @Controller('listings')

@@ -36,7 +36,12 @@ export default async function PropertyPage({ params }: Props) {
     image: (l.media ?? []).slice(0, 5).map((m: any) => m.url),
     datePosted: l.publishedAt ?? l.createdAt,
     description: l.description ?? undefined,
-    offers: { '@type': 'Offer', price: l.price, priceCurrency: 'INR', availability: l.status === 'ACTIVE' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut' },
+    offers: {
+      '@type': 'Offer',
+      price: l.price,
+      priceCurrency: 'INR',
+      availability: l.status === 'ACTIVE' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+    },
     address: { '@type': 'PostalAddress', addressLocality: `${l.locality.name}, Gurgaon`, addressRegion: 'Haryana', addressCountry: 'IN' },
     ...(l.latitude ? { geo: { '@type': 'GeoCoordinates', latitude: l.latitude, longitude: l.longitude } } : {}),
   };

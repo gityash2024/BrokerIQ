@@ -62,7 +62,16 @@ export function MicrositeActions({ org }: { org: { id: string; name: string; pho
       <Button variant="secondary" onClick={() => setOpen('review')}>
         <Star className="size-4" /> Review
       </Button>
-      <Dialog open={open === 'contact'} onOpenChange={(v) => setOpen(v ? 'contact' : null)} title={`${org.name} से संपर्क करें`} footer={<Button onClick={send} loading={loading}><Phone className="size-4" /> Request callback</Button>}>
+      <Dialog
+        open={open === 'contact'}
+        onOpenChange={(v) => setOpen(v ? 'contact' : null)}
+        title={`${org.name} से संपर्क करें`}
+        footer={
+          <Button onClick={send} loading={loading}>
+            <Phone className="size-4" /> Request callback
+          </Button>
+        }
+      >
         <div className="space-y-3">
           <Field label="नाम" required>
             <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
@@ -75,7 +84,16 @@ export function MicrositeActions({ org }: { org: { id: string; name: string; pho
           </Field>
         </div>
       </Dialog>
-      <Dialog open={open === 'review'} onOpenChange={(v) => setOpen(v ? 'review' : null)} title={`${org.name} को rate करें`} footer={<Button onClick={review} loading={loading}>Submit review</Button>}>
+      <Dialog
+        open={open === 'review'}
+        onOpenChange={(v) => setOpen(v ? 'review' : null)}
+        title={`${org.name} को rate करें`}
+        footer={
+          <Button onClick={review} loading={loading}>
+            Submit review
+          </Button>
+        }
+      >
         <div className="flex justify-center gap-1 py-2">
           {[1, 2, 3, 4, 5].map((i) => (
             <button key={i} onClick={() => setRating(i)} aria-label={`${i} star`}>

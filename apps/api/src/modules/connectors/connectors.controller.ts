@@ -78,7 +78,12 @@ export class ConnectorsController {
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('broker/connectors/email_inbox/preview')
   preview(@Body(new ZodPipe(z.object({ from: z.string().default(''), subject: z.string().default(''), body: z.string().max(100_000) }))) body: any) {
-    return parsePortalEmail({ from: body.from, subject: body.subject, text: body.body.includes('<') ? null : body.body, html: body.body.includes('<') ? body.body : null });
+    return parsePortalEmail({
+      from: body.from,
+      subject: body.subject,
+      text: body.body.includes('<') ? null : body.body,
+      html: body.body.includes('<') ? body.body : null,
+    });
   }
 
   // ------------------------------------------------------------------ public webhooks
@@ -106,7 +111,11 @@ export class ConnectorsController {
     const secret = t.cfg?.appSecret as string | undefined;
     if (secret) {
       const header = String(req.headers['x-hub-signature-256'] ?? '');
-      const expected = 'sha256=' + createHmac('sha256', secret).update(req.rawBody ?? Buffer.from('')).digest('hex');
+      const expected =
+        'sha256=' +
+        createHmac('sha256', secret)
+          .update(req.rawBody ?? Buffer.from(''))
+          .digest('hex');
       if (header.length !== expected.length || !timingSafeEqual(Buffer.from(header), Buffer.from(expected))) throw new ForbiddenException('bad signature');
     }
     await this.connectors.handleMetaWebhook(key, body);

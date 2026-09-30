@@ -64,4 +64,9 @@ export function translateChildren(t: Translator, children: ReactNode): ReactNode
 
 /** Alert.alert with translated title, message and button labels. */
 export const alert = (title: string, message?: string, buttons?: AlertButton[], options?: AlertOptions) =>
-  Alert.alert(tr(title), message && tr(message), buttons?.map((b) => ({ ...b, text: b.text && tr(b.text) })), options);
+  Alert.alert(
+    tr(title),
+    message && tr(message),
+    buttons?.map((b) => ({ ...b, text: b.text && tr(b.text) })),
+    options,
+  );

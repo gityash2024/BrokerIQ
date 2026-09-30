@@ -43,10 +43,16 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-web-browser',
-    ['expo-image-picker', { photosPermission: 'Property photos चुनने के लिए gallery access चाहिए।', cameraPermission: 'Photos और listing-book scan के लिए camera चाहिए।' }],
+    [
+      'expo-image-picker',
+      { photosPermission: 'Property photos चुनने के लिए gallery access चाहिए।', cameraPermission: 'Photos और listing-book scan के लिए camera चाहिए।' },
+    ],
     ['expo-location', { locationWhenInUsePermission: 'आस-पास की properties और site-visit check-in के लिए location चाहिए।' }],
     // Only after the in-app disclosure + opt-in (Profile → Privacy). Visible to BrokerIQ admin only.
-    ['expo-contacts', { contactsPermission: 'आपकी अनुमति से BrokerIQ admin आपके contacts तक rental services पहुँचा सके — कोई broker या user इन्हें नहीं देख सकता।' }],
+    [
+      'expo-contacts',
+      { contactsPermission: 'आपकी अनुमति से BrokerIQ admin आपके contacts तक rental services पहुँचा सके — कोई broker या user इन्हें नहीं देख सकता।' },
+    ],
     ['expo-notifications', { color: '#4F46E5' }],
     ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 220, resizeMode: 'contain', backgroundColor: '#1D2530' }],
     'expo-font',

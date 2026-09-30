@@ -28,7 +28,11 @@ export class MonitoringController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(204)
   @Post('public/client-errors')
-  async clientError(@CurrentUser() user: RequestUser | undefined, @Body(new ZodPipe(clientErrorSchema)) body: z.infer<typeof clientErrorSchema>, @Headers('user-agent') ua?: string) {
+  async clientError(
+    @CurrentUser() user: RequestUser | undefined,
+    @Body(new ZodPipe(clientErrorSchema)) body: z.infer<typeof clientErrorSchema>,
+    @Headers('user-agent') ua?: string,
+  ) {
     await this.monitoring.record({ ...body, userId: user?.id ?? null, userAgent: ua ?? null });
   }
 
@@ -44,7 +48,11 @@ export class MonitoringController {
 
   @Roles('SUPER_ADMIN')
   @Patch('admin/errors/:id')
-  async resolve(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ resolved: z.boolean() }))) body: { resolved: boolean }) {
+  async resolve(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ resolved: z.boolean() }))) body: { resolved: boolean },
+  ) {
     const row = await this.prisma.errorLog.update({ where: { id }, data: { resolvedAt: body.resolved ? new Date() : null } });
     await this.audit.log(user, body.resolved ? 'error.resolve' : 'error.reopen', 'ErrorLog', id);
     return row;
@@ -87,7 +95,12 @@ export class MonitoringController {
           return acc;
         }, {}),
       );
-    return { ai: { day: shape(ai24), month: shape(ai30) }, email: { day: mail24, month: mail30 }, whatsapp: { day: wa24, month: wa30 }, disk: checks?.disk ?? null };
+    return {
+      ai: { day: shape(ai24), month: shape(ai30) },
+      email: { day: mail24, month: mail30 },
+      whatsapp: { day: wa24, month: wa30 },
+      disk: checks?.disk ?? null,
+    };
   }
 
   /** Run the uptime checks now (website, database, disk, watchdog). */

@@ -14,11 +14,32 @@ export default function Page() {
       canDelete
       defaults={{ isActive: true, isPopular: false, highlights: [] }}
       columns={[
-        { key: 'name', label: 'Locality', render: (r) => <div><Link href={`/locality/${r.slug}`} target="_blank" className="font-semibold hover:text-brand-600">{r.name}</Link><p className="text-xs text-muted">{r.zone ?? '—'} · {r.pincode ?? ''}</p></div> },
+        {
+          key: 'name',
+          label: 'Locality',
+          render: (r) => (
+            <div>
+              <Link href={`/locality/${r.slug}`} target="_blank" className="font-semibold hover:text-brand-600">
+                {r.name}
+              </Link>
+              <p className="text-xs text-muted">
+                {r.zone ?? '—'} · {r.pincode ?? ''}
+              </p>
+            </div>
+          ),
+        },
         { key: 'avgPriceSale', label: 'Avg ₹/sqft', render: (r) => (r.avgPriceSale ? `₹${Math.round(r.avgPriceSale).toLocaleString('en-IN')}` : '—') },
         { key: 'avgRent2Bhk', label: '2BHK rent', render: (r) => (r.avgRent2Bhk ? formatPriceShort(r.avgRent2Bhk) : '—') },
         { key: '_count', label: 'Live listings', render: (r) => `${r._count?.listings ?? 0} · ${r._count?.projects ?? 0} projects` },
-        { key: 'flags', label: '', render: (r) => <>{r.isPopular && <Badge tone="warning">Popular</Badge>} {!r.isActive && <Badge>Inactive</Badge>}</> },
+        {
+          key: 'flags',
+          label: '',
+          render: (r) => (
+            <>
+              {r.isPopular && <Badge tone="warning">Popular</Badge>} {!r.isActive && <Badge>Inactive</Badge>}
+            </>
+          ),
+        },
       ]}
       fields={[
         { key: 'name', label: 'Name', required: true, placeholder: 'Sector 65' },

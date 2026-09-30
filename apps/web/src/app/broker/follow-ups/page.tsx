@@ -44,16 +44,29 @@ export default function FollowUpsPage() {
   const [outcome, setOutcome] = useState('');
   const [addOpen, setAddOpen] = useState(false);
 
-  const params = view === 'today' ? { view: 'today' } : view === 'overdue' ? { view: 'overdue' } : view === 'done' ? { status: 'DONE', from: new Date(Date.now() - 14 * 86400_000).toISOString() } : { status: 'PENDING', from: new Date().toISOString() };
+  const params =
+    view === 'today'
+      ? { view: 'today' }
+      : view === 'overdue'
+        ? { view: 'overdue' }
+        : view === 'done'
+          ? { status: 'DONE', from: new Date(Date.now() - 14 * 86400_000).toISOString() }
+          : { status: 'PENDING', from: new Date().toISOString() };
   const q = useQuery({ queryKey: ['follow-ups', view, agent], queryFn: () => api<any[]>(`/follow-ups${qs({ ...params, assignedToId: agent })}`) });
-  const counts = useQuery({ queryKey: ['follow-ups', 'counts', agent], queryFn: async () => ({ today: (await api<any[]>(`/follow-ups${qs({ view: 'today', assignedToId: agent })}`)).length, overdue: (await api<any[]>(`/follow-ups${qs({ view: 'overdue', assignedToId: agent })}`)).length }) });
+  const counts = useQuery({
+    queryKey: ['follow-ups', 'counts', agent],
+    queryFn: async () => ({
+      today: (await api<any[]>(`/follow-ups${qs({ view: 'today', assignedToId: agent })}`)).length,
+      overdue: (await api<any[]>(`/follow-ups${qs({ view: 'overdue', assignedToId: agent })}`)).length,
+    }),
+  });
   const inv = [['follow-ups'], ['broker-dashboard']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/follow-ups/${id}`, b), { invalidate: inv });
   const remove = useApiMutation((id: string) => del(`/follow-ups/${id}`), { success: 'Follow-up हटाया', invalidate: inv });
 
   const groups = useMemo(() => {
     const m = new Map<string, any[]>();
-    for (const f of view === 'done' ? [...(q.data ?? [])].reverse() : q.data ?? []) {
+    for (const f of view === 'done' ? [...(q.data ?? [])].reverse() : (q.data ?? [])) {
       const k = view === 'done' ? formatDate(f.completedAt ?? f.dueAt, { day: 'numeric', month: 'short', weekday: 'short' }) : dayKey(new Date(f.dueAt));
       m.set(k, [...(m.get(k) ?? []), f]);
     }
@@ -75,7 +88,11 @@ export default function FollowUpsPage() {
       <PageHeader
         title="Follow-ups"
         subtitle="कोई भी client छूटे नहीं — समय पर reminder push और email से भी आता है"
-        actions={<Button size="sm" onClick={() => setAddOpen(true)}><CalendarPlus className="size-4" /> Follow-up जोड़ें</Button>}
+        actions={
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <CalendarPlus className="size-4" /> Follow-up जोड़ें
+          </Button>
+        }
       />
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Segmented
@@ -91,7 +108,11 @@ export default function FollowUpsPage() {
         {admin && (
           <Select value={agent} onChange={(e) => setAgent(e.target.value)} className="h-10 w-44">
             <option value="">पूरी team</option>
-            {(team.data?.members ?? []).map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            {(team.data?.members ?? []).map((m: any) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
           </Select>
         )}
       </div>
@@ -99,7 +120,11 @@ export default function FollowUpsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <div className="space-y-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}</div>
+        <div className="space-y-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-2xl" />
+          ))}
+        </div>
       ) : !q.data.length ? (
         <Empty
           icon={<Check className="size-7" />}
@@ -119,38 +144,80 @@ export default function FollowUpsPage() {
                     const Icon = TYPE_ICON[f.type as keyof typeof TYPE_ICON] ?? ListChecks;
                     const overdue = f.status === 'PENDING' && new Date(f.dueAt) < new Date();
                     return (
-                      <motion.div key={f.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 40 }} className={cn('card flex flex-col gap-3 p-4 sm:flex-row sm:items-center', overdue && 'border-rose-200 dark:border-rose-500/30')}>
-                        <div className={cn('grid size-11 shrink-0 place-items-center rounded-xl', f.status === 'DONE' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15' : overdue ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/15' : 'bg-brand-50 text-brand-600 dark:bg-brand-500/15')}>
+                      <motion.div
+                        key={f.id}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: 40 }}
+                        className={cn('card flex flex-col gap-3 p-4 sm:flex-row sm:items-center', overdue && 'border-rose-200 dark:border-rose-500/30')}
+                      >
+                        <div
+                          className={cn(
+                            'grid size-11 shrink-0 place-items-center rounded-xl',
+                            f.status === 'DONE'
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15'
+                              : overdue
+                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/15'
+                                : 'bg-brand-50 text-brand-600 dark:bg-brand-500/15',
+                          )}
+                        >
                           {f.status === 'DONE' ? <Check className="size-5" /> : <Icon className="size-5" />}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Link href={`/broker/leads/${f.lead.id}`} className="font-semibold hover:text-brand-600">{f.lead.name || f.lead.phone}</Link>
+                            <Link href={`/broker/leads/${f.lead.id}`} className="font-semibold hover:text-brand-600">
+                              {f.lead.name || f.lead.phone}
+                            </Link>
                             <StageBadge stage={f.lead.stage} />
                           </div>
                           <p className="mt-0.5 line-clamp-2 text-sm text-muted">{f.note || `${f.type.toLowerCase()} follow-up`}</p>
                           <p className={cn('mt-1 flex items-center gap-1 text-xs', overdue ? 'font-semibold text-rose-600' : 'text-subtle')}>
                             <Clock className="size-3" /> {formatDate(f.dueAt, { dateStyle: 'medium', timeStyle: 'short' })}
-                            {admin && f.assignedTo && <span className="ml-2 inline-flex items-center gap-1"><Avatar name={f.assignedTo.name} size={16} /> {f.assignedTo.name}</span>}
+                            {admin && f.assignedTo && (
+                              <span className="ml-2 inline-flex items-center gap-1">
+                                <Avatar name={f.assignedTo.name} size={16} /> {f.assignedTo.name}
+                              </span>
+                            )}
                           </p>
                         </div>
                         {f.status === 'PENDING' && (
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <Button size="icon-sm" variant="ghost" href={`tel:${f.lead.phone}`} aria-label="Call"><Phone className="size-4" /></Button>
-                            <Button size="icon-sm" variant="ghost" href={whatsappLink(f.lead.phone, `Hi ${f.lead.name ?? ''}`)} external aria-label="WhatsApp"><MessageCircle className="size-4 text-emerald-600" /></Button>
-                            <Select className="h-8 w-28 rounded-lg text-xs" value="" onChange={(e) => e.target.value && snooze(f, e.target.value === 'tomorrow' ? 'tomorrow' : Number(e.target.value))}>
+                            <Button size="icon-sm" variant="ghost" href={`tel:${f.lead.phone}`} aria-label="Call">
+                              <Phone className="size-4" />
+                            </Button>
+                            <Button size="icon-sm" variant="ghost" href={whatsappLink(f.lead.phone, `Hi ${f.lead.name ?? ''}`)} external aria-label="WhatsApp">
+                              <MessageCircle className="size-4 text-emerald-600" />
+                            </Button>
+                            <Select
+                              className="h-8 w-28 rounded-lg text-xs"
+                              value=""
+                              onChange={(e) => e.target.value && snooze(f, e.target.value === 'tomorrow' ? 'tomorrow' : Number(e.target.value))}
+                            >
                               <option value="">Snooze…</option>
                               <option value={3600_000}>1 घंटा</option>
                               <option value={3 * 3600_000}>3 घंटे</option>
                               <option value="tomorrow">कल 10 बजे</option>
                               <option value={3 * 86400_000}>3 दिन</option>
                             </Select>
-                            <Button size="xs" variant="success" onClick={() => (setDone(f), setOutcome(''))}><Check className="size-3.5" /> Done</Button>
-                            <Button size="icon-sm" variant="ghost" onClick={() => update.mutate({ id: f.id, status: 'MISSED' })} aria-label="Missed" title="Missed"><X className="size-4" /></Button>
+                            <Button size="xs" variant="success" onClick={() => (setDone(f), setOutcome(''))}>
+                              <Check className="size-3.5" /> Done
+                            </Button>
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() => update.mutate({ id: f.id, status: 'MISSED' })}
+                              aria-label="Missed"
+                              title="Missed"
+                            >
+                              <X className="size-4" />
+                            </Button>
                           </div>
                         )}
                         {f.status !== 'PENDING' && (
-                          <Button size="icon-sm" variant="ghost" onClick={() => remove.mutate(f.id)} aria-label="Delete"><Trash2 className="size-4" /></Button>
+                          <Button size="icon-sm" variant="ghost" onClick={() => remove.mutate(f.id)} aria-label="Delete">
+                            <Trash2 className="size-4" />
+                          </Button>
                         )}
                       </motion.div>
                     );
@@ -170,8 +237,14 @@ export default function FollowUpsPage() {
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDone(null)}>Cancel</Button>
-            <Button variant="success" loading={update.isPending} onClick={() => update.mutate({ id: done.id, status: 'DONE', outcomeNote: outcome || undefined }, { onSuccess: () => setDone(null) })}>
+            <Button variant="secondary" onClick={() => setDone(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="success"
+              loading={update.isPending}
+              onClick={() => update.mutate({ id: done.id, status: 'DONE', outcomeNote: outcome || undefined }, { onSuccess: () => setDone(null) })}
+            >
               <Check className="size-4" /> Save
             </Button>
           </>
@@ -203,19 +276,33 @@ function AddFollowUp({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
       open={open}
       onOpenChange={onOpenChange}
       title="नया follow-up"
-      footer={<Button disabled={!lead} loading={create.isPending} onClick={() => create.mutate(undefined)}><AlarmClock className="size-4" /> Schedule</Button>}
+      footer={
+        <Button disabled={!lead} loading={create.isPending} onClick={() => create.mutate(undefined)}>
+          <AlarmClock className="size-4" /> Schedule
+        </Button>
+      }
     >
       <div className="space-y-4">
-        <Field label="Lead" required><LeadPicker value={lead} onChange={setLead} /></Field>
+        <Field label="Lead" required>
+          <LeadPicker value={lead} onChange={setLead} />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Type">
             <Select value={type} onChange={(e) => setType(e.target.value)}>
-              {Object.keys(FollowUpType).map((t) => <option key={t} value={t}>{t[0] + t.slice(1).toLowerCase()}</option>)}
+              {Object.keys(FollowUpType).map((t) => (
+                <option key={t} value={t}>
+                  {t[0] + t.slice(1).toLowerCase()}
+                </option>
+              ))}
             </Select>
           </Field>
-          <Field label="कब" required><Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} /></Field>
+          <Field label="कब" required>
+            <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+          </Field>
         </div>
-        <Field label="Note"><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="क्या बात करनी है…" /></Field>
+        <Field label="Note">
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="क्या बात करनी है…" />
+        </Field>
       </div>
     </Dialog>
   );

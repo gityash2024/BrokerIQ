@@ -3,7 +3,11 @@ import { Suspense } from 'react';
 import { PageShell } from '@/components/site/page-shell';
 import { ToolsHub } from '@/components/site/tools-hub';
 
-export const metadata: Metadata = { title: 'Rent calculators — rent budget, move-in cost, rent split', description: 'Free rent tools for Gurgaon tenants: how much rent you can afford, total move-in cost with deposit and brokerage, and splitting rent between flatmates.' };
+export const metadata: Metadata = {
+  title: 'Rent calculators — rent budget, move-in cost, rent split',
+  description:
+    'Free rent tools for Gurgaon tenants: how much rent you can afford, total move-in cost with deposit and brokerage, and splitting rent between flatmates.',
+};
 
 export default function ToolsPage() {
   return (

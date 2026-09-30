@@ -7,7 +7,12 @@ export function LoginPrompt({ title, text }: { title: string; text: string }) {
   const { c } = useTheme();
   return (
     <Screen>
-      <Empty icon={<LogIn size={28} color={c.brand} />} title={title} text={text} action={<Button title="Login / Sign up" onPress={() => router.push('/login')} />} />
+      <Empty
+        icon={<LogIn size={28} color={c.brand} />}
+        title={title}
+        text={text}
+        action={<Button title="Login / Sign up" onPress={() => router.push('/login')} />}
+      />
     </Screen>
   );
 }

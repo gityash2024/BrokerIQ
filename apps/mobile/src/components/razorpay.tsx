@@ -49,10 +49,20 @@ rzp.open();
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#1E1B4B' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 }}>
-          <Txt v="bodyStrong" color="white">Secure payment · Razorpay</Txt>
-          <IconBtn onPress={onClose}><X size={22} color="#fff" /></IconBtn>
+          <Txt v="bodyStrong" color="white">
+            Secure payment · Razorpay
+          </Txt>
+          <IconBtn onPress={onClose}>
+            <X size={22} color="#fff" />
+          </IconBtn>
         </View>
-        <WebView originWhitelist={['*']} source={{ html }} onMessage={(e) => onMessage(e.nativeEvent.data)} style={{ flex: 1, backgroundColor: c.bg }} javaScriptEnabled />
+        <WebView
+          originWhitelist={['*']}
+          source={{ html }}
+          onMessage={(e) => onMessage(e.nativeEvent.data)}
+          style={{ flex: 1, backgroundColor: c.bg }}
+          javaScriptEnabled
+        />
       </SafeAreaView>
     </Modal>
   );

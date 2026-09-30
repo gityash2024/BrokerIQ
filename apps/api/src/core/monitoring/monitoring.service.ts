@@ -43,7 +43,12 @@ export class MonitoringService {
   /** Stable id for "the same error": source + message without numbers/ids + first stack frame. */
   static fingerprint(r: Pick<ErrorReport, 'source' | 'message' | 'stack' | 'route'>) {
     const msg = r.message.replace(/[0-9a-f]{8,}|\d+/gi, '#').slice(0, 300);
-    const frame = (r.stack ?? '').split('\n').find((l) => /^\s*at /.test(l))?.trim().replace(/:\d+:\d+\)?$/, '') ?? '';
+    const frame =
+      (r.stack ?? '')
+        .split('\n')
+        .find((l) => /^\s*at /.test(l))
+        ?.trim()
+        .replace(/:\d+:\d+\)?$/, '') ?? '';
     const route = (r.route ?? '').replace(/\/[0-9a-z]{20,}|\/\d+/gi, '/:id').split('?')[0];
     return createHash('sha1').update(`${r.source}|${msg}|${frame}|${route}`).digest('hex');
   }
@@ -56,14 +61,35 @@ export class MonitoringService {
       const row = existing
         ? await this.prisma.errorLog.update({
             where: { id: existing.id },
-            data: { count: { increment: 1 }, lastSeenAt: new Date(), resolvedAt: null, userId: r.userId ?? existing.userId, appVersion: r.appVersion ?? existing.appVersion },
+            data: {
+              count: { increment: 1 },
+              lastSeenAt: new Date(),
+              resolvedAt: null,
+              userId: r.userId ?? existing.userId,
+              appVersion: r.appVersion ?? existing.appVersion,
+            },
           })
         : await this.prisma.errorLog.create({
-            data: { fingerprint, source: r.source, message, stack: r.stack?.slice(0, 8000), route: r.route?.slice(0, 300), method: r.method, userId: r.userId, appVersion: r.appVersion, userAgent: r.userAgent?.slice(0, 300) },
+            data: {
+              fingerprint,
+              source: r.source,
+              message,
+              stack: r.stack?.slice(0, 8000),
+              route: r.route?.slice(0, 300),
+              method: r.method,
+              userId: r.userId,
+              appVersion: r.appVersion,
+              userAgent: r.userAgent?.slice(0, 300),
+            },
           });
       // New, or came back after being marked resolved.
       if (!existing || existing.resolvedAt) {
-        await this.alert(`error:${fingerprint}`, `${r.source === 'API' ? 'API' : r.source === 'WEB' ? 'Website' : 'App'} error: ${message.slice(0, 120)}`, [r.route, r.appVersion && `v${r.appVersion}`].filter(Boolean).join(' · '), '/admin/health');
+        await this.alert(
+          `error:${fingerprint}`,
+          `${r.source === 'API' ? 'API' : r.source === 'WEB' ? 'Website' : 'App'} error: ${message.slice(0, 120)}`,
+          [r.route, r.appVersion && `v${r.appVersion}`].filter(Boolean).join(' · '),
+          '/admin/health',
+        );
         await this.prisma.errorLog.update({ where: { id: row.id }, data: { alertedAt: new Date() } });
       }
       void this.toSentry(r, message);
@@ -79,12 +105,22 @@ export class MonitoringService {
     this.lastAlert.set(key, now);
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }, select: { id: true, email: true } });
     if (!admins.length) return;
-    await this.notifications.notify(admins.map((a) => a.id), { kind: 'SYSTEM_ALERT', title: `⚠️ ${title}`, body, link }).catch(() => undefined);
+    await this.notifications
+      .notify(
+        admins.map((a) => a.id),
+        { kind: 'SYSTEM_ALERT', title: `⚠️ ${title}`, body, link },
+      )
+      .catch(() => undefined);
     const to = admins.map((a) => a.email).filter(Boolean);
     if (!to.length) return;
     const web = env().PUBLIC_WEB_URL.replace(/\/$/, '');
     await this.mail
-      .send({ to: to[0], bcc: to.slice(1), subject: `BrokerIQ alert — ${title}`, html: `<p><b>${escapeHtml(title)}</b></p><p>${escapeHtml(body)}</p><p><a href="${web}${link}">Admin panel में देखें</a></p>` })
+      .send({
+        to: to[0],
+        bcc: to.slice(1),
+        subject: `BrokerIQ alert — ${title}`,
+        html: `<p><b>${escapeHtml(title)}</b></p><p>${escapeHtml(body)}</p><p><a href="${web}${link}">Admin panel में देखें</a></p>`,
+      })
       .catch(() => undefined); // mail not configured → in-app only
   }
 
@@ -129,7 +165,9 @@ export class MonitoringService {
     const found: string[] = [];
     const web = env().PUBLIC_WEB_URL.replace(/\/$/, '');
     if (web && !web.includes('localhost')) {
-      const ok = await fetch(`${web}/`, { method: 'HEAD', signal: AbortSignal.timeout(10_000) }).then((r) => r.ok || r.status === 405).catch(() => false);
+      const ok = await fetch(`${web}/`, { method: 'HEAD', signal: AbortSignal.timeout(10_000) })
+        .then((r) => r.ok || r.status === 405)
+        .catch(() => false);
       if (!ok) found.push('website');
       if (!ok) await this.alert('uptime:web', 'Website नहीं खुल रही', web);
     }

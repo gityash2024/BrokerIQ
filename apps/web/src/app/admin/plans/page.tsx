@@ -19,12 +19,40 @@ export default function Page() {
       subtitle="Broker subscription plans — /for-brokers pricing page और billing पर तुरंत लागू। 100000+ limit = Unlimited"
       endpoint="/admin/plans"
       canDelete={false}
-      defaults={{ isActive: true, isPopular: false, sortOrder: 0, trialDays: 0, features: [], priceMonthly: 0, priceYearly: 0, limits: { agents: 1, activeListings: 10, leadsPerMonth: 100, aiCredits: 20, automations: 1, connectors: 1 } }}
+      defaults={{
+        isActive: true,
+        isPopular: false,
+        sortOrder: 0,
+        trialDays: 0,
+        features: [],
+        priceMonthly: 0,
+        priceYearly: 0,
+        limits: { agents: 1, activeListings: 10, leadsPerMonth: 100, aiCredits: 20, automations: 1, connectors: 1 },
+      }}
       columns={[
-        { key: 'name', label: 'Plan', render: (r) => <div><p className="font-semibold">{r.name} {r.isPopular && <Badge tone="brand">Popular</Badge>}</p><p className="font-mono text-[11px] text-muted">{r.code}</p></div> },
+        {
+          key: 'name',
+          label: 'Plan',
+          render: (r) => (
+            <div>
+              <p className="font-semibold">
+                {r.name} {r.isPopular && <Badge tone="brand">Popular</Badge>}
+              </p>
+              <p className="font-mono text-[11px] text-muted">{r.code}</p>
+            </div>
+          ),
+        },
         { key: 'priceMonthly', label: 'Monthly', render: (r) => formatINR(r.priceMonthly) },
         { key: 'priceYearly', label: 'Yearly', render: (r) => formatINR(r.priceYearly) },
-        { key: 'limits', label: 'Limits', render: (r) => <span className="text-xs text-muted">{r.limits.agents} agents · {r.limits.activeListings} listings · {r.limits.aiCredits} AI</span> },
+        {
+          key: 'limits',
+          label: 'Limits',
+          render: (r) => (
+            <span className="text-xs text-muted">
+              {r.limits.agents} agents · {r.limits.activeListings} listings · {r.limits.aiCredits} AI
+            </span>
+          ),
+        },
         { key: '_count', label: 'Subscribers', render: (r) => r._count?.subscriptions ?? 0 },
         { key: 'isActive', label: 'Status', render: (r) => <Badge tone={r.isActive ? 'success' : 'neutral'}>{r.isActive ? 'Active' : 'Hidden'}</Badge> },
       ]}

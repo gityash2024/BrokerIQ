@@ -27,7 +27,13 @@ export function ShareKitDialog({ listingId, leadId, onClose }: { listingId: stri
     toast.success(`${what} copy हो गया`);
   };
   return (
-    <Dialog open={!!listingId} onOpenChange={(v) => !v && onClose()} size="lg" title="Share kit" description="WhatsApp status, Instagram post/story के लिए तैयार images — link से आने वाले हर visit की गिनती होती है।">
+    <Dialog
+      open={!!listingId}
+      onOpenChange={(v) => !v && onClose()}
+      size="lg"
+      title="Share kit"
+      description="WhatsApp status, Instagram post/story के लिए तैयार images — link से आने वाले हर visit की गिनती होती है।"
+    >
       {!kit ? (
         <Skeleton className="h-72" />
       ) : (
@@ -35,22 +41,32 @@ export function ShareKitDialog({ listingId, leadId, onClose }: { listingId: stri
           <div className="grid grid-cols-[1fr_0.56fr] gap-3">
             {(['post', 'story'] as const).map((f) => (
               <div key={f} className="space-y-2">
-                { }
+                {}
                 <img src={kit.images[f]} alt={f} className="w-full rounded-xl border border-line" />
-                <Button size="xs" variant="secondary" className="w-full" href={`${kit.images[f]}&download=1`} external><Download className="size-3.5" /> {f === 'post' ? 'Post (1:1)' : 'Story (9:16)'}</Button>
+                <Button size="xs" variant="secondary" className="w-full" href={`${kit.images[f]}&download=1`} external>
+                  <Download className="size-3.5" /> {f === 'post' ? 'Post (1:1)' : 'Story (9:16)'}
+                </Button>
               </div>
             ))}
           </div>
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <p className="text-sm font-semibold">Caption</p>
-              <Button size="xs" variant="ghost" onClick={() => copy(kit.caption, 'Caption')}><Copy className="size-3.5" /> Copy</Button>
+              <Button size="xs" variant="ghost" onClick={() => copy(kit.caption, 'Caption')}>
+                <Copy className="size-3.5" /> Copy
+              </Button>
             </div>
-            <pre className="whitespace-pre-wrap rounded-xl bg-surface-2 p-3 font-sans text-sm" data-no-i18n>{kit.caption}</pre>
+            <pre className="whitespace-pre-wrap rounded-xl bg-surface-2 p-3 font-sans text-sm" data-no-i18n>
+              {kit.caption}
+            </pre>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="whatsapp" href={whatsappLink('', kit.caption)} external><MessageCircle className="size-4" /> WhatsApp पर भेजें</Button>
-            <Button variant="secondary" onClick={() => copy(kit.link, 'Link')}><Copy className="size-4" /> Tracking link</Button>
+            <Button variant="whatsapp" href={whatsappLink('', kit.caption)} external>
+              <MessageCircle className="size-4" /> WhatsApp पर भेजें
+            </Button>
+            <Button variant="secondary" onClick={() => copy(kit.link, 'Link')}>
+              <Copy className="size-4" /> Tracking link
+            </Button>
           </div>
         </div>
       )}

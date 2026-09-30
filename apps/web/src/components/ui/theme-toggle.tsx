@@ -15,7 +15,11 @@ export function ThemeToggle({ className }: { className?: string }) {
     } catch {}
   };
   return (
-    <button onClick={toggle} aria-label="Toggle theme" className={cn('grid size-10 place-items-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg', className)}>
+    <button
+      onClick={toggle}
+      aria-label="Toggle theme"
+      className={cn('grid size-10 place-items-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg', className)}
+    >
       {dark ? <Sun className="size-5" /> : <Moon className="size-5" />}
     </button>
   );

@@ -44,7 +44,14 @@ export default function ForgotPage() {
         {sent && (
           <>
             <Field label="Code">
-              <Input inputMode="numeric" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className="text-center font-mono tracking-[0.4em]" />
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                className="text-center font-mono tracking-[0.4em]"
+              />
             </Field>
             <Field label="नया password">
               <Input type="password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -56,7 +63,9 @@ export default function ForgotPage() {
         </Button>
       </form>
       <p className="mt-6 text-center text-sm">
-        <Link href="/login" className="text-brand-600">← Login पर वापस</Link>
+        <Link href="/login" className="text-brand-600">
+          ← Login पर वापस
+        </Link>
       </p>
     </AuthShell>
   );

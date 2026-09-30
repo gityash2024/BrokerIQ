@@ -23,7 +23,13 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { env } from '../../config/env';
 
-const contactSchema = z.object({ name: z.string().min(2).max(80), email: z.string().email().optional().or(z.literal('')), phone: z.string().max(20).optional(), subject: z.string().max(140).optional(), message: z.string().min(5).max(3000) });
+const contactSchema = z.object({
+  name: z.string().min(2).max(80),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().max(20).optional(),
+  subject: z.string().max(140).optional(),
+  message: z.string().min(5).max(3000),
+});
 
 @ApiTags('public')
 @Public()
@@ -54,7 +60,11 @@ export class PublicController {
   async taxonomies() {
     const amenities = await this.prisma.amenity.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } });
     return {
-      propertyTypes: Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({ value, label, category: PROPERTY_TYPE_CATEGORY[value as keyof typeof PROPERTY_TYPE_CATEGORY] })),
+      propertyTypes: Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
+        value,
+        label,
+        category: PROPERTY_TYPE_CATEGORY[value as keyof typeof PROPERTY_TYPE_CATEGORY],
+      })),
       furnishing: Object.entries(FURNISHING_LABELS).map(([value, label]) => ({ value, label })),
       possession: Object.entries(POSSESSION_LABELS).map(([value, label]) => ({ value, label })),
       facing: Object.entries(FACING_LABELS).map(([value, label]) => ({ value, label })),
@@ -99,7 +109,11 @@ export class PublicController {
       },
       orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
       take: 60,
-      include: { builder: { select: { name: true, slug: true } }, locality: { select: { name: true, slug: true } }, _count: { select: { listings: { where: { status: 'ACTIVE' } } } } },
+      include: {
+        builder: { select: { name: true, slug: true } },
+        locality: { select: { name: true, slug: true } },
+        _count: { select: { listings: { where: { status: 'ACTIVE' } } } },
+      },
     });
   }
 
@@ -108,7 +122,16 @@ export class PublicController {
   async project(@Param('slug') slug: string) {
     const p = await this.prisma.project.findFirst({
       where: { slug, isActive: true },
-      include: { builder: true, locality: true, listings: { where: { status: 'ACTIVE', deletedAt: null }, take: 24, orderBy: { publishedAt: 'desc' }, include: { locality: { select: { name: true, slug: true } } } } },
+      include: {
+        builder: true,
+        locality: true,
+        listings: {
+          where: { status: 'ACTIVE', deletedAt: null },
+          take: 24,
+          orderBy: { publishedAt: 'desc' },
+          include: { locality: { select: { name: true, slug: true } } },
+        },
+      },
     });
     if (!p) throw new NotFoundException('Project नहीं मिला');
     await this.prisma.project.update({ where: { id: p.id }, data: { views: { increment: 1 } } });
@@ -132,7 +155,13 @@ export class PublicController {
     const page = Math.max(1, Number(q.page) || 1);
     const where = { isPublished: true, ...(q.tag ? { tags: { has: q.tag } } : {}) };
     const [items, total] = await Promise.all([
-      this.prisma.blogPost.findMany({ where, orderBy: { publishedAt: 'desc' }, skip: (page - 1) * 12, take: 12, select: { id: true, slug: true, title: true, excerpt: true, coverUrl: true, tags: true, publishedAt: true } }),
+      this.prisma.blogPost.findMany({
+        where,
+        orderBy: { publishedAt: 'desc' },
+        skip: (page - 1) * 12,
+        take: 12,
+        select: { id: true, slug: true, title: true, excerpt: true, coverUrl: true, tags: true, publishedAt: true },
+      }),
       this.prisma.blogPost.count({ where }),
     ]);
     return { items, total, page, totalPages: Math.max(1, Math.ceil(total / 12)) };
@@ -151,7 +180,10 @@ export class PublicController {
   async contact(@Body(new ZodPipe(contactSchema)) body: any, @CurrentUser() user?: RequestUser) {
     const t = await this.prisma.contactMessage.create({ data: { ...body, email: body.email || null, userId: user?.id } });
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-    await this.notifications.notify(admins.map((a) => a.id), { kind: 'SYSTEM', title: `Support: ${body.subject ?? body.name}`, link: '/admin/support', push: false });
+    await this.notifications.notify(
+      admins.map((a) => a.id),
+      { kind: 'SYSTEM', title: `Support: ${body.subject ?? body.name}`, link: '/admin/support', push: false },
+    );
     return { ok: true, id: t.id };
   }
 
@@ -162,8 +194,11 @@ export class PublicController {
     if (!link) throw new NotFoundException();
     await this.prisma.shareLink.update({ where: { id: link.id }, data: { opens: { increment: 1 }, lastOpenedAt: new Date() } });
     if (link.leadId && link.opens === 0) {
-      await this.prisma.activity.create({ data: { organizationId: link.organizationId, leadId: link.leadId, type: 'SYSTEM', content: '👀 Lead ने shared property link खोला' } });
-      if (link.createdById) await this.notifications.notify(link.createdById, { kind: 'SYSTEM', title: 'Lead ने आपका shared link खोला', link: `/broker/leads/${link.leadId}` });
+      await this.prisma.activity.create({
+        data: { organizationId: link.organizationId, leadId: link.leadId, type: 'SYSTEM', content: '👀 Lead ने shared property link खोला' },
+      });
+      if (link.createdById)
+        await this.notifications.notify(link.createdById, { kind: 'SYSTEM', title: 'Lead ने आपका shared link खोला', link: `/broker/leads/${link.leadId}` });
     }
     return { slug: link.listing.slug };
   }
@@ -182,7 +217,10 @@ export class PublicController {
       where: { status: 'ACTIVE', deletedAt: null, purpose: 'RENT', ...(localitySlug ? { locality: { slug: localitySlug } } : {}) },
       _count: { _all: true },
     });
-    const locs = await this.prisma.locality.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.localityId))] } }, select: { id: true, slug: true, name: true } });
+    const locs = await this.prisma.locality.findMany({
+      where: { id: { in: [...new Set(rows.map((r) => r.localityId))] } },
+      select: { id: true, slug: true, name: true },
+    });
     const out = new Map<string, { slug: string; title: string; count: number }>();
     for (const r of rows) {
       const kind = kindOf(r.propertyType);
@@ -191,7 +229,8 @@ export class PublicController {
       const variants: SeoCombo[] = [{ kind, localitySlug: loc.slug }];
       if (kind !== 'pg' && r.bedrooms && r.bedrooms <= 5) variants.push({ kind, localitySlug: loc.slug, bedrooms: r.bedrooms });
       if (kind !== 'pg' && r.furnishing) variants.push({ kind, localitySlug: loc.slug, furnishing: r.furnishing as SeoCombo['furnishing'] });
-      if (kind !== 'pg' && r.bedrooms && r.bedrooms <= 5 && r.furnishing) variants.push({ kind, localitySlug: loc.slug, bedrooms: r.bedrooms, furnishing: r.furnishing as SeoCombo['furnishing'] });
+      if (kind !== 'pg' && r.bedrooms && r.bedrooms <= 5 && r.furnishing)
+        variants.push({ kind, localitySlug: loc.slug, bedrooms: r.bedrooms, furnishing: r.furnishing as SeoCombo['furnishing'] });
       for (const v of variants) {
         const slug = buildSeoSlug(v);
         const cur = out.get(slug);
@@ -206,7 +245,10 @@ export class PublicController {
   async seo(@Param('slug') slug: string) {
     const combo = parseSeoSlug(slug);
     if (!combo) throw new NotFoundException();
-    const locality = await this.prisma.locality.findUnique({ where: { slug: combo.localitySlug }, select: { id: true, name: true, slug: true, zone: true, avgRent2Bhk: true, highlights: true } });
+    const locality = await this.prisma.locality.findUnique({
+      where: { slug: combo.localitySlug },
+      select: { id: true, name: true, slug: true, zone: true, avgRent2Bhk: true, highlights: true },
+    });
     if (!locality) throw new NotFoundException();
     const where = {
       status: 'ACTIVE' as const,
@@ -217,7 +259,10 @@ export class PublicController {
       ...(combo.bedrooms ? { bedrooms: combo.bedrooms } : {}),
       ...(combo.furnishing ? { furnishing: combo.furnishing } : {}),
     };
-    const [count, agg] = await Promise.all([this.prisma.listing.count({ where }), this.prisma.listing.aggregate({ where, _avg: { price: true }, _min: { price: true }, _max: { price: true } })]);
+    const [count, agg] = await Promise.all([
+      this.prisma.listing.count({ where }),
+      this.prisma.listing.aggregate({ where, _avg: { price: true }, _min: { price: true }, _max: { price: true } }),
+    ]);
     const related = (await this.combos(locality.slug)).filter((c) => c.slug !== slug).slice(0, 12);
     return {
       combo,
@@ -225,7 +270,12 @@ export class PublicController {
       locality,
       count,
       rent: { avg: agg._avg.price ? Math.round(agg._avg.price) : null, min: agg._min.price, max: agg._max.price },
-      filters: { localities: locality.slug, types: SEO_KIND_TYPES[combo.kind].join(','), ...(combo.bedrooms ? { bedrooms: String(combo.bedrooms) } : {}), ...(combo.furnishing ? { furnishing: combo.furnishing } : {}) },
+      filters: {
+        localities: locality.slug,
+        types: SEO_KIND_TYPES[combo.kind].join(','),
+        ...(combo.bedrooms ? { bedrooms: String(combo.bedrooms) } : {}),
+        ...(combo.furnishing ? { furnishing: combo.furnishing } : {}),
+      },
       related,
     };
   }
@@ -233,7 +283,12 @@ export class PublicController {
   @Get('sitemap')
   async sitemap() {
     const [listings, localities, projects, brokers, posts] = await Promise.all([
-      this.prisma.listing.findMany({ where: { status: 'ACTIVE', deletedAt: null }, select: { slug: true, updatedAt: true }, take: 45000, orderBy: { updatedAt: 'desc' } }),
+      this.prisma.listing.findMany({
+        where: { status: 'ACTIVE', deletedAt: null },
+        select: { slug: true, updatedAt: true },
+        take: 45000,
+        orderBy: { updatedAt: 'desc' },
+      }),
       this.prisma.locality.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
       this.prisma.project.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
       this.prisma.organization.findMany({ where: { status: 'ACTIVE', onboarded: true }, select: { slug: true, updatedAt: true } }),

@@ -35,7 +35,16 @@ export class ChatController {
     let leadId: string | null = null;
     if (me.phone) {
       const listing = body.listingId ? await this.prisma.listing.findUnique({ where: { id: body.listingId }, select: { id: true, title: true } }) : null;
-      const { lead } = await this.leads.ingest({ orgId: org.id, name: me.name, phone: me.phone, email: me.email, source: 'WEBSITE', sourceDetail: listing ? `Chat: ${listing.title}` : 'In-app chat', listingId: listing?.id, message: body.message });
+      const { lead } = await this.leads.ingest({
+        orgId: org.id,
+        name: me.name,
+        phone: me.phone,
+        email: me.email,
+        source: 'WEBSITE',
+        sourceDetail: listing ? `Chat: ${listing.title}` : 'In-app chat',
+        listingId: listing?.id,
+        message: body.message,
+      });
       leadId = lead.id;
     }
     const conv = await this.prisma.conversation.upsert({
@@ -57,7 +66,10 @@ export class ChatController {
   }
 
   private async access(id: string, user: RequestUser) {
-    const c = await this.prisma.conversation.findFirst({ where: { id, channel: 'CHAT' }, include: { organization: { select: { id: true, name: true, slug: true, logoUrl: true } } } });
+    const c = await this.prisma.conversation.findFirst({
+      where: { id, channel: 'CHAT' },
+      include: { organization: { select: { id: true, name: true, slug: true, logoUrl: true } } },
+    });
     if (!c) throw new NotFoundException();
     const isUser = c.userId === user.id;
     const isOrg = !!user.orgId && c.organizationId === user.orgId;
@@ -68,7 +80,12 @@ export class ChatController {
   @Get('threads/:id')
   async messages(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     const { c, isUser } = await this.access(id, user);
-    const items = await this.prisma.message.findMany({ where: { conversationId: id }, orderBy: { createdAt: 'asc' }, take: 300, include: { sender: { select: { id: true, name: true } } } });
+    const items = await this.prisma.message.findMany({
+      where: { conversationId: id },
+      orderBy: { createdAt: 'asc' },
+      take: 300,
+      include: { sender: { select: { id: true, name: true } } },
+    });
     if (!isUser) await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
     return { conversation: c, items };
   }
@@ -82,7 +99,14 @@ export class ChatController {
   private async post(id: string, user: RequestUser, text: string) {
     const { c, isUser } = await this.access(id, user);
     const msg = await this.prisma.message.create({
-      data: { conversationId: id, direction: isUser ? 'INBOUND' : 'OUTBOUND', type: 'TEXT', body: text, status: isUser ? 'RECEIVED' : 'SENT', senderUserId: user.id },
+      data: {
+        conversationId: id,
+        direction: isUser ? 'INBOUND' : 'OUTBOUND',
+        type: 'TEXT',
+        body: text,
+        status: isUser ? 'RECEIVED' : 'SENT',
+        senderUserId: user.id,
+      },
       include: { sender: { select: { id: true, name: true } } },
     });
     await this.prisma.conversation.update({
@@ -96,9 +120,16 @@ export class ChatController {
       const input = { kind: 'NEW_MESSAGE', title: `💬 ${c.contactName ?? 'User'}: ${text.slice(0, 60)}`, link: `/broker/inbox?channel=CHAT&c=${id}` };
       if (lead?.assignedToId) await this.notifications.notify(lead.assignedToId, input);
       else await this.notifications.notifyOrg(c.organizationId, input, { adminsOnly: true });
-      if (lead) await this.prisma.activity.create({ data: { organizationId: c.organizationId, leadId: lead.id, type: 'NOTE', content: `💬 Chat: ${text.slice(0, 300)}` } });
+      if (lead)
+        await this.prisma.activity.create({
+          data: { organizationId: c.organizationId, leadId: lead.id, type: 'NOTE', content: `💬 Chat: ${text.slice(0, 300)}` },
+        });
     } else if (!isUser && c.userId) {
-      await this.notifications.notify(c.userId, { kind: 'NEW_MESSAGE', title: `💬 ${c.organization?.name}: ${text.slice(0, 60)}`, link: `/account/messages?c=${id}` });
+      await this.notifications.notify(c.userId, {
+        kind: 'NEW_MESSAGE',
+        title: `💬 ${c.organization?.name}: ${text.slice(0, 60)}`,
+        link: `/account/messages?c=${id}`,
+      });
     }
     return msg;
   }

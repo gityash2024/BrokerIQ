@@ -4,7 +4,21 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, CalendarPlus, Check, ChevronLeft, Handshake, MessageCircle, Phone, PhoneCall, Send, Share2, Sparkles, StickyNote, Trash2 } from 'lucide-react-native';
+import {
+  AlarmClock,
+  CalendarPlus,
+  Check,
+  ChevronLeft,
+  Handshake,
+  MessageCircle,
+  Phone,
+  PhoneCall,
+  Send,
+  Share2,
+  Sparkles,
+  StickyNote,
+  Trash2,
+} from 'lucide-react-native';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink, type LeadStage } from '@brokeriq/shared';
 import { api, del, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -56,7 +70,12 @@ export default function LeadDetail() {
   const assign = useApiMutation((userId: string | null) => patch(`/leads/${id}/assign`, { assignedToId: userId }), { success: 'Assigned', onSuccess: refresh });
 
   if (q.isLoading) return <Loader />;
-  if (q.isError) return <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}><ErrorView error={q.error} onRetry={() => q.refetch()} /></SafeAreaView>;
+  if (q.isError)
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
+        <ErrorView error={q.error} onRetry={() => q.refetch()} />
+      </SafeAreaView>
+    );
   const l = q.data;
   const call = () => {
     callPending.current = true;
@@ -67,9 +86,21 @@ export default function LeadDetail() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Row style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
-        <IconBtn onPress={() => router.back()}><ChevronLeft size={24} color={c.fg} /></IconBtn>
+        <IconBtn onPress={() => router.back()}>
+          <ChevronLeft size={24} color={c.fg} />
+        </IconBtn>
         <View style={{ flex: 1 }} />
-        {isBrokerAdmin && <IconBtn onPress={() => del(`/leads/${id}`).then(() => (toast.success('Lead हटाई'), qc.invalidateQueries({ queryKey: ['leads'] }), router.back())).catch(showError)}><Trash2 size={20} color={c.danger} /></IconBtn>}
+        {isBrokerAdmin && (
+          <IconBtn
+            onPress={() =>
+              del(`/leads/${id}`)
+                .then(() => (toast.success('Lead हटाई'), qc.invalidateQueries({ queryKey: ['leads'] }), router.back()))
+                .catch(showError)
+            }
+          >
+            <Trash2 size={20} color={c.danger} />
+          </IconBtn>
+        )}
       </Row>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeIn} style={{ paddingHorizontal: 16, gap: 10 }}>
@@ -77,55 +108,127 @@ export default function LeadDetail() {
             <Avatar name={l.name} size={60} />
             <View style={{ flex: 1, gap: 3 }}>
               <Txt v="h2">{l.name || 'Unknown'}</Txt>
-              <Txt color="muted">{l.phone}{l.email ? ` · ${l.email}` : ''}</Txt>
-              <Row wrap gap={6}><SourceBadge source={l.source} /><TempBadge t={l.temperature} />{!!l.score && <Badge label={`Score ${l.score}`} color={c.brand} />}</Row>
+              <Txt color="muted">
+                {l.phone}
+                {l.email ? ` · ${l.email}` : ''}
+              </Txt>
+              <Row wrap gap={6}>
+                <SourceBadge source={l.source} />
+                <TempBadge t={l.temperature} />
+                {!!l.score && <Badge label={`Score ${l.score}`} color={c.brand} />}
+              </Row>
             </View>
           </Row>
           <Row gap={8}>
             <Button title="Call" icon={<Phone size={17} color="#fff" />} style={{ flex: 1 }} onPress={call} />
-            <Button title="WhatsApp" variant="whatsapp" icon={<MessageCircle size={17} color="#fff" />} style={{ flex: 1 }} onPress={() => (waConv ? router.push({ pathname: '/wa/[id]', params: { id: waConv.id } }) : setSheet('wa'))} />
+            <Button
+              title="WhatsApp"
+              variant="whatsapp"
+              icon={<MessageCircle size={17} color="#fff" />}
+              style={{ flex: 1 }}
+              onPress={() => (waConv ? router.push({ pathname: '/wa/[id]', params: { id: waConv.id } }) : setSheet('wa'))}
+            />
           </Row>
           <Button
             title="Click-to-call (Exotel) — recording lead में save"
             size="sm"
             variant="secondary"
             icon={<PhoneCall size={15} color={c.fg} />}
-            onPress={() => post(`/leads/${id}/call`).then(() => (toast.success('Call लग रही है — पहले आपका phone बजेगा'), refresh())).catch(showError)}
+            onPress={() =>
+              post(`/leads/${id}/call`)
+                .then(() => (toast.success('Call लग रही है — पहले आपका phone बजेगा'), refresh()))
+                .catch(showError)
+            }
           />
-          {!!l.listing && <Txt v="small" color="muted">Enquiry for: <Txt v="small" color="brand" onPress={() => router.push(`/property/${l.listing.slug}`)}>{l.listing.title}</Txt></Txt>}
-          {!!l.sourceDetail && <Txt v="caption" color="subtle">{l.sourceDetail}</Txt>}
+          {!!l.listing && (
+            <Txt v="small" color="muted">
+              Enquiry for:{' '}
+              <Txt v="small" color="brand" onPress={() => router.push(`/property/${l.listing.slug}`)}>
+                {l.listing.title}
+              </Txt>
+            </Txt>
+          )}
+          {!!l.sourceDetail && (
+            <Txt v="caption" color="subtle">
+              {l.sourceDetail}
+            </Txt>
+          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
               const on = l.stage === s;
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
-                <PressableScale key={s} onPress={() => (s === 'LOST' ? setSheet('lost') : s === 'WON' ? setSheet('deal') : stage.mutate({ stage: s }))} style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}>
-                  <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>{LEAD_STAGE_LABELS[s as LeadStage]}</Txt>
+                <PressableScale
+                  key={s}
+                  onPress={() => (s === 'LOST' ? setSheet('lost') : s === 'WON' ? setSheet('deal') : stage.mutate({ stage: s }))}
+                  style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
+                >
+                  <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
+                    {LEAD_STAGE_LABELS[s as LeadStage]}
+                  </Txt>
                 </PressableScale>
               );
             })}
           </ScrollView>
           {isBrokerAdmin && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              <Txt v="caption" color="subtle" style={{ alignSelf: 'center' }}>Assign:</Txt>
-              {(team.data?.members ?? []).filter((m: any) => m.status === 'ACTIVE').map((m: any) => (
-                <Chip key={m.id} label={m.name.split(' ')[0]} active={l.assignedTo?.id === m.id} onPress={() => assign.mutate(m.id)} />
-              ))}
+              <Txt v="caption" color="subtle" style={{ alignSelf: 'center' }}>
+                Assign:
+              </Txt>
+              {(team.data?.members ?? [])
+                .filter((m: any) => m.status === 'ACTIVE')
+                .map((m: any) => (
+                  <Chip key={m.id} label={m.name.split(' ')[0]} active={l.assignedTo?.id === m.id} onPress={() => assign.mutate(m.id)} />
+                ))}
             </ScrollView>
           )}
         </Animated.View>
         <View style={{ backgroundColor: c.bg, paddingHorizontal: 16, paddingVertical: 10 }}>
-          <Segmented value={tab} onChange={setTab} options={[{ value: 'timeline', label: 'Timeline' }, { value: 'tasks', label: 'Tasks', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined }, { value: 'matches', label: 'Matches' }, { value: 'ai', label: '✨ AI' }]} />
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'timeline', label: 'Timeline' },
+              { value: 'tasks', label: 'Tasks', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
+              { value: 'matches', label: 'Matches' },
+              { value: 'ai', label: '✨ AI' },
+            ]}
+          />
         </View>
         <View style={{ paddingHorizontal: 16, gap: 10 }}>
           {tab === 'timeline' && (
             <>
               <Row gap={8}>
-                <Button title="Note" size="sm" variant="secondary" icon={<StickyNote size={15} color={c.fg} />} onPress={() => setSheet('note')} style={{ flex: 1 }} />
-                <Button title="Call log" size="sm" variant="secondary" icon={<PhoneCall size={15} color={c.fg} />} onPress={() => setSheet('call')} style={{ flex: 1 }} />
-                <Button title="Follow-up" size="sm" variant="secondary" icon={<AlarmClock size={15} color={c.fg} />} onPress={() => setSheet('followup')} style={{ flex: 1 }} />
+                <Button
+                  title="Note"
+                  size="sm"
+                  variant="secondary"
+                  icon={<StickyNote size={15} color={c.fg} />}
+                  onPress={() => setSheet('note')}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Call log"
+                  size="sm"
+                  variant="secondary"
+                  icon={<PhoneCall size={15} color={c.fg} />}
+                  onPress={() => setSheet('call')}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Follow-up"
+                  size="sm"
+                  variant="secondary"
+                  icon={<AlarmClock size={15} color={c.fg} />}
+                  onPress={() => setSheet('followup')}
+                  style={{ flex: 1 }}
+                />
               </Row>
-              {!!l.notes && <Card style={{ padding: 12 }}><Txt v="small">{l.notes}</Txt></Card>}
+              {!!l.notes && (
+                <Card style={{ padding: 12 }}>
+                  <Txt v="small">{l.notes}</Txt>
+                </Card>
+              )}
               {l.activities.map((a: any, i: number) => (
                 <Animated.View key={a.id} entering={FadeInDown.delay(Math.min(i, 10) * 30)} style={{ flexDirection: 'row', gap: 10 }}>
                   <View style={{ alignItems: 'center' }}>
@@ -134,11 +237,20 @@ export default function LeadDetail() {
                   </View>
                   <Card style={{ flex: 1, padding: 12, gap: 2, marginBottom: 4 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
-                      <Txt v="caption" color="brand">{a.type.replace(/_/g, ' ')}{a.callOutcome ? ` · ${a.callOutcome.replace(/_/g, ' ')}` : ''}</Txt>
-                      <Txt v="caption" color="subtle">{timeAgo(a.createdAt)}</Txt>
+                      <Txt v="caption" color="brand">
+                        {a.type.replace(/_/g, ' ')}
+                        {a.callOutcome ? ` · ${a.callOutcome.replace(/_/g, ' ')}` : ''}
+                      </Txt>
+                      <Txt v="caption" color="subtle">
+                        {timeAgo(a.createdAt)}
+                      </Txt>
                     </Row>
                     {!!a.content && <Txt v="small">{a.content}</Txt>}
-                    {!!a.user?.name && <Txt v="caption" color="subtle">— {a.user.name}</Txt>}
+                    {!!a.user?.name && (
+                      <Txt v="caption" color="subtle">
+                        — {a.user.name}
+                      </Txt>
+                    )}
                   </Card>
                 </Animated.View>
               ))}
@@ -154,7 +266,11 @@ export default function LeadDetail() {
       <CallSheet open={sheet === 'call'} onClose={() => setSheet(null)} lead={l} onDone={refresh} onFollowUp={() => setSheet('followup')} />
       <FollowUpSheet open={sheet === 'followup'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
       <VisitSheet open={sheet === 'visit'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
-      <LostSheet open={sheet === 'lost'} onClose={() => setSheet(null)} onSave={(reason) => (stage.mutate({ stage: 'LOST', lostReason: reason }), setSheet(null))} />
+      <LostSheet
+        open={sheet === 'lost'}
+        onClose={() => setSheet(null)}
+        onSave={(reason) => (stage.mutate({ stage: 'LOST', lostReason: reason }), setSheet(null))}
+      />
       <DealSheet open={sheet === 'deal'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
       <WaSheet open={sheet === 'wa'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
     </SafeAreaView>
@@ -163,7 +279,10 @@ export default function LeadDetail() {
 
 function NoteSheet({ open, onClose, leadId, onDone }: { open: boolean; onClose: () => void; leadId: string; onDone: () => void }) {
   const [t, setT] = useState('');
-  const save = useApiMutation(() => post(`/leads/${leadId}/activities`, { type: 'NOTE', content: t }), { success: 'Note saved', onSuccess: () => (setT(''), onClose(), onDone()) });
+  const save = useApiMutation(() => post(`/leads/${leadId}/activities`, { type: 'NOTE', content: t }), {
+    success: 'Note saved',
+    onSuccess: () => (setT(''), onClose(), onDone()),
+  });
   return (
     <Sheet open={open} onClose={onClose} title="Note">
       <Input value={t} onChangeText={setT} multiline placeholder="Client ने क्या कहा…" autoFocus />
@@ -186,7 +305,11 @@ function CallSheet({ open, onClose, lead, onDone, onFollowUp }: { open: boolean;
   });
   return (
     <Sheet open={open} onClose={onClose} title={`${lead.name} से call कैसी रही?`}>
-      <Row wrap>{OUTCOMES.map(([k, l]) => <Chip key={k} label={l} active={outcome === k} onPress={() => setOutcome(k)} />)}</Row>
+      <Row wrap>
+        {OUTCOMES.map(([k, l]) => (
+          <Chip key={k} label={l} active={outcome === k} onPress={() => setOutcome(k)} />
+        ))}
+      </Row>
       <Input value={t} onChangeText={setT} multiline placeholder="Notes (budget, timeline, requirement…)" />
       <Button title="Save & next follow-up" loading={save.isPending} onPress={() => save.mutate(undefined)} />
     </Sheet>
@@ -210,10 +333,24 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   });
   return (
     <Sheet open={open} onClose={onClose} title="Follow-up schedule करें">
-      <Row wrap>{['CALL', 'WHATSAPP', 'MEETING'].map((t) => <Chip key={t} label={t[0] + t.slice(1).toLowerCase()} active={type === t} onPress={() => setType(t)} />)}</Row>
-      <Txt v="label" color="subtle">कब</Txt>
-      <Row wrap>{presets.map((p) => <Chip key={p.label} label={p.label} active={at?.getTime() === p.at.getTime()} onPress={() => setAt(p.at)} />)}</Row>
-      {at && <Txt v="small" color="brand">{at.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Txt>}
+      <Row wrap>
+        {['CALL', 'WHATSAPP', 'MEETING'].map((t) => (
+          <Chip key={t} label={t[0] + t.slice(1).toLowerCase()} active={type === t} onPress={() => setType(t)} />
+        ))}
+      </Row>
+      <Txt v="label" color="subtle">
+        कब
+      </Txt>
+      <Row wrap>
+        {presets.map((p) => (
+          <Chip key={p.label} label={p.label} active={at?.getTime() === p.at.getTime()} onPress={() => setAt(p.at)} />
+        ))}
+      </Row>
+      {at && (
+        <Txt v="small" color="brand">
+          {at.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+        </Txt>
+      )}
       <Input value={note} onChangeText={setNote} placeholder="क्या बात करनी है…" />
       <Button title="Schedule" loading={save.isPending} disabled={!at} onPress={() => save.mutate(undefined)} />
     </Sheet>
@@ -235,9 +372,19 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
   });
   return (
     <Sheet open={open} onClose={onClose} title="Site visit">
-      <Row wrap>{timePresets().map((p) => <Chip key={p.label} label={p.label} active={at?.getTime() === p.at.getTime()} onPress={() => setAt(p.at)} />)}</Row>
-      <Txt v="label" color="subtle">Property</Txt>
-      <Row wrap>{(mine.data?.items ?? []).slice(0, 12).map((x: any) => <Chip key={x.id} label={x.title.slice(0, 32)} active={listingId === x.id} onPress={() => setListingId(listingId === x.id ? null : x.id)} />)}</Row>
+      <Row wrap>
+        {timePresets().map((p) => (
+          <Chip key={p.label} label={p.label} active={at?.getTime() === p.at.getTime()} onPress={() => setAt(p.at)} />
+        ))}
+      </Row>
+      <Txt v="label" color="subtle">
+        Property
+      </Txt>
+      <Row wrap>
+        {(mine.data?.items ?? []).slice(0, 12).map((x: any) => (
+          <Chip key={x.id} label={x.title.slice(0, 32)} active={listingId === x.id} onPress={() => setListingId(listingId === x.id ? null : x.id)} />
+        ))}
+      </Row>
       <Input value={address} onChangeText={setAddress} placeholder="Meeting point (optional)" />
       <Button title="Schedule visit" loading={save.isPending} disabled={!at} onPress={() => save.mutate(undefined)} />
     </Sheet>
@@ -248,7 +395,11 @@ function LostSheet({ open, onClose, onSave }: { open: boolean; onClose: () => vo
   const [r, setR] = useState('');
   return (
     <Sheet open={open} onClose={onClose} title="Lead lost क्यों हुई?">
-      <Row wrap>{['Budget mismatch', 'Bought elsewhere', 'Not responding', 'Plan postponed', 'Location mismatch', 'Fake / wrong number'].map((x) => <Chip key={x} label={x} active={r === x} onPress={() => setR(x)} />)}</Row>
+      <Row wrap>
+        {['Budget mismatch', 'Bought elsewhere', 'Not responding', 'Plan postponed', 'Location mismatch', 'Fake / wrong number'].map((x) => (
+          <Chip key={x} label={x} active={r === x} onPress={() => setR(x)} />
+        ))}
+      </Row>
       <Input value={r} onChangeText={setR} placeholder="Reason" />
       <Button title="Mark lost" variant="danger" disabled={!r.trim()} onPress={() => onSave(r)} />
     </Sheet>
@@ -257,16 +408,40 @@ function LostSheet({ open, onClose, onSave }: { open: boolean; onClose: () => vo
 
 function DealSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () => void; lead: any; onDone: () => void }) {
   const [f, setF] = useState({ title: lead.listing?.title ?? `${lead.name} deal`, dealValue: '', commissionPct: '1' });
-  const save = useApiMutation(() => post('/deals', { leadId: lead.id, listingId: lead.listing?.id ?? null, title: f.title, dealValue: Number(f.dealValue), commissionPct: Number(f.commissionPct) || null, closedAt: new Date().toISOString() }), {
-    success: 'Deal closed 🎉 Lead WON',
-    onSuccess: () => (onClose(), onDone()),
-  });
+  const save = useApiMutation(
+    () =>
+      post('/deals', {
+        leadId: lead.id,
+        listingId: lead.listing?.id ?? null,
+        title: f.title,
+        dealValue: Number(f.dealValue),
+        commissionPct: Number(f.commissionPct) || null,
+        closedAt: new Date().toISOString(),
+      }),
+    {
+      success: 'Deal closed 🎉 Lead WON',
+      onSuccess: () => (onClose(), onDone()),
+    },
+  );
   return (
     <Sheet open={open} onClose={onClose} title="Deal close करें 🎉">
       <Input label="Title" value={f.title} onChangeText={(v) => setF({ ...f, title: v })} />
-      <Input label="Deal value (₹)" value={f.dealValue} onChangeText={(v) => setF({ ...f, dealValue: v.replace(/\D/g, '') })} keyboardType="numeric" hint={f.dealValue ? formatPriceShort(Number(f.dealValue)) : undefined} />
+      <Input
+        label="Deal value (₹)"
+        value={f.dealValue}
+        onChangeText={(v) => setF({ ...f, dealValue: v.replace(/\D/g, '') })}
+        keyboardType="numeric"
+        hint={f.dealValue ? formatPriceShort(Number(f.dealValue)) : undefined}
+      />
       <Input label="Commission %" value={f.commissionPct} onChangeText={(v) => setF({ ...f, commissionPct: v })} keyboardType="decimal-pad" />
-      <Button title="Won — save deal" variant="success" icon={<Handshake size={18} color="#fff" />} loading={save.isPending} disabled={!f.dealValue || f.title.length < 2} onPress={() => save.mutate(undefined)} />
+      <Button
+        title="Won — save deal"
+        variant="success"
+        icon={<Handshake size={18} color="#fff" />}
+        loading={save.isPending}
+        disabled={!f.dealValue || f.title.length < 2}
+        onPress={() => save.mutate(undefined)}
+      />
     </Sheet>
   );
 }
@@ -284,7 +459,9 @@ function WaSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () =
     } catch {
       // Not connected / outside 24h window → fall back to the WhatsApp app.
       Linking.openURL(whatsappLink(lead.phone, t));
-      post(`/leads/${lead.id}/activities`, { type: 'WHATSAPP', content: t }).then(onDone).catch(() => undefined);
+      post(`/leads/${lead.id}/activities`, { type: 'WHATSAPP', content: t })
+        .then(onDone)
+        .catch(() => undefined);
       onClose();
     } finally {
       setBusy(false);
@@ -293,7 +470,9 @@ function WaSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () =
   return (
     <Sheet open={open} onClose={onClose} title="WhatsApp message">
       <Input value={t} onChangeText={setT} multiline />
-      <Txt v="caption" color="muted">Business WhatsApp connected है तो app से जाएगा (inbox में save होगा), नहीं तो WhatsApp app खुलेगा।</Txt>
+      <Txt v="caption" color="muted">
+        Business WhatsApp connected है तो app से जाएगा (inbox में save होगा), नहीं तो WhatsApp app खुलेगा।
+      </Txt>
       <Button title="Send" variant="whatsapp" icon={<Send size={17} color="#fff" />} loading={busy} disabled={!t.trim()} onPress={send} />
     </Sheet>
   );
@@ -306,25 +485,50 @@ function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void;
     <>
       <Row gap={8}>
         <Button title="Follow-up" size="sm" icon={<AlarmClock size={15} color="#fff" />} style={{ flex: 1 }} onPress={() => openSheet('followup')} />
-        <Button title="Site visit" size="sm" variant="accent" icon={<CalendarPlus size={15} color="#111" />} style={{ flex: 1 }} onPress={() => openSheet('visit')} />
+        <Button
+          title="Site visit"
+          size="sm"
+          variant="accent"
+          icon={<CalendarPlus size={15} color="#111" />}
+          style={{ flex: 1 }}
+          onPress={() => openSheet('visit')}
+        />
       </Row>
       {lead.followUps.map((f: any) => (
         <Card key={f.id} style={{ padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: f.status === 'PENDING' ? 1 : 0.55 }}>
           <AlarmClock size={18} color={f.status === 'PENDING' && new Date(f.dueAt) < new Date() ? c.danger : c.brand} />
           <View style={{ flex: 1 }}>
-            <Txt v="bodyStrong">{f.type} · {new Date(f.dueAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Txt>
-            {!!f.note && <Txt v="caption" color="muted">{f.note}</Txt>}
+            <Txt v="bodyStrong">
+              {f.type} · {new Date(f.dueAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+            </Txt>
+            {!!f.note && (
+              <Txt v="caption" color="muted">
+                {f.note}
+              </Txt>
+            )}
           </View>
-          {f.status === 'PENDING' ? <IconBtn onPress={() => done.mutate(f.id)} style={{ backgroundColor: `${c.success}22` }}><Check size={18} color={c.success} /></IconBtn> : <Badge label={f.status} />}
+          {f.status === 'PENDING' ? (
+            <IconBtn onPress={() => done.mutate(f.id)} style={{ backgroundColor: `${c.success}22` }}>
+              <Check size={18} color={c.success} />
+            </IconBtn>
+          ) : (
+            <Badge label={f.status} />
+          )}
         </Card>
       ))}
       {lead.visits.map((v: any) => (
         <Card key={v.id} style={{ padding: 12, gap: 2 }}>
           <Txt v="bodyStrong">🏠 {new Date(v.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Txt>
-          <Txt v="caption" color="muted">{v.listing?.title ?? v.address ?? ''} · {v.status}</Txt>
+          <Txt v="caption" color="muted">
+            {v.listing?.title ?? v.address ?? ''} · {v.status}
+          </Txt>
         </Card>
       ))}
-      {!lead.followUps.length && !lead.visits.length && <Txt v="small" color="muted">अभी कोई task नहीं</Txt>}
+      {!lead.followUps.length && !lead.visits.length && (
+        <Txt v="small" color="muted">
+          अभी कोई task नहीं
+        </Txt>
+      )}
     </>
   );
 }
@@ -353,16 +557,48 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
       .catch(showError);
   return (
     <>
-      <Segmented value={scope} onChange={setScope} options={[{ value: 'org', label: 'मेरी inventory' }, { value: 'all', label: 'पूरा marketplace' }]} />
-      {!lead.requirement && <Txt v="small" color="warning">Requirement (budget, BHK, locality) भरें — matching बेहतर होगी। (Web CRM → Requirement)</Txt>}
-      {q.isLoading ? <Loader /> : !q.data?.length ? <Txt v="small" color="muted">कोई matching property नहीं</Txt> : (
+      <Segmented
+        value={scope}
+        onChange={setScope}
+        options={[
+          { value: 'org', label: 'मेरी inventory' },
+          { value: 'all', label: 'पूरा marketplace' },
+        ]}
+      />
+      {!lead.requirement && (
+        <Txt v="small" color="warning">
+          Requirement (budget, BHK, locality) भरें — matching बेहतर होगी। (Web CRM → Requirement)
+        </Txt>
+      )}
+      {q.isLoading ? (
+        <Loader />
+      ) : !q.data?.length ? (
+        <Txt v="small" color="muted">
+          कोई matching property नहीं
+        </Txt>
+      ) : (
         <FlatList
           scrollEnabled={false}
           data={q.data}
           keyExtractor={(x) => x.id}
           contentContainerStyle={{ gap: 10 }}
           renderItem={({ item }) => (
-            <ListingRow l={item} right={<View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}><Badge label={`${item.matchScore}%`} color="#10B981" /><IconBtn onPress={() => share(item.id)}><Share2 size={18} color="#16A34A" /></IconBtn>{coBrokingOn && item.coBroking && item.organization && item.organization.id !== lead.organizationId && <IconBtn onPress={() => coBroke(item.id)}><Handshake size={18} color="#4F46E5" /></IconBtn>}</View>} />
+            <ListingRow
+              l={item}
+              right={
+                <View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Badge label={`${item.matchScore}%`} color="#10B981" />
+                  <IconBtn onPress={() => share(item.id)}>
+                    <Share2 size={18} color="#16A34A" />
+                  </IconBtn>
+                  {coBrokingOn && item.coBroking && item.organization && item.organization.id !== lead.organizationId && (
+                    <IconBtn onPress={() => coBroke(item.id)}>
+                      <Handshake size={18} color="#4F46E5" />
+                    </IconBtn>
+                  )}
+                </View>
+              }
+            />
           )}
         />
       )}
@@ -376,25 +612,36 @@ function Ai({ lead, onDone }: { lead: any; onDone: () => void }) {
   const run = useApiMutation(() => post<any>(`/leads/${lead.id}/ai`), { onSuccess: (x) => (setR(x), onDone()) });
   return (
     <>
-      <Button title={r ? 'दोबारा analyse करें' : 'AI से lead analyse करें'} icon={<Sparkles size={17} color="#fff" />} loading={run.isPending} onPress={() => run.mutate(undefined)} />
+      <Button
+        title={r ? 'दोबारा analyse करें' : 'AI से lead analyse करें'}
+        icon={<Sparkles size={17} color="#fff" />}
+        loading={run.isPending}
+        onPress={() => run.mutate(undefined)}
+      />
       {r && (
         <Animated.View entering={FadeInDown} style={{ gap: 10 }}>
           <Card style={{ padding: 14, gap: 6 }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Txt v="label" color="brand">Summary</Txt>
+              <Txt v="label" color="brand">
+                Summary
+              </Txt>
               {r.temperature && <TempBadge t={r.temperature} />}
             </Row>
             <Txt v="small">{r.summary}</Txt>
           </Card>
           {!!r.nextAction && (
             <Card style={{ padding: 14, gap: 4, borderColor: c.accent }}>
-              <Txt v="label" color="accent">Next best action</Txt>
+              <Txt v="label" color="accent">
+                Next best action
+              </Txt>
               <Txt v="small">{r.nextAction}</Txt>
             </Card>
           )}
           {!!r.suggestedReply && (
             <Card style={{ padding: 14, gap: 8 }}>
-              <Txt v="label" color="success">Suggested WhatsApp</Txt>
+              <Txt v="label" color="success">
+                Suggested WhatsApp
+              </Txt>
               <Txt v="small">{r.suggestedReply}</Txt>
               <Button title="WhatsApp पर भेजें" size="sm" variant="whatsapp" onPress={() => Linking.openURL(whatsappLink(lead.phone, r.suggestedReply))} />
             </Card>

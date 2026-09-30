@@ -18,7 +18,8 @@ export interface ExotelCreds {
   sourceMap?: string;
 }
 
-export const exotelBase = (v: Pick<ExotelCreds, 'subdomain' | 'accountSid'>) => `https://${(v.subdomain || 'api.exotel.com').replace(/^https?:\/\//, '')}/v1/Accounts/${v.accountSid}`;
+export const exotelBase = (v: Pick<ExotelCreds, 'subdomain' | 'accountSid'>) =>
+  `https://${(v.subdomain || 'api.exotel.com').replace(/^https?:\/\//, '')}/v1/Accounts/${v.accountSid}`;
 export const exotelAuth = (v: Pick<ExotelCreds, 'apiKey' | 'apiToken'>) => 'Basic ' + Buffer.from(`${v.apiKey}:${v.apiToken}`).toString('base64');
 
 /** "08047112345=HOUSING" lines → ExoPhone digits → lead source. */
@@ -71,7 +72,17 @@ export class CallsService {
     if (!me?.phone) throw new BadRequestException('पहले Profile में अपना mobile number डालें — call पहले आपके phone पर आएगी।');
     const v = await this.creds(orgId);
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId }, select: { webhookKey: true } });
-    const call = await this.prisma.call.create({ data: { organizationId: orgId, leadId: lead.id, agentId: user.id, direction: 'outbound', fromNumber: me.phone, toNumber: lead.phone, exoPhone: v.exoPhone } });
+    const call = await this.prisma.call.create({
+      data: {
+        organizationId: orgId,
+        leadId: lead.id,
+        agentId: user.id,
+        direction: 'outbound',
+        fromNumber: me.phone,
+        toNumber: lead.phone,
+        exoPhone: v.exoPhone,
+      },
+    });
     const form = new URLSearchParams({
       From: me.phone,
       To: lead.phone,
@@ -81,7 +92,12 @@ export class CallsService {
       'StatusCallbackEvents[0]': 'terminal',
       CustomField: call.id,
     });
-    const res = await fetch(`${exotelBase(v)}/Calls/connect.json`, { method: 'POST', headers: { Authorization: exotelAuth(v), 'Content-Type': 'application/x-www-form-urlencoded' }, body: form, signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(`${exotelBase(v)}/Calls/connect.json`, {
+      method: 'POST',
+      headers: { Authorization: exotelAuth(v), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form,
+      signal: AbortSignal.timeout(20_000),
+    });
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       await this.prisma.call.update({ where: { id: call.id }, data: { status: 'failed', endedAt: new Date() } });
@@ -89,8 +105,13 @@ export class CallsService {
     }
     const sid = data?.Call?.Sid ?? null;
     const updated = await this.prisma.call.update({ where: { id: call.id }, data: { externalSid: sid, status: String(data?.Call?.Status ?? 'in-progress') } });
-    await this.prisma.activity.create({ data: { organizationId: orgId, leadId: lead.id, userId: user.id, type: 'CALL', content: '📞 Click-to-call शुरू (Exotel)', meta: { callId: call.id } } });
-    await this.prisma.lead.update({ where: { id: lead.id }, data: { lastActivityAt: new Date(), ...(lead.firstResponseAt ? {} : { firstResponseAt: new Date() }) } });
+    await this.prisma.activity.create({
+      data: { organizationId: orgId, leadId: lead.id, userId: user.id, type: 'CALL', content: '📞 Click-to-call शुरू (Exotel)', meta: { callId: call.id } },
+    });
+    await this.prisma.lead.update({
+      where: { id: lead.id },
+      data: { lastActivityAt: new Date(), ...(lead.firstResponseAt ? {} : { firstResponseAt: new Date() }) },
+    });
     return updated;
   }
 
@@ -111,7 +132,16 @@ export class CallsService {
     const duration = Number(body.ConversationDuration ?? body.DialCallDuration ?? body.Duration ?? 0) || 0;
     const status = String(body.Status ?? body.CallStatus ?? call.status).toLowerCase();
     const recordingUrl = body.RecordingUrl ? String(body.RecordingUrl) : null;
-    await this.prisma.call.update({ where: { id: call.id }, data: { status, durationSec: duration, recordingUrl: recordingUrl ?? call.recordingUrl, endedAt: new Date(), externalSid: call.externalSid ?? (sid ? String(sid) : null) } });
+    await this.prisma.call.update({
+      where: { id: call.id },
+      data: {
+        status,
+        durationSec: duration,
+        recordingUrl: recordingUrl ?? call.recordingUrl,
+        endedAt: new Date(),
+        externalSid: call.externalSid ?? (sid ? String(sid) : null),
+      },
+    });
     if (call.leadId) {
       const outcome = outcomeFor(status, duration);
       await this.prisma.activity.create({
@@ -138,19 +168,45 @@ export class CallsService {
     const org = await this.prisma.organization.findUnique({ where: { webhookKey }, select: { id: true, phone: true } });
     if (!org) throw new NotFoundException();
     const from = normalizeIndianPhone(String(q.CallFrom ?? q.From ?? '')) ?? String(q.CallFrom ?? q.From ?? '');
-    const to = String(q.CallTo ?? q.To ?? '').replace(/\D/g, '').slice(-10);
+    const to = String(q.CallTo ?? q.To ?? '')
+      .replace(/\D/g, '')
+      .slice(-10);
     const v = (await this.settings.resolve('exotel', org.id)) as unknown as ExotelCreds | null;
     const source = parseSourceMap(v?.sourceMap)[to] ?? 'CALL';
     let agentPhone: string | null = null;
     if (from.replace(/\D/g, '').length >= 10) {
-      const { lead } = await this.leads.ingest({ orgId: org.id, name: null, phone: from, source, sourceRef: q.CallSid ? `exotel:${q.CallSid}` : null, sourceDetail: `Incoming call on ${to || 'ExoPhone'}` });
+      const { lead } = await this.leads.ingest({
+        orgId: org.id,
+        name: null,
+        phone: from,
+        source,
+        sourceRef: q.CallSid ? `exotel:${q.CallSid}` : null,
+        sourceDetail: `Incoming call on ${to || 'ExoPhone'}`,
+      });
       let assignee = lead.assignedToId;
       if (!assignee) assignee = await this.leads.assignRoundRobin(lead.id, org.id).catch(() => null);
       if (assignee) agentPhone = (await this.prisma.user.findUnique({ where: { id: assignee }, select: { phone: true } }))?.phone ?? null;
-      await this.prisma.call.create({ data: { organizationId: org.id, leadId: lead.id, agentId: assignee ?? null, direction: 'inbound', fromNumber: from, toNumber: agentPhone, exoPhone: to, externalSid: q.CallSid ? String(q.CallSid) : null, source } }).catch(() => undefined);
+      await this.prisma.call
+        .create({
+          data: {
+            organizationId: org.id,
+            leadId: lead.id,
+            agentId: assignee ?? null,
+            direction: 'inbound',
+            fromNumber: from,
+            toNumber: agentPhone,
+            exoPhone: to,
+            externalSid: q.CallSid ? String(q.CallSid) : null,
+            source,
+          },
+        })
+        .catch(() => undefined);
     }
     if (!agentPhone) {
-      const admin = await this.prisma.user.findFirst({ where: { organizationId: org.id, role: 'BROKER_ADMIN', status: 'ACTIVE', phone: { not: null } }, select: { phone: true } });
+      const admin = await this.prisma.user.findFirst({
+        where: { organizationId: org.id, role: 'BROKER_ADMIN', status: 'ACTIVE', phone: { not: null } },
+        select: { phone: true },
+      });
       agentPhone = admin?.phone ?? org.phone ?? null;
     }
     return (agentPhone ?? '').replace(/^\+91/, '0');

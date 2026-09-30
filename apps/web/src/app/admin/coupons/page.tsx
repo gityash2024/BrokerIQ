@@ -28,7 +28,14 @@ export default function Page() {
         { key: 'validUntil', label: 'Valid until', type: 'date' },
         { key: 'isActive', label: 'Active', type: 'switch' },
       ]}
-      toBody={(f) => ({ code: String(f.code ?? '').toUpperCase(), percentOff: f.percentOff ?? null, amountOff: f.amountOff ?? null, maxRedemptions: f.maxRedemptions ?? null, validUntil: f.validUntil ? new Date(f.validUntil).toISOString() : null, isActive: !!f.isActive })}
+      toBody={(f) => ({
+        code: String(f.code ?? '').toUpperCase(),
+        percentOff: f.percentOff ?? null,
+        amountOff: f.amountOff ?? null,
+        maxRedemptions: f.maxRedemptions ?? null,
+        validUntil: f.validUntil ? new Date(f.validUntil).toISOString() : null,
+        isActive: !!f.isActive,
+      })}
     />
   );
 }

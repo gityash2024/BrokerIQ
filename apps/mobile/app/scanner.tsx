@@ -25,7 +25,12 @@ function ScanOverlay() {
   const a = useAnimatedStyle(() => ({ top: `${y.value * 90}%` }));
   return (
     <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(30,27,75,0.35)' } as any}>
-      <Animated.View style={[{ position: 'absolute', left: 0, right: 0, height: 4, backgroundColor: '#818CF8', shadowColor: '#818CF8', shadowOpacity: 1, shadowRadius: 12 }, a]} />
+      <Animated.View
+        style={[
+          { position: 'absolute', left: 0, right: 0, height: 4, backgroundColor: '#818CF8', shadowColor: '#818CF8', shadowOpacity: 1, shadowRadius: 12 },
+          a,
+        ]}
+      />
     </View>
   );
 }
@@ -55,7 +60,11 @@ export default function Scanner() {
       const idx = startIndex + k;
       setPages((ps) => ps.map((p, i) => (i === idx ? { ...p, status: 'scanning', error: undefined } : p)));
       try {
-        const m = await ImageManipulator.manipulateAsync(uris[k], [{ resize: { width: 1600 } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true });
+        const m = await ImageManipulator.manipulateAsync(uris[k], [{ resize: { width: 1600 } }], {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        });
         const res = await post<{ rows: any[]; rawText?: string | null }>('/ai/scan', { image: `data:image/jpeg;base64,${m.base64}`, page: idx + 1 });
         setRows((rs) => {
           const seen = new Set(rs.map(rowKey));
@@ -110,7 +119,11 @@ export default function Scanner() {
       const bad = new Set(res.errors.map((e) => e.index));
       setRows((rs) => rs.map((r, i) => ({ ...r, error: res.errors.find((e) => e.index === i)?.error })).filter((_, i) => bad.has(i)));
       qc.invalidateQueries({ queryKey: ['my-listings'] });
-      toast.success(submit ? `${plural(res.created, 'listing')} admin approval के लिए भेजी गईं ✅` : `${plural(res.created, 'draft listing')} बनीं — photos जोड़कर approval के लिए भेजें`);
+      toast.success(
+        submit
+          ? `${plural(res.created, 'listing')} admin approval के लिए भेजी गईं ✅`
+          : `${plural(res.created, 'draft listing')} बनीं — photos जोड़कर approval के लिए भेजें`,
+      );
       if (!res.errors.length) router.replace('/(broker)/inventory');
     } catch (e) {
       showError(e);
@@ -153,11 +166,30 @@ export default function Scanner() {
       {pages.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 12 }}>
           {pages.map((p, i) => (
-            <PressableScale key={`${p.uri}${i}`} onPress={() => (p.status === 'error' ? retry(i) : p.rawText ? setRawOpen(i) : undefined)} style={{ width: 84 }}>
-              <View style={{ width: 84, height: 108, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: p.status === 'error' ? c.danger : p.status === 'done' ? c.success : c.line }}>
+            <PressableScale
+              key={`${p.uri}${i}`}
+              onPress={() => (p.status === 'error' ? retry(i) : p.rawText ? setRawOpen(i) : undefined)}
+              style={{ width: 84 }}
+            >
+              <View
+                style={{
+                  width: 84,
+                  height: 108,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  borderWidth: 2,
+                  borderColor: p.status === 'error' ? c.danger : p.status === 'done' ? c.success : c.line,
+                }}
+              >
                 <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                 <View style={{ position: 'absolute', top: 4, right: 4 }}>
-                  {p.status === 'done' ? <CheckCircle2 size={18} color={c.success} /> : p.status === 'error' ? <RotateCw size={18} color={c.danger} /> : p.status === 'scanning' ? <Sparkles size={18} color={c.brand} /> : null}
+                  {p.status === 'done' ? (
+                    <CheckCircle2 size={18} color={c.success} />
+                  ) : p.status === 'error' ? (
+                    <RotateCw size={18} color={c.danger} />
+                  ) : p.status === 'scanning' ? (
+                    <Sparkles size={18} color={c.brand} />
+                  ) : null}
                 </View>
               </View>
               <Txt v="caption" color={p.status === 'error' ? 'danger' : 'muted'} style={{ textAlign: 'center', marginTop: 4 }}>
@@ -179,14 +211,24 @@ export default function Scanner() {
           <View style={{ gap: 8 }}>
             {rows.map((r, i) => (
               <Animated.View key={i} entering={FadeInDown.delay(Math.min(i, 10) * 40)}>
-                <Card style={{ padding: 12, gap: 4, borderColor: r.error ? c.danger : !r.localityId || !r.price ? c.warning : c.line }} onPress={() => (setEdit(i), setLocQ(''))}>
+                <Card
+                  style={{ padding: 12, gap: 4, borderColor: r.error ? c.danger : !r.localityId || !r.price ? c.warning : c.line }}
+                  onPress={() => (setEdit(i), setLocQ(''))}
+                >
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Txt v="bodyStrong" style={{ flex: 1 }} numberOfLines={1}>
                       {r.bedrooms ? `${r.bedrooms} BHK ` : ''}
                       {PROPERTY_TYPE_LABELS[r.propertyType as PropertyType]}
                     </Txt>
                     <Row gap={4}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: (r.confidence ?? 0.6) > 0.75 ? c.success : (r.confidence ?? 0.6) > 0.5 ? c.warning : c.danger }} />
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: (r.confidence ?? 0.6) > 0.75 ? c.success : (r.confidence ?? 0.6) > 0.5 ? c.warning : c.danger,
+                        }}
+                      />
                       <IconBtn onPress={() => setRows(rows.filter((_, k) => k !== i))}>
                         <Trash2 size={16} color={c.muted} />
                       </IconBtn>
@@ -201,15 +243,37 @@ export default function Scanner() {
                     {r.securityDeposit ? ` · Deposit ${formatPriceShort(r.securityDeposit)}` : ''}
                     {r.brokerageType ? ` · ${BROKERAGE_LABELS[r.brokerageType as keyof typeof BROKERAGE_LABELS]}` : ''}
                   </Txt>
-                  {!!(r.contactName || r.contactPhone) && <Txt v="caption" color="muted">{[r.contactName, r.contactPhone].filter(Boolean).join(' · ')}</Txt>}
+                  {!!(r.contactName || r.contactPhone) && (
+                    <Txt v="caption" color="muted">
+                      {[r.contactName, r.contactPhone].filter(Boolean).join(' · ')}
+                    </Txt>
+                  )}
                   {!!r.error && <Badge label={r.error} color={c.danger} />}
                 </Card>
               </Animated.View>
             ))}
           </View>
-          <Button title={`${plural(rows.length, 'listing')} approval के लिए भेजें`} size="lg" icon={<Send size={18} color="#fff" />} style={{ marginTop: 16 }} loading={importing === 'submit'} disabled={!!importing} onPress={() => importAll(true)} />
-          <Button title="Drafts में डालें (photos बाद में)" variant="secondary" icon={<FileText size={18} color={c.fg} />} style={{ marginTop: 10 }} loading={importing === 'draft'} disabled={!!importing} onPress={() => importAll(false)} />
-          <Txt v="caption" color="muted" style={{ textAlign: 'center', marginTop: 8 }}>हर listing admin approval के बाद ही live होती है।</Txt>
+          <Button
+            title={`${plural(rows.length, 'listing')} approval के लिए भेजें`}
+            size="lg"
+            icon={<Send size={18} color="#fff" />}
+            style={{ marginTop: 16 }}
+            loading={importing === 'submit'}
+            disabled={!!importing}
+            onPress={() => importAll(true)}
+          />
+          <Button
+            title="Drafts में डालें (photos बाद में)"
+            variant="secondary"
+            icon={<FileText size={18} color={c.fg} />}
+            style={{ marginTop: 10 }}
+            loading={importing === 'draft'}
+            disabled={!!importing}
+            onPress={() => importAll(false)}
+          />
+          <Txt v="caption" color="muted" style={{ textAlign: 'center', marginTop: 8 }}>
+            हर listing admin approval के बाद ही live होती है।
+          </Txt>
         </>
       )}
 
@@ -218,9 +282,13 @@ export default function Scanner() {
           <>
             <Row gap={6}>
               <AlertCircle size={14} color={c.muted} />
-              <Txt v="caption" color="muted" style={{ flex: 1 }}>Rows को इस text से मिलाकर check करें।</Txt>
+              <Txt v="caption" color="muted" style={{ flex: 1 }}>
+                Rows को इस text से मिलाकर check करें।
+              </Txt>
             </Row>
-            <Txt selectable style={{ lineHeight: 22 }}>{pages[rawOpen]?.rawText || '—'}</Txt>
+            <Txt selectable style={{ lineHeight: 22 }}>
+              {pages[rawOpen]?.rawText || '—'}
+            </Txt>
           </>
         )}
       </Sheet>
@@ -229,9 +297,11 @@ export default function Scanner() {
         {cur && (
           <>
             <Row wrap>
-              {RENTABLE_TYPES.filter((t) => ['APARTMENT', 'BUILDER_FLOOR', 'INDEPENDENT_HOUSE', 'VILLA', 'STUDIO', 'PG', 'OFFICE', 'SHOP'].includes(t)).map((t) => (
-                <Chip key={t} label={PROPERTY_TYPE_LABELS[t]} active={cur.propertyType === t} onPress={() => setCur({ propertyType: t })} />
-              ))}
+              {RENTABLE_TYPES.filter((t) => ['APARTMENT', 'BUILDER_FLOOR', 'INDEPENDENT_HOUSE', 'VILLA', 'STUDIO', 'PG', 'OFFICE', 'SHOP'].includes(t)).map(
+                (t) => (
+                  <Chip key={t} label={PROPERTY_TYPE_LABELS[t]} active={cur.propertyType === t} onPress={() => setCur({ propertyType: t })} />
+                ),
+              )}
             </Row>
             <Input label="Locality खोजें" value={locQ} onChangeText={setLocQ} />
             <Row wrap>
@@ -247,28 +317,73 @@ export default function Scanner() {
               <Input label="Unit" value={cur.unit ?? ''} onChangeText={(v) => setCur({ unit: v || null })} containerStyle={{ flex: 1 }} />
             </Row>
             <Row>
-              <Input label="BHK" value={cur.bedrooms != null ? String(cur.bedrooms) : ''} onChangeText={(v) => setCur({ bedrooms: v ? Number(v) : null })} keyboardType="numeric" containerStyle={{ flex: 1 }} />
-              <Input label="Area sqft" value={cur.area != null ? String(cur.area) : ''} onChangeText={(v) => setCur({ area: v ? Number(v) : null })} keyboardType="numeric" containerStyle={{ flex: 1 }} />
+              <Input
+                label="BHK"
+                value={cur.bedrooms != null ? String(cur.bedrooms) : ''}
+                onChangeText={(v) => setCur({ bedrooms: v ? Number(v) : null })}
+                keyboardType="numeric"
+                containerStyle={{ flex: 1 }}
+              />
+              <Input
+                label="Area sqft"
+                value={cur.area != null ? String(cur.area) : ''}
+                onChangeText={(v) => setCur({ area: v ? Number(v) : null })}
+                keyboardType="numeric"
+                containerStyle={{ flex: 1 }}
+              />
             </Row>
             <Row>
-              <Input label="Rent ₹/month" value={cur.price != null ? String(cur.price) : ''} onChangeText={(v) => setCur({ price: v ? Number(v.replace(/\D/g, '')) : null })} keyboardType="numeric" hint={cur.price ? formatPriceShort(cur.price) : undefined} containerStyle={{ flex: 1 }} />
-              <Input label="Deposit ₹" value={cur.securityDeposit != null ? String(cur.securityDeposit) : ''} onChangeText={(v) => setCur({ securityDeposit: v ? Number(v.replace(/\D/g, '')) : null })} keyboardType="numeric" containerStyle={{ flex: 1 }} />
+              <Input
+                label="Rent ₹/month"
+                value={cur.price != null ? String(cur.price) : ''}
+                onChangeText={(v) => setCur({ price: v ? Number(v.replace(/\D/g, '')) : null })}
+                keyboardType="numeric"
+                hint={cur.price ? formatPriceShort(cur.price) : undefined}
+                containerStyle={{ flex: 1 }}
+              />
+              <Input
+                label="Deposit ₹"
+                value={cur.securityDeposit != null ? String(cur.securityDeposit) : ''}
+                onChangeText={(v) => setCur({ securityDeposit: v ? Number(v.replace(/\D/g, '')) : null })}
+                keyboardType="numeric"
+                containerStyle={{ flex: 1 }}
+              />
             </Row>
-            <Txt v="label" color="subtle">Brokerage</Txt>
+            <Txt v="label" color="subtle">
+              Brokerage
+            </Txt>
             <Row wrap>
               {Object.entries(BROKERAGE_LABELS).map(([k, l]) => (
                 <Chip key={k} label={l} active={cur.brokerageType === k} onPress={() => setCur({ brokerageType: cur.brokerageType === k ? null : k })} />
               ))}
             </Row>
-            {cur.brokerageType === 'FIXED' && <Input label="Brokerage ₹" value={cur.brokerageAmount != null ? String(cur.brokerageAmount) : ''} onChangeText={(v) => setCur({ brokerageAmount: v ? Number(v.replace(/\D/g, '')) : null })} keyboardType="numeric" />}
+            {cur.brokerageType === 'FIXED' && (
+              <Input
+                label="Brokerage ₹"
+                value={cur.brokerageAmount != null ? String(cur.brokerageAmount) : ''}
+                onChangeText={(v) => setCur({ brokerageAmount: v ? Number(v.replace(/\D/g, '')) : null })}
+                keyboardType="numeric"
+              />
+            )}
             <Row wrap>
               {(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'] as const).map((f) => (
-                <Chip key={f} label={f === 'FULLY_FURNISHED' ? 'Fully furnished' : f === 'SEMI_FURNISHED' ? 'Semi' : 'Unfurnished'} active={cur.furnishing === f} onPress={() => setCur({ furnishing: cur.furnishing === f ? null : f })} />
+                <Chip
+                  key={f}
+                  label={f === 'FULLY_FURNISHED' ? 'Fully furnished' : f === 'SEMI_FURNISHED' ? 'Semi' : 'Unfurnished'}
+                  active={cur.furnishing === f}
+                  onPress={() => setCur({ furnishing: cur.furnishing === f ? null : f })}
+                />
               ))}
             </Row>
             <Row>
               <Input label="Owner" value={cur.contactName ?? ''} onChangeText={(v) => setCur({ contactName: v || null })} containerStyle={{ flex: 1 }} />
-              <Input label="Phone" value={cur.contactPhone ?? ''} onChangeText={(v) => setCur({ contactPhone: v || null })} keyboardType="phone-pad" containerStyle={{ flex: 1 }} />
+              <Input
+                label="Phone"
+                value={cur.contactPhone ?? ''}
+                onChangeText={(v) => setCur({ contactPhone: v || null })}
+                keyboardType="phone-pad"
+                containerStyle={{ flex: 1 }}
+              />
             </Row>
             <Input label="Notes" value={cur.notes ?? ''} onChangeText={(v) => setCur({ notes: v || null })} multiline />
             <Button title="Done" onPress={() => setEdit(null)} />

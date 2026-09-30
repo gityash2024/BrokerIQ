@@ -54,7 +54,13 @@ export default function PipelinePage() {
     }
     const lead = from.items.find((i) => i.id === id)!;
     qc.setQueryData<Column[]>(key, (old) =>
-      old?.map((c) => (c.stage === from.stage ? { ...c, count: c.count - 1, items: c.items.filter((i) => i.id !== id) } : c.stage === to ? { ...c, count: c.count + 1, items: [{ ...lead, stage: to }, ...c.items] } : c)),
+      old?.map((c) =>
+        c.stage === from.stage
+          ? { ...c, count: c.count - 1, items: c.items.filter((i) => i.id !== id) }
+          : c.stage === to
+            ? { ...c, count: c.count + 1, items: [{ ...lead, stage: to }, ...c.items] }
+            : c,
+      ),
     );
     try {
       await patch(`/leads/${id}/stage`, { stage: to, lostReason });
@@ -68,7 +74,10 @@ export default function PipelinePage() {
   };
 
   const total = q.data?.reduce((s, c) => s + (c.stage === 'WON' || c.stage === 'LOST' ? 0 : c.count), 0) ?? 0;
-  const value = q.data?.filter((c) => !['WON', 'LOST'].includes(c.stage)).reduce((s, c) => s + c.items.reduce((a, l) => a + (Number(l.requirement?.maxBudget ?? l.requirement?.minBudget) || 0), 0), 0) ?? 0;
+  const value =
+    q.data
+      ?.filter((c) => !['WON', 'LOST'].includes(c.stage))
+      .reduce((s, c) => s + c.items.reduce((a, l) => a + (Number(l.requirement?.maxBudget ?? l.requirement?.minBudget) || 0), 0), 0) ?? 0;
 
   return (
     <>
@@ -83,14 +92,18 @@ export default function PipelinePage() {
         <Select value={source} onChange={(e) => setSource(e.target.value)} className="h-10 w-44">
           <option value="">सभी sources</option>
           {LEAD_SOURCES.map((s) => (
-            <option key={s} value={s}>{LEAD_SOURCE_LABELS[s]}</option>
+            <option key={s} value={s}>
+              {LEAD_SOURCE_LABELS[s]}
+            </option>
           ))}
         </Select>
         {admin && (
           <Select value={agent} onChange={(e) => setAgent(e.target.value)} className="h-10 w-44">
             <option value="">पूरी team</option>
             {(team.data?.members ?? []).map((m: any) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
             ))}
           </Select>
         )}
@@ -117,7 +130,10 @@ export default function PipelinePage() {
                     if (dragId) move(dragId, col.stage);
                     setDragId(null);
                   }}
-                  className={cn('flex w-[290px] flex-col rounded-2xl border bg-surface-2/60 transition', over === col.stage ? 'border-brand-400 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line')}
+                  className={cn(
+                    'flex w-[290px] flex-col rounded-2xl border bg-surface-2/60 transition',
+                    over === col.stage ? 'border-brand-400 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line',
+                  )}
                 >
                   <div className="flex items-center gap-2 px-3.5 pt-3.5 pb-2">
                     <span className="size-2.5 rounded-full" style={{ background: c }} />
@@ -156,19 +172,39 @@ export default function PipelinePage() {
                               <TempBadge t={l.temperature} />
                             </div>
                             <p className="mt-0.5 line-clamp-1 text-xs text-muted">
-                              {[l.requirement?.bedrooms?.length ? `${l.requirement.bedrooms.join('/')} BHK` : null, l.requirement?.maxBudget ? `≤ ${formatPriceShort(Number(l.requirement.maxBudget))}` : null, l.listing?.title].filter(Boolean).join(' · ') || l.phone}
+                              {[
+                                l.requirement?.bedrooms?.length ? `${l.requirement.bedrooms.join('/')} BHK` : null,
+                                l.requirement?.maxBudget ? `≤ ${formatPriceShort(Number(l.requirement.maxBudget))}` : null,
+                                l.listing?.title,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ') || l.phone}
                             </p>
                             <div className="mt-2.5 flex items-center gap-1.5">
                               <SourceBadge source={l.source} />
                               <span className="ml-auto text-[11px] text-subtle">{timeAgo(l.lastActivityAt ?? l.createdAt)}</span>
                             </div>
                             <div className="mt-2.5 flex items-center gap-1 border-t border-line pt-2.5">
-                              {l.assignedTo ? <Avatar name={l.assignedTo.name} src={l.assignedTo.avatarUrl} size={22} /> : <span className="text-[11px] text-amber-600">Unassigned</span>}
+                              {l.assignedTo ? (
+                                <Avatar name={l.assignedTo.name} src={l.assignedTo.avatarUrl} size={22} />
+                              ) : (
+                                <span className="text-[11px] text-amber-600">Unassigned</span>
+                              )}
                               <div className="ml-auto flex gap-1 opacity-70 transition group-hover:opacity-100">
-                                <a href={`tel:${l.phone}`} className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-brand-600" aria-label="Call">
+                                <a
+                                  href={`tel:${l.phone}`}
+                                  className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-brand-600"
+                                  aria-label="Call"
+                                >
                                   <Phone className="size-3.5" />
                                 </a>
-                                <a href={whatsappLink(l.phone, `Hi ${l.name ?? ''}`)} target="_blank" rel="noreferrer" className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-emerald-600" aria-label="WhatsApp">
+                                <a
+                                  href={whatsappLink(l.phone, `Hi ${l.name ?? ''}`)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-emerald-600"
+                                  aria-label="WhatsApp"
+                                >
                                   <MessageCircle className="size-3.5" />
                                 </a>
                               </div>
@@ -203,7 +239,9 @@ export default function PipelinePage() {
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setLost(null)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setLost(null)}>
+              Cancel
+            </Button>
             <Button
               variant="danger"
               disabled={!reason.trim()}
@@ -220,7 +258,14 @@ export default function PipelinePage() {
       >
         <div className="mb-3 flex flex-wrap gap-2">
           {['Budget mismatch', 'Bought elsewhere', 'Not responding', 'Plan postponed', 'Location mismatch', 'Fake / wrong number'].map((r) => (
-            <button key={r} onClick={() => setReason(r)} className={cn('rounded-full border px-3 py-1 text-xs font-semibold', reason === r ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15' : 'border-line text-muted')}>
+            <button
+              key={r}
+              onClick={() => setReason(r)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-semibold',
+                reason === r ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15' : 'border-line text-muted',
+              )}
+            >
               {r}
             </button>
           ))}

@@ -16,7 +16,25 @@ import { MapView, toPoints } from '@/components/map';
 import { Button, Chip, ErrorView, Empty, IconBtn, Input, PressableScale, Row, Sheet, Skeleton, Txt } from '@/ui';
 import { useFlag } from '@/lib/config';
 
-type F = { q?: string; purpose?: string; category?: string; types?: string; bedrooms?: string; minPrice?: string; maxPrice?: string; furnishing?: string; postedBy?: string; verified?: string; sort?: string; localities?: string; visitVerified?: string; officeHub?: string; maxCommute?: string; pgGender?: string; pgFood?: string };
+type F = {
+  q?: string;
+  purpose?: string;
+  category?: string;
+  types?: string;
+  bedrooms?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  furnishing?: string;
+  postedBy?: string;
+  verified?: string;
+  sort?: string;
+  localities?: string;
+  visitVerified?: string;
+  officeHub?: string;
+  maxCommute?: string;
+  pgGender?: string;
+  pgFood?: string;
+};
 const SORTS = [
   ['relevance', 'Relevant'],
   ['newest', 'Newest'],
@@ -31,7 +49,15 @@ export default function SearchScreen() {
   const { user } = useAuth();
   const params = useLocalSearchParams<F>();
   // Rental marketplace: search is always RENT; quick filters (furnished / PG / commercial) arrive as params.
-  const initialF = (): F => ({ purpose: 'RENT', category: params.category, localities: params.localities, furnishing: params.furnishing, types: params.types, maxPrice: params.maxPrice, sort: 'relevance' });
+  const initialF = (): F => ({
+    purpose: 'RENT',
+    category: params.category,
+    localities: params.localities,
+    furnishing: params.furnishing,
+    types: params.types,
+    maxPrice: params.maxPrice,
+    sort: 'relevance',
+  });
   const [f, setF] = useState<F>(initialF);
   useEffect(() => {
     if (params.category || params.localities || params.furnishing || params.types || params.maxPrice) setF(initialF());
@@ -59,11 +85,17 @@ export default function SearchScreen() {
     set({ [k]: cur.includes(v) ? cur.filter((x) => x !== v).join(',') : [...cur, v].join(',') } as any);
   };
   const budgets: number[] = tax.data?.budgets?.RENT ?? [];
-  const activeCount = ['types', 'bedrooms', 'minPrice', 'maxPrice', 'furnishing', 'postedBy', 'verified', 'visitVerified', 'officeHub'].filter((k) => (f as any)[k]).length;
+  const activeCount = ['types', 'bedrooms', 'minPrice', 'maxPrice', 'furnishing', 'postedBy', 'verified', 'visitVerified', 'officeHub'].filter(
+    (k) => (f as any)[k],
+  ).length;
   const saveSearch = async () => {
     if (!user) return router.push('/login');
     try {
-      await post('/me/saved-searches', { name: [f.bedrooms && `${f.bedrooms} BHK`, 'Rent', f.localities ?? q].filter(Boolean).join(' · ') || 'My search', filters: query, alertsEnabled: true });
+      await post('/me/saved-searches', {
+        name: [f.bedrooms && `${f.bedrooms} BHK`, 'Rent', f.localities ?? q].filter(Boolean).join(' · ') || 'My search',
+        filters: query,
+        alertsEnabled: true,
+      });
       toast.success('Search saved — नई matching listings पर alert मिलेगा 🔔');
     } catch (e) {
       showError(e);
@@ -82,13 +114,22 @@ export default function SearchScreen() {
             returnKeyType="search"
           />
         </View>
-        <IconBtn onPress={() => setFilters(true)} badge={activeCount} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, height: 50, width: 50 }}>
+        <IconBtn
+          onPress={() => setFilters(true)}
+          badge={activeCount}
+          style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, height: 50, width: 50 }}
+        >
           <SlidersHorizontal size={20} color={c.fg} />
         </IconBtn>
       </Row>
       {!!f.localities && (
         <Row>
-          <Chip label={`📍 ${f.localities.replace(/-gurgaon$/, '').replace(/-/g, ' ')}`} active onPress={() => set({ localities: undefined })} icon={<X size={14} color={c.brand} />} />
+          <Chip
+            label={`📍 ${f.localities.replace(/-gurgaon$/, '').replace(/-/g, ' ')}`}
+            active
+            onPress={() => set({ localities: undefined })}
+            icon={<X size={14} color={c.brand} />}
+          />
         </Row>
       )}
       {q.length > 1 && !f.localities && (suggest.data?.localities?.length || suggest.data?.projects?.length) ? (
@@ -96,13 +137,19 @@ export default function SearchScreen() {
           {suggest.data.localities.slice(0, 5).map((l: any) => (
             <PressableScale key={l.id} onPress={() => (set({ localities: l.slug }), setText(''))} style={{ padding: 10 }}>
               <Txt v="bodyStrong">📍 {l.name}</Txt>
-              {!!l.zone && <Txt v="caption" color="muted">{l.zone}</Txt>}
+              {!!l.zone && (
+                <Txt v="caption" color="muted">
+                  {l.zone}
+                </Txt>
+              )}
             </PressableScale>
           ))}
           {suggest.data.projects.slice(0, 3).map((p: any) => (
             <PressableScale key={p.id} onPress={() => router.push(`/project/${p.slug}`)} style={{ padding: 10 }}>
               <Txt v="bodyStrong">🏢 {p.name}</Txt>
-              <Txt v="caption" color="muted">{p.builder?.name} · {p.locality?.name}</Txt>
+              <Txt v="caption" color="muted">
+                {p.builder?.name} · {p.locality?.name}
+              </Txt>
             </PressableScale>
           ))}
         </Animated.View>
@@ -119,23 +166,38 @@ export default function SearchScreen() {
         ListFooterComponent={
           <Row gap={8} style={{ marginLeft: 8 }}>
             {(['RESIDENTIAL', 'COMMERCIAL'] as const).map((cat) => (
-              <Chip key={cat} label={cat[0] + cat.slice(1).toLowerCase()} active={f.category === cat} onPress={() => set({ category: f.category === cat ? undefined : cat, types: undefined })} />
+              <Chip
+                key={cat}
+                label={cat[0] + cat.slice(1).toLowerCase()}
+                active={f.category === cat}
+                onPress={() => set({ category: f.category === cat ? undefined : cat, types: undefined })}
+              />
             ))}
           </Row>
         }
         renderItem={({ item }) =>
           item.k === 'FURNISHED' ? (
-            <Chip label={item.l} active={(f.furnishing ?? '').split(',').includes('FULLY_FURNISHED')} onPress={() => toggleCsv('furnishing', 'FULLY_FURNISHED')} />
+            <Chip
+              label={item.l}
+              active={(f.furnishing ?? '').split(',').includes('FULLY_FURNISHED')}
+              onPress={() => toggleCsv('furnishing', 'FULLY_FURNISHED')}
+            />
           ) : (
             <Chip label={item.l} active={(f.types ?? '').split(',').includes('PG')} onPress={() => toggleCsv('types', 'PG')} />
           )
         }
       />
       <Row style={{ justifyContent: 'space-between' }}>
-        <Txt v="small" color="muted">{total != null ? plural(total, 'property', 'properties') : ' '}</Txt>
+        <Txt v="small" color="muted">
+          {total != null ? plural(total, 'property', 'properties') : ' '}
+        </Txt>
         <Row gap={6}>
           <Chip label="Alert" onPress={saveSearch} icon={<BellPlus size={14} color={c.muted} />} />
-          <Chip label={mode === 'list' ? 'Map' : 'List'} onPress={() => setMode(mode === 'list' ? 'map' : 'list')} icon={mode === 'list' ? <MapIcon size={14} color={c.muted} /> : <List size={14} color={c.muted} />} />
+          <Chip
+            label={mode === 'list' ? 'Map' : 'List'}
+            onPress={() => setMode(mode === 'list' ? 'map' : 'list')}
+            icon={mode === 'list' ? <MapIcon size={14} color={c.muted} /> : <List size={14} color={c.muted} />}
+          />
         </Row>
       </Row>
     </View>
@@ -143,14 +205,20 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
-      <Txt v="h1" style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>Explore</Txt>
+      <Txt v="h1" style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
+        Explore
+      </Txt>
       {mode === 'map' ? (
         <View style={{ flex: 1 }}>
           {header}
-          <MapView height="100%" points={toPoints(map.data ?? [])} onPick={(id) => {
-            const l = map.data?.find((x) => x.id === id);
-            if (l) router.push(`/property/${l.slug}`);
-          }} />
+          <MapView
+            height="100%"
+            points={toPoints(map.data ?? [])}
+            onPick={(id) => {
+              const l = map.data?.find((x) => x.id === id);
+              if (l) router.push(`/property/${l.slug}`);
+            }}
+          />
         </View>
       ) : (
         <FlatList
@@ -169,43 +237,113 @@ export default function SearchScreen() {
           onRefresh={() => list.refetch()}
           ListEmptyComponent={
             list.isLoading ? (
-              <View style={{ paddingHorizontal: 16, gap: 14 }}>{[0, 1].map((i) => <Skeleton key={i} h={300} r={22} />)}</View>
+              <View style={{ paddingHorizontal: 16, gap: 14 }}>
+                {[0, 1].map((i) => (
+                  <Skeleton key={i} h={300} r={22} />
+                ))}
+              </View>
             ) : list.isError ? (
               <ErrorView error={list.error} onRetry={() => list.refetch()} />
             ) : (
               <Empty title="कोई property नहीं मिली" text="Filters कम करें या दूसरी locality try करें। Alert लगा दें — नई listing आते ही बताएँगे।" />
             )
           }
-          ListFooterComponent={list.isFetchingNextPage ? <View style={{ paddingHorizontal: 16 }}><Skeleton h={300} r={22} /></View> : null}
+          ListFooterComponent={
+            list.isFetchingNextPage ? (
+              <View style={{ paddingHorizontal: 16 }}>
+                <Skeleton h={300} r={22} />
+              </View>
+            ) : null
+          }
         />
       )}
 
       <Sheet open={filters} onClose={() => setFilters(false)} title="Filters" full>
-        <Txt v="label" color="subtle">Sort</Txt>
-        <Row wrap>{SORTS.map(([k, l]) => <Chip key={k} label={l} active={f.sort === k} onPress={() => set({ sort: k })} />)}</Row>
-        <Txt v="label" color="subtle">BHK</Txt>
-        <Row wrap>{['1', '2', '3', '4', '5+'].map((b) => <Chip key={b} label={`${b} BHK`} active={(f.bedrooms ?? '').split(',').includes(b)} onPress={() => toggleCsv('bedrooms', b)} />)}</Row>
-        <Txt v="label" color="subtle">Property type</Txt>
+        <Txt v="label" color="subtle">
+          Sort
+        </Txt>
         <Row wrap>
-          {(tax.data?.propertyTypes ?? []).filter((t: any) => (!f.category || t.category === f.category) && RENTABLE_TYPES.includes(t.value)).map((t: any) => (
-            <Chip key={t.value} label={PROPERTY_TYPE_LABELS[t.value as PropertyType] ?? t.label} active={(f.types ?? '').split(',').includes(t.value)} onPress={() => toggleCsv('types', t.value)} />
+          {SORTS.map(([k, l]) => (
+            <Chip key={k} label={l} active={f.sort === k} onPress={() => set({ sort: k })} />
           ))}
         </Row>
-        <Txt v="label" color="subtle">Budget (min)</Txt>
-        <Row wrap>{budgets.map((b) => <Chip key={b} label={formatPriceShort(b)} active={f.minPrice === String(b)} onPress={() => set({ minPrice: f.minPrice === String(b) ? undefined : String(b) })} />)}</Row>
-        <Txt v="label" color="subtle">Budget (max)</Txt>
-        <Row wrap>{budgets.map((b) => <Chip key={b} label={formatPriceShort(b)} active={f.maxPrice === String(b)} onPress={() => set({ maxPrice: f.maxPrice === String(b) ? undefined : String(b) })} />)}</Row>
-        <Txt v="label" color="subtle">Furnishing</Txt>
-        <Row wrap>{Object.entries(FURNISHING_LABELS).map(([k, v]) => <Chip key={k} label={v} active={(f.furnishing ?? '').split(',').includes(k)} onPress={() => toggleCsv('furnishing', k)} />)}</Row>
-        <Txt v="label" color="subtle">Posted by</Txt>
+        <Txt v="label" color="subtle">
+          BHK
+        </Txt>
         <Row wrap>
-          {(['OWNER', 'BROKER', 'BUILDER'] as const).map((p) => <Chip key={p} label={p[0] + p.slice(1).toLowerCase()} active={f.postedBy === p} onPress={() => set({ postedBy: f.postedBy === p ? undefined : p })} />)}
+          {['1', '2', '3', '4', '5+'].map((b) => (
+            <Chip key={b} label={`${b} BHK`} active={(f.bedrooms ?? '').split(',').includes(b)} onPress={() => toggleCsv('bedrooms', b)} />
+          ))}
+        </Row>
+        <Txt v="label" color="subtle">
+          Property type
+        </Txt>
+        <Row wrap>
+          {(tax.data?.propertyTypes ?? [])
+            .filter((t: any) => (!f.category || t.category === f.category) && RENTABLE_TYPES.includes(t.value))
+            .map((t: any) => (
+              <Chip
+                key={t.value}
+                label={PROPERTY_TYPE_LABELS[t.value as PropertyType] ?? t.label}
+                active={(f.types ?? '').split(',').includes(t.value)}
+                onPress={() => toggleCsv('types', t.value)}
+              />
+            ))}
+        </Row>
+        <Txt v="label" color="subtle">
+          Budget (min)
+        </Txt>
+        <Row wrap>
+          {budgets.map((b) => (
+            <Chip
+              key={b}
+              label={formatPriceShort(b)}
+              active={f.minPrice === String(b)}
+              onPress={() => set({ minPrice: f.minPrice === String(b) ? undefined : String(b) })}
+            />
+          ))}
+        </Row>
+        <Txt v="label" color="subtle">
+          Budget (max)
+        </Txt>
+        <Row wrap>
+          {budgets.map((b) => (
+            <Chip
+              key={b}
+              label={formatPriceShort(b)}
+              active={f.maxPrice === String(b)}
+              onPress={() => set({ maxPrice: f.maxPrice === String(b) ? undefined : String(b) })}
+            />
+          ))}
+        </Row>
+        <Txt v="label" color="subtle">
+          Furnishing
+        </Txt>
+        <Row wrap>
+          {Object.entries(FURNISHING_LABELS).map(([k, v]) => (
+            <Chip key={k} label={v} active={(f.furnishing ?? '').split(',').includes(k)} onPress={() => toggleCsv('furnishing', k)} />
+          ))}
+        </Row>
+        <Txt v="label" color="subtle">
+          Posted by
+        </Txt>
+        <Row wrap>
+          {(['OWNER', 'BROKER', 'BUILDER'] as const).map((p) => (
+            <Chip
+              key={p}
+              label={p[0] + p.slice(1).toLowerCase()}
+              active={f.postedBy === p}
+              onPress={() => set({ postedBy: f.postedBy === p ? undefined : p })}
+            />
+          ))}
           <Chip label="✔ Verified only" active={f.verified === 'true'} onPress={() => set({ verified: f.verified ? undefined : 'true' })} />
           <Chip label="✔ Visit verified" active={f.visitVerified === 'true'} onPress={() => set({ visitVerified: f.visitVerified ? undefined : 'true' })} />
         </Row>
         {(f.types ?? '').split(',').includes('PG') && (
           <>
-            <Txt v="label" color="subtle">PG</Txt>
+            <Txt v="label" color="subtle">
+              PG
+            </Txt>
             <Row wrap>
               <Chip label="Girls" active={f.pgGender === 'FEMALE'} onPress={() => set({ pgGender: f.pgGender === 'FEMALE' ? undefined : 'FEMALE' })} />
               <Chip label="Boys" active={f.pgGender === 'MALE'} onPress={() => set({ pgGender: f.pgGender === 'MALE' ? undefined : 'MALE' })} />
@@ -215,13 +353,32 @@ export default function SearchScreen() {
         )}
         {commuteOn && (
           <>
-        <Txt v="label" color="subtle">Office के पास (अनुमानित समय)</Txt>
-        <Row wrap>
-          {OFFICE_HUBS.map((h) => (
-            <Chip key={h.key} label={h.name} active={f.officeHub === h.key} onPress={() => set(f.officeHub === h.key ? { officeHub: undefined, maxCommute: undefined, sort: 'relevance' } : { officeHub: h.key, maxCommute: f.maxCommute ?? '45', sort: 'commute' })} />
-          ))}
-        </Row>
-        {!!f.officeHub && <Row wrap>{['20', '30', '45', '60'].map((m) => <Chip key={m} label={`${m} मिनट तक`} active={(f.maxCommute ?? '45') === m} onPress={() => set({ maxCommute: m })} />)}</Row>}
+            <Txt v="label" color="subtle">
+              Office के पास (अनुमानित समय)
+            </Txt>
+            <Row wrap>
+              {OFFICE_HUBS.map((h) => (
+                <Chip
+                  key={h.key}
+                  label={h.name}
+                  active={f.officeHub === h.key}
+                  onPress={() =>
+                    set(
+                      f.officeHub === h.key
+                        ? { officeHub: undefined, maxCommute: undefined, sort: 'relevance' }
+                        : { officeHub: h.key, maxCommute: f.maxCommute ?? '45', sort: 'commute' },
+                    )
+                  }
+                />
+              ))}
+            </Row>
+            {!!f.officeHub && (
+              <Row wrap>
+                {['20', '30', '45', '60'].map((m) => (
+                  <Chip key={m} label={`${m} मिनट तक`} active={(f.maxCommute ?? '45') === m} onPress={() => set({ maxCommute: m })} />
+                ))}
+              </Row>
+            )}
           </>
         )}
         <Row style={{ marginTop: 8 }}>

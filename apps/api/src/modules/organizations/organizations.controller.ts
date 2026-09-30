@@ -70,7 +70,7 @@ export class OrganizationsController {
         reraNumber: body.reraNumber,
         gstNumber: body.gstNumber,
         phone: normalizeIndianPhone(body.phone) ?? body.phone,
-        whatsapp: body.whatsapp ? normalizeIndianPhone(body.whatsapp) ?? body.whatsapp : normalizeIndianPhone(body.phone),
+        whatsapp: body.whatsapp ? (normalizeIndianPhone(body.whatsapp) ?? body.whatsapp) : normalizeIndianPhone(body.phone),
         about: body.about,
         address: body.address,
         website: body.website || null,
@@ -100,7 +100,12 @@ export class OrganizationsController {
       this.usage.count(org.id, 'leads'),
       this.usage.count(org.id, 'ai'),
     ]);
-    return { ...org, webhookKey: user.role === 'BROKER_ADMIN' ? org.webhookKey : undefined, plan: usage, usage: { agents, activeListings, leadsThisMonth, aiThisMonth } };
+    return {
+      ...org,
+      webhookKey: user.role === 'BROKER_ADMIN' ? org.webhookKey : undefined,
+      plan: usage,
+      usage: { agents, activeListings, leadsThisMonth, aiThisMonth },
+    };
   }
 
   @Roles('BROKER_ADMIN')
@@ -131,7 +136,9 @@ export class OrganizationsController {
         orderBy: { createdAt: 'asc' },
         select: { id: true, name: true, email: true, phone: true, avatarUrl: true, role: true, status: true, lastLoginAt: true, createdAt: true },
       }),
-      user.role === 'BROKER_ADMIN' ? this.prisma.invite.findMany({ where: { organizationId: orgId, acceptedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } }) : [],
+      user.role === 'BROKER_ADMIN'
+        ? this.prisma.invite.findMany({ where: { organizationId: orgId, acceptedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
+        : [],
     ]);
     const stats = await Promise.all(
       members.map(async (m) => {
@@ -159,7 +166,15 @@ export class OrganizationsController {
     if (existing?.organizationId) throw new BadRequestException('यह user पहले से किसी broker team में है');
     const token = randomToken(24);
     const invite = await this.prisma.invite.create({
-      data: { organizationId: orgId, email: body.email, name: body.name, role: body.role, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 7 * 86400_000), invitedById: user.id },
+      data: {
+        organizationId: orgId,
+        email: body.email,
+        name: body.name,
+        role: body.role,
+        tokenHash: sha256(token),
+        expiresAt: new Date(Date.now() + 7 * 86400_000),
+        invitedById: user.id,
+      },
     });
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const inviter = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
@@ -178,7 +193,11 @@ export class OrganizationsController {
 
   @Roles('BROKER_ADMIN')
   @Patch('broker/team/:userId')
-  async updateMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string, @Body(new ZodPipe(z.object({ role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(), status: z.enum(['ACTIVE', 'SUSPENDED']).optional() }))) body: any) {
+  async updateMember(
+    @CurrentUser() user: RequestUser,
+    @Param('userId') userId: string,
+    @Body(new ZodPipe(z.object({ role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(), status: z.enum(['ACTIVE', 'SUSPENDED']).optional() }))) body: any,
+  ) {
     const orgId = requireOrg(user);
     if (userId === user.id) throw new BadRequestException('अपना role/status खुद नहीं बदल सकते');
     const member = await this.prisma.user.findFirst({ where: { id: userId, organizationId: orgId } });
@@ -209,7 +228,10 @@ export class OrganizationsController {
   @Public()
   @Get('invites/:token')
   async invitePreview(@Param('token') token: string) {
-    const inv = await this.prisma.invite.findUnique({ where: { tokenHash: sha256(token) }, include: { organization: { select: { name: true, logoUrl: true } } } });
+    const inv = await this.prisma.invite.findUnique({
+      where: { tokenHash: sha256(token) },
+      include: { organization: { select: { name: true, logoUrl: true } } },
+    });
     if (!inv || inv.acceptedAt || inv.expiresAt < new Date()) throw new NotFoundException('Invite expire हो गया है');
     return { email: inv.email, name: inv.name, role: inv.role, organization: inv.organization };
   }
@@ -224,7 +246,11 @@ export class OrganizationsController {
       this.prisma.user.update({ where: { id: user.id }, data: { organizationId: inv.organizationId, role: inv.role, emailVerified: true } }),
       this.prisma.invite.update({ where: { id: inv.id }, data: { acceptedAt: new Date() } }),
     ]);
-    await this.notifications.notifyOrg(inv.organizationId, { kind: 'SYSTEM', title: `${inv.name} team में शामिल हुए`, link: '/broker/team' }, { adminsOnly: true });
+    await this.notifications.notifyOrg(
+      inv.organizationId,
+      { kind: 'SYSTEM', title: `${inv.name} team में शामिल हुए`, link: '/broker/team' },
+      { adminsOnly: true },
+    );
     const fresh = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { organization: true } });
     return this.auth.issue(fresh, meta(req));
   }
@@ -244,7 +270,10 @@ export class OrganizationsController {
     const [items, total] = await Promise.all([
       this.prisma.organization.findMany({
         where,
-        orderBy: q.sort === 'top' ? [{ rankScore: 'desc' }, { verification: 'desc' }, { rating: 'desc' }] : [{ verification: 'desc' }, { rankScore: 'desc' }, { rating: 'desc' }, { reviewCount: 'desc' }, { createdAt: 'asc' }],
+        orderBy:
+          q.sort === 'top'
+            ? [{ rankScore: 'desc' }, { verification: 'desc' }, { rating: 'desc' }]
+            : [{ verification: 'desc' }, { rankScore: 'desc' }, { rating: 'desc' }, { reviewCount: 'desc' }, { createdAt: 'asc' }],
         skip: (page - 1) * 24,
         take: 24,
         select: { ...PUBLIC_ORG_SELECT, _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } } },
@@ -261,8 +290,18 @@ export class OrganizationsController {
     const org = await this.prisma.organization.findFirst({ where: { slug, status: 'ACTIVE' }, select: { ...PUBLIC_ORG_SELECT, phone: true, whatsapp: true } });
     if (!org) throw new NotFoundException('Broker नहीं मिला');
     const [listings, reviews, team, stats] = await Promise.all([
-      this.prisma.listing.findMany({ where: { organizationId: org.id, status: 'ACTIVE', deletedAt: null, ...(rentalOnly ? { purpose: 'RENT' as const } : {}) }, orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }], take: 24, select: LISTING_CARD_SELECT }),
-      this.prisma.review.findMany({ where: { organizationId: org.id, status: 'PUBLISHED' }, orderBy: { createdAt: 'desc' }, take: 20, include: { user: { select: { name: true, avatarUrl: true } } } }),
+      this.prisma.listing.findMany({
+        where: { organizationId: org.id, status: 'ACTIVE', deletedAt: null, ...(rentalOnly ? { purpose: 'RENT' as const } : {}) },
+        orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
+        take: 24,
+        select: LISTING_CARD_SELECT,
+      }),
+      this.prisma.review.findMany({
+        where: { organizationId: org.id, status: 'PUBLISHED' },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: { user: { select: { name: true, avatarUrl: true } } },
+      }),
       this.prisma.user.findMany({ where: { organizationId: org.id, status: 'ACTIVE' }, select: { id: true, name: true, avatarUrl: true, role: true } }),
       this.prisma.listing.groupBy({ by: ['purpose'], where: { organizationId: org.id, status: 'ACTIVE', deletedAt: null }, _count: { _all: true } }),
     ]);
@@ -287,7 +326,11 @@ export class OrganizationsController {
   @Roles('BROKER_ADMIN')
   @Get('broker/reviews')
   brokerReviews(@CurrentUser() user: RequestUser) {
-    return this.prisma.review.findMany({ where: { organizationId: requireOrg(user) }, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, avatarUrl: true } } } });
+    return this.prisma.review.findMany({
+      where: { organizationId: requireOrg(user) },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { name: true, avatarUrl: true } } },
+    });
   }
 
   @Roles('BROKER_ADMIN')
@@ -310,7 +353,10 @@ export class OrganizationsController {
     const doc = await this.prisma.kycDocument.create({ data: { ...body, userId: forOrg ? null : user.id, organizationId: forOrg ? user.orgId : null } });
     if (forOrg) await this.prisma.organization.update({ where: { id: user.orgId! }, data: { verification: 'PENDING' } });
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-    await this.notifications.notify(admins.map((a) => a.id), { kind: 'KYC_UPDATE', title: 'नया KYC document review के लिए', link: '/admin/kyc', push: false });
+    await this.notifications.notify(
+      admins.map((a) => a.id),
+      { kind: 'KYC_UPDATE', title: 'नया KYC document review के लिए', link: '/admin/kyc', push: false },
+    );
     return doc;
   }
 

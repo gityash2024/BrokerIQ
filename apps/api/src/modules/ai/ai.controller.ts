@@ -22,7 +22,10 @@ const scanSchema = z.object({
 });
 const rowSchema = z.object({
   purpose: z.enum(['SALE', 'RENT']).default('RENT'),
-  propertyType: z.enum(PROPERTY_TYPES).refine((t) => RENTABLE_TYPES.includes(t), 'यह property type rent के लिए नहीं है').default('APARTMENT'),
+  propertyType: z
+    .enum(PROPERTY_TYPES)
+    .refine((t) => RENTABLE_TYPES.includes(t), 'यह property type rent के लिए नहीं है')
+    .default('APARTMENT'),
   localityId: z.string().nullable().optional(),
   societyName: z.string().max(120).nullable().optional(),
   unit: z.string().max(60).nullable().optional(),
@@ -61,7 +64,11 @@ export class AiController {
 
   private matchLocality(locs: { id: string; name: string }[], text?: string | null) {
     if (!text) return null;
-    const t = text.toLowerCase().replace(/sec(tor)?\.?\s*-?\s*/g, 'sector ').replace(/\s+/g, ' ').trim();
+    const t = text
+      .toLowerCase()
+      .replace(/sec(tor)?\.?\s*-?\s*/g, 'sector ')
+      .replace(/\s+/g, ' ')
+      .trim();
     const num = t.match(/sector (\d+[a-z]?)/)?.[1];
     if (num) {
       const hit = locs.find((l) => l.name.toLowerCase() === `sector ${num}`);
@@ -78,7 +85,15 @@ export class AiController {
     const flag = await this.prisma.featureFlag.findUnique({ where: { key: 'ai_scanner' } });
     if (flag && !flag.enabled) throw new ForbiddenException('AI scanner अभी बंद है');
     await this.usage.assertAiCredit(orgId);
-    const text = await this.ai.vision(body.image, `${SCAN_PROMPT}${body.hint ? `\nHint from broker: ${body.hint}` : ''}`, { system: SCAN_SYSTEM, feature: 'scanner', orgId, userId: user.id, json: true, maxTokens: 4000, temperature: 0.1 });
+    const text = await this.ai.vision(body.image, `${SCAN_PROMPT}${body.hint ? `\nHint from broker: ${body.hint}` : ''}`, {
+      system: SCAN_SYSTEM,
+      feature: 'scanner',
+      orgId,
+      userId: user.id,
+      json: true,
+      maxTokens: 4000,
+      temperature: 0.1,
+    });
     const check = scanResultSchema.safeParse(parseJsonLoose(text));
     const parsed: { rows?: any[]; rawText?: string } = check.success ? check.data : { rows: [] };
     const locs = await this.localityIndex();
@@ -103,7 +118,7 @@ export class AiController {
         availableFrom: typeof r.availableFrom === 'string' ? r.availableFrom : null,
         furnishing: ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'].includes(r.furnishing) ? r.furnishing : null,
         contactName: r.contactName ?? null,
-        contactPhone: r.contactPhone ? normalizeIndianPhone(r.contactPhone) ?? r.contactPhone : null,
+        contactPhone: r.contactPhone ? (normalizeIndianPhone(r.contactPhone) ?? r.contactPhone) : null,
         notes: r.notes ?? null,
         confidence: typeof r.confidence === 'number' ? r.confidence : 0.6,
         page: body.page ?? 1,
@@ -115,7 +130,10 @@ export class AiController {
 
   /** Imports scanned rows into the broker's inventory — as private drafts, or straight into the admin approval queue. */
   @Post('scan/import')
-  async importRows(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ rows: z.array(rowSchema).min(1).max(100), submit: z.boolean().default(false) }))) body: any) {
+  async importRows(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ rows: z.array(rowSchema).min(1).max(100), submit: z.boolean().default(false) }))) body: any,
+  ) {
     const orgId = requireOrg(user);
     const status = body.submit ? 'PENDING_REVIEW' : 'DRAFT';
     if (body.submit) {
@@ -135,7 +153,10 @@ export class AiController {
         continue;
       }
       const loc = locs.find((l) => l.id === r.localityId)!;
-      const title = `${r.bedrooms ? `${r.bedrooms} BHK ` : ''}${r.propertyType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())} for Rent in ${loc.name}${r.societyName ? `, ${r.societyName}` : ''}`;
+      const title = `${r.bedrooms ? `${r.bedrooms} BHK ` : ''}${r.propertyType
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c: string) => c.toUpperCase())} for Rent in ${loc.name}${r.societyName ? `, ${r.societyName}` : ''}`;
       const l = await this.prisma.listing.create({
         data: {
           slug: `${slugify(title)}-${shortCode(6).toLowerCase()}`,
@@ -154,7 +175,7 @@ export class AiController {
           pricePerSqft: pricePerSqft(r.price, r.area),
           securityDeposit: r.securityDeposit ?? null,
           brokerageType: r.brokerageType ?? null,
-          brokerageAmount: r.brokerageType === 'FIXED' ? r.brokerageAmount ?? null : null,
+          brokerageAmount: r.brokerageType === 'FIXED' ? (r.brokerageAmount ?? null) : null,
           availableFrom: r.availableFrom && !Number.isNaN(Date.parse(r.availableFrom)) ? new Date(r.availableFrom) : null,
           furnishing: r.furnishing,
           contactName: r.contactName,
@@ -168,7 +189,8 @@ export class AiController {
       created.push(l.id);
     }
     if (!created.length && errors.length) throw new BadRequestException(errors[0].error);
-    if (status === 'PENDING_REVIEW' && created.length) await this.listings.notifyReviewers({ id: created[0], title: `${created.length} scanned listing(s) — approval pending` });
+    if (status === 'PENDING_REVIEW' && created.length)
+      await this.listings.notifyReviewers({ id: created[0], title: `${created.length} scanned listing(s) — approval pending` });
     return { created: created.length, ids: created, errors, status };
   }
 }

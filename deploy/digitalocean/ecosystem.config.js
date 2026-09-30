@@ -12,7 +12,16 @@ function loadEnv(file) {
   return out;
 }
 
-const common = { interpreter: NODE, exec_mode: 'fork', instances: 1, autorestart: true, time: true, kill_timeout: 10000, restart_delay: 3000, max_restarts: 50 };
+const common = {
+  interpreter: NODE,
+  exec_mode: 'fork',
+  instances: 1,
+  autorestart: true,
+  time: true,
+  kill_timeout: 10000,
+  restart_delay: 3000,
+  max_restarts: 50,
+};
 
 module.exports = {
   apps: [

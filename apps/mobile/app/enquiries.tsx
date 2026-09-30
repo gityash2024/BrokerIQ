@@ -21,33 +21,77 @@ export default function Enquiries() {
     <Screen scroll={false} padded={false}>
       <Header title="Enquiries" />
       <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'sent', label: 'मैंने भेजी' }, { value: 'received', label: 'मेरी listings पर आईं' }]} />
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'sent', label: 'मैंने भेजी' },
+            { value: 'received', label: 'मेरी listings पर आईं' },
+          ]}
+        />
       </View>
-      {q.isError ? <ErrorView error={q.error} /> : (
+      {q.isError ? (
+        <ErrorView error={q.error} />
+      ) : (
         <FlatList
           data={q.data ?? []}
           keyExtractor={(x) => x.id}
           refreshing={q.isRefetching}
           onRefresh={() => q.refetch()}
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 40 }}
-          ListEmptyComponent={q.isLoading ? <Skeleton h={90} /> : <Empty icon={<Send size={28} color={c.brand} />} title="कोई enquiry नहीं" text={tab === 'sent' ? 'किसी property पर "Enquire" दबाएँ।' : 'अपनी property post करें — buyers की enquiries यहाँ आएँगी।'} />}
+          ListEmptyComponent={
+            q.isLoading ? (
+              <Skeleton h={90} />
+            ) : (
+              <Empty
+                icon={<Send size={28} color={c.brand} />}
+                title="कोई enquiry नहीं"
+                text={tab === 'sent' ? 'किसी property पर "Enquire" दबाएँ।' : 'अपनी property post करें — buyers की enquiries यहाँ आएँगी।'}
+              />
+            )
+          }
           renderItem={({ item: e, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40)}>
               <Card style={{ padding: 14, gap: 6 }} onPress={() => e.listing && router.push(`/property/${e.listing.slug}`)}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Badge label={e.status} color={TONE[e.status]} />
-                  <Txt v="caption" color="subtle">{timeAgo(e.createdAt)}</Txt>
+                  <Txt v="caption" color="subtle">
+                    {timeAgo(e.createdAt)}
+                  </Txt>
                 </Row>
-                <Txt v="bodyStrong" numberOfLines={1}>{e.listing?.title ?? e.project?.name ?? e.organization?.name ?? 'General enquiry'}</Txt>
-                {tab === 'sent' && e.listing && <Txt v="small" color="muted">{formatPriceShort(e.listing.price)} · {e.listing.locality?.name}</Txt>}
+                <Txt v="bodyStrong" numberOfLines={1}>
+                  {e.listing?.title ?? e.project?.name ?? e.organization?.name ?? 'General enquiry'}
+                </Txt>
+                {tab === 'sent' && e.listing && (
+                  <Txt v="small" color="muted">
+                    {formatPriceShort(e.listing.price)} · {e.listing.locality?.name}
+                  </Txt>
+                )}
                 {tab === 'received' && (
                   <>
-                    <Txt v="small">{e.name} · {e.phone}</Txt>
-                    {!!e.message && <Txt v="small" color="muted">“{e.message}”</Txt>}
+                    <Txt v="small">
+                      {e.name} · {e.phone}
+                    </Txt>
+                    {!!e.message && (
+                      <Txt v="small" color="muted">
+                        “{e.message}”
+                      </Txt>
+                    )}
                     <Row style={{ marginTop: 4 }}>
-                      <IconBtn onPress={() => Linking.openURL(`tel:${e.phone}`)} style={{ backgroundColor: c.surface2 }}><Phone size={18} color={c.fg} /></IconBtn>
-                      <IconBtn onPress={() => Linking.openURL(whatsappLink(e.phone, `Hi ${e.name}, आपकी enquiry के बारे में`))} style={{ backgroundColor: '#25D36622' }}><MessageCircle size={18} color="#16A34A" /></IconBtn>
-                      {e.status !== 'CLOSED' && <Txt v="small" color="brand" onPress={() => upd.mutate({ id: e.id, status: e.status === 'NEW' ? 'RESPONDED' : 'CLOSED' })}>{e.status === 'NEW' ? 'Responded mark करें' : 'Close करें'}</Txt>}
+                      <IconBtn onPress={() => Linking.openURL(`tel:${e.phone}`)} style={{ backgroundColor: c.surface2 }}>
+                        <Phone size={18} color={c.fg} />
+                      </IconBtn>
+                      <IconBtn
+                        onPress={() => Linking.openURL(whatsappLink(e.phone, `Hi ${e.name}, आपकी enquiry के बारे में`))}
+                        style={{ backgroundColor: '#25D36622' }}
+                      >
+                        <MessageCircle size={18} color="#16A34A" />
+                      </IconBtn>
+                      {e.status !== 'CLOSED' && (
+                        <Txt v="small" color="brand" onPress={() => upd.mutate({ id: e.id, status: e.status === 'NEW' ? 'RESPONDED' : 'CLOSED' })}>
+                          {e.status === 'NEW' ? 'Responded mark करें' : 'Close करें'}
+                        </Txt>
+                      )}
                     </Row>
                   </>
                 )}

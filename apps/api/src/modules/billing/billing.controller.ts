@@ -23,7 +23,10 @@ export class BillingController {
 
   /** Free mode (launch phase): no paid plans, boosts or checkouts. */
   private async assertPaidMode() {
-    if ((await this.settings.getAppConfig()).monetization.freeMode) throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FEATURE_DISABLED, 'अभी BrokerIQ पूरी तरह free है — paid plans और boost बंद हैं।', { feature: 'billing' });
+    if ((await this.settings.getAppConfig()).monetization.freeMode)
+      throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FEATURE_DISABLED, 'अभी BrokerIQ पूरी तरह free है — paid plans और boost बंद हैं।', {
+        feature: 'billing',
+      });
   }
 
   @Public()
@@ -41,13 +44,19 @@ export class BillingController {
 
   @Roles('BROKER_ADMIN')
   @Post('broker/billing/checkout')
-  async checkout(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ planCode: z.string(), cycle: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'), coupon: z.string().optional() }))) body: any) {
+  async checkout(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ planCode: z.string(), cycle: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'), coupon: z.string().optional() }))) body: any,
+  ) {
     await this.assertPaidMode();
     return this.billing.checkout(user, requireOrg(user), body);
   }
 
   @Post('billing/boost')
-  async boost(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ listingId: z.string(), weeks: z.number().int().min(1).max(12).default(1) }))) body: any) {
+  async boost(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ listingId: z.string(), weeks: z.number().int().min(1).max(12).default(1) }))) body: any,
+  ) {
     await this.assertPaidMode();
     return this.billing.boostCheckout(user, body.listingId, body.weeks);
   }
@@ -66,7 +75,9 @@ export class BillingController {
 
   @Get('billing/payments/:id/invoice')
   async invoice(@CurrentUser() user: RequestUser, @Param('id') id: string, @Res() res: Response) {
-    const p = await this.prisma.payment.findFirst({ where: { id, ...(user.role === 'SUPER_ADMIN' ? {} : { OR: [{ userId: user.id }, ...(user.orgId ? [{ organizationId: user.orgId }] : [])] }) } });
+    const p = await this.prisma.payment.findFirst({
+      where: { id, ...(user.role === 'SUPER_ADMIN' ? {} : { OR: [{ userId: user.id }, ...(user.orgId ? [{ organizationId: user.orgId }] : [])] }) },
+    });
     if (!p) throw new NotFoundException();
     const pdf = await this.billing.invoicePdf(p);
     res.setHeader('Content-Type', 'application/pdf');

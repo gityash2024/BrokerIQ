@@ -73,7 +73,15 @@ function MoveIn() {
     <div className="card grid gap-8 p-6 md:grid-cols-2">
       <div className="space-y-5">
         <Slide label="Monthly rent" v={rent} set={setRent} min={5000} max={500000} step={1000} fmt={formatINR} />
-        <Slide label="Security deposit (months)" v={depositMonths} set={setDepositMonths} min={0} max={6} step={1} fmt={(x) => `${x} month${x === 1 ? '' : 's'}`} />
+        <Slide
+          label="Security deposit (months)"
+          v={depositMonths}
+          set={setDepositMonths}
+          min={0}
+          max={6}
+          step={1}
+          fmt={(x) => `${x} month${x === 1 ? '' : 's'}`}
+        />
         <Field label="Brokerage">
           <Select value={brokerage} onChange={(e) => setBrokerage(e.target.value as any)}>
             <option value="MONTH_1">1 month rent</option>
@@ -134,7 +142,23 @@ function Split() {
   );
 }
 
-function Slide({ label, v, set, min, max, step, fmt }: { label: string; v: number; set: (n: number) => void; min: number; max: number; step: number; fmt: (n: number) => string }) {
+function Slide({
+  label,
+  v,
+  set,
+  min,
+  max,
+  step,
+  fmt,
+}: {
+  label: string;
+  v: number;
+  set: (n: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  fmt: (n: number) => string;
+}) {
   return (
     <div>
       <div className="mb-2 flex justify-between text-sm">

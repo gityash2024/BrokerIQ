@@ -50,7 +50,11 @@ export const otpVerifySchema = z.object({
   accountType: z.enum(['USER', 'BROKER']).optional(),
   inviteCode: z.string().trim().max(40).optional(),
 });
-export const googleLoginSchema = z.object({ idToken: z.string().min(10), accountType: z.enum(['USER', 'BROKER']).optional(), inviteCode: z.string().trim().max(40).optional() });
+export const googleLoginSchema = z.object({
+  idToken: z.string().min(10),
+  accountType: z.enum(['USER', 'BROKER']).optional(),
+  inviteCode: z.string().trim().max(40).optional(),
+});
 export const refreshSchema = z.object({ refreshToken: z.string().min(10) });
 export const resetPasswordSchema = z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/), password: passwordSchema });
 export const changePasswordSchema = z.object({ currentPassword: z.string().optional(), newPassword: passwordSchema });
@@ -80,7 +84,11 @@ export const brokerOnboardingSchema = z.object({
 });
 export type BrokerOnboardingInput = z.infer<typeof brokerOnboardingSchema>;
 
-export const inviteMemberSchema = z.object({ email: emailSchema, name: z.string().trim().min(2).max(80), role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).default('BROKER_AGENT') });
+export const inviteMemberSchema = z.object({
+  email: emailSchema,
+  name: z.string().trim().min(2).max(80),
+  role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).default('BROKER_AGENT'),
+});
 
 // ------------------------------------------------------------------ Listings
 export const listingInputSchema = z.object({
@@ -104,7 +112,10 @@ export const listingInputSchema = z.object({
   coBroking: z.boolean().optional(),
   coBrokingSharePct: z.number().min(0).max(100).optional().nullable(),
   // PG / co-living
-  pgSharing: z.array(z.enum(['SINGLE', 'DOUBLE', 'TRIPLE', 'DORM'])).max(4).optional(),
+  pgSharing: z
+    .array(z.enum(['SINGLE', 'DOUBLE', 'TRIPLE', 'DORM']))
+    .max(4)
+    .optional(),
   pgGender: z.enum(['MALE', 'FEMALE', 'ANY']).optional().nullable(),
   pgFood: z.enum(['VEG', 'NONVEG', 'BOTH', 'NONE']).optional().nullable(),
   pgRules: z.array(z.string().max(60)).max(10).optional(),
@@ -130,7 +141,17 @@ export const listingInputSchema = z.object({
   amenities: z.array(z.string()).max(80).default([]),
   reraNumber: z.string().trim().max(60).optional().nullable(),
   // kind PANORAMA = 360° photo (equirectangular), shown in the 360 viewer.
-  photos: z.array(z.object({ url: z.string().url(), caption: z.string().max(80).optional().nullable(), publicId: z.string().optional().nullable(), kind: z.enum(['PHOTO', 'PANORAMA']).optional() })).max(50).default([]),
+  photos: z
+    .array(
+      z.object({
+        url: z.string().url(),
+        caption: z.string().max(80).optional().nullable(),
+        publicId: z.string().optional().nullable(),
+        kind: z.enum(['PHOTO', 'PANORAMA']).optional(),
+      }),
+    )
+    .max(50)
+    .default([]),
   videoUrl: z.string().url().optional().nullable().or(z.literal('')),
   floorPlanUrl: z.string().url().optional().nullable().or(z.literal('')),
   contactName: z.string().trim().max(80).optional().nullable(),
@@ -197,7 +218,12 @@ export type EnquiryInput = z.infer<typeof enquirySchema>;
 
 export const reportSchema = z.object({ listingId: z.string(), reason: enumOf(ReportReason), details: z.string().max(1000).optional() });
 export const reviewSchema = z.object({ organizationId: z.string(), rating: z.number().int().min(1).max(5), comment: z.string().trim().max(1500).optional() });
-export const savedSearchSchema = z.object({ name: z.string().trim().min(2).max(80), filters: z.record(z.string(), z.unknown()), alertsEnabled: z.boolean().default(true), whatsappAlerts: z.boolean().optional() });
+export const savedSearchSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  filters: z.record(z.string(), z.unknown()),
+  alertsEnabled: z.boolean().default(true),
+  whatsappAlerts: z.boolean().optional(),
+});
 
 // ------------------------------------------------------------------ CRM
 export const leadRequirementSchema = z.object({
@@ -300,14 +326,25 @@ export const automationRuleSchema = z.object({
       sources: z.array(z.enum(LEAD_SOURCES)).default([]),
       stages: z.array(z.enum(LEAD_STAGES)).default([]),
       toStage: z.enum(LEAD_STAGES).optional().nullable(),
-      noActivityHours: z.number().int().min(1).max(24 * 30).optional().nullable(),
+      noActivityHours: z
+        .number()
+        .int()
+        .min(1)
+        .max(24 * 30)
+        .optional()
+        .nullable(),
     })
     .default({ sources: [], stages: [] }),
   actions: z
     .array(
       z.object({
         type: enumOf(AutomationActionType),
-        delayMinutes: z.number().int().min(0).max(60 * 24 * 30).default(0),
+        delayMinutes: z
+          .number()
+          .int()
+          .min(0)
+          .max(60 * 24 * 30)
+          .default(0),
         params: z.record(z.string(), z.unknown()).default({}),
       }),
     )
@@ -352,10 +389,19 @@ export const blogPostSchema = pageSchema.extend({
   coverUrl: z.string().url().optional().nullable().or(z.literal('')),
   tags: z.array(z.string()).default([]),
 });
-export const faqSchema = z.object({ question: z.string().min(4).max(300), answer: z.string().min(2).max(4000), category: z.string().max(40).default('general'), sortOrder: z.number().int().default(0), isActive: z.boolean().default(true) });
+export const faqSchema = z.object({
+  question: z.string().min(4).max(300),
+  answer: z.string().min(2).max(4000),
+  category: z.string().max(40).default('general'),
+  sortOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+});
 export const localitySchema = z.object({
   name: z.string().min(2).max(120),
-  slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
   zone: z.string().max(80).optional().nullable(),
   latitude: z.number(),
   longitude: z.number(),
@@ -460,4 +506,8 @@ export const assistantChatSchema = z.object({
   context: z.object({ path: z.string().max(200).optional(), entityId: z.string().max(60).optional() }).optional(),
 });
 export const assistantConfirmSchema = z.object({ token: z.string().min(10).max(100), lang: z.string().max(5).default('en') });
-export const transcribeSchema = z.object({ audio: z.string().min(100).max(11_000_000), mime: z.string().max(60).default('audio/m4a'), lang: z.string().max(5).optional() });
+export const transcribeSchema = z.object({
+  audio: z.string().min(100).max(11_000_000),
+  mime: z.string().max(60).default('audio/m4a'),
+  lang: z.string().max(5).optional(),
+});

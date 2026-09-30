@@ -28,7 +28,11 @@ export function useApiMutation<TVars = any, TRes = any>(
     },
     onError: (e) => {
       if (opts.silentError) return;
-      if (e instanceof ApiError && e.isNotConfigured) toast.error(e.body.message, { duration: 8000, action: e.body.integration ? { label: 'Settings', onClick: () => (window.location.href = e.body.integration!.settingsPath) } : undefined });
+      if (e instanceof ApiError && e.isNotConfigured)
+        toast.error(e.body.message, {
+          duration: 8000,
+          action: e.body.integration ? { label: 'Settings', onClick: () => (window.location.href = e.body.integration!.settingsPath) } : undefined,
+        });
       else toast.error(errorMessage(e));
     },
   });

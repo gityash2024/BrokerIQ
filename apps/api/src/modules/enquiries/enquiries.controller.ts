@@ -30,7 +30,11 @@ export class EnquiriesController {
   }
 
   @Patch(':id')
-  status(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['NEW', 'RESPONDED', 'CLOSED']) }))) body: any) {
+  status(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ status: z.enum(['NEW', 'RESPONDED', 'CLOSED']) }))) body: any,
+  ) {
     return this.enquiries.setStatus(id, body.status, user);
   }
 

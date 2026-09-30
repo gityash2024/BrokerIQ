@@ -11,7 +11,10 @@ export function LanguageSheet({ open, onClose }: { open: boolean; onClose: () =>
   const { c } = useTheme();
   const lang = useLang((s) => s.lang);
   const setLang = useLang((s) => s.setLang);
-  const options: { code: LanguageCode | null; native: string; name: string }[] = [{ code: null, native: 'Default', name: 'हिंग्लिश (original)' }, ...LANGUAGES.map((l) => ({ code: l.code, native: l.native, name: l.name }))];
+  const options: { code: LanguageCode | null; native: string; name: string }[] = [
+    { code: null, native: 'Default', name: 'हिंग्लिश (original)' },
+    ...LANGUAGES.map((l) => ({ code: l.code, native: l.native, name: l.name })),
+  ];
   return (
     <Sheet open={open} onClose={onClose} title="भाषा चुनें">
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -24,7 +27,18 @@ export function LanguageSheet({ open, onClose }: { open: boolean; onClose: () =>
                 setLang(o.code);
                 onClose();
               }}
-              style={{ width: '48%', flexGrow: 1, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: on ? c.brand : c.line, backgroundColor: on ? c.brandSoft : c.surface, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              style={{
+                width: '48%',
+                flexGrow: 1,
+                padding: 12,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: on ? c.brand : c.line,
+                backgroundColor: on ? c.brandSoft : c.surface,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
             >
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: fonts.bold, fontSize: 15, color: c.fg }}>{o.native}</Text>
@@ -58,7 +72,20 @@ export function LanguagePill({ light }: { light?: boolean }) {
   return (
     <LanguageSwitch
       render={(label, open) => (
-        <PressableScale onPress={open} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 999, borderWidth: 1, borderColor: light ? 'rgba(255,255,255,0.35)' : c.line }}>
+        <PressableScale
+          onPress={open}
+          hitSlop={6}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 12,
+            height: 32,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: light ? 'rgba(255,255,255,0.35)' : c.line,
+          }}
+        >
           <Languages size={15} color={col} />
           <Text style={{ fontFamily: fonts.semibold, fontSize: 12.5, color: col }}>{label}</Text>
         </PressableScale>

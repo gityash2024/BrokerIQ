@@ -21,7 +21,10 @@ export function showError(e: unknown) {
   else toast.error(errorMessage(e));
 }
 
-export function useApiMutation<V = any, R = any>(fn: (v: V) => Promise<R>, opts: { success?: string | ((r: R) => string); invalidate?: QueryKey[]; onSuccess?: (r: R, v: V) => void } = {}) {
+export function useApiMutation<V = any, R = any>(
+  fn: (v: V) => Promise<R>,
+  opts: { success?: string | ((r: R) => string); invalidate?: QueryKey[]; onSuccess?: (r: R, v: V) => void } = {},
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fn,

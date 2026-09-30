@@ -91,7 +91,10 @@ export class ListingsService {
   async notifyReviewers(listing: { id: string; title: string }) {
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }, select: { id: true } });
     await this.notifications
-      .notify(admins.map((a) => a.id), { kind: 'MODERATION', title: 'नई listing approval के लिए', body: listing.title, link: '/admin/moderation', data: { listingId: listing.id } })
+      .notify(
+        admins.map((a) => a.id),
+        { kind: 'MODERATION', title: 'नई listing approval के लिए', body: listing.title, link: '/admin/moderation', data: { listingId: listing.id } },
+      )
       .catch(() => undefined);
   }
 
@@ -114,7 +117,10 @@ export class ListingsService {
     if (f.maxPrice != null) and.push({ price: { lte: f.maxPrice } });
     const beds = csv(f.bedrooms);
     if (beds.length) {
-      const exact = beds.filter((b) => !b.endsWith('+')).map(Number).filter(Number.isFinite);
+      const exact = beds
+        .filter((b) => !b.endsWith('+'))
+        .map(Number)
+        .filter(Number.isFinite);
       const plus = beds.filter((b) => b.endsWith('+')).map((b) => Number(b.slice(0, -1)));
       const or: Prisma.ListingWhereInput[] = [];
       if (exact.length) or.push({ bedrooms: { in: exact } });
@@ -139,7 +145,8 @@ export class ListingsService {
     if (amen.length) and.push({ amenities: { hasEvery: amen } });
     if (f.bbox) {
       const [minLng, minLat, maxLng, maxLat] = f.bbox.split(',').map(Number);
-      if ([minLng, minLat, maxLng, maxLat].every(Number.isFinite)) and.push({ latitude: { gte: minLat, lte: maxLat }, longitude: { gte: minLng, lte: maxLng } });
+      if ([minLng, minLat, maxLng, maxLat].every(Number.isFinite))
+        and.push({ latitude: { gte: minLat, lte: maxLat }, longitude: { gte: minLng, lte: maxLng } });
     }
     if (f.q) {
       const q = f.q.trim();
@@ -171,7 +178,13 @@ export class ListingsService {
         return [{ pricePerSqft: { sort: 'asc', nulls: 'last' } }];
       default:
         // Relevance: (paid boost) → verified → broker quality (rating + response speed) → newest.
-        return [...(freeMode ? [] : [{ isFeatured: 'desc' as const }]), { isVerified: 'desc' }, { rankBoost: 'desc' }, { publishedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
+        return [
+          ...(freeMode ? [] : [{ isFeatured: 'desc' as const }]),
+          { isVerified: 'desc' },
+          { rankBoost: 'desc' },
+          { publishedAt: { sort: 'desc', nulls: 'last' } },
+          { createdAt: 'desc' },
+        ];
     }
   }
 
@@ -185,7 +198,13 @@ export class ListingsService {
     if (hub && (await this.features.isEnabled('commute'))) return this.searchByCommute(f, hub);
     const where = this.buildWhere(f, { publicOnly: true, rentalOnly: await this.features.rentalOnly() });
     const [items, total] = await Promise.all([
-      this.prisma.listing.findMany({ where, orderBy: this.orderBy(f.sort, await this.freeMode()), skip: (f.page - 1) * f.pageSize, take: f.pageSize, select: LISTING_CARD_SELECT }),
+      this.prisma.listing.findMany({
+        where,
+        orderBy: this.orderBy(f.sort, await this.freeMode()),
+        skip: (f.page - 1) * f.pageSize,
+        take: f.pageSize,
+        select: LISTING_CARD_SELECT,
+      }),
       this.prisma.listing.count({ where }),
     ]);
     return paged(items, total, f.page, f.pageSize);
@@ -214,7 +233,8 @@ export class ListingsService {
     });
     const scored = rows
       .map((l) => {
-        const from = l.latitude != null && l.longitude != null ? { lat: l.latitude, lng: l.longitude } : { lat: l.locality.latitude, lng: l.locality.longitude };
+        const from =
+          l.latitude != null && l.longitude != null ? { lat: l.latitude, lng: l.longitude } : { lat: l.locality.latitude, lng: l.locality.longitude };
         const c = estimateCommute(from, hub);
         return { ...l, commute: { hub: hub.name, minutes: c.bestMin, mode: c.mode, carMin: c.carMin, metroMin: c.metroMin } };
       })
@@ -225,12 +245,29 @@ export class ListingsService {
   }
 
   async mapPoints(f: ListingSearchInput) {
-    const where = { AND: [this.buildWhere({ ...f, bbox: f.bbox }, { publicOnly: true, rentalOnly: await this.features.rentalOnly() }), { latitude: { not: null } }, { longitude: { not: null } }] };
+    const where = {
+      AND: [
+        this.buildWhere({ ...f, bbox: f.bbox }, { publicOnly: true, rentalOnly: await this.features.rentalOnly() }),
+        { latitude: { not: null } },
+        { longitude: { not: null } },
+      ],
+    };
     return this.prisma.listing.findMany({
       where,
       take: 600,
       orderBy: this.orderBy(f.sort, await this.freeMode()),
-      select: { id: true, slug: true, price: true, purpose: true, propertyType: true, bedrooms: true, latitude: true, longitude: true, title: true, coverUrl: true },
+      select: {
+        id: true,
+        slug: true,
+        price: true,
+        purpose: true,
+        propertyType: true,
+        bedrooms: true,
+        latitude: true,
+        longitude: true,
+        title: true,
+        coverUrl: true,
+      },
     });
   }
 
@@ -245,9 +282,15 @@ export class ListingsService {
     // Logged-in reporters count individually; all anonymous reports together count once (limits abuse).
     const reporters = new Set(reports.map((r) => r.userId ?? 'anon'));
     if (reporters.size < threshold) return false;
-    await this.prisma.listing.update({ where: { id: listingId }, data: { status: 'PENDING_REVIEW', moderationFlags: [...new Set([...listing.moderationFlags, 'REPORTED'])] } });
+    await this.prisma.listing.update({
+      where: { id: listingId },
+      data: { status: 'PENDING_REVIEW', moderationFlags: [...new Set([...listing.moderationFlags, 'REPORTED'])] },
+    });
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-    await this.notifications.notify(admins.map((a) => a.id), { kind: 'LISTING_REPORTED', title: `🚩 ${reporters.size} reports — listing review में भेजी`, body: listing.title, link: '/admin/moderation' });
+    await this.notifications.notify(
+      admins.map((a) => a.id),
+      { kind: 'LISTING_REPORTED', title: `🚩 ${reporters.size} reports — listing review में भेजी`, body: listing.title, link: '/admin/moderation' },
+    );
     return true;
   }
 
@@ -278,7 +321,21 @@ export class ListingsService {
         media: { orderBy: { sortOrder: 'asc' } },
         locality: true,
         project: { include: { builder: { select: { name: true, slug: true } } } },
-        organization: { select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true, reviewCount: true, phone: true, whatsapp: true, experienceYears: true, reraNumber: true } },
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logoUrl: true,
+            verification: true,
+            rating: true,
+            reviewCount: true,
+            phone: true,
+            whatsapp: true,
+            experienceYears: true,
+            reraNumber: true,
+          },
+        },
         postedBy: { select: { id: true, name: true, avatarUrl: true, createdAt: true } },
       },
     });
@@ -286,12 +343,17 @@ export class ListingsService {
     const manage = this.canEdit(listing, user);
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
     // Legacy sale listings stay visible to their owners/admins only.
-    if (listing.purpose === 'SALE' && (await this.features.rentalOnly()) && !manage && user?.role !== 'SUPER_ADMIN') throw new NotFoundException('Property नहीं मिली');
+    if (listing.purpose === 'SALE' && (await this.features.rentalOnly()) && !manage && user?.role !== 'SUPER_ADMIN')
+      throw new NotFoundException('Property नहीं मिली');
 
     if (!manage && track) {
       await this.prisma.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } });
       if (user) {
-        await this.prisma.recentView.upsert({ where: { userId_listingId: { userId: user.id, listingId: listing.id } }, create: { userId: user.id, listingId: listing.id }, update: { viewedAt: new Date() } });
+        await this.prisma.recentView.upsert({
+          where: { userId_listingId: { userId: user.id, listingId: listing.id } },
+          create: { userId: user.id, listingId: listing.id },
+          update: { viewedAt: new Date() },
+        });
       }
     }
     const saved = user ? !!(await this.prisma.savedListing.findUnique({ where: { userId_listingId: { userId: user.id, listingId: listing.id } } })) : false;
@@ -300,7 +362,9 @@ export class ListingsService {
     return {
       ...listing,
       contactPhone: manage ? phone : maskPhone(phone),
-      organization: listing.organization ? { ...listing.organization, phone: manage ? listing.organization.phone : maskPhone(listing.organization.phone), whatsapp: undefined } : null,
+      organization: listing.organization
+        ? { ...listing.organization, phone: manage ? listing.organization.phone : maskPhone(listing.organization.phone), whatsapp: undefined }
+        : null,
       canManage: manage,
       saved,
       localityAvgPsf: localityStats,
@@ -343,7 +407,13 @@ export class ListingsService {
     if (!l) throw new NotFoundException();
     // Firms using Exotel show their tracked ExoPhone: calls are recorded as leads and routed to an agent.
     const exotel = l.organizationId ? await this.settings.resolve('exotel', l.organizationId).catch(() => null) : null;
-    if (exotel?.exoPhone) return { name: l.organization?.name ?? l.contactName ?? l.postedBy.name, phone: String(exotel.exoPhone), whatsapp: l.organization?.whatsapp ?? l.organization?.phone ?? null, tracked: true };
+    if (exotel?.exoPhone)
+      return {
+        name: l.organization?.name ?? l.contactName ?? l.postedBy.name,
+        phone: String(exotel.exoPhone),
+        whatsapp: l.organization?.whatsapp ?? l.organization?.phone ?? null,
+        tracked: true,
+      };
     const phone = l.contactPhone ?? l.organization?.phone ?? l.postedBy.phone;
     const whatsapp = l.organization?.whatsapp ?? phone;
     return { name: l.contactName ?? l.organization?.name ?? l.postedBy.name, phone, whatsapp };
@@ -381,7 +451,7 @@ export class ListingsService {
       floorPlanUrl: rest.floorPlanUrl || null,
       possessionDate: possessionDate ? new Date(possessionDate) : possessionDate === null ? null : undefined,
       availableFrom: availableFrom ? new Date(availableFrom) : availableFrom === null ? null : undefined,
-      contactPhone: contactPhone ? normalizeIndianPhone(contactPhone) ?? contactPhone : contactPhone,
+      contactPhone: contactPhone ? (normalizeIndianPhone(contactPhone) ?? contactPhone) : contactPhone,
     };
   }
 
@@ -463,19 +533,23 @@ export class ListingsService {
       data.publishedAt = new Date();
       data.expiresAt = new Date(Date.now() + app.listing.expiryDays * 86400_000);
     }
-    return this.prisma.$transaction(async (tx) => {
-      if (input.photos) {
-        await tx.listingMedia.deleteMany({ where: { listingId: id } });
-        await tx.listingMedia.createMany({ data: input.photos.map((p, i) => ({ listingId: id, url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })) });
-        data.coverUrl = (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null;
-      }
-      const updated = await tx.listing.update({ where: { id }, data });
-      if (status === 'ACTIVE' && existing.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
-      return updated;
-    }).then(async (updated) => {
-      if (status === 'PENDING_REVIEW' && existing.status !== 'PENDING_REVIEW') await this.notifyReviewers(updated);
-      return updated;
-    });
+    return this.prisma
+      .$transaction(async (tx) => {
+        if (input.photos) {
+          await tx.listingMedia.deleteMany({ where: { listingId: id } });
+          await tx.listingMedia.createMany({
+            data: input.photos.map((p, i) => ({ listingId: id, url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })),
+          });
+          data.coverUrl = (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null;
+        }
+        const updated = await tx.listing.update({ where: { id }, data });
+        if (status === 'ACTIVE' && existing.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
+        return updated;
+      })
+      .then(async (updated) => {
+        if (status === 'PENDING_REVIEW' && existing.status !== 'PENDING_REVIEW') await this.notifyReviewers(updated);
+        return updated;
+      });
   }
 
   async setStatus(id: string, status: 'SOLD' | 'RENTED' | 'ARCHIVED' | 'ACTIVE', user: RequestUser) {
@@ -487,7 +561,9 @@ export class ListingsService {
     const data: any = {};
     if (status === 'ACTIVE') {
       if (existing.organizationId && ['ARCHIVED', 'EXPIRED', 'SOLD', 'RENTED'].includes(existing.status)) {
-        const active = await this.prisma.listing.count({ where: { organizationId: existing.organizationId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null } });
+        const active = await this.prisma.listing.count({
+          where: { organizationId: existing.organizationId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null },
+        });
         await this.usage.assert(existing.organizationId, 'activeListings', active);
       }
       // Re-activating (after archive/rented/rejection) always goes back through admin review.
@@ -518,9 +594,19 @@ export class ListingsService {
       ...(q.search ? { OR: [{ title: { contains: q.search, mode: 'insensitive' } }, { societyName: { contains: q.search, mode: 'insensitive' } }] } : {}),
     };
     const [items, total, counts] = await Promise.all([
-      this.prisma.listing.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize, select: { ...LISTING_CARD_SELECT, rejectionReason: true, moderationFlags: true, expiresAt: true, shortlistCount: true } }),
+      this.prisma.listing.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: { ...LISTING_CARD_SELECT, rejectionReason: true, moderationFlags: true, expiresAt: true, shortlistCount: true },
+      }),
       this.prisma.listing.count({ where }),
-      this.prisma.listing.groupBy({ by: ['status'], where: { deletedAt: null, ...(user.orgId ? { organizationId: user.orgId } : { postedById: user.id }) }, _count: { _all: true } }),
+      this.prisma.listing.groupBy({
+        by: ['status'],
+        where: { deletedAt: null, ...(user.orgId ? { organizationId: user.orgId } : { postedById: user.id }) },
+        _count: { _all: true },
+      }),
     ]);
     return { ...paged(items, total, page, pageSize), statusCounts: Object.fromEntries(counts.map((c) => [c.status, c._count._all])) };
   }
@@ -540,7 +626,11 @@ export class ListingsService {
   }
 
   async saved(userId: string) {
-    const rows = await this.prisma.savedListing.findMany({ where: { userId, listing: { deletedAt: null } }, orderBy: { createdAt: 'desc' }, include: { listing: { select: LISTING_CARD_SELECT } } });
+    const rows = await this.prisma.savedListing.findMany({
+      where: { userId, listing: { deletedAt: null } },
+      orderBy: { createdAt: 'desc' },
+      include: { listing: { select: LISTING_CARD_SELECT } },
+    });
     return rows.map((r) => ({ ...r.listing, savedAt: r.createdAt }));
   }
 
@@ -549,11 +639,21 @@ export class ListingsService {
   }
 
   async recent(userId: string) {
-    const rows = await this.prisma.recentView.findMany({ where: { userId, listing: { status: 'ACTIVE', deletedAt: null } }, orderBy: { viewedAt: 'desc' }, take: 20, include: { listing: { select: LISTING_CARD_SELECT } } });
+    const rows = await this.prisma.recentView.findMany({
+      where: { userId, listing: { status: 'ACTIVE', deletedAt: null } },
+      orderBy: { viewedAt: 'desc' },
+      take: 20,
+      include: { listing: { select: LISTING_CARD_SELECT } },
+    });
     return rows.map((r) => r.listing);
   }
 }
 
 function csv(v?: string): string[] {
-  return v ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  return v
+    ? v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 }

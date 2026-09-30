@@ -8,7 +8,17 @@ import { cn, img } from '@/lib/utils';
 import { Badge } from '../ui/misc';
 import { SaveButton } from './save-button';
 
-export function ListingCard({ l, layout = 'grid', active, onHover }: { l: L; layout?: 'grid' | 'row'; active?: boolean; onHover?: (id: string | null) => void }) {
+export function ListingCard({
+  l,
+  layout = 'grid',
+  active,
+  onHover,
+}: {
+  l: L;
+  layout?: 'grid' | 'row';
+  active?: boolean;
+  onHover?: (id: string | null) => void;
+}) {
   const area = areaOf(l);
   const row = layout === 'row';
   return (
@@ -24,7 +34,6 @@ export function ListingCard({ l, layout = 'grid', active, onHover }: { l: L; lay
     >
       <div className={cn('relative overflow-hidden bg-surface-2', row ? 'aspect-[4/3] sm:aspect-auto sm:w-72 sm:shrink-0' : 'aspect-[4/3]')}>
         {l.coverUrl ? (
-           
           <img src={img(l.coverUrl, 640)} alt={l.title} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         ) : (
           <div className="grid h-full place-items-center bg-gradient-to-br from-brand-100 to-brand-50 text-brand-300 dark:from-brand-950 dark:to-surface-2">
@@ -85,22 +94,34 @@ export function ListingCard({ l, layout = 'grid', active, onHover }: { l: L; lay
         </div>
         {l.purpose === 'RENT' && (l.securityDeposit || (l.brokerageType && l.brokerageType !== 'NONE')) ? (
           <p className="mt-2 text-[11px] text-muted">
-            पहले महीने का कुल ~<b className="text-fg">{formatPriceShort(firstMonthCost(l))}</b> <span className="text-subtle">(rent + deposit + brokerage)</span>
+            पहले महीने का कुल ~<b className="text-fg">{formatPriceShort(firstMonthCost(l))}</b>{' '}
+            <span className="text-subtle">(rent + deposit + brokerage)</span>
           </p>
         ) : null}
         {(l as any).commute && (
-          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600"><Briefcase className="size-3" /> {(l as any).commute.hub} से ~{(l as any).commute.minutes} मिनट ({(l as any).commute.mode === 'metro' ? 'metro' : 'car'})</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600">
+            <Briefcase className="size-3" /> {(l as any).commute.hub} से ~{(l as any).commute.minutes} मिनट (
+            {(l as any).commute.mode === 'metro' ? 'metro' : 'car'})
+          </p>
         )}
-        {(l as any).visitVerifiedAt && <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><BadgeCheck className="size-3" /> Visit verified</p>}
+        {(l as any).visitVerifiedAt && (
+          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+            <BadgeCheck className="size-3" /> Visit verified
+          </p>
+        )}
         {responseBadge(l.organization?.responseMinutes) && (
-          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Zap className="size-3" /> {responseBadge(l.organization?.responseMinutes)}</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+            <Zap className="size-3" /> {responseBadge(l.organization?.responseMinutes)}
+          </p>
         )}
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
           <span className="truncate text-xs text-subtle">
             {PROPERTY_TYPE_LABELS[l.propertyType]}
             {l.furnishing ? ` · ${FURNISHING_LABELS[l.furnishing as keyof typeof FURNISHING_LABELS]}` : ''}
           </span>
-          <span className="shrink-0 text-[11px] text-subtle">{l.organization ? l.organization.name : l.postedByType === 'OWNER' ? 'Owner' : ''} · {timeAgo(l.publishedAt ?? l.createdAt)}</span>
+          <span className="shrink-0 text-[11px] text-subtle">
+            {l.organization ? l.organization.name : l.postedByType === 'OWNER' ? 'Owner' : ''} · {timeAgo(l.publishedAt ?? l.createdAt)}
+          </span>
         </div>
       </div>
     </Link>

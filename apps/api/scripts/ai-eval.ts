@@ -11,7 +11,10 @@ import { LEAD_INSIGHTS_SYSTEM, descriptionSystem, leadInsightsSchema } from '../
 import { parseJsonLoose } from '../src/core/ai/ai.service';
 
 const KEY = process.env.OPENROUTER_API_KEY;
-const MODELS = (process.env.AI_EVAL_MODELS ?? 'meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-chat-v3-0324:free,qwen/qwen-2.5-72b-instruct:free,google/gemini-2.0-flash-exp:free')
+const MODELS = (
+  process.env.AI_EVAL_MODELS ??
+  'meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-chat-v3-0324:free,qwen/qwen-2.5-72b-instruct:free,google/gemini-2.0-flash-exp:free'
+)
   .split(',')
   .map((m) => m.trim())
   .filter(Boolean);
@@ -24,15 +27,46 @@ const CASES: Case[] = [
     name: 'description-en',
     messages: [
       { role: 'system', content: descriptionSystem('friendly', 'en') },
-      { role: 'user', content: JSON.stringify({ type: 'Builder floor', bedrooms: 3, bathrooms: 3, area: 1800, price: 55000, furnishing: 'SEMI_FURNISHED', floor: 2, locality: 'Sector 57, Gurgaon (Golf Course Ext Rd)', amenities: ['Power backup', 'Lift', 'Parking'] }) },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          type: 'Builder floor',
+          bedrooms: 3,
+          bathrooms: 3,
+          area: 1800,
+          price: 55000,
+          furnishing: 'SEMI_FURNISHED',
+          floor: 2,
+          locality: 'Sector 57, Gurgaon (Golf Course Ext Rd)',
+          amenities: ['Power backup', 'Lift', 'Parking'],
+        }),
+      },
     ],
-    check: (t) => (words(t) < 90 || words(t) > 230 ? `length ${words(t)} words` : /\d{10}|https?:|www\./.test(t) ? 'contains phone/link' : /pool|gym|metro/i.test(t) ? 'invented amenity' : null),
+    check: (t) =>
+      words(t) < 90 || words(t) > 230
+        ? `length ${words(t)} words`
+        : /\d{10}|https?:|www\./.test(t)
+          ? 'contains phone/link'
+          : /pool|gym|metro/i.test(t)
+            ? 'invented amenity'
+            : null,
   },
   {
     name: 'description-hi',
     messages: [
       { role: 'system', content: descriptionSystem('professional', 'hi') },
-      { role: 'user', content: JSON.stringify({ type: 'Apartment', bedrooms: 2, area: 1250, price: 38000, furnishing: 'FULLY_FURNISHED', society: 'Tulip Orange', locality: 'Sector 70, Gurgaon' }) },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          type: 'Apartment',
+          bedrooms: 2,
+          area: 1250,
+          price: 38000,
+          furnishing: 'FULLY_FURNISHED',
+          society: 'Tulip Orange',
+          locality: 'Sector 70, Gurgaon',
+        }),
+      },
     ],
     check: (t) => (!/[ऀ-ॿ]/.test(t) ? 'not Devanagari' : words(t) < 70 ? `too short (${words(t)})` : null),
   },
@@ -44,7 +78,12 @@ const CASES: Case[] = [
       {
         role: 'user',
         content: JSON.stringify({
-          lead: { name: 'Ankit', source: 'HOUSING', stage: 'CONTACTED', requirement: { bedrooms: [2], maxBudget: 40000, localities: ['Sector 65'], moveInBy: 'next week' } },
+          lead: {
+            name: 'Ankit',
+            source: 'HOUSING',
+            stage: 'CONTACTED',
+            requirement: { bedrooms: [2], maxBudget: 40000, localities: ['Sector 65'], moveInBy: 'next week' },
+          },
           activities: [{ type: 'CALL', callOutcome: 'CONNECTED', content: 'Wants semi-furnished, can visit Saturday' }],
           visits: [],
           whatsapp: [{ dir: 'INBOUND', text: 'Saturday 11 baje visit ho sakta hai?' }],

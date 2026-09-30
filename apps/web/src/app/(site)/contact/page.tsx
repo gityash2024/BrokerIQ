@@ -39,7 +39,12 @@ export default function ContactPage() {
               </a>
             )}
             {app.supportWhatsApp && (
-              <a href={whatsappLink(app.supportWhatsApp, 'Hi BrokerIQ')} target="_blank" className="card flex items-center gap-4 p-4 hover:border-brand-300" rel="noreferrer">
+              <a
+                href={whatsappLink(app.supportWhatsApp, 'Hi BrokerIQ')}
+                target="_blank"
+                className="card flex items-center gap-4 p-4 hover:border-brand-300"
+                rel="noreferrer"
+              >
                 <MessageCircle className="size-5 text-emerald-600" /> WhatsApp support
               </a>
             )}

@@ -40,17 +40,26 @@ export default function AccountDeletionPage() {
         <div className="card mt-6 p-5 text-sm">
           <p className="font-display font-bold">क्या हटता है</p>
           <p className="mt-1 text-muted">
-            Profile (नाम, email, phone, photo), saved properties और searches, alerts, requirements, flatmate profile, location और contacts data, push tokens और KYC documents — तुरंत। आपकी खुद की (owner) listings archive हो जाती हैं।
+            Profile (नाम, email, phone, photo), saved properties और searches, alerts, requirements, flatmate profile, location और contacts data, push tokens और
+            KYC documents — तुरंत। आपकी खुद की (owner) listings archive हो जाती हैं।
           </p>
           <p className="mt-3 font-display font-bold">क्या रहता है</p>
           <p className="mt-1 text-muted">
-            Brokers के साथ हुई enquiries/deals और invoices के records बिना आपकी पहचान के (anonymised) रहते हैं, ताकि brokers का हिसाब सही रहे और क़ानूनी ज़रूरतें पूरी हों।
+            Brokers के साथ हुई enquiries/deals और invoices के records बिना आपकी पहचान के (anonymised) रहते हैं, ताकि brokers का हिसाब सही रहे और क़ानूनी
+            ज़रूरतें पूरी हों।
           </p>
         </div>
 
         <p className="mt-6 text-sm text-muted">
-          Login नहीं हो पा रहा? <a href="/contact" className="font-semibold text-brand-600 hover:underline">Contact page</a> से अपने registered email/phone के साथ लिखें — हम 30 दिनों में account delete कर देंगे। पूरी जानकारी:{' '}
-          <a href="/p/privacy" className="font-semibold text-brand-600 hover:underline">Privacy policy</a>.
+          Login नहीं हो पा रहा?{' '}
+          <a href="/contact" className="font-semibold text-brand-600 hover:underline">
+            Contact page
+          </a>{' '}
+          से अपने registered email/phone के साथ लिखें — हम 30 दिनों में account delete कर देंगे। पूरी जानकारी:{' '}
+          <a href="/p/privacy" className="font-semibold text-brand-600 hover:underline">
+            Privacy policy
+          </a>
+          .
         </p>
       </div>
     </PageShell>

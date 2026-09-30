@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Empty } from '@/components/ui/misc';
 
 export const revalidate = 120;
-export const metadata: Metadata = { title: 'Top real estate brokers in Gurgaon', description: 'Verified, highly-rated property brokers and agencies in Gurgaon with active listings and reviews.' };
+export const metadata: Metadata = {
+  title: 'Top real estate brokers in Gurgaon',
+  description: 'Verified, highly-rated property brokers and agencies in Gurgaon with active listings and reviews.',
+};
 
 export default async function BrokersPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;

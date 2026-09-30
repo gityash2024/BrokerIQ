@@ -12,11 +12,26 @@ import { LeadsService } from '../leads/leads.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { GRAPH } from '../integrations/integration-tester.service';
 import { extractRequirementHints, mapGenericPayload, parsePortalEmail, sourceFromLabel } from './portal-parsers';
-import { fetchHousingLeads, housingBedrooms, housingLeadDate, housingLeadDetail, housingLeadRef, HOUSING_MAX_PER_PAGE, type HousingCreds, type HousingLead } from './portals/housing.client';
+import {
+  fetchHousingLeads,
+  housingBedrooms,
+  housingLeadDate,
+  housingLeadDetail,
+  housingLeadRef,
+  HOUSING_MAX_PER_PAGE,
+  type HousingCreds,
+  type HousingLead,
+} from './portals/housing.client';
 import { sha256 } from '../../common/utils';
 import { env } from '../../config/env';
 
-const ORG_KEY_TO_TYPE: Record<string, ConnectorType> = { email_inbox: 'EMAIL_INBOX', meta_leads: 'META_LEAD_ADS', whatsapp: 'WHATSAPP', housing_api: 'HOUSING_API', exotel: 'EXOTEL' };
+const ORG_KEY_TO_TYPE: Record<string, ConnectorType> = {
+  email_inbox: 'EMAIL_INBOX',
+  meta_leads: 'META_LEAD_ADS',
+  whatsapp: 'WHATSAPP',
+  housing_api: 'HOUSING_API',
+  exotel: 'EXOTEL',
+};
 /** Lead connectors that count towards the plan's `connectors` limit. */
 const LIMITED_TYPES: ConnectorType[] = ['EMAIL_INBOX', 'META_LEAD_ADS', 'HOUSING_API'];
 const HOUSING_FIRST_SYNC_DAYS = 7;
@@ -54,10 +69,18 @@ export class ConnectorsService implements OnModuleInit {
       defs.map(async (d) => {
         const state = states.find((s) => s.type === ORG_KEY_TO_TYPE[d.key]);
         const extra: Record<string, string> = {};
-        if (isAdmin && d.key === 'whatsapp') Object.assign(extra, { webhookUrl: `${api}/api/webhooks/whatsapp/${org.webhookKey}`, verifyToken: this.wa.orgVerifyToken(org.webhookKey) });
-        if (isAdmin && d.key === 'meta_leads') Object.assign(extra, { webhookUrl: `${api}/api/webhooks/meta-leads/${org.webhookKey}`, verifyToken: this.metaVerifyToken(org.webhookKey) });
+        if (isAdmin && d.key === 'whatsapp')
+          Object.assign(extra, { webhookUrl: `${api}/api/webhooks/whatsapp/${org.webhookKey}`, verifyToken: this.wa.orgVerifyToken(org.webhookKey) });
+        if (isAdmin && d.key === 'meta_leads')
+          Object.assign(extra, { webhookUrl: `${api}/api/webhooks/meta-leads/${org.webhookKey}`, verifyToken: this.metaVerifyToken(org.webhookKey) });
         if (isAdmin && d.key === 'exotel') Object.assign(extra, { connectUrl: `${api}/api/webhooks/exotel/${org.webhookKey}/connect` });
-        return { ...d, steps: renderSteps(d, api), config: isAdmin ? await this.settings.view(d.key, orgId) : { configured: await this.settings.isConfigured(d.key, orgId) }, state: state ?? null, extra };
+        return {
+          ...d,
+          steps: renderSteps(d, api),
+          config: isAdmin ? await this.settings.view(d.key, orgId) : { configured: await this.settings.isConfigured(d.key, orgId) },
+          state: state ?? null,
+          extra,
+        };
       }),
     );
     const webhookState = states.find((s) => s.type === 'WEBHOOK');
@@ -66,7 +89,14 @@ export class ConnectorsService implements OnModuleInit {
       webhook: {
         url: isAdmin ? `${api}/api/webhooks/leads/${org.webhookKey}` : null,
         state: webhookState ?? null,
-        samplePayload: { name: 'Rahul Sharma', phone: '+919876543210', email: 'rahul@example.com', source: 'housing', property: '3 BHK, Sector 65', message: 'Site visit this weekend?' },
+        samplePayload: {
+          name: 'Rahul Sharma',
+          phone: '+919876543210',
+          email: 'rahul@example.com',
+          source: 'housing',
+          property: '3 BHK, Sector 65',
+          message: 'Site visit this weekend?',
+        },
       },
       platformWhatsappFallback: !(await this.settings.isConfigured('whatsapp', orgId)) && (await this.settings.isConfigured('whatsapp_platform')),
       portalStats: await this.portalStats(orgId),
@@ -115,7 +145,8 @@ export class ConnectorsService implements OnModuleInit {
     });
     if (key === 'meta_leads' && view.configured) await this.subscribeMetaPage(orgId).catch((e) => this.setError(orgId, 'META_LEAD_ADS', (e as Error).message));
     if (key === 'email_inbox' && view.configured) await this.jobs.enqueue('connector.email.poll', { orgId }, { key: `email-poll:${orgId}` });
-    if (key === 'housing_api' && view.configured && body.enabled !== false) await this.jobs.enqueue('connector.housing.poll', { orgId }, { key: `housing-poll:${orgId}` });
+    if (key === 'housing_api' && view.configured && body.enabled !== false)
+      await this.jobs.enqueue('connector.housing.poll', { orgId }, { key: `housing-poll:${orgId}` });
     return view;
   }
 
@@ -136,7 +167,13 @@ export class ConnectorsService implements OnModuleInit {
     await this.prisma.connectorState.upsert({
       where: { organizationId_type: { organizationId: orgId, type } },
       create: { organizationId: orgId, type, status: 'ACTIVE', lastSyncAt: new Date(), leadsImported: imported, cursor: cursor as Prisma.InputJsonValue },
-      update: { status: 'ACTIVE', lastSyncAt: new Date(), lastError: null, leadsImported: { increment: imported }, ...(cursor !== undefined ? { cursor: cursor as Prisma.InputJsonValue } : {}) },
+      update: {
+        status: 'ACTIVE',
+        lastSyncAt: new Date(),
+        lastError: null,
+        leadsImported: { increment: imported },
+        ...(cursor !== undefined ? { cursor: cursor as Prisma.InputJsonValue } : {}),
+      },
     });
   }
 
@@ -144,8 +181,12 @@ export class ConnectorsService implements OnModuleInit {
   @Cron('0 */2 * * * *')
   async scheduleInboxPolls() {
     if (!env().JOBS_ENABLED) return;
-    const states = await this.prisma.connectorState.findMany({ where: { type: 'EMAIL_INBOX', status: { in: ['ACTIVE', 'ERROR'] } }, select: { organizationId: true } });
-    for (const s of states) await this.jobs.enqueue('connector.email.poll', { orgId: s.organizationId }, { key: `email-poll:${s.organizationId}`, maxAttempts: 1 });
+    const states = await this.prisma.connectorState.findMany({
+      where: { type: 'EMAIL_INBOX', status: { in: ['ACTIVE', 'ERROR'] } },
+      select: { organizationId: true },
+    });
+    for (const s of states)
+      await this.jobs.enqueue('connector.email.poll', { orgId: s.organizationId }, { key: `email-poll:${s.organizationId}`, maxAttempts: 1 });
   }
 
   async pollInbox(orgId: string): Promise<{ imported: number; scanned: number }> {
@@ -153,8 +194,16 @@ export class ConnectorsService implements OnModuleInit {
     if (!cfg) return { imported: 0, scanned: 0 };
     const state = await this.prisma.connectorState.findUnique({ where: { organizationId_type: { organizationId: orgId, type: 'EMAIL_INBOX' } } });
     const cursor = (state?.cursor as { lastUid?: number; uidValidity?: string } | null) ?? {};
-    const portals = String(cfg.portals ?? 'HOUSING,ACRES99,MAGICBRICKS,NOBROKER').split(',').map((s) => s.trim().toUpperCase());
-    const client = new ImapFlow({ host: String(cfg.host), port: Number(cfg.port), secure: cfg.secure !== false, auth: { user: String(cfg.user), pass: String(cfg.pass) }, logger: false });
+    const portals = String(cfg.portals ?? 'HOUSING,ACRES99,MAGICBRICKS,NOBROKER')
+      .split(',')
+      .map((s) => s.trim().toUpperCase());
+    const client = new ImapFlow({
+      host: String(cfg.host),
+      port: Number(cfg.port),
+      secure: cfg.secure !== false,
+      auth: { user: String(cfg.user), pass: String(cfg.pass) },
+      logger: false,
+    });
     let imported = 0;
     let scanned = 0;
     let lastUid = cursor.lastUid ?? 0;
@@ -166,7 +215,9 @@ export class ConnectorsService implements OnModuleInit {
         const uidValidity = String(mailbox?.uidValidity ?? '');
         if (cursor.uidValidity && cursor.uidValidity !== uidValidity) lastUid = 0;
         const range = lastUid ? `${lastUid + 1}:*` : undefined;
-        const uids: number[] = range ? ((await client.search({ uid: range }, { uid: true })) || []) : ((await client.search({ since: new Date(Date.now() - 3 * 86400_000) }, { uid: true })) || []);
+        const uids: number[] = range
+          ? (await client.search({ uid: range }, { uid: true })) || []
+          : (await client.search({ since: new Date(Date.now() - 3 * 86400_000) }, { uid: true })) || [];
         for (const uid of uids.filter((u) => u > lastUid).slice(0, 200)) {
           const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
           lastUid = Math.max(lastUid, uid);
@@ -181,7 +232,9 @@ export class ConnectorsService implements OnModuleInit {
           const localityId = hints.localityText ? await this.matchLocalityId(hints.localityText) : null;
           const hasHints = hints.bedrooms.length || hints.maxBudget || localityId;
           await this.leads.ingest({
-            requirement: hasHints ? { bedrooms: hints.bedrooms, minBudget: hints.minBudget, maxBudget: hints.maxBudget, localityIds: localityId ? [localityId] : [] } : undefined,
+            requirement: hasHints
+              ? { bedrooms: hints.bedrooms, minBudget: hints.minBudget, maxBudget: hints.maxBudget, localityIds: localityId ? [localityId] : [] }
+              : undefined,
             orgId,
             name: lead.name,
             phone: lead.phone,
@@ -202,10 +255,15 @@ export class ConnectorsService implements OnModuleInit {
     } catch (e) {
       await this.setError(orgId, 'EMAIL_INBOX', (e as Error).message);
       await client.logout().catch(() => undefined);
-      await this.prisma.integrationLog.create({ data: { organizationId: orgId, integration: 'email_inbox', action: 'poll', success: false, message: (e as Error).message.slice(0, 500) } });
+      await this.prisma.integrationLog.create({
+        data: { organizationId: orgId, integration: 'email_inbox', action: 'poll', success: false, message: (e as Error).message.slice(0, 500) },
+      });
       return { imported, scanned };
     }
-    if (imported) await this.prisma.integrationLog.create({ data: { organizationId: orgId, integration: 'email_inbox', action: 'poll', success: true, message: `${imported} leads imported` } });
+    if (imported)
+      await this.prisma.integrationLog.create({
+        data: { organizationId: orgId, integration: 'email_inbox', action: 'poll', success: true, message: `${imported} leads imported` },
+      });
     return { imported, scanned };
   }
 
@@ -254,8 +312,12 @@ export class ConnectorsService implements OnModuleInit {
   @Cron('0 */5 * * * *')
   async scheduleHousingPolls() {
     if (!env().JOBS_ENABLED) return;
-    const states = await this.prisma.connectorState.findMany({ where: { type: 'HOUSING_API', status: { in: ['ACTIVE', 'ERROR'] } }, select: { organizationId: true } });
-    for (const s of states) await this.jobs.enqueue('connector.housing.poll', { orgId: s.organizationId }, { key: `housing-poll:${s.organizationId}`, maxAttempts: 1 });
+    const states = await this.prisma.connectorState.findMany({
+      where: { type: 'HOUSING_API', status: { in: ['ACTIVE', 'ERROR'] } },
+      select: { organizationId: true },
+    });
+    for (const s of states)
+      await this.jobs.enqueue('connector.housing.poll', { orgId: s.organizationId }, { key: `housing-poll:${s.organizationId}`, maxAttempts: 1 });
   }
 
   /** Pulls new Housing leads since the last sync (with overlap; duplicates are skipped via ExternalLeadRef). */
@@ -281,10 +343,15 @@ export class ConnectorsService implements OnModuleInit {
       await this.markSync(orgId, 'HOUSING_API', imported, { lastEnd: nowSec });
     } catch (e) {
       await this.setError(orgId, 'HOUSING_API', (e as Error).message);
-      await this.prisma.integrationLog.create({ data: { organizationId: orgId, integration: 'housing_api', action: 'poll', success: false, message: (e as Error).message.slice(0, 500) } });
+      await this.prisma.integrationLog.create({
+        data: { organizationId: orgId, integration: 'housing_api', action: 'poll', success: false, message: (e as Error).message.slice(0, 500) },
+      });
       return { imported, fetched, skipped };
     }
-    if (imported) await this.prisma.integrationLog.create({ data: { organizationId: orgId, integration: 'housing_api', action: 'poll', success: true, message: `${imported} leads imported` } });
+    if (imported)
+      await this.prisma.integrationLog.create({
+        data: { organizationId: orgId, integration: 'housing_api', action: 'poll', success: true, message: `${imported} leads imported` },
+      });
     return { imported, fetched, skipped };
   }
 
@@ -333,10 +400,15 @@ export class ConnectorsService implements OnModuleInit {
   async matchLocalityId(name: string): Promise<string | null> {
     const q = name.trim();
     if (!q) return null;
-    const exact = await this.prisma.locality.findFirst({ where: { OR: [{ name: { equals: q, mode: 'insensitive' } }, { slug: q.toLowerCase().replace(/[^a-z0-9]+/g, '-') }] }, select: { id: true } });
+    const exact = await this.prisma.locality.findFirst({
+      where: { OR: [{ name: { equals: q, mode: 'insensitive' } }, { slug: q.toLowerCase().replace(/[^a-z0-9]+/g, '-') }] },
+      select: { id: true },
+    });
     if (exact) return exact.id;
     try {
-      const rows = await this.prisma.$queryRaw<{ id: string }[]>`SELECT id FROM "Locality" WHERE similarity(name, ${q}) > 0.45 ORDER BY similarity(name, ${q}) DESC LIMIT 1`;
+      const rows = await this.prisma.$queryRaw<
+        { id: string }[]
+      >`SELECT id FROM "Locality" WHERE similarity(name, ${q}) > 0.45 ORDER BY similarity(name, ${q}) DESC LIMIT 1`;
       return rows[0]?.id ?? null;
     } catch {
       const like = await this.prisma.locality.findFirst({ where: { name: { contains: q, mode: 'insensitive' } }, select: { id: true } });
@@ -348,7 +420,9 @@ export class ConnectorsService implements OnModuleInit {
   async ingestWebhook(key: string, body: Record<string, any>, query: Record<string, string>) {
     const org = await this.prisma.organization.findUnique({ where: { webhookKey: key } });
     if (!org) throw new NotFoundException('Invalid webhook URL');
-    const event = await this.prisma.webhookEvent.create({ data: { provider: 'lead_webhook', organizationId: org.id, payload: { body, query } as Prisma.InputJsonValue } });
+    const event = await this.prisma.webhookEvent.create({
+      data: { provider: 'lead_webhook', organizationId: org.id, payload: { body, query } as Prisma.InputJsonValue },
+    });
     const m = mapGenericPayload({ ...query, ...body });
     if (!m.phone) {
       await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { status: 'FAILED', error: 'phone missing' } });
@@ -374,7 +448,10 @@ export class ConnectorsService implements OnModuleInit {
   // ------------------------------------------------------------------ Facebook / Instagram lead ads
   async subscribeMetaPage(orgId: string) {
     const cfg = await this.settings.require('meta_leads', orgId);
-    const res = await fetch(`${GRAPH}/${cfg.pageId}/subscribed_apps?subscribed_fields=leadgen&access_token=${encodeURIComponent(String(cfg.pageAccessToken))}`, { method: 'POST' });
+    const res = await fetch(
+      `${GRAPH}/${cfg.pageId}/subscribed_apps?subscribed_fields=leadgen&access_token=${encodeURIComponent(String(cfg.pageAccessToken))}`,
+      { method: 'POST' },
+    );
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok || data.success === false) throw new Error(data?.error?.message ?? 'Page subscribe failed');
   }
@@ -391,14 +468,20 @@ export class ConnectorsService implements OnModuleInit {
     for (const entry of body?.entry ?? []) {
       for (const change of entry?.changes ?? []) {
         if (change.field !== 'leadgen' || !change.value?.leadgen_id) continue;
-        await this.jobs.enqueue('connector.meta.lead', { orgId: org.id, leadgenId: change.value.leadgen_id, formId: change.value.form_id, platform: change.value.platform ?? null }, { key: `meta-lead:${change.value.leadgen_id}` });
+        await this.jobs.enqueue(
+          'connector.meta.lead',
+          { orgId: org.id, leadgenId: change.value.leadgen_id, formId: change.value.form_id, platform: change.value.platform ?? null },
+          { key: `meta-lead:${change.value.leadgen_id}` },
+        );
       }
     }
   }
 
   async fetchMetaLead(orgId: string, leadgenId: string, formId?: string, platform?: string | null) {
     const cfg = await this.settings.require('meta_leads', orgId);
-    const res = await fetch(`${GRAPH}/${leadgenId}?fields=field_data,created_time,ad_name,campaign_name,form_id,platform&access_token=${encodeURIComponent(String(cfg.pageAccessToken))}`);
+    const res = await fetch(
+      `${GRAPH}/${leadgenId}?fields=field_data,created_time,ad_name,campaign_name,form_id,platform&access_token=${encodeURIComponent(String(cfg.pageAccessToken))}`,
+    );
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       await this.setError(orgId, 'META_LEAD_ADS', data?.error?.message ?? `Meta ${res.status}`);

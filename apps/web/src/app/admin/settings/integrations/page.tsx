@@ -37,16 +37,30 @@ function Inner() {
   const cats = [...new Set(items.map((i) => i.category))];
   return (
     <>
-      <PageHeader title="Credentials center" subtitle="सारी API keys यहीं — encrypted (AES-256) database में save होती हैं, code में कभी नहीं। हर integration के साथ हिंदी में step-by-step guide है।" />
+      <PageHeader
+        title="Credentials center"
+        subtitle="सारी API keys यहीं — encrypted (AES-256) database में save होती हैं, code में कभी नहीं। हर integration के साथ हिंदी में step-by-step guide है।"
+      />
       <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-brand-950 to-brand-800 p-6 text-white">
           <div className="absolute -top-16 -right-10 size-56 rounded-full bg-brand-400/30 blur-3xl" />
           <p className="text-sm text-white/70">Setup progress</p>
-          <p className="mt-1 font-display text-4xl font-extrabold">{done}<span className="text-xl text-white/60"> / {total}</span></p>
+          <p className="mt-1 font-display text-4xl font-extrabold">
+            {done}
+            <span className="text-xl text-white/60"> / {total}</span>
+          </p>
           <div className="mt-4 h-2.5 rounded-full bg-white/15">
-            <motion.div initial={{ width: 0 }} animate={{ width: `${(done / Math.max(1, total)) * 100}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full bg-gradient-to-r from-saffron-400 to-emerald-400" />
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${(done / Math.max(1, total)) * 100}%` }}
+              transition={{ duration: 0.8 }}
+              className="h-full rounded-full bg-gradient-to-r from-saffron-400 to-emerald-400"
+            />
           </div>
-          <p className="mt-3 text-sm text-white/70">सब free tier पर चलते हैं — शुरुआत में ₹0 खर्च। सबसे ज़रूरी: <b className="text-white">SMTP (OTP login)</b>, <b className="text-white">Cloudinary (photos)</b>, <b className="text-white">Groq (AI)</b>।</p>
+          <p className="mt-3 text-sm text-white/70">
+            सब free tier पर चलते हैं — शुरुआत में ₹0 खर्च। सबसे ज़रूरी: <b className="text-white">SMTP (OTP login)</b>,{' '}
+            <b className="text-white">Cloudinary (photos)</b>, <b className="text-white">Groq (AI)</b>।
+          </p>
         </div>
         <div className="card flex flex-col justify-center gap-2 p-5 text-sm text-muted">
           <p className="font-semibold text-fg">Priority order</p>
@@ -57,15 +71,27 @@ function Inner() {
           <p>5. Google login, MapTiler, WhatsApp, Sentry</p>
         </div>
       </div>
-      <div className="mb-5 max-w-sm"><Input icon={<Search className="size-4" />} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Integration खोजें…" className="h-10" /></div>
+      <div className="mb-5 max-w-sm">
+        <Input icon={<Search className="size-4" />} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Integration खोजें…" className="h-10" />
+      </div>
       <div className="space-y-8">
         {cats.map((c) => (
           <section key={c}>
             <p className="mb-3 text-xs font-bold tracking-wider text-subtle uppercase">{CATS[c]?.label ?? c}</p>
             <div className="space-y-3">
-              {items.filter((i) => i.category === c).map((i) => (
-                <IntegrationCard key={i.key} def={i} view={i.state} apiBase="/admin/integrations" invalidate={[['admin-integrations'], ['admin-dashboard']]} defaultOpen={focus === i.key} icon={CATS[c]?.icon} />
-              ))}
+              {items
+                .filter((i) => i.category === c)
+                .map((i) => (
+                  <IntegrationCard
+                    key={i.key}
+                    def={i}
+                    view={i.state}
+                    apiBase="/admin/integrations"
+                    invalidate={[['admin-integrations'], ['admin-dashboard']]}
+                    defaultOpen={focus === i.key}
+                    icon={CATS[c]?.icon}
+                  />
+                ))}
             </div>
           </section>
         ))}

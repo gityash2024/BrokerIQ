@@ -21,7 +21,10 @@ export default function Invoices() {
   const [upi, setUpi] = useState(false);
   const list = useQuery({ queryKey: ['invoices', status], queryFn: () => api<any[]>(`/broker/invoices${status ? `?status=${status}` : ''}`) });
   const settings = useQuery({ queryKey: ['payment-settings'], queryFn: () => api<any>('/broker/payment-settings') });
-  const paid = useApiMutation((id: string) => patch(`/broker/invoices/${id}`, { status: 'PAID', paidMode: 'UPI' }), { success: 'Paid mark हुआ', invalidate: [['invoices']] });
+  const paid = useApiMutation((id: string) => patch(`/broker/invoices/${id}`, { status: 'PAID', paidMode: 'UPI' }), {
+    success: 'Paid mark हुआ',
+    invalidate: [['invoices']],
+  });
   const send = async (id: string) => {
     try {
       const r = await post<any>(`/broker/invoices/${id}/send`);
@@ -33,16 +36,34 @@ export default function Invoices() {
   };
   return (
     <Screen edges={['top', 'bottom']}>
-      <Header title="Invoices" subtitle="Client सीधे आपके UPI पर pay करता है" right={<Button title="नया" size="sm" icon={<Plus size={15} color="#fff" />} onPress={() => setCreate(true)} />} />
+      <Header
+        title="Invoices"
+        subtitle="Client सीधे आपके UPI पर pay करता है"
+        right={<Button title="नया" size="sm" icon={<Plus size={15} color="#fff" />} onPress={() => setCreate(true)} />}
+      />
       {settings.data && !settings.data.upiId && (
         <Card style={{ padding: 12, borderColor: c.warning }} onPress={isBrokerAdmin ? () => setUpi(true) : undefined}>
           <Txt v="small">अपना UPI ID जोड़ें ताकि invoice पर "UPI से pay करें" दिखे।{isBrokerAdmin ? ' (Tap करें)' : ''}</Txt>
         </Card>
       )}
       {isBrokerAdmin && settings.data?.upiId && <Txt v="caption" color="brand" onPress={() => setUpi(true)}>{`UPI: ${settings.data.upiId} · बदलें`}</Txt>}
-      <Segmented value={status} onChange={setStatus} options={[{ value: '', label: 'All' }, { value: 'SENT', label: 'Pending' }, { value: 'PAID', label: 'Paid' }]} />
-      {list.isLoading ? <Loader /> : !list.data?.length ? (
-        <Empty icon={<FileText size={26} color={c.brand} />} title="अभी कोई invoice नहीं" action={<Button title="Invoice बनाएँ" onPress={() => setCreate(true)} />} />
+      <Segmented
+        value={status}
+        onChange={setStatus}
+        options={[
+          { value: '', label: 'All' },
+          { value: 'SENT', label: 'Pending' },
+          { value: 'PAID', label: 'Paid' },
+        ]}
+      />
+      {list.isLoading ? (
+        <Loader />
+      ) : !list.data?.length ? (
+        <Empty
+          icon={<FileText size={26} color={c.brand} />}
+          title="अभी कोई invoice नहीं"
+          action={<Button title="Invoice बनाएँ" onPress={() => setCreate(true)} />}
+        />
       ) : (
         list.data.map((i) => (
           <Card key={i.id} style={{ padding: 14, gap: 6, marginTop: 10 }}>
@@ -55,7 +76,15 @@ export default function Invoices() {
               <Row>
                 <Button title="भेजें" size="sm" variant="secondary" icon={<Send size={14} color={c.fg} />} onPress={() => send(i.id)} />
                 <Button title="Paid" size="sm" onPress={() => paid.mutate(i.id)} />
-                <Button title="Link" size="sm" variant="ghost" onPress={async () => { const d = await api<any>(`/broker/invoices/${i.id}`); Linking.openURL(d.link); }} />
+                <Button
+                  title="Link"
+                  size="sm"
+                  variant="ghost"
+                  onPress={async () => {
+                    const d = await api<any>(`/broker/invoices/${i.id}`);
+                    Linking.openURL(d.link);
+                  }}
+                />
               </Row>
             )}
           </Card>
@@ -70,8 +99,18 @@ export default function Invoices() {
 function CreateSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [f, setF] = useState({ clientName: '', clientPhone: '', description: 'Brokerage', amount: '', gst: false });
   const save = useApiMutation(
-    () => post('/broker/invoices', { clientName: f.clientName, clientPhone: f.clientPhone || undefined, items: [{ description: f.description, amount: Number(f.amount) }], gstPct: f.gst ? 18 : 0 }),
-    { success: 'Invoice बन गया', invalidate: [['invoices']], onSuccess: () => (onClose(), setF({ clientName: '', clientPhone: '', description: 'Brokerage', amount: '', gst: false })) },
+    () =>
+      post('/broker/invoices', {
+        clientName: f.clientName,
+        clientPhone: f.clientPhone || undefined,
+        items: [{ description: f.description, amount: Number(f.amount) }],
+        gstPct: f.gst ? 18 : 0,
+      }),
+    {
+      success: 'Invoice बन गया',
+      invalidate: [['invoices']],
+      onSuccess: () => (onClose(), setF({ clientName: '', clientPhone: '', description: 'Brokerage', amount: '', gst: false })),
+    },
   );
   return (
     <Sheet open={open} onClose={onClose} title="नया invoice">
@@ -80,7 +119,9 @@ function CreateSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
         <Input label="Client mobile" value={f.clientPhone} onChangeText={(v) => setF({ ...f, clientPhone: v })} keyboardType="phone-pad" />
         <Input label="Description" value={f.description} onChangeText={(v) => setF({ ...f, description: v })} />
         <Input label="Amount (₹)" value={f.amount} onChangeText={(v) => setF({ ...f, amount: v.replace(/\D/g, '') })} keyboardType="number-pad" />
-        <Row><Chip label="GST 18%" active={f.gst} onPress={() => setF({ ...f, gst: !f.gst })} /></Row>
+        <Row>
+          <Chip label="GST 18%" active={f.gst} onPress={() => setF({ ...f, gst: !f.gst })} />
+        </Row>
         <Button title="Invoice बनाएँ" loading={save.isPending} disabled={!f.clientName || !f.amount} onPress={() => save.mutate(undefined)} />
       </View>
     </Sheet>

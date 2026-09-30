@@ -4,16 +4,30 @@ import { formatINR, formatPriceShort, POSSESSION_LABELS, responseBadge } from '@
 import { cn, img } from '@/lib/utils';
 import { Avatar, Badge } from '../ui/misc';
 
-const GRADS = ['from-indigo-500 to-purple-600', 'from-amber-400 to-orange-600', 'from-sky-500 to-indigo-600', 'from-emerald-500 to-teal-600', 'from-rose-500 to-pink-600', 'from-violet-500 to-fuchsia-600'];
+const GRADS = [
+  'from-indigo-500 to-purple-600',
+  'from-amber-400 to-orange-600',
+  'from-sky-500 to-indigo-600',
+  'from-emerald-500 to-teal-600',
+  'from-rose-500 to-pink-600',
+  'from-violet-500 to-fuchsia-600',
+];
 
 export function LocalityCard({ l, i = 0 }: { l: any; i?: number }) {
   const count = (l.listingsSale ?? 0) + (l.listingsRent ?? 0);
   return (
-    <Link href={`/locality/${l.slug}`} className="group relative block overflow-hidden rounded-3xl transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
+    <Link
+      href={`/locality/${l.slug}`}
+      className="group relative block overflow-hidden rounded-3xl transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
+    >
       <div className={cn('relative aspect-[4/3] bg-gradient-to-br', GRADS[i % GRADS.length])}>
         {l.coverUrl && (
-           
-          <img src={img(l.coverUrl, 600)} alt={l.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+          <img
+            src={img(l.coverUrl, 600)}
+            alt={l.name}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
         <svg className="absolute -top-6 -right-6 size-32 text-white/10" viewBox="0 0 100 100" aria-hidden>
@@ -40,7 +54,10 @@ export function LocalityCard({ l, i = 0 }: { l: any; i?: number }) {
 export function BrokerCard({ b }: { b: any }) {
   const listings = b._count?.listings ?? b.listingsCount ?? 0;
   return (
-    <Link href={`/brokers/${b.slug}`} className="group card flex flex-col items-center p-5 text-center transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
+    <Link
+      href={`/brokers/${b.slug}`}
+      className="group card flex flex-col items-center p-5 text-center transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
+    >
       <div className="relative">
         <Avatar name={b.name} src={b.logoUrl} size={64} className="ring-4 ring-brand-50 dark:ring-brand-500/10" />
         {b.verification === 'VERIFIED' && <BadgeCheck className="absolute -right-1 -bottom-1 size-6 fill-white text-emerald-500 dark:fill-surface" />}
@@ -51,8 +68,14 @@ export function BrokerCard({ b }: { b: any }) {
         {b.reviewCount ? `${b.rating.toFixed(1)} (${b.reviewCount})` : 'New'}
         {b.experienceYears ? ` · ${b.experienceYears}+ yrs` : ''}
       </div>
-      <p className="mt-2 text-xs font-semibold text-brand-600">{listings} active {listings === 1 ? 'listing' : 'listings'}</p>
-      {responseBadge(b.responseMinutes) && <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Zap className="size-3" /> {responseBadge(b.responseMinutes)}</p>}
+      <p className="mt-2 text-xs font-semibold text-brand-600">
+        {listings} active {listings === 1 ? 'listing' : 'listings'}
+      </p>
+      {responseBadge(b.responseMinutes) && (
+        <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+          <Zap className="size-3" /> {responseBadge(b.responseMinutes)}
+        </p>
+      )}
     </Link>
   );
 }
@@ -62,7 +85,6 @@ export function ProjectCard({ p }: { p: any }) {
     <Link href={`/projects/${p.slug}`} className="group card block overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
       <div className="relative aspect-[16/10] bg-gradient-to-br from-slate-800 to-brand-900">
         {p.photos?.[0] ? (
-           
           <img src={img(p.photos[0], 700)} alt={p.name} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         ) : (
           <Building2 className="absolute inset-0 m-auto size-12 text-white/30" />

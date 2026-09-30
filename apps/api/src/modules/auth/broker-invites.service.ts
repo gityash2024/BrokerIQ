@@ -20,7 +20,10 @@ export class BrokerInvitesService {
   ) {}
 
   normalize(code?: string | null) {
-    return (code ?? '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    return (code ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9-]/g, '');
   }
 
   /** Returns the usable invite for a code, or throws with a clear reason. */
@@ -73,7 +76,15 @@ export class BrokerInvitesService {
     let invite = await this.prisma.brokerInvite.findFirst({ where: { createdByOrgId: orgId, note: 'referral' }, orderBy: { createdAt: 'asc' } });
     if (!invite && cfg.enabled) {
       invite = await this.prisma.brokerInvite.create({
-        data: { code: await this.uniqueCode('BIQ'), note: 'referral', createdById: userId, createdByOrgId: orgId, grantPlanCode: cfg.planCode, grantMonths: cfg.months, maxUses: cfg.maxUsesPerBroker },
+        data: {
+          code: await this.uniqueCode('BIQ'),
+          note: 'referral',
+          createdById: userId,
+          createdByOrgId: orgId,
+          grantPlanCode: cfg.planCode,
+          grantMonths: cfg.months,
+          maxUses: cfg.maxUsesPerBroker,
+        },
       });
     }
     const joined = await this.prisma.organization.findMany({
@@ -94,8 +105,17 @@ export class BrokerInvitesService {
   }
 
   async leaderboard(limit = 10) {
-    const rows = await this.prisma.organization.groupBy({ by: ['referredByOrgId'], where: { referredByOrgId: { not: null } }, _count: { _all: true }, orderBy: { _count: { referredByOrgId: 'desc' } }, take: limit });
-    const orgs = await this.prisma.organization.findMany({ where: { id: { in: rows.map((r) => r.referredByOrgId!) } }, select: { id: true, name: true, slug: true, logoUrl: true } });
+    const rows = await this.prisma.organization.groupBy({
+      by: ['referredByOrgId'],
+      where: { referredByOrgId: { not: null } },
+      _count: { _all: true },
+      orderBy: { _count: { referredByOrgId: 'desc' } },
+      take: limit,
+    });
+    const orgs = await this.prisma.organization.findMany({
+      where: { id: { in: rows.map((r) => r.referredByOrgId!) } },
+      select: { id: true, name: true, slug: true, logoUrl: true },
+    });
     return rows.map((r) => ({ org: orgs.find((o) => o.id === r.referredByOrgId) ?? null, count: r._count._all })).filter((r) => r.org);
   }
 }

@@ -37,7 +37,12 @@ export function ChatThread({ id, side }: { id: string; side: 'user' | 'broker' }
       <div className="flex-1 space-y-2 overflow-y-auto p-4">
         {q.data?.items.map((m: any) => (
           <div key={m.id} className={cn('flex', mine(m) ? 'justify-end' : 'justify-start')}>
-            <div className={cn('max-w-[78%] rounded-2xl px-4 py-2.5 text-sm shadow-sm', mine(m) ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-surface-2')}>
+            <div
+              className={cn(
+                'max-w-[78%] rounded-2xl px-4 py-2.5 text-sm shadow-sm',
+                mine(m) ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-surface-2',
+              )}
+            >
               <p className="whitespace-pre-line">{m.body}</p>
               <p className={cn('mt-1 text-[10px]', mine(m) ? 'text-white/70' : 'text-subtle')}>{formatDateTime(m.createdAt)}</p>
             </div>

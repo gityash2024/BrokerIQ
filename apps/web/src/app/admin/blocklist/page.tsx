@@ -27,7 +27,9 @@ export default function BlocklistPage() {
     invalidate: [['admin-blocklist']],
     onSuccess: (r: any) => {
       setF({ ...f, value: '', reason: '' });
-      toast.success(r.matchingUsers?.length ? `Block हो गया — ${r.matchingUsers.length} मौजूदा account इससे जुड़े हैं; उन्हें Users में block करें` : 'Block हो गया');
+      toast.success(
+        r.matchingUsers?.length ? `Block हो गया — ${r.matchingUsers.length} मौजूदा account इससे जुड़े हैं; उन्हें Users में block करें` : 'Block हो गया',
+      );
     },
   });
   const remove = useApiMutation((id: string) => del(`/admin/blocklist/${id}`), { success: 'हटाया', invalidate: [['admin-blocklist']] });
@@ -38,12 +40,22 @@ export default function BlocklistPage() {
       <div className="card mb-5 grid gap-3 p-5 sm:grid-cols-[10rem_1fr_1fr_auto] sm:items-end">
         <Field label="किसे block करें">
           <Select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
-            {KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+            {KINDS.map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
           </Select>
         </Field>
-        <Field label="Value"><Input value={f.value} placeholder={placeholder} onChange={(e) => setF({ ...f, value: e.target.value })} data-no-i18n /></Field>
-        <Field label="कारण (optional)"><Input value={f.reason} placeholder="Spam, fraud, harassment…" onChange={(e) => setF({ ...f, reason: e.target.value })} /></Field>
-        <Button variant="danger" loading={add.isPending} disabled={f.value.trim().length < 3} onClick={() => add.mutate()}><Ban className="size-4" /> Block</Button>
+        <Field label="Value">
+          <Input value={f.value} placeholder={placeholder} onChange={(e) => setF({ ...f, value: e.target.value })} data-no-i18n />
+        </Field>
+        <Field label="कारण (optional)">
+          <Input value={f.reason} placeholder="Spam, fraud, harassment…" onChange={(e) => setF({ ...f, reason: e.target.value })} />
+        </Field>
+        <Button variant="danger" loading={add.isPending} disabled={f.value.trim().length < 3} onClick={() => add.mutate()}>
+          <Ban className="size-4" /> Block
+        </Button>
       </div>
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
@@ -56,10 +68,14 @@ export default function BlocklistPage() {
           {q.data.map((b) => (
             <div key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
               <Badge tone="danger">{KINDS.find((k) => k[0] === b.kind)?.[1] ?? b.kind}</Badge>
-              <span className="font-mono font-semibold" data-no-i18n>{b.value}</span>
+              <span className="font-mono font-semibold" data-no-i18n>
+                {b.value}
+              </span>
               <span className="min-w-0 flex-1 truncate text-muted">{b.reason ?? ''}</span>
               <span className="text-xs text-subtle">{formatDateTime(b.createdAt)}</span>
-              <Button size="icon-sm" variant="ghost" aria-label="Remove" onClick={() => remove.mutate(b.id)}><Trash2 className="size-4" /></Button>
+              <Button size="icon-sm" variant="ghost" aria-label="Remove" onClick={() => remove.mutate(b.id)}>
+                <Trash2 className="size-4" />
+              </Button>
             </div>
           ))}
         </div>

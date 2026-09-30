@@ -21,7 +21,10 @@ export default function BrokerTabs() {
   if (!isBroker) return <Redirect href="/(user)/home" />;
   const k = dash.data?.kpis;
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} badges={{ leads: k?.newToday || undefined, inbox: k?.unreadMessages || undefined, more: k?.overdue || undefined }} />}>
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(p) => <TabBar {...p} badges={{ leads: k?.newToday || undefined, inbox: k?.unreadMessages || undefined, more: k?.overdue || undefined }} />}
+    >
       <Tabs.Screen name="dashboard" options={{ title: 'Home', tabBarIcon: ({ color }) => <LayoutDashboard size={22} color={color} /> }} />
       <Tabs.Screen name="leads" options={{ title: 'Leads', tabBarIcon: ({ color }) => <Inbox size={22} color={color} /> }} />
       <Tabs.Screen name="inbox" options={{ title: 'Inbox', tabBarIcon: ({ color }) => <MessagesSquare size={22} color={color} /> }} />

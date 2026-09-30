@@ -27,7 +27,11 @@ export class MeController {
 
   @Post('push-tokens')
   async addPush(@CurrentUser() user: RequestUser, @Body(new ZodPipe(pushTokenSchema)) body: any) {
-    await this.prisma.pushToken.upsert({ where: { token: body.token }, create: { ...body, userId: user.id }, update: { userId: user.id, platform: body.platform } });
+    await this.prisma.pushToken.upsert({
+      where: { token: body.token },
+      create: { ...body, userId: user.id },
+      update: { userId: user.id, platform: body.platform },
+    });
     return { ok: true };
   }
 
@@ -40,7 +44,11 @@ export class MeController {
   @Get('notifications')
   async notifications(@CurrentUser() user: RequestUser, @Query('unread') unread?: string) {
     const [items, unreadCount] = await Promise.all([
-      this.prisma.notification.findMany({ where: { userId: user.id, ...(unread === 'true' ? { readAt: null } : {}) }, orderBy: { createdAt: 'desc' }, take: 50 }),
+      this.prisma.notification.findMany({
+        where: { userId: user.id, ...(unread === 'true' ? { readAt: null } : {}) },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
       this.prisma.notification.count({ where: { userId: user.id, readAt: null } }),
     ]);
     return { items, unreadCount };
@@ -48,7 +56,10 @@ export class MeController {
 
   @Post('notifications/read')
   async markRead(@CurrentUser() user: RequestUser, @Body() body: { ids?: string[] }) {
-    await this.prisma.notification.updateMany({ where: { userId: user.id, readAt: null, ...(body?.ids?.length ? { id: { in: body.ids } } : {}) }, data: { readAt: new Date() } });
+    await this.prisma.notification.updateMany({
+      where: { userId: user.id, readAt: null, ...(body?.ids?.length ? { id: { in: body.ids } } : {}) },
+      data: { readAt: new Date() },
+    });
     return { ok: true };
   }
 
@@ -68,7 +79,9 @@ export class MeController {
   async createSavedSearch(@CurrentUser() user: RequestUser, @Body(new ZodPipe(savedSearchSchema)) body: any) {
     const count = await this.prisma.savedSearch.count({ where: { userId: user.id } });
     if (count >= 20) throw new NotFoundException('ज़्यादा से ज़्यादा 20 saved searches');
-    return this.prisma.savedSearch.create({ data: { userId: user.id, name: body.name, filters: body.filters as Prisma.InputJsonValue, alertsEnabled: body.alertsEnabled, lastNotifiedAt: new Date() } });
+    return this.prisma.savedSearch.create({
+      data: { userId: user.id, name: body.name, filters: body.filters as Prisma.InputJsonValue, alertsEnabled: body.alertsEnabled, lastNotifiedAt: new Date() },
+    });
   }
 
   @Patch('saved-searches/:id')

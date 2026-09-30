@@ -13,7 +13,14 @@ import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { UserActions, UserSheet } from '@/components/admin/controls';
 
-const ROLE_TONE: Record<string, any> = { SUPER_ADMIN: 'danger', MODERATOR: 'warning', SUPPORT: 'warning', BROKER_ADMIN: 'brand', BROKER_AGENT: 'info', USER: 'neutral' };
+const ROLE_TONE: Record<string, any> = {
+  SUPER_ADMIN: 'danger',
+  MODERATOR: 'warning',
+  SUPPORT: 'warning',
+  BROKER_ADMIN: 'brand',
+  BROKER_AGENT: 'info',
+  USER: 'neutral',
+};
 
 export default function UsersPage() {
   const [f, setF] = useState({ q: '', role: '', status: '', page: 1 });
@@ -24,7 +31,15 @@ export default function UsersPage() {
     <>
       <PageHeader title="Users" subtitle={q.data ? `${q.data.total} accounts` : ' '} />
       <div className="mb-4 flex flex-wrap gap-2">
-        <div className="w-full sm:w-72"><Input icon={<Search className="size-4" />} className="h-10" placeholder="नाम, email, phone" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value, page: 1 })} /></div>
+        <div className="w-full sm:w-72">
+          <Input
+            icon={<Search className="size-4" />}
+            className="h-10"
+            placeholder="नाम, email, phone"
+            value={f.q}
+            onChange={(e) => setF({ ...f, q: e.target.value, page: 1 })}
+          />
+        </div>
         <Select className="h-10 w-44" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value, page: 1 })}>
           <option value="">All roles</option>
           <option value="USER">User / Owner</option>
@@ -51,18 +66,52 @@ export default function UsersPage() {
           <div className="card overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
               <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold text-subtle uppercase">
-                <tr><th className="px-4 py-3">User</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Firm</th><th className="px-4 py-3 text-center">Listings</th><th className="px-4 py-3 text-center">Enquiries</th><th className="px-4 py-3">Joined</th><th className="px-4 py-3">Last login</th><th /></tr>
+                <tr>
+                  <th className="px-4 py-3">User</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Firm</th>
+                  <th className="px-4 py-3 text-center">Listings</th>
+                  <th className="px-4 py-3 text-center">Enquiries</th>
+                  <th className="px-4 py-3">Joined</th>
+                  <th className="px-4 py-3">Last login</th>
+                  <th />
+                </tr>
               </thead>
               <tbody>
                 {q.data.items.map((u: any) => (
-                  <tr key={u.id} onClick={() => setOpen(u.id)} className={cn('cursor-pointer border-b border-line last:border-0 hover:bg-surface-2/50', u.status === 'SUSPENDED' && 'opacity-60')}>
+                  <tr
+                    key={u.id}
+                    onClick={() => setOpen(u.id)}
+                    className={cn('cursor-pointer border-b border-line last:border-0 hover:bg-surface-2/50', u.status === 'SUSPENDED' && 'opacity-60')}
+                  >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-3">
                         <Avatar name={u.name} size={34} />
-                        <div className="min-w-0"><p className="font-semibold">{u.name}{u.emailVerified && <CheckCircle2 className="ml-1 inline size-3.5 text-emerald-500" />}</p><p className="truncate text-xs text-muted">{u.email}{u.phone ? ` · ${u.phone}` : ''}</p></div>
+                        <div className="min-w-0">
+                          <p className="font-semibold">
+                            {u.name}
+                            {u.emailVerified && <CheckCircle2 className="ml-1 inline size-3.5 text-emerald-500" />}
+                          </p>
+                          <p className="truncate text-xs text-muted">
+                            {u.email}
+                            {u.phone ? ` · ${u.phone}` : ''}
+                          </p>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5"><Badge tone={ROLE_TONE[u.role]}>{u.role.replace('_', ' ')}</Badge>{u.status === 'SUSPENDED' && <Badge tone="danger" className="ml-1">Blocked</Badge>}{u.restrictions?.length > 0 && <Badge tone="warning" className="ml-1">{u.restrictions.length} restricted</Badge>}</td>
+                    <td className="px-4 py-2.5">
+                      <Badge tone={ROLE_TONE[u.role]}>{u.role.replace('_', ' ')}</Badge>
+                      {u.status === 'SUSPENDED' && (
+                        <Badge tone="danger" className="ml-1">
+                          Blocked
+                        </Badge>
+                      )}
+                      {u.restrictions?.length > 0 && (
+                        <Badge tone="warning" className="ml-1">
+                          {u.restrictions.length} restricted
+                        </Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-2.5 text-xs">{u.organization?.name ?? '—'}</td>
                     <td className="px-4 py-2.5 text-center">{u._count.listings}</td>
                     <td className="px-4 py-2.5 text-center">{u._count.enquiries}</td>

@@ -38,8 +38,12 @@ export class AdminControlService {
   /** Tell whoever posted the listing (and the firm's admins). */
   private async tellOwner(l: { postedById: string | null; organizationId: string | null; title: string; id: string }, title: string, body?: string) {
     const link = l.organizationId ? '/broker/listings' : '/account/listings';
-    if (l.postedById) await this.notifications.notify(l.postedById, { kind: 'LISTING_MODERATION', title, body, link, data: { listingId: l.id } }).catch(() => undefined);
-    if (l.organizationId) await this.notifications.notifyOrg(l.organizationId, { kind: 'LISTING_MODERATION', title, body, link, data: { listingId: l.id } }, { adminsOnly: true }).catch(() => undefined);
+    if (l.postedById)
+      await this.notifications.notify(l.postedById, { kind: 'LISTING_MODERATION', title, body, link, data: { listingId: l.id } }).catch(() => undefined);
+    if (l.organizationId)
+      await this.notifications
+        .notifyOrg(l.organizationId, { kind: 'LISTING_MODERATION', title, body, link, data: { listingId: l.id } }, { adminsOnly: true })
+        .catch(() => undefined);
   }
 
   async blockListing(actor: RequestUser, id: string, reason: string, notify = true) {
@@ -58,7 +62,10 @@ export class AdminControlService {
     const l = await this.listingOrThrow(id);
     if (l.status !== 'BLOCKED') return l;
     const status = l.statusBeforeBlock && l.statusBeforeBlock !== 'BLOCKED' ? l.statusBeforeBlock : 'PENDING_REVIEW';
-    const updated = await this.prisma.listing.update({ where: { id }, data: { status, statusBeforeBlock: null, blockedReason: null, blockedAt: null, blockedById: null } });
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: { status, statusBeforeBlock: null, blockedReason: null, blockedAt: null, blockedById: null },
+    });
     if (notify) await this.tellOwner(l, `✅ Listing वापस चालू: ${l.title}`);
     await this.audit.log(actor, 'listing.unblock', 'Listing', id, { status });
     return updated;
@@ -94,8 +101,10 @@ export class AdminControlService {
   /** Move a listing to another firm and/or poster (e.g. owner handed it to a broker). */
   async transferListing(actor: RequestUser, id: string, to: { organizationId?: string | null; postedById?: string }) {
     await this.listingOrThrow(id);
-    if (to.organizationId && !(await this.prisma.organization.findUnique({ where: { id: to.organizationId }, select: { id: true } }))) throw new BadRequestException('Firm नहीं मिली');
-    if (to.postedById && !(await this.prisma.user.findUnique({ where: { id: to.postedById }, select: { id: true } }))) throw new BadRequestException('User नहीं मिला');
+    if (to.organizationId && !(await this.prisma.organization.findUnique({ where: { id: to.organizationId }, select: { id: true } })))
+      throw new BadRequestException('Firm नहीं मिली');
+    if (to.postedById && !(await this.prisma.user.findUnique({ where: { id: to.postedById }, select: { id: true } })))
+      throw new BadRequestException('User नहीं मिला');
     const updated = await this.prisma.listing.update({
       where: { id },
       data: {
@@ -140,7 +149,10 @@ export class AdminControlService {
             break;
           case 'feature':
           case 'unfeature':
-            await this.prisma.listing.update({ where: { id }, data: { isFeatured: action === 'feature', featuredUntil: action === 'feature' ? new Date(Date.now() + 30 * 86400_000) : null } });
+            await this.prisma.listing.update({
+              where: { id },
+              data: { isFeatured: action === 'feature', featuredUntil: action === 'feature' ? new Date(Date.now() + 30 * 86400_000) : null },
+            });
             break;
         }
         done.push(id);
@@ -169,18 +181,46 @@ export class AdminControlService {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
-        id: true, name: true, email: true, phone: true, role: true, status: true, blockedReason: true, restrictions: true, avatarUrl: true, createdAt: true, lastLoginAt: true, emailVerified: true,
-        tenantVerifiedAt: true, workEmailVerifiedAt: true, organization: { select: { id: true, name: true, slug: true, status: true } },
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        blockedReason: true,
+        restrictions: true,
+        avatarUrl: true,
+        createdAt: true,
+        lastLoginAt: true,
+        emailVerified: true,
+        tenantVerifiedAt: true,
+        workEmailVerifiedAt: true,
+        organization: { select: { id: true, name: true, slug: true, status: true } },
       },
     });
     if (!user) throw new NotFoundException('User नहीं मिला');
     const [listings, enquiries, reports, reviews, sessions, recentLogins] = await Promise.all([
-      this.prisma.listing.findMany({ where: { postedById: id }, orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, slug: true, title: true, status: true, price: true, deletedAt: true, createdAt: true } }),
-      this.prisma.enquiry.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, createdAt: true, listing: { select: { title: true, slug: true } } } }),
+      this.prisma.listing.findMany({
+        where: { postedById: id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { id: true, slug: true, title: true, status: true, price: true, deletedAt: true, createdAt: true },
+      }),
+      this.prisma.enquiry.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { id: true, createdAt: true, listing: { select: { title: true, slug: true } } },
+      }),
       this.prisma.listingReport.count({ where: { userId: id } }),
       this.prisma.review.count({ where: { userId: id } }),
       this.prisma.refreshToken.count({ where: { userId: id, revokedAt: null, expiresAt: { gt: new Date() } } }),
-      this.prisma.auditLog.findMany({ where: { actorId: id, action: 'auth.login' }, orderBy: { createdAt: 'desc' }, take: 5, select: { createdAt: true, ip: true } }),
+      this.prisma.auditLog.findMany({
+        where: { actorId: id, action: 'auth.login' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { createdAt: true, ip: true },
+      }),
     ]);
     return { user, listings, enquiries, counts: { reports, reviews, activeSessions: sessions }, recentLogins };
   }
@@ -191,7 +231,10 @@ export class AdminControlService {
     await this.prisma.user.update({ where: { id }, data: { status: 'SUSPENDED', blockedReason: reason } });
     await this.auth.revokeAll(id);
     // The user's own (owner) listings go down with the account.
-    const own = await this.prisma.listing.findMany({ where: { postedById: id, organizationId: null, deletedAt: null, status: { in: LIVE } }, select: { id: true } });
+    const own = await this.prisma.listing.findMany({
+      where: { postedById: id, organizationId: null, deletedAt: null, status: { in: LIVE } },
+      select: { id: true },
+    });
     for (const l of own) await this.blockListing(actor, l.id, ACCOUNT + reason, false);
     await this.mailUser(u.email, 'आपका BrokerIQ account block किया गया है', `कारण: ${reason}. सवाल हो तो BrokerIQ support से संपर्क करें।`);
     await this.audit.log(actor, 'user.block', 'User', id, { reason, listings: own.length });
@@ -201,7 +244,10 @@ export class AdminControlService {
   async unblockUser(actor: RequestUser, id: string) {
     const u = await this.userOrThrow(id);
     await this.prisma.user.update({ where: { id }, data: { status: 'ACTIVE', blockedReason: null } });
-    const hidden = await this.prisma.listing.findMany({ where: { postedById: id, status: 'BLOCKED', blockedReason: { startsWith: ACCOUNT } }, select: { id: true } });
+    const hidden = await this.prisma.listing.findMany({
+      where: { postedById: id, status: 'BLOCKED', blockedReason: { startsWith: ACCOUNT } },
+      select: { id: true },
+    });
     for (const l of hidden) await this.unblockListing(actor, l.id, false);
     await this.mailUser(u.email, 'आपका BrokerIQ account फिर से चालू है', 'अब आप login करके BrokerIQ इस्तेमाल कर सकते हैं।');
     await this.audit.log(actor, 'user.unblock', 'User', id, { listings: hidden.length });
@@ -255,7 +301,8 @@ export class AdminControlService {
     for (const m of members) await this.auth.revokeAll(m.id);
     const live = await this.prisma.listing.findMany({ where: { organizationId: id, deletedAt: null, status: { in: LIVE } }, select: { id: true } });
     for (const l of live) await this.blockListing(actor, l.id, FIRM + reason, false);
-    for (const m of members.filter((x) => x.role === 'BROKER_ADMIN')) await this.mailUser(m.email, `${org.name} का BrokerIQ account block किया गया है`, `कारण: ${reason}. सवाल हो तो BrokerIQ support से संपर्क करें।`);
+    for (const m of members.filter((x) => x.role === 'BROKER_ADMIN'))
+      await this.mailUser(m.email, `${org.name} का BrokerIQ account block किया गया है`, `कारण: ${reason}. सवाल हो तो BrokerIQ support से संपर्क करें।`);
     await this.audit.log(actor, 'organization.block', 'Organization', id, { reason, listings: live.length, members: members.length });
     return { ok: true, listingsHidden: live.length, membersLoggedOut: members.length };
   }
@@ -263,9 +310,14 @@ export class AdminControlService {
   async unblockOrg(actor: RequestUser, id: string) {
     const org = await this.orgOrThrow(id);
     await this.prisma.organization.update({ where: { id }, data: { status: 'ACTIVE', blockedReason: null } });
-    const hidden = await this.prisma.listing.findMany({ where: { organizationId: id, status: 'BLOCKED', blockedReason: { startsWith: FIRM } }, select: { id: true } });
+    const hidden = await this.prisma.listing.findMany({
+      where: { organizationId: id, status: 'BLOCKED', blockedReason: { startsWith: FIRM } },
+      select: { id: true },
+    });
     for (const l of hidden) await this.unblockListing(actor, l.id, false);
-    await this.notifications.notifyOrg(id, { kind: 'ACCOUNT', title: `✅ ${org.name} का account फिर से चालू है`, link: '/broker' }, { adminsOnly: true }).catch(() => undefined);
+    await this.notifications
+      .notifyOrg(id, { kind: 'ACCOUNT', title: `✅ ${org.name} का account फिर से चालू है`, link: '/broker' }, { adminsOnly: true })
+      .catch(() => undefined);
     await this.audit.log(actor, 'organization.unblock', 'Organization', id, { listings: hidden.length });
     return { ok: true, listingsRestored: hidden.length };
   }
@@ -296,11 +348,24 @@ export class AdminControlService {
   async addBlock(actor: RequestUser, kind: BlockKind, value: string, reason?: string) {
     const v = AccessService.normalize(kind, value);
     if (!v) throw new BadRequestException('Value खाली है');
-    const row = await this.prisma.blocklist.upsert({ where: { kind_value: { kind, value: v } }, create: { kind, value: v, reason, createdById: actor.id }, update: { reason } });
+    const row = await this.prisma.blocklist.upsert({
+      where: { kind_value: { kind, value: v } },
+      create: { kind, value: v, reason, createdById: actor.id },
+      update: { reason },
+    });
     this.access.invalidate();
     // Existing accounts using that identity, so the admin can block them too.
     const matches = await this.prisma.user.findMany({
-      where: { status: { not: 'DELETED' }, ...(kind === 'EMAIL' ? { email: v } : kind === 'DOMAIN' ? { email: { endsWith: `@${v}` } } : kind === 'PHONE' ? { phone: { endsWith: v.slice(-10) } } : { id: '__none__' }) },
+      where: {
+        status: { not: 'DELETED' },
+        ...(kind === 'EMAIL'
+          ? { email: v }
+          : kind === 'DOMAIN'
+            ? { email: { endsWith: `@${v}` } }
+            : kind === 'PHONE'
+              ? { phone: { endsWith: v.slice(-10) } }
+              : { id: '__none__' }),
+      },
       select: { id: true, name: true, email: true, status: true },
       take: 20,
     });
@@ -346,8 +411,15 @@ export class AdminControlService {
   }
 
   async listFlatmates(active?: boolean) {
-    const rows = await this.prisma.flatmateProfile.findMany({ where: active === undefined ? {} : { isActive: active }, orderBy: { updatedAt: 'desc' }, take: 200 });
-    const users = await this.prisma.user.findMany({ where: { id: { in: rows.map((r) => r.userId) } }, select: { id: true, name: true, email: true, phone: true } });
+    const rows = await this.prisma.flatmateProfile.findMany({
+      where: active === undefined ? {} : { isActive: active },
+      orderBy: { updatedAt: 'desc' },
+      take: 200,
+    });
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: rows.map((r) => r.userId) } },
+      select: { id: true, name: true, email: true, phone: true },
+    });
     const byId = new Map(users.map((u) => [u.id, u]));
     return rows.map((r) => ({ ...r, user: byId.get(r.userId) ?? null }));
   }

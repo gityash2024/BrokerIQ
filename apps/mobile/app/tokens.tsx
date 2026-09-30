@@ -12,11 +12,16 @@ const TONE: Record<string, string> = { CLAIMED: '#F59E0B', RECEIVED: '#10B981', 
 export default function Tokens() {
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['broker-tokens'], queryFn: () => api<any[]>('/broker/tokens') });
-  const mark = useApiMutation((b: { id: string; status: string }) => patch(`/broker/tokens/${b.id}`, { status: b.status }), { success: 'Updated', invalidate: [['broker-tokens']] });
+  const mark = useApiMutation((b: { id: string; status: string }) => patch(`/broker/tokens/${b.id}`, { status: b.status }), {
+    success: 'Updated',
+    invalidate: [['broker-tokens']],
+  });
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="Token records" subtitle="मिला हो तो Received करें" />
-      {q.isLoading ? <Loader /> : !q.data?.length ? (
+      {q.isLoading ? (
+        <Loader />
+      ) : !q.data?.length ? (
         <Empty icon={<Wallet size={26} color={c.brand} />} title="अभी कोई token record नहीं" />
       ) : (
         q.data.map((t) => (
@@ -25,11 +30,17 @@ export default function Tokens() {
               <Txt v="bodyStrong">{`${formatINR(t.amount)} · ${t.mode}${t.ref ? ` · ${t.ref}` : ''}`}</Txt>
               <Badge label={t.status} color={TONE[t.status]} />
             </Row>
-            <Txt v="small" color="muted" numberOfLines={1}>{t.listing.title}</Txt>
+            <Txt v="small" color="muted" numberOfLines={1}>
+              {t.listing.title}
+            </Txt>
             <Row>
               {t.status === 'CLAIMED' && <Button title="Received" size="sm" onPress={() => mark.mutate({ id: t.id, status: 'RECEIVED' })} />}
-              {t.status === 'RECEIVED' && <Button title="Refunded" size="sm" variant="secondary" onPress={() => mark.mutate({ id: t.id, status: 'REFUNDED' })} />}
-              {['CLAIMED', 'RECEIVED'].includes(t.status) && <Button title="Cancel" size="sm" variant="ghost" onPress={() => mark.mutate({ id: t.id, status: 'CANCELLED' })} />}
+              {t.status === 'RECEIVED' && (
+                <Button title="Refunded" size="sm" variant="secondary" onPress={() => mark.mutate({ id: t.id, status: 'REFUNDED' })} />
+              )}
+              {['CLAIMED', 'RECEIVED'].includes(t.status) && (
+                <Button title="Cancel" size="sm" variant="ghost" onPress={() => mark.mutate({ id: t.id, status: 'CANCELLED' })} />
+              )}
             </Row>
           </Card>
         ))

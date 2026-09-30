@@ -162,7 +162,7 @@ export interface MoveInInput {
 export function moveInCost(i: MoveInInput) {
   const advance = i.rent * (i.advanceMonths ?? 1);
   const deposit = i.rent * i.depositMonths;
-  const brokerageBase = i.brokerage === 'NONE' ? 0 : i.brokerage === 'DAYS_15' ? i.rent / 2 : i.brokerage === 'MONTH_1' ? i.rent : i.brokerageFixed ?? 0;
+  const brokerageBase = i.brokerage === 'NONE' ? 0 : i.brokerage === 'DAYS_15' ? i.rent / 2 : i.brokerage === 'MONTH_1' ? i.rent : (i.brokerageFixed ?? 0);
   const gst = i.brokerageGst ? brokerageBase * 0.18 : 0;
   const maintenance = i.maintenance ?? 0;
   const shifting = i.shifting ?? 0;
@@ -179,8 +179,21 @@ export function moveInCost(i: MoveInInput) {
 }
 
 /** What a tenant pays to move in: first month's rent + deposit + brokerage + first maintenance (shown on cards). */
-export function firstMonthCost(l: { price: number; securityDeposit?: number | null; maintenance?: number | null; brokerageType?: string | null; brokerageAmount?: number | null }) {
-  const brokerage = !l.brokerageType || l.brokerageType === 'NONE' ? 0 : l.brokerageType === 'DAYS_15' ? l.price / 2 : l.brokerageType === 'MONTH_1' ? l.price : l.brokerageAmount ?? 0;
+export function firstMonthCost(l: {
+  price: number;
+  securityDeposit?: number | null;
+  maintenance?: number | null;
+  brokerageType?: string | null;
+  brokerageAmount?: number | null;
+}) {
+  const brokerage =
+    !l.brokerageType || l.brokerageType === 'NONE'
+      ? 0
+      : l.brokerageType === 'DAYS_15'
+        ? l.price / 2
+        : l.brokerageType === 'MONTH_1'
+          ? l.price
+          : (l.brokerageAmount ?? 0);
   return Math.round(l.price + (l.securityDeposit ?? 0) + brokerage + (l.maintenance ?? 0));
 }
 

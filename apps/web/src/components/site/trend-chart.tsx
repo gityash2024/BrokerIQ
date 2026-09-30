@@ -16,7 +16,10 @@ export function PriceTrendChart({ data }: { data: { month: string; avgPsf: numbe
         <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
         <YAxis tickFormatter={(v) => `₹${Math.round(v / 1000)}k`} tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={48} />
-        <Tooltip formatter={(v: any) => [`${formatINR(v)}/sq.ft`, 'Avg price']} contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)' }} />
+        <Tooltip
+          formatter={(v: any) => [`${formatINR(v)}/sq.ft`, 'Avg price']}
+          contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)' }}
+        />
         <Area type="monotone" dataKey="avgPsf" stroke="#4f46e5" strokeWidth={2.5} fill="url(#psf)" />
       </AreaChart>
     </ResponsiveContainer>
@@ -30,7 +33,10 @@ export function RentBarChart({ data }: { data: { bedrooms: number; avgRent: numb
         <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
         <YAxis tickFormatter={(v) => formatPriceShort(v)} tick={{ fontSize: 11, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={56} />
-        <Tooltip formatter={(v: any) => [`${formatINR(v)}/month`, 'Avg rent']} contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)' }} />
+        <Tooltip
+          formatter={(v: any) => [`${formatINR(v)}/month`, 'Avg rent']}
+          contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)' }}
+        />
         <Bar dataKey="avgRent" fill="#f59e0b" radius={[8, 8, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

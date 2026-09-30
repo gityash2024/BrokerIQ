@@ -54,7 +54,11 @@ export default async function ProjectPage({ params }: Props) {
               )}
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Possession" value={p.possessionDate ? formatDate(p.possessionDate, { month: 'short', year: 'numeric' }) : '—'} icon={<CalendarClock className="size-5" />} />
+              <Stat
+                label="Possession"
+                value={p.possessionDate ? formatDate(p.possessionDate, { month: 'short', year: 'numeric' }) : '—'}
+                icon={<CalendarClock className="size-5" />}
+              />
               <Stat label="Land area" value={p.landArea ?? '—'} icon={<Landmark className="size-5" />} tone="info" />
               <Stat label="Units" value={p.totalUnits ?? '—'} icon={<Building2 className="size-5" />} tone="warning" />
               <Stat label="Configs" value={configs.length || '—'} icon={<Ruler className="size-5" />} tone="success" />
@@ -106,7 +110,13 @@ export default async function ProjectPage({ params }: Props) {
               <section>
                 <SectionTitle title="Location" />
                 <div className="card h-80 overflow-hidden">
-                  <Map points={[{ id: p.id, lat: p.latitude ?? p.locality.latitude, lng: p.longitude ?? p.locality.longitude, label: p.name, dot: true }]} center={[p.latitude ?? p.locality.latitude, p.longitude ?? p.locality.longitude]} zoom={15} fit={false} scrollWheelZoom={false} />
+                  <Map
+                    points={[{ id: p.id, lat: p.latitude ?? p.locality.latitude, lng: p.longitude ?? p.locality.longitude, label: p.name, dot: true }]}
+                    center={[p.latitude ?? p.locality.latitude, p.longitude ?? p.locality.longitude]}
+                    zoom={15}
+                    fit={false}
+                    scrollWheelZoom={false}
+                  />
                 </div>
               </section>
             )}

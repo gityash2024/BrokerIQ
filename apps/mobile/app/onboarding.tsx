@@ -15,9 +15,24 @@ import { LanguagePill } from '@/components/language';
 const { width } = Dimensions.get('window');
 
 const SLIDES = [
-  { icon: Search, title: 'Gurgaon के verified rental घर', text: 'Furnished flats, builder floors, PG और offices — sector-wise rent, brokerage और map के साथ।', colors: ['#312E81', '#4F46E5'] as const },
-  { icon: ShieldCheck, title: 'भरोसेमंद brokers, असली listings', text: 'RERA verified brokers, reviews, और एक tap में call, WhatsApp या site visit।', colors: ['#4338CA', '#7C3AED'] as const },
-  { icon: Sparkles, title: 'Brokers के लिए सबसे smart CRM', text: 'Housing, 99acres, Facebook की सारी leads एक app में — WhatsApp automation और AI के साथ।', colors: ['#7C2D12', '#D97706'] as const },
+  {
+    icon: Search,
+    title: 'Gurgaon के verified rental घर',
+    text: 'Furnished flats, builder floors, PG और offices — sector-wise rent, brokerage और map के साथ।',
+    colors: ['#312E81', '#4F46E5'] as const,
+  },
+  {
+    icon: ShieldCheck,
+    title: 'भरोसेमंद brokers, असली listings',
+    text: 'RERA verified brokers, reviews, और एक tap में call, WhatsApp या site visit।',
+    colors: ['#4338CA', '#7C3AED'] as const,
+  },
+  {
+    icon: Sparkles,
+    title: 'Brokers के लिए सबसे smart CRM',
+    text: 'Housing, 99acres, Facebook की सारी leads एक app में — WhatsApp automation और AI के साथ।',
+    colors: ['#7C2D12', '#D97706'] as const,
+  },
 ];
 
 function Dot({ active }: { active: boolean }) {
@@ -39,10 +54,14 @@ export default function Onboarding() {
     <LinearGradient colors={s.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 }}>
-          <Txt v="h3" color="white">{app.siteName}</Txt>
+          <Txt v="h3" color="white">
+            {app.siteName}
+          </Txt>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <LanguagePill light />
-            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/(user)/home')}>Skip</Txt>
+            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/(user)/home')}>
+              Skip
+            </Txt>
           </View>
         </View>
         <FlatList
@@ -57,17 +76,52 @@ export default function Onboarding() {
             <View style={{ width, flex: 1, justifyContent: 'center', paddingHorizontal: 32 }}>
               {index === i && (
                 <>
-                  <Animated.View entering={ZoomIn.springify().damping(12)} style={{ width: 120, height: 120, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 36, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }}>
+                  <Animated.View
+                    entering={ZoomIn.springify().damping(12)}
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: 40,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 36,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.25)',
+                    }}
+                  >
                     <item.icon size={56} color="#fff" strokeWidth={1.6} />
-                    <View style={{ position: 'absolute', right: -10, top: -10, width: 40, height: 40, borderRadius: 14, backgroundColor: palette.saffron[400], alignItems: 'center', justifyContent: 'center' }}>
-                      {index === 0 ? <Building2 size={20} color="#111" /> : index === 1 ? <MessageCircle size={20} color="#111" /> : <BellRing size={20} color="#111" />}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        right: -10,
+                        top: -10,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 14,
+                        backgroundColor: palette.saffron[400],
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {index === 0 ? (
+                        <Building2 size={20} color="#111" />
+                      ) : index === 1 ? (
+                        <MessageCircle size={20} color="#111" />
+                      ) : (
+                        <BellRing size={20} color="#111" />
+                      )}
                     </View>
                   </Animated.View>
                   <Animated.View entering={FadeInDown.delay(120).duration(500)}>
-                    <Txt v="display" color="white">{item.title}</Txt>
+                    <Txt v="display" color="white">
+                      {item.title}
+                    </Txt>
                   </Animated.View>
                   <Animated.View entering={FadeInDown.delay(240).duration(500)}>
-                    <Txt color="rgba(255,255,255,0.85)" style={{ marginTop: 14, fontSize: 16, lineHeight: 24 }}>{item.text}</Txt>
+                    <Txt color="rgba(255,255,255,0.85)" style={{ marginTop: 14, fontSize: 16, lineHeight: 24 }}>
+                      {item.text}
+                    </Txt>
                   </Animated.View>
                 </>
               )}
@@ -75,13 +129,23 @@ export default function Onboarding() {
           )}
         />
         <View style={{ padding: 24, gap: 18 }}>
-          <View style={{ flexDirection: 'row', gap: 6, alignSelf: 'center' }}>{SLIDES.map((_, k) => <Dot key={k} active={k === i} />)}</View>
+          <View style={{ flexDirection: 'row', gap: 6, alignSelf: 'center' }}>
+            {SLIDES.map((_, k) => (
+              <Dot key={k} active={k === i} />
+            ))}
+          </View>
           {i < SLIDES.length - 1 ? (
             <Button title="आगे" variant="accent" size="lg" onPress={() => list.current?.scrollToIndex({ index: i + 1 })} />
           ) : (
             <>
               <Button title="Login / Sign up" variant="accent" size="lg" onPress={() => finish('/login')} />
-              <Button title="Properties देखें" variant="ghost" color="#fff" onPress={() => finish('/(user)/home')} style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
+              <Button
+                title="Properties देखें"
+                variant="ghost"
+                color="#fff"
+                onPress={() => finish('/(user)/home')}
+                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+              />
             </>
           )}
         </View>

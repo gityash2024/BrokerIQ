@@ -33,7 +33,8 @@ export class UsageService {
 
   async limits(orgId: string): Promise<{ plan: string; status: string; limits: PlanLimits }> {
     const sub = await this.prisma.subscription.findUnique({ where: { organizationId: orgId }, include: { plan: true } });
-    const active = sub && ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(sub.status) && (!sub.currentPeriodEnd || sub.currentPeriodEnd > new Date() || sub.status !== 'ACTIVE');
+    const active =
+      sub && ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(sub.status) && (!sub.currentPeriodEnd || sub.currentPeriodEnd > new Date() || sub.status !== 'ACTIVE');
     if (!sub || !active) {
       const free = await this.prisma.plan.findFirst({ where: { priceMonthly: 0, isActive: true }, orderBy: { sortOrder: 'asc' } });
       return { plan: free?.code ?? 'FREE', status: sub?.status ?? 'NONE', limits: { ...FALLBACK, ...((free?.limits as object) ?? {}) } };
@@ -68,7 +69,9 @@ export class UsageService {
       const day = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10); // IST day
       const used = await this.count(orgId, 'ai-day', day);
       if (app.ai.dailyCap > 0 && used >= app.ai.dailyCap)
-        throw new AppException(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMITED, `आज की AI limit (${app.ai.dailyCap}) पूरी हो गई — कल फिर इस्तेमाल करें।`, { cap: app.ai.dailyCap });
+        throw new AppException(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMITED, `आज की AI limit (${app.ai.dailyCap}) पूरी हो गई — कल फिर इस्तेमाल करें।`, {
+          cap: app.ai.dailyCap,
+        });
       await this.increment(orgId, 'ai-day', 1, day);
     } else {
       await this.assert(orgId, 'aiCredits', await this.count(orgId, 'ai'), 1);

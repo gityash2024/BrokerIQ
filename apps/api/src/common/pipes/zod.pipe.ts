@@ -10,7 +10,12 @@ export class ZodPipe<T> implements PipeTransform<unknown, T> {
     if (!result.success) {
       const details = result.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
       const first = details[0];
-      throw new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, first ? `${first.path || 'input'}: ${first.message}` : 'Invalid input', details);
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VALIDATION_FAILED,
+        first ? `${first.path || 'input'}: ${first.message}` : 'Invalid input',
+        details,
+      );
     }
     return result.data;
   }

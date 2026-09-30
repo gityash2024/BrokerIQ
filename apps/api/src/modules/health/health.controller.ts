@@ -26,7 +26,13 @@ export class HealthController {
     } catch {
       db = 'down';
     }
-    return { status: db === 'ok' ? 'ok' : 'degraded', db, dbLatencyMs: Date.now() - t, uptimeSec: Math.round((Date.now() - startedAt.getTime()) / 1000), time: new Date().toISOString() };
+    return {
+      status: db === 'ok' ? 'ok' : 'degraded',
+      db,
+      dbLatencyMs: Date.now() - t,
+      uptimeSec: Math.round((Date.now() - startedAt.getTime()) / 1000),
+      time: new Date().toISOString(),
+    };
   }
 
   @Roles('SUPER_ADMIN')

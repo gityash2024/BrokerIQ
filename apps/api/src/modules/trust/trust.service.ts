@@ -10,7 +10,29 @@ import { randomOtp, requireOrg, sha256 } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
 
 /** Consumer mailboxes don't prove employment. */
-export const FREE_EMAIL_DOMAINS = new Set(['gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'yahoo.in', 'hotmail.com', 'outlook.com', 'live.com', 'msn.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com', 'rediffmail.com', 'zoho.com', 'zohomail.in', 'gmx.com', 'yandex.com', 'mail.com', 'tutanota.com']);
+export const FREE_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'yahoo.co.in',
+  'yahoo.in',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'msn.com',
+  'icloud.com',
+  'me.com',
+  'aol.com',
+  'proton.me',
+  'protonmail.com',
+  'rediffmail.com',
+  'zoho.com',
+  'zohomail.in',
+  'gmx.com',
+  'yandex.com',
+  'mail.com',
+  'tutanota.com',
+]);
 
 /** Max distance of an on-site photo from the listing pin (or locality centre when there's no pin). */
 export const VISIT_RADIUS_M = { pin: 300, locality: 1500 };
@@ -51,7 +73,18 @@ export class TrustService {
       where: { status: 'ACTIVE', deletedAt: null, visitVerifiedAt: null },
       orderBy: { publishedAt: 'desc' },
       take: 300,
-      select: { id: true, slug: true, title: true, coverUrl: true, address: true, societyName: true, latitude: true, longitude: true, locality: { select: { name: true, latitude: true, longitude: true } }, organization: { select: { name: true, phone: true } } },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        coverUrl: true,
+        address: true,
+        societyName: true,
+        latitude: true,
+        longitude: true,
+        locality: { select: { name: true, latitude: true, longitude: true } },
+        organization: { select: { name: true, phone: true } },
+      },
     });
     const withDist = rows.map((l) => {
       const p = l.latitude != null && l.longitude != null ? { lat: l.latitude, lng: l.longitude } : { lat: l.locality.latitude, lng: l.locality.longitude };
@@ -70,10 +103,24 @@ export class TrustService {
     if (!measured.some((p) => p.distanceM <= limit)) {
       throw new BadRequestException(`Photos property से दूर हैं (${measured.map((p) => `${p.distanceM}m`).join(', ')}) — ${limit}m के अंदर से photo लें`);
     }
-    await this.prisma.listingVerificationPhoto.createMany({ data: measured.map((p) => ({ listingId, url: p.url, lat: p.lat, lng: p.lng, distanceM: p.distanceM, takenById: admin.id })) });
-    const updated = await this.prisma.listing.update({ where: { id: listingId }, data: { visitVerifiedAt: new Date(), visitVerifiedById: admin.id }, select: { id: true, visitVerifiedAt: true } });
-    await this.notifications.notify(l.postedById, { kind: 'VISIT_VERIFIED', title: '✅ आपकी listing "Visit verified" हुई', body: l.title, link: `/property/${l.slug}` });
-    await this.audit.log(admin, 'listing.visit_verify', 'Listing', listingId, { photos: measured.length, bestM: Math.min(...measured.map((p) => p.distanceM)) });
+    await this.prisma.listingVerificationPhoto.createMany({
+      data: measured.map((p) => ({ listingId, url: p.url, lat: p.lat, lng: p.lng, distanceM: p.distanceM, takenById: admin.id })),
+    });
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data: { visitVerifiedAt: new Date(), visitVerifiedById: admin.id },
+      select: { id: true, visitVerifiedAt: true },
+    });
+    await this.notifications.notify(l.postedById, {
+      kind: 'VISIT_VERIFIED',
+      title: '✅ आपकी listing "Visit verified" हुई',
+      body: l.title,
+      link: `/property/${l.slug}`,
+    });
+    await this.audit.log(admin, 'listing.visit_verify', 'Listing', listingId, {
+      photos: measured.length,
+      bestM: Math.min(...measured.map((p) => p.distanceM)),
+    });
     return { ...updated, photos: measured };
   }
 
@@ -85,13 +132,24 @@ export class TrustService {
 
   // ------------------------------------------------------------------ verified tenant
   async tenantProfile(userId: string) {
-    const u = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { occupation: true, employer: true, workEmail: true, workEmailVerifiedAt: true, tenantVerifiedAt: true } });
-    const kyc = await this.prisma.kycDocument.findMany({ where: { userId }, select: { id: true, docType: true, status: true, createdAt: true }, orderBy: { createdAt: 'desc' } });
+    const u = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { occupation: true, employer: true, workEmail: true, workEmailVerifiedAt: true, tenantVerifiedAt: true },
+    });
+    const kyc = await this.prisma.kycDocument.findMany({
+      where: { userId },
+      select: { id: true, docType: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
     return { ...u, kyc };
   }
 
   updateTenantProfile(userId: string, body: { occupation?: string | null; employer?: string | null }) {
-    return this.prisma.user.update({ where: { id: userId }, data: { occupation: body.occupation ?? undefined, employer: body.employer ?? undefined }, select: { occupation: true, employer: true } });
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { occupation: body.occupation ?? undefined, employer: body.employer ?? undefined },
+      select: { occupation: true, employer: true },
+    });
   }
 
   async requestWorkEmail(userId: string, raw: string) {
@@ -111,7 +169,10 @@ export class TrustService {
   async verifyWorkEmail(userId: string, code: string) {
     const u = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { workEmail: true } });
     if (!u.workEmail) throw new BadRequestException('पहले office email डालें');
-    const otp = await this.prisma.otpCode.findFirst({ where: { email: u.workEmail, purpose: 'WORK_EMAIL', consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } });
+    const otp = await this.prisma.otpCode.findFirst({
+      where: { email: u.workEmail, purpose: 'WORK_EMAIL', consumedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
     if (!otp || otp.attempts >= 5) throw new BadRequestException('Code expire हो गया — दोबारा भेजें');
     if (otp.codeHash !== sha256(code.trim())) {
       await this.prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
@@ -119,7 +180,11 @@ export class TrustService {
     }
     await this.prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
     const now = new Date();
-    return this.prisma.user.update({ where: { id: userId }, data: { workEmailVerifiedAt: now, tenantVerifiedAt: now }, select: { workEmail: true, workEmailVerifiedAt: true, tenantVerifiedAt: true } });
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { workEmailVerifiedAt: now, tenantVerifiedAt: now },
+      select: { workEmail: true, workEmailVerifiedAt: true, tenantVerifiedAt: true },
+    });
   }
 
   // ------------------------------------------------------------------ locality / society reviews
@@ -134,17 +199,28 @@ export class TrustService {
       update: data,
     });
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-    await this.notifications.notify(admins.map((a) => a.id), { kind: 'REVIEW_PENDING', title: `नया locality review: ${loc.name}`, body: societyName || undefined, link: '/admin/locality-reviews', push: false });
+    await this.notifications.notify(
+      admins.map((a) => a.id),
+      { kind: 'REVIEW_PENDING', title: `नया locality review: ${loc.name}`, body: societyName || undefined, link: '/admin/locality-reviews', push: false },
+    );
     return review;
   }
 
   async publicReviews(localitySlug: string, society?: string) {
     const loc = await this.prisma.locality.findUnique({ where: { slug: localitySlug }, select: { id: true } });
     if (!loc) throw new NotFoundException();
-    const where: Prisma.LocalityReviewWhereInput = { localityId: loc.id, status: 'APPROVED', ...(society ? { societyName: { equals: society, mode: 'insensitive' } } : {}) };
+    const where: Prisma.LocalityReviewWhereInput = {
+      localityId: loc.id,
+      status: 'APPROVED',
+      ...(society ? { societyName: { equals: society, mode: 'insensitive' } } : {}),
+    };
     const [items, agg] = await Promise.all([
       this.prisma.localityReview.findMany({ where, orderBy: { createdAt: 'desc' }, take: 30 }),
-      this.prisma.localityReview.aggregate({ where, _avg: { water: true, power: true, safety: true, parking: true, connectivity: true, maintenance: true }, _count: { _all: true } }),
+      this.prisma.localityReview.aggregate({
+        where,
+        _avg: { water: true, power: true, safety: true, parking: true, connectivity: true, maintenance: true },
+        _count: { _all: true },
+      }),
     ]);
     const users = await this.prisma.user.findMany({ where: { id: { in: items.map((i) => i.userId) } }, select: { id: true, name: true } });
     const avg = Object.fromEntries(DIMENSIONS.map((d) => [d, agg._avg[d] ? Math.round(agg._avg[d]! * 10) / 10 : null]));
@@ -158,7 +234,12 @@ export class TrustService {
   }
 
   adminReviews(status = 'PENDING') {
-    return this.prisma.localityReview.findMany({ where: { status: status as any }, orderBy: { createdAt: 'desc' }, take: 200, include: { locality: { select: { name: true, slug: true } } } });
+    return this.prisma.localityReview.findMany({
+      where: { status: status as any },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: { locality: { select: { name: true, slug: true } } },
+    });
   }
 
   async moderateReview(admin: RequestUser, id: string, status: 'APPROVED' | 'REJECTED') {
@@ -169,33 +250,78 @@ export class TrustService {
 
   // ------------------------------------------------------------------ token money (manual record, no gateway)
   async tokenInfo(listingId: string) {
-    const l = await this.prisma.listing.findFirst({ where: { id: listingId, status: 'ACTIVE', deletedAt: null }, select: { price: true, securityDeposit: true, tokenReceivedAt: true, organization: { select: { name: true, upiId: true, upiName: true } } } });
+    const l = await this.prisma.listing.findFirst({
+      where: { id: listingId, status: 'ACTIVE', deletedAt: null },
+      select: { price: true, securityDeposit: true, tokenReceivedAt: true, organization: { select: { name: true, upiId: true, upiName: true } } },
+    });
     if (!l) throw new NotFoundException();
-    return { org: l.organization ? { name: l.organization.name, upiId: l.organization.upiId, upiName: l.organization.upiName } : null, rent: l.price, deposit: l.securityDeposit, alreadyTaken: !!l.tokenReceivedAt };
+    return {
+      org: l.organization ? { name: l.organization.name, upiId: l.organization.upiId, upiName: l.organization.upiName } : null,
+      rent: l.price,
+      deposit: l.securityDeposit,
+      alreadyTaken: !!l.tokenReceivedAt,
+    };
   }
 
   async claimToken(user: RequestUser, listingId: string, body: { amount: number; mode: string; ref?: string | null; notes?: string | null }) {
-    const l = await this.prisma.listing.findFirst({ where: { id: listingId, status: 'ACTIVE', deletedAt: null }, select: { id: true, title: true, organizationId: true, postedById: true } });
+    const l = await this.prisma.listing.findFirst({
+      where: { id: listingId, status: 'ACTIVE', deletedAt: null },
+      select: { id: true, title: true, organizationId: true, postedById: true },
+    });
     if (!l) throw new NotFoundException();
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, phone: true, email: true } });
     let leadId: string | null = null;
     if (l.organizationId && me.phone) {
-      const { lead } = await this.leads.ingest({ orgId: l.organizationId, name: me.name, phone: me.phone, email: me.email, source: 'WEBSITE', sourceDetail: `Token paid: ${l.title}`, listingId: l.id, message: `Tenant ने ${formatINR(body.amount)} token देने की जानकारी दी (${body.mode}${body.ref ? `, ref ${body.ref}` : ''})` });
+      const { lead } = await this.leads.ingest({
+        orgId: l.organizationId,
+        name: me.name,
+        phone: me.phone,
+        email: me.email,
+        source: 'WEBSITE',
+        sourceDetail: `Token paid: ${l.title}`,
+        listingId: l.id,
+        message: `Tenant ने ${formatINR(body.amount)} token देने की जानकारी दी (${body.mode}${body.ref ? `, ref ${body.ref}` : ''})`,
+      });
       leadId = lead.id;
     }
-    const t = await this.prisma.tokenPayment.create({ data: { listingId: l.id, organizationId: l.organizationId, leadId, userId: user.id, amount: body.amount, mode: body.mode, ref: body.ref ?? null, notes: body.notes ?? null } });
-    const note = { kind: 'TOKEN_CLAIMED', title: `💰 Token की जानकारी: ${formatINR(body.amount)}`, body: `${me.name} · ${l.title} — payment मिला हो तो confirm करें`, link: '/broker/tokens' };
+    const t = await this.prisma.tokenPayment.create({
+      data: {
+        listingId: l.id,
+        organizationId: l.organizationId,
+        leadId,
+        userId: user.id,
+        amount: body.amount,
+        mode: body.mode,
+        ref: body.ref ?? null,
+        notes: body.notes ?? null,
+      },
+    });
+    const note = {
+      kind: 'TOKEN_CLAIMED',
+      title: `💰 Token की जानकारी: ${formatINR(body.amount)}`,
+      body: `${me.name} · ${l.title} — payment मिला हो तो confirm करें`,
+      link: '/broker/tokens',
+    };
     if (l.organizationId) await this.notifications.notifyOrg(l.organizationId, note, { adminsOnly: true });
     else await this.notifications.notify(l.postedById, { ...note, link: '/account/listings' });
     return t;
   }
 
   myTokens(userId: string) {
-    return this.prisma.tokenPayment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { listing: { select: { title: true, slug: true } } } });
+    return this.prisma.tokenPayment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: { listing: { select: { title: true, slug: true } } },
+    });
   }
 
   brokerTokens(user: RequestUser) {
-    return this.prisma.tokenPayment.findMany({ where: { organizationId: requireOrg(user) }, orderBy: [{ status: 'asc' }, { createdAt: 'desc' }], take: 200, include: { listing: { select: { id: true, title: true, slug: true } } } });
+    return this.prisma.tokenPayment.findMany({
+      where: { organizationId: requireOrg(user) },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      take: 200,
+      include: { listing: { select: { id: true, title: true, slug: true } } },
+    });
   }
 
   async markToken(user: RequestUser, id: string, status: Exclude<TokenStatus, 'CLAIMED'>, notes?: string | null) {
@@ -207,7 +333,8 @@ export class TrustService {
       await this.prisma.listing.update({ where: { id: t.listingId }, data: { tokenReceivedAt: new Date() } });
       if (t.leadId) {
         const lead = await this.prisma.lead.findUnique({ where: { id: t.leadId }, select: { stage: true } });
-        if (lead && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(lead.stage)) await this.leads.changeStage(t.leadId, 'NEGOTIATION', user).catch(() => undefined);
+        if (lead && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(lead.stage))
+          await this.leads.changeStage(t.leadId, 'NEGOTIATION', user).catch(() => undefined);
       }
     } else {
       const stillHeld = await this.prisma.tokenPayment.count({ where: { listingId: t.listingId, status: 'RECEIVED', id: { not: id } } });
@@ -222,6 +349,6 @@ export class TrustService {
   }
 
   normalizePhone(p?: string | null) {
-    return p ? normalizeIndianPhone(p) ?? p : null;
+    return p ? (normalizeIndianPhone(p) ?? p) : null;
   }
 }

@@ -1,5 +1,20 @@
 'use client';
-import { Bell, Building, Heart, LayoutDashboard, MessageSquareHeart, MessagesSquare, Search, Send, UserCircle, ShieldCheck , ClipboardList, CalendarCheck, Users, FileSignature } from 'lucide-react';
+import {
+  Bell,
+  Building,
+  Heart,
+  LayoutDashboard,
+  MessageSquareHeart,
+  MessagesSquare,
+  Search,
+  Send,
+  UserCircle,
+  ShieldCheck,
+  ClipboardList,
+  CalendarCheck,
+  Users,
+  FileSignature,
+} from 'lucide-react';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';

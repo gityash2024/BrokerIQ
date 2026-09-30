@@ -12,7 +12,14 @@ describe('Housing lead API client', () => {
   it('builds the broker URL with all mandatory params', () => {
     const u = new URL(housingUrl(creds, 100, 200, 300));
     expect(u.origin + u.pathname).toBe('https://pahal.housing.com/api/v0/get-broker-leads');
-    expect(Object.fromEntries(u.searchParams)).toEqual({ start_date: '100', end_date: '200', current_time: '300', hash: housingHash('test-key', 300), id: '12345', per_page: '1000' });
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      start_date: '100',
+      end_date: '200',
+      current_time: '300',
+      hash: housingHash('test-key', 300),
+      id: '12345',
+      per_page: '1000',
+    });
   });
 
   it('uses the builder endpoint and project_ids for builders', () => {

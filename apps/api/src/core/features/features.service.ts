@@ -23,7 +23,8 @@ export class FeaturesService {
   }
 
   async assertEnabled(key: string) {
-    if (!(await this.isEnabled(key))) throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FEATURE_DISABLED, `${featureName(key)} अभी बंद है।`, { feature: key });
+    if (!(await this.isEnabled(key)))
+      throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FEATURE_DISABLED, `${featureName(key)} अभी बंद है।`, { feature: key });
   }
 
   /** Rental-only marketplace unless Super Admin switches sale listings on. */

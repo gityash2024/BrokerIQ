@@ -4,7 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowRight, Building2, Check, Home, MapPin, Sparkles, Store, Wand2 } from 'lucide-react';
-import { BROKERAGE_LABELS, FACING_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, pricePerSqft, formatINR } from '@brokeriq/shared';
+import {
+  BROKERAGE_LABELS,
+  FACING_LABELS,
+  FURNISHING_LABELS,
+  PROPERTY_TYPE_CATEGORY,
+  PROPERTY_TYPE_LABELS,
+  RENTABLE_TYPES,
+  formatPriceShort,
+  pricePerSqft,
+  formatINR,
+} from '@brokeriq/shared';
 import { api, ApiError, errorMessage, uploadFile } from '@/lib/api';
 import { useFlag } from '@/lib/config';
 import { cn } from '@/lib/utils';
@@ -63,9 +73,27 @@ export interface ListingFormValue {
   contactPhone?: string | null;
 }
 
-const EMPTY: ListingFormValue = { purpose: 'RENT', propertyType: 'APARTMENT', localityId: '', amenities: [], photos: [], priceNegotiable: false, preferredTenants: [] };
+const EMPTY: ListingFormValue = {
+  purpose: 'RENT',
+  propertyType: 'APARTMENT',
+  localityId: '',
+  amenities: [],
+  photos: [],
+  priceNegotiable: false,
+  preferredTenants: [],
+};
 
-export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: { initial?: Partial<ListingFormValue>; listingId?: string; afterSave: (l: any) => void; role?: 'owner' | 'broker' }) {
+export function ListingForm({
+  initial,
+  listingId,
+  afterSave,
+  role = 'owner',
+}: {
+  initial?: Partial<ListingFormValue>;
+  listingId?: string;
+  afterSave: (l: any) => void;
+  role?: 'owner' | 'broker';
+}) {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [v, setV] = useState<ListingFormValue>({ ...EMPTY, ...initial } as ListingFormValue);
@@ -113,7 +141,7 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
       purpose: 'RENT' as const,
       brokerageType: v.brokerageType || null,
       brokerageAmount: v.brokerageType === 'FIXED' ? num(v.brokerageAmount) : null,
-      ...(role === 'broker' ? { coBroking: !!v.coBroking, coBrokingSharePct: v.coBroking ? num(v.coBrokingSharePct) ?? 50 : null } : {}),
+      ...(role === 'broker' ? { coBroking: !!v.coBroking, coBrokingSharePct: v.coBroking ? (num(v.coBrokingSharePct) ?? 50) : null } : {}),
       bedrooms: num(v.bedrooms),
       bathrooms: num(v.bathrooms),
       balconies: num(v.balconies),
@@ -142,7 +170,9 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
     }
     setSaving(true);
     try {
-      const l = listingId ? await api<any>(`/listings/${listingId}`, { method: 'PATCH', body: payload(submit) }) : await api<any>('/listings', { method: 'POST', body: payload(submit) });
+      const l = listingId
+        ? await api<any>(`/listings/${listingId}`, { method: 'PATCH', body: payload(submit) })
+        : await api<any>('/listings', { method: 'POST', body: payload(submit) });
       if (l?.status === 'PENDING_REVIEW') toast.success('Review के लिए भेज दी गई — admin approval के बाद live होगी ✅');
       afterSave(l);
     } catch (e) {
@@ -156,7 +186,10 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
     setAiLoading(true);
     setAiError(null);
     try {
-      const r = await api<{ description: string }>('/listings/ai/description', { method: 'POST', body: { ...payload(false), tone: 'professional', language: 'en' } });
+      const r = await api<{ description: string }>('/listings/ai/description', {
+        method: 'POST',
+        body: { ...payload(false), tone: 'professional', language: 'en' },
+      });
       set({ description: r.description });
       toast.success('AI ने description लिख दी ✨ — ज़रूरत हो तो edit करें');
     } catch (e) {
@@ -176,19 +209,43 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           {STEPS.map((s, i) => (
-            <button key={s} type="button" onClick={() => (i < step ? (setDir(-1), setStep(i)) : undefined)} className="flex flex-1 flex-col items-center gap-1.5">
-              <span className={cn('grid size-9 place-items-center rounded-full text-sm font-bold transition', i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-brand-600 text-white ring-4 ring-brand-500/20' : 'bg-surface-2 text-subtle')}>{i < step ? <Check className="size-4" /> : i + 1}</span>
+            <button
+              key={s}
+              type="button"
+              onClick={() => (i < step ? (setDir(-1), setStep(i)) : undefined)}
+              className="flex flex-1 flex-col items-center gap-1.5"
+            >
+              <span
+                className={cn(
+                  'grid size-9 place-items-center rounded-full text-sm font-bold transition',
+                  i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-brand-600 text-white ring-4 ring-brand-500/20' : 'bg-surface-2 text-subtle',
+                )}
+              >
+                {i < step ? <Check className="size-4" /> : i + 1}
+              </span>
               <span className={cn('hidden text-xs font-semibold sm:block', i === step ? 'text-fg' : 'text-subtle')}>{s}</span>
             </button>
           ))}
         </div>
         <div className="relative mt-3 h-1.5 rounded-full bg-surface-2">
-          <motion.div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand-500 to-brand-700" animate={{ width: `${(step / (STEPS.length - 1)) * 100}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand-500 to-brand-700"
+            animate={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+            transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+          />
         </div>
       </div>
 
       <AnimatePresence mode="wait" custom={dir}>
-        <motion.div key={step} custom={dir} initial={{ opacity: 0, x: dir * 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -dir * 40 }} transition={{ duration: 0.25 }} className="card space-y-6 p-6 sm:p-8">
+        <motion.div
+          key={step}
+          custom={dir}
+          initial={{ opacity: 0, x: dir * 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -dir * 40 }}
+          transition={{ duration: 0.25 }}
+          className="card space-y-6 p-6 sm:p-8"
+        >
           {step === 0 && (
             <>
               <h2 className="font-display text-2xl font-bold">किराये पर क्या देना है?</h2>
@@ -201,7 +258,15 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                       ['COMMERCIAL', Store, 'Commercial', 'OFFICE'],
                     ] as const
                   ).map(([c, Icon, label, def]) => (
-                    <button type="button" key={c} onClick={() => set({ propertyType: def })} className={cn('flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition', cat === c ? 'border-brand-600 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
+                    <button
+                      type="button"
+                      key={c}
+                      onClick={() => set({ propertyType: def })}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition',
+                        cat === c ? 'border-brand-600 bg-brand-50/60 dark:bg-brand-500/10' : 'border-line hover:border-brand-300',
+                      )}
+                    >
                       <Icon className="size-7 text-brand-600" />
                       <span className="text-sm font-semibold">{label}</span>
                     </button>
@@ -225,7 +290,13 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
             <>
               <h2 className="font-display text-2xl font-bold">Property कहाँ है?</h2>
               <Field label="Sector / Locality" required>
-                <Input icon={<MapPin className="size-4" />} placeholder="Sector 65, Golf Course Road…" value={loc && !locQ ? loc.name : locQ} onChange={(e) => setLocQ(e.target.value)} onFocus={() => setLocQ('')} />
+                <Input
+                  icon={<MapPin className="size-4" />}
+                  placeholder="Sector 65, Golf Course Road…"
+                  value={loc && !locQ ? loc.name : locQ}
+                  onChange={(e) => setLocQ(e.target.value)}
+                  onFocus={() => setLocQ('')}
+                />
               </Field>
               {(locQ || !loc) && (
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-line">
@@ -233,7 +304,15 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                     .filter((l) => !locQ || l.name.toLowerCase().includes(locQ.toLowerCase()) || l.zone?.toLowerCase().includes(locQ.toLowerCase()))
                     .slice(0, 40)
                     .map((l) => (
-                      <button type="button" key={l.id} onClick={() => (set({ localityId: l.id, latitude: l.latitude, longitude: l.longitude }), setLocQ(''))} className={cn('flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-surface-2', l.id === v.localityId && 'bg-brand-50 dark:bg-brand-500/10')}>
+                      <button
+                        type="button"
+                        key={l.id}
+                        onClick={() => (set({ localityId: l.id, latitude: l.latitude, longitude: l.longitude }), setLocQ(''))}
+                        className={cn(
+                          'flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-surface-2',
+                          l.id === v.localityId && 'bg-brand-50 dark:bg-brand-500/10',
+                        )}
+                      >
                         <span>
                           <span className="font-medium">{l.name}</span> <span className="text-xs text-subtle">· {l.zone}</span>
                         </span>
@@ -354,7 +433,15 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                   <p className="mb-2 text-sm font-semibold">Preferred tenants</p>
                   <div className="flex flex-wrap gap-2">
                     {['Family', 'Bachelors', 'Company lease', 'Any'].map((t) => (
-                      <Chip key={t} active={v.preferredTenants?.includes(t)} onClick={() => set({ preferredTenants: v.preferredTenants?.includes(t) ? v.preferredTenants.filter((x) => x !== t) : [...(v.preferredTenants ?? []), t] })}>
+                      <Chip
+                        key={t}
+                        active={v.preferredTenants?.includes(t)}
+                        onClick={() =>
+                          set({
+                            preferredTenants: v.preferredTenants?.includes(t) ? v.preferredTenants.filter((x) => x !== t) : [...(v.preferredTenants ?? []), t],
+                          })
+                        }
+                      >
                         {t}
                       </Chip>
                     ))}
@@ -366,7 +453,11 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                 <p className="mb-2 text-sm font-semibold">Amenities</p>
                 <div className="flex flex-wrap gap-2">
                   {amenities.map((a: any) => (
-                    <Chip key={a.key} active={v.amenities.includes(a.key)} onClick={() => set({ amenities: v.amenities.includes(a.key) ? v.amenities.filter((x) => x !== a.key) : [...v.amenities, a.key] })}>
+                    <Chip
+                      key={a.key}
+                      active={v.amenities.includes(a.key)}
+                      onClick={() => set({ amenities: v.amenities.includes(a.key) ? v.amenities.filter((x) => x !== a.key) : [...v.amenities, a.key] })}
+                    >
                       {a.label}
                     </Chip>
                   ))}
@@ -379,8 +470,17 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
             <>
               <h2 className="font-display text-2xl font-bold">Price और photos</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={v.purpose === 'RENT' ? 'Monthly rent (₹)' : 'Expected price (₹)'} required hint={v.price ? `${formatPriceShort(Number(v.price))}${psf && v.purpose === 'SALE' ? ` · ${formatINR(psf)}/sq.ft` : ''}` : undefined}>
-                  <Input inputMode="numeric" value={v.price ?? ''} onChange={(e) => set({ price: e.target.value ? Number(e.target.value.replace(/\D/g, '')) : null })} placeholder={v.purpose === 'RENT' ? '45000' : '15000000'} />
+                <Field
+                  label={v.purpose === 'RENT' ? 'Monthly rent (₹)' : 'Expected price (₹)'}
+                  required
+                  hint={v.price ? `${formatPriceShort(Number(v.price))}${psf && v.purpose === 'SALE' ? ` · ${formatINR(psf)}/sq.ft` : ''}` : undefined}
+                >
+                  <Input
+                    inputMode="numeric"
+                    value={v.price ?? ''}
+                    onChange={(e) => set({ price: e.target.value ? Number(e.target.value.replace(/\D/g, '')) : null })}
+                    placeholder={v.purpose === 'RENT' ? '45000' : '15000000'}
+                  />
                 </Field>
                 <NumField label="Maintenance (₹/month)" value={v.maintenance} onChange={(x) => set({ maintenance: x })} />
                 <NumField label="Security deposit (₹)" value={v.securityDeposit} onChange={(x) => set({ securityDeposit: x })} />
@@ -394,7 +494,9 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                     ))}
                   </Select>
                 </Field>
-                {v.brokerageType === 'FIXED' && <NumField label="Brokerage amount (₹)" value={v.brokerageAmount} onChange={(x) => set({ brokerageAmount: x })} />}
+                {v.brokerageType === 'FIXED' && (
+                  <NumField label="Brokerage amount (₹)" value={v.brokerageAmount} onChange={(x) => set({ brokerageAmount: x })} />
+                )}
                 <label className="flex items-center gap-3 rounded-xl border border-line px-4 py-3">
                   <Switch checked={!!v.priceNegotiable} onCheckedChange={(x) => set({ priceNegotiable: x })} />
                   <span className="text-sm font-medium">Price negotiable</span>
@@ -405,7 +507,13 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                       <Switch checked={!!v.coBroking} onCheckedChange={(x) => set({ coBroking: x })} />
                       <span className="text-sm font-medium">Co-broking के लिए खुला — दूसरे BrokerIQ brokers अपने clients के लिए request कर सकें</span>
                     </label>
-                    {v.coBroking && <NumField label="Partner broker का हिस्सा (% brokerage)" value={v.coBrokingSharePct ?? 50} onChange={(x) => set({ coBrokingSharePct: x })} />}
+                    {v.coBroking && (
+                      <NumField
+                        label="Partner broker का हिस्सा (% brokerage)"
+                        value={v.coBrokingSharePct ?? 50}
+                        onChange={(x) => set({ coBrokingSharePct: x })}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -423,7 +531,11 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
             <>
               <h2 className="font-display text-2xl font-bold">Review और description</h2>
               <Field label="Title" hint="खाली छोड़ें तो अपने-आप बनेगा">
-                <Input value={v.title ?? ''} onChange={(e) => set({ title: e.target.value })} placeholder={`${v.bedrooms ? `${v.bedrooms} BHK ` : ''}${(PROPERTY_TYPE_LABELS as any)[v.propertyType]} for ${v.purpose === 'SALE' ? 'Sale' : 'Rent'} in ${loc?.name ?? ''}`} />
+                <Input
+                  value={v.title ?? ''}
+                  onChange={(e) => set({ title: e.target.value })}
+                  placeholder={`${v.bedrooms ? `${v.bedrooms} BHK ` : ''}${(PROPERTY_TYPE_LABELS as any)[v.propertyType]} for ${v.purpose === 'SALE' ? 'Sale' : 'Rent'} in ${loc?.name ?? ''}`}
+                />
               </Field>
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
@@ -434,8 +546,17 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                     </Button>
                   )}
                 </div>
-                {aiError?.body.integration && <div className="mb-2"><IntegrationBanner compact name={aiError.body.integration.name} message={aiError.body.message} /></div>}
-                <Textarea rows={7} value={v.description ?? ''} onChange={(e) => set({ description: e.target.value })} placeholder="Property की खास बातें — view, ventilation, nearby school/metro, society facilities…" />
+                {aiError?.body.integration && (
+                  <div className="mb-2">
+                    <IntegrationBanner compact name={aiError.body.integration.name} message={aiError.body.message} />
+                  </div>
+                )}
+                <Textarea
+                  rows={7}
+                  value={v.description ?? ''}
+                  onChange={(e) => set({ description: e.target.value })}
+                  placeholder="Property की खास बातें — view, ventilation, nearby school/metro, society facilities…"
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Contact name" hint={role === 'broker' ? 'खाली = firm का नाम' : undefined}>
@@ -450,9 +571,12 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
                   <Sparkles className="size-4 text-saffron-500" /> Summary
                 </p>
                 <p className="mt-1 text-sm text-muted">
-                  {(PROPERTY_TYPE_LABELS as any)[v.propertyType]} · {v.purpose === 'SALE' ? 'Sale' : 'Rent'} · {loc?.name} · {v.price ? formatPriceShort(Number(v.price)) : '—'} · {v.photos.length} photos
+                  {(PROPERTY_TYPE_LABELS as any)[v.propertyType]} · {v.purpose === 'SALE' ? 'Sale' : 'Rent'} · {loc?.name} ·{' '}
+                  {v.price ? formatPriceShort(Number(v.price)) : '—'} · {v.photos.length} photos
                 </p>
-                {v.photos.length < 3 && <p className="mt-2 text-xs font-semibold text-amber-600">💡 3+ photos वाली listings को 5x ज़्यादा enquiries मिलती हैं</p>}
+                {v.photos.length < 3 && (
+                  <p className="mt-2 text-xs font-semibold text-amber-600">💡 3+ photos वाली listings को 5x ज़्यादा enquiries मिलती हैं</p>
+                )}
               </div>
             </>
           )}
@@ -484,21 +608,79 @@ export function ListingForm({ initial, listingId, afterSave, role = 'owner' }: {
   );
 }
 
-function NumField({ label, value, onChange, required }: { label: string; value: number | null | undefined; onChange: (v: number | null) => void; required?: boolean }) {
+function NumField({
+  label,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  value: number | null | undefined;
+  onChange: (v: number | null) => void;
+  required?: boolean;
+}) {
   return (
     <Field label={label} required={required}>
-      <Input inputMode="numeric" value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value.replace(/[^\d.-]/g, '')))} />
+      <Input
+        inputMode="numeric"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value.replace(/[^\d.-]/g, '')))}
+      />
     </Field>
   );
 }
 
 /** Map an API listing to form values (for edit). */
 export function listingToForm(l: any): Partial<ListingFormValue> {
-  const keys: (keyof ListingFormValue)[] = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'ageYears', 'facing', 'parking', 'availableFrom', 'preferredTenants', 'pgSharing', 'pgGender', 'pgFood', 'pgRules', 'amenities', 'reraNumber', 'title', 'description', 'videoUrl', 'contactName', 'contactPhone'];
+  const keys: (keyof ListingFormValue)[] = [
+    'purpose',
+    'propertyType',
+    'localityId',
+    'societyName',
+    'address',
+    'latitude',
+    'longitude',
+    'price',
+    'maintenance',
+    'securityDeposit',
+    'brokerageType',
+    'brokerageAmount',
+    'priceNegotiable',
+    'coBroking',
+    'coBrokingSharePct',
+    'bedrooms',
+    'bathrooms',
+    'balconies',
+    'carpetArea',
+    'superArea',
+    'plotArea',
+    'floor',
+    'totalFloors',
+    'furnishing',
+    'possession',
+    'ageYears',
+    'facing',
+    'parking',
+    'availableFrom',
+    'preferredTenants',
+    'pgSharing',
+    'pgGender',
+    'pgFood',
+    'pgRules',
+    'amenities',
+    'reraNumber',
+    'title',
+    'description',
+    'videoUrl',
+    'contactName',
+    'contactPhone',
+  ];
   const out: any = {};
   for (const k of keys) out[k] = l[k] ?? (k === 'amenities' || k === 'preferredTenants' ? [] : null);
   out.localityId = l.localityId ?? l.locality?.id;
-  out.photos = (l.media ?? []).filter((m: any) => m.kind === 'PHOTO' || m.kind === 'PANORAMA').map((m: any) => ({ url: m.url, caption: m.caption, publicId: m.publicId, kind: m.kind }));
+  out.photos = (l.media ?? [])
+    .filter((m: any) => m.kind === 'PHOTO' || m.kind === 'PANORAMA')
+    .map((m: any) => ({ url: m.url, caption: m.caption, publicId: m.publicId, kind: m.kind }));
   return out;
 }
 
@@ -530,7 +712,12 @@ function VideoUpload({ onUploaded }: { onUploaded: (url: string) => void }) {
   );
 }
 
-const PG_SHARING: [string, string][] = [['SINGLE', 'Single room'], ['DOUBLE', 'Double sharing'], ['TRIPLE', 'Triple sharing'], ['DORM', 'Dormitory']];
+const PG_SHARING: [string, string][] = [
+  ['SINGLE', 'Single room'],
+  ['DOUBLE', 'Double sharing'],
+  ['TRIPLE', 'Triple sharing'],
+  ['DORM', 'Dormitory'],
+];
 const PG_RULES = ['No smoking', 'No alcohol', 'No non-veg', 'Gate closes 11 pm', 'Visitors allowed', 'Pets allowed'];
 
 /** PG / co-living specifics: sharing, who it's for, food and house rules. */
@@ -540,7 +727,11 @@ function PgFields({ v, set }: { v: ListingFormValue; set: (p: Partial<ListingFor
     <div className="space-y-4 rounded-2xl border border-line p-4">
       <p className="font-semibold">PG details</p>
       <div className="flex flex-wrap gap-2">
-        {PG_SHARING.map(([k, l]) => <Chip key={k} active={v.pgSharing?.includes(k)} onClick={() => set({ pgSharing: toggle(v.pgSharing, k) })}>{l}</Chip>)}
+        {PG_SHARING.map(([k, l]) => (
+          <Chip key={k} active={v.pgSharing?.includes(k)} onClick={() => set({ pgSharing: toggle(v.pgSharing, k) })}>
+            {l}
+          </Chip>
+        ))}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="किसके लिए">
@@ -562,7 +753,11 @@ function PgFields({ v, set }: { v: ListingFormValue; set: (p: Partial<ListingFor
         </Field>
       </div>
       <div className="flex flex-wrap gap-2">
-        {PG_RULES.map((r) => <Chip key={r} active={v.pgRules?.includes(r)} onClick={() => set({ pgRules: toggle(v.pgRules, r) })}>{r}</Chip>)}
+        {PG_RULES.map((r) => (
+          <Chip key={r} active={v.pgRules?.includes(r)} onClick={() => set({ pgRules: toggle(v.pgRules, r) })}>
+            {r}
+          </Chip>
+        ))}
       </div>
     </div>
   );

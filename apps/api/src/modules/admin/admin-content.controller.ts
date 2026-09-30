@@ -2,7 +2,17 @@ import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, 
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { blogPostSchema, faqSchema, homepageSectionSchema, localitySchema, pageSchema, planSchema, projectSchema, slugify, templateSchema } from '@brokeriq/shared';
+import {
+  blogPostSchema,
+  faqSchema,
+  homepageSectionSchema,
+  localitySchema,
+  pageSchema,
+  planSchema,
+  projectSchema,
+  slugify,
+  templateSchema,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { PublicService } from '../public/public.service';
@@ -10,9 +20,28 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { paged, shortCode } from '../../common/utils';
 
-const amenitySchema = z.object({ key: z.string().regex(/^[a-z0-9_]+$/), label: z.string().min(2).max(60), icon: z.string().max(40).optional().nullable(), category: z.enum(['society', 'flat', 'commercial']).default('society'), sortOrder: z.number().int().default(0), isActive: z.boolean().default(true) });
-const couponSchema = z.object({ code: z.string().regex(/^[A-Z0-9_-]{3,30}$/), percentOff: z.number().min(0).max(100).optional().nullable(), amountOff: z.number().min(0).optional().nullable(), maxRedemptions: z.number().int().min(1).optional().nullable(), validUntil: z.string().optional().nullable(), isActive: z.boolean().default(true) });
-const builderSchema = z.object({ name: z.string().min(2).max(120), logoUrl: z.string().url().optional().nullable().or(z.literal('')), description: z.string().max(5000).optional().nullable(), website: z.string().url().optional().nullable().or(z.literal('')) });
+const amenitySchema = z.object({
+  key: z.string().regex(/^[a-z0-9_]+$/),
+  label: z.string().min(2).max(60),
+  icon: z.string().max(40).optional().nullable(),
+  category: z.enum(['society', 'flat', 'commercial']).default('society'),
+  sortOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+});
+const couponSchema = z.object({
+  code: z.string().regex(/^[A-Z0-9_-]{3,30}$/),
+  percentOff: z.number().min(0).max(100).optional().nullable(),
+  amountOff: z.number().min(0).optional().nullable(),
+  maxRedemptions: z.number().int().min(1).optional().nullable(),
+  validUntil: z.string().optional().nullable(),
+  isActive: z.boolean().default(true),
+});
+const builderSchema = z.object({
+  name: z.string().min(2).max(120),
+  logoUrl: z.string().url().optional().nullable().or(z.literal('')),
+  description: z.string().max(5000).optional().nullable(),
+  website: z.string().url().optional().nullable().or(z.literal('')),
+});
 
 @ApiTags('admin')
 @Roles('SUPER_ADMIN')
@@ -80,7 +109,10 @@ export class AdminContentController {
 
   @Get('blog')
   blog() {
-    return this.prisma.blogPost.findMany({ orderBy: { createdAt: 'desc' }, select: { id: true, slug: true, title: true, isPublished: true, publishedAt: true, views: true, tags: true, coverUrl: true, updatedAt: true } });
+    return this.prisma.blogPost.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, slug: true, title: true, isPublished: true, publishedAt: true, views: true, tags: true, coverUrl: true, updatedAt: true },
+    });
   }
   @Get('blog/:id')
   async blogPost(@Param('id') id: string) {
@@ -90,12 +122,17 @@ export class AdminContentController {
   }
   @Post('blog')
   createPost(@CurrentUser() user: RequestUser, @Body(new ZodPipe(blogPostSchema)) body: any) {
-    return this.prisma.blogPost.create({ data: { ...body, coverUrl: body.coverUrl || null, authorId: user.id, publishedAt: body.isPublished ? new Date() : null } });
+    return this.prisma.blogPost.create({
+      data: { ...body, coverUrl: body.coverUrl || null, authorId: user.id, publishedAt: body.isPublished ? new Date() : null },
+    });
   }
   @Patch('blog/:id')
   async updatePost(@Param('id') id: string, @Body(new ZodPipe(blogPostSchema.partial())) body: any) {
     const existing = await this.prisma.blogPost.findUniqueOrThrow({ where: { id } });
-    return this.prisma.blogPost.update({ where: { id }, data: { ...body, ...(body.coverUrl === '' ? { coverUrl: null } : {}), publishedAt: body.isPublished && !existing.publishedAt ? new Date() : undefined } });
+    return this.prisma.blogPost.update({
+      where: { id },
+      data: { ...body, ...(body.coverUrl === '' ? { coverUrl: null } : {}), publishedAt: body.isPublished && !existing.publishedAt ? new Date() : undefined },
+    });
   }
   @Delete('blog/:id')
   async deletePost(@Param('id') id: string) {
@@ -203,11 +240,22 @@ export class AdminContentController {
   }
   @Post('projects')
   async createProject(@CurrentUser() user: RequestUser, @Body(new ZodPipe(projectSchema)) body: any) {
-    const builder = await this.prisma.builder.upsert({ where: { name: body.builderName }, create: { name: body.builderName, slug: slugify(body.builderName) }, update: {} });
+    const builder = await this.prisma.builder.upsert({
+      where: { name: body.builderName },
+      create: { name: body.builderName, slug: slugify(body.builderName) },
+      update: {},
+    });
     const { builderName, possessionDate, brochureUrl, ...rest } = body;
     void builderName;
     const p = await this.prisma.project.create({
-      data: { ...rest, builderId: builder.id, slug: `${slugify(body.name)}-${shortCode(4).toLowerCase()}`, possessionDate: possessionDate ? new Date(possessionDate) : null, brochureUrl: brochureUrl || null, configurations: body.configurations as Prisma.InputJsonValue },
+      data: {
+        ...rest,
+        builderId: builder.id,
+        slug: `${slugify(body.name)}-${shortCode(4).toLowerCase()}`,
+        possessionDate: possessionDate ? new Date(possessionDate) : null,
+        brochureUrl: brochureUrl || null,
+        configurations: body.configurations as Prisma.InputJsonValue,
+      },
     });
     await this.audit.log(user, 'project.create', 'Project', p.id);
     this.pub.invalidateHomepage();
@@ -217,7 +265,10 @@ export class AdminContentController {
   async updateProject(@Param('id') id: string, @Body(new ZodPipe(projectSchema.partial())) body: any) {
     const { builderName, possessionDate, brochureUrl, ...rest } = body;
     const data: Prisma.ProjectUncheckedUpdateInput = { ...rest };
-    if (builderName) data.builderId = (await this.prisma.builder.upsert({ where: { name: builderName }, create: { name: builderName, slug: slugify(builderName) }, update: {} })).id;
+    if (builderName)
+      data.builderId = (
+        await this.prisma.builder.upsert({ where: { name: builderName }, create: { name: builderName, slug: slugify(builderName) }, update: {} })
+      ).id;
     if (possessionDate !== undefined) data.possessionDate = possessionDate ? new Date(possessionDate) : null;
     if (brochureUrl !== undefined) data.brochureUrl = brochureUrl || null;
     if (rest.configurations) data.configurations = rest.configurations as Prisma.InputJsonValue;
@@ -254,7 +305,13 @@ export class AdminContentController {
     const page = Math.max(1, Number(q.page) || 1);
     const where: Prisma.SubscriptionWhereInput = q.status ? { status: q.status as any } : {};
     const [items, total] = await Promise.all([
-      this.prisma.subscription.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * 30, take: 30, include: { plan: true, organization: { select: { id: true, name: true, slug: true } } } }),
+      this.prisma.subscription.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * 30,
+        take: 30,
+        include: { plan: true, organization: { select: { id: true, name: true, slug: true } } },
+      }),
       this.prisma.subscription.count({ where }),
     ]);
     return paged(items, total, page, 30);
@@ -265,7 +322,13 @@ export class AdminContentController {
     const page = Math.max(1, Number(q.page) || 1);
     const where: Prisma.PaymentWhereInput = q.status ? { status: q.status as any } : {};
     const [items, total, sum] = await Promise.all([
-      this.prisma.payment.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 30, take: 30, include: { organization: { select: { name: true, slug: true } } } }),
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * 30,
+        take: 30,
+        include: { organization: { select: { name: true, slug: true } } },
+      }),
       this.prisma.payment.count({ where }),
       this.prisma.payment.aggregate({ where: { status: 'PAID' }, _sum: { amount: true } }),
     ]);
@@ -282,6 +345,9 @@ export class AdminContentController {
   }
   @Patch('coupons/:id')
   updateCoupon(@Param('id') id: string, @Body(new ZodPipe(couponSchema.partial())) body: any) {
-    return this.prisma.coupon.update({ where: { id }, data: { ...body, ...(body.validUntil !== undefined ? { validUntil: body.validUntil ? new Date(body.validUntil) : null } : {}) } });
+    return this.prisma.coupon.update({
+      where: { id },
+      data: { ...body, ...(body.validUntil !== undefined ? { validUntil: body.validUntil ? new Date(body.validUntil) : null } : {}) },
+    });
   }
 }

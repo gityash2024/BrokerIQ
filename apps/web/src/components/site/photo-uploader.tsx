@@ -15,14 +15,26 @@ export interface Photo {
   kind?: 'PHOTO' | 'PANORAMA';
 }
 
-export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: { value: Photo[]; onChange: (v: Photo[]) => void; max?: number; kind?: string }) {
+export function PhotoUploader({
+  value,
+  onChange,
+  max = 25,
+  kind = 'listing',
+}: {
+  value: Photo[];
+  onChange: (v: Photo[]) => void;
+  max?: number;
+  kind?: string;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<{ id: string; pct: number; preview: string }[]>([]);
   const [drag, setDrag] = useState(false);
   const [notConfigured, setNotConfigured] = useState<ApiError | null>(null);
 
   const handle = async (files: FileList | File[]) => {
-    const list = Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, max - value.length);
+    const list = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .slice(0, max - value.length);
     if (!list.length) return;
     let acc = [...value];
     await Promise.all(
@@ -48,7 +60,11 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
 
   return (
     <div>
-      {notConfigured?.body.integration && <div className="mb-4"><IntegrationBanner name={notConfigured.body.integration.name} message={notConfigured.body.message} /></div>}
+      {notConfigured?.body.integration && (
+        <div className="mb-4">
+          <IntegrationBanner name={notConfigured.body.integration.name} message={notConfigured.body.message} />
+        </div>
+      )}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -61,9 +77,15 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
           handle(e.dataTransfer.files);
         }}
         onClick={() => input.current?.click()}
-        className={cn('flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition', drag ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-line hover:border-brand-300 hover:bg-surface-2')}
+        className={cn(
+          'flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition',
+          drag ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-line hover:border-brand-300 hover:bg-surface-2',
+        )}
       >
-        <motion.div animate={drag ? { scale: 1.1, rotate: -6 } : { scale: 1, rotate: 0 }} className="grid size-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/30">
+        <motion.div
+          animate={drag ? { scale: 1.1, rotate: -6 } : { scale: 1, rotate: 0 }}
+          className="grid size-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/30"
+        >
           <ImagePlus className="size-7" />
         </motion.div>
         <p className="mt-3 font-semibold">Photos यहाँ drag करें या click करके चुनें</p>
@@ -75,8 +97,15 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
         <Reorder.Group axis="x" values={value} onReorder={onChange} className="mt-4 flex flex-wrap gap-3">
           <AnimatePresence>
             {value.map((p, i) => (
-              <Reorder.Item key={p.url} value={p} className="group relative size-32 cursor-grab overflow-hidden rounded-xl border border-line bg-surface-2 active:cursor-grabbing" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
-                { }
+              <Reorder.Item
+                key={p.url}
+                value={p}
+                className="group relative size-32 cursor-grab overflow-hidden rounded-xl border border-line bg-surface-2 active:cursor-grabbing"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+              >
+                {}
                 <img src={img(p.url, 300)} alt="" className="pointer-events-none h-full w-full object-cover" />
                 {i === 0 && (
                   <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-saffron-500 px-2 py-0.5 text-[10px] font-bold text-slate-950">
@@ -87,12 +116,20 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
                 <button
                   type="button"
                   onClick={() => onChange(value.map((x) => (x.url === p.url ? { ...x, kind: x.kind === 'PANORAMA' ? 'PHOTO' : 'PANORAMA' } : x)))}
-                  className={cn('absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-bold transition', p.kind === 'PANORAMA' ? 'bg-brand-600 text-white' : 'bg-black/50 text-white opacity-0 group-hover:opacity-100')}
+                  className={cn(
+                    'absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-bold transition',
+                    p.kind === 'PANORAMA' ? 'bg-brand-600 text-white' : 'bg-black/50 text-white opacity-0 group-hover:opacity-100',
+                  )}
                   title="360° photo है? निशान लगाएँ"
                 >
                   <Orbit className="size-3" /> 360°
                 </button>
-                <button type="button" onClick={() => onChange(value.filter((x) => x.url !== p.url))} className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-lg bg-rose-600 text-white opacity-0 transition group-hover:opacity-100" aria-label="Remove">
+                <button
+                  type="button"
+                  onClick={() => onChange(value.filter((x) => x.url !== p.url))}
+                  className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-lg bg-rose-600 text-white opacity-0 transition group-hover:opacity-100"
+                  aria-label="Remove"
+                >
                   <Trash2 className="size-3.5" />
                 </button>
               </Reorder.Item>
@@ -100,7 +137,7 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
           </AnimatePresence>
           {uploading.map((u) => (
             <div key={u.id} className="relative size-32 overflow-hidden rounded-xl border border-line">
-              { }
+              {}
               <img src={u.preview} alt="" className="h-full w-full object-cover opacity-50" />
               <div className="absolute inset-0 grid place-items-center">
                 <div className="flex flex-col items-center gap-1 text-xs font-bold">

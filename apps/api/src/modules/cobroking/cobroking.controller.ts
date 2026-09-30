@@ -6,7 +6,12 @@ import { CurrentUser, Roles, type RequestUser, Feature } from '../../common/deco
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { AccessService } from '../../core/access/access.service';
 
-const requestSchema = z.object({ listingId: z.string().min(1), leadId: z.string().optional().nullable(), sharePct: z.number().min(0).max(100).optional().nullable(), message: z.string().max(500).optional().nullable() });
+const requestSchema = z.object({
+  listingId: z.string().min(1),
+  leadId: z.string().optional().nullable(),
+  sharePct: z.number().min(0).max(100).optional().nullable(),
+  message: z.string().max(500).optional().nullable(),
+});
 
 @ApiTags('cobroking')
 @Roles('BROKER_ADMIN', 'BROKER_AGENT')
@@ -35,7 +40,11 @@ export class CoBrokingController {
   }
 
   @Patch('requests/:id')
-  respond(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ action: z.enum(['accept', 'reject', 'cancel', 'close']) }))) body: { action: 'accept' | 'reject' | 'cancel' | 'close' }) {
+  respond(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ action: z.enum(['accept', 'reject', 'cancel', 'close']) }))) body: { action: 'accept' | 'reject' | 'cancel' | 'close' },
+  ) {
     return this.svc.respond(user, id, body.action);
   }
 }

@@ -4,7 +4,10 @@ import { PageShell } from '@/components/site/page-shell';
 import { LocalitiesExplorer } from '@/components/site/localities-explorer';
 
 export const revalidate = 300;
-export const metadata: Metadata = { title: 'Gurgaon localities & sectors — prices, listings, guides', description: 'Explore every Gurgaon sector and locality: live listings, average ₹/sq.ft, connectivity and neighbourhood guides.' };
+export const metadata: Metadata = {
+  title: 'Gurgaon localities & sectors — prices, listings, guides',
+  description: 'Explore every Gurgaon sector and locality: live listings, average ₹/sq.ft, connectivity and neighbourhood guides.',
+};
 
 export default async function LocalitiesPage() {
   const locs = (await sget<any[]>('/public/localities', 300)) ?? [];

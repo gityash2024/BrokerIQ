@@ -46,16 +46,31 @@
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 
   @keyframes shimmer {
-    from { background-position: -400px 0; }
-    to { background-position: 400px 0; }
+    from {
+      background-position: -400px 0;
+    }
+    to {
+      background-position: 400px 0;
+    }
   }
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
   @keyframes fade-up {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
@@ -111,8 +126,7 @@ body {
     background:
       radial-gradient(60% 80% at 10% 10%, rgb(99 102 241 / 0.55) 0, transparent 60%),
       radial-gradient(50% 60% at 90% 20%, rgb(245 158 11 / 0.35) 0, transparent 60%),
-      radial-gradient(60% 70% at 60% 100%, rgb(14 165 233 / 0.35) 0, transparent 60%),
-      linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%);
+      radial-gradient(60% 70% at 60% 100%, rgb(14 165 233 / 0.35) 0, transparent 60%), linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%);
   }
   .text-gradient {
     @apply bg-clip-text text-transparent;
@@ -124,13 +138,27 @@ body {
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-  .prose-cms h2 { @apply mt-8 mb-3 font-display text-2xl font-bold; }
-  .prose-cms h3 { @apply mt-6 mb-2 font-display text-xl font-semibold; }
-  .prose-cms p { @apply my-3 leading-7 text-muted; }
-  .prose-cms ul { @apply my-3 list-disc pl-6 text-muted; }
-  .prose-cms ol { @apply my-3 list-decimal pl-6 text-muted; }
-  .prose-cms a { @apply text-brand-600 underline; }
-  .prose-cms img { @apply my-4 rounded-xl; }
+  .prose-cms h2 {
+    @apply mt-8 mb-3 font-display text-2xl font-bold;
+  }
+  .prose-cms h3 {
+    @apply mt-6 mb-2 font-display text-xl font-semibold;
+  }
+  .prose-cms p {
+    @apply my-3 leading-7 text-muted;
+  }
+  .prose-cms ul {
+    @apply my-3 list-disc pl-6 text-muted;
+  }
+  .prose-cms ol {
+    @apply my-3 list-decimal pl-6 text-muted;
+  }
+  .prose-cms a {
+    @apply text-brand-600 underline;
+  }
+  .prose-cms img {
+    @apply my-4 rounded-xl;
+  }
 }
 
 .leaflet-container {
@@ -155,7 +183,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

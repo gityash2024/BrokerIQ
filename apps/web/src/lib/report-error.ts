@@ -18,7 +18,9 @@ export function reportClientError(error: unknown, extra?: { digest?: string }) {
   if (sent.has(key) || sent.size >= MAX_PER_PAGE) return;
   sent.add(key);
   const body = JSON.stringify({ source: 'WEB', message, stack: e.stack?.slice(0, 8000) ?? null, route: location.pathname, appVersion: WEB_VERSION });
-  fetch(`${API_URL}/api/public/client-errors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => undefined);
+  fetch(`${API_URL}/api/public/client-errors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(
+    () => undefined,
+  );
 }
 
 /** Catches errors outside React (event handlers, async code, failed promises). */

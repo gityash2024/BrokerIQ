@@ -13,7 +13,9 @@ export function ApiErrorState({ error, onRetry, compact }: { error: unknown; onR
   const { user } = useAuth();
   if (error instanceof ApiError && error.isNotConfigured && error.body.integration) {
     const i = error.body.integration;
-    const canFix = (i.fixBy === 'SUPER_ADMIN' && user?.role === 'SUPER_ADMIN') || (i.fixBy === 'BROKER_ADMIN' && (user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'));
+    const canFix =
+      (i.fixBy === 'SUPER_ADMIN' && user?.role === 'SUPER_ADMIN') ||
+      (i.fixBy === 'BROKER_ADMIN' && (user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'));
     return <IntegrationBanner name={i.name} message={error.body.message} href={canFix ? i.settingsPath : undefined} compact={compact} />;
   }
   return (
@@ -34,7 +36,9 @@ export function ApiErrorState({ error, onRetry, compact }: { error: unknown; onR
 
 export function IntegrationBanner({ name, message, href, compact }: { name: string; message: string; href?: string; compact?: boolean }) {
   return (
-    <div className={`flex flex-col gap-3 rounded-2xl border border-amber-300/70 bg-gradient-to-br from-amber-50 to-orange-50 text-amber-900 sm:flex-row sm:items-center dark:border-amber-500/30 dark:from-amber-500/10 dark:to-orange-500/5 dark:text-amber-100 ${compact ? 'p-3 text-sm' : 'p-4'}`}>
+    <div
+      className={`flex flex-col gap-3 rounded-2xl border border-amber-300/70 bg-gradient-to-br from-amber-50 to-orange-50 text-amber-900 sm:flex-row sm:items-center dark:border-amber-500/30 dark:from-amber-500/10 dark:to-orange-500/5 dark:text-amber-100 ${compact ? 'p-3 text-sm' : 'p-4'}`}
+    >
       <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-600">
         <PlugZap className="size-5" />
       </div>

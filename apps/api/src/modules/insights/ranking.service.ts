@@ -39,7 +39,8 @@ export class RankingService {
     const orgs = await this.prisma.organization.findMany({ where: { status: 'ACTIVE' }, select: { id: true } });
     for (const o of orgs) await this.recompute(o.id).catch((e) => this.logger.warn(`rank ${o.id}: ${(e as Error).message}`));
     // Denormalise onto listings so search can sort without joins; owner listings stay at 0.
-    await this.prisma.$executeRaw`UPDATE "Listing" l SET "rankBoost" = o."rankScore" FROM "Organization" o WHERE l."organizationId" = o.id AND l."rankBoost" IS DISTINCT FROM o."rankScore"`;
+    await this.prisma
+      .$executeRaw`UPDATE "Listing" l SET "rankBoost" = o."rankScore" FROM "Organization" o WHERE l."organizationId" = o.id AND l."rankBoost" IS DISTINCT FROM o."rankScore"`;
     this.logger.log(`ranked ${orgs.length} firms`);
     return orgs.length;
   }
@@ -48,7 +49,11 @@ export class RankingService {
     const since = new Date(Date.now() - WINDOW_DAYS * 86400_000);
     const [org, leads, activeListings] = await Promise.all([
       this.prisma.organization.findUniqueOrThrow({ where: { id: orgId }, select: { rating: true, reviewCount: true, verification: true } }),
-      this.prisma.lead.findMany({ where: { organizationId: orgId, createdAt: { gte: since }, deletedAt: null }, select: { createdAt: true, firstResponseAt: true }, take: 5000 }),
+      this.prisma.lead.findMany({
+        where: { organizationId: orgId, createdAt: { gte: since }, deletedAt: null },
+        select: { createdAt: true, firstResponseAt: true },
+        take: 5000,
+      }),
       this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null } }),
     ]);
     const mins = leads
@@ -59,6 +64,10 @@ export class RankingService {
     const responseMinutes = mins.length >= 3 ? Math.round(mins[Math.floor(mins.length / 2)]) : null;
     const responseRate = leads.length ? Math.round((mins.filter((m) => m <= 24 * 60).length / leads.length) * 100) / 100 : null;
     const score = rankScore({ rating: org.rating, reviewCount: org.reviewCount, responseMinutes, verified: org.verification === 'VERIFIED', activeListings });
-    return this.prisma.organization.update({ where: { id: orgId }, data: { responseMinutes, responseRate, rankScore: score, rankUpdatedAt: new Date() }, select: { responseMinutes: true, responseRate: true, rankScore: true } });
+    return this.prisma.organization.update({
+      where: { id: orgId },
+      data: { responseMinutes, responseRate, rankScore: score, rankUpdatedAt: new Date() },
+      select: { responseMinutes: true, responseRate: true, rankScore: true },
+    });
   }
 }

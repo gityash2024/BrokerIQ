@@ -36,14 +36,25 @@ const REMINDER_GAP_DAYS = 3;
 const UPI_ID = /^[\w.-]{2,256}@[a-zA-Z][\w]{2,64}$/;
 
 function fontPath(file: string) {
-  const dirs = [join(__dirname, '../../../assets/fonts'), join(__dirname, '../../../../assets/fonts'), join(process.cwd(), 'assets/fonts'), join(process.cwd(), 'apps/api/assets/fonts')];
+  const dirs = [
+    join(__dirname, '../../../assets/fonts'),
+    join(__dirname, '../../../../assets/fonts'),
+    join(process.cwd(), 'assets/fonts'),
+    join(process.cwd(), 'apps/api/assets/fonts'),
+  ];
   return join(dirs.find((d) => existsSync(join(d, file))) ?? dirs[0], file);
 }
 
 /** upi://pay link any UPI app opens with the amount prefilled (no gateway, money goes to the firm). */
 export function upiLink(org: Pick<Organization, 'upiId' | 'upiName' | 'name'>, inv: Pick<ClientInvoice, 'total' | 'number'>) {
   if (!org.upiId) return null;
-  const p = new URLSearchParams({ pa: org.upiId, pn: (org.upiName || org.name).slice(0, 50), am: inv.total.toFixed(2), cu: 'INR', tn: `Invoice ${inv.number}` });
+  const p = new URLSearchParams({
+    pa: org.upiId,
+    pn: (org.upiName || org.name).slice(0, 50),
+    am: inv.total.toFixed(2),
+    cu: 'INR',
+    tn: `Invoice ${inv.number}`,
+  });
   return `upi://pay?${p.toString()}`;
 }
 
@@ -68,7 +79,10 @@ export class InvoicesService {
 
   // ------------------------------------------------------------------ payment settings
   async paymentSettings(orgId: string) {
-    const o = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId }, select: { upiId: true, upiName: true, invoicePrefix: true, weeklyReport: true, gstNumber: true } });
+    const o = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: orgId },
+      select: { upiId: true, upiName: true, invoicePrefix: true, weeklyReport: true, gstNumber: true },
+    });
     return o;
   }
 
@@ -76,14 +90,27 @@ export class InvoicesService {
     if (body.upiId && !UPI_ID.test(body.upiId.trim())) throw new BadRequestException('UPI ID सही नहीं है (जैसे name@okicici)');
     return this.prisma.organization.update({
       where: { id: orgId },
-      data: { upiId: body.upiId?.trim() || (body.upiId === '' ? null : undefined), upiName: body.upiName ?? undefined, invoicePrefix: body.invoicePrefix?.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') || undefined, weeklyReport: body.weeklyReport },
+      data: {
+        upiId: body.upiId?.trim() || (body.upiId === '' ? null : undefined),
+        upiName: body.upiName ?? undefined,
+        invoicePrefix:
+          body.invoicePrefix
+            ?.trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9-]/g, '') || undefined,
+        weeklyReport: body.weeklyReport,
+      },
       select: { upiId: true, upiName: true, invoicePrefix: true, weeklyReport: true },
     });
   }
 
   // ------------------------------------------------------------------ CRUD
   list(user: RequestUser, status?: string) {
-    return this.prisma.clientInvoice.findMany({ where: { organizationId: requireOrg(user), ...(status ? { status: status as any } : {}) }, orderBy: { createdAt: 'desc' }, take: 300 });
+    return this.prisma.clientInvoice.findMany({
+      where: { organizationId: requireOrg(user), ...(status ? { status: status as any } : {}) },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
   }
 
   async get(user: RequestUser, id: string) {
@@ -98,7 +125,10 @@ export class InvoicesService {
     let clientName = input.clientName;
     let clientPhone = input.clientPhone ?? null;
     if (input.dealId) {
-      const d = await this.prisma.deal.findFirst({ where: { id: input.dealId, organizationId: orgId }, include: { lead: { select: { id: true, name: true, phone: true, email: true } } } });
+      const d = await this.prisma.deal.findFirst({
+        where: { id: input.dealId, organizationId: orgId },
+        include: { lead: { select: { id: true, name: true, phone: true, email: true } } },
+      });
       if (!d) throw new BadRequestException('Deal नहीं मिली');
       input.leadId = input.leadId ?? d.leadId;
       clientName = clientName || d.lead.name;
@@ -109,7 +139,11 @@ export class InvoicesService {
     const gstPct = input.gstPct ?? 0;
     const total = Math.round(subtotal * (1 + gstPct / 100) * 100) / 100;
     const inv = await this.prisma.$transaction(async (tx) => {
-      const org = await tx.organization.update({ where: { id: orgId }, data: { invoiceSeq: { increment: 1 } }, select: { invoiceSeq: true, invoicePrefix: true } });
+      const org = await tx.organization.update({
+        where: { id: orgId },
+        data: { invoiceSeq: { increment: 1 } },
+        select: { invoiceSeq: true, invoicePrefix: true },
+      });
       const number = `${org.invoicePrefix || 'INV'}-${String(org.invoiceSeq).padStart(4, '0')}`;
       return tx.clientInvoice.create({
         data: {
@@ -118,7 +152,7 @@ export class InvoicesService {
           leadId: input.leadId ?? null,
           number,
           clientName,
-          clientPhone: clientPhone ? normalizeIndianPhone(clientPhone) ?? clientPhone : null,
+          clientPhone: clientPhone ? (normalizeIndianPhone(clientPhone) ?? clientPhone) : null,
           clientEmail: input.clientEmail || null,
           items: input.items as unknown as Prisma.InputJsonValue,
           subtotal,
@@ -135,7 +169,18 @@ export class InvoicesService {
     return { ...inv, link: this.publicLink(inv) };
   }
 
-  async update(user: RequestUser, id: string, patch: { status?: 'SENT' | 'PAID' | 'CANCELLED'; paidMode?: string | null; paidRef?: string | null; paidAt?: Date | null; dueDate?: Date | null; notes?: string | null }) {
+  async update(
+    user: RequestUser,
+    id: string,
+    patch: {
+      status?: 'SENT' | 'PAID' | 'CANCELLED';
+      paidMode?: string | null;
+      paidRef?: string | null;
+      paidAt?: Date | null;
+      dueDate?: Date | null;
+      notes?: string | null;
+    },
+  ) {
     const inv = await this.get(user, id);
     const data: Prisma.ClientInvoiceUpdateInput = { ...patch };
     if (patch.status === 'PAID' && inv.status !== 'PAID') {
@@ -166,7 +211,14 @@ export class InvoicesService {
         .catch((e) => (this.logger.warn(`invoice WA ${inv.id}: ${(e as Error).message}`), false));
     }
     if (inv.clientEmail) {
-      result.email = await this.mail.trySendTemplate('invoice.send', inv.clientEmail, { clientName: inv.clientName, orgName: org.name, number: inv.number, total: inv.total.toLocaleString('en-IN'), dueText: inv.dueDate ? ` — due ${inv.dueDate.toLocaleDateString('en-IN')}` : '', link: inv.link });
+      result.email = await this.mail.trySendTemplate('invoice.send', inv.clientEmail, {
+        clientName: inv.clientName,
+        orgName: org.name,
+        number: inv.number,
+        total: inv.total.toLocaleString('en-IN'),
+        dueText: inv.dueDate ? ` — due ${inv.dueDate.toLocaleDateString('en-IN')}` : '',
+        link: inv.link,
+      });
     }
     await this.prisma.clientInvoice.update({ where: { id }, data: { status: inv.status === 'DRAFT' ? 'SENT' : undefined, lastReminderAt: new Date() } });
     return { ...result, link: inv.link, text };
@@ -174,7 +226,14 @@ export class InvoicesService {
 
   // ------------------------------------------------------------------ public (client) view
   async publicView(token: string) {
-    const inv = await this.prisma.clientInvoice.findUnique({ where: { publicToken: token }, include: { organization: { select: { name: true, logoUrl: true, phone: true, email: true, address: true, gstNumber: true, upiId: true, upiName: true, slug: true } } } });
+    const inv = await this.prisma.clientInvoice.findUnique({
+      where: { publicToken: token },
+      include: {
+        organization: {
+          select: { name: true, logoUrl: true, phone: true, email: true, address: true, gstNumber: true, upiId: true, upiName: true, slug: true },
+        },
+      },
+    });
     if (!inv || inv.status === 'DRAFT') throw new NotFoundException('Invoice नहीं मिला');
     const { organization: org, publicToken: _t, createdById: _c, ...rest } = inv;
     return { ...rest, org: { ...org, upiId: org.upiId }, upi: inv.status === 'SENT' ? upiLink({ ...org, name: org.name }, inv) : null };
@@ -202,15 +261,31 @@ export class InvoicesService {
       doc.registerFont('B', fontPath('Inter_700Bold.ttf'));
       doc.font('B').fillColor('#4F46E5').fontSize(20).text(org.name);
       doc.font('R').fillColor('#475569').fontSize(9);
-      [org.address, org.phone, org.email, org.gstNumber ? `GSTIN: ${org.gstNumber}` : null, org.reraNumber ? `RERA: ${org.reraNumber}` : null].filter(Boolean).forEach((l) => doc.text(String(l)));
-      doc.moveDown().font('B').fillColor('#0f172a').fontSize(16).text(inv.gstPct > 0 ? 'TAX INVOICE' : 'INVOICE', { align: 'right' });
-      doc.font('R').fontSize(10).text(`Invoice #: ${inv.number}`, { align: 'right' }).text(`Date: ${inv.createdAt.toLocaleDateString('en-IN')}`, { align: 'right' });
+      [org.address, org.phone, org.email, org.gstNumber ? `GSTIN: ${org.gstNumber}` : null, org.reraNumber ? `RERA: ${org.reraNumber}` : null]
+        .filter(Boolean)
+        .forEach((l) => doc.text(String(l)));
+      doc
+        .moveDown()
+        .font('B')
+        .fillColor('#0f172a')
+        .fontSize(16)
+        .text(inv.gstPct > 0 ? 'TAX INVOICE' : 'INVOICE', { align: 'right' });
+      doc
+        .font('R')
+        .fontSize(10)
+        .text(`Invoice #: ${inv.number}`, { align: 'right' })
+        .text(`Date: ${inv.createdAt.toLocaleDateString('en-IN')}`, { align: 'right' });
       if (inv.dueDate) doc.text(`Due: ${inv.dueDate.toLocaleDateString('en-IN')}`, { align: 'right' });
       doc.moveDown().font('B').fontSize(11).text('Billed to').font('R').fontSize(10).text(inv.clientName);
       if (inv.clientPhone) doc.text(inv.clientPhone);
       if (inv.clientEmail) doc.text(inv.clientEmail);
       doc.moveDown(1.5);
-      const line = (label: string, value: string, bold = false) => doc.font(bold ? 'B' : 'R').fontSize(11).text(label, 50, doc.y, { continued: true, width: 360 }).text(value, { align: 'right' });
+      const line = (label: string, value: string, bold = false) =>
+        doc
+          .font(bold ? 'B' : 'R')
+          .fontSize(11)
+          .text(label, 50, doc.y, { continued: true, width: 360 })
+          .text(value, { align: 'right' });
       items.forEach((i) => line(i.description, formatINR(i.amount)));
       doc.moveDown(0.5);
       if (inv.gstPct > 0) {
@@ -219,7 +294,12 @@ export class InvoicesService {
       }
       line('Total', formatINR(inv.total), true);
       doc.moveDown();
-      if (inv.status === 'PAID') doc.font('B').fillColor('#059669').fontSize(14).text(`PAID${inv.paidAt ? ` on ${inv.paidAt.toLocaleDateString('en-IN')}` : ''}`);
+      if (inv.status === 'PAID')
+        doc
+          .font('B')
+          .fillColor('#059669')
+          .fontSize(14)
+          .text(`PAID${inv.paidAt ? ` on ${inv.paidAt.toLocaleDateString('en-IN')}` : ''}`);
       if (qr && org.upiId) {
         doc.moveDown().font('B').fillColor('#0f172a').fontSize(11).text('Pay by UPI (any app):');
         doc.image(qr, { width: 140 });
@@ -240,17 +320,46 @@ export class InvoicesService {
 
   async runReminders(now = new Date()) {
     const due = await this.prisma.clientInvoice.findMany({
-      where: { status: 'SENT', dueDate: { lt: now }, remindersSent: { lt: MAX_REMINDERS }, OR: [{ lastReminderAt: null }, { lastReminderAt: { lt: new Date(now.getTime() - REMINDER_GAP_DAYS * 86400_000) } }] },
+      where: {
+        status: 'SENT',
+        dueDate: { lt: now },
+        remindersSent: { lt: MAX_REMINDERS },
+        OR: [{ lastReminderAt: null }, { lastReminderAt: { lt: new Date(now.getTime() - REMINDER_GAP_DAYS * 86400_000) } }],
+      },
       include: { organization: { select: { name: true } } },
       take: 500,
     });
     for (const inv of due) {
       const link = this.publicLink(inv);
       if (inv.clientPhone) {
-        await this.wa.send(inv.organizationId, inv.clientPhone, { type: 'text', text: `Reminder: ${inv.organization.name} invoice ${inv.number} (${formatINR(inv.total)}) pending है। UPI से pay करें: ${link}` }, { leadId: inv.leadId ?? undefined, contactName: inv.clientName }).catch(() => undefined);
+        await this.wa
+          .send(
+            inv.organizationId,
+            inv.clientPhone,
+            { type: 'text', text: `Reminder: ${inv.organization.name} invoice ${inv.number} (${formatINR(inv.total)}) pending है। UPI से pay करें: ${link}` },
+            { leadId: inv.leadId ?? undefined, contactName: inv.clientName },
+          )
+          .catch(() => undefined);
       }
-      if (inv.clientEmail) await this.mail.trySendTemplate('invoice.send', inv.clientEmail, { clientName: inv.clientName, orgName: inv.organization.name, number: inv.number, total: inv.total.toLocaleString('en-IN'), dueText: ' — payment pending', link });
-      await this.notifications.notifyOrg(inv.organizationId, { kind: 'INVOICE_OVERDUE', title: `⏰ Invoice ${inv.number} overdue`, body: `${inv.clientName} · ${formatINR(inv.total)} — reminder भेजा`, link: '/broker/invoices' }, { adminsOnly: true });
+      if (inv.clientEmail)
+        await this.mail.trySendTemplate('invoice.send', inv.clientEmail, {
+          clientName: inv.clientName,
+          orgName: inv.organization.name,
+          number: inv.number,
+          total: inv.total.toLocaleString('en-IN'),
+          dueText: ' — payment pending',
+          link,
+        });
+      await this.notifications.notifyOrg(
+        inv.organizationId,
+        {
+          kind: 'INVOICE_OVERDUE',
+          title: `⏰ Invoice ${inv.number} overdue`,
+          body: `${inv.clientName} · ${formatINR(inv.total)} — reminder भेजा`,
+          link: '/broker/invoices',
+        },
+        { adminsOnly: true },
+      );
       await this.prisma.clientInvoice.update({ where: { id: inv.id }, data: { remindersSent: { increment: 1 }, lastReminderAt: now } });
     }
     return due.length;

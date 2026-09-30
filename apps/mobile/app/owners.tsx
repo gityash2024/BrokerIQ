@@ -16,7 +16,14 @@ export default function Owners() {
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="Owners & leases" subtitle="Lease ख़त्म होने से पहले reminder" />
-      <Segmented value={tab} onChange={setTab} options={[{ value: 'owners', label: 'Owners' }, { value: 'leases', label: 'Leases' }]} />
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'owners', label: 'Owners' },
+          { value: 'leases', label: 'Leases' },
+        ]}
+      />
       {tab === 'owners' ? <OwnerList /> : <Leases />}
     </Screen>
   );
@@ -29,20 +36,36 @@ function OwnerList() {
   return (
     <>
       <Input placeholder="नाम या number…" value={q} onChangeText={setQ} containerStyle={{ marginTop: 12 }} />
-      {list.isLoading ? <Loader /> : !list.data?.length ? (
-        <Empty icon={<UserRound size={26} color={c.brand} />} title="अभी कोई owner नहीं" text="Listings में owner का नाम और number भरें — वो यहाँ अपने-आप आ जाएँगे।" />
+      {list.isLoading ? (
+        <Loader />
+      ) : !list.data?.length ? (
+        <Empty
+          icon={<UserRound size={26} color={c.brand} />}
+          title="अभी कोई owner नहीं"
+          text="Listings में owner का नाम और number भरें — वो यहाँ अपने-आप आ जाएँगे।"
+        />
       ) : (
         list.data.map((o) => (
           <Card key={o.id} style={{ padding: 14, gap: 6, marginTop: 10 }}>
             <Txt v="bodyStrong">{o.name}</Txt>
-            <Txt v="small" color="muted">{o.phone}</Txt>
+            <Txt v="small" color="muted">
+              {o.phone}
+            </Txt>
             <Row wrap>
               <Badge label={`${o._count.listings} listings`} color={c.brand} />
-              {o.tenancies[0] && <Badge label={`Lease ${daysLeft(o.tenancies[0].endDate)} दिन`} color={daysLeft(o.tenancies[0].endDate) <= 30 ? c.warning : c.success} />}
+              {o.tenancies[0] && (
+                <Badge label={`Lease ${daysLeft(o.tenancies[0].endDate)} दिन`} color={daysLeft(o.tenancies[0].endDate) <= 30 ? c.warning : c.success} />
+              )}
             </Row>
             <Row>
               <Button title="Call" size="sm" variant="secondary" icon={<Phone size={14} color={c.fg} />} onPress={() => Linking.openURL(`tel:${o.phone}`)} />
-              <Button title="WhatsApp" size="sm" variant="whatsapp" icon={<MessageCircle size={14} color="#fff" />} onPress={() => Linking.openURL(whatsappLink(o.phone, `नमस्ते ${o.name} जी,`))} />
+              <Button
+                title="WhatsApp"
+                size="sm"
+                variant="whatsapp"
+                icon={<MessageCircle size={14} color="#fff" />}
+                onPress={() => Linking.openURL(whatsappLink(o.phone, `नमस्ते ${o.name} जी,`))}
+              />
             </Row>
           </Card>
         ))
@@ -54,10 +77,14 @@ function OwnerList() {
 function Leases() {
   const { c } = useTheme();
   const list = useQuery({ queryKey: ['tenancies'], queryFn: () => api<any[]>('/broker/tenancies') });
-  const renew = useApiMutation((id: string) => patch(`/broker/tenancies/${id}`, { renewMonths: 11 }), { success: 'Lease renew हुआ', invalidate: [['tenancies']] });
+  const renew = useApiMutation((id: string) => patch(`/broker/tenancies/${id}`, { renewMonths: 11 }), {
+    success: 'Lease renew हुआ',
+    invalidate: [['tenancies']],
+  });
   const end = useApiMutation((id: string) => patch(`/broker/tenancies/${id}`, { status: 'ENDED' }), { success: 'Lease बंद', invalidate: [['tenancies']] });
   if (list.isLoading) return <Loader />;
-  if (!list.data?.length) return <Empty icon={<KeyRound size={26} color={c.brand} />} title="अभी कोई lease नहीं" text="Rent deal close करने पर lease अपने-आप बनता है (11 महीने)।" />;
+  if (!list.data?.length)
+    return <Empty icon={<KeyRound size={26} color={c.brand} />} title="अभी कोई lease नहीं" text="Rent deal close करने पर lease अपने-आप बनता है (11 महीने)।" />;
   return (
     <>
       {list.data.map((t) => {
@@ -65,8 +92,13 @@ function Leases() {
         return (
           <Card key={t.id} style={{ padding: 14, gap: 6, marginTop: 10 }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Txt v="bodyStrong" style={{ flex: 1 }} numberOfLines={1}>{t.tenantName}</Txt>
-              <Badge label={t.status === 'ACTIVE' ? (left >= 0 ? `${left} दिन बाकी` : 'ख़त्म') : t.status} color={t.status !== 'ACTIVE' ? c.muted : left <= 30 ? c.warning : c.success} />
+              <Txt v="bodyStrong" style={{ flex: 1 }} numberOfLines={1}>
+                {t.tenantName}
+              </Txt>
+              <Badge
+                label={t.status === 'ACTIVE' ? (left >= 0 ? `${left} दिन बाकी` : 'ख़त्म') : t.status}
+                color={t.status !== 'ACTIVE' ? c.muted : left <= 30 ? c.warning : c.success}
+              />
             </Row>
             <Txt v="small" color="muted" numberOfLines={1}>{`${t.listing?.title ?? 'Property'} · ${formatINR(t.rent)}/month`}</Txt>
             <Txt v="caption" color="subtle">{`${new Date(t.startDate).toLocaleDateString('en-IN')} → ${new Date(t.endDate).toLocaleDateString('en-IN')}`}</Txt>

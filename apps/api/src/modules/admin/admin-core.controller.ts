@@ -19,7 +19,11 @@ import { FeaturesService } from '../../core/features/features.service';
 
 const integrationSaveSchema = z.object({ enabled: z.boolean().optional(), fields: z.record(z.string(), z.unknown()).default({}) });
 const moderateSchema = z.object({ action: z.enum(['approve', 'reject']), reason: z.string().max(500).optional() });
-const listingFlagsSchema = z.object({ isFeatured: z.boolean().optional(), featuredDays: z.number().int().min(1).max(365).optional(), isVerified: z.boolean().optional() });
+const listingFlagsSchema = z.object({
+  isFeatured: z.boolean().optional(),
+  featuredDays: z.number().int().min(1).max(365).optional(),
+  isVerified: z.boolean().optional(),
+});
 
 @ApiTags('admin')
 @Roles('SUPER_ADMIN')
@@ -57,7 +61,9 @@ export class AdminCoreController {
       this.prisma.subscription.findMany({ where: { status: { in: ['ACTIVE', 'TRIALING'] } }, include: { plan: true } }),
     ]);
     const mrr = subs.reduce((s, x) => s + (x.status === 'ACTIVE' ? (x.billingCycle === 'YEARLY' ? x.plan.priceYearly / 12 : x.plan.priceMonthly) : 0), 0);
-    const planMix = Object.entries(subs.reduce<Record<string, number>>((acc, s) => ((acc[s.plan.name] = (acc[s.plan.name] ?? 0) + 1), acc), {})).map(([plan, count]) => ({ plan, count }));
+    const planMix = Object.entries(subs.reduce<Record<string, number>>((acc, s) => ((acc[s.plan.name] = (acc[s.plan.name] ?? 0) + 1), acc), {})).map(
+      ([plan, count]) => ({ plan, count }),
+    );
     const series = await this.prisma.$queryRaw<{ day: Date; users: bigint; listings: bigint; leads: bigint }[]>`
       WITH days AS (SELECT generate_series(date_trunc('day', now()) - interval '29 days', date_trunc('day', now()), interval '1 day') AS day)
       SELECT d.day,
@@ -71,7 +77,19 @@ export class AdminCoreController {
     const leadSources = await this.prisma.lead.groupBy({ by: ['source'], where: { createdAt: { gte: since30 } }, _count: { _all: true } });
     const integrations = await this.settings.platformOverview();
     return {
-      kpis: { users, brokers, listings, pendingListings: pending, leads30, enquiries30, kycPending, reportsOpen, revenue30: (paid30._sum.amount ?? 0) / 100, mrr: Math.round(mrr), openTickets: tickets },
+      kpis: {
+        users,
+        brokers,
+        listings,
+        pendingListings: pending,
+        leads30,
+        enquiries30,
+        kycPending,
+        reportsOpen,
+        revenue30: (paid30._sum.amount ?? 0) / 100,
+        mrr: Math.round(mrr),
+        openTickets: tickets,
+      },
       series: series.map((s) => ({ day: s.day, users: Number(s.users), listings: Number(s.listings), leads: Number(s.leads) })),
       revenue: revenue.map((r) => ({ month: r.month, amount: Number(r.amount) / 100 })),
       planMix,
@@ -85,7 +103,9 @@ export class AdminCoreController {
   async integrations(@Query('scope') scope?: string) {
     const apiUrl = env().PUBLIC_API_URL;
     const defs = INTEGRATIONS.filter((d) => (scope ? d.scope === scope : d.scope === 'platform'));
-    return Promise.all(defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: d.scope === 'platform' ? await this.settings.view(d.key) : null })));
+    return Promise.all(
+      defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: d.scope === 'platform' ? await this.settings.view(d.key) : null })),
+    );
   }
 
   @Get('integrations/:key')
@@ -153,7 +173,9 @@ export class AdminCoreController {
       deletedAt: null,
       ...(q.role ? { role: q.role as any } : {}),
       ...(q.status ? { status: q.status as any } : {}),
-      ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { email: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] } : {}),
+      ...(q.q
+        ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { email: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] }
+        : {}),
     };
     const [items, total] = await Promise.all([
       this.prisma.user.findMany({
@@ -161,7 +183,21 @@ export class AdminCoreController {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * 30,
         take: 30,
-        select: { id: true, name: true, email: true, phone: true, role: true, status: true, blockedReason: true, restrictions: true, emailVerified: true, createdAt: true, lastLoginAt: true, organization: { select: { id: true, name: true, slug: true } }, _count: { select: { listings: true, enquiries: true } } },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          status: true,
+          blockedReason: true,
+          restrictions: true,
+          emailVerified: true,
+          createdAt: true,
+          lastLoginAt: true,
+          organization: { select: { id: true, name: true, slug: true } },
+          _count: { select: { listings: true, enquiries: true } },
+        },
       }),
       this.prisma.user.count({ where }),
     ]);
@@ -169,7 +205,14 @@ export class AdminCoreController {
   }
 
   @Patch('users/:id')
-  async updateUser(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']).optional(), role: z.enum(['USER', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT']).optional() }))) body: any) {
+  async updateUser(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(
+      new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']).optional(), role: z.enum(['USER', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT']).optional() })),
+    )
+    body: any,
+  ) {
     if (id === user.id) throw new BadRequestException('अपना account खुद नहीं बदल सकते');
     const target = await this.prisma.user.findUnique({ where: { id } });
     if (!target) throw new NotFoundException();
@@ -201,11 +244,19 @@ export class AdminCoreController {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * 30,
         take: 30,
-        include: { subscription: { include: { plan: { select: { name: true, code: true } } } }, _count: { select: { members: true, listings: true, leads: true } } },
+        include: {
+          subscription: { include: { plan: { select: { name: true, code: true } } } },
+          _count: { select: { members: true, listings: true, leads: true } },
+        },
       }),
       this.prisma.organization.count({ where }),
     ]);
-    return paged(items.map(({ webhookKey, ...o }) => (void webhookKey, o)), total, page, 30);
+    return paged(
+      items.map(({ webhookKey, ...o }) => (void webhookKey, o)),
+      total,
+      page,
+      30,
+    );
   }
 
   @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
@@ -233,7 +284,17 @@ export class AdminCoreController {
   async updateOrg(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
-    @Body(new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']).optional(), verification: z.enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED']).optional(), planCode: z.string().optional(), periodDays: z.number().int().min(1).max(3650).optional() }))) body: any,
+    @Body(
+      new ZodPipe(
+        z.object({
+          status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+          verification: z.enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED']).optional(),
+          planCode: z.string().optional(),
+          periodDays: z.number().int().min(1).max(3650).optional(),
+        }),
+      ),
+    )
+    body: any,
   ) {
     const org = await this.prisma.organization.findUnique({ where: { id } });
     if (!org) throw new NotFoundException();
@@ -249,7 +310,13 @@ export class AdminCoreController {
       await this.prisma.subscription.upsert({
         where: { organizationId: id },
         create: { organizationId: id, planId: plan.id, status: 'ACTIVE', currentPeriodEnd: plan.priceMonthly === 0 ? null : end },
-        update: { planId: plan.id, status: 'ACTIVE', currentPeriodStart: new Date(), currentPeriodEnd: plan.priceMonthly === 0 ? null : end, cancelAtPeriodEnd: false },
+        update: {
+          planId: plan.id,
+          status: 'ACTIVE',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: plan.priceMonthly === 0 ? null : end,
+          cancelAtPeriodEnd: false,
+        },
       });
     }
     if (body.status === 'SUSPENDED') {
@@ -301,10 +368,18 @@ export class AdminCoreController {
     const updated = await this.prisma.listing.update({
       where: { id },
       data: approve
-        ? { status: 'ACTIVE', rejectionReason: null, moderationFlags: [], publishedAt: l.publishedAt ?? new Date(), expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000) }
+        ? {
+            status: 'ACTIVE',
+            rejectionReason: null,
+            moderationFlags: [],
+            publishedAt: l.publishedAt ?? new Date(),
+            expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000),
+          }
         : { status: 'REJECTED', rejectionReason: body.reason },
     });
-    const link = approve ? `${env().PUBLIC_WEB_URL}/property/${l.slug}` : `${env().PUBLIC_WEB_URL}${l.organizationId ? '/broker/listings' : '/account/listings'}`;
+    const link = approve
+      ? `${env().PUBLIC_WEB_URL}/property/${l.slug}`
+      : `${env().PUBLIC_WEB_URL}${l.organizationId ? '/broker/listings' : '/account/listings'}`;
     await this.notifications.notify(l.postedById, {
       kind: approve ? 'LISTING_APPROVED' : 'LISTING_REJECTED',
       title: approve ? '🎉 आपकी listing live है' : 'Listing में बदलाव ज़रूरी',
@@ -312,7 +387,10 @@ export class AdminCoreController {
       link: approve ? `/property/${l.slug}` : l.organizationId ? '/broker/listings' : '/account/listings',
     });
     const poster = await this.prisma.user.findUnique({ where: { id: l.postedById } });
-    if (poster) this.mail.trySendTemplate(approve ? 'listing.approved' : 'listing.rejected', poster.email, { listing: l, reason: body.reason, link }).catch(() => undefined);
+    if (poster)
+      this.mail
+        .trySendTemplate(approve ? 'listing.approved' : 'listing.rejected', poster.email, { listing: l, reason: body.reason, link })
+        .catch(() => undefined);
     if (approve && l.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
     await this.audit.log(user, `listing.${body.action}`, 'Listing', id, { reason: body.reason });
     return updated;
@@ -342,7 +420,13 @@ export class AdminCoreController {
       ...(q.q ? { OR: [{ title: { contains: q.q, mode: 'insensitive' } }, { slug: { contains: q.q } }] } : {}),
     };
     const [items, total] = await Promise.all([
-      this.prisma.listing.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 30, take: 30, include: { locality: { select: { name: true } }, organization: { select: { name: true } }, postedBy: { select: { name: true, email: true } } } }),
+      this.prisma.listing.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * 30,
+        take: 30,
+        include: { locality: { select: { name: true } }, organization: { select: { name: true } }, postedBy: { select: { name: true, email: true } } },
+      }),
       this.prisma.listing.count({ where }),
     ]);
     return paged(items, total, page, 30);
@@ -361,7 +445,14 @@ export class AdminCoreController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Patch('reports/:id')
-  async resolveReport(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['RESOLVED', 'DISMISSED']), resolution: z.string().max(500).optional(), archiveListing: z.boolean().optional() }))) body: any) {
+  async resolveReport(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(
+      new ZodPipe(z.object({ status: z.enum(['RESOLVED', 'DISMISSED']), resolution: z.string().max(500).optional(), archiveListing: z.boolean().optional() })),
+    )
+    body: any,
+  ) {
     const r = await this.prisma.listingReport.update({ where: { id }, data: { status: body.status, resolution: body.resolution, resolvedAt: new Date() } });
     if (body.archiveListing) await this.prisma.listing.update({ where: { id: r.listingId }, data: { status: 'ARCHIVED' } });
     await this.audit.log(user, 'report.resolve', 'ListingReport', id, body);
@@ -374,20 +465,42 @@ export class AdminCoreController {
     return this.prisma.kycDocument.findMany({
       where: { status: status as any },
       orderBy: { createdAt: 'asc' },
-      include: { user: { select: { id: true, name: true, email: true } }, organization: { select: { id: true, name: true, reraNumber: true, verification: true } } },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        organization: { select: { id: true, name: true, reraNumber: true, verification: true } },
+      },
     });
   }
 
   @Patch('kyc/:id')
-  async reviewKyc(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['VERIFIED', 'REJECTED']), note: z.string().max(500).optional(), verifyOrganization: z.boolean().default(true) }))) body: any) {
-    const doc = await this.prisma.kycDocument.update({ where: { id }, data: { status: body.status, reviewNote: body.note, reviewedById: user.id, reviewedAt: new Date() } });
+  async reviewKyc(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(
+      new ZodPipe(z.object({ status: z.enum(['VERIFIED', 'REJECTED']), note: z.string().max(500).optional(), verifyOrganization: z.boolean().default(true) })),
+    )
+    body: any,
+  ) {
+    const doc = await this.prisma.kycDocument.update({
+      where: { id },
+      data: { status: body.status, reviewNote: body.note, reviewedById: user.id, reviewedAt: new Date() },
+    });
     // A tenant's approved ID makes them a "Verified tenant" (brokers see the badge on enquiries).
-    if (doc.userId && body.status === 'VERIFIED') await this.prisma.user.updateMany({ where: { id: doc.userId, role: 'USER', tenantVerifiedAt: null }, data: { tenantVerifiedAt: new Date() } });
+    if (doc.userId && body.status === 'VERIFIED')
+      await this.prisma.user.updateMany({ where: { id: doc.userId, role: 'USER', tenantVerifiedAt: null }, data: { tenantVerifiedAt: new Date() } });
     if (doc.organizationId && body.verifyOrganization) {
       await this.updateOrg(user, doc.organizationId, { verification: body.status } as any);
     }
-    const target = doc.userId ?? (doc.organizationId ? (await this.prisma.user.findFirst({ where: { organizationId: doc.organizationId, role: 'BROKER_ADMIN' } }))?.id : null);
-    if (target) await this.notifications.notify(target, { kind: 'KYC_UPDATE', title: body.status === 'VERIFIED' ? '✅ Document verified' : '❌ Document rejected', body: body.note, link: doc.organizationId ? '/broker/settings' : '/account/profile' });
+    const target =
+      doc.userId ??
+      (doc.organizationId ? (await this.prisma.user.findFirst({ where: { organizationId: doc.organizationId, role: 'BROKER_ADMIN' } }))?.id : null);
+    if (target)
+      await this.notifications.notify(target, {
+        kind: 'KYC_UPDATE',
+        title: body.status === 'VERIFIED' ? '✅ Document verified' : '❌ Document rejected',
+        body: body.note,
+        link: doc.organizationId ? '/broker/settings' : '/account/profile',
+      });
     await this.audit.log(user, 'kyc.review', 'KycDocument', id, body);
     return doc;
   }
@@ -402,7 +515,13 @@ export class AdminCoreController {
       ...(q.entity ? { entity: q.entity } : {}),
     };
     const [items, total] = await Promise.all([
-      this.prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50, include: { actor: { select: { name: true, email: true } } } }),
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * 50,
+        take: 50,
+        include: { actor: { select: { name: true, email: true } } },
+      }),
       this.prisma.auditLog.count({ where }),
     ]);
     return paged(items, total, page, 50);
@@ -428,7 +547,18 @@ export class AdminCoreController {
   @Post('broadcasts')
   async broadcast(
     @CurrentUser() user: RequestUser,
-    @Body(new ZodPipe(z.object({ audience: z.enum(['ALL', 'USERS', 'BROKERS']), channel: z.enum(['PUSH', 'EMAIL', 'IN_APP']), title: z.string().min(2).max(120), body: z.string().min(2).max(2000), link: z.string().max(300).optional().nullable() }))) body: any,
+    @Body(
+      new ZodPipe(
+        z.object({
+          audience: z.enum(['ALL', 'USERS', 'BROKERS']),
+          channel: z.enum(['PUSH', 'EMAIL', 'IN_APP']),
+          title: z.string().min(2).max(120),
+          body: z.string().min(2).max(2000),
+          link: z.string().max(300).optional().nullable(),
+        }),
+      ),
+    )
+    body: any,
   ) {
     const where: Prisma.UserWhereInput = {
       status: 'ACTIVE',
@@ -439,11 +569,21 @@ export class AdminCoreController {
     if (body.channel === 'EMAIL') {
       await this.settings.require('smtp');
       for (let i = 0; i < users.length; i += 40) {
-        await this.mail.send({ to: (await this.settings.resolve('smtp'))?.fromEmail as string, bcc: users.slice(i, i + 40).map((u) => u.email), subject: body.title, html: `<p>${escapeHtml(body.body).replace(/\n/g, '<br/>')}</p>${body.link ? `<p><a href="${body.link}">Open →</a></p>` : ''}` }).catch(() => undefined);
+        await this.mail
+          .send({
+            to: (await this.settings.resolve('smtp'))?.fromEmail as string,
+            bcc: users.slice(i, i + 40).map((u) => u.email),
+            subject: body.title,
+            html: `<p>${escapeHtml(body.body).replace(/\n/g, '<br/>')}</p>${body.link ? `<p><a href="${body.link}">Open →</a></p>` : ''}`,
+          })
+          .catch(() => undefined);
       }
     } else {
       for (let i = 0; i < users.length; i += 200) {
-        await this.notifications.notify(users.slice(i, i + 200).map((u) => u.id), { kind: 'SYSTEM', title: body.title, body: body.body, link: body.link ?? undefined, push: body.channel === 'PUSH' });
+        await this.notifications.notify(
+          users.slice(i, i + 200).map((u) => u.id),
+          { kind: 'SYSTEM', title: body.title, body: body.body, link: body.link ?? undefined, push: body.channel === 'PUSH' },
+        );
       }
     }
     const b = await this.prisma.broadcast.create({ data: { ...body, sentCount: users.length, createdById: user.id } });

@@ -6,11 +6,21 @@ import { useConfig } from '@/lib/config';
 
 export function RangeSlider({ value, min, max, step, onChange }: { value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
   return (
-    <Slider.Root className="relative flex h-6 w-full touch-none items-center select-none" value={[value]} min={min} max={max} step={step} onValueChange={([v]) => onChange(v)}>
+    <Slider.Root
+      className="relative flex h-6 w-full touch-none items-center select-none"
+      value={[value]}
+      min={min}
+      max={max}
+      step={step}
+      onValueChange={([v]) => onChange(v)}
+    >
       <Slider.Track className="relative h-1.5 grow rounded-full bg-surface-2">
         <Slider.Range className="absolute h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-700" />
       </Slider.Track>
-      <Slider.Thumb className="block size-5 rounded-full border-2 border-brand-600 bg-white shadow-md transition hover:scale-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/30" aria-label="value" />
+      <Slider.Thumb
+        className="block size-5 rounded-full border-2 border-brand-600 bg-white shadow-md transition hover:scale-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/30"
+        aria-label="value"
+      />
     </Slider.Root>
   );
 }
@@ -42,7 +52,16 @@ export function EmiCalculator({ price, compact }: { price?: number; compact?: bo
           <div className="relative size-36">
             <svg viewBox="0 0 36 36" className="size-36 -rotate-90">
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3.5" className="text-saffron-400" />
-              <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3.5" strokeDasharray={`${pct} ${100 - pct}`} className="text-brand-600 transition-all duration-500" />
+              <circle
+                cx="18"
+                cy="18"
+                r="15.9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeDasharray={`${pct} ${100 - pct}`}
+                className="text-brand-600 transition-all duration-500"
+              />
             </svg>
             <div className="absolute inset-0 grid place-items-center">
               <div>

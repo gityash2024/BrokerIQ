@@ -43,7 +43,11 @@ export class MediaService {
     }
     const s3 = await this.settings.resolve('s3');
     if (s3) {
-      const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '') || 'bin';
+      const ext =
+        contentType
+          .split('/')[1]
+          ?.replace('jpeg', 'jpg')
+          .replace(/[^a-z0-9]/g, '') || 'bin';
       const key = `${folderSuffix}/${Date.now()}-${shortCode(10)}.${ext}`;
       const client = this.s3Client(s3);
       const uploadUrl = await getSignedUrl(client, new PutObjectCommand({ Bucket: String(s3.bucket), Key: key, ContentType: contentType }), { expiresIn: 600 });

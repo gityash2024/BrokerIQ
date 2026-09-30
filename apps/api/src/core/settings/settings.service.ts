@@ -1,12 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import {
-  appConfigSchema,
-  DEFAULT_APP_CONFIG,
-  INTEGRATIONS,
-  getIntegration,
-  type AppConfig,
-  type IntegrationDef, LEGACY_SEO_DEFAULTS } from '@brokeriq/shared';
+import { appConfigSchema, DEFAULT_APP_CONFIG, INTEGRATIONS, getIntegration, type AppConfig, type IntegrationDef, LEGACY_SEO_DEFAULTS } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from './crypto.service';
 import { IntegrationNotConfiguredException } from '../../common/exceptions';

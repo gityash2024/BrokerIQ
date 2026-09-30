@@ -51,7 +51,17 @@ export const slimListing = (l: any) => ({
   status: l.status,
   url: l.slug ? `/property/${l.slug}` : undefined,
 });
-const slimLead = (l: any) => ({ id: l.id, name: l.name, phone: l.phone, stage: l.stage, temperature: l.temperature, source: l.source, nextFollowUpAt: l.nextFollowUpAt, assignedTo: l.assignedTo?.name, url: `/broker/leads/${l.id}` });
+const slimLead = (l: any) => ({
+  id: l.id,
+  name: l.name,
+  phone: l.phone,
+  stage: l.stage,
+  temperature: l.temperature,
+  source: l.source,
+  nextFollowUpAt: l.nextFollowUpAt,
+  assignedTo: l.assignedTo?.name,
+  url: `/broker/leads/${l.id}`,
+});
 
 export const TOOLS: Tool[] = [
   // ------------------------------------------------------------------ marketplace (everyone)
@@ -69,7 +79,10 @@ export const TOOLS: Tool[] = [
       types: str('comma separated: APARTMENT, BUILDER_FLOOR, INDEPENDENT_HOUSE, VILLA, STUDIO, PG, OFFICE, SHOP …'),
     }),
     run: async (a, { call }) => {
-      const r = await call({ method: 'GET', path: `/listings${qs({ q: a.q, localities: a.localities, bedrooms: a.bedrooms, maxPrice: a.maxRent, minPrice: a.minRent, furnishing: a.furnishing, types: a.types, pageSize: 8 })}` });
+      const r = await call({
+        method: 'GET',
+        path: `/listings${qs({ q: a.q, localities: a.localities, bedrooms: a.bedrooms, maxPrice: a.maxRent, minPrice: a.minRent, furnishing: a.furnishing, types: a.types, pageSize: 8 })}`,
+      });
       return { total: r.total, listings: (r.items ?? []).map(slimListing) };
     },
   },
@@ -94,7 +107,15 @@ export const TOOLS: Tool[] = [
     parameters: obj({ slugOrId: str('listing slug or id') }, ['slugOrId']),
     run: async (a, { call }) => {
       const l = await call({ method: 'GET', path: `/listings/${id(a.slugOrId)}` });
-      return { ...slimListing(l), description: l.description?.slice(0, 600), maintenance: l.maintenance, area: l.superArea ?? l.carpetArea, floor: l.floor, amenities: l.amenities, broker: l.organization?.name };
+      return {
+        ...slimListing(l),
+        description: l.description?.slice(0, 600),
+        maintenance: l.maintenance,
+        area: l.superArea ?? l.carpetArea,
+        floor: l.floor,
+        amenities: l.amenities,
+        broker: l.organization?.name,
+      };
     },
   },
   {
@@ -108,8 +129,24 @@ export const TOOLS: Tool[] = [
     name: 'move_in_cost',
     description: 'Upfront cash needed to move into a rental (advance + deposit + brokerage + maintenance).',
     roles: ALL,
-    parameters: obj({ rent: num('monthly rent'), depositMonths: num('deposit in months of rent'), brokerage: str('NONE | DAYS_15 | MONTH_1 | FIXED'), brokerageFixed: num('fixed brokerage INR'), maintenance: num('monthly maintenance') }, ['rent']),
-    run: async (a) => moveInCost({ rent: Number(a.rent), depositMonths: Number(a.depositMonths ?? 2), brokerage: a.brokerage ?? 'MONTH_1', brokerageFixed: a.brokerageFixed, maintenance: a.maintenance }),
+    parameters: obj(
+      {
+        rent: num('monthly rent'),
+        depositMonths: num('deposit in months of rent'),
+        brokerage: str('NONE | DAYS_15 | MONTH_1 | FIXED'),
+        brokerageFixed: num('fixed brokerage INR'),
+        maintenance: num('monthly maintenance'),
+      },
+      ['rent'],
+    ),
+    run: async (a) =>
+      moveInCost({
+        rent: Number(a.rent),
+        depositMonths: Number(a.depositMonths ?? 2),
+        brokerage: a.brokerage ?? 'MONTH_1',
+        brokerageFixed: a.brokerageFixed,
+        maintenance: a.maintenance,
+      }),
   },
   {
     name: 'my_notifications',
@@ -118,7 +155,10 @@ export const TOOLS: Tool[] = [
     parameters: obj({}),
     run: async (_a, { call }) => {
       const r = await call({ method: 'GET', path: '/me/notifications' });
-      return { unread: r.unreadCount, items: (r.items ?? []).slice(0, 10).map((n: any) => ({ title: n.title, body: n.body, at: n.createdAt, read: !!n.readAt })) };
+      return {
+        unread: r.unreadCount,
+        items: (r.items ?? []).slice(0, 10).map((n: any) => ({ title: n.title, body: n.body, at: n.createdAt, read: !!n.readAt })),
+      };
     },
   },
   // ------------------------------------------------------------------ renters / owners
@@ -143,12 +183,26 @@ export const TOOLS: Tool[] = [
     description: "Send an enquiry / site-visit request to the listing's broker or owner on the user's behalf.",
     roles: ['USER'],
     write: true,
-    parameters: obj({ listingId: str('listing id'), message: str('message to the broker/owner'), wantsVisit: { type: 'boolean', description: 'user wants a site visit' } }, ['listingId']),
+    parameters: obj(
+      { listingId: str('listing id'), message: str('message to the broker/owner'), wantsVisit: { type: 'boolean', description: 'user wants a site visit' } },
+      ['listingId'],
+    ),
     summary: (a) => `Enquiry भेजना${a.wantsVisit ? ' (site visit के साथ)' : ''}: "${String(a.message ?? '').slice(0, 80)}"`,
     run: async (a, { call, me }) => {
       const u = await me();
       if (!u.phone) throw new Error('Enquiry के लिए profile में mobile नंबर जोड़ें');
-      return call({ method: 'POST', path: '/enquiries', body: { listingId: a.listingId, name: u.name, phone: u.phone, email: u.email, message: a.message ?? 'Interested in this property.', wantsVisit: !!a.wantsVisit } });
+      return call({
+        method: 'POST',
+        path: '/enquiries',
+        body: {
+          listingId: a.listingId,
+          name: u.name,
+          phone: u.phone,
+          email: u.email,
+          message: a.message ?? 'Interested in this property.',
+          wantsVisit: !!a.wantsVisit,
+        },
+      });
     },
   },
   {
@@ -156,7 +210,10 @@ export const TOOLS: Tool[] = [
     description: 'Enquiries the user has sent.',
     roles: ['USER'],
     parameters: obj({}),
-    run: async (_a, { call }) => ((await call({ method: 'GET', path: '/enquiries/sent' })) as any[]).slice(0, 10).map((e: any) => ({ id: e.id, listing: e.listing?.title, status: e.status, at: e.createdAt })),
+    run: async (_a, { call }) =>
+      ((await call({ method: 'GET', path: '/enquiries/sent' })) as any[])
+        .slice(0, 10)
+        .map((e: any) => ({ id: e.id, listing: e.listing?.title, status: e.status, at: e.createdAt })),
   },
   {
     name: 'my_listings',
@@ -165,17 +222,24 @@ export const TOOLS: Tool[] = [
     parameters: obj({ status: str('optional status filter'), search: str('optional text') }),
     run: async (a, { call }) => {
       const r = await call({ method: 'GET', path: `/listings/mine${qs({ status: a.status, search: a.search, pageSize: 15 })}` });
-      return { total: r.total, statusCounts: r.statusCounts, listings: (r.items ?? []).map((l: any) => ({ ...slimListing(l), rejectionReason: l.rejectionReason })) };
+      return {
+        total: r.total,
+        statusCounts: r.statusCounts,
+        listings: (r.items ?? []).map((l: any) => ({ ...slimListing(l), rejectionReason: l.rejectionReason })),
+      };
     },
   },
   {
     name: 'create_rent_listing',
-    description: 'Create a rent listing. submit=true sends it for admin approval (it goes live only after approval); submit=false keeps it as a draft. Ask for locality, property type and rent if missing.',
+    description:
+      'Create a rent listing. submit=true sends it for admin approval (it goes live only after approval); submit=false keeps it as a draft. Ask for locality, property type and rent if missing.',
     roles: LISTERS,
     write: true,
     parameters: obj(
       {
-        propertyType: str('APARTMENT | BUILDER_FLOOR | INDEPENDENT_HOUSE | VILLA | STUDIO | SERVICE_APARTMENT | PG | OFFICE | COWORKING | SHOP | SHOWROOM | WAREHOUSE'),
+        propertyType: str(
+          'APARTMENT | BUILDER_FLOOR | INDEPENDENT_HOUSE | VILLA | STUDIO | SERVICE_APARTMENT | PG | OFFICE | COWORKING | SHOP | SHOWROOM | WAREHOUSE',
+        ),
         localityId: str('locality id — look it up with list_localities first (use its slug to search if unsure)'),
         localitySlug: str('locality slug if the id is unknown'),
         rent: num('monthly rent INR'),
@@ -190,7 +254,10 @@ export const TOOLS: Tool[] = [
       },
       ['propertyType', 'rent'],
     ),
-    summary: (a) => `${a.bedrooms ? `${a.bedrooms} BHK ` : ''}${String(a.propertyType ?? '').replace(/_/g, ' ').toLowerCase()} — ${a.rent ? formatPriceShort(Number(a.rent)) : '?'}/month · ${a.submit === false ? 'draft' : 'admin approval के लिए'}`,
+    summary: (a) =>
+      `${a.bedrooms ? `${a.bedrooms} BHK ` : ''}${String(a.propertyType ?? '')
+        .replace(/_/g, ' ')
+        .toLowerCase()} — ${a.rent ? formatPriceShort(Number(a.rent)) : '?'}/month · ${a.submit === false ? 'draft' : 'admin approval के लिए'}`,
     run: async (a, { call }) => {
       let localityId = a.localityId;
       if (!localityId && a.localitySlug) {
@@ -201,9 +268,28 @@ export const TOOLS: Tool[] = [
       const l = await call({
         method: 'POST',
         path: '/listings',
-        body: { purpose: 'RENT', propertyType: a.propertyType, localityId, price: Number(a.rent), bedrooms: a.bedrooms ?? null, furnishing: a.furnishing ?? null, securityDeposit: a.securityDeposit ?? null, brokerageType: a.brokerageType ?? null, superArea: a.superArea ?? null, title: a.title, description: a.description ?? null, photos: [], submit: a.submit !== false },
+        body: {
+          purpose: 'RENT',
+          propertyType: a.propertyType,
+          localityId,
+          price: Number(a.rent),
+          bedrooms: a.bedrooms ?? null,
+          furnishing: a.furnishing ?? null,
+          securityDeposit: a.securityDeposit ?? null,
+          brokerageType: a.brokerageType ?? null,
+          superArea: a.superArea ?? null,
+          title: a.title,
+          description: a.description ?? null,
+          photos: [],
+          submit: a.submit !== false,
+        },
       });
-      return { id: l.id, status: l.status, title: l.title, note: l.status === 'PENDING_REVIEW' ? 'Admin approval के बाद live होगी; photos app/website से जोड़ें' : 'Draft saved' };
+      return {
+        id: l.id,
+        status: l.status,
+        title: l.title,
+        note: l.status === 'PENDING_REVIEW' ? 'Admin approval के बाद live होगी; photos app/website से जोड़ें' : 'Draft saved',
+      };
     },
   },
   // ------------------------------------------------------------------ brokers (CRM)
@@ -221,7 +307,11 @@ export const TOOLS: Tool[] = [
     name: 'search_leads',
     description: 'Find CRM leads by name/phone, stage or view.',
     roles: BROKERS,
-    parameters: obj({ q: str('name or phone'), stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | NEGOTIATION | WON | LOST'), view: str('new | due_today | overdue | unassigned | mine | hot') }),
+    parameters: obj({
+      q: str('name or phone'),
+      stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | NEGOTIATION | WON | LOST'),
+      view: str('new | due_today | overdue | unassigned | mine | hot'),
+    }),
     run: async (a, { call }) => {
       const r = await call({ method: 'GET', path: `/leads${qs({ q: a.q, stage: a.stage, view: a.view, pageSize: 10 })}` });
       return { total: r.total, leads: (r.items ?? []).map(slimLead) };
@@ -234,7 +324,14 @@ export const TOOLS: Tool[] = [
     parameters: obj({ id: str('lead id') }, ['id']),
     run: async (a, { call }) => {
       const l = await call({ method: 'GET', path: `/leads/${id(a.id)}` });
-      return { ...slimLead(l), email: l.email, requirement: l.requirement, notes: l.notes, activities: (l.activities ?? []).slice(0, 8).map((x: any) => ({ type: x.type, content: x.content?.slice(0, 200), at: x.createdAt })), followUps: (l.followUps ?? []).slice(0, 5) };
+      return {
+        ...slimLead(l),
+        email: l.email,
+        requirement: l.requirement,
+        notes: l.notes,
+        activities: (l.activities ?? []).slice(0, 8).map((x: any) => ({ type: x.type, content: x.content?.slice(0, 200), at: x.createdAt })),
+        followUps: (l.followUps ?? []).slice(0, 5),
+      };
     },
   },
   {
@@ -249,13 +346,37 @@ export const TOOLS: Tool[] = [
     description: 'Add a new lead to the CRM.',
     roles: BROKERS,
     write: true,
-    parameters: obj({ name: str('lead name'), phone: str('10-digit mobile'), notes: str('notes'), temperature: str('HOT | WARM | COLD'), bedrooms: num('required BHK'), maxRent: num('max monthly rent'), localities: str('comma separated locality ids') }, ['name', 'phone']),
+    parameters: obj(
+      {
+        name: str('lead name'),
+        phone: str('10-digit mobile'),
+        notes: str('notes'),
+        temperature: str('HOT | WARM | COLD'),
+        bedrooms: num('required BHK'),
+        maxRent: num('max monthly rent'),
+        localities: str('comma separated locality ids'),
+      },
+      ['name', 'phone'],
+    ),
     summary: (a) => `नई lead: ${a.name} (${a.phone})`,
     run: async (a, { call }) =>
       call({
         method: 'POST',
         path: '/leads',
-        body: { name: a.name, phone: a.phone, notes: a.notes ?? null, temperature: a.temperature ?? null, source: 'MANUAL', requirement: { purpose: 'RENT', bedrooms: a.bedrooms ? [Number(a.bedrooms)] : [], maxBudget: a.maxRent ?? null, localityIds: a.localities ? String(a.localities).split(',') : [], propertyTypes: [] } },
+        body: {
+          name: a.name,
+          phone: a.phone,
+          notes: a.notes ?? null,
+          temperature: a.temperature ?? null,
+          source: 'MANUAL',
+          requirement: {
+            purpose: 'RENT',
+            bedrooms: a.bedrooms ? [Number(a.bedrooms)] : [],
+            maxBudget: a.maxRent ?? null,
+            localityIds: a.localities ? String(a.localities).split(',') : [],
+            propertyTypes: [],
+          },
+        },
       }).then(slimLead),
   },
   {
@@ -263,9 +384,13 @@ export const TOOLS: Tool[] = [
     description: 'Move a lead to another pipeline stage.',
     roles: BROKERS,
     write: true,
-    parameters: obj({ id: str('lead id'), stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | NEGOTIATION | WON | LOST'), lostReason: str('reason when LOST') }, ['id', 'stage']),
+    parameters: obj(
+      { id: str('lead id'), stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | NEGOTIATION | WON | LOST'), lostReason: str('reason when LOST') },
+      ['id', 'stage'],
+    ),
     summary: (a) => `Lead का stage → ${a.stage}`,
-    run: async (a, { call }) => call({ method: 'PATCH', path: `/leads/${id(a.id)}/stage`, body: { stage: a.stage, lostReason: a.lostReason ?? null } }).then(slimLead),
+    run: async (a, { call }) =>
+      call({ method: 'PATCH', path: `/leads/${id(a.id)}/stage`, body: { stage: a.stage, lostReason: a.lostReason ?? null } }).then(slimLead),
   },
   {
     name: 'add_lead_note',
@@ -274,25 +399,40 @@ export const TOOLS: Tool[] = [
     write: true,
     parameters: obj({ id: str('lead id'), content: str('note text'), type: str('NOTE | CALL') }, ['id', 'content']),
     summary: (a) => `Lead पर note: "${String(a.content).slice(0, 80)}"`,
-    run: async (a, { call }) => call({ method: 'POST', path: `/leads/${id(a.id)}/activities`, body: { type: a.type === 'CALL' ? 'CALL' : 'NOTE', content: a.content } }),
+    run: async (a, { call }) =>
+      call({ method: 'POST', path: `/leads/${id(a.id)}/activities`, body: { type: a.type === 'CALL' ? 'CALL' : 'NOTE', content: a.content } }),
   },
   {
     name: 'schedule_follow_up',
     description: 'Schedule a follow-up reminder for a lead (dueAt ISO date-time, Asia/Kolkata).',
     roles: BROKERS,
     write: true,
-    parameters: obj({ leadId: str('lead id'), dueAt: str('ISO date-time, e.g. 2026-10-02T11:00:00+05:30'), type: str('CALL | WHATSAPP | MEETING | EMAIL'), note: str('note') }, ['leadId', 'dueAt']),
-    summary: (a) => `Follow-up: ${new Date(a.dueAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}${a.note ? ` — ${a.note}` : ''}`,
-    run: async (a, { call }) => call({ method: 'POST', path: '/follow-ups', body: { leadId: a.leadId, dueAt: a.dueAt, type: a.type ?? 'CALL', note: a.note ?? null } }),
+    parameters: obj(
+      {
+        leadId: str('lead id'),
+        dueAt: str('ISO date-time, e.g. 2026-10-02T11:00:00+05:30'),
+        type: str('CALL | WHATSAPP | MEETING | EMAIL'),
+        note: str('note'),
+      },
+      ['leadId', 'dueAt'],
+    ),
+    summary: (a) =>
+      `Follow-up: ${new Date(a.dueAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}${a.note ? ` — ${a.note}` : ''}`,
+    run: async (a, { call }) =>
+      call({ method: 'POST', path: '/follow-ups', body: { leadId: a.leadId, dueAt: a.dueAt, type: a.type ?? 'CALL', note: a.note ?? null } }),
   },
   {
     name: 'schedule_site_visit',
     description: 'Schedule a site visit for a lead (optionally for a listing).',
     roles: BROKERS,
     write: true,
-    parameters: obj({ leadId: str('lead id'), scheduledAt: str('ISO date-time +05:30'), listingId: str('optional listing id'), note: str('note') }, ['leadId', 'scheduledAt']),
+    parameters: obj({ leadId: str('lead id'), scheduledAt: str('ISO date-time +05:30'), listingId: str('optional listing id'), note: str('note') }, [
+      'leadId',
+      'scheduledAt',
+    ]),
     summary: (a) => `Site visit: ${new Date(a.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}`,
-    run: async (a, { call }) => call({ method: 'POST', path: '/visits', body: { leadId: a.leadId, scheduledAt: a.scheduledAt, listingId: a.listingId ?? null, note: a.note ?? null } }),
+    run: async (a, { call }) =>
+      call({ method: 'POST', path: '/visits', body: { leadId: a.leadId, scheduledAt: a.scheduledAt, listingId: a.listingId ?? null, note: a.note ?? null } }),
   },
   {
     name: 'todays_agenda',
@@ -303,7 +443,10 @@ export const TOOLS: Tool[] = [
       const start = new Date();
       start.setHours(0, 0, 0, 0);
       const end = new Date(start.getTime() + 86_400_000);
-      const [f, v] = await Promise.all([call({ method: 'GET', path: '/follow-ups?view=today' }), call({ method: 'GET', path: `/visits${qs({ from: start.toISOString(), to: end.toISOString() })}` })]);
+      const [f, v] = await Promise.all([
+        call({ method: 'GET', path: '/follow-ups?view=today' }),
+        call({ method: 'GET', path: `/visits${qs({ from: start.toISOString(), to: end.toISOString() })}` }),
+      ]);
       return {
         followUps: (f as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, leadId: x.lead?.id, dueAt: x.dueAt, type: x.type, note: x.note })),
         visits: (v as any[]).slice(0, 15).map((x) => ({ id: x.id, lead: x.lead?.name, at: x.scheduledAt, listing: x.listing?.title, status: x.status })),
@@ -317,7 +460,8 @@ export const TOOLS: Tool[] = [
     write: true,
     parameters: obj({ id: str('listing id') }, ['id']),
     summary: () => 'Listing को admin approval के लिए भेजना',
-    run: async (a, { call }) => call({ method: 'PATCH', path: `/listings/${id(a.id)}`, body: { submit: true } }).then((l: any) => ({ id: l.id, status: l.status })),
+    run: async (a, { call }) =>
+      call({ method: 'PATCH', path: `/listings/${id(a.id)}`, body: { submit: true } }).then((l: any) => ({ id: l.id, status: l.status })),
   },
   {
     name: 'assign_lead',
@@ -356,7 +500,9 @@ export const TOOLS: Tool[] = [
     parameters: obj({}),
     run: async (_a, { call }) => {
       const r = await call({ method: 'GET', path: '/admin/moderation/listings' });
-      return (r.items ?? r ?? []).slice(0, 15).map((l: any) => ({ ...slimListing(l), flags: l.moderationFlags, postedBy: l.postedBy?.name ?? l.organization?.name }));
+      return (r.items ?? r ?? [])
+        .slice(0, 15)
+        .map((l: any) => ({ ...slimListing(l), flags: l.moderationFlags, postedBy: l.postedBy?.name ?? l.organization?.name }));
     },
   },
   {
@@ -366,7 +512,12 @@ export const TOOLS: Tool[] = [
     write: true,
     parameters: obj({ id: str('listing id'), action: str('approve | reject'), reason: str('reason for rejection') }, ['id', 'action']),
     summary: (a) => (a.action === 'reject' ? `Listing reject: ${a.reason ?? ''}` : 'Listing approve करके live करना'),
-    run: async (a, { call }) => call({ method: 'POST', path: `/admin/moderation/listings/${id(a.id)}`, body: { action: a.action === 'reject' ? 'reject' : 'approve', reason: a.reason } }),
+    run: async (a, { call }) =>
+      call({
+        method: 'POST',
+        path: `/admin/moderation/listings/${id(a.id)}`,
+        body: { action: a.action === 'reject' ? 'reject' : 'approve', reason: a.reason },
+      }),
   },
   {
     name: 'search_users',
@@ -375,7 +526,10 @@ export const TOOLS: Tool[] = [
     parameters: obj({ q: str('name, email or phone'), role: str('USER | BROKER_ADMIN | BROKER_AGENT') }),
     run: async (a, { call }) => {
       const r = await call({ method: 'GET', path: `/admin/users${qs({ q: a.q, role: a.role })}` });
-      return { total: r.total, users: (r.items ?? []).slice(0, 10).map((u: any) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, status: u.status })) };
+      return {
+        total: r.total,
+        users: (r.items ?? []).slice(0, 10).map((u: any) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, status: u.status })),
+      };
     },
   },
   {
@@ -391,4 +545,8 @@ export const TOOLS: Tool[] = [
 ];
 
 export const toolsFor = (role: Role) => TOOLS.filter((t) => t.roles.includes(role));
-export const toOpenAi = (tools: Tool[]) => tools.map((t) => ({ type: 'function', function: { name: t.name, description: `${t.description}${t.write ? ' (asks the user to confirm before it runs)' : ''}`, parameters: t.parameters } }));
+export const toOpenAi = (tools: Tool[]) =>
+  tools.map((t) => ({
+    type: 'function',
+    function: { name: t.name, description: `${t.description}${t.write ? ' (asks the user to confirm before it runs)' : ''}`, parameters: t.parameters },
+  }));

@@ -45,7 +45,9 @@ export default function FeedbackDetail({ params }: { params: Promise<{ id: strin
               <VoteButton item={f} size="lg" />
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge style={{ background: `${FEEDBACK_STATUS_COLORS[f.status]}22`, color: FEEDBACK_STATUS_COLORS[f.status] }}>{FEEDBACK_STATUS_LABELS[f.status]}</Badge>
+                  <Badge style={{ background: `${FEEDBACK_STATUS_COLORS[f.status]}22`, color: FEEDBACK_STATUS_COLORS[f.status] }}>
+                    {FEEDBACK_STATUS_LABELS[f.status]}
+                  </Badge>
                   <span className="text-xs text-subtle">
                     {FEEDBACK_TYPE_LABELS[f.type]} · {timeAgo(f.createdAt)}
                   </span>
@@ -58,7 +60,7 @@ export default function FeedbackDetail({ params }: { params: Promise<{ id: strin
               <div className="mt-4 flex flex-wrap gap-3">
                 {f.screenshots.map((s: string) => (
                   <a key={s} href={s} target="_blank" rel="noreferrer">
-                    { }
+                    {}
                     <img src={img(s, 300)} alt="" className="h-28 rounded-xl border border-line object-cover" />
                   </a>
                 ))}
@@ -77,7 +79,8 @@ export default function FeedbackDetail({ params }: { params: Promise<{ id: strin
                   <Avatar name={c.authorName} size={34} />
                   <div>
                     <p className="text-sm font-semibold">
-                      {c.authorName} {c.isAdmin && <Badge tone="brand">Team</Badge>} <span className="text-xs font-normal text-subtle">{timeAgo(c.createdAt)}</span>
+                      {c.authorName} {c.isAdmin && <Badge tone="brand">Team</Badge>}{' '}
+                      <span className="text-xs font-normal text-subtle">{timeAgo(c.createdAt)}</span>
                     </p>
                     <p className="mt-1 text-sm whitespace-pre-line text-muted">{c.body}</p>
                   </div>

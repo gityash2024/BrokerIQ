@@ -35,12 +35,18 @@ export default function ReviewsPage() {
       ) : !q.data ? (
         <Skeleton className="h-64 rounded-2xl" />
       ) : !items.length ? (
-        <Empty icon={<Star className="size-7" />} title="अभी कोई review नहीं" text="Deal close होने के बाद clients से अपनी microsite पर review माँगें — Settings से microsite link copy करें।" />
+        <Empty
+          icon={<Star className="size-7" />}
+          title="अभी कोई review नहीं"
+          text="Deal close होने के बाद clients से अपनी microsite पर review माँगें — Settings से microsite link copy करें।"
+        />
       ) : (
         <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
           <div className="card h-fit p-6 text-center">
             <p className="font-display text-5xl font-extrabold">{avg.toFixed(1)}</p>
-            <div className="mt-2 flex justify-center"><Stars n={avg} size="size-5" /></div>
+            <div className="mt-2 flex justify-center">
+              <Stars n={avg} size="size-5" />
+            </div>
             <p className="mt-1 text-sm text-muted">{items.length} reviews</p>
             <div className="mt-5 space-y-1.5">
               {dist.map((d) => (
@@ -56,7 +62,9 @@ export default function ReviewsPage() {
             </div>
           </div>
           <div className="space-y-3">
-            {items.map((r) => <ReviewItem key={r.id} r={r} />)}
+            {items.map((r) => (
+              <ReviewItem key={r.id} r={r} />
+            ))}
           </div>
         </div>
       )}
@@ -67,7 +75,11 @@ export default function ReviewsPage() {
 function ReviewItem({ r }: { r: any }) {
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState(r.reply ?? '');
-  const save = useApiMutation(() => patch(`/broker/reviews/${r.id}`, { reply }), { success: 'Reply published', invalidate: [['broker-reviews']], onSuccess: () => setOpen(false) });
+  const save = useApiMutation(() => patch(`/broker/reviews/${r.id}`, { reply }), {
+    success: 'Reply published',
+    invalidate: [['broker-reviews']],
+    onSuccess: () => setOpen(false),
+  });
   return (
     <div className="card p-5">
       <div className="flex items-start gap-3">
@@ -90,12 +102,18 @@ function ReviewItem({ r }: { r: any }) {
             <div className="mt-3 space-y-2">
               <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="धन्यवाद! …" />
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!reply.trim()}>Publish</Button>
-                <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                <Button size="sm" onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!reply.trim()}>
+                  Publish
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
               </div>
             </div>
           ) : (
-            <Button size="xs" variant="ghost" className="mt-2" onClick={() => setOpen(true)}><MessageSquareReply className="size-3.5" /> {r.reply ? 'Reply edit करें' : 'Reply करें'}</Button>
+            <Button size="xs" variant="ghost" className="mt-2" onClick={() => setOpen(true)}>
+              <MessageSquareReply className="size-3.5" /> {r.reply ? 'Reply edit करें' : 'Reply करें'}
+            </Button>
           )}
         </div>
       </div>

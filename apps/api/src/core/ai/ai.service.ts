@@ -73,8 +73,15 @@ export class AiService {
   private toProvider(name: ProviderName, v: Record<string, unknown>): Provider {
     const apiKey = String(v.apiKey ?? '');
     if (name === 'openrouter')
-      return { name, apiKey, url: URLS[name], textModels: [...list(v.textModel), ...list(v.fallbackModels)], visionModels: [...list(v.visionModel), ...list(v.visionFallbackModels)] };
-    if (name === 'groq') return { name, apiKey, url: URLS[name], textModels: list(v.textModel || 'llama-3.3-70b-versatile'), visionModels: list(v.visionModel) };
+      return {
+        name,
+        apiKey,
+        url: URLS[name],
+        textModels: [...list(v.textModel), ...list(v.fallbackModels)],
+        visionModels: [...list(v.visionModel), ...list(v.visionFallbackModels)],
+      };
+    if (name === 'groq')
+      return { name, apiKey, url: URLS[name], textModels: list(v.textModel || 'llama-3.3-70b-versatile'), visionModels: list(v.visionModel) };
     return { name, apiKey, url: URLS[name], textModels: list(v.model || 'gemini-2.5-flash'), visionModels: list(v.model || 'gemini-2.5-flash') };
   }
 
@@ -106,7 +113,13 @@ export class AiService {
   async vision(imageDataUrl: string, prompt: string, opts: CallOpts & { system?: string }): Promise<string> {
     const messages = [
       ...(opts.system ? [{ role: 'system', content: opts.system }] : []),
-      { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: imageDataUrl } }] },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: imageDataUrl } },
+        ],
+      },
     ];
     return this.run(opts, 'vision', async (p, model) => {
       const out = await this.complete(p, model, messages, opts, VISION_TIMEOUT_MS);
@@ -128,7 +141,15 @@ export class AiService {
         const parsed = parseJsonLoose<T>(text);
         if (!opts.schema) return { ok: true as const, data: parsed };
         const r = opts.schema.safeParse(parsed);
-        return r.success ? { ok: true as const, data: r.data } : { ok: false as const, error: r.error.issues.slice(0, 5).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ') };
+        return r.success
+          ? { ok: true as const, data: r.data }
+          : {
+              ok: false as const,
+              error: r.error.issues
+                .slice(0, 5)
+                .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+                .join('; '),
+            };
       };
       let res: ReturnType<typeof check>;
       try {
@@ -140,7 +161,11 @@ export class AiService {
         const repair = await this.complete(
           p,
           model,
-          [...messages, { role: 'assistant', content: first.text }, { role: 'user', content: `Your answer did not match the required JSON (${res.error}). Reply again with ONLY the corrected JSON object, no prose.` }],
+          [
+            ...messages,
+            { role: 'assistant', content: first.text },
+            { role: 'user', content: `Your answer did not match the required JSON (${res.error}). Reply again with ONLY the corrected JSON object, no prose.` },
+          ],
           { ...opts, json: true },
           TEXT_TIMEOUT_MS,
         );
@@ -164,7 +189,18 @@ export class AiService {
   async chatWithTools(messages: any[], tools: any[], opts: CallOpts) {
     let message: { content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] } = { content: '' };
     await this.run(opts, 'text', async (p, model) => {
-      const data = await this.post(p, { model, messages, tools: tools.length ? tools : undefined, tool_choice: tools.length ? 'auto' : undefined, temperature: 0.2, max_tokens: opts.maxTokens ?? 1200 }, TEXT_TIMEOUT_MS);
+      const data = await this.post(
+        p,
+        {
+          model,
+          messages,
+          tools: tools.length ? tools : undefined,
+          tool_choice: tools.length ? 'auto' : undefined,
+          temperature: 0.2,
+          max_tokens: opts.maxTokens ?? 1200,
+        },
+        TEXT_TIMEOUT_MS,
+      );
       const m = data.choices?.[0]?.message;
       if (!m || (!m.content && !m.tool_calls?.length)) throw new RetryableError('empty answer');
       message = m;
@@ -177,32 +213,62 @@ export class AiService {
   async transcribe(audioBase64: string, mime: string, lang: string | undefined, opts: { userId?: string; orgId?: string | null }) {
     const bytes = Buffer.from(audioBase64.replace(/^data:[^,]+,/, ''), 'base64');
     const providers = (await this.providers()).filter((p) => p.name !== 'openrouter');
-    if (!providers.length) throw new IntegrationNotConfiguredException('groq', 'Voice input के लिए Groq या Gemini key चाहिए — तब तक phone का voice typing इस्तेमाल करें।');
+    if (!providers.length)
+      throw new IntegrationNotConfiguredException('groq', 'Voice input के लिए Groq या Gemini key चाहिए — तब तक phone का voice typing इस्तेमाल करें।');
     let lastError = '';
     for (const p of providers) {
       try {
         let text: string;
         if (p.name === 'groq') {
           const form = new FormData();
-          const ext = mime.includes('webm') ? 'webm' : mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac') ? 'm4a' : 'mp3';
+          const ext = mime.includes('webm')
+            ? 'webm'
+            : mime.includes('ogg')
+              ? 'ogg'
+              : mime.includes('wav')
+                ? 'wav'
+                : mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac')
+                  ? 'm4a'
+                  : 'mp3';
           form.append('file', new Blob([bytes], { type: mime }), `voice.${ext}`);
           form.append('model', 'whisper-large-v3-turbo');
           form.append('response_format', 'json');
           if (lang && lang !== 'en') form.append('language', lang);
-          const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${p.apiKey}` }, body: form, signal: AbortSignal.timeout(TEXT_TIMEOUT_MS) });
+          const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${p.apiKey}` },
+            body: form,
+            signal: AbortSignal.timeout(TEXT_TIMEOUT_MS),
+          });
           const data: any = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data?.error?.message ?? `Groq HTTP ${res.status}`);
           text = String(data.text ?? '').trim();
         } else {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(p.textModels[0])}:generateContent?key=${p.apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Transcribe this voice note exactly, in the language spoken. Reply with the transcript only.' }, { inline_data: { mime_type: mime, data: bytes.toString('base64') } }] }] }),
-            signal: AbortSignal.timeout(TEXT_TIMEOUT_MS),
-          });
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(p.textModels[0])}:generateContent?key=${p.apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [
+                      { text: 'Transcribe this voice note exactly, in the language spoken. Reply with the transcript only.' },
+                      { inline_data: { mime_type: mime, data: bytes.toString('base64') } },
+                    ],
+                  },
+                ],
+              }),
+              signal: AbortSignal.timeout(TEXT_TIMEOUT_MS),
+            },
+          );
           const data: any = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data?.error?.message ?? `Gemini HTTP ${res.status}`);
-          text = (data.candidates?.[0]?.content?.parts ?? []).map((x: any) => x.text).join('').trim();
+          text = (data.candidates?.[0]?.content?.parts ?? [])
+            .map((x: any) => x.text)
+            .join('')
+            .trim();
         }
         await this.track(p.name, p.name === 'groq' ? 'whisper-large-v3-turbo' : p.textModels[0], { feature: 'assistant-voice', ...opts }, true, 0);
         return text;
@@ -215,7 +281,11 @@ export class AiService {
   }
 
   // ------------------------------------------------------------------ core loop
-  private async run(opts: CallOpts, kind: 'text' | 'vision', attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>): Promise<string> {
+  private async run(
+    opts: CallOpts,
+    kind: 'text' | 'vision',
+    attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
+  ): Promise<string> {
     const providers = await this.providers();
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
@@ -238,7 +308,11 @@ export class AiService {
   }
 
   private async complete(p: Provider, model: string, messages: any[], opts: CallOpts, timeoutMs: number) {
-    const key = opts.cacheMs ? createHash('sha256').update(JSON.stringify([opts.feature, opts.json, messages])).digest('hex') : null;
+    const key = opts.cacheMs
+      ? createHash('sha256')
+          .update(JSON.stringify([opts.feature, opts.json, messages]))
+          .digest('hex')
+      : null;
     const hit = key ? this.cache.get(key) : undefined;
     if (hit && Date.now() - hit.at < hit.ttl) return { text: hit.text, tokens: 0 };
     const data = await this.post(
@@ -284,7 +358,9 @@ export class AiService {
   }
 
   private async track(provider: string, model: string, opts: { feature: string; orgId?: string | null; userId?: string }, success: boolean, tokens: number) {
-    await this.prisma.aiUsage.create({ data: { provider, model, feature: opts.feature, organizationId: opts.orgId ?? null, userId: opts.userId, success, tokens } }).catch(() => undefined);
+    await this.prisma.aiUsage
+      .create({ data: { provider, model, feature: opts.feature, organizationId: opts.orgId ?? null, userId: opts.userId, success, tokens } })
+      .catch(() => undefined);
   }
 
   // ------------------------------------------------------------------ admin

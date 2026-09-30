@@ -18,7 +18,13 @@ import { Button, Card, PressableScale, Row, Txt } from '@/ui';
  * Floating AI assistant (bottom-right). Voice or text; acts only inside the signed-in account
  * and asks before changing anything.
  */
-type Msg = { role: 'user' | 'assistant'; content: string; cards?: { type: 'listings' | 'leads'; items: any[] }; pending?: { token: string; summary: string }; resolved?: 'done' | 'cancelled' };
+type Msg = {
+  role: 'user' | 'assistant';
+  content: string;
+  cards?: { type: 'listings' | 'leads'; items: any[] };
+  pending?: { token: string; summary: string };
+  resolved?: 'done' | 'cancelled';
+};
 const HIDDEN = ['/login', '/onboarding', '/data-consent', '/scanner', '/post-property'];
 
 export function AssistantButton() {
@@ -32,7 +38,22 @@ export function AssistantButton() {
     <>
       <PressableScale
         onPress={() => setOpen(true)}
-        style={{ position: 'absolute', right: 16, bottom: insets.bottom + 96, width: 56, height: 56, borderRadius: 28, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center', shadowColor: c.brand, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 10 }}
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: insets.bottom + 96,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: c.brand,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: c.brand,
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 10,
+        }}
       >
         <Sparkles size={26} color="#fff" />
       </PressableScale>
@@ -70,7 +91,13 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
       append({ role: 'assistant', content: r.reply, cards: r.cards, pending: r.pending });
       say(r.reply);
     } catch (e) {
-      append({ role: 'assistant', content: e instanceof ApiError && e.body?.code === 'INTEGRATION_NOT_CONFIGURED' ? 'AI assistant अभी setup नहीं है — admin को Groq/Gemini key जोड़नी होगी।' : `⚠️ ${errorMessage(e)}` });
+      append({
+        role: 'assistant',
+        content:
+          e instanceof ApiError && e.body?.code === 'INTEGRATION_NOT_CONFIGURED'
+            ? 'AI assistant अभी setup नहीं है — admin को Groq/Gemini key जोड़नी होगी।'
+            : `⚠️ ${errorMessage(e)}`,
+      });
     } finally {
       setBusy(false);
     }
@@ -131,20 +158,33 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Dimensions.get('screen').height, backgroundColor: c.bg }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Dimensions.get('screen').height, backgroundColor: c.bg }}
+      >
         <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#3730A3' }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Row gap={10} style={{ flex: 1 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <Sparkles size={20} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
-                <Txt v="h3" color="white">BrokerIQ Assistant</Txt>
-                <Txt v="caption" color="rgba(255,255,255,0.75)" numberOfLines={1}>बोलकर या लिखकर — आपके account में, आपकी अनुमति से</Txt>
+                <Txt v="h3" color="white">
+                  BrokerIQ Assistant
+                </Txt>
+                <Txt v="caption" color="rgba(255,255,255,0.75)" numberOfLines={1}>
+                  बोलकर या लिखकर — आपके account में, आपकी अनुमति से
+                </Txt>
               </View>
             </Row>
-            <PressableScale onPress={() => (setSpeak(!speak), Speech.stop())} style={{ padding: 8 }}>{speak ? <Volume2 size={20} color="#fff" /> : <VolumeX size={20} color="#fff" />}</PressableScale>
-            <PressableScale onPress={onClose} style={{ padding: 8 }}><X size={22} color="#fff" /></PressableScale>
+            <PressableScale onPress={() => (setSpeak(!speak), Speech.stop())} style={{ padding: 8 }}>
+              {speak ? <Volume2 size={20} color="#fff" /> : <VolumeX size={20} color="#fff" />}
+            </PressableScale>
+            <PressableScale onPress={onClose} style={{ padding: 8 }}>
+              <X size={22} color="#fff" />
+            </PressableScale>
           </Row>
         </View>
         <FlatList
@@ -167,20 +207,43 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
           }
           renderItem={({ item: m, index: i }) => (
             <View style={{ alignItems: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 6 }}>
-              <View style={{ maxWidth: '88%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: m.role === 'user' ? c.brand : c.surface2, borderBottomRightRadius: m.role === 'user' ? 6 : 18, borderBottomLeftRadius: m.role === 'user' ? 18 : 6 }}>
-                <Txt color={m.role === 'user' ? 'white' : 'fg'} selectable>{m.content}</Txt>
+              <View
+                style={{
+                  maxWidth: '88%',
+                  borderRadius: 18,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  backgroundColor: m.role === 'user' ? c.brand : c.surface2,
+                  borderBottomRightRadius: m.role === 'user' ? 6 : 18,
+                  borderBottomLeftRadius: m.role === 'user' ? 18 : 6,
+                }}
+              >
+                <Txt color={m.role === 'user' ? 'white' : 'fg'} selectable>
+                  {m.content}
+                </Txt>
               </View>
               {m.cards?.items.map((it) => (
                 <Card key={it.id} onPress={() => it.url && open(it.url)} style={{ padding: 10, alignSelf: 'stretch' }}>
-                  <Txt v="bodyStrong" numberOfLines={1}>{m.cards!.type === 'listings' ? it.title : it.name}</Txt>
-                  <Txt v="caption" color="muted">{(m.cards!.type === 'listings' ? [it.rentText, it.locality, it.bedrooms ? `${it.bedrooms} BHK` : null] : [it.phone, it.stage, it.temperature]).filter(Boolean).join(' · ')}</Txt>
+                  <Txt v="bodyStrong" numberOfLines={1}>
+                    {m.cards!.type === 'listings' ? it.title : it.name}
+                  </Txt>
+                  <Txt v="caption" color="muted">
+                    {(m.cards!.type === 'listings'
+                      ? [it.rentText, it.locality, it.bedrooms ? `${it.bedrooms} BHK` : null]
+                      : [it.phone, it.stage, it.temperature]
+                    )
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Txt>
                 </Card>
               ))}
               {m.pending && (
                 <Card style={{ padding: 12, gap: 8, alignSelf: 'stretch', borderColor: c.warning, backgroundColor: `${c.warning}14` }}>
                   <Txt v="bodyStrong">{m.pending.summary}</Txt>
                   {m.resolved ? (
-                    <Txt v="caption" color="muted">{m.resolved === 'done' ? '✅ Confirmed' : 'रद्द किया'}</Txt>
+                    <Txt v="caption" color="muted">
+                      {m.resolved === 'done' ? '✅ Confirmed' : 'रद्द किया'}
+                    </Txt>
                   ) : (
                     <Row>
                       <Button title="हाँ, करें" size="sm" icon={<Check size={16} color="#fff" />} disabled={busy} onPress={() => resolve(i, true)} />
@@ -191,10 +254,30 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
               )}
             </View>
           )}
-          ListFooterComponent={busy ? <Row gap={8}><ActivityIndicator color={c.brand} /><Txt v="small" color="muted">सोच रहा हूँ…</Txt></Row> : null}
+          ListFooterComponent={
+            busy ? (
+              <Row gap={8}>
+                <ActivityIndicator color={c.brand} />
+                <Txt v="small" color="muted">
+                  सोच रहा हूँ…
+                </Txt>
+              </Row>
+            ) : null
+          }
         />
         <Row gap={8} style={{ padding: 12, paddingBottom: insets.bottom + 12, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
-          <PressableScale onPress={toggleMic} disabled={busy && !recording} style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: recording ? c.danger : c.surface2 }}>
+          <PressableScale
+            onPress={toggleMic}
+            disabled={busy && !recording}
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: recording ? c.danger : c.surface2,
+            }}
+          >
             {recording ? <Square size={18} color="#fff" /> : <Mic size={22} color={c.fg} />}
           </PressableScale>
           <TextInput
@@ -204,9 +287,32 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
             placeholderTextColor={c.subtle}
             onSubmitEditing={() => send(text)}
             returnKeyType="send"
-            style={{ flex: 1, height: 46, borderRadius: 23, borderWidth: 1, borderColor: c.line, paddingHorizontal: 16, color: c.fg, fontFamily: fonts.body, fontSize: 15, backgroundColor: c.bg }}
+            style={{
+              flex: 1,
+              height: 46,
+              borderRadius: 23,
+              borderWidth: 1,
+              borderColor: c.line,
+              paddingHorizontal: 16,
+              color: c.fg,
+              fontFamily: fonts.body,
+              fontSize: 15,
+              backgroundColor: c.bg,
+            }}
           />
-          <PressableScale onPress={() => send(text)} disabled={!text.trim() || busy} style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: c.brand, opacity: !text.trim() || busy ? 0.4 : 1 }}>
+          <PressableScale
+            onPress={() => send(text)}
+            disabled={!text.trim() || busy}
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: c.brand,
+              opacity: !text.trim() || busy ? 0.4 : 1,
+            }}
+          >
             <Send size={18} color="#fff" />
           </PressableScale>
         </Row>

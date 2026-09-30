@@ -96,7 +96,10 @@ function cleanName(raw: string | null): string | null {
 export function parsePortalEmail(input: { from: string; subject: string; text?: string | null; html?: string | null }): ParsedPortalLead {
   const bodyText = (input.text && input.text.trim().length > 40 ? input.text : input.html ? htmlToText(input.html) : input.text) ?? '';
   const source = detectPortal(input.from, input.subject, bodyText);
-  const lines = bodyText.split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const lines = bodyText
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
 
   let name = cleanName(findLabel(lines, LABELS.name));
   const phoneRaw = findLabel(lines, LABELS.phone);
@@ -219,6 +222,9 @@ export function extractRequirementHints(text: string): RequirementHints {
     if (one) maxBudget = parseRupees(one[1]);
   }
   const sector = t.match(/\b(sector[\s-]*\d{1,3}[a-z]?)\b/i)?.[1] ?? null;
-  const road = t.match(/\b((?:golf course|sohna|mg|southern peripheral|dwarka expressway|nh[\s-]?48|udyog vihar|cyber city|dlf phase[\s-]*\d)[a-z\s]{0,20}?(?:road|extension|ext|phase \d)?)\b/i)?.[1] ?? null;
+  const road =
+    t.match(
+      /\b((?:golf course|sohna|mg|southern peripheral|dwarka expressway|nh[\s-]?48|udyog vihar|cyber city|dlf phase[\s-]*\d)[a-z\s]{0,20}?(?:road|extension|ext|phase \d)?)\b/i,
+    )?.[1] ?? null;
   return { bedrooms, minBudget, maxBudget, localityText: (sector ?? road)?.replace(/\s+/g, ' ').trim() ?? null };
 }

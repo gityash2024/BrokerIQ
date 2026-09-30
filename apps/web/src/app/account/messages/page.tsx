@@ -20,12 +20,24 @@ function Inner() {
     <>
       <PageHeader title="Messages" subtitle="Brokers के साथ आपकी बातचीत" />
       {!q.data?.length ? (
-        <Empty icon={<MessagesSquare className="size-6" />} title="कोई conversation नहीं" text="Property page पर “Chat” दबाकर broker से बात शुरू करें।" action={<Button href="/rent">Properties देखें</Button>} />
+        <Empty
+          icon={<MessagesSquare className="size-6" />}
+          title="कोई conversation नहीं"
+          text="Property page पर “Chat” दबाकर broker से बात शुरू करें।"
+          action={<Button href="/rent">Properties देखें</Button>}
+        />
       ) : (
         <div className="card grid h-[70vh] overflow-hidden md:grid-cols-[300px_1fr]">
           <div className={cn('overflow-y-auto border-r border-line', active && 'hidden md:block')}>
             {q.data.map((c) => (
-              <button key={c.id} onClick={() => router.replace(`/account/messages?c=${c.id}`)} className={cn('flex w-full items-center gap-3 border-b border-line p-4 text-left hover:bg-surface-2', active === c.id && 'bg-brand-50 dark:bg-brand-500/10')}>
+              <button
+                key={c.id}
+                onClick={() => router.replace(`/account/messages?c=${c.id}`)}
+                className={cn(
+                  'flex w-full items-center gap-3 border-b border-line p-4 text-left hover:bg-surface-2',
+                  active === c.id && 'bg-brand-50 dark:bg-brand-500/10',
+                )}
+              >
                 <Avatar name={c.organization?.name} src={c.organization?.logoUrl} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{c.organization?.name}</p>
@@ -44,5 +56,9 @@ function Inner() {
   );
 }
 export default function MessagesPage() {
-  return <Suspense><Inner /></Suspense>;
+  return (
+    <Suspense>
+      <Inner />
+    </Suspense>
+  );
 }

@@ -4,8 +4,32 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
-import { ArrowDownRight, ArrowUpRight, BadgeCheck, Calendar, ChevronRight, Compass, Eye, Flag, Layers, MapPin, Pencil, Share2, Sofa, Sparkles } from 'lucide-react';
-import { FACING_LABELS, FURNISHING_LABELS, POSSESSION_LABELS, PROPERTY_TYPE_LABELS, brokerageText, formatINR, formatPriceShort, timeAgo } from '@brokeriq/shared';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BadgeCheck,
+  Calendar,
+  ChevronRight,
+  Compass,
+  Eye,
+  Flag,
+  Layers,
+  MapPin,
+  Pencil,
+  Share2,
+  Sofa,
+  Sparkles,
+} from 'lucide-react';
+import {
+  FACING_LABELS,
+  FURNISHING_LABELS,
+  POSSESSION_LABELS,
+  PROPERTY_TYPE_LABELS,
+  brokerageText,
+  formatINR,
+  formatPriceShort,
+  timeAgo,
+} from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { formatDate, SITE_URL } from '@/lib/utils';
 import { Badge } from '../ui/misc';
@@ -22,11 +46,19 @@ import { SaveButton } from './save-button';
 import { Map } from './map';
 
 function toPascal(s?: string | null) {
-  return (s ?? '').split('-').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+  return (s ?? '')
+    .split('-')
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join('');
 }
 
 export function PropertyView({ initial, similar, amenities }: { initial: any; similar: any[]; amenities: any[] }) {
-  const { data: l } = useQuery({ queryKey: ['listing', initial.slug], queryFn: () => api<any>(`/listings/${initial.slug}`), initialData: initial, staleTime: 0 });
+  const { data: l } = useQuery({
+    queryKey: ['listing', initial.slug],
+    queryFn: () => api<any>(`/listings/${initial.slug}`),
+    initialData: initial,
+    staleTime: 0,
+  });
   const [expanded, setExpanded] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const photos = (l.media ?? []).filter((m: any) => m.kind === 'PHOTO');
@@ -63,13 +95,17 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
   return (
     <div className="container-x py-6">
       <nav className="mb-4 flex flex-wrap items-center gap-1 text-xs text-muted">
-        <Link href="/" className="hover:text-fg">Home</Link>
+        <Link href="/" className="hover:text-fg">
+          Home
+        </Link>
         <ChevronRight className="size-3" />
         <Link href={l.category === 'COMMERCIAL' ? '/commercial' : '/rent'} className="hover:text-fg">
           Rent
         </Link>
         <ChevronRight className="size-3" />
-        <Link href={`/locality/${l.locality.slug}`} className="hover:text-fg">{l.locality.name}</Link>
+        <Link href={`/locality/${l.locality.slug}`} className="hover:text-fg">
+          {l.locality.name}
+        </Link>
         <ChevronRight className="size-3" />
         <span className="truncate text-fg">{l.title}</span>
       </nav>
@@ -153,7 +189,9 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
               .filter(([, , v]) => v != null && v !== '')
               .map(([icon, label, value]) => (
                 <div key={label} className="card flex items-center gap-3 p-3.5 transition hover:border-brand-300">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 [&_svg]:size-5">{icon}</span>
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 [&_svg]:size-5">
+                    {icon}
+                  </span>
                   <div>
                     <p className="text-xs text-muted">{label}</p>
                     <p className="font-semibold">{value}</p>
@@ -195,12 +233,24 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
             <section>
               <div className="flex items-end justify-between">
                 <h2 className="font-display text-xl font-bold">Location</h2>
-                <a href={`https://www.google.com/maps/search/?api=1&query=${l.latitude},${l.longitude}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-brand-600 hover:underline">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${l.latitude},${l.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-brand-600 hover:underline"
+                >
                   Google Maps में खोलें →
                 </a>
               </div>
               <div className="card mt-4 h-80 overflow-hidden">
-                <Map points={[{ id: l.id, lat: l.latitude, lng: l.longitude, price: l.price }]} center={[l.latitude, l.longitude]} zoom={15} fit={false} radius={600} scrollWheelZoom={false} />
+                <Map
+                  points={[{ id: l.id, lat: l.latitude, lng: l.longitude, price: l.price }]}
+                  center={[l.latitude, l.longitude]}
+                  zoom={15}
+                  fit={false}
+                  radius={600}
+                  scrollWheelZoom={false}
+                />
               </div>
               <Link href={`/locality/${l.locality.slug}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600">
                 {l.locality.name} का पूरा guide देखें <ChevronRight className="size-4" />
@@ -211,7 +261,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
           {l.floorPlanUrl && (
             <section>
               <h2 className="font-display text-xl font-bold">Floor plan</h2>
-              { }
+              {}
               <img src={l.floorPlanUrl} alt="Floor plan" className="card mt-4 w-full bg-white p-4" />
             </section>
           )}
@@ -233,9 +283,19 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
               <h2 className="font-display text-lg font-bold">{l.propertyType === 'PG' ? 'PG details' : 'किसके लिए'}</h2>
               <div className="flex flex-wrap gap-2">
                 {l.pgGender && <Badge tone="brand">{({ FEMALE: 'Girls', MALE: 'Boys', ANY: 'Co-ed' } as Record<string, string>)[l.pgGender]}</Badge>}
-                {l.pgFood && <Badge tone="success">{({ VEG: 'Veg food', NONVEG: 'Non-veg food', BOTH: 'Veg + non-veg', NONE: 'Food शामिल नहीं' } as Record<string, string>)[l.pgFood]}</Badge>}
-                {(l.pgSharing ?? []).map((x: string) => <Badge key={x}>{({ SINGLE: 'Single room', DOUBLE: 'Double sharing', TRIPLE: 'Triple sharing', DORM: 'Dormitory' } as Record<string, string>)[x] ?? x}</Badge>)}
-                {(l.preferredTenants ?? []).map((x: string) => <Badge key={x}>{x}</Badge>)}
+                {l.pgFood && (
+                  <Badge tone="success">
+                    {({ VEG: 'Veg food', NONVEG: 'Non-veg food', BOTH: 'Veg + non-veg', NONE: 'Food शामिल नहीं' } as Record<string, string>)[l.pgFood]}
+                  </Badge>
+                )}
+                {(l.pgSharing ?? []).map((x: string) => (
+                  <Badge key={x}>
+                    {({ SINGLE: 'Single room', DOUBLE: 'Double sharing', TRIPLE: 'Triple sharing', DORM: 'Dormitory' } as Record<string, string>)[x] ?? x}
+                  </Badge>
+                ))}
+                {(l.preferredTenants ?? []).map((x: string) => (
+                  <Badge key={x}>{x}</Badge>
+                ))}
               </div>
               {l.pgRules?.length > 0 && <p className="text-muted">Rules: {l.pgRules.join(' · ')}</p>}
             </section>
@@ -286,7 +346,10 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
       {!l.canManage && (
         <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-line bg-surface/95 p-3 backdrop-blur-xl lg:hidden">
           <div className="min-w-0 flex-1">
-            <p className="font-display text-lg leading-tight font-extrabold">{formatPriceShort(l.price)}{l.purpose === 'RENT' ? '/mo' : ''}</p>
+            <p className="font-display text-lg leading-tight font-extrabold">
+              {formatPriceShort(l.price)}
+              {l.purpose === 'RENT' ? '/mo' : ''}
+            </p>
             <p className="truncate text-xs text-muted">{l.locality.name}</p>
           </div>
           <Button size="md" onClick={() => document.getElementById('enquiry')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
@@ -316,7 +379,16 @@ function ReportDialog({ open, onOpenChange, listingId }: { open: boolean; onOpen
     }
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Listing report करें" footer={<Button variant="danger" onClick={submit} loading={loading}>Submit report</Button>}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Listing report करें"
+      footer={
+        <Button variant="danger" onClick={submit} loading={loading}>
+          Submit report
+        </Button>
+      }
+    >
       <div className="space-y-3">
         <Select value={reason} onChange={(e) => setReason(e.target.value)}>
           <option value="FAKE">Fake / misleading listing</option>

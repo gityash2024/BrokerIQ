@@ -3,13 +3,34 @@ import * as D from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function Dialog({ open, onOpenChange, title, description, children, footer, size = 'md' }: { open: boolean; onOpenChange: (v: boolean) => void; title?: React.ReactNode; description?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+export function Dialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+}) {
   const w = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size];
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm data-[state=open]:animate-[fade-up_.2s_ease]" />
-        <D.Content className={cn('fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl border border-line bg-surface shadow-2xl outline-none', w)}>
+        <D.Content
+          className={cn(
+            'fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl border border-line bg-surface shadow-2xl outline-none',
+            w,
+          )}
+        >
           {(title || description) && (
             <div className="border-b border-line px-6 pt-5 pb-4">
               {title && <D.Title className="pr-8 font-display text-lg font-bold">{title}</D.Title>}
@@ -27,8 +48,26 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
   );
 }
 
-export function Sheet({ open, onOpenChange, title, children, side = 'right', className }: { open: boolean; onOpenChange: (v: boolean) => void; title?: React.ReactNode; children: React.ReactNode; side?: 'right' | 'left' | 'bottom'; className?: string }) {
-  const pos = { right: 'right-0 top-0 h-dvh w-full max-w-md border-l', left: 'left-0 top-0 h-dvh w-[85vw] max-w-xs border-r', bottom: 'bottom-0 left-0 max-h-[88dvh] w-full rounded-t-3xl border-t' }[side];
+export function Sheet({
+  open,
+  onOpenChange,
+  title,
+  children,
+  side = 'right',
+  className,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title?: React.ReactNode;
+  children: React.ReactNode;
+  side?: 'right' | 'left' | 'bottom';
+  className?: string;
+}) {
+  const pos = {
+    right: 'right-0 top-0 h-dvh w-full max-w-md border-l',
+    left: 'left-0 top-0 h-dvh w-[85vw] max-w-xs border-r',
+    bottom: 'bottom-0 left-0 max-h-[88dvh] w-full rounded-t-3xl border-t',
+  }[side];
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>

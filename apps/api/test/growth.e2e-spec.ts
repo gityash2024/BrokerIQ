@@ -38,7 +38,12 @@ describe('Growth features (e2e)', () => {
     prisma = app.get(PrismaService);
     settings = app.get(SettingsService);
     http = request(app.getHttpServer());
-    admin = (await http.post('/api/auth/login').send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' }).expect(200)).body.accessToken;
+    admin = (
+      await http
+        .post('/api/auth/login')
+        .send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' })
+        .expect(200)
+    ).body.accessToken;
     await settings.updateAppConfig({ auth: { allowBrokerSignup: false } } as any);
     // The e2e database is reused across runs: hide earlier runs' listings so rank-ordered results
     // (matches, search) only see this suite's data. Soft delete; this suite creates its own listings.
@@ -55,19 +60,28 @@ describe('Growth features (e2e)', () => {
   });
 
   const registerBroker = (p: string, inviteCode?: string) =>
-    http.post('/api/auth/register').send({ name: `Broker ${p}`, email: email(p), password: 'Passw0rd!', accountType: 'BROKER', firmName: `${p} Realty ${uniq}`, inviteCode });
+    http
+      .post('/api/auth/register')
+      .send({ name: `Broker ${p}`, email: email(p), password: 'Passw0rd!', accountType: 'BROKER', firmName: `${p} Realty ${uniq}`, inviteCode });
 
   it('blocks broker signup without an invite while open signup is off', async () => {
     const r = await registerBroker('noinvite').expect(403);
     expect(r.body.message).toContain('invite');
     expect((await http.get('/api/broker-invites/status').expect(200)).body.openSignup).toBe(false);
     // Tenants can still sign up normally.
-    const t = await http.post('/api/auth/register').send({ name: 'Tenant', email: email('tenant'), password: 'Passw0rd!', phone: '9811100077' }).expect(201);
+    const t = await http
+      .post('/api/auth/register')
+      .send({ name: 'Tenant', email: email('tenant'), password: 'Passw0rd!', phone: '9811100077' })
+      .expect(201);
     tenant = { token: t.body.accessToken, id: t.body.user.id };
   });
 
   it('admin invite lets a broker join with a free plan; single-use codes are exhausted', async () => {
-    const inv = await http.post('/api/admin/broker-invites').set(auth(admin)).send({ note: 'e2e', grantPlanCode: 'BUSINESS', grantMonths: 6, maxUses: 1 }).expect(201);
+    const inv = await http
+      .post('/api/admin/broker-invites')
+      .set(auth(admin))
+      .send({ note: 'e2e', grantPlanCode: 'BUSINESS', grantMonths: 6, maxUses: 1 })
+      .expect(201);
     expect(inv.body.code).toMatch(/^BIQ/);
     expect(inv.body.link).toContain(`invite=${inv.body.code}`);
     const check = await http.get(`/api/broker-invites/check/${inv.body.code.toLowerCase()}`).expect(200);
@@ -101,8 +115,23 @@ describe('Growth features (e2e)', () => {
 
   it('pulls Housing leads via the API, skips duplicates, and builds requirements', async () => {
     const leadsFromHousing = [
-      { lead_name: 'Housing One', lead_phone: '9876501111', flat_id: 501, project_name: 'Sunrise Towers 2 BHK', locality: 'Sector 65', lead_date: Math.floor(Date.now() / 1000) - 3600, service_type: 'rent' },
-      { lead_name: 'Housing Two', lead_phone: '9876502222', pg_name: 'Green PG', locality: 'Sector 65', lead_date: Math.floor(Date.now() / 1000) - 1800, service_type: 'rent' },
+      {
+        lead_name: 'Housing One',
+        lead_phone: '9876501111',
+        flat_id: 501,
+        project_name: 'Sunrise Towers 2 BHK',
+        locality: 'Sector 65',
+        lead_date: Math.floor(Date.now() / 1000) - 3600,
+        service_type: 'rent',
+      },
+      {
+        lead_name: 'Housing Two',
+        lead_phone: '9876502222',
+        pg_name: 'Green PG',
+        locality: 'Sector 65',
+        lead_date: Math.floor(Date.now() / 1000) - 1800,
+        service_type: 'rent',
+      },
     ];
     const calls: string[] = [];
     global.fetch = (async (input: any, init?: any) => {
@@ -114,7 +143,11 @@ describe('Growth features (e2e)', () => {
       return realFetch(input, init);
     }) as typeof fetch;
 
-    await http.patch('/api/broker/connectors/housing_api').set(auth(broker.token)).send({ enabled: true, fields: { profileId: '424242', encryptionKey: 'e2e-secret', accountType: 'broker' } }).expect(200);
+    await http
+      .patch('/api/broker/connectors/housing_api')
+      .set(auth(broker.token))
+      .send({ enabled: true, fields: { profileId: '424242', encryptionKey: 'e2e-secret', accountType: 'broker' } })
+      .expect(200);
     const first = await http.post('/api/broker/connectors/housing_api/sync').set(auth(broker.token)).expect(201);
     expect(first.body).toMatchObject({ imported: 2, fetched: 2 });
     const u = new URL(calls[0]);
@@ -126,7 +159,10 @@ describe('Growth features (e2e)', () => {
     const second = await http.post('/api/broker/connectors/housing_api/sync').set(auth(broker.token)).expect(201);
     expect(second.body).toMatchObject({ imported: 0, skipped: 2 });
 
-    const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9876501111' } }, include: { requirement: true } });
+    const lead = await prisma.lead.findFirstOrThrow({
+      where: { organizationId: broker.orgId, phone: { contains: '9876501111' } },
+      include: { requirement: true },
+    });
     expect(lead.source).toBe('HOUSING');
     expect(lead.sourceDetail).toContain('Sunrise Towers');
     expect(lead.requirement?.bedrooms).toEqual([2]);
@@ -142,7 +178,9 @@ describe('Growth features (e2e)', () => {
 
   it('shows a clear error when Housing rejects the key', async () => {
     global.fetch = (async (input: any, init?: any) =>
-      String(input).startsWith('https://pahal.housing.com/') ? new Response(JSON.stringify({ apiErrors: { hash: 'invalid' } }), { status: 401 }) : realFetch(input, init)) as typeof fetch;
+      String(input).startsWith('https://pahal.housing.com/')
+        ? new Response(JSON.stringify({ apiErrors: { hash: 'invalid' } }), { status: 401 })
+        : realFetch(input, init)) as typeof fetch;
     const t = await http.post('/api/broker/connectors/housing_api/test').set(auth(broker.token)).expect(201);
     expect(t.body.ok).toBe(false);
     expect(t.body.message).toContain('401');
@@ -153,13 +191,28 @@ describe('Growth features (e2e)', () => {
     const l = await http
       .post('/api/listings')
       .set(auth(broker.token))
-      .send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 55000, securityDeposit: 110000, bedrooms: 3, bathrooms: 3, superArea: 1850, furnishing: 'FULLY_FURNISHED', brokerageType: 'MONTH_1', photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }] });
+      .send({
+        purpose: 'RENT',
+        propertyType: 'APARTMENT',
+        localityId,
+        price: 55000,
+        securityDeposit: 110000,
+        bedrooms: 3,
+        bathrooms: 3,
+        superArea: 1850,
+        furnishing: 'FULLY_FURNISHED',
+        brokerageType: 'MONTH_1',
+        photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }],
+      });
     expect(l.status).toBe(201);
     const pack = await http.get(`/api/broker/portal-pack/${l.body.id}`).set(auth(broker.token)).expect(200);
     expect(pack.body.text).toContain('Monthly rent');
     expect(pack.body.portals.map((p: any) => p.key)).toEqual(['HOUSING', 'ACRES99', 'MAGICBRICKS']);
     // Other firms can't read it.
-    const other = await http.post('/api/auth/register').send({ name: 'Other Tenant', email: email('otherfirm'), password: 'Passw0rd!' }).expect(201);
+    const other = await http
+      .post('/api/auth/register')
+      .send({ name: 'Other Tenant', email: email('otherfirm'), password: 'Passw0rd!' })
+      .expect(201);
     await http.get(`/api/broker/portal-pack/${l.body.id}`).set(auth(other.body.accessToken)).expect(403);
   });
 
@@ -172,7 +225,22 @@ describe('Growth features (e2e)', () => {
     const l = await http
       .post('/api/listings')
       .set(auth(token))
-      .send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 58000, securityDeposit: 116000, bedrooms: 3, bathrooms: 3, superArea: 1900, furnishing: 'FULLY_FURNISHED', brokerageType: 'MONTH_1', contactName: 'Mr Owner', contactPhone: '9898989898', photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }], ...extra })
+      .send({
+        purpose: 'RENT',
+        propertyType: 'APARTMENT',
+        localityId,
+        price: 58000,
+        securityDeposit: 116000,
+        bedrooms: 3,
+        bathrooms: 3,
+        superArea: 1900,
+        furnishing: 'FULLY_FURNISHED',
+        brokerageType: 'MONTH_1',
+        contactName: 'Mr Owner',
+        contactPhone: '9898989898',
+        photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }],
+        ...extra,
+      })
       .expect(201);
     await http.post(`/api/admin/moderation/listings/${l.body.id}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
     return { id: l.body.id as string, slug: l.body.slug as string };
@@ -180,7 +248,11 @@ describe('Growth features (e2e)', () => {
 
   it('tenant requirement returns matches and gets alerted when a matching listing goes live', async () => {
     localityId = (await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } })).id;
-    const r = await http.post('/api/requirements').set(auth(tenant.token)).send({ name: 'Tenant', phone: '9811100077', bedrooms: [3], maxBudget: 60000, localityIds: [localityId], shareWithBrokers: false }).expect(201);
+    const r = await http
+      .post('/api/requirements')
+      .set(auth(tenant.token))
+      .send({ name: 'Tenant', phone: '9811100077', bedrooms: [3], maxBudget: 60000, localityIds: [localityId], shareWithBrokers: false })
+      .expect(201);
     expect(r.body.requirement.id).toBeTruthy();
     coListing = await createAndApprove(broker.token, { coBroking: true, coBrokingSharePct: 40 });
     await sleep(600);
@@ -196,7 +268,11 @@ describe('Growth features (e2e)', () => {
 
   it('shares a requirement with top brokers only when the tenant agrees', async () => {
     await prisma.organization.update({ where: { id: referred.orgId }, data: { onboarded: true, rankScore: 99, localities: { connect: { id: localityId } } } });
-    await http.post('/api/requirements').set(auth(tenant.token)).send({ name: 'Tenant', phone: '9811100077', bedrooms: [2], maxBudget: 40000, localityIds: [localityId], shareWithBrokers: true }).expect(201);
+    await http
+      .post('/api/requirements')
+      .set(auth(tenant.token))
+      .send({ name: 'Tenant', phone: '9811100077', bedrooms: [2], maxBudget: 40000, localityIds: [localityId], shareWithBrokers: true })
+      .expect(201);
     const lead = await prisma.lead.findFirst({ where: { organizationId: referred.orgId, phone: { contains: '9811100077' } }, include: { requirement: true } });
     expect(lead?.sourceDetail).toContain('ज़रूरत');
     expect(lead?.requirement?.bedrooms).toEqual([2]);
@@ -224,11 +300,15 @@ describe('Growth features (e2e)', () => {
     expect(k.body.link).toContain(`/s/${k.body.code}`);
     expect(k.body.caption).toContain('/month');
     for (const format of ['post', 'story']) {
-      const img = await http.get(`/api/public/share-kit/${k.body.code}?format=${format}`).buffer(true).parse((res, cb) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => cb(null, Buffer.concat(chunks)));
-      }).expect(200);
+      const img = await http
+        .get(`/api/public/share-kit/${k.body.code}?format=${format}`)
+        .buffer(true)
+        .parse((res, cb) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c: Buffer) => chunks.push(c));
+          res.on('end', () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
       expect(img.headers['content-type']).toBe('image/png');
       expect((img.body as Buffer).subarray(1, 4).toString()).toBe('PNG');
       if (process.env.SHARE_KIT_OUT) require('fs').writeFileSync(`${process.env.SHARE_KIT_OUT}/share-${format}.png`, img.body);
@@ -242,7 +322,11 @@ describe('Growth features (e2e)', () => {
     expect(owner?.name).toBe('Mr Owner');
     const lead = await http.post('/api/leads').set(auth(broker.token)).send({ name: 'Lease Tenant', phone: '9876543299', source: 'MANUAL' }).expect(201);
     const leaseListing = await createAndApprove(broker.token);
-    const deal = await http.post('/api/deals').set(auth(broker.token)).send({ leadId: lead.body.id, listingId: leaseListing.id, title: 'Lease', dealValue: 58000, commissionAmount: 58000, closedAt: new Date().toISOString() }).expect(201);
+    const deal = await http
+      .post('/api/deals')
+      .set(auth(broker.token))
+      .send({ leadId: lead.body.id, listingId: leaseListing.id, title: 'Lease', dealValue: 58000, commissionAmount: 58000, closedAt: new Date().toISOString() })
+      .expect(201);
     await sleep(500);
     const t = await prisma.tenancy.findFirstOrThrow({ where: { dealId: deal.body.id } });
     expect(t.ownerId).toBe(owner.id);
@@ -260,7 +344,11 @@ describe('Growth features (e2e)', () => {
   it('invoices: UPI link + PDF for the client, then marked paid', async () => {
     await http.patch('/api/broker/payment-settings').set(auth(broker.token)).send({ upiId: 'bad upi' }).expect(400);
     await http.patch('/api/broker/payment-settings').set(auth(broker.token)).send({ upiId: 'arjun@okicici', invoicePrefix: 'ar' }).expect(200);
-    const inv = await http.post('/api/broker/invoices').set(auth(broker.token)).send({ clientName: 'Client A', clientPhone: '9876543288', items: [{ description: 'Brokerage — 1 month rent', amount: 58000 }], gstPct: 18 }).expect(201);
+    const inv = await http
+      .post('/api/broker/invoices')
+      .set(auth(broker.token))
+      .send({ clientName: 'Client A', clientPhone: '9876543288', items: [{ description: 'Brokerage — 1 month rent', amount: 58000 }], gstPct: 18 })
+      .expect(201);
     expect(inv.body.number).toBe('AR-0001');
     expect(inv.body.total).toBe(68440);
     const token = inv.body.link.split('/pay/')[1];
@@ -277,11 +365,18 @@ describe('Growth features (e2e)', () => {
 
   it('Exotel click-to-call, status callback and incoming-call leads', async () => {
     const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9876543299' } } });
-    const r0 = await http.post(`/api/leads/${lead.id}/call`).set(auth(broker.token)).expect((res) => expect([400, 424]).toContain(res.status));
+    const r0 = await http
+      .post(`/api/leads/${lead.id}/call`)
+      .set(auth(broker.token))
+      .expect((res) => expect([400, 424]).toContain(res.status));
     expect(r0.body.code === 'INTEGRATION_NOT_CONFIGURED' || String(r0.body.message).includes('mobile')).toBe(true);
     const brokerUser = await prisma.user.findFirstOrThrow({ where: { organizationId: broker.orgId, role: 'BROKER_ADMIN' } });
     await prisma.user.update({ where: { id: brokerUser.id }, data: { phone: '+919811155555' } });
-    await http.patch('/api/broker/connectors/exotel').set(auth(broker.token)).send({ enabled: true, fields: { accountSid: 'acme', apiKey: 'k', apiToken: 't', exoPhone: '08047112345', sourceMap: '08047112345=HOUSING' } }).expect(200);
+    await http
+      .patch('/api/broker/connectors/exotel')
+      .set(auth(broker.token))
+      .send({ enabled: true, fields: { accountSid: 'acme', apiKey: 'k', apiToken: 't', exoPhone: '08047112345', sourceMap: '08047112345=HOUSING' } })
+      .expect(200);
     const sent: { url: string; body: string }[] = [];
     global.fetch = (async (input: any, init?: any) => {
       const url = String(input);
@@ -295,7 +390,11 @@ describe('Growth features (e2e)', () => {
     expect(sent[0].url).toBe('https://api.exotel.com/v1/Accounts/acme/Calls/connect.json');
     expect(sent[0].body).toContain('CallerId=08047112345');
     const org = await prisma.organization.findUniqueOrThrow({ where: { id: broker.orgId } });
-    await http.post(`/api/webhooks/exotel/${org.webhookKey}/status`).type('form').send({ CallSid: `CA${uniq}`, Status: 'completed', ConversationDuration: '95', CustomField: c.body.id }).expect(200);
+    await http
+      .post(`/api/webhooks/exotel/${org.webhookKey}/status`)
+      .type('form')
+      .send({ CallSid: `CA${uniq}`, Status: 'completed', ConversationDuration: '95', CustomField: c.body.id })
+      .expect(200);
     const act = await prisma.activity.findFirst({ where: { leadId: lead.id, type: 'CALL', callOutcome: 'CONNECTED' } });
     expect(act?.durationSec).toBe(95);
     const inc = await http.get(`/api/webhooks/exotel/${org.webhookKey}/connect?CallSid=CI${uniq}&CallFrom=09876500123&CallTo=08047112345`).expect(200);
@@ -338,7 +437,11 @@ describe('Growth features (e2e)', () => {
   });
 
   it('visit slot booking creates lead + visit; full slots are refused; tenant gets reminders', async () => {
-    await http.patch('/api/broker/visit-slots').set(auth(broker.token)).send({ days: [0, 1, 2, 3, 4, 5, 6], start: '09:00', end: '21:00', slotMinutes: 60, maxPerSlot: 1 }).expect(200);
+    await http
+      .patch('/api/broker/visit-slots')
+      .set(auth(broker.token))
+      .send({ days: [0, 1, 2, 3, 4, 5, 6], start: '09:00', end: '21:00', slotMinutes: 60, maxPerSlot: 1 })
+      .expect(200);
     const s1 = await http.get(`/api/listings/${coListing.id}/slots?days=3`).expect(200);
     expect(s1.body.bookable).toBe(true);
     const slot = s1.body.days.flatMap((d: any) => d.slots).find((x: any) => x.available > 0);
@@ -358,9 +461,21 @@ describe('Growth features (e2e)', () => {
   it('visit verification needs a geo-tagged photo near the property', async () => {
     const loc = await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } });
     const far = { url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg', lat: loc.latitude + 0.05, lng: loc.longitude };
-    await http.post(`/api/admin/listings/${coListing.id}/visit-verify`).set(auth(admin)).send({ photos: [far] }).expect(400);
-    await http.post(`/api/admin/listings/${coListing.id}/visit-verify`).set(auth(broker.token)).send({ photos: [far] }).expect(403);
-    const ok = await http.post(`/api/admin/listings/${coListing.id}/visit-verify`).set(auth(admin)).send({ photos: [{ ...far, lat: loc.latitude + 0.002 }] }).expect(201);
+    await http
+      .post(`/api/admin/listings/${coListing.id}/visit-verify`)
+      .set(auth(admin))
+      .send({ photos: [far] })
+      .expect(400);
+    await http
+      .post(`/api/admin/listings/${coListing.id}/visit-verify`)
+      .set(auth(broker.token))
+      .send({ photos: [far] })
+      .expect(403);
+    const ok = await http
+      .post(`/api/admin/listings/${coListing.id}/visit-verify`)
+      .set(auth(admin))
+      .send({ photos: [{ ...far, lat: loc.latitude + 0.002 }] })
+      .expect(201);
     expect(ok.body.visitVerifiedAt).toBeTruthy();
     const filtered = await http.get('/api/listings?visitVerified=true').expect(200);
     expect(filtered.body.items.map((i: any) => i.id)).toContain(coListing.id);
@@ -369,11 +484,22 @@ describe('Growth features (e2e)', () => {
   it('verified tenant via office email (free domains refused)', async () => {
     await http.post('/api/me/work-email').set(auth(tenant.token)).send({ email: 'me@gmail.com' }).expect(400);
     await prisma.user.update({ where: { id: tenant.id }, data: { workEmail: `t.${uniq}@acme-corp.in` } });
-    await prisma.otpCode.create({ data: { email: `t.${uniq}@acme-corp.in`, purpose: 'WORK_EMAIL', codeHash: require('crypto').createHash('sha256').update('424242').digest('hex'), expiresAt: new Date(Date.now() + 600_000) } });
+    await prisma.otpCode.create({
+      data: {
+        email: `t.${uniq}@acme-corp.in`,
+        purpose: 'WORK_EMAIL',
+        codeHash: require('crypto').createHash('sha256').update('424242').digest('hex'),
+        expiresAt: new Date(Date.now() + 600_000),
+      },
+    });
     await http.post('/api/me/work-email/verify').set(auth(tenant.token)).send({ code: '111111' }).expect(400);
     const v = await http.post('/api/me/work-email/verify').set(auth(tenant.token)).send({ code: '424242' }).expect(201);
     expect(v.body.tenantVerifiedAt).toBeTruthy();
-    const e = await http.post('/api/enquiries').set(auth(tenant.token)).send({ listingId: coListing.id, name: 'Tenant', phone: '9811100077', message: 'Interested' }).expect(201);
+    const e = await http
+      .post('/api/enquiries')
+      .set(auth(tenant.token))
+      .send({ listingId: coListing.id, name: 'Tenant', phone: '9811100077', message: 'Interested' })
+      .expect(201);
     void e;
     const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9811100077' } } });
     expect(lead.tags).toContain('verified-tenant');
@@ -415,9 +541,23 @@ describe('Growth features (e2e)', () => {
 
   it('three distinct reports send a live listing back to review', async () => {
     const victim = await createAndApprove(broker.token, { price: 45000 });
-    const reporters = await Promise.all([1, 2, 3].map(async (n) => (await http.post('/api/auth/register').send({ name: `Reporter ${n}`, email: email(`rep${n}`), password: 'Passw0rd!' }).expect(201)).body.accessToken));
+    const reporters = await Promise.all(
+      [1, 2, 3].map(
+        async (n) =>
+          (
+            await http
+              .post('/api/auth/register')
+              .send({ name: `Reporter ${n}`, email: email(`rep${n}`), password: 'Passw0rd!' })
+              .expect(201)
+          ).body.accessToken,
+      ),
+    );
     for (const [i, tok] of reporters.entries()) {
-      await http.post(`/api/listings/${victim.id}/report`).set(auth(tok)).send({ reason: 'FAKE', details: `r${i}` }).expect(201);
+      await http
+        .post(`/api/listings/${victim.id}/report`)
+        .set(auth(tok))
+        .send({ reason: 'FAKE', details: `r${i}` })
+        .expect(201);
       const l = await prisma.listing.findUniqueOrThrow({ where: { id: victim.id } });
       expect(l.status).toBe(i < 2 ? 'ACTIVE' : 'PENDING_REVIEW');
     }
@@ -426,10 +566,27 @@ describe('Growth features (e2e)', () => {
 
   // ------------------------------------------------------------------ Phase D
   it('flatmates: compatible matches, phone only after mutual accept', async () => {
-    const other = (await http.post('/api/auth/register').send({ name: 'Flat Mate', email: email('fm2'), password: 'Passw0rd!', phone: '9811100088' }).expect(201)).body;
-    const base = { lookingFor: 'FLATMATE', gender: 'FEMALE', prefGender: 'FEMALE', budgetMax: 20000, localityIds: [localityId], officeHub: 'cyber-city', food: 'VEG' };
+    const other = (
+      await http
+        .post('/api/auth/register')
+        .send({ name: 'Flat Mate', email: email('fm2'), password: 'Passw0rd!', phone: '9811100088' })
+        .expect(201)
+    ).body;
+    const base = {
+      lookingFor: 'FLATMATE',
+      gender: 'FEMALE',
+      prefGender: 'FEMALE',
+      budgetMax: 20000,
+      localityIds: [localityId],
+      officeHub: 'cyber-city',
+      food: 'VEG',
+    };
     await http.post('/api/flatmates/me').set(auth(tenant.token)).send(base).expect(201);
-    await http.post('/api/flatmates/me').set(auth(other.accessToken)).send({ ...base, lookingFor: 'ROOM', budgetMax: 18000 }).expect(201);
+    await http
+      .post('/api/flatmates/me')
+      .set(auth(other.accessToken))
+      .send({ ...base, lookingFor: 'ROOM', budgetMax: 18000 })
+      .expect(201);
     const m = await http.get('/api/flatmates/matches').set(auth(tenant.token)).expect(200);
     const hit = m.body.find((x: any) => x.userId === other.user.id);
     expect(hit.score).toBeGreaterThan(80);
@@ -444,14 +601,31 @@ describe('Growth features (e2e)', () => {
   });
 
   it('rent agreement draft PDF', async () => {
-    const a = await http.post('/api/agreements').set(auth(tenant.token)).send({ landlordName: 'Mr Owner', tenantName: 'Tenant', propertyAddress: 'Flat 101, Sector 65, Gurugram', rent: 45000, deposit: 90000, startDate: '2026-11-01', lockInMonths: 6, escalationPct: 5 }).expect(201);
+    const a = await http
+      .post('/api/agreements')
+      .set(auth(tenant.token))
+      .send({
+        landlordName: 'Mr Owner',
+        tenantName: 'Tenant',
+        propertyAddress: 'Flat 101, Sector 65, Gurugram',
+        rent: 45000,
+        deposit: 90000,
+        startDate: '2026-11-01',
+        lockInMonths: 6,
+        escalationPct: 5,
+      })
+      .expect(201);
     const pdf = await http.get(`/api/agreements/${a.body.id}/pdf`).set(auth(tenant.token)).expect(200);
     expect(pdf.headers['content-type']).toBe('application/pdf');
     await http.get(`/api/agreements/${a.body.id}/pdf`).set(auth(broker.token)).expect(404);
   });
 
   it('move-in services: admin partners, public list, user request', async () => {
-    const p = await http.post('/api/admin/services').set(auth(admin)).send({ category: 'PACKERS', name: `Gurgaon Movers ${uniq}`, offer: '10% off' }).expect(201);
+    const p = await http
+      .post('/api/admin/services')
+      .set(auth(admin))
+      .send({ category: 'PACKERS', name: `Gurgaon Movers ${uniq}`, offer: '10% off' })
+      .expect(201);
     const list = await http.get('/api/public/services?category=PACKERS').expect(200);
     expect(list.body.map((x: any) => x.id)).toContain(p.body.id);
     expect(list.body[0].phone).toBeUndefined();
@@ -477,7 +651,15 @@ describe('Growth features (e2e)', () => {
   });
 
   it('PG listings carry sharing/food/gender and filter by them', async () => {
-    const pg = await createAndApprove(broker.token, { propertyType: 'PG', price: 14000, bedrooms: undefined, pgSharing: ['DOUBLE'], pgGender: 'FEMALE', pgFood: 'VEG', pgRules: ['No smoking'] });
+    const pg = await createAndApprove(broker.token, {
+      propertyType: 'PG',
+      price: 14000,
+      bedrooms: undefined,
+      pgSharing: ['DOUBLE'],
+      pgGender: 'FEMALE',
+      pgFood: 'VEG',
+      pgRules: ['No smoking'],
+    });
     const f = await http.get('/api/listings?types=PG&pgGender=FEMALE&pgFood=VEG').expect(200);
     expect(f.body.items.map((i: any) => i.id)).toContain(pg.id);
     const m = await http.get('/api/listings?types=PG&pgGender=MALE').expect(200);

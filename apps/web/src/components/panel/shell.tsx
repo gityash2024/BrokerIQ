@@ -44,26 +44,43 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
   return (
     <nav className="space-y-6">
       {groups
-        .map((g) => ({ ...g, items: g.items.filter((it) => isGateOpen(config, it.flag) && (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role)))) }))
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((it) => isGateOpen(config, it.flag) && (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role)))),
+        }))
         .filter((g) => g.items.length)
         .map((g, gi) => (
-        <div key={gi}>
-          {g.title && <p className="mb-2 px-3 text-[11px] font-bold tracking-wider text-subtle uppercase">{g.title}</p>}
-          <div className="space-y-0.5">
-            {g.items.map((it) => {
-              const active = isActive(pathname, it);
-              return (
-                <Link key={it.href} href={it.href} onClick={onNavigate} className={cn('group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition', active ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg')}>
-                  {active && <motion.span layoutId="panel-nav" className="absolute inset-0 rounded-xl bg-brand-50 dark:bg-brand-500/15" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
-                  <it.icon className={cn('relative size-[18px]', active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg')} />
-                  <span className="relative flex-1">{it.label}</span>
-                  {it.badge ? <span className="relative rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span> : null}
-                </Link>
-              );
-            })}
+          <div key={gi}>
+            {g.title && <p className="mb-2 px-3 text-[11px] font-bold tracking-wider text-subtle uppercase">{g.title}</p>}
+            <div className="space-y-0.5">
+              {g.items.map((it) => {
+                const active = isActive(pathname, it);
+                return (
+                  <Link
+                    key={it.href}
+                    href={it.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
+                      active ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg',
+                    )}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="panel-nav"
+                        className="absolute inset-0 rounded-xl bg-brand-50 dark:bg-brand-500/15"
+                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                      />
+                    )}
+                    <it.icon className={cn('relative size-[18px]', active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg')} />
+                    <span className="relative flex-1">{it.label}</span>
+                    {it.badge ? <span className="relative rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span> : null}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </nav>
   );
 }
@@ -80,7 +97,11 @@ export function NotificationsBell({ href }: { href: string }) {
     <DM.Root>
       <DM.Trigger className="relative grid size-10 place-items-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg" aria-label="Notifications">
         <Bell className="size-5" />
-        {unread > 0 && <span className="absolute top-1.5 right-1.5 grid min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{unread > 9 ? '9+' : unread}</span>}
+        {unread > 0 && (
+          <span className="absolute top-1.5 right-1.5 grid min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
       </DM.Trigger>
       <DM.Portal>
         <DM.Content align="end" sideOffset={8} className="z-50 w-[360px] max-w-[92vw] overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
@@ -95,7 +116,10 @@ export function NotificationsBell({ href }: { href: string }) {
           <div className="max-h-96 overflow-y-auto">
             {(data?.items ?? []).slice(0, 15).map((n: any) => (
               <DM.Item key={n.id} asChild>
-                <Link href={n.link ?? href} className={cn('flex gap-3 border-b border-line px-4 py-3 outline-none hover:bg-surface-2', !n.readAt && 'bg-brand-50/50 dark:bg-brand-500/5')}>
+                <Link
+                  href={n.link ?? href}
+                  className={cn('flex gap-3 border-b border-line px-4 py-3 outline-none hover:bg-surface-2', !n.readAt && 'bg-brand-50/50 dark:bg-brand-500/5')}
+                >
                   {!n.readAt && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand-600" />}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">{n.title}</p>
@@ -116,7 +140,23 @@ export function NotificationsBell({ href }: { href: string }) {
   );
 }
 
-export function PanelShell({ groups, children, title, accent = 'brand', headerExtra, notificationsHref, footer }: { groups: NavGroup[]; children: React.ReactNode; title: string; accent?: 'brand' | 'dark'; headerExtra?: React.ReactNode; notificationsHref: string; footer?: React.ReactNode }) {
+export function PanelShell({
+  groups,
+  children,
+  title,
+  accent = 'brand',
+  headerExtra,
+  notificationsHref,
+  footer,
+}: {
+  groups: NavGroup[];
+  children: React.ReactNode;
+  title: string;
+  accent?: 'brand' | 'dark';
+  headerExtra?: React.ReactNode;
+  notificationsHref: string;
+  footer?: React.ReactNode;
+}) {
   const { user, logout } = useAuth();
   const { app } = useConfig();
   const [open, setOpen] = useState(false);

@@ -20,11 +20,36 @@ export default function Page() {
       defaults={{ isActive: true, isFeatured: false, configurations: [], amenities: [], photos: [] }}
       fromItem={(p) => ({ ...p, builderName: p.builder?.name ?? '', possessionDate: p.possessionDate ?? null })}
       columns={[
-        { key: 'name', label: 'Project', render: (r) => <div><Link href={`/projects/${r.slug}`} target="_blank" className="font-semibold hover:text-brand-600">{r.name}</Link><p className="text-xs text-muted">{r.builder?.name} · {r.locality?.name}</p></div> },
-        { key: 'price', label: 'Price', render: (r) => (r.minPrice ? `${formatPriceShort(r.minPrice)}${r.maxPrice ? ` – ${formatPriceShort(r.maxPrice)}` : ''}` : '—') },
+        {
+          key: 'name',
+          label: 'Project',
+          render: (r) => (
+            <div>
+              <Link href={`/projects/${r.slug}`} target="_blank" className="font-semibold hover:text-brand-600">
+                {r.name}
+              </Link>
+              <p className="text-xs text-muted">
+                {r.builder?.name} · {r.locality?.name}
+              </p>
+            </div>
+          ),
+        },
+        {
+          key: 'price',
+          label: 'Price',
+          render: (r) => (r.minPrice ? `${formatPriceShort(r.minPrice)}${r.maxPrice ? ` – ${formatPriceShort(r.maxPrice)}` : ''}` : '—'),
+        },
         { key: 'possession', label: 'Possession', render: (r) => (r.possession ? POSSESSION_LABELS[r.possession as keyof typeof POSSESSION_LABELS] : '—') },
         { key: '_count', label: 'Enquiries', render: (r) => r._count?.enquiries ?? 0 },
-        { key: 'flags', label: '', render: (r) => <>{r.isFeatured && <Badge tone="warning">Featured</Badge>} {!r.isActive && <Badge>Inactive</Badge>}</> },
+        {
+          key: 'flags',
+          label: '',
+          render: (r) => (
+            <>
+              {r.isFeatured && <Badge tone="warning">Featured</Badge>} {!r.isActive && <Badge>Inactive</Badge>}
+            </>
+          ),
+        },
       ]}
       fields={[
         { key: 'name', label: 'Project name', required: true },
@@ -42,7 +67,15 @@ export default function Page() {
         { key: 'photos', label: 'Photos', type: 'images' },
         { key: 'description', label: 'Description', type: 'richtext' },
         { key: 'configurations', label: 'Configurations (JSON)', type: 'json', hint: '[{"label":"3 BHK","area":1850,"price":24500000}]' },
-        { key: 'amenities', label: 'Amenities (keys)', type: 'tags', placeholder: (tax.data?.amenities ?? []).slice(0, 4).map((a: any) => a.key).join(', ') },
+        {
+          key: 'amenities',
+          label: 'Amenities (keys)',
+          type: 'tags',
+          placeholder: (tax.data?.amenities ?? [])
+            .slice(0, 4)
+            .map((a: any) => a.key)
+            .join(', '),
+        },
         { key: 'brochureUrl', label: 'Brochure PDF URL', wide: true },
         { key: 'isFeatured', label: 'Featured / sponsored', type: 'switch' },
         { key: 'isActive', label: 'Active', type: 'switch' },

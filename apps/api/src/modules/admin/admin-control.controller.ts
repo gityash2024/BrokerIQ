@@ -53,7 +53,11 @@ export class AdminControlController {
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @HttpCode(200)
   @Post('listings/:id/status')
-  status(@CurrentUser() u: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'RENTED', 'EXPIRED', 'ARCHIVED']) }))) b: { status: 'ACTIVE' | 'RENTED' | 'EXPIRED' | 'ARCHIVED' }) {
+  status(
+    @CurrentUser() u: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ status: z.enum(['ACTIVE', 'RENTED', 'EXPIRED', 'ARCHIVED']) }))) b: { status: 'ACTIVE' | 'RENTED' | 'EXPIRED' | 'ARCHIVED' },
+  ) {
     return this.svc.setListingStatus(u, id, b.status);
   }
 
@@ -80,7 +84,12 @@ export class AdminControlController {
   @Roles('SUPER_ADMIN')
   @HttpCode(200)
   @Post('listings/:id/transfer')
-  transfer(@CurrentUser() u: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ organizationId: z.string().nullable().optional(), postedById: z.string().optional() }))) b: { organizationId?: string | null; postedById?: string }) {
+  transfer(
+    @CurrentUser() u: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ organizationId: z.string().nullable().optional(), postedById: z.string().optional() })))
+    b: { organizationId?: string | null; postedById?: string },
+  ) {
     return this.svc.transferListing(u, id, b);
   }
 
@@ -174,7 +183,15 @@ export class AdminControlController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Post('blocklist')
-  addBlock(@CurrentUser() u: RequestUser, @Body(new ZodPipe(z.object({ kind: z.enum(['EMAIL', 'PHONE', 'DOMAIN', 'IP']), value: z.string().trim().min(3).max(200), reason: z.string().max(300).optional() }))) b: any) {
+  addBlock(
+    @CurrentUser() u: RequestUser,
+    @Body(
+      new ZodPipe(
+        z.object({ kind: z.enum(['EMAIL', 'PHONE', 'DOMAIN', 'IP']), value: z.string().trim().min(3).max(200), reason: z.string().max(300).optional() }),
+      ),
+    )
+    b: any,
+  ) {
     return this.svc.addBlock(u, b.kind, b.value, b.reason);
   }
 
@@ -193,7 +210,11 @@ export class AdminControlController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR')
   @Patch('reviews/:id')
-  reviewStatus(@CurrentUser() u: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['PUBLISHED', 'HIDDEN']) }))) b: { status: 'PUBLISHED' | 'HIDDEN' }) {
+  reviewStatus(
+    @CurrentUser() u: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ status: z.enum(['PUBLISHED', 'HIDDEN']) }))) b: { status: 'PUBLISHED' | 'HIDDEN' },
+  ) {
     return this.svc.setReviewStatus(u, id, b.status);
   }
 

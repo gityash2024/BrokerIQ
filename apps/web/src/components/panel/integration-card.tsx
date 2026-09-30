@@ -50,8 +50,17 @@ export function StatusPill({ view }: { view?: IntegrationView | null }) {
   if (!view) return null;
   if (!view.configured) return <Badge tone="warning">Not configured</Badge>;
   if (!view.enabled) return <Badge tone="neutral">Disabled</Badge>;
-  if (view.lastTestOk === false) return <Badge tone="danger"><XCircle className="size-3" /> Test failed</Badge>;
-  return <Badge tone="success"><CheckCircle2 className="size-3" /> Connected{view.source === 'env' ? ' (env)' : ''}</Badge>;
+  if (view.lastTestOk === false)
+    return (
+      <Badge tone="danger">
+        <XCircle className="size-3" /> Test failed
+      </Badge>
+    );
+  return (
+    <Badge tone="success">
+      <CheckCircle2 className="size-3" /> Connected{view.source === 'env' ? ' (env)' : ''}
+    </Badge>
+  );
 }
 
 /**
@@ -101,7 +110,14 @@ export function IntegrationCard({
   return (
     <div id={def.key} className={cn('card overflow-hidden transition', open && 'ring-2 ring-brand-500/20')}>
       <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 p-4 text-left sm:p-5">
-        <div className={cn('grid size-11 shrink-0 place-items-center rounded-xl', view?.configured ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15' : 'bg-surface-2 text-muted')}>{icon ?? <KeyRound className="size-5" />}</div>
+        <div
+          className={cn(
+            'grid size-11 shrink-0 place-items-center rounded-xl',
+            view?.configured ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15' : 'bg-surface-2 text-muted',
+          )}
+        >
+          {icon ?? <KeyRound className="size-5" />}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-display font-bold">{def.name}</p>
@@ -113,18 +129,43 @@ export function IntegrationCard({
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
             <div className="border-t border-line">
               <div className="flex flex-wrap items-center gap-2 bg-surface-2/50 px-5 py-2.5 text-xs">
-                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400"><Gift className="size-3.5" /> {def.freeTier}</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                  <Gift className="size-3.5" /> {def.freeTier}
+                </span>
                 <span className="text-subtle">·</span>
                 <span className="text-muted">इसके लिए ज़रूरी: {def.usedFor.join(', ')}</span>
               </div>
               <div className="flex gap-1 px-5 pt-4">
                 {(['guide', 'form'] as const).map((t) => (
-                  <button key={t} onClick={() => setTab(t)} className={cn('relative rounded-lg px-3 py-1.5 text-sm font-semibold', tab === t ? 'text-brand-700 dark:text-white' : 'text-muted hover:text-fg')}>
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={cn(
+                      'relative rounded-lg px-3 py-1.5 text-sm font-semibold',
+                      tab === t ? 'text-brand-700 dark:text-white' : 'text-muted hover:text-fg',
+                    )}
+                  >
                     {tab === t && <motion.span layoutId={`int-tab-${def.key}`} className="absolute inset-0 rounded-lg bg-brand-50 dark:bg-brand-500/15" />}
-                    <span className="relative inline-flex items-center gap-1.5">{t === 'guide' ? <><BookOpen className="size-4" /> कैसे पाएँ (steps)</> : <><KeyRound className="size-4" /> Credentials</>}</span>
+                    <span className="relative inline-flex items-center gap-1.5">
+                      {t === 'guide' ? (
+                        <>
+                          <BookOpen className="size-4" /> कैसे पाएँ (steps)
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound className="size-4" /> Credentials
+                        </>
+                      )}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -133,14 +174,24 @@ export function IntegrationCard({
                 <div className="p-5">
                   <ol className="relative space-y-4 border-l-2 border-dashed border-line pl-6">
                     {def.steps.map((s, i) => (
-                      <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }} className="relative text-sm leading-6">
-                        <span className="absolute top-0 -left-[35px] grid size-6 place-items-center rounded-full bg-brand-600 text-[11px] font-bold text-white ring-4 ring-surface">{i + 1}</span>
+                      <motion.li
+                        key={i}
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        className="relative text-sm leading-6"
+                      >
+                        <span className="absolute top-0 -left-[35px] grid size-6 place-items-center rounded-full bg-brand-600 text-[11px] font-bold text-white ring-4 ring-surface">
+                          {i + 1}
+                        </span>
                         <StepText text={s} />
                       </motion.li>
                     ))}
                   </ol>
                   <div className="mt-5 flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => setTab('form')}>Credentials भरें →</Button>
+                    <Button size="sm" onClick={() => setTab('form')}>
+                      Credentials भरें →
+                    </Button>
                     <Button size="sm" variant="secondary" href={def.docsUrl} external>
                       Official docs <ExternalLink className="size-3.5" />
                     </Button>
@@ -148,7 +199,11 @@ export function IntegrationCard({
                 </div>
               ) : (
                 <div className="p-5">
-                  {extra && <div className="mb-5 space-y-3 rounded-2xl border border-brand-200 bg-brand-50/50 p-4 dark:border-brand-500/30 dark:bg-brand-500/5">{extra}</div>}
+                  {extra && (
+                    <div className="mb-5 space-y-3 rounded-2xl border border-brand-200 bg-brand-50/50 p-4 dark:border-brand-500/30 dark:bg-brand-500/5">
+                      {extra}
+                    </div>
+                  )}
                   <div className="grid gap-4 sm:grid-cols-2">
                     {def.fields.map((f) => {
                       const v = values[f.key];
@@ -159,12 +214,24 @@ export function IntegrationCard({
                           {f.type === 'select' ? (
                             <Select value={String(v ?? '')} onChange={(e) => setV(e.target.value)} disabled={readOnly}>
                               <option value="">—</option>
-                              {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              {f.options?.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
                             </Select>
                           ) : f.type === 'boolean' ? (
-                            <div className="flex h-11 items-center"><Switch checked={v === true || v === 'true'} onCheckedChange={setV} disabled={readOnly} /></div>
+                            <div className="flex h-11 items-center">
+                              <Switch checked={v === true || v === 'true'} onCheckedChange={setV} disabled={readOnly} />
+                            </div>
                           ) : f.type === 'textarea' ? (
-                            <Textarea value={String(v ?? '')} onChange={(e) => setV(e.target.value)} placeholder={f.placeholder} disabled={readOnly} className="font-mono text-xs" />
+                            <Textarea
+                              value={String(v ?? '')}
+                              onChange={(e) => setV(e.target.value)}
+                              placeholder={f.placeholder}
+                              disabled={readOnly}
+                              className="font-mono text-xs"
+                            />
                           ) : f.secret ? (
                             <div className="relative">
                               <Input
@@ -177,19 +244,37 @@ export function IntegrationCard({
                                 autoComplete="off"
                                 className="pr-10 font-mono"
                               />
-                              <button type="button" onClick={() => setReveal((r) => ({ ...r, [f.key]: !r[f.key] }))} className="absolute top-1/2 right-3 -translate-y-1/2 text-subtle" aria-label="Show">
+                              <button
+                                type="button"
+                                onClick={() => setReveal((r) => ({ ...r, [f.key]: !r[f.key] }))}
+                                className="absolute top-1/2 right-3 -translate-y-1/2 text-subtle"
+                                aria-label="Show"
+                              >
                                 {reveal[f.key] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                               </button>
                             </div>
                           ) : (
-                            <Input type={f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : 'text'} value={String(v ?? '')} onChange={(e) => setV(e.target.value)} placeholder={f.placeholder} disabled={readOnly} />
+                            <Input
+                              type={f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : 'text'}
+                              value={String(v ?? '')}
+                              onChange={(e) => setV(e.target.value)}
+                              placeholder={f.placeholder}
+                              disabled={readOnly}
+                            />
                           )}
                         </Field>
                       );
                     })}
                   </div>
                   {view?.lastTestedAt && (
-                    <div className={cn('mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm', view.lastTestOk ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300')}>
+                    <div
+                      className={cn(
+                        'mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm',
+                        view.lastTestOk
+                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300'
+                          : 'bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300',
+                      )}
+                    >
                       {view.lastTestOk ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> : <XCircle className="mt-0.5 size-4 shrink-0" />}
                       <span className="flex-1">{view.lastTestMessage}</span>
                       <span className="text-xs opacity-70">{formatDateTime(view.lastTestedAt)}</span>
@@ -197,9 +282,16 @@ export function IntegrationCard({
                   )}
                   {!readOnly && (
                     <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-                      <label className="mr-auto flex items-center gap-2 text-sm font-medium"><Switch checked={enabled} onCheckedChange={setEnabled} /> Enabled</label>
+                      <label className="mr-auto flex items-center gap-2 text-sm font-medium">
+                        <Switch checked={enabled} onCheckedChange={setEnabled} /> Enabled
+                      </label>
                       {view?.source === 'database' && (
-                        <Button variant="ghost" size="sm" onClick={() => confirm(`${def.name} के saved credentials हटाएँ?`) && remove.mutate(undefined)} loading={remove.isPending}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => confirm(`${def.name} के saved credentials हटाएँ?`) && remove.mutate(undefined)}
+                          loading={remove.isPending}
+                        >
                           <Trash2 className="size-4" /> Remove
                         </Button>
                       )}
@@ -208,7 +300,13 @@ export function IntegrationCard({
                           <FlaskConical className="size-4" /> Test connection
                         </Button>
                       )}
-                      <Button size="sm" onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={missing.length > 0} title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}>
+                      <Button
+                        size="sm"
+                        onClick={() => save.mutate(undefined)}
+                        loading={save.isPending}
+                        disabled={missing.length > 0}
+                        title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}
+                      >
                         Save
                       </Button>
                     </div>
@@ -230,11 +328,21 @@ function StepText({ text }: { text: string }) {
     <span>
       {parts.map((p, i) =>
         /^https?:\/\//.test(p) ? (
-          <a key={i} href={p} target="_blank" rel="noreferrer" className="font-medium break-all text-brand-600 underline decoration-brand-300 underline-offset-2">
+          <a
+            key={i}
+            href={p}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium break-all text-brand-600 underline decoration-brand-300 underline-offset-2"
+          >
             {p}
           </a>
         ) : p.startsWith('`') ? (
-          <code key={i} onClick={() => (navigator.clipboard.writeText(p.slice(1, -1)), toast.success('Copied'))} className="cursor-pointer rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-xs break-all hover:bg-brand-50">
+          <code
+            key={i}
+            onClick={() => (navigator.clipboard.writeText(p.slice(1, -1)), toast.success('Copied'))}
+            className="cursor-pointer rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-xs break-all hover:bg-brand-50"
+          >
             {p.slice(1, -1)}
           </code>
         ) : (

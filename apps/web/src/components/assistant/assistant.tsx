@@ -14,7 +14,13 @@ import { Button } from '../ui/button';
  * Floating in-app AI agent (bottom-right). Text or voice; it acts only inside the signed-in
  * account and asks before changing anything. Hidden on auth pages.
  */
-type Msg = { role: 'user' | 'assistant'; content: string; cards?: { type: 'listings' | 'leads'; items: any[] }; pending?: { token: string; summary: string }; resolved?: 'done' | 'cancelled' };
+type Msg = {
+  role: 'user' | 'assistant';
+  content: string;
+  cards?: { type: 'listings' | 'leads'; items: any[] };
+  pending?: { token: string; summary: string };
+  resolved?: 'done' | 'cancelled';
+};
 const HIDDEN = ['/login', '/signup', '/forgot'];
 const storeKey = (uid: string) => `biq.assistant.${uid}`;
 
@@ -35,12 +41,13 @@ function useLang() {
   return lang;
 }
 
-const blobToBase64 = (b: Blob) => new Promise<string>((res, rej) => {
-  const r = new FileReader();
-  r.onload = () => res(String(r.result));
-  r.onerror = rej;
-  r.readAsDataURL(b);
-});
+const blobToBase64 = (b: Blob) =>
+  new Promise<string>((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = rej;
+    r.readAsDataURL(b);
+  });
 
 export function AssistantWidget() {
   const pathname = usePathname();
@@ -96,12 +103,18 @@ export function AssistantWidget() {
     setText('');
     setBusy(true);
     try {
-      const r = await api<any>('/assistant/chat', { method: 'POST', body: { messages: history.map(({ role, content }) => ({ role, content })), lang, context: context() } });
+      const r = await api<any>('/assistant/chat', {
+        method: 'POST',
+        body: { messages: history.map(({ role, content }) => ({ role, content })), lang, context: context() },
+      });
       setMsgs((m) => [...m, { role: 'assistant', content: r.reply, cards: r.cards, pending: r.pending }]);
       say(r.reply);
     } catch (e) {
       const notConfigured = e instanceof ApiError && e.isNotConfigured;
-      setMsgs((m) => [...m, { role: 'assistant', content: notConfigured ? 'AI assistant अभी setup नहीं है — admin को Groq/Gemini key जोड़नी होगी।' : `⚠️ ${errorMessage(e)}` }]);
+      setMsgs((m) => [
+        ...m,
+        { role: 'assistant', content: notConfigured ? 'AI assistant अभी setup नहीं है — admin को Groq/Gemini key जोड़नी होगी।' : `⚠️ ${errorMessage(e)}` },
+      ]);
     } finally {
       setBusy(false);
     }
@@ -220,7 +233,11 @@ export function AssistantWidget() {
                     <div className="space-y-2">
                       <p className="text-sm text-muted">नमस्ते {user.name.split(' ')[0]} 👋 मैं आपकी कैसे मदद करूँ?</p>
                       {hints.map((h) => (
-                        <button key={h} onClick={() => send(h)} className="block w-full rounded-xl border border-line px-3 py-2 text-left text-sm hover:border-brand-400 hover:bg-brand-50/50 dark:hover:bg-brand-500/10">
+                        <button
+                          key={h}
+                          onClick={() => send(h)}
+                          className="block w-full rounded-xl border border-line px-3 py-2 text-left text-sm hover:border-brand-400 hover:bg-brand-50/50 dark:hover:bg-brand-500/10"
+                        >
                           {h}
                         </button>
                       ))}
@@ -228,13 +245,27 @@ export function AssistantWidget() {
                   )}
                   {msgs.map((m, i) => (
                     <div key={i} className={cn('flex flex-col gap-2', m.role === 'user' ? 'items-end' : 'items-start')}>
-                      <div className={cn('max-w-[88%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap', m.role === 'user' ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-surface-2')}>{m.content}</div>
+                      <div
+                        className={cn(
+                          'max-w-[88%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap',
+                          m.role === 'user' ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-surface-2',
+                        )}
+                      >
+                        {m.content}
+                      </div>
                       {m.cards?.type === 'listings' && (
                         <div className="w-full space-y-1.5">
                           {m.cards.items.map((l) => (
-                            <Link key={l.id} href={l.url} onClick={() => setOpen(false)} className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400">
+                            <Link
+                              key={l.id}
+                              href={l.url}
+                              onClick={() => setOpen(false)}
+                              className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400"
+                            >
                               <p className="truncate font-semibold">{l.title}</p>
-                              <p className="text-xs text-muted">{[l.rentText, l.locality, l.bedrooms ? `${l.bedrooms} BHK` : null].filter(Boolean).join(' · ')}</p>
+                              <p className="text-xs text-muted">
+                                {[l.rentText, l.locality, l.bedrooms ? `${l.bedrooms} BHK` : null].filter(Boolean).join(' · ')}
+                              </p>
                             </Link>
                           ))}
                         </div>
@@ -242,7 +273,12 @@ export function AssistantWidget() {
                       {m.cards?.type === 'leads' && (
                         <div className="w-full space-y-1.5">
                           {m.cards.items.map((l) => (
-                            <Link key={l.id} href={l.url} onClick={() => setOpen(false)} className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400">
+                            <Link
+                              key={l.id}
+                              href={l.url}
+                              onClick={() => setOpen(false)}
+                              className="block rounded-xl border border-line px-3 py-2 text-sm hover:border-brand-400"
+                            >
                               <p className="font-semibold">{l.name}</p>
                               <p className="text-xs text-muted">{[l.phone, l.stage, l.temperature].filter(Boolean).join(' · ')}</p>
                             </Link>
@@ -286,11 +322,30 @@ export function AssistantWidget() {
                 }}
                 className="flex items-center gap-2 border-t border-line p-3"
               >
-                <button type="button" onClick={toggleMic} disabled={busy && !recording} className={cn('grid size-10 shrink-0 place-items-center rounded-full border', recording ? 'animate-pulse border-rose-500 bg-rose-500 text-white' : 'border-line text-muted hover:text-brand-600')} aria-label={recording ? 'Stop' : 'Speak'}>
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  disabled={busy && !recording}
+                  className={cn(
+                    'grid size-10 shrink-0 place-items-center rounded-full border',
+                    recording ? 'animate-pulse border-rose-500 bg-rose-500 text-white' : 'border-line text-muted hover:text-brand-600',
+                  )}
+                  aria-label={recording ? 'Stop' : 'Speak'}
+                >
                   {recording ? <Square className="size-4" /> : <Mic className="size-5" />}
                 </button>
-                <input value={text} onChange={(e) => setText(e.target.value)} placeholder={recording ? 'सुन रहा हूँ… (रोकने के लिए ■)' : 'लिखें या mic दबाकर बोलें…'} className="h-10 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 text-sm focus:border-brand-500 focus:outline-none" />
-                <button type="submit" disabled={!text.trim() || busy} className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-600 text-white disabled:opacity-40" aria-label="Send">
+                <input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={recording ? 'सुन रहा हूँ… (रोकने के लिए ■)' : 'लिखें या mic दबाकर बोलें…'}
+                  className="h-10 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 text-sm focus:border-brand-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!text.trim() || busy}
+                  className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-600 text-white disabled:opacity-40"
+                  aria-label="Send"
+                >
                   <Send className="size-4" />
                 </button>
               </form>

@@ -32,7 +32,12 @@ export default function Page() {
           key: 'code',
           label: 'Code',
           render: (r) => (
-            <button type="button" onClick={() => copy(r.link)} className="inline-flex items-center gap-1.5 font-mono font-bold hover:text-brand-600" title={r.link}>
+            <button
+              type="button"
+              onClick={() => copy(r.link)}
+              className="inline-flex items-center gap-1.5 font-mono font-bold hover:text-brand-600"
+              title={r.link}
+            >
               {r.code} <Copy className="size-3.5" />
             </button>
           ),

@@ -6,8 +6,10 @@ import { z } from 'zod';
  * have small context windows and rate limits — and always forbid inventing facts.
  */
 
-const CONTEXT = 'BrokerIQ is a rental property & brokerage platform for Gurgaon (Gurugram), Haryana, India — flats, builder floors, PG and offices for RENT only (no sales).';
-const NO_INVENTION = 'Use only the data given. Never invent prices, amenities, distances, names, phone numbers or dates; if something is missing, leave it out (or null in JSON).';
+const CONTEXT =
+  'BrokerIQ is a rental property & brokerage platform for Gurgaon (Gurugram), Haryana, India — flats, builder floors, PG and offices for RENT only (no sales).';
+const NO_INVENTION =
+  'Use only the data given. Never invent prices, amenities, distances, names, phone numbers or dates; if something is missing, leave it out (or null in JSON).';
 
 // ------------------------------------------------------------------ listing-book scanner (vision)
 export const SCAN_SYSTEM = `You are an OCR + data-entry assistant for a rental property broker in Gurgaon. ${NO_INVENTION} Reply with JSON only.`;
@@ -71,7 +73,8 @@ export type ScanResult = z.infer<typeof scanSchema>;
 
 // ------------------------------------------------------------------ listing description writer
 export function descriptionSystem(tone: string, language: 'hi' | 'en' | string) {
-  const lang = language === 'hi' ? 'simple Hindi in Devanagari script, keeping common English property words (BHK, sq.ft, lift, power backup)' : 'clear Indian English';
+  const lang =
+    language === 'hi' ? 'simple Hindi in Devanagari script, keeping common English property words (BHK, sq.ft, lift, power backup)' : 'clear Indian English';
   return [
     `You write rental property descriptions for BrokerIQ. ${CONTEXT}`,
     `Write 120–180 words in ${lang}, ${tone} tone, as 2 short paragraphs of plain text.`,
@@ -101,7 +104,15 @@ export const leadInsightsSchema = z.object({
 export type LeadInsights = z.infer<typeof leadInsightsSchema>;
 
 // ------------------------------------------------------------------ in-app assistant
-export function assistantSystem(p: { userName: string; roleText: string; now: string; languageName: string; languageNative?: string; path?: string; entityId?: string }) {
+export function assistantSystem(p: {
+  userName: string;
+  roleText: string;
+  now: string;
+  languageName: string;
+  languageNative?: string;
+  path?: string;
+  entityId?: string;
+}) {
   return [
     `You are "BrokerIQ Assistant", the in-app AI agent of BrokerIQ. ${CONTEXT}`,
     `You are helping ${p.userName}, ${p.roleText}. Current date/time (IST): ${p.now}.${p.path ? ` They are on the screen "${p.path}"${p.entityId ? ` (id ${p.entityId})` : ''}.` : ''}`,

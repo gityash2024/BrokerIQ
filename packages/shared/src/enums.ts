@@ -19,8 +19,20 @@ export const STAFF_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'SUPPORT'] as const;
 export const isStaff = (role?: string | null) => !!role && (STAFF_ROLES as readonly string[]).includes(role);
 
 /** Limits BrokerIQ can put on a user or a broker firm without blocking the whole account. */
-export const USER_RESTRICTIONS = { post: 'Listing डालना', chat: 'Chat / messages', enquire: 'Enquiry भेजना', review: 'Review लिखना', ai: 'AI features' } as const;
-export const ORG_RESTRICTIONS = { post: 'Listing डालना', cobroking: 'Co-broking', campaigns: 'WhatsApp campaigns', connectors: 'Lead connectors', ai: 'AI features' } as const;
+export const USER_RESTRICTIONS = {
+  post: 'Listing डालना',
+  chat: 'Chat / messages',
+  enquire: 'Enquiry भेजना',
+  review: 'Review लिखना',
+  ai: 'AI features',
+} as const;
+export const ORG_RESTRICTIONS = {
+  post: 'Listing डालना',
+  cobroking: 'Co-broking',
+  campaigns: 'WhatsApp campaigns',
+  connectors: 'Lead connectors',
+  ai: 'AI features',
+} as const;
 export type UserRestriction = keyof typeof USER_RESTRICTIONS;
 export type OrgRestriction = keyof typeof ORG_RESTRICTIONS;
 export const ROLES = values(Role);
@@ -125,8 +137,14 @@ export const PostedByType = { OWNER: 'OWNER', BROKER: 'BROKER', BUILDER: 'BUILDE
 export type PostedByType = (typeof PostedByType)[keyof typeof PostedByType];
 
 export const Facing = {
-  NORTH: 'NORTH', SOUTH: 'SOUTH', EAST: 'EAST', WEST: 'WEST',
-  NORTH_EAST: 'NORTH_EAST', NORTH_WEST: 'NORTH_WEST', SOUTH_EAST: 'SOUTH_EAST', SOUTH_WEST: 'SOUTH_WEST',
+  NORTH: 'NORTH',
+  SOUTH: 'SOUTH',
+  EAST: 'EAST',
+  WEST: 'WEST',
+  NORTH_EAST: 'NORTH_EAST',
+  NORTH_WEST: 'NORTH_WEST',
+  SOUTH_EAST: 'SOUTH_EAST',
+  SOUTH_WEST: 'SOUTH_WEST',
 } as const;
 export type Facing = (typeof Facing)[keyof typeof Facing];
 export const FACINGS = values(Facing);

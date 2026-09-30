@@ -18,13 +18,16 @@ export function SafetyNote() {
     <Card style={{ padding: 12, marginTop: 16, borderColor: c.warning, backgroundColor: `${c.warning}14` }}>
       <Row gap={8} style={{ alignItems: 'flex-start' }}>
         <ShieldAlert size={18} color={c.warning} />
-        <Txt v="small" style={{ flex: 1 }}>Property देखे बिना token / advance न दें। Payment हमेशा visit और agreement के बाद करें — शक हो तो listing report करें।</Txt>
+        <Txt v="small" style={{ flex: 1 }}>
+          Property देखे बिना token / advance न दें। Payment हमेशा visit और agreement के बाद करें — शक हो तो listing report करें।
+        </Txt>
       </Row>
     </Card>
   );
 }
 
-const dayLabel = (d: string) => new Date(`${d}T00:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+const dayLabel = (d: string) =>
+  new Date(`${d}T00:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
 const timeLabel = (at: string) => new Date(at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
 /** Pick one of the broker's free visit slots and book it. */
@@ -54,16 +57,27 @@ export function SlotSheet({ listingId, open, onClose }: { listingId: string; ope
       {q.isLoading ? (
         <Loader />
       ) : !days.length ? (
-        <Txt v="small" color="muted">अगले 7 दिन में कोई slot खाली नहीं — enquiry भेजें।</Txt>
+        <Txt v="small" color="muted">
+          अगले 7 दिन में कोई slot खाली नहीं — enquiry भेजें।
+        </Txt>
       ) : (
         <View style={{ gap: 12 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {days.map((d) => <Chip key={d.date} label={dayLabel(d.date)} active={active === d.date} onPress={() => (setDay(d.date), setAt(null))} />)}
+            {days.map((d) => (
+              <Chip key={d.date} label={dayLabel(d.date)} active={active === d.date} onPress={() => (setDay(d.date), setAt(null))} />
+            ))}
           </ScrollView>
           <Row wrap>
-            {days.find((d) => d.date === active)?.slots.map((s) => (
-              <Chip key={s.at} label={s.available > 0 ? timeLabel(s.at) : `${timeLabel(s.at)} ✕`} active={at === s.at} onPress={s.available > 0 ? () => setAt(s.at) : undefined} />
-            ))}
+            {days
+              .find((d) => d.date === active)
+              ?.slots.map((s) => (
+                <Chip
+                  key={s.at}
+                  label={s.available > 0 ? timeLabel(s.at) : `${timeLabel(s.at)} ✕`}
+                  active={at === s.at}
+                  onPress={s.available > 0 ? () => setAt(s.at) : undefined}
+                />
+              ))}
           </Row>
           <Button title="Visit book करें" size="lg" loading={busy} disabled={!at} onPress={book} />
         </View>
@@ -90,14 +104,23 @@ export function TokenSheet({ listingId, open, onClose }: { listingId: string; op
       setBusy(false);
     }
   };
-  const upi = d?.org?.upiId && Number(f.amount) > 0 ? `upi://pay?pa=${encodeURIComponent(d.org.upiId)}&pn=${encodeURIComponent(d.org.upiName || d.org.name)}&am=${Number(f.amount)}&cu=INR&tn=Token` : null;
+  const upi =
+    d?.org?.upiId && Number(f.amount) > 0
+      ? `upi://pay?pa=${encodeURIComponent(d.org.upiId)}&pn=${encodeURIComponent(d.org.upiName || d.org.name)}&am=${Number(f.amount)}&cu=INR&tn=Token`
+      : null;
   return (
     <Sheet open={open} onClose={onClose} title="Token / advance का record">
       <View style={{ gap: 10 }}>
-        <Txt v="small" color="muted">Payment सीधे broker को होता है। यहाँ सिर्फ़ record रखें ताकि broker confirm करे।</Txt>
+        <Txt v="small" color="muted">
+          Payment सीधे broker को होता है। यहाँ सिर्फ़ record रखें ताकि broker confirm करे।
+        </Txt>
         {!!d?.org?.upiId && <Txt v="small">{`Broker का UPI: ${d.org.upiId}`}</Txt>}
         <Input label="Amount (₹)" value={f.amount} onChangeText={(v) => setF({ ...f, amount: v.replace(/\D/g, '') })} keyboardType="number-pad" />
-        <Row wrap>{['UPI', 'CASH', 'BANK'].map((m) => <Chip key={m} label={m} active={f.mode === m} onPress={() => setF({ ...f, mode: m })} />)}</Row>
+        <Row wrap>
+          {['UPI', 'CASH', 'BANK'].map((m) => (
+            <Chip key={m} label={m} active={f.mode === m} onPress={() => setF({ ...f, mode: m })} />
+          ))}
+        </Row>
         <Input label="Reference (UTR)" value={f.ref} onChangeText={(v) => setF({ ...f, ref: v })} />
         {upi && <Button title={`UPI app से ${formatINR(Number(f.amount))} भेजें`} variant="secondary" onPress={() => Linking.openURL(upi)} />}
         <Button title="Record करें" loading={busy} disabled={!Number(f.amount)} onPress={save} />
@@ -115,7 +138,8 @@ export function CommuteCard(props: { l: any }) {
 function CommuteCardInner({ l }: { l: any }) {
   const { c } = useTheme();
   const [hub, setHub] = useState('cyber-city');
-  const from = l.latitude != null ? { lat: l.latitude, lng: l.longitude } : l.locality?.latitude != null ? { lat: l.locality.latitude, lng: l.locality.longitude } : null;
+  const from =
+    l.latitude != null ? { lat: l.latitude, lng: l.longitude } : l.locality?.latitude != null ? { lat: l.locality.latitude, lng: l.locality.longitude } : null;
   if (!from) return null;
   const h = OFFICE_HUBS.find((x) => x.key === hub) ?? OFFICE_HUBS[0];
   const e = estimateCommute(from, h);
@@ -123,15 +147,27 @@ function CommuteCardInner({ l }: { l: any }) {
     <>
       <SectionTitle title="Office से दूरी" subtitle="अनुमानित, peak hours" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {OFFICE_HUBS.map((x) => <Chip key={x.key} label={x.name} active={hub === x.key} onPress={() => setHub(x.key)} />)}
+        {OFFICE_HUBS.map((x) => (
+          <Chip key={x.key} label={x.name} active={hub === x.key} onPress={() => setHub(x.key)} />
+        ))}
       </ScrollView>
       <Row gap={10} style={{ marginTop: 10 }}>
         <Card style={{ flex: 1, padding: 12, borderColor: e.mode === 'car' ? c.brand : c.line }}>
-          <Row gap={6}><Car size={16} color={c.muted} /><Txt v="caption" color="muted">Car / cab</Txt></Row>
+          <Row gap={6}>
+            <Car size={16} color={c.muted} />
+            <Txt v="caption" color="muted">
+              Car / cab
+            </Txt>
+          </Row>
           <Txt v="h3">{`~${e.carMin} मिनट`}</Txt>
         </Card>
         <Card style={{ flex: 1, padding: 12, borderColor: e.mode === 'metro' ? c.brand : c.line }}>
-          <Row gap={6}><TrainFront size={16} color={c.muted} /><Txt v="caption" color="muted">Metro</Txt></Row>
+          <Row gap={6}>
+            <TrainFront size={16} color={c.muted} />
+            <Txt v="caption" color="muted">
+              Metro
+            </Txt>
+          </Row>
           <Txt v="h3">{e.metroMin != null ? `~${e.metroMin} मिनट` : '—'}</Txt>
         </Card>
       </Row>
@@ -146,16 +182,32 @@ export function ReviewsSummary(props: { localitySlug: string; society?: string |
 
 /** Approved resident ratings for the society (or locality). */
 function ReviewsSummaryInner({ localitySlug, society }: { localitySlug: string; society?: string | null }) {
-  const q = useQuery({ queryKey: ['loc-reviews', localitySlug, society ?? ''], queryFn: () => api<any>(`/public/localities/${localitySlug}/reviews${society ? `?society=${encodeURIComponent(society)}` : ''}`, { auth: false }) });
+  const q = useQuery({
+    queryKey: ['loc-reviews', localitySlug, society ?? ''],
+    queryFn: () => api<any>(`/public/localities/${localitySlug}/reviews${society ? `?society=${encodeURIComponent(society)}` : ''}`, { auth: false }),
+  });
   if (!q.data?.count) return null;
-  const labels: [string, string][] = [['water', 'पानी'], ['power', 'Power'], ['safety', 'सुरक्षा'], ['parking', 'Parking'], ['connectivity', 'Connectivity'], ['maintenance', 'Maintenance']];
+  const labels: [string, string][] = [
+    ['water', 'पानी'],
+    ['power', 'Power'],
+    ['safety', 'सुरक्षा'],
+    ['parking', 'Parking'],
+    ['connectivity', 'Connectivity'],
+    ['maintenance', 'Maintenance'],
+  ];
   return (
     <>
       <SectionTitle title="रहने वालों की राय" subtitle={`${q.data.count} reviews`} />
       <Row wrap>
         {labels.map(([k, label]) => (
           <Card key={k} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-            <Row gap={4}><Txt v="caption" color="muted">{label}</Txt><Star size={11} color="#F59E0B" fill="#F59E0B" /><Txt v="caption">{String(q.data.avg[k] ?? '—')}</Txt></Row>
+            <Row gap={4}>
+              <Txt v="caption" color="muted">
+                {label}
+              </Txt>
+              <Star size={11} color="#F59E0B" fill="#F59E0B" />
+              <Txt v="caption">{String(q.data.avg[k] ?? '—')}</Txt>
+            </Row>
           </Card>
         ))}
       </Row>

@@ -53,10 +53,27 @@ export function parseRentalQuery(input: string): ParsedQuery {
     if (bare && !/sector\s*\d{4,6}/.test(t)) maxBudget = rupees(bare[1]);
   }
   const furnishing = /semi[\s-]?furnish/.test(t) ? 'SEMI_FURNISHED' : /unfurnish/.test(t) ? 'UNFURNISHED' : /furnish/.test(t) ? 'FULLY_FURNISHED' : null;
-  const types = /\b(pg|paying guest|hostel|co-?living)\b/.test(t) ? ['PG'] : /builder floor|independent floor/.test(t) ? ['BUILDER_FLOOR'] : /\b(villa|kothi|house)\b/.test(t) ? ['INDEPENDENT_HOUSE', 'VILLA'] : /\b(studio|1rk)\b/.test(t) ? ['STUDIO'] : [];
+  const types = /\b(pg|paying guest|hostel|co-?living)\b/.test(t)
+    ? ['PG']
+    : /builder floor|independent floor/.test(t)
+      ? ['BUILDER_FLOOR']
+      : /\b(villa|kothi|house)\b/.test(t)
+        ? ['INDEPENDENT_HOUSE', 'VILLA']
+        : /\b(studio|1rk)\b/.test(t)
+          ? ['STUDIO']
+          : [];
   const sector = t.match(/\b(sector|sec|सेक्टर)[\s-]*(\d{1,3}[a-z]?)\b/);
-  const road = t.match(/\b(golf course (?:ext(?:ension)?\s*)?road|golf course|sohna road|mg road|dlf phase[\s-]*\d|cyber city|udyog vihar|palam vihar|south city[\s-]*\d?|sushant lok[\s-]*\d?|nirvana country|new gurgaon|dwarka expressway|spr|manesar)\b/);
+  const road = t.match(
+    /\b(golf course (?:ext(?:ension)?\s*)?road|golf course|sohna road|mg road|dlf phase[\s-]*\d|cyber city|udyog vihar|palam vihar|south city[\s-]*\d?|sushant lok[\s-]*\d?|nirvana country|new gurgaon|dwarka expressway|spr|manesar)\b/,
+  );
   const localityText = sector ? `Sector ${sector[2].toUpperCase()}` : road ? road[1].replace(/\b\w/g, (c) => c.toUpperCase()) : null;
-  const isSearch = !command && (bedrooms.length > 0 || maxBudget != null || furnishing != null || types.length > 0 || localityText != null || /\b(flat|rent|kiraye|किराये|room|pg|house|ghar|घर)\b/.test(t));
+  const isSearch =
+    !command &&
+    (bedrooms.length > 0 ||
+      maxBudget != null ||
+      furnishing != null ||
+      types.length > 0 ||
+      localityText != null ||
+      /\b(flat|rent|kiraye|किराये|room|pg|house|ghar|घर)\b/.test(t));
   return { bedrooms, minBudget, maxBudget, furnishing, types, localityText, command, isSearch };
 }

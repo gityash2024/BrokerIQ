@@ -42,18 +42,59 @@ export default function DataConsent() {
     }
   };
 
-  const Option = ({ on, set, icon, title, what, why }: { on: boolean; set: (v: boolean) => void; icon: React.ReactNode; title: string; what: string; why: string }) => (
+  const Option = ({
+    on,
+    set,
+    icon,
+    title,
+    what,
+    why,
+  }: {
+    on: boolean;
+    set: (v: boolean) => void;
+    icon: React.ReactNode;
+    title: string;
+    what: string;
+    why: string;
+  }) => (
     <PressableScale onPress={() => set(!on)}>
       <Card style={{ padding: 14, gap: 6, borderWidth: 2, borderColor: on ? c.brand : c.line }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Row gap={10} style={{ flex: 1 }}>
-            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
-            <Txt v="bodyStrong" style={{ flex: 1 }}>{title}</Txt>
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+              {icon}
+            </View>
+            <Txt v="bodyStrong" style={{ flex: 1 }}>
+              {title}
+            </Txt>
           </Row>
-          <View style={{ width: 26, height: 26, borderRadius: 8, borderWidth: 2, borderColor: on ? c.brand : c.line, backgroundColor: on ? c.brand : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{on && <Check size={16} color="#fff" />}</View>
+          <View
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 8,
+              borderWidth: 2,
+              borderColor: on ? c.brand : c.line,
+              backgroundColor: on ? c.brand : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {on && <Check size={16} color="#fff" />}
+          </View>
         </Row>
-        <Txt v="small" color="muted"><Txt v="small" style={{ fontWeight: '700' }}>क्या: </Txt>{what}</Txt>
-        <Txt v="small" color="muted"><Txt v="small" style={{ fontWeight: '700' }}>क्यों: </Txt>{why}</Txt>
+        <Txt v="small" color="muted">
+          <Txt v="small" style={{ fontWeight: '700' }}>
+            क्या:{' '}
+          </Txt>
+          {what}
+        </Txt>
+        <Txt v="small" color="muted">
+          <Txt v="small" style={{ fontWeight: '700' }}>
+            क्यों:{' '}
+          </Txt>
+          {why}
+        </Txt>
       </Card>
     </PressableScale>
   );
@@ -67,19 +108,34 @@ export default function DataConsent() {
         <Txt v="h1">{T.title}</Txt>
         <Txt color="muted">{T.intro}</Txt>
         <Option on={loc} set={setLoc} icon={<MapPin size={20} color={c.brand} />} title={T.location.title} what={T.location.what} why={T.location.why} />
-        <Option on={contacts} set={setContacts} icon={<Contact size={20} color={c.brand} />} title={T.contacts.title} what={T.contacts.what} why={T.contacts.why} />
+        <Option
+          on={contacts}
+          set={setContacts}
+          icon={<Contact size={20} color={c.brand} />}
+          title={T.contacts.title}
+          what={T.contacts.what}
+          why={T.contacts.why}
+        />
         <Card style={{ padding: 14, gap: 8, backgroundColor: c.surface2 }}>
           <Row gap={8} style={{ alignItems: 'flex-start' }}>
             <Lock size={16} color={c.success} style={{ marginTop: 2 }} />
-            <Txt v="small" style={{ flex: 1 }}>{T.who}</Txt>
+            <Txt v="small" style={{ flex: 1 }}>
+              {T.who}
+            </Txt>
           </Row>
           <Row gap={8} style={{ alignItems: 'flex-start' }}>
             <ShieldCheck size={16} color={c.success} style={{ marginTop: 2 }} />
-            <Txt v="small" style={{ flex: 1 }}>{T.security}</Txt>
+            <Txt v="small" style={{ flex: 1 }}>
+              {T.security}
+            </Txt>
           </Row>
-          <Txt v="small" color="muted">{T.optional}</Txt>
+          <Txt v="small" color="muted">
+            {T.optional}
+          </Txt>
         </Card>
-        <Txt v="small" color="brand" onPress={() => Linking.openURL(`${app.siteUrl}/p/privacy`)}>Privacy policy पढ़ें →</Txt>
+        <Txt v="small" color="brand" onPress={() => Linking.openURL(`${app.siteUrl}/p/privacy`)}>
+          Privacy policy पढ़ें →
+        </Txt>
       </ScrollView>
       <View style={{ padding: 16, gap: 10, borderTopWidth: 1, borderColor: c.line }}>
         <Button title={T.allow} disabled={!loc && !contacts} loading={busy} onPress={allow} />

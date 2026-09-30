@@ -59,8 +59,22 @@ function LoginInner() {
           value={mode}
           onChange={(v) => setMode(v)}
           options={[
-            { value: 'otp', label: <><Mail className="size-4" /> Email OTP</> },
-            { value: 'password', label: <><KeyRound className="size-4" /> Password</> },
+            {
+              value: 'otp',
+              label: (
+                <>
+                  <Mail className="size-4" /> Email OTP
+                </>
+              ),
+            },
+            {
+              value: 'password',
+              label: (
+                <>
+                  <KeyRound className="size-4" /> Password
+                </>
+              ),
+            },
           ]}
         />
       )}
@@ -74,11 +88,34 @@ function LoginInner() {
           }}
         >
           <Field label="Email">
-            <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" disabled={otpSent} />
+            <Input
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              disabled={otpSent}
+            />
           </Field>
           {otpSent && (
-            <Field label="6-digit OTP" hint={<button type="button" className="text-brand-600" onClick={sendOtp}>OTP दोबारा भेजें</button>}>
-              <Input inputMode="numeric" maxLength={6} autoFocus required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className="text-center font-mono text-xl tracking-[0.5em]" />
+            <Field
+              label="6-digit OTP"
+              hint={
+                <button type="button" className="text-brand-600" onClick={sendOtp}>
+                  OTP दोबारा भेजें
+                </button>
+              }
+            >
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                className="text-center font-mono text-xl tracking-[0.5em]"
+              />
             </Field>
           )}
           <Button type="submit" className="w-full" size="lg" loading={loading}>
@@ -101,7 +138,14 @@ function LoginInner() {
           <Field label="Email">
             <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
-          <Field label="Password" hint={<Link href="/forgot" className="text-brand-600">Password भूल गए?</Link>}>
+          <Field
+            label="Password"
+            hint={
+              <Link href="/forgot" className="text-brand-600">
+                Password भूल गए?
+              </Link>
+            }
+          >
             <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           <Button type="submit" className="w-full" size="lg" loading={loading}>

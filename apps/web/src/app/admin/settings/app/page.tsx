@@ -53,7 +53,16 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
     desc: 'पूरी website के ऊपर offer/notice दिखाएँ, या maintenance mode चालू करें',
     fields: [
       { key: 'announcement.enabled', label: 'Announcement on', type: 'switch' },
-      { key: 'announcement.tone', label: 'Style', type: 'select', options: [{ value: 'info', label: 'Info' }, { value: 'promo', label: 'Promo' }, { value: 'warning', label: 'Warning' }] },
+      {
+        key: 'announcement.tone',
+        label: 'Style',
+        type: 'select',
+        options: [
+          { value: 'info', label: 'Info' },
+          { value: 'promo', label: 'Promo' },
+          { value: 'warning', label: 'Warning' },
+        ],
+      },
       { key: 'announcement.text', label: 'Text', wide: true },
       { key: 'announcement.link', label: 'Link', wide: true },
       { key: 'maintenance.enabled', label: 'Maintenance mode', type: 'switch', hint: 'Public site और app पर maintenance message दिखेगा' },
@@ -88,7 +97,12 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
       { key: 'auth.allowEmailOtp', label: 'Email OTP', type: 'switch' },
       { key: 'auth.allowPasswordLogin', label: 'Password login', type: 'switch' },
       { key: 'auth.allowGoogle', label: 'Google login', type: 'switch', hint: 'Credentials center में Google OAuth भी चाहिए' },
-      { key: 'auth.allowBrokerSignup', label: 'नए broker signups (open)', type: 'switch', hint: 'OFF = नया broker सिर्फ़ invite code से जुड़ेगा (Admin → Broker invites)' },
+      {
+        key: 'auth.allowBrokerSignup',
+        label: 'नए broker signups (open)',
+        type: 'switch',
+        hint: 'OFF = नया broker सिर्फ़ invite code से जुड़ेगा (Admin → Broker invites)',
+      },
     ],
   },
   {
@@ -118,7 +132,12 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
     desc: 'Launch phase में सब free · AI fair-use limit · boost price, GST और invoice पर company details',
     fields: [
       { key: 'monetization.freeMode', label: 'Free mode — कोई plan limit, pricing, billing या boost नहीं', type: 'switch' },
-      { key: 'ai.dailyCap', label: 'AI calls / firm / दिन (free mode में, 0 = कोई limit नहीं)', type: 'number', hint: 'Free AI providers की limit में रहने के लिए' },
+      {
+        key: 'ai.dailyCap',
+        label: 'AI calls / firm / दिन (free mode में, 0 = कोई limit नहीं)',
+        type: 'number',
+        hint: 'Free AI providers की limit में रहने के लिए',
+      },
       { key: 'ai.providerOrder', label: 'AI provider क्रम', hint: 'openrouter,groq,gemini — पहला fail हो तो अगला' },
       { key: 'monetization.boostPricePerWeek', label: 'Listing boost price / week (₹)', type: 'number' },
       { key: 'monetization.gstPercent', label: 'GST %', type: 'number' },
@@ -156,16 +175,36 @@ export default function AppConfigPage() {
   useEffect(() => {
     if (q.data) setCfg(q.data);
   }, [q.data]);
-  const save = useApiMutation(() => patch('/admin/app-config', cfg), { success: 'App config saved — website और app पर तुरंत लागू', invalidate: [['admin-app-config']], onSuccess: () => qc.invalidateQueries() });
+  const save = useApiMutation(() => patch('/admin/app-config', cfg), {
+    success: 'App config saved — website और app पर तुरंत लागू',
+    invalidate: [['admin-app-config']],
+    onSuccess: () => qc.invalidateQueries(),
+  });
   if (q.isLoading || !cfg) return q.isError ? <ApiErrorState error={q.error} /> : <PageLoader />;
   const dirty = JSON.stringify(cfg) !== JSON.stringify(q.data);
   return (
     <>
-      <PageHeader title="App config" subtitle="Website और mobile app की हर setting — कोई code change नहीं" actions={<Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!dirty}><Save className="size-4" /> Save changes</Button>} />
+      <PageHeader
+        title="App config"
+        subtitle="Website और mobile app की हर setting — कोई code change नहीं"
+        actions={
+          <Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={!dirty}>
+            <Save className="size-4" /> Save changes
+          </Button>
+        }
+      />
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <nav className="hidden space-y-1 lg:sticky lg:top-24 lg:block lg:h-fit">
           {SECTIONS.map((s) => (
-            <a key={s.id} href={`#${s.id}`} onClick={() => setActive(s.id)} className={cn('relative block rounded-xl px-3 py-2 text-sm font-semibold', active === s.id ? 'text-brand-700 dark:text-white' : 'text-muted hover:text-fg')}>
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              onClick={() => setActive(s.id)}
+              className={cn(
+                'relative block rounded-xl px-3 py-2 text-sm font-semibold',
+                active === s.id ? 'text-brand-700 dark:text-white' : 'text-muted hover:text-fg',
+              )}
+            >
               {active === s.id && <motion.span layoutId="cfg-nav" className="absolute inset-0 rounded-xl bg-brand-50 dark:bg-brand-500/15" />}
               <span className="relative">{s.title}</span>
             </a>
@@ -188,10 +227,18 @@ export default function AppConfigPage() {
         </div>
       </div>
       {dirty && (
-        <motion.div initial={{ y: 80 }} animate={{ y: 0 }} className="fixed inset-x-0 bottom-5 z-30 mx-auto flex w-fit items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-2xl">
+        <motion.div
+          initial={{ y: 80 }}
+          animate={{ y: 0 }}
+          className="fixed inset-x-0 bottom-5 z-30 mx-auto flex w-fit items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-2xl"
+        >
           <span className="text-sm font-semibold">Unsaved changes</span>
-          <Button size="sm" variant="ghost" onClick={() => setCfg(q.data!)}>Discard</Button>
-          <Button size="sm" onClick={() => save.mutate(undefined)} loading={save.isPending}>Save</Button>
+          <Button size="sm" variant="ghost" onClick={() => setCfg(q.data!)}>
+            Discard
+          </Button>
+          <Button size="sm" onClick={() => save.mutate(undefined)} loading={save.isPending}>
+            Save
+          </Button>
         </motion.div>
       )}
     </>

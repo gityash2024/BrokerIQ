@@ -37,7 +37,19 @@ export default function Page() {
           { key: 'sortOrder', label: 'Order', type: 'number' },
           { key: 'isActive', label: 'Active', type: 'switch' },
         ]}
-        toBody={(f) => ({ name: f.name, category: f.category, logoUrl: f.logoUrl || '', description: f.description || null, offer: f.offer || null, phone: f.phone || null, email: f.email || '', website: f.website || '', sortOrder: Number(f.sortOrder ?? 0), isActive: !!f.isActive, localityIds: f.localityIds ?? [] })}
+        toBody={(f) => ({
+          name: f.name,
+          category: f.category,
+          logoUrl: f.logoUrl || '',
+          description: f.description || null,
+          offer: f.offer || null,
+          phone: f.phone || null,
+          email: f.email || '',
+          website: f.website || '',
+          sortOrder: Number(f.sortOrder ?? 0),
+          isActive: !!f.isActive,
+          localityIds: f.localityIds ?? [],
+        })}
       />
       <div className="card mt-8 p-5">
         <p className="mb-3 font-display font-bold">Recent requests</p>
@@ -47,8 +59,12 @@ export default function Page() {
           <div className="divide-y divide-line text-sm">
             {reqs.data.slice(0, 50).map((r) => (
               <div key={r.id} className="flex flex-wrap justify-between gap-2 py-2">
-                <span>{r.name} · {r.phone}</span>
-                <span className="text-muted">{r.partner.name} · {formatDateTime(r.createdAt)}</span>
+                <span>
+                  {r.name} · {r.phone}
+                </span>
+                <span className="text-muted">
+                  {r.partner.name} · {formatDateTime(r.createdAt)}
+                </span>
               </div>
             ))}
           </div>

@@ -43,7 +43,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const r = exception.getResponse();
       if (r && typeof r === 'object' && 'code' in r) return r as ApiErrorBody;
-      const message = typeof r === 'string' ? r : Array.isArray((r as any)?.message) ? (r as any).message.join(', ') : ((r as any)?.message ?? exception.message);
+      const message =
+        typeof r === 'string' ? r : Array.isArray((r as any)?.message) ? (r as any).message.join(', ') : ((r as any)?.message ?? exception.message);
       return { statusCode: status, code: STATUS_CODE[status] ?? (status >= 500 ? ErrorCode.INTERNAL : ErrorCode.VALIDATION_FAILED), message };
     }
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {

@@ -7,5 +7,9 @@ import { AuthModule } from '../auth/auth.module';
 import { PublicModule } from '../public/public.module';
 import { ListingsModule } from '../listings/listings.module';
 
-@Module({ imports: [AuthModule, PublicModule, ListingsModule], controllers: [AdminCoreController, AdminContentController, AdminControlController], providers: [AdminControlService] })
+@Module({
+  imports: [AuthModule, PublicModule, ListingsModule],
+  controllers: [AdminCoreController, AdminContentController, AdminControlController],
+  providers: [AdminControlService],
+})
 export class AdminModule {}

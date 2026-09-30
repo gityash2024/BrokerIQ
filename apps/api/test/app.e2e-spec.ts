@@ -41,7 +41,10 @@ describe('BrokerIQ API (e2e)', () => {
     // These suites create broker firms directly; open signup (default is invite-only).
     await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);
 
-    const a = await http.post('/api/auth/login').send({ email: email('admin'), password: 'Admin@12345' }).expect(200);
+    const a = await http
+      .post('/api/auth/login')
+      .send({ email: email('admin'), password: 'Admin@12345' })
+      .expect(200);
     admin = a.body.accessToken;
     const loc = await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } });
     localityId = loc.id;
@@ -60,17 +63,30 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('registers a user and two broker firms', async () => {
-    const u = await http.post('/api/auth/register').send({ name: 'Neha Buyer', email: email('user'), password: 'Passw0rd!', phone: '9811100001' }).expect(201);
+    const u = await http
+      .post('/api/auth/register')
+      .send({ name: 'Neha Buyer', email: email('user'), password: 'Passw0rd!', phone: '9811100001' })
+      .expect(201);
     user = { token: u.body.accessToken, id: u.body.user.id };
     expect(u.body.user.role).toBe('USER');
 
-    const b = await http.post('/api/auth/register').send({ name: 'Arjun', email: email('brokera'), password: 'Passw0rd!', accountType: 'BROKER', firmName: 'Arjun Estates' }).expect(201);
+    const b = await http
+      .post('/api/auth/register')
+      .send({ name: 'Arjun', email: email('brokera'), password: 'Passw0rd!', accountType: 'BROKER', firmName: 'Arjun Estates' })
+      .expect(201);
     expect(b.body.user.role).toBe('BROKER_ADMIN');
-    const onb = await http.post('/api/broker/onboarding').set(auth(b.body.accessToken)).send({ firmName: 'Arjun Estates', phone: '9876500011', localityIds: [localityId] }).expect(201);
+    const onb = await http
+      .post('/api/broker/onboarding')
+      .set(auth(b.body.accessToken))
+      .send({ firmName: 'Arjun Estates', phone: '9876500011', localityIds: [localityId] })
+      .expect(201);
     brokerA = { token: onb.body.accessToken, refresh: onb.body.refreshToken, orgId: onb.body.user.organizationId };
     webhookKey = (await prisma.organization.findUniqueOrThrow({ where: { id: brokerA.orgId } })).webhookKey;
 
-    const b2 = await http.post('/api/auth/register').send({ name: 'Other', email: email('brokerb'), password: 'Passw0rd!', accountType: 'BROKER', firmName: 'Other Realty' }).expect(201);
+    const b2 = await http
+      .post('/api/auth/register')
+      .send({ name: 'Other', email: email('brokerb'), password: 'Passw0rd!', accountType: 'BROKER', firmName: 'Other Realty' })
+      .expect(201);
     brokerB = { token: b2.body.accessToken };
   });
 
@@ -85,7 +101,19 @@ describe('BrokerIQ API (e2e)', () => {
     const l = await http
       .post('/api/listings')
       .set(auth(brokerA.token))
-      .send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 45000, securityDeposit: 90000, brokerageType: 'MONTH_1', bedrooms: 3, bathrooms: 3, superArea: 2100, photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }], amenities: ['lift', 'gym'] })
+      .send({
+        purpose: 'RENT',
+        propertyType: 'APARTMENT',
+        localityId,
+        price: 45000,
+        securityDeposit: 90000,
+        brokerageType: 'MONTH_1',
+        bedrooms: 3,
+        bathrooms: 3,
+        superArea: 2100,
+        photos: [{ url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' }],
+        amenities: ['lift', 'gym'],
+      })
       .expect(201);
     expect(l.body.status).toBe('PENDING_REVIEW');
     expect(l.body.title).toBe('3 BHK Apartment for Rent in Sector 65, Gurgaon');
@@ -109,14 +137,36 @@ describe('BrokerIQ API (e2e)', () => {
 
   it('rental marketplace: sale listings and plots are rejected, legacy sale listings stay hidden', async () => {
     // Sale listings stay off until Super Admin switches "sale_listings" on.
-    const sale = await http.post('/api/listings').set(auth(brokerA.token)).send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [] }).expect(403);
+    const sale = await http
+      .post('/api/listings')
+      .set(auth(brokerA.token))
+      .send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [] })
+      .expect(403);
     expect(sale.body.code).toBe('FEATURE_DISABLED');
     await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'RESIDENTIAL_PLOT', localityId, price: 20000, photos: [] }).expect(400);
     // purpose defaults to RENT
-    const r = await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'PG', localityId, price: 12000, submit: false, photos: [] }).expect(201);
+    const r = await http
+      .post('/api/listings')
+      .set(auth(brokerA.token))
+      .send({ propertyType: 'PG', localityId, price: 12000, submit: false, photos: [] })
+      .expect(201);
     expect(r.body.purpose).toBe('RENT');
     // a legacy sale listing (created before the pivot) never shows in public search or detail
-    const legacy = await prisma.listing.create({ data: { slug: `legacy-sale-${Date.now()}`, purpose: 'SALE', propertyType: 'APARTMENT', category: 'RESIDENTIAL', status: 'ACTIVE', title: 'Legacy sale flat', localityId, price: 9000000, postedByType: 'BROKER', postedById: (await prisma.user.findFirstOrThrow({ where: { organizationId: brokerA.orgId } })).id, organizationId: brokerA.orgId } });
+    const legacy = await prisma.listing.create({
+      data: {
+        slug: `legacy-sale-${Date.now()}`,
+        purpose: 'SALE',
+        propertyType: 'APARTMENT',
+        category: 'RESIDENTIAL',
+        status: 'ACTIVE',
+        title: 'Legacy sale flat',
+        localityId,
+        price: 9000000,
+        postedByType: 'BROKER',
+        postedById: (await prisma.user.findFirstOrThrow({ where: { organizationId: brokerA.orgId } })).id,
+        organizationId: brokerA.orgId,
+      },
+    });
     const s = await http.get('/api/listings?localities=sector-65-gurgaon&purpose=SALE').expect(200);
     expect(s.body.items.find((x: any) => x.id === legacy.id)).toBeUndefined();
     await http.get(`/api/listings/${legacy.slug}`).expect(404);
@@ -127,26 +177,64 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('scanner import creates rent listings with deposit/brokerage, drafts or straight to approval', async () => {
-    const row = { propertyType: 'APARTMENT', localityId, price: 40000, securityDeposit: 80000, brokerageType: 'DAYS_15', bedrooms: 2, societyName: 'Test Society', contactPhone: '9811122233' };
-    const d = await http.post('/api/ai/scan/import').set(auth(brokerA.token)).send({ rows: [row] }).expect(201);
+    const row = {
+      propertyType: 'APARTMENT',
+      localityId,
+      price: 40000,
+      securityDeposit: 80000,
+      brokerageType: 'DAYS_15',
+      bedrooms: 2,
+      societyName: 'Test Society',
+      contactPhone: '9811122233',
+    };
+    const d = await http
+      .post('/api/ai/scan/import')
+      .set(auth(brokerA.token))
+      .send({ rows: [row] })
+      .expect(201);
     expect(d.body.status).toBe('DRAFT');
-    const s = await http.post('/api/ai/scan/import').set(auth(brokerA.token)).send({ rows: [{ ...row, unit: 'B-1204' }], submit: true }).expect(201);
+    const s = await http
+      .post('/api/ai/scan/import')
+      .set(auth(brokerA.token))
+      .send({ rows: [{ ...row, unit: 'B-1204' }], submit: true })
+      .expect(201);
     expect(s.body.status).toBe('PENDING_REVIEW');
     const l = await prisma.listing.findUniqueOrThrow({ where: { id: s.body.ids[0] } });
     expect(l).toMatchObject({ purpose: 'RENT', status: 'PENDING_REVIEW', securityDeposit: 80000, brokerageType: 'DAYS_15' });
     expect(l.title).toContain('for Rent');
-    await http.post('/api/ai/scan/import').set(auth(brokerA.token)).send({ rows: [{ ...row, propertyType: 'RESIDENTIAL_PLOT' }] }).expect(400);
-    await http.post('/api/ai/scan/import').set(auth(user.token)).send({ rows: [row] }).expect(403);
+    await http
+      .post('/api/ai/scan/import')
+      .set(auth(brokerA.token))
+      .send({ rows: [{ ...row, propertyType: 'RESIDENTIAL_PLOT' }] })
+      .expect(400);
+    await http
+      .post('/api/ai/scan/import')
+      .set(auth(user.token))
+      .send({ rows: [row] })
+      .expect(403);
   });
 
   it('location & contacts need explicit consent, only Super Admin can read them, withdrawal deletes', async () => {
     // nothing is accepted before consent
     await http.post('/api/me/location').set(auth(user.token)).send({ latitude: 28.45, longitude: 77.03 }).expect(403);
-    await http.post('/api/me/contacts/sync').set(auth(user.token)).send({ contacts: [{ name: 'Ravi', phones: ['9811100077'] }] }).expect(403);
+    await http
+      .post('/api/me/contacts/sync')
+      .set(auth(user.token))
+      .send({ contacts: [{ name: 'Ravi', phones: ['9811100077'] }] })
+      .expect(403);
     await http.post('/api/me/consent').set(auth(user.token)).send({ kind: 'LOCATION', granted: true, platform: 'android' }).expect(201);
     await http.post('/api/me/consent').set(auth(user.token)).send({ kind: 'CONTACTS', granted: true, platform: 'android' }).expect(201);
     await http.post('/api/me/location').set(auth(user.token)).send({ latitude: 28.45, longitude: 77.03, platform: 'android' }).expect(201);
-    const sync = await http.post('/api/me/contacts/sync').set(auth(user.token)).send({ contacts: [{ name: 'Ravi', phones: ['9811100077', '+91 98111 00077'] }, { name: 'Sita', phones: ['9811100088'], emails: ['Sita@x.in'] }] }).expect(201);
+    const sync = await http
+      .post('/api/me/contacts/sync')
+      .set(auth(user.token))
+      .send({
+        contacts: [
+          { name: 'Ravi', phones: ['9811100077', '+91 98111 00077'] },
+          { name: 'Sita', phones: ['9811100088'], emails: ['Sita@x.in'] },
+        ],
+      })
+      .expect(201);
     expect(sync.body.total).toBe(2); // same number twice → one contact
     // stored encrypted
     const raw = await prisma.userContact.findFirstOrThrow({ where: { userId: user.id } });
@@ -170,13 +258,21 @@ describe('BrokerIQ API (e2e)', () => {
 
   it('every listing needs admin approval: edits and re-activation go back to review', async () => {
     // content edit on an approved listing → back to review, hidden from public
-    const e = await http.patch(`/api/listings/${listingId}`).set(auth(brokerA.token)).send({ description: 'Updated description with more details' }).expect(200);
+    const e = await http
+      .patch(`/api/listings/${listingId}`)
+      .set(auth(brokerA.token))
+      .send({ description: 'Updated description with more details' })
+      .expect(200);
     expect(e.body.status).toBe('PENDING_REVIEW');
     // trying to force it live via status change is not allowed for non-admins
     const f = await http.patch(`/api/listings/${listingId}/status`).set(auth(brokerA.token)).send({ status: 'ACTIVE' }).expect(200);
     expect(f.body.status).toBe('PENDING_REVIEW');
     // owners (plain users) go through review too
-    const o = await http.post('/api/listings').set(auth(user.token)).send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 45000, bedrooms: 2, superArea: 1200, photos: [] }).expect(201);
+    const o = await http
+      .post('/api/listings')
+      .set(auth(user.token))
+      .send({ purpose: 'RENT', propertyType: 'APARTMENT', localityId, price: 45000, bedrooms: 2, superArea: 1200, photos: [] })
+      .expect(201);
     expect(o.body.status).toBe('PENDING_REVIEW');
     // admins are notified
     const n = await prisma.notification.count({ where: { kind: 'MODERATION', data: { path: ['listingId'], equals: o.body.id } } });
@@ -204,7 +300,10 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('ingests leads from the public webhook with source mapping', async () => {
-    const r = await http.post(`/api/webhooks/leads/${webhookKey}`).send({ full_name: 'Karan Mehta', mobile: '9900112233', source: '99acres', project: 'DLF Privana' }).expect(200);
+    const r = await http
+      .post(`/api/webhooks/leads/${webhookKey}`)
+      .send({ full_name: 'Karan Mehta', mobile: '9900112233', source: '99acres', project: 'DLF Privana' })
+      .expect(200);
     expect(r.body.ok).toBe(true);
     const lead = await prisma.lead.findUniqueOrThrow({ where: { id: r.body.leadId } });
     expect(lead.source).toBe('ACRES99');
@@ -226,14 +325,22 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('credentials center encrypts and masks secrets', async () => {
-    await http.patch('/api/admin/integrations/groq').set(auth(admin)).send({ fields: { apiKey: 'gsk_test_secret_value_1234' } }).expect(200);
+    await http
+      .patch('/api/admin/integrations/groq')
+      .set(auth(admin))
+      .send({ fields: { apiKey: 'gsk_test_secret_value_1234' } })
+      .expect(200);
     const v = await http.get('/api/admin/integrations/groq').set(auth(admin)).expect(200);
     expect(v.body.state.configured).toBe(true);
     expect(v.body.state.fields.apiKey).toMatch(/^•+1234$/);
     const row = await prisma.systemSetting.findUniqueOrThrow({ where: { key: 'integration.groq' } });
     expect(JSON.stringify(row.value)).not.toContain('gsk_test_secret_value_1234');
     // Saving the masked value keeps the secret
-    await http.patch('/api/admin/integrations/groq').set(auth(admin)).send({ fields: { apiKey: v.body.state.fields.apiKey, textModel: 'x' } }).expect(200);
+    await http
+      .patch('/api/admin/integrations/groq')
+      .set(auth(admin))
+      .send({ fields: { apiKey: v.body.state.fields.apiKey, textModel: 'x' } })
+      .expect(200);
     expect((await http.get('/api/admin/integrations/groq').set(auth(admin))).body.state.fields.apiKey).toMatch(/1234$/);
     await http.delete('/api/admin/integrations/groq').set(auth(admin)).expect(200);
     const pub = await http.get('/api/public/config').expect(200);
@@ -244,7 +351,15 @@ describe('BrokerIQ API (e2e)', () => {
     await http
       .post('/api/automations')
       .set(auth(brokerA.token))
-      .send({ name: 'Tag + follow-up', trigger: 'LEAD_CREATED', respectBusinessHours: false, actions: [{ type: 'ADD_TAG', params: { tag: 'auto' } }, { type: 'CREATE_FOLLOW_UP', params: { inMinutes: 15, note: 'Call' } }] })
+      .send({
+        name: 'Tag + follow-up',
+        trigger: 'LEAD_CREATED',
+        respectBusinessHours: false,
+        actions: [
+          { type: 'ADD_TAG', params: { tag: 'auto' } },
+          { type: 'CREATE_FOLLOW_UP', params: { inMinutes: 15, note: 'Call' } },
+        ],
+      })
       .expect(201);
     const r = await http.post(`/api/webhooks/leads/${webhookKey}`).send({ name: 'Auto Test', phone: '9123456780' }).expect(200);
     let lead;
@@ -274,10 +389,19 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('OTP login works (dev mode returns code when SMTP missing)', async () => {
-    const r = await http.post('/api/auth/otp/request').send({ email: email('otp') }).expect(200);
+    const r = await http
+      .post('/api/auth/otp/request')
+      .send({ email: email('otp') })
+      .expect(200);
     expect(r.body.devCode).toMatch(/^\d{6}$/);
-    await http.post('/api/auth/otp/verify').send({ email: email('otp'), code: '000000' === r.body.devCode ? '111111' : '000000' }).expect(401);
-    const v = await http.post('/api/auth/otp/verify').send({ email: email('otp'), code: r.body.devCode, name: 'OTP User' }).expect(200);
+    await http
+      .post('/api/auth/otp/verify')
+      .send({ email: email('otp'), code: '000000' === r.body.devCode ? '111111' : '000000' })
+      .expect(401);
+    const v = await http
+      .post('/api/auth/otp/verify')
+      .send({ email: email('otp'), code: r.body.devCode, name: 'OTP User' })
+      .expect(200);
     expect(v.body.user.emailVerified).toBe(true);
   });
 
@@ -292,7 +416,11 @@ describe('BrokerIQ API (e2e)', () => {
   });
 
   it('feedback: submit → admin publishes on roadmap → votes → status notifications', async () => {
-    const f = await http.post('/api/feedback').set(auth(user.token)).send({ type: 'FEATURE', title: 'Metro distance filter', description: 'Search में metro से distance का filter चाहिए', rating: 5 }).expect(201);
+    const f = await http
+      .post('/api/feedback')
+      .set(auth(user.token))
+      .send({ type: 'FEATURE', title: 'Metro distance filter', description: 'Search में metro से distance का filter चाहिए', rating: 5 })
+      .expect(201);
     await http.post('/api/feedback').send({ type: 'BUG', title: 'Anon bug', description: 'Without email should fail' }).expect(400);
     let board = await http.get('/api/feedback/board').expect(200);
     expect(board.body.items.find((x: any) => x.id === f.body.id)).toBeUndefined(); // private until admin publishes

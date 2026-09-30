@@ -6,7 +6,10 @@ import { cn } from '@/lib/utils';
 const base =
   'w-full rounded-xl border border-line bg-surface px-3.5 text-sm text-fg placeholder:text-subtle transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60';
 
-export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }>(function Input({ className, icon, ...p }, ref) {
+export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }>(function Input(
+  { className, icon, ...p },
+  ref,
+) {
   if (icon)
     return (
       <div className="relative">
@@ -41,7 +44,21 @@ export function Label({ children, className, required, ...p }: React.LabelHTMLAt
   );
 }
 
-export function Field({ label, hint, error, required, children, className }: { label?: React.ReactNode; hint?: React.ReactNode; error?: string | null; required?: boolean; children: React.ReactNode; className?: string }) {
+export function Field({
+  label,
+  hint,
+  error,
+  required,
+  children,
+  className,
+}: {
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: string | null;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className={className}>
       {label && <Label required={required}>{label}</Label>}
@@ -58,7 +75,9 @@ export function Chip({ active, children, onClick, className }: { active?: boolea
       onClick={onClick}
       className={cn(
         'inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition active:scale-95',
-        active ? 'border-brand-600 bg-brand-600 text-white shadow-sm shadow-brand-600/30' : 'border-line bg-surface text-muted hover:border-brand-300 hover:text-fg',
+        active
+          ? 'border-brand-600 bg-brand-600 text-white shadow-sm shadow-brand-600/30'
+          : 'border-line bg-surface text-muted hover:border-brand-300 hover:text-fg',
         className,
       )}
     >

@@ -45,8 +45,19 @@ describe('portal email parsers', () => {
   });
 
   it('maps generic webhook & facebook payloads', () => {
-    expect(mapGenericPayload({ full_name: 'A B', phone_number: '9876543210', campaign_name: 'Diwali' })).toMatchObject({ name: 'A B', phone: '9876543210', property: 'Diwali' });
-    expect(mapGenericPayload({ field_data: [{ name: 'full_name', values: ['Neha'] }, { name: 'phone_number', values: ['+919999988888'] }] })).toMatchObject({ name: 'Neha', phone: '+919999988888' });
+    expect(mapGenericPayload({ full_name: 'A B', phone_number: '9876543210', campaign_name: 'Diwali' })).toMatchObject({
+      name: 'A B',
+      phone: '9876543210',
+      property: 'Diwali',
+    });
+    expect(
+      mapGenericPayload({
+        field_data: [
+          { name: 'full_name', values: ['Neha'] },
+          { name: 'phone_number', values: ['+919999988888'] },
+        ],
+      }),
+    ).toMatchObject({ name: 'Neha', phone: '+919999988888' });
     expect(mapGenericPayload({ data: { customer: { name: 'X', mobile: '9876500000' } } }).phone).toBe('9876500000');
     expect(sourceFromLabel('99acres')).toBe('ACRES99');
   });

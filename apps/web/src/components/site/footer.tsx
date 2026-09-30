@@ -13,7 +13,9 @@ export async function SiteFooter() {
       <div className="container-x grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-2">
           <Logo name={app?.siteName} />
-          <p className="mt-3 max-w-sm text-sm leading-6 text-muted">{app?.tagline}. Gurgaon के हर sector की verified properties, भरोसेमंद brokers और smart tools — एक जगह।</p>
+          <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
+            {app?.tagline}. Gurgaon के हर sector की verified properties, भरोसेमंद brokers और smart tools — एक जगह।
+          </p>
           <div className="mt-5 space-y-2 text-sm text-muted">
             {app?.supportPhone && (
               <a href={`tel:${app.supportPhone}`} className="flex items-center gap-2 hover:text-fg">
@@ -40,7 +42,13 @@ export async function SiteFooter() {
             ]
               .filter(([u]) => u)
               .map(([u, Icon]: any) => (
-                <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="grid size-10 place-items-center rounded-xl border border-line text-muted transition hover:border-brand-400 hover:text-brand-600">
+                <a
+                  key={u}
+                  href={u}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="grid size-10 place-items-center rounded-xl border border-line text-muted transition hover:border-brand-400 hover:text-brand-600"
+                >
                   <Icon className="size-4" />
                 </a>
               ))}
@@ -56,10 +64,7 @@ export async function SiteFooter() {
             ['/brokers', 'Find a broker'],
           ]}
         />
-        <FooterCol
-          title="Popular localities"
-          links={(locs ?? []).slice(0, 7).map((l: any) => [`/locality/${l.slug}`, l.name] as [string, string])}
-        />
+        <FooterCol title="Popular localities" links={(locs ?? []).slice(0, 7).map((l: any) => [`/locality/${l.slug}`, l.name] as [string, string])} />
         <FooterCol
           title="BrokerIQ"
           links={[
@@ -78,7 +83,9 @@ export async function SiteFooter() {
       </div>
       <div className="border-t border-line">
         <div className="container-x flex flex-col items-center justify-between gap-2 py-5 text-xs text-subtle sm:flex-row">
-          <p>© {year} {app?.siteName ?? 'BrokerIQ'}. Made with ❤️ in Gurgaon.</p>
+          <p>
+            © {year} {app?.siteName ?? 'BrokerIQ'}. Made with ❤️ in Gurgaon.
+          </p>
           <p>Prices and details are provided by listers. Verify before transacting.</p>
         </div>
       </div>

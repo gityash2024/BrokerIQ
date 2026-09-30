@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { PageShell } from '@/components/site/page-shell';
 import { RoadmapBoard } from '@/components/feedback/roadmap-board';
 
-export const metadata: Metadata = { title: 'Feedback & roadmap', description: 'BrokerIQ को बेहतर बनाने में मदद करें — नए features suggest करें, vote करें और roadmap देखें।' };
+export const metadata: Metadata = {
+  title: 'Feedback & roadmap',
+  description: 'BrokerIQ को बेहतर बनाने में मदद करें — नए features suggest करें, vote करें और roadmap देखें।',
+};
 
 export default function FeedbackPage() {
   return (

@@ -33,7 +33,16 @@ export default function PostProperty() {
   const [aiBusy, setAiBusy] = useState(false);
   const [locQ, setLocQ] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [f, setF] = useState<any>({ purpose: 'RENT', category: 'RESIDENTIAL', propertyType: 'APARTMENT', localityId: '', amenities: [], priceNegotiable: false, contactName: user?.name ?? '', contactPhone: user?.phone ?? '' });
+  const [f, setF] = useState<any>({
+    purpose: 'RENT',
+    category: 'RESIDENTIAL',
+    propertyType: 'APARTMENT',
+    localityId: '',
+    amenities: [],
+    priceNegotiable: false,
+    contactName: user?.name ?? '',
+    contactPhone: user?.phone ?? '',
+  });
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const tax = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
   const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
@@ -41,12 +50,57 @@ export default function PostProperty() {
   useEffect(() => {
     const l = existing.data;
     if (!l) return;
-    const keys = ['purpose', 'propertyType', 'localityId', 'societyName', 'address', 'latitude', 'longitude', 'price', 'maintenance', 'securityDeposit', 'brokerageType', 'brokerageAmount', 'priceNegotiable', 'coBroking', 'coBrokingSharePct', 'pgSharing', 'pgGender', 'pgFood', 'pgRules', 'bedrooms', 'bathrooms', 'balconies', 'carpetArea', 'superArea', 'plotArea', 'floor', 'totalFloors', 'furnishing', 'possession', 'facing', 'parking', 'amenities', 'reraNumber', 'title', 'description', 'contactName', 'contactPhone'];
-    setF({ ...Object.fromEntries(keys.map((k) => [k, l[k] ?? (k === 'amenities' ? [] : '')])), category: l.category, localityId: l.localityId ?? l.locality?.id });
+    const keys = [
+      'purpose',
+      'propertyType',
+      'localityId',
+      'societyName',
+      'address',
+      'latitude',
+      'longitude',
+      'price',
+      'maintenance',
+      'securityDeposit',
+      'brokerageType',
+      'brokerageAmount',
+      'priceNegotiable',
+      'coBroking',
+      'coBrokingSharePct',
+      'pgSharing',
+      'pgGender',
+      'pgFood',
+      'pgRules',
+      'bedrooms',
+      'bathrooms',
+      'balconies',
+      'carpetArea',
+      'superArea',
+      'plotArea',
+      'floor',
+      'totalFloors',
+      'furnishing',
+      'possession',
+      'facing',
+      'parking',
+      'amenities',
+      'reraNumber',
+      'title',
+      'description',
+      'contactName',
+      'contactPhone',
+    ];
+    setF({
+      ...Object.fromEntries(keys.map((k) => [k, l[k] ?? (k === 'amenities' ? [] : '')])),
+      category: l.category,
+      localityId: l.localityId ?? l.locality?.id,
+    });
     setPhotos((l.media ?? []).map((m: any) => ({ url: m.url })));
   }, [existing.data]);
 
-  const types = useMemo(() => (tax.data?.propertyTypes ?? []).filter((t: any) => t.category === f.category && RENTABLE_TYPES.includes(t.value)), [tax.data, f.category]);
+  const types = useMemo(
+    () => (tax.data?.propertyTypes ?? []).filter((t: any) => t.category === f.category && RENTABLE_TYPES.includes(t.value)),
+    [tax.data, f.category],
+  );
   const loc = locs.data?.find((l) => l.id === f.localityId);
   const residential = f.category === 'RESIDENTIAL';
   const plot = f.category === 'PLOT';
@@ -67,13 +121,18 @@ export default function PostProperty() {
   const pick = async (camera: boolean) => {
     const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return toast.error('Permission दें');
-    const res = camera ? await ImagePicker.launchCameraAsync({ quality: 0.9 }) : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 20, quality: 0.9 });
+    const res = camera
+      ? await ImagePicker.launchCameraAsync({ quality: 0.9 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 20, quality: 0.9 });
     if (res.canceled) return;
     for (const a of res.assets) {
       const tmp: Photo = { uri: a.uri, uploading: true };
       setPhotos((p) => [...p, tmp]);
       try {
-        const small = await ImageManipulator.manipulateAsync(a.uri, [{ resize: { width: Math.min(1920, a.width || 1920) } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
+        const small = await ImageManipulator.manipulateAsync(a.uri, [{ resize: { width: Math.min(1920, a.width || 1920) } }], {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
         const { url } = await uploadUri(small.uri, 'listing');
         setPhotos((p) => p.map((x) => (x === tmp ? { url } : x)));
       } catch (e) {
@@ -123,7 +182,7 @@ export default function PostProperty() {
       brokerageAmount: f.brokerageType === 'FIXED' ? n('brokerageAmount') : null,
       priceNegotiable: !!f.priceNegotiable,
       ...(f.propertyType === 'PG' ? { pgSharing: f.pgSharing ?? [], pgGender: f.pgGender ?? null, pgFood: f.pgFood ?? null, pgRules: f.pgRules ?? [] } : {}),
-      ...(isBroker ? { coBroking: !!f.coBroking, coBrokingSharePct: f.coBroking ? n('coBrokingSharePct') ?? 50 : null } : {}),
+      ...(isBroker ? { coBroking: !!f.coBroking, coBrokingSharePct: f.coBroking ? (n('coBrokingSharePct') ?? 50) : null } : {}),
       bedrooms: n('bedrooms'),
       bathrooms: n('bathrooms'),
       balconies: n('balconies'),
@@ -155,7 +214,9 @@ export default function PostProperty() {
     try {
       const l = id ? await patch<any>(`/listings/${id}`, payload(submit)) : await post<any>('/listings', payload(submit));
       qc.invalidateQueries({ queryKey: ['my-listings'] });
-      toast.success(l.status === 'ACTIVE' ? 'Listing live है 🎉' : l.status === 'DRAFT' ? 'Draft saved' : 'Review के लिए भेज दी गई — admin approval के बाद live होगी ✅');
+      toast.success(
+        l.status === 'ACTIVE' ? 'Listing live है 🎉' : l.status === 'DRAFT' ? 'Draft saved' : 'Review के लिए भेज दी गई — admin approval के बाद live होगी ✅',
+      );
       router.replace('/my-listings');
     } catch (e) {
       showError(e);
@@ -165,7 +226,16 @@ export default function PostProperty() {
   };
 
   const progress = useAnimatedStyle(() => ({ width: withTiming(`${((step + 1) / STEPS.length) * 100}%`) }));
-  const numInput = (k: string, label: string, hint?: string) => <Input label={label} hint={hint} value={f[k] == null ? '' : String(f[k])} onChangeText={(v) => set({ [k]: num(v) })} keyboardType="numeric" containerStyle={{ flex: 1 }} />;
+  const numInput = (k: string, label: string, hint?: string) => (
+    <Input
+      label={label}
+      hint={hint}
+      value={f[k] == null ? '' : String(f[k])}
+      onChangeText={(v) => set({ [k]: num(v) })}
+      keyboardType="numeric"
+      containerStyle={{ flex: 1 }}
+    />
+  );
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: c.bg }}>
@@ -177,21 +247,49 @@ export default function PostProperty() {
         <Animated.View key={step} entering={FadeInRight.duration(250)} exiting={FadeOutLeft.duration(150)} style={{ gap: 16 }}>
           {step === 0 && (
             <>
-              <Txt v="label" color="subtle">किराये पर क्या देना है?</Txt>
-              <Txt v="label" color="subtle">Category</Txt>
+              <Txt v="label" color="subtle">
+                किराये पर क्या देना है?
+              </Txt>
+              <Txt v="label" color="subtle">
+                Category
+              </Txt>
               <Row wrap>
                 {(['RESIDENTIAL', 'COMMERCIAL'] as const).map((cat) => (
-                  <Chip key={cat} label={cat[0] + cat.slice(1).toLowerCase()} active={f.category === cat} onPress={() => set({ category: cat, propertyType: (tax.data?.propertyTypes ?? []).find((t: any) => t.category === cat && RENTABLE_TYPES.includes(t.value))?.value })} />
+                  <Chip
+                    key={cat}
+                    label={cat[0] + cat.slice(1).toLowerCase()}
+                    active={f.category === cat}
+                    onPress={() =>
+                      set({
+                        category: cat,
+                        propertyType: (tax.data?.propertyTypes ?? []).find((t: any) => t.category === cat && RENTABLE_TYPES.includes(t.value))?.value,
+                      })
+                    }
+                  />
                 ))}
               </Row>
-              <Txt v="label" color="subtle">Property type</Txt>
-              <Row wrap>{types.map((t: any) => <Chip key={t.value} label={t.label} active={f.propertyType === t.value} onPress={() => set({ propertyType: t.value })} />)}</Row>
-              <Input label={f.purpose === 'RENT' ? 'Monthly rent (₹)' : 'Expected price (₹)'} value={f.price ? String(f.price) : ''} onChangeText={(v) => set({ price: num(v) })} keyboardType="numeric" hint={f.price ? formatPriceShort(Number(f.price)) : undefined} />
+              <Txt v="label" color="subtle">
+                Property type
+              </Txt>
+              <Row wrap>
+                {types.map((t: any) => (
+                  <Chip key={t.value} label={t.label} active={f.propertyType === t.value} onPress={() => set({ propertyType: t.value })} />
+                ))}
+              </Row>
+              <Input
+                label={f.purpose === 'RENT' ? 'Monthly rent (₹)' : 'Expected price (₹)'}
+                value={f.price ? String(f.price) : ''}
+                onChangeText={(v) => set({ price: num(v) })}
+                keyboardType="numeric"
+                hint={f.price ? formatPriceShort(Number(f.price)) : undefined}
+              />
               <Row>
                 {numInput('securityDeposit', 'Deposit (₹)')}
                 {numInput('maintenance', 'Maintenance / month')}
               </Row>
-              <Txt v="label" color="subtle">Brokerage (tenant से)</Txt>
+              <Txt v="label" color="subtle">
+                Brokerage (tenant से)
+              </Txt>
               <Row wrap>
                 {Object.entries(BROKERAGE_LABELS).map(([k, l]) => (
                   <Chip key={k} label={l} active={f.brokerageType === k} onPress={() => set({ brokerageType: f.brokerageType === k ? null : k })} />
@@ -201,15 +299,56 @@ export default function PostProperty() {
               <Chip label="Price negotiable" active={f.priceNegotiable} onPress={() => set({ priceNegotiable: !f.priceNegotiable })} />
               {f.propertyType === 'PG' && (
                 <>
-                  <Txt v="label" color="subtle">PG sharing</Txt>
-                  <Row wrap>{[['SINGLE', 'Single'], ['DOUBLE', 'Double'], ['TRIPLE', 'Triple'], ['DORM', 'Dorm']].map(([k, lb]) => <Chip key={k} label={lb} active={(f.pgSharing ?? []).includes(k)} onPress={() => set({ pgSharing: (f.pgSharing ?? []).includes(k) ? f.pgSharing.filter((x: string) => x !== k) : [...(f.pgSharing ?? []), k] })} />)}</Row>
-                  <Txt v="label" color="subtle">किसके लिए</Txt>
-                  <Row wrap>{[['FEMALE', 'Girls'], ['MALE', 'Boys'], ['ANY', 'Co-ed']].map(([k, lb]) => <Chip key={k} label={lb} active={f.pgGender === k} onPress={() => set({ pgGender: f.pgGender === k ? null : k })} />)}</Row>
-                  <Txt v="label" color="subtle">Food</Txt>
-                  <Row wrap>{[['VEG', 'Veg'], ['NONVEG', 'Non-veg'], ['BOTH', 'Both'], ['NONE', 'No food']].map(([k, lb]) => <Chip key={k} label={lb} active={f.pgFood === k} onPress={() => set({ pgFood: f.pgFood === k ? null : k })} />)}</Row>
+                  <Txt v="label" color="subtle">
+                    PG sharing
+                  </Txt>
+                  <Row wrap>
+                    {[
+                      ['SINGLE', 'Single'],
+                      ['DOUBLE', 'Double'],
+                      ['TRIPLE', 'Triple'],
+                      ['DORM', 'Dorm'],
+                    ].map(([k, lb]) => (
+                      <Chip
+                        key={k}
+                        label={lb}
+                        active={(f.pgSharing ?? []).includes(k)}
+                        onPress={() =>
+                          set({ pgSharing: (f.pgSharing ?? []).includes(k) ? f.pgSharing.filter((x: string) => x !== k) : [...(f.pgSharing ?? []), k] })
+                        }
+                      />
+                    ))}
+                  </Row>
+                  <Txt v="label" color="subtle">
+                    किसके लिए
+                  </Txt>
+                  <Row wrap>
+                    {[
+                      ['FEMALE', 'Girls'],
+                      ['MALE', 'Boys'],
+                      ['ANY', 'Co-ed'],
+                    ].map(([k, lb]) => (
+                      <Chip key={k} label={lb} active={f.pgGender === k} onPress={() => set({ pgGender: f.pgGender === k ? null : k })} />
+                    ))}
+                  </Row>
+                  <Txt v="label" color="subtle">
+                    Food
+                  </Txt>
+                  <Row wrap>
+                    {[
+                      ['VEG', 'Veg'],
+                      ['NONVEG', 'Non-veg'],
+                      ['BOTH', 'Both'],
+                      ['NONE', 'No food'],
+                    ].map(([k, lb]) => (
+                      <Chip key={k} label={lb} active={f.pgFood === k} onPress={() => set({ pgFood: f.pgFood === k ? null : k })} />
+                    ))}
+                  </Row>
                 </>
               )}
-              {isBroker && coBrokingOn && <Chip label="Co-broking के लिए खुला (दूसरे brokers request कर सकें)" active={!!f.coBroking} onPress={() => set({ coBroking: !f.coBroking })} />}
+              {isBroker && coBrokingOn && (
+                <Chip label="Co-broking के लिए खुला (दूसरे brokers request कर सकें)" active={!!f.coBroking} onPress={() => set({ coBroking: !f.coBroking })} />
+              )}
               {isBroker && coBrokingOn && f.coBroking && numInput('coBrokingSharePct', 'Partner broker का हिस्सा (% brokerage)')}
             </>
           )}
@@ -221,19 +360,32 @@ export default function PostProperty() {
                 {(locs.data ?? [])
                   .filter((l) => !locQ || l.name.toLowerCase().includes(locQ.toLowerCase()) || (l.zone ?? '').toLowerCase().includes(locQ.toLowerCase()))
                   .slice(0, locQ ? 30 : 12)
-                  .map((l) => <Chip key={l.id} label={l.name} active={f.localityId === l.id} onPress={() => (set({ localityId: l.id }), setLocQ(''))} />)}
+                  .map((l) => (
+                    <Chip key={l.id} label={l.name} active={f.localityId === l.id} onPress={() => (set({ localityId: l.id }), setLocQ(''))} />
+                  ))}
               </Row>
               <Input label="Society / project name" value={f.societyName ?? ''} onChangeText={(v) => set({ societyName: v })} />
               <Input label="Address (optional)" value={f.address ?? ''} onChangeText={(v) => set({ address: v })} />
-              <Button title={f.latitude ? 'Exact location जुड़ गई ✓' : 'Current location जोड़ें (property पर हों तो)'} variant="secondary" icon={<LocateFixed size={18} color={c.brand} />} onPress={locate} />
+              <Button
+                title={f.latitude ? 'Exact location जुड़ गई ✓' : 'Current location जोड़ें (property पर हों तो)'}
+                variant="secondary"
+                icon={<LocateFixed size={18} color={c.brand} />}
+                onPress={locate}
+              />
             </>
           )}
           {step === 2 && (
             <>
               {residential && (
                 <>
-                  <Txt v="label" color="subtle">BHK</Txt>
-                  <Row wrap>{[1, 2, 3, 4, 5, 6].map((b) => <Chip key={b} label={`${b}${b === 6 ? '+' : ''} BHK`} active={f.bedrooms === b} onPress={() => set({ bedrooms: b })} />)}</Row>
+                  <Txt v="label" color="subtle">
+                    BHK
+                  </Txt>
+                  <Row wrap>
+                    {[1, 2, 3, 4, 5, 6].map((b) => (
+                      <Chip key={b} label={`${b}${b === 6 ? '+' : ''} BHK`} active={f.bedrooms === b} onPress={() => set({ bedrooms: b })} />
+                    ))}
+                  </Row>
                   <Row>
                     {numInput('bathrooms', 'Bathrooms')}
                     {numInput('balconies', 'Balconies')}
@@ -241,7 +393,9 @@ export default function PostProperty() {
                   </Row>
                 </>
               )}
-              {plot ? numInput('plotArea', 'Plot area (sqft)') : (
+              {plot ? (
+                numInput('plotArea', 'Plot area (sqft)')
+              ) : (
                 <Row>
                   {numInput('superArea', 'Super area (sqft)')}
                   {numInput('carpetArea', 'Carpet area (sqft)')}
@@ -255,21 +409,42 @@ export default function PostProperty() {
               )}
               {!plot && (
                 <>
-                  <Txt v="label" color="subtle">Furnishing</Txt>
-                  <Row wrap>{Object.entries(FURNISHING_LABELS).map(([k, v]) => <Chip key={k} label={v} active={f.furnishing === k} onPress={() => set({ furnishing: k })} />)}</Row>
+                  <Txt v="label" color="subtle">
+                    Furnishing
+                  </Txt>
+                  <Row wrap>
+                    {Object.entries(FURNISHING_LABELS).map(([k, v]) => (
+                      <Chip key={k} label={v} active={f.furnishing === k} onPress={() => set({ furnishing: k })} />
+                    ))}
+                  </Row>
                 </>
               )}
               {f.purpose === 'SALE' && (
                 <>
-                  <Txt v="label" color="subtle">Possession</Txt>
-                  <Row wrap>{Object.entries(POSSESSION_LABELS).map(([k, v]) => <Chip key={k} label={v} active={f.possession === k} onPress={() => set({ possession: k })} />)}</Row>
+                  <Txt v="label" color="subtle">
+                    Possession
+                  </Txt>
+                  <Row wrap>
+                    {Object.entries(POSSESSION_LABELS).map(([k, v]) => (
+                      <Chip key={k} label={v} active={f.possession === k} onPress={() => set({ possession: k })} />
+                    ))}
+                  </Row>
                 </>
               )}
-              <Txt v="label" color="subtle">Amenities</Txt>
+              <Txt v="label" color="subtle">
+                Amenities
+              </Txt>
               <Row wrap>
                 {amenities.map((a: any) => {
                   const on = f.amenities.includes(a.key);
-                  return <Chip key={a.key} label={a.label} active={on} onPress={() => set({ amenities: on ? f.amenities.filter((x: string) => x !== a.key) : [...f.amenities, a.key] })} />;
+                  return (
+                    <Chip
+                      key={a.key}
+                      label={a.label}
+                      active={on}
+                      onPress={() => set({ amenities: on ? f.amenities.filter((x: string) => x !== a.key) : [...f.amenities, a.key] })}
+                    />
+                  );
                 })}
               </Row>
               {isBroker && <Input label="RERA number (project)" value={f.reraNumber ?? ''} onChangeText={(v) => set({ reraNumber: v })} />}
@@ -281,18 +456,40 @@ export default function PostProperty() {
                 <Button title="Camera" icon={<Camera size={18} color="#fff" />} style={{ flex: 1 }} onPress={() => pick(true)} />
                 <Button title="Gallery" variant="secondary" icon={<ImagePlus size={18} color={c.fg} />} style={{ flex: 1 }} onPress={() => pick(false)} />
               </Row>
-              <Txt v="small" color="muted">अच्छी रोशनी वाली 5+ photos ज़्यादा enquiries लाती हैं। पहली photo cover बनेगी (★ दबाकर बदलें)।</Txt>
+              <Txt v="small" color="muted">
+                अच्छी रोशनी वाली 5+ photos ज़्यादा enquiries लाती हैं। पहली photo cover बनेगी (★ दबाकर बदलें)।
+              </Txt>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                 {photos.map((p, i) => (
-                  <View key={`${p.url ?? p.uri ?? ''}${i}`} style={{ width: '31%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: c.surface2 }}>
-                    <Image source={{ uri: p.url ? img(p.url, 300) : p.uri }} style={{ width: '100%', height: '100%', opacity: p.uploading ? 0.5 : 1 }} contentFit="cover" />
+                  <View
+                    key={`${p.url ?? p.uri ?? ''}${i}`}
+                    style={{ width: '31%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: c.surface2 }}
+                  >
+                    <Image
+                      source={{ uri: p.url ? img(p.url, 300) : p.uri }}
+                      style={{ width: '100%', height: '100%', opacity: p.uploading ? 0.5 : 1 }}
+                      contentFit="cover"
+                    />
                     {p.uploading && <ActivityIndicator style={{ position: 'absolute', top: '40%', alignSelf: 'center' }} color={c.brand} />}
                     {!p.uploading && (
                       <>
-                        <PressableScale onPress={() => setPhotos((ps) => [ps[i], ...ps.filter((_, k) => k !== i)])} style={{ position: 'absolute', top: 6, left: 6, backgroundColor: i === 0 ? '#F59E0B' : 'rgba(0,0,0,0.5)', borderRadius: 10, padding: 4 }}>
+                        <PressableScale
+                          onPress={() => setPhotos((ps) => [ps[i], ...ps.filter((_, k) => k !== i)])}
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            left: 6,
+                            backgroundColor: i === 0 ? '#F59E0B' : 'rgba(0,0,0,0.5)',
+                            borderRadius: 10,
+                            padding: 4,
+                          }}
+                        >
                           <Star size={14} color="#fff" fill={i === 0 ? '#fff' : 'transparent'} />
                         </PressableScale>
-                        <PressableScale onPress={() => setPhotos((ps) => ps.filter((_, k) => k !== i))} style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(225,29,72,0.9)', borderRadius: 10, padding: 4 }}>
+                        <PressableScale
+                          onPress={() => setPhotos((ps) => ps.filter((_, k) => k !== i))}
+                          style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(225,29,72,0.9)', borderRadius: 10, padding: 4 }}
+                        >
                           <X size={14} color="#fff" />
                         </PressableScale>
                       </>
@@ -305,7 +502,13 @@ export default function PostProperty() {
               <Button title="AI से description लिखवाएँ" variant="secondary" loading={aiBusy} icon={<Sparkles size={18} color={c.accent} />} onPress={ai} />
               <Row>
                 <Input label="Contact name" value={f.contactName ?? ''} onChangeText={(v) => set({ contactName: v })} containerStyle={{ flex: 1 }} />
-                <Input label="Contact phone" value={f.contactPhone ?? ''} onChangeText={(v) => set({ contactPhone: v })} keyboardType="phone-pad" containerStyle={{ flex: 1 }} />
+                <Input
+                  label="Contact phone"
+                  value={f.contactPhone ?? ''}
+                  onChangeText={(v) => set({ contactPhone: v })}
+                  keyboardType="phone-pad"
+                  containerStyle={{ flex: 1 }}
+                />
               </Row>
             </>
           )}

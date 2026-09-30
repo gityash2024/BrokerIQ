@@ -15,12 +15,20 @@ const invoiceSchema = z.object({
   clientName: z.string().trim().max(80).default(''),
   clientPhone: phoneSchema.optional().nullable(),
   clientEmail: z.string().email().optional().nullable().or(z.literal('')),
-  items: z.array(z.object({ description: z.string().trim().min(2).max(160), amount: z.number().min(0) })).min(1).max(20),
+  items: z
+    .array(z.object({ description: z.string().trim().min(2).max(160), amount: z.number().min(0) }))
+    .min(1)
+    .max(20),
   gstPct: z.number().min(0).max(28).default(0),
   dueDate: z.coerce.date().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 });
-const paymentSettingsSchema = z.object({ upiId: z.string().max(100).optional().nullable(), upiName: z.string().max(60).optional().nullable(), invoicePrefix: z.string().max(12).optional().nullable(), weeklyReport: z.boolean().optional() });
+const paymentSettingsSchema = z.object({
+  upiId: z.string().max(100).optional().nullable(),
+  upiName: z.string().max(60).optional().nullable(),
+  invoicePrefix: z.string().max(12).optional().nullable(),
+  weeklyReport: z.boolean().optional(),
+});
 
 @ApiTags('invoices')
 @Controller()
@@ -59,7 +67,23 @@ export class InvoicesController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Patch('broker/invoices/:id')
-  update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['SENT', 'PAID', 'CANCELLED']).optional(), paidMode: z.string().max(30).optional().nullable(), paidRef: z.string().max(80).optional().nullable(), paidAt: z.coerce.date().optional().nullable(), dueDate: z.coerce.date().optional().nullable(), notes: z.string().max(1000).optional().nullable() }))) body: any) {
+  update(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(
+      new ZodPipe(
+        z.object({
+          status: z.enum(['SENT', 'PAID', 'CANCELLED']).optional(),
+          paidMode: z.string().max(30).optional().nullable(),
+          paidRef: z.string().max(80).optional().nullable(),
+          paidAt: z.coerce.date().optional().nullable(),
+          dueDate: z.coerce.date().optional().nullable(),
+          notes: z.string().max(1000).optional().nullable(),
+        }),
+      ),
+    )
+    body: any,
+  ) {
     return this.svc.update(user, id, body);
   }
 

@@ -33,7 +33,10 @@ export class EnquiriesService {
     let ownerUserId: string | null = null;
     let listing = null as null | { id: string; title: string; slug: string; organizationId: string | null; postedById: string; postedByType: string };
     if (input.listingId) {
-      listing = await this.prisma.listing.findFirst({ where: { id: input.listingId, status: 'ACTIVE', deletedAt: null }, select: { id: true, title: true, slug: true, organizationId: true, postedById: true, postedByType: true } });
+      listing = await this.prisma.listing.findFirst({
+        where: { id: input.listingId, status: 'ACTIVE', deletedAt: null },
+        select: { id: true, title: true, slug: true, organizationId: true, postedById: true, postedByType: true },
+      });
       if (!listing) throw new NotFoundException('Property अब उपलब्ध नहीं है');
       orgId = listing.organizationId;
       if (!orgId) ownerUserId = listing.postedById;
@@ -73,7 +76,13 @@ export class EnquiriesService {
         sourceRef: enquiry.id,
         sourceDetail: listing ? listing.title : input.source === 'MICROSITE' ? 'Microsite contact form' : 'Website enquiry',
         listingId: listing?.id,
-        message: [input.message, input.wantsVisit ? `Site visit requested${input.visitDate ? ` on ${new Date(input.visitDate).toLocaleDateString('en-IN')}` : ''}` : ''].filter(Boolean).join('\n') || null,
+        message:
+          [
+            input.message,
+            input.wantsVisit ? `Site visit requested${input.visitDate ? ` on ${new Date(input.visitDate).toLocaleDateString('en-IN')}` : ''}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n') || null,
       });
       await this.prisma.enquiry.update({ where: { id: enquiry.id }, data: { leadId: lead.id } });
       // Verified tenants (work email / KYC) are flagged so brokers can prioritise them.
@@ -82,12 +91,28 @@ export class EnquiriesService {
         if (u?.tenantVerifiedAt) await this.prisma.lead.update({ where: { id: lead.id }, data: { tags: { push: 'verified-tenant' } } });
       }
     } else if (ownerUserId) {
-      await this.notifications.notify(ownerUserId, { kind: 'ENQUIRY', title: `नई enquiry: ${input.name}`, body: listing?.title, link: '/account/enquiries?tab=received', data: { enquiryId: enquiry.id } });
+      await this.notifications.notify(ownerUserId, {
+        kind: 'ENQUIRY',
+        title: `नई enquiry: ${input.name}`,
+        body: listing?.title,
+        link: '/account/enquiries?tab=received',
+        data: { enquiryId: enquiry.id },
+      });
       const owner = await this.prisma.user.findUnique({ where: { id: ownerUserId } });
-      if (owner) this.mail.trySendTemplate('enquiry.owner', owner.email, { listing, enquiry: { ...enquiry, phone }, link: `${env().PUBLIC_WEB_URL}/account/enquiries?tab=received` }).catch(() => undefined);
+      if (owner)
+        this.mail
+          .trySendTemplate('enquiry.owner', owner.email, {
+            listing,
+            enquiry: { ...enquiry, phone },
+            link: `${env().PUBLIC_WEB_URL}/account/enquiries?tab=received`,
+          })
+          .catch(() => undefined);
     } else if (input.projectId) {
       const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-      await this.notifications.notify(admins.map((a) => a.id), { kind: 'ENQUIRY', title: `Project enquiry: ${input.name}`, body: phone, link: '/admin/enquiries' });
+      await this.notifications.notify(
+        admins.map((a) => a.id),
+        { kind: 'ENQUIRY', title: `Project enquiry: ${input.name}`, body: phone, link: '/admin/enquiries' },
+      );
     }
     return { ok: true, id: enquiry.id };
   }

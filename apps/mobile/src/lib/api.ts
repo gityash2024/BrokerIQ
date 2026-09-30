@@ -50,7 +50,11 @@ async function refresh(): Promise<boolean> {
   if (!cur?.refreshToken) return false;
   refreshing ??= (async () => {
     try {
-      const res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: cur.refreshToken }) });
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: cur.refreshToken }),
+      });
       if (!res.ok) {
         await authStore.set(null);
         return false;
@@ -75,7 +79,12 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}${path}`, {
       method,
-      headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Client': 'app', ...headers },
+      headers: {
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Client': 'app',
+        ...headers,
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   };
@@ -93,7 +102,8 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   } catch {
     data = text;
   }
-  if (!res.ok) throw new ApiError(res.status, isApiErrorBody(data) ? data : ({ statusCode: res.status, code: 'INTERNAL', message: 'Request failed' } as ApiErrorBody));
+  if (!res.ok)
+    throw new ApiError(res.status, isApiErrorBody(data) ? data : ({ statusCode: res.status, code: 'INTERNAL', message: 'Request failed' } as ApiErrorBody));
   return data as T;
 }
 
@@ -133,7 +143,8 @@ export async function uploadUri(uri: string, kind: string, mime = 'image/jpeg'):
 /** On-the-fly resize for Cloudinary and self-hosted (/api/media) URLs; other URLs untouched. */
 export function img(url?: string | null, w = 800) {
   if (!url) return undefined;
-  if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('/upload/c_')) return url.replace('/upload/', `/upload/c_limit,w_${w},q_auto,f_auto/`);
+  if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('/upload/c_'))
+    return url.replace('/upload/', `/upload/c_limit,w_${w},q_auto,f_auto/`);
   if (url.includes('/api/media/f/') && !url.includes('?')) {
     const width = [320, 480, 800, 1200].find((x) => x >= w);
     return width ? `${url}?w=${width}` : url;

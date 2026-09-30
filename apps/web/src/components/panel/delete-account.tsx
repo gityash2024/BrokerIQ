@@ -32,7 +32,9 @@ export function DeleteAccountCard() {
   return (
     <div className="card mt-6 max-w-3xl border-rose-200 p-6 dark:border-rose-500/30">
       <p className="font-display font-bold text-rose-600">Account delete करें</p>
-      <p className="mt-1 text-sm text-muted">आपकी profile, saved properties, requirements, alerts, location/contacts data और documents हट जाएँगे। यह वापस नहीं होगा।</p>
+      <p className="mt-1 text-sm text-muted">
+        आपकी profile, saved properties, requirements, alerts, location/contacts data और documents हट जाएँगे। यह वापस नहीं होगा।
+      </p>
       <Button variant="danger" className="mt-4" onClick={() => setOpen(true)}>
         <Trash2 className="size-4" /> Account delete करें
       </Button>

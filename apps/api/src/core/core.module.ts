@@ -17,7 +17,23 @@ import { MonitoringService } from './monitoring/monitoring.service';
 import { AccessService } from './access/access.service';
 import { env } from '../config/env';
 
-const services = [CryptoService, SettingsService, AuditService, JobsService, MailService, RealtimeGateway, NotificationsService, AiService, LocalStorageService, MediaService, EventsService, UsageService, FeaturesService, MonitoringService, AccessService];
+const services = [
+  CryptoService,
+  SettingsService,
+  AuditService,
+  JobsService,
+  MailService,
+  RealtimeGateway,
+  NotificationsService,
+  AiService,
+  LocalStorageService,
+  MediaService,
+  EventsService,
+  UsageService,
+  FeaturesService,
+  MonitoringService,
+  AccessService,
+];
 
 @Global()
 @Module({

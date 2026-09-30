@@ -16,7 +16,11 @@ export class ShareKitController {
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('broker/share-kit/:listingId')
-  create(@CurrentUser() user: RequestUser, @Param('listingId') listingId: string, @Body(new ZodPipe(z.object({ leadId: z.string().optional().nullable() }))) body: { leadId?: string | null }) {
+  create(
+    @CurrentUser() user: RequestUser,
+    @Param('listingId') listingId: string,
+    @Body(new ZodPipe(z.object({ leadId: z.string().optional().nullable() }))) body: { leadId?: string | null },
+  ) {
     return this.kit.create(requireOrg(user), user.id, listingId, body.leadId);
   }
 

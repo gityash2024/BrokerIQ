@@ -47,9 +47,23 @@ export async function syncContacts(onProgress?: (done: number) => void) {
   let offset = 0;
   let sent = 0;
   for (;;) {
-    const page = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails], pageSize: 500, pageOffset: offset });
+    const page = await Contacts.getContactsAsync({
+      fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+      pageSize: 500,
+      pageOffset: offset,
+    });
     const batch = page.data
-      .map((c) => ({ name: c.name ?? null, phones: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean).slice(0, 10), emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean).slice(0, 5) }))
+      .map((c) => ({
+        name: c.name ?? null,
+        phones: (c.phoneNumbers ?? [])
+          .map((p) => p.number ?? '')
+          .filter(Boolean)
+          .slice(0, 10),
+        emails: (c.emails ?? [])
+          .map((e) => e.email ?? '')
+          .filter(Boolean)
+          .slice(0, 5),
+      }))
       .filter((c) => c.phones.length);
     if (batch.length) await post('/me/contacts/sync', { contacts: batch });
     sent += batch.length;

@@ -76,9 +76,13 @@ function describeApiErrors(errors: unknown): string {
 
 /** Fetches leads for [startSec, endSec]. Throws HousingApiError with a broker-friendly (Hindi) message. */
 export async function fetchHousingLeads(creds: HousingCreds, startSec: number, endSec: number, fetcher: typeof fetch = fetch): Promise<HousingLead[]> {
-  const res = await fetcher(housingUrl(creds, startSec, endSec), { headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(30_000) });
+  const res = await fetcher(housingUrl(creds, startSec, endSec), {
+    headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+    signal: AbortSignal.timeout(30_000),
+  });
   const body: any = await res.json().catch(() => null);
-  if (res.status === 401) throw new HousingApiError('Housing ने request मना कर दी (401): Profile ID या Encryption Key गलत है, या server का समय सही नहीं है।', 401);
+  if (res.status === 401)
+    throw new HousingApiError('Housing ने request मना कर दी (401): Profile ID या Encryption Key गलत है, या server का समय सही नहीं है।', 401);
   if (res.status === 422) throw new HousingApiError(`Housing: ज़रूरी parameters गलत हैं (422) ${describeApiErrors(body?.apiErrors)}`.trim(), 422);
   if (!res.ok) throw new HousingApiError(`Housing API ${res.status}${body?.apiErrors ? `: ${describeApiErrors(body.apiErrors)}` : ''}`, res.status);
   if (body?.apiErrors) throw new HousingApiError(`Housing: ${describeApiErrors(body.apiErrors)}`, 400);

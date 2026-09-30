@@ -19,7 +19,9 @@ export default function Messages() {
   if (!user) return <LoginPrompt title="Brokers से सीधे chat करें" text="Login करें — property पर सवाल पूछें और real-time जवाब पाएँ।" />;
   return (
     <Screen scroll={false} padded={false}>
-      <Txt v="h1" style={{ padding: 16 }}>Chats</Txt>
+      <Txt v="h1" style={{ padding: 16 }}>
+        Chats
+      </Txt>
       <FlatList
         data={q.data ?? []}
         keyExtractor={(x) => x.id}
@@ -27,23 +29,44 @@ export default function Messages() {
         onRefresh={() => q.refetch()}
         contentContainerStyle={{ paddingBottom: 120 }}
         ListEmptyComponent={
-          q.isLoading ? <View style={{ padding: 16, gap: 12 }}><Skeleton h={64} /><Skeleton h={64} /></View> : q.isError ? <ErrorView error={q.error} /> : (
-            <Empty icon={<MessageCircle size={28} color={c.brand} />} title="अभी कोई chat नहीं" text="किसी property पर 'Chat' दबाकर broker से बात शुरू करें।" action={<Button title="Properties देखें" onPress={() => router.push('/(user)/search')} />} />
+          q.isLoading ? (
+            <View style={{ padding: 16, gap: 12 }}>
+              <Skeleton h={64} />
+              <Skeleton h={64} />
+            </View>
+          ) : q.isError ? (
+            <ErrorView error={q.error} />
+          ) : (
+            <Empty
+              icon={<MessageCircle size={28} color={c.brand} />}
+              title="अभी कोई chat नहीं"
+              text="किसी property पर 'Chat' दबाकर broker से बात शुरू करें।"
+              action={<Button title="Properties देखें" onPress={() => router.push('/(user)/search')} />}
+            />
           )
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 40)}>
-            <PressableScale onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.organization?.name } })} style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: c.line }}>
+            <PressableScale
+              onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.organization?.name } })}
+              style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: c.line }}
+            >
               <Avatar name={item.organization?.name} uri={item.organization?.logoUrl} size={50} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Row gap={4} style={{ flex: 1 }}>
-                    <Txt v="bodyStrong" numberOfLines={1}>{item.organization?.name}</Txt>
+                    <Txt v="bodyStrong" numberOfLines={1}>
+                      {item.organization?.name}
+                    </Txt>
                     {item.organization?.verification === 'VERIFIED' && <BadgeCheck size={14} color={c.success} />}
                   </Row>
-                  <Txt v="caption" color="subtle">{item.lastMessageAt ? timeAgo(item.lastMessageAt) : ''}</Txt>
+                  <Txt v="caption" color="subtle">
+                    {item.lastMessageAt ? timeAgo(item.lastMessageAt) : ''}
+                  </Txt>
                 </Row>
-                <Txt v="small" color="muted" numberOfLines={1}>{item.lastPreview ?? '—'}</Txt>
+                <Txt v="small" color="muted" numberOfLines={1}>
+                  {item.lastPreview ?? '—'}
+                </Txt>
               </View>
             </PressableScale>
           </Animated.View>

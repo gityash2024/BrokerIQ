@@ -53,7 +53,11 @@ export default function VisitVerificationPage() {
       <PageHeader
         title="Visit verification"
         subtitle="Property पर पहुँचकर photo लें — GPS से पक्का होता है कि visit सच में हुई (pin से 300 m, pin न हो तो locality से 1.5 km)"
-        actions={<Button size="sm" variant="secondary" onClick={locate}><LocateFixed className="size-4" /> मेरे पास वाली</Button>}
+        actions={
+          <Button size="sm" variant="secondary" onClick={locate}>
+            <LocateFixed className="size-4" /> मेरे पास वाली
+          </Button>
+        }
       />
       <input ref={pick} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && verify(e.target.files[0])} />
       {q.isLoading ? (
@@ -64,19 +68,26 @@ export default function VisitVerificationPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {q.data.map((l) => (
             <div key={l.id} className="card overflow-hidden">
-              <div className="aspect-[16/9] bg-surface-2">
-                {l.coverUrl && (
-                   
-                  <img src={img(l.coverUrl, 480)} alt="" className="h-full w-full object-cover" />
-                )}
-              </div>
+              <div className="aspect-[16/9] bg-surface-2">{l.coverUrl && <img src={img(l.coverUrl, 480)} alt="" className="h-full w-full object-cover" />}</div>
               <div className="space-y-2 p-4">
-                <Link href={`/property/${l.slug}`} target="_blank" className="line-clamp-1 font-semibold hover:text-brand-600">{l.title}</Link>
-                <p className="text-xs text-muted">{[l.societyName, l.address, l.locality.name].filter(Boolean).join(', ')}{l.km != null ? ` · ${l.km} km दूर` : ''}</p>
-                <p className="text-xs text-muted">{l.organization?.name ?? 'Owner'}{l.latitude == null ? ' · map pin नहीं' : ''}</p>
+                <Link href={`/property/${l.slug}`} target="_blank" className="line-clamp-1 font-semibold hover:text-brand-600">
+                  {l.title}
+                </Link>
+                <p className="text-xs text-muted">
+                  {[l.societyName, l.address, l.locality.name].filter(Boolean).join(', ')}
+                  {l.km != null ? ` · ${l.km} km दूर` : ''}
+                </p>
+                <p className="text-xs text-muted">
+                  {l.organization?.name ?? 'Owner'}
+                  {l.latitude == null ? ' · map pin नहीं' : ''}
+                </p>
                 <div className="flex gap-2">
-                  <Button size="sm" loading={busy === l.id} onClick={() => (setTarget(l.id), pick.current?.click())}><Camera className="size-4" /> Photo लेकर verify</Button>
-                  <Button size="sm" variant="ghost" href={`https://www.google.com/maps/dir/?api=1&destination=${l.point.lat},${l.point.lng}`} external>Directions</Button>
+                  <Button size="sm" loading={busy === l.id} onClick={() => (setTarget(l.id), pick.current?.click())}>
+                    <Camera className="size-4" /> Photo लेकर verify
+                  </Button>
+                  <Button size="sm" variant="ghost" href={`https://www.google.com/maps/dir/?api=1&destination=${l.point.lat},${l.point.lng}`} external>
+                    Directions
+                  </Button>
                 </div>
               </div>
             </div>

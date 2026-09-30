@@ -55,7 +55,10 @@ export default function FieldVerify() {
       // Position at the moment of the photo — this is what the server checks against the pin.
       const pos = await position();
       const a = shot.assets[0];
-      const small = await ImageManipulator.manipulateAsync(a.uri, [{ resize: { width: Math.min(1600, a.width || 1600) } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
+      const small = await ImageManipulator.manipulateAsync(a.uri, [{ resize: { width: Math.min(1600, a.width || 1600) } }], {
+        compress: 0.8,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
       const { url } = await uploadUri(small.uri, 'listing');
       await post(`/admin/listings/${id}/visit-verify`, { photos: [{ url, lat: pos.coords.latitude, lng: pos.coords.longitude }] });
       toast.success('✅ Visit verified');
@@ -77,7 +80,15 @@ export default function FieldVerify() {
 
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
-      <Header title="Field verification" subtitle={near ? 'आपके सबसे पास वाली पहले' : 'Property पर पहुँचकर photo लें'} right={<IconBtn onPress={() => locate()}><LocateFixed size={20} color={c.brand} /></IconBtn>} />
+      <Header
+        title="Field verification"
+        subtitle={near ? 'आपके सबसे पास वाली पहले' : 'Property पर पहुँचकर photo लें'}
+        right={
+          <IconBtn onPress={() => locate()}>
+            <LocateFixed size={20} color={c.brand} />
+          </IconBtn>
+        }
+      />
       <Txt v="small" color="muted" style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
         Photo के साथ phone का GPS जाता है — map pin से 300 m के अंदर (pin न हो तो locality से 1.5 km) होने पर "Visit verified" badge लगता है।
       </Txt>
@@ -98,15 +109,34 @@ export default function FieldVerify() {
                   {l.coverUrl && <Image source={{ uri: img(l.coverUrl, 600) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />}
                 </View>
                 <View style={{ padding: 14, gap: 6 }}>
-                  <Txt v="bodyStrong" numberOfLines={1} onPress={() => router.push(`/property/${l.slug}`)}>{l.title}</Txt>
+                  <Txt v="bodyStrong" numberOfLines={1} onPress={() => router.push(`/property/${l.slug}`)}>
+                    {l.title}
+                  </Txt>
                   <Txt v="small" color="muted" numberOfLines={2}>
                     {[l.societyName, l.address, l.locality?.name].filter(Boolean).join(', ')}
                     {l.km != null ? ` · ${l.km} km दूर` : ''}
                   </Txt>
-                  <Txt v="caption" color="subtle">{l.organization?.name ?? 'Owner'}{l.latitude == null ? ' · map pin नहीं' : ''}</Txt>
+                  <Txt v="caption" color="subtle">
+                    {l.organization?.name ?? 'Owner'}
+                    {l.latitude == null ? ' · map pin नहीं' : ''}
+                  </Txt>
                   <Row style={{ marginTop: 6 }}>
-                    <Button size="sm" title="Photo लेकर verify" icon={<Camera size={16} color="#fff" />} loading={busy === l.id} disabled={!!busy} onPress={() => verify(l.id)} style={{ flex: 1 }} />
-                    <Button size="sm" variant="secondary" title="Directions" icon={<Navigation size={16} color={c.fg} />} onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${l.point.lat},${l.point.lng}`)} />
+                    <Button
+                      size="sm"
+                      title="Photo लेकर verify"
+                      icon={<Camera size={16} color="#fff" />}
+                      loading={busy === l.id}
+                      disabled={!!busy}
+                      onPress={() => verify(l.id)}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      title="Directions"
+                      icon={<Navigation size={16} color={c.fg} />}
+                      onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${l.point.lat},${l.point.lng}`)}
+                    />
                   </Row>
                 </View>
               </Card>

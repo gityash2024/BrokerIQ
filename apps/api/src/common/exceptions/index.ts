@@ -41,6 +41,9 @@ export class IntegrationFailedException extends AppException {
 
 export class PlanLimitException extends AppException {
   constructor(metric: string, limit: number) {
-    super(HttpStatus.PAYMENT_REQUIRED, ErrorCode.PLAN_LIMIT_REACHED, `आपके plan की limit (${limit} ${metric}) पूरी हो गई है। Billing में plan upgrade करें।`, { metric, limit });
+    super(HttpStatus.PAYMENT_REQUIRED, ErrorCode.PLAN_LIMIT_REACHED, `आपके plan की limit (${limit} ${metric}) पूरी हो गई है। Billing में plan upgrade करें।`, {
+      metric,
+      limit,
+    });
   }
 }

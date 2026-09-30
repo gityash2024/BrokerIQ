@@ -87,7 +87,10 @@ export class VisitBookingService {
   }
 
   private async bookableListing(listingId: string) {
-    const l = await this.prisma.listing.findFirst({ where: { id: listingId, status: 'ACTIVE', deletedAt: null }, include: { organization: { select: { id: true, name: true, visitSlots: true } }, locality: { select: { name: true } } } });
+    const l = await this.prisma.listing.findFirst({
+      where: { id: listingId, status: 'ACTIVE', deletedAt: null },
+      include: { organization: { select: { id: true, name: true, visitSlots: true } }, locality: { select: { name: true } } },
+    });
     if (!l) throw new NotFoundException('Listing नहीं मिली');
     return l;
   }
@@ -137,13 +140,46 @@ export class VisitBookingService {
       listingId: l.id,
       message: `Site visit ${when}${body.note ? ` — ${body.note}` : ''}`,
     });
-    if (me.tenantVerifiedAt && !lead.tags.includes('verified-tenant')) await this.prisma.lead.update({ where: { id: lead.id }, data: { tags: { push: 'verified-tenant' } } });
+    if (me.tenantVerifiedAt && !lead.tags.includes('verified-tenant'))
+      await this.prisma.lead.update({ where: { id: lead.id }, data: { tags: { push: 'verified-tenant' } } });
     const visit = await this.prisma.siteVisit.create({
-      data: { organizationId: l.organization.id, leadId: lead.id, listingId: l.id, assignedToId: lead.assignedToId, scheduledAt: at, address: [l.societyName, l.address, l.locality.name].filter(Boolean).join(', '), note: body.note ?? null, tenantUserId: user.id, bookedByTenant: true },
+      data: {
+        organizationId: l.organization.id,
+        leadId: lead.id,
+        listingId: l.id,
+        assignedToId: lead.assignedToId,
+        scheduledAt: at,
+        address: [l.societyName, l.address, l.locality.name].filter(Boolean).join(', '),
+        note: body.note ?? null,
+        tenantUserId: user.id,
+        bookedByTenant: true,
+      },
     });
-    await this.prisma.enquiry.create({ data: { listingId: l.id, organizationId: l.organization.id, userId: user.id, name, phone, email: me.email, message: `Visit booked: ${when}`, wantsVisit: true, visitDate: at, source: 'VISIT_BOOKING', leadId: lead.id } });
+    await this.prisma.enquiry.create({
+      data: {
+        listingId: l.id,
+        organizationId: l.organization.id,
+        userId: user.id,
+        name,
+        phone,
+        email: me.email,
+        message: `Visit booked: ${when}`,
+        wantsVisit: true,
+        visitDate: at,
+        source: 'VISIT_BOOKING',
+        leadId: lead.id,
+      },
+    });
     await this.prisma.listing.update({ where: { id: l.id }, data: { enquiryCount: { increment: 1 } } });
-    await this.prisma.activity.create({ data: { organizationId: l.organization.id, leadId: lead.id, type: 'SITE_VISIT', content: `📅 Tenant ने visit book की: ${when}`, meta: { visitId: visit.id } } });
+    await this.prisma.activity.create({
+      data: {
+        organizationId: l.organization.id,
+        leadId: lead.id,
+        type: 'SITE_VISIT',
+        content: `📅 Tenant ने visit book की: ${when}`,
+        meta: { visitId: visit.id },
+      },
+    });
     this.events.emit('visit.scheduled', { visitId: visit.id, orgId: l.organization.id, leadId: lead.id });
     const note = { kind: 'VISIT_BOOKED', title: `📅 नई visit booking: ${name}`, body: `${l.title} · ${when}`, link: `/broker/visits` };
     if (lead.assignedToId) await this.notifications.notify(lead.assignedToId, note);
@@ -156,7 +192,10 @@ export class VisitBookingService {
       where: { tenantUserId: userId },
       orderBy: { scheduledAt: 'desc' },
       take: 50,
-      include: { listing: { select: { id: true, slug: true, title: true, coverUrl: true } }, organization: { select: { name: true, phone: true, whatsapp: true } } },
+      include: {
+        listing: { select: { id: true, slug: true, title: true, coverUrl: true } },
+        organization: { select: { name: true, phone: true, whatsapp: true } },
+      },
     });
   }
 
@@ -164,7 +203,16 @@ export class VisitBookingService {
     const v = await this.prisma.siteVisit.findFirst({ where: { id: visitId, tenantUserId: userId } });
     if (!v) throw new NotFoundException();
     const updated = await this.prisma.siteVisit.update({ where: { id: v.id }, data: { status: 'CANCELLED' } });
-    await this.notifications.notifyOrg(v.organizationId, { kind: 'VISIT_CANCELLED', title: 'Tenant ने visit cancel की', body: v.scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), link: '/broker/visits' }, { adminsOnly: true });
+    await this.notifications.notifyOrg(
+      v.organizationId,
+      {
+        kind: 'VISIT_CANCELLED',
+        title: 'Tenant ने visit cancel की',
+        body: v.scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        link: '/broker/visits',
+      },
+      { adminsOnly: true },
+    );
     return updated;
   }
 
@@ -179,7 +227,11 @@ export class VisitBookingService {
   async sendTenantReminders(now = new Date()) {
     const istHour = new Date(now.getTime() + IST_MS).getUTCHours();
     const soon = await this.prisma.siteVisit.findMany({
-      where: { tenantUserId: { not: null }, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: { gt: now, lte: new Date(now.getTime() + 36 * 3600_000) } },
+      where: {
+        tenantUserId: { not: null },
+        status: { in: ['SCHEDULED', 'CONFIRMED'] },
+        scheduledAt: { gt: now, lte: new Date(now.getTime() + 36 * 3600_000) },
+      },
       include: { listing: { select: { title: true, slug: true } }, lead: { select: { phone: true, name: true } }, organization: { select: { name: true } } },
       take: 500,
     });
@@ -191,12 +243,36 @@ export class VisitBookingService {
       const hour = minsLeft <= 75 && !v.tenantHourReminderAt;
       const day = !hour && tomorrow && istHour >= 20 && !v.tenantDayReminderAt;
       if (!hour && !day) continue;
-      const when = v.scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+      const when = v.scheduledAt.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
       const title = hour ? `⏰ 1 घंटे में site visit: ${v.listing?.title ?? ''}` : `📅 कल site visit: ${when}`;
-      await this.notifications.notify(v.tenantUserId!, { kind: 'VISIT_REMINDER', title, body: `${v.address ?? ''} · ${v.organization.name}`, link: v.listing ? `/property/${v.listing.slug}` : '/account/visits' });
+      await this.notifications.notify(v.tenantUserId!, {
+        kind: 'VISIT_REMINDER',
+        title,
+        body: `${v.address ?? ''} · ${v.organization.name}`,
+        link: v.listing ? `/property/${v.listing.slug}` : '/account/visits',
+      });
       const tpl = app.whatsappTemplates?.visitReminder;
       if (tpl && v.lead?.phone) {
-        await this.wa.send(null, v.lead.phone, { type: 'template', name: tpl, language: app.whatsappTemplates.language || 'hi', params: [v.lead.name, v.listing?.title ?? '', when, v.address ?? ''] }, { contactName: v.lead.name }).catch((e) => this.logger.warn(`visit WA ${v.id}: ${(e as Error).message}`));
+        await this.wa
+          .send(
+            null,
+            v.lead.phone,
+            {
+              type: 'template',
+              name: tpl,
+              language: app.whatsappTemplates.language || 'hi',
+              params: [v.lead.name, v.listing?.title ?? '', when, v.address ?? ''],
+            },
+            { contactName: v.lead.name },
+          )
+          .catch((e) => this.logger.warn(`visit WA ${v.id}: ${(e as Error).message}`));
       }
       await this.prisma.siteVisit.update({ where: { id: v.id }, data: hour ? { tenantHourReminderAt: now } : { tenantDayReminderAt: now } });
       sent++;

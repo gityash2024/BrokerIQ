@@ -9,7 +9,17 @@ export function PageShell({ children, transparentHeader }: { children: React.Rea
   );
 }
 
-export function SectionTitle({ title, subtitle, action, className = '' }: { title?: string | null; subtitle?: string | null; action?: React.ReactNode; className?: string }) {
+export function SectionTitle({
+  title,
+  subtitle,
+  action,
+  className = '',
+}: {
+  title?: string | null;
+  subtitle?: string | null;
+  action?: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className={`mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between ${className}`}>
       <div>

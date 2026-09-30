@@ -10,7 +10,11 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { AccessService } from '../../core/access/access.service';
 
-const bulkSchema = z.object({ ids: z.array(z.string()).min(1).max(500), action: z.enum(['assign', 'stage', 'tag', 'delete']), value: z.string().nullable().optional() });
+const bulkSchema = z.object({
+  ids: z.array(z.string()).min(1).max(500),
+  action: z.enum(['assign', 'stage', 'tag', 'delete']),
+  value: z.string().nullable().optional(),
+});
 const assignSchema = z.object({ assignedToId: z.string().nullable() });
 const importSchema = z.object({ csv: z.string().min(5).max(5_000_000) });
 

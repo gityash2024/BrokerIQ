@@ -39,9 +39,23 @@ export class PublicService {
     if (!locs.length) return [];
     const ids = locs.map((l) => l.id);
     const [counts, psf, rent2] = await Promise.all([
-      this.prisma.listing.groupBy({ by: ['localityId', 'purpose'], where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null }, _count: { _all: true } }),
-      this.prisma.listing.groupBy({ by: ['localityId'], where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null, purpose: 'SALE', category: 'RESIDENTIAL', pricePerSqft: { not: null } }, _avg: { pricePerSqft: true }, _count: { _all: true } }),
-      this.prisma.listing.groupBy({ by: ['localityId'], where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null, purpose: 'RENT', category: 'RESIDENTIAL', bedrooms: 2 }, _avg: { price: true }, _count: { _all: true } }),
+      this.prisma.listing.groupBy({
+        by: ['localityId', 'purpose'],
+        where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null },
+        _count: { _all: true },
+      }),
+      this.prisma.listing.groupBy({
+        by: ['localityId'],
+        where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null, purpose: 'SALE', category: 'RESIDENTIAL', pricePerSqft: { not: null } },
+        _avg: { pricePerSqft: true },
+        _count: { _all: true },
+      }),
+      this.prisma.listing.groupBy({
+        by: ['localityId'],
+        where: { localityId: { in: ids }, status: 'ACTIVE', deletedAt: null, purpose: 'RENT', category: 'RESIDENTIAL', bedrooms: 2 },
+        _avg: { price: true },
+        _count: { _all: true },
+      }),
     ]);
     return locs.map((l) => {
       const sale = rentalOnly ? 0 : (counts.find((c) => c.localityId === l.id && c.purpose === 'SALE')?._count._all ?? 0);
@@ -72,7 +86,12 @@ export class PublicService {
         case 'FEATURED_LISTINGS': {
           const ids: string[] = Array.isArray(cfg.listingIds) ? cfg.listingIds : [];
           data = await this.prisma.listing.findMany({
-            where: { status: 'ACTIVE', deletedAt: null, ...(ids.length ? { id: { in: ids } } : {}), ...(rentalOnly ? { purpose: 'RENT' as const } : cfg.purpose === 'SALE' || cfg.purpose === 'RENT' ? { purpose: cfg.purpose } : {}) },
+            where: {
+              status: 'ACTIVE',
+              deletedAt: null,
+              ...(ids.length ? { id: { in: ids } } : {}),
+              ...(rentalOnly ? { purpose: 'RENT' as const } : cfg.purpose === 'SALE' || cfg.purpose === 'RENT' ? { purpose: cfg.purpose } : {}),
+            },
             orderBy: [{ isFeatured: 'desc' }, { isVerified: 'desc' }, { publishedAt: 'desc' }],
             take: cfg.limit ?? 8,
             select: LISTING_CARD_SELECT,
@@ -81,23 +100,41 @@ export class PublicService {
         }
         case 'FEATURED_PROJECTS':
           // New-launch projects are sale inventory — hidden on the rental marketplace.
-          data = rentalOnly ? [] : await this.prisma.project.findMany({
-            where: { isActive: true },
-            orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
-            take: cfg.limit ?? 6,
-            include: { builder: { select: { name: true, slug: true } }, locality: { select: { name: true, slug: true } } },
-          });
+          data = rentalOnly
+            ? []
+            : await this.prisma.project.findMany({
+                where: { isActive: true },
+                orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
+                take: cfg.limit ?? 6,
+                include: { builder: { select: { name: true, slug: true } }, locality: { select: { name: true, slug: true } } },
+              });
           break;
         case 'TOP_BROKERS':
           data = await this.prisma.organization.findMany({
             where: { status: 'ACTIVE', onboarded: true },
             orderBy: [{ rankScore: 'desc' }, { verification: 'desc' }, { rating: 'desc' }, { reviewCount: 'desc' }],
             take: cfg.limit ?? 8,
-            select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true, reviewCount: true, experienceYears: true, responseMinutes: true, _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } } },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              logoUrl: true,
+              verification: true,
+              rating: true,
+              reviewCount: true,
+              experienceYears: true,
+              responseMinutes: true,
+              _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } },
+            },
           });
           break;
         case 'BLOG':
-          data = await this.prisma.blogPost.findMany({ where: { isPublished: true }, orderBy: { publishedAt: 'desc' }, take: cfg.limit ?? 3, select: { id: true, slug: true, title: true, excerpt: true, coverUrl: true, publishedAt: true, tags: true } });
+          data = await this.prisma.blogPost.findMany({
+            where: { isPublished: true },
+            orderBy: { publishedAt: 'desc' },
+            take: cfg.limit ?? 3,
+            select: { id: true, slug: true, title: true, excerpt: true, coverUrl: true, publishedAt: true, tags: true },
+          });
           break;
         case 'MAP_EXPLORER':
           data = await this.localitiesWithStats({}, 200);
@@ -127,15 +164,40 @@ export class PublicService {
         AND "createdAt" >= ${since} AND "deletedAt" IS NULL
       GROUP BY 1 ORDER BY 1`;
     const [projects, brokers, rentAgg, bhkMix] = await Promise.all([
-      rentalOnly ? Promise.resolve([]) : this.prisma.project.findMany({ where: { localityId: loc.id, isActive: true }, take: 12, include: { builder: { select: { name: true } } } }),
+      rentalOnly
+        ? Promise.resolve([])
+        : this.prisma.project.findMany({ where: { localityId: loc.id, isActive: true }, take: 12, include: { builder: { select: { name: true } } } }),
       this.prisma.organization.findMany({
-        where: { status: 'ACTIVE', onboarded: true, OR: [{ localities: { some: { id: loc.id } } }, { listings: { some: { localityId: loc.id, status: 'ACTIVE' } } }] },
+        where: {
+          status: 'ACTIVE',
+          onboarded: true,
+          OR: [{ localities: { some: { id: loc.id } } }, { listings: { some: { localityId: loc.id, status: 'ACTIVE' } } }],
+        },
         orderBy: [{ rankScore: 'desc' }, { verification: 'desc' }, { rating: 'desc' }],
         take: 8,
-        select: { id: true, name: true, slug: true, logoUrl: true, verification: true, rating: true, reviewCount: true, responseMinutes: true, _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } } },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          verification: true,
+          rating: true,
+          reviewCount: true,
+          responseMinutes: true,
+          _count: { select: { listings: { where: { status: 'ACTIVE', deletedAt: null } } } },
+        },
       }),
-      this.prisma.listing.groupBy({ by: ['bedrooms'], where: { localityId: loc.id, purpose: 'RENT', status: 'ACTIVE', deletedAt: null, bedrooms: { not: null } }, _avg: { price: true }, _count: { _all: true } }),
-      this.prisma.listing.groupBy({ by: ['bedrooms'], where: { localityId: loc.id, status: 'ACTIVE', deletedAt: null, bedrooms: { not: null } }, _count: { _all: true } }),
+      this.prisma.listing.groupBy({
+        by: ['bedrooms'],
+        where: { localityId: loc.id, purpose: 'RENT', status: 'ACTIVE', deletedAt: null, bedrooms: { not: null } },
+        _avg: { price: true },
+        _count: { _all: true },
+      }),
+      this.prisma.listing.groupBy({
+        by: ['bedrooms'],
+        where: { localityId: loc.id, status: 'ACTIVE', deletedAt: null, bedrooms: { not: null } },
+        _count: { _all: true },
+      }),
     ]);
     const nearby = await this.prisma.$queryRaw<{ id: string; name: string; slug: string; zone: string | null; km: number }[]>`
       SELECT id, name, slug, zone,
@@ -157,9 +219,24 @@ export class PublicService {
     const s = q.trim();
     if (s.length < 2) return { localities: [], projects: [], brokers: [] };
     const [localities, projects, brokers] = await Promise.all([
-      this.prisma.locality.findMany({ where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { zone: { contains: s, mode: 'insensitive' } }] }, take: 8, orderBy: [{ isPopular: 'desc' }], select: { id: true, name: true, slug: true, zone: true } }),
-      rentalOnly ? Promise.resolve([]) : this.prisma.project.findMany({ where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { builder: { name: { contains: s, mode: 'insensitive' } } }] }, take: 6, select: { id: true, name: true, slug: true, builder: { select: { name: true } }, locality: { select: { name: true } } } }),
-      this.prisma.organization.findMany({ where: { status: 'ACTIVE', onboarded: true, name: { contains: s, mode: 'insensitive' } }, take: 4, select: { id: true, name: true, slug: true, logoUrl: true } }),
+      this.prisma.locality.findMany({
+        where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { zone: { contains: s, mode: 'insensitive' } }] },
+        take: 8,
+        orderBy: [{ isPopular: 'desc' }],
+        select: { id: true, name: true, slug: true, zone: true },
+      }),
+      rentalOnly
+        ? Promise.resolve([])
+        : this.prisma.project.findMany({
+            where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { builder: { name: { contains: s, mode: 'insensitive' } } }] },
+            take: 6,
+            select: { id: true, name: true, slug: true, builder: { select: { name: true } }, locality: { select: { name: true } } },
+          }),
+      this.prisma.organization.findMany({
+        where: { status: 'ACTIVE', onboarded: true, name: { contains: s, mode: 'insensitive' } },
+        take: 4,
+        select: { id: true, name: true, slug: true, logoUrl: true },
+      }),
     ]);
     return { localities, projects, brokers };
   }

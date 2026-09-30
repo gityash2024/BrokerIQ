@@ -27,7 +27,11 @@ export default function AdminScreen() {
   const pending = useQuery({ queryKey: ['m-admin-pending'], queryFn: () => api<any>('/admin/pending'), enabled: staff });
   const review = useQuery({ queryKey: ['m-admin-review'], queryFn: () => api<any>('/admin/moderation/listings'), enabled: staff && tab === 'review' });
   const reports = useQuery({ queryKey: ['m-admin-reports'], queryFn: () => api<any[]>('/admin/reports'), enabled: staff && tab === 'reports' });
-  const listings = useQuery({ queryKey: ['m-admin-listings', q], queryFn: () => api<any>(`/admin/listings${qs({ q })}`), enabled: staff && tab === 'listings' });
+  const listings = useQuery({
+    queryKey: ['m-admin-listings', q],
+    queryFn: () => api<any>(`/admin/listings${qs({ q })}`),
+    enabled: staff && tab === 'listings',
+  });
   const refresh = () => Promise.all([pending.refetch(), review.refetch(), reports.refetch(), listings.refetch()]);
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
@@ -45,11 +49,14 @@ export default function AdminScreen() {
   const confirmReason = () => {
     const r = reasonFor!;
     const text = reason.trim();
-    act(async () => {
-      if (r.kind === 'reject') await post(`/admin/moderation/listings/${r.id}`, { action: 'reject', reason: text });
-      else await post(`/admin/listings/${r.id}/block`, { reason: text });
-      if (r.reportId) await patch(`/admin/reports/${r.reportId}`, { status: 'RESOLVED', resolution: `Listing blocked: ${text}` });
-    }, r.kind === 'reject' ? 'Listing reject हुई' : 'Listing block हुई').then(() => (setReasonFor(null), setReason('')));
+    act(
+      async () => {
+        if (r.kind === 'reject') await post(`/admin/moderation/listings/${r.id}`, { action: 'reject', reason: text });
+        else await post(`/admin/listings/${r.id}/block`, { reason: text });
+        if (r.reportId) await patch(`/admin/reports/${r.reportId}`, { status: 'RESOLVED', resolution: `Listing blocked: ${text}` });
+      },
+      r.kind === 'reject' ? 'Listing reject हुई' : 'Listing block हुई',
+    ).then(() => (setReasonFor(null), setReason('')));
   };
 
   if (!staff)
@@ -67,9 +74,23 @@ export default function AdminScreen() {
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
       <Header title="Admin" subtitle={p ? `${p.pendingListings} review · ${p.reportsOpen} reports · ${p.errorsOpen} errors` : undefined} />
       <View style={{ paddingHorizontal: 16, gap: 10, paddingBottom: 10 }}>
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'review', label: 'Review', count: p?.pendingListings }, { value: 'reports', label: 'Reports', count: p?.reportsOpen }, { value: 'listings', label: 'Listings' }]} />
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'review', label: 'Review', count: p?.pendingListings },
+            { value: 'reports', label: 'Reports', count: p?.reportsOpen },
+            { value: 'listings', label: 'Listings' },
+          ]}
+        />
         {tab === 'listings' && <Input placeholder="Title या slug खोजें" value={q} onChangeText={setQ} />}
-        <Button size="sm" variant="secondary" title="Field verification (GPS photo)" icon={<BadgeCheck size={16} color={c.fg} />} onPress={() => router.push('/field-verify')} />
+        <Button
+          size="sm"
+          variant="secondary"
+          title="Field verification (GPS photo)"
+          icon={<BadgeCheck size={16} color={c.fg} />}
+          onPress={() => router.push('/field-verify')}
+        />
       </View>
       {query.isError ? (
         <ErrorView error={query.error} />
@@ -86,12 +107,32 @@ export default function AdminScreen() {
               const r = item;
               return (
                 <Card style={{ padding: 14, gap: 6 }}>
-                  <Txt v="bodyStrong" numberOfLines={1} onPress={() => router.push(`/property/${r.listing.slug}`)}>{r.listing.title}</Txt>
-                  <Txt v="small" color="danger">{r.reason}{r.details ? ` — ${r.details}` : ''}</Txt>
-                  <Txt v="caption" color="subtle">{r.user?.name ?? 'Anonymous'} · {LISTING_STATUS_LABELS[r.listing.status as ListingStatus] ?? r.listing.status}</Txt>
+                  <Txt v="bodyStrong" numberOfLines={1} onPress={() => router.push(`/property/${r.listing.slug}`)}>
+                    {r.listing.title}
+                  </Txt>
+                  <Txt v="small" color="danger">
+                    {r.reason}
+                    {r.details ? ` — ${r.details}` : ''}
+                  </Txt>
+                  <Txt v="caption" color="subtle">
+                    {r.user?.name ?? 'Anonymous'} · {LISTING_STATUS_LABELS[r.listing.status as ListingStatus] ?? r.listing.status}
+                  </Txt>
                   <Row style={{ marginTop: 4 }}>
-                    <Button size="sm" variant="danger" title="Listing block" disabled={busy} onPress={() => setReasonFor({ id: r.listing.id, title: r.listing.title, kind: 'block', reportId: r.id })} style={{ flex: 1 }} />
-                    <Button size="sm" variant="secondary" title="Dismiss" disabled={busy} onPress={() => act(() => patch(`/admin/reports/${r.id}`, { status: 'DISMISSED' }), 'Report dismiss')} />
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      title="Listing block"
+                      disabled={busy}
+                      onPress={() => setReasonFor({ id: r.listing.id, title: r.listing.title, kind: 'block', reportId: r.id })}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      title="Dismiss"
+                      disabled={busy}
+                      onPress={() => act(() => patch(`/admin/reports/${r.id}`, { status: 'DISMISSED' }), 'Report dismiss')}
+                    />
                   </Row>
                 </Card>
               );
@@ -103,22 +144,62 @@ export default function AdminScreen() {
                 {!!cover && <Image source={{ uri: img(cover, 600) }} style={{ height: 130, width: '100%' }} contentFit="cover" />}
                 <View style={{ padding: 14, gap: 4 }}>
                   <Row style={{ justifyContent: 'space-between' }}>
-                    <Txt v="bodyStrong" numberOfLines={1} style={{ flex: 1 }} onPress={() => router.push(`/property/${l.slug}`)}>{l.title}</Txt>
+                    <Txt v="bodyStrong" numberOfLines={1} style={{ flex: 1 }} onPress={() => router.push(`/property/${l.slug}`)}>
+                      {l.title}
+                    </Txt>
                     <Badge label={LISTING_STATUS_LABELS[l.status as ListingStatus] ?? l.status} color={l.status === 'BLOCKED' ? c.danger : undefined} />
                   </Row>
-                  <Txt v="small" color="muted">{formatPriceShort(l.price)}/month · {l.locality?.name} · {l.organization?.name ?? l.postedBy?.name}</Txt>
-                  {!!l.moderationFlags?.length && <Txt v="caption" color="danger">⚠️ {l.moderationFlags.join(', ')}</Txt>}
-                  {!!l.blockedReason && <Txt v="caption" color="danger">{l.blockedReason}</Txt>}
+                  <Txt v="small" color="muted">
+                    {formatPriceShort(l.price)}/month · {l.locality?.name} · {l.organization?.name ?? l.postedBy?.name}
+                  </Txt>
+                  {!!l.moderationFlags?.length && (
+                    <Txt v="caption" color="danger">
+                      ⚠️ {l.moderationFlags.join(', ')}
+                    </Txt>
+                  )}
+                  {!!l.blockedReason && (
+                    <Txt v="caption" color="danger">
+                      {l.blockedReason}
+                    </Txt>
+                  )}
                   <Row style={{ marginTop: 6 }}>
                     {tab === 'review' ? (
                       <>
-                        <Button size="sm" variant="success" title="Approve" disabled={busy} onPress={() => act(() => post(`/admin/moderation/listings/${l.id}`, { action: 'approve' }), 'Listing live')} style={{ flex: 1 }} />
-                        <Button size="sm" variant="secondary" title="Reject" disabled={busy} onPress={() => setReasonFor({ id: l.id, title: l.title, kind: 'reject' })} />
+                        <Button
+                          size="sm"
+                          variant="success"
+                          title="Approve"
+                          disabled={busy}
+                          onPress={() => act(() => post(`/admin/moderation/listings/${l.id}`, { action: 'approve' }), 'Listing live')}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          title="Reject"
+                          disabled={busy}
+                          onPress={() => setReasonFor({ id: l.id, title: l.title, kind: 'reject' })}
+                        />
                       </>
                     ) : l.status === 'BLOCKED' ? (
-                      <Button size="sm" variant="success" title="Unblock" disabled={busy} onPress={() => act(() => post(`/admin/listings/${l.id}/unblock`, {}), 'Listing वापस चालू')} style={{ flex: 1 }} />
+                      <Button
+                        size="sm"
+                        variant="success"
+                        title="Unblock"
+                        disabled={busy}
+                        onPress={() => act(() => post(`/admin/listings/${l.id}/unblock`, {}), 'Listing वापस चालू')}
+                        style={{ flex: 1 }}
+                      />
                     ) : (
-                      <Button size="sm" variant="danger" title="Block" icon={<Ban size={14} color="#fff" />} disabled={busy} onPress={() => setReasonFor({ id: l.id, title: l.title, kind: 'block' })} style={{ flex: 1 }} />
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        title="Block"
+                        icon={<Ban size={14} color="#fff" />}
+                        disabled={busy}
+                        onPress={() => setReasonFor({ id: l.id, title: l.title, kind: 'block' })}
+                        style={{ flex: 1 }}
+                      />
                     )}
                   </Row>
                 </View>
@@ -128,9 +209,18 @@ export default function AdminScreen() {
         />
       )}
       <Sheet open={!!reasonFor} onClose={() => (setReasonFor(null), setReason(''))} title={reasonFor?.kind === 'reject' ? 'Reject का कारण' : 'Block का कारण'}>
-        <Txt v="small" color="muted" numberOfLines={2}>{reasonFor?.title}</Txt>
+        <Txt v="small" color="muted" numberOfLines={2}>
+          {reasonFor?.title}
+        </Txt>
         <Input multiline placeholder="जैसे: fake photos, गलत rent, spam…" value={reason} onChangeText={setReason} containerStyle={{ marginTop: 10 }} />
-        <Button title={reasonFor?.kind === 'reject' ? 'Reject करें' : 'Block करें'} variant="danger" loading={busy} disabled={reason.trim().length < 3} onPress={confirmReason} style={{ marginTop: 12 }} />
+        <Button
+          title={reasonFor?.kind === 'reject' ? 'Reject करें' : 'Block करें'}
+          variant="danger"
+          loading={busy}
+          disabled={reason.trim().length < 3}
+          onPress={confirmReason}
+          style={{ marginTop: 12 }}
+        />
       </Sheet>
     </Screen>
   );

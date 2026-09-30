@@ -10,8 +10,27 @@ export default function Page() {
       endpoint="/admin/builders"
       canDelete={false}
       columns={[
-        { key: 'name', label: 'Builder', render: (r) => <span className="flex items-center gap-3 font-semibold"><Avatar name={r.name} src={r.logoUrl} size={32} /> {r.name}</span> },
-        { key: 'website', label: 'Website', render: (r) => (r.website ? <a href={r.website} target="_blank" rel="noreferrer" className="text-xs text-brand-600">{r.website}</a> : '—') },
+        {
+          key: 'name',
+          label: 'Builder',
+          render: (r) => (
+            <span className="flex items-center gap-3 font-semibold">
+              <Avatar name={r.name} src={r.logoUrl} size={32} /> {r.name}
+            </span>
+          ),
+        },
+        {
+          key: 'website',
+          label: 'Website',
+          render: (r) =>
+            r.website ? (
+              <a href={r.website} target="_blank" rel="noreferrer" className="text-xs text-brand-600">
+                {r.website}
+              </a>
+            ) : (
+              '—'
+            ),
+        },
         { key: '_count', label: 'Projects', render: (r) => r._count?.projects ?? 0 },
       ]}
       fields={[

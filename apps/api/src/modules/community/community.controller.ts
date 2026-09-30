@@ -95,7 +95,11 @@ export class CommunityController {
   @Throttle({ default: { limit: 20, ttl: 60 * 60_000 } })
   @Feature('flatmates')
   @Post('flatmates/connect/:userId')
-  connect(@CurrentUser() user: RequestUser, @Param('userId') toUserId: string, @Body(new ZodPipe(z.object({ message: z.string().max(300).optional().nullable() }))) body: any) {
+  connect(
+    @CurrentUser() user: RequestUser,
+    @Param('userId') toUserId: string,
+    @Body(new ZodPipe(z.object({ message: z.string().max(300).optional().nullable() }))) body: any,
+  ) {
     return this.svc.connect(user.id, toUserId, body.message);
   }
 
@@ -147,7 +151,8 @@ export class CommunityController {
   async signedPdf(@Param('id') id: string, @Query('e') e: string, @Query('s') s: string, @Res() res: Response) {
     const exp = Number(e);
     const expected = this.sign(id, exp);
-    if (!exp || exp < Date.now() / 1000 || !s || s.length !== expected.length || !timingSafeEqual(Buffer.from(s), Buffer.from(expected))) throw new ForbiddenException('Link expire हो गया');
+    if (!exp || exp < Date.now() / 1000 || !s || s.length !== expected.length || !timingSafeEqual(Buffer.from(s), Buffer.from(expected)))
+      throw new ForbiddenException('Link expire हो गया');
     const a = await this.prisma.rentAgreement.findUniqueOrThrow({ where: { id } });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="rent-agreement.pdf"');
@@ -169,7 +174,22 @@ export class CommunityController {
   @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Feature('move_in_services')
   @Post('services/requests')
-  request(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ partnerId: z.string(), listingId: z.string().optional().nullable(), name: z.string().trim().min(2).max(80), phone: phoneSchema, preferredDate: z.coerce.date().optional().nullable(), notes: z.string().max(400).optional().nullable() }))) body: any) {
+  request(
+    @CurrentUser() user: RequestUser,
+    @Body(
+      new ZodPipe(
+        z.object({
+          partnerId: z.string(),
+          listingId: z.string().optional().nullable(),
+          name: z.string().trim().min(2).max(80),
+          phone: phoneSchema,
+          preferredDate: z.coerce.date().optional().nullable(),
+          notes: z.string().max(400).optional().nullable(),
+        }),
+      ),
+    )
+    body: any,
+  ) {
     return this.svc.requestService(user, body);
   }
 
@@ -188,7 +208,15 @@ export class CommunityController {
   @Roles('SUPER_ADMIN')
   @Patch('admin/services/:id')
   updatePartner(@Param('id') id: string, @Body(new ZodPipe(partnerSchema.partial())) body: any) {
-    return this.prisma.servicePartner.update({ where: { id }, data: { ...body, ...(body.logoUrl === '' ? { logoUrl: null } : {}), ...(body.email === '' ? { email: null } : {}), ...(body.website === '' ? { website: null } : {}) } });
+    return this.prisma.servicePartner.update({
+      where: { id },
+      data: {
+        ...body,
+        ...(body.logoUrl === '' ? { logoUrl: null } : {}),
+        ...(body.email === '' ? { email: null } : {}),
+        ...(body.website === '' ? { website: null } : {}),
+      },
+    });
   }
 
   @Roles('SUPER_ADMIN')

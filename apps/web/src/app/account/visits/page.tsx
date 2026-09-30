@@ -24,7 +24,11 @@ export default function MyVisitsPage() {
       {visits.isLoading ? (
         <Skeleton className="h-32" />
       ) : !visits.data?.length ? (
-        <Empty icon={<CalendarCheck className="size-6" />} title="अभी कोई visit नहीं" text="किसी भी broker listing पर 'Visit book करें' दबाकर खाली समय चुनें।" />
+        <Empty
+          icon={<CalendarCheck className="size-6" />}
+          title="अभी कोई visit नहीं"
+          text="किसी भी broker listing पर 'Visit book करें' दबाकर खाली समय चुनें।"
+        />
       ) : (
         <div className="space-y-3">
           {visits.data.map((v) => {
@@ -37,13 +41,31 @@ export default function MyVisitsPage() {
                     <Badge tone={upcoming ? 'brand' : v.status === 'CANCELLED' ? 'neutral' : 'success'}>{upcoming ? 'Upcoming' : v.status}</Badge>
                     <span className="font-semibold">{formatDateTime(v.scheduledAt)}</span>
                   </div>
-                  {v.listing && <Link href={`/property/${v.listing.slug}`} className="mt-1 block truncate text-sm text-brand-600 hover:underline" data-no-i18n>{v.listing.title}</Link>}
-                  <p className="text-xs text-muted"><span data-no-i18n>{v.address}</span> · <span data-no-i18n>{v.organization?.name}</span></p>
+                  {v.listing && (
+                    <Link href={`/property/${v.listing.slug}`} className="mt-1 block truncate text-sm text-brand-600 hover:underline" data-no-i18n>
+                      {v.listing.title}
+                    </Link>
+                  )}
+                  <p className="text-xs text-muted">
+                    <span data-no-i18n>{v.address}</span> · <span data-no-i18n>{v.organization?.name}</span>
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {phone && <Button size="sm" variant="secondary" href={`tel:${phone}`}><Phone className="size-4" /> Call</Button>}
-                  {phone && <Button size="sm" variant="whatsapp" href={whatsappLink(phone, `नमस्ते, site visit ${formatDateTime(v.scheduledAt)} के बारे में`)} external><MessageCircle className="size-4" /> WhatsApp</Button>}
-                  {upcoming && <Button size="sm" variant="ghost" onClick={() => confirm('Visit cancel करें?') && cancel.mutate(v.id)}>Cancel</Button>}
+                  {phone && (
+                    <Button size="sm" variant="secondary" href={`tel:${phone}`}>
+                      <Phone className="size-4" /> Call
+                    </Button>
+                  )}
+                  {phone && (
+                    <Button size="sm" variant="whatsapp" href={whatsappLink(phone, `नमस्ते, site visit ${formatDateTime(v.scheduledAt)} के बारे में`)} external>
+                      <MessageCircle className="size-4" /> WhatsApp
+                    </Button>
+                  )}
+                  {upcoming && (
+                    <Button size="sm" variant="ghost" onClick={() => confirm('Visit cancel करें?') && cancel.mutate(v.id)}>
+                      Cancel
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -54,14 +76,23 @@ export default function MyVisitsPage() {
       {tokens.isLoading ? (
         <Skeleton className="h-24" />
       ) : !tokens.data?.length ? (
-        <Empty icon={<Wallet className="size-6" />} title="कोई token record नहीं" text="Broker को token/advance देने पर property page से record रखें — broker पुष्टि करेंगे।" />
+        <Empty
+          icon={<Wallet className="size-6" />}
+          title="कोई token record नहीं"
+          text="Broker को token/advance देने पर property page से record रखें — broker पुष्टि करेंगे।"
+        />
       ) : (
         <div className="space-y-3">
           {tokens.data.map((t) => (
             <div key={t.id} className="card flex items-center justify-between gap-3 p-4">
               <div className="min-w-0">
-                <p className="font-semibold">{formatINR(t.amount)} · {t.mode}{t.ref ? ` · ${t.ref}` : ''}</p>
-                <Link href={`/property/${t.listing.slug}`} className="block truncate text-sm text-brand-600" data-no-i18n>{t.listing.title}</Link>
+                <p className="font-semibold">
+                  {formatINR(t.amount)} · {t.mode}
+                  {t.ref ? ` · ${t.ref}` : ''}
+                </p>
+                <Link href={`/property/${t.listing.slug}`} className="block truncate text-sm text-brand-600" data-no-i18n>
+                  {t.listing.title}
+                </Link>
                 <p className="text-xs text-muted">{formatDate(t.createdAt)}</p>
               </div>
               <Badge tone={TOKEN_TONE[t.status]}>{TOKEN_LABEL[t.status]}</Badge>

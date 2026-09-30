@@ -37,7 +37,13 @@ export class PrivacyService {
       this.prisma.userLocation.findFirst({ where: { userId }, orderBy: { capturedAt: 'desc' }, select: { capturedAt: true } }),
     ]);
     const view = (c: typeof loc) => (c ? { granted: c.granted, at: c.createdAt, current: c.policyVersion === PRIVACY_POLICY_VERSION } : null);
-    return { policyVersion: PRIVACY_POLICY_VERSION, location: view(loc), contacts: view(con), contactsCount: contacts, lastLocationAt: lastLoc?.capturedAt ?? null };
+    return {
+      policyVersion: PRIVACY_POLICY_VERSION,
+      location: view(loc),
+      contacts: view(con),
+      contactsCount: contacts,
+      lastLocationAt: lastLoc?.capturedAt ?? null,
+    };
   }
 
   private async granted(userId: string, kind: ConsentKind) {
@@ -59,8 +65,15 @@ export class PrivacyService {
 
   async addLocation(user: RequestUser, p: { latitude: number; longitude: number; accuracy?: number | null; platform: string }) {
     if (!(await this.granted(user.id, 'LOCATION'))) throw new ForbiddenException('Location sharing की अनुमति नहीं दी गई है');
-    await this.prisma.userLocation.create({ data: { userId: user.id, latitude: p.latitude, longitude: p.longitude, accuracy: p.accuracy ?? null, source: p.platform } });
-    const old = await this.prisma.userLocation.findMany({ where: { userId: user.id }, orderBy: { capturedAt: 'desc' }, skip: MAX_LOCATIONS_PER_USER, select: { id: true } });
+    await this.prisma.userLocation.create({
+      data: { userId: user.id, latitude: p.latitude, longitude: p.longitude, accuracy: p.accuracy ?? null, source: p.platform },
+    });
+    const old = await this.prisma.userLocation.findMany({
+      where: { userId: user.id },
+      orderBy: { capturedAt: 'desc' },
+      skip: MAX_LOCATIONS_PER_USER,
+      select: { id: true },
+    });
     if (old.length) await this.prisma.userLocation.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
     return { ok: true };
   }
@@ -77,8 +90,17 @@ export class PrivacyService {
     }
     const now = new Date();
     for (const [phoneHash, c] of byHash) {
-      const data = { nameEnc: c.name ? this.crypto.encrypt(c.name) : null, phoneEnc: this.crypto.encrypt(c.phone), emailEnc: c.email ? this.crypto.encrypt(c.email) : null, syncedAt: now };
-      await this.prisma.userContact.upsert({ where: { userId_phoneHash: { userId: user.id, phoneHash } }, create: { userId: user.id, phoneHash, ...data }, update: data });
+      const data = {
+        nameEnc: c.name ? this.crypto.encrypt(c.name) : null,
+        phoneEnc: this.crypto.encrypt(c.phone),
+        emailEnc: c.email ? this.crypto.encrypt(c.email) : null,
+        syncedAt: now,
+      };
+      await this.prisma.userContact.upsert({
+        where: { userId_phoneHash: { userId: user.id, phoneHash } },
+        create: { userId: user.id, phoneHash, ...data },
+        update: data,
+      });
     }
     return { synced: byHash.size, total: await this.prisma.userContact.count({ where: { userId: user.id } }) };
   }
@@ -90,9 +112,35 @@ export class PrivacyService {
     const pageSize = 30;
     const consenting = await this.prisma.userConsent.findMany({ distinct: ['userId'], select: { userId: true } });
     const ids = consenting.map((c) => c.userId);
-    const where = { id: { in: ids }, ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' as const } }, { email: { contains: q.q, mode: 'insensitive' as const } }, { phone: { contains: q.q } }] } : {}) };
+    const where = {
+      id: { in: ids },
+      ...(q.q
+        ? {
+            OR: [
+              { name: { contains: q.q, mode: 'insensitive' as const } },
+              { email: { contains: q.q, mode: 'insensitive' as const } },
+              { phone: { contains: q.q } },
+            ],
+          }
+        : {}),
+    };
     const [users, total] = await Promise.all([
-      this.prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true, organization: { select: { name: true } }, _count: { select: { contacts: true, locations: true } } } }),
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          createdAt: true,
+          organization: { select: { name: true } },
+          _count: { select: { contacts: true, locations: true } },
+        },
+      }),
       this.prisma.user.count({ where }),
     ]);
     const items = await Promise.all(
@@ -115,7 +163,10 @@ export class PrivacyService {
   }
 
   async adminDetail(admin: RequestUser, userId: string, q: { q?: string } = {}, ip?: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true, lastLoginAt: true, organization: { select: { name: true } } } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true, lastLoginAt: true, organization: { select: { name: true } } },
+    });
     if (!user) throw new NotFoundException();
     const [consents, locations, contacts] = await Promise.all([
       this.prisma.userConsent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 20 }),
@@ -145,6 +196,8 @@ export class PrivacyService {
         return null;
       }
     };
-    return rows.map((r) => ({ id: r.id, name: dec(r.nameEnc), phone: dec(r.phoneEnc), email: dec(r.emailEnc), syncedAt: r.syncedAt })).sort((a, b) => (a.name ?? '~').localeCompare(b.name ?? '~'));
+    return rows
+      .map((r) => ({ id: r.id, name: dec(r.nameEnc), phone: dec(r.phoneEnc), email: dec(r.emailEnc), syncedAt: r.syncedAt }))
+      .sort((a, b) => (a.name ?? '~').localeCompare(b.name ?? '~'));
   }
 }

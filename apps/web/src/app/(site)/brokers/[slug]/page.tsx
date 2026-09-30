@@ -16,7 +16,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const b = await sget<any>(`/brokers/${slug}`, 120);
   if (!b) return { title: 'Broker not found' };
-  return { title: `${b.name} — real estate broker in Gurgaon`, description: (b.about ?? `${b.name}: verified property listings and expert advice in Gurgaon.`).slice(0, 160), openGraph: { images: b.coverUrl ? [b.coverUrl] : b.logoUrl ? [b.logoUrl] : undefined } };
+  return {
+    title: `${b.name} — real estate broker in Gurgaon`,
+    description: (b.about ?? `${b.name}: verified property listings and expert advice in Gurgaon.`).slice(0, 160),
+    openGraph: { images: b.coverUrl ? [b.coverUrl] : b.logoUrl ? [b.logoUrl] : undefined },
+  };
 }
 
 export default async function BrokerPage({ params }: Props) {
@@ -26,12 +30,7 @@ export default async function BrokerPage({ params }: Props) {
   return (
     <PageShell>
       <div className="relative h-56 overflow-hidden sm:h-72">
-        {b.coverUrl ? (
-           
-          <img src={img(b.coverUrl, 1800)} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="mesh-hero h-full w-full" />
-        )}
+        {b.coverUrl ? <img src={img(b.coverUrl, 1800)} alt="" className="h-full w-full object-cover" /> : <div className="mesh-hero h-full w-full" />}
       </div>
       <div className="container-x relative -mt-16">
         <div className="card flex flex-col gap-6 p-6 sm:flex-row sm:items-end">
@@ -105,7 +104,11 @@ export default async function BrokerPage({ params }: Props) {
                     </div>
                   </div>
                   {r.comment && <p className="mt-3 text-sm text-muted">{r.comment}</p>}
-                  {r.reply && <p className="mt-3 rounded-xl bg-surface-2 p-3 text-sm"><b>{b.name}:</b> {r.reply}</p>}
+                  {r.reply && (
+                    <p className="mt-3 rounded-xl bg-surface-2 p-3 text-sm">
+                      <b>{b.name}:</b> {r.reply}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -117,7 +120,11 @@ export default async function BrokerPage({ params }: Props) {
               <h3 className="font-display font-bold">Expert in</h3>
               <div className="mt-3 flex flex-wrap gap-2">
                 {b.localities.map((l: any) => (
-                  <a key={l.id} href={`/locality/${l.slug}`} className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                  <a
+                    key={l.id}
+                    href={`/locality/${l.slug}`}
+                    className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
+                  >
                     {l.name}
                   </a>
                 ))}

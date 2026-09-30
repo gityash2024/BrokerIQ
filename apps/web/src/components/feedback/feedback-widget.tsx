@@ -33,7 +33,19 @@ export function FeedbackForm({ onDone, compact }: { onDone?: () => void; compact
     e.preventDefault();
     setLoading(true);
     try {
-      await api('/feedback', { method: 'POST', body: { type, title, description, rating, screenshots: shots.map((s) => s.url), platform: 'WEB', pageUrl: pathname, contactEmail: user ? undefined : email } });
+      await api('/feedback', {
+        method: 'POST',
+        body: {
+          type,
+          title,
+          description,
+          rating,
+          screenshots: shots.map((s) => s.url),
+          platform: 'WEB',
+          pageUrl: pathname,
+          contactEmail: user ? undefined : email,
+        },
+      });
       toast.success('धन्यवाद! आपका feedback team तक पहुँच गया 🙏');
       setTitle('');
       setDescription('');
@@ -49,17 +61,38 @@ export function FeedbackForm({ onDone, compact }: { onDone?: () => void; compact
     <form onSubmit={submit} className="space-y-4">
       <div className={cn('grid gap-2', compact ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-5')}>
         {TYPES.map((t) => (
-          <button key={t.v} type="button" onClick={() => setType(t.v)} className={cn('flex flex-col items-center gap-1 rounded-xl border-2 p-2.5 text-[11px] font-semibold transition', type === t.v ? 'border-brand-600 bg-brand-50 dark:bg-brand-500/10' : 'border-line hover:border-brand-300')}>
+          <button
+            key={t.v}
+            type="button"
+            onClick={() => setType(t.v)}
+            className={cn(
+              'flex flex-col items-center gap-1 rounded-xl border-2 p-2.5 text-[11px] font-semibold transition',
+              type === t.v ? 'border-brand-600 bg-brand-50 dark:bg-brand-500/10' : 'border-line hover:border-brand-300',
+            )}
+          >
             <t.icon className={cn('size-5', t.c)} />
             {t.l}
           </button>
         ))}
       </div>
       <Field label="Title" required>
-        <Input required minLength={4} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === 'BUG' ? 'क्या गड़बड़ हुई?' : type === 'FEATURE' ? 'कौन-सा feature चाहिए?' : 'Short title'} />
+        <Input
+          required
+          minLength={4}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={type === 'BUG' ? 'क्या गड़बड़ हुई?' : type === 'FEATURE' ? 'कौन-सा feature चाहिए?' : 'Short title'}
+        />
       </Field>
       <Field label="Details" required>
-        <Textarea required minLength={10} rows={compact ? 3 : 5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="जितना detail में लिखेंगे, उतनी जल्दी हम सुधार पाएँगे।" />
+        <Textarea
+          required
+          minLength={10}
+          rows={compact ? 3 : 5}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="जितना detail में लिखेंगे, उतनी जल्दी हम सुधार पाएँगे।"
+        />
       </Field>
       <div>
         <p className="mb-1.5 text-[13px] font-semibold">BrokerIQ को कितने stars देंगे?</p>
@@ -102,7 +135,13 @@ export function FeedbackWidget() {
       <AnimatePresence>
         {open && (
           <>
-            <motion.div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} />
+            <motion.div
+              className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+            />
             <motion.div
               initial={{ opacity: 0, y: 30, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -114,7 +153,11 @@ export function FeedbackWidget() {
                 <div>
                   <h3 className="font-display text-lg font-bold">आपकी राय ज़रूरी है 💬</h3>
                   <p className="text-sm text-muted">
-                    Bug, नया feature या सुझाव — <a href="/feedback" className="text-brand-600">public roadmap</a> देखें
+                    Bug, नया feature या सुझाव —{' '}
+                    <a href="/feedback" className="text-brand-600">
+                      public roadmap
+                    </a>{' '}
+                    देखें
                   </p>
                 </div>
                 <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-subtle hover:bg-surface-2" aria-label="Close">

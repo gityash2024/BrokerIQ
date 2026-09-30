@@ -24,10 +24,18 @@ export class MaintenanceService {
   @Cron('0 30 3 * * *') // 09:00 IST
   async expireListings() {
     if (!env().JOBS_ENABLED) return;
-    const expired = await this.prisma.listing.findMany({ where: { status: 'ACTIVE', expiresAt: { lt: new Date() } }, select: { id: true, title: true, postedById: true, organizationId: true } });
+    const expired = await this.prisma.listing.findMany({
+      where: { status: 'ACTIVE', expiresAt: { lt: new Date() } },
+      select: { id: true, title: true, postedById: true, organizationId: true },
+    });
     for (const l of expired) {
       await this.prisma.listing.update({ where: { id: l.id }, data: { status: 'EXPIRED' } });
-      await this.notifications.notify(l.postedById, { kind: 'SYSTEM', title: 'Listing expire हो गई', body: `${l.title} — 1 click में renew करें`, link: l.organizationId ? '/broker/listings' : '/account/listings' });
+      await this.notifications.notify(l.postedById, {
+        kind: 'SYSTEM',
+        title: 'Listing expire हो गई',
+        body: `${l.title} — 1 click में renew करें`,
+        link: l.organizationId ? '/broker/listings' : '/account/listings',
+      });
     }
     if (expired.length) this.logger.log(`expired ${expired.length} listings`);
     await this.prisma.otpCode.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 86400_000) } } });
@@ -60,14 +68,24 @@ export class MaintenanceService {
   /** Saved-search alert on WhatsApp (platform number): text inside the 24h window, else approved template. */
   private async whatsappAlert(phone: string, name: string, count: number, link: string) {
     try {
-      const conv = await this.prisma.conversation.findFirst({ where: { organizationId: null, contactPhone: phone }, orderBy: { lastMessageAt: 'desc' }, select: { lastInboundAt: true } });
+      const conv = await this.prisma.conversation.findFirst({
+        where: { organizationId: null, contactPhone: phone },
+        orderBy: { lastMessageAt: 'desc' },
+        select: { lastInboundAt: true },
+      });
       if (conv?.lastInboundAt && Date.now() - conv.lastInboundAt.getTime() < 23 * 3600_000) {
         await this.wa.send(null, phone, { type: 'text', text: `🔔 "${name}" में ${count} नई properties: ${link}` }, { meta: { alert: true } });
         return;
       }
       const app = await this.settings.getAppConfig();
       const tpl = app.whatsappTemplates?.searchAlert;
-      if (tpl) await this.wa.send(null, phone, { type: 'template', name: tpl, language: app.whatsappTemplates.language || 'hi', params: [String(count), name, link] }, { meta: { alert: true } });
+      if (tpl)
+        await this.wa.send(
+          null,
+          phone,
+          { type: 'template', name: tpl, language: app.whatsappTemplates.language || 'hi', params: [String(count), name, link] },
+          { meta: { alert: true } },
+        );
     } catch (e) {
       this.logger.warn(`saved search WA ${phone}: ${(e as Error).message}`);
     }

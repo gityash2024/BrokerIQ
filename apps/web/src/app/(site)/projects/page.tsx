@@ -6,7 +6,10 @@ import { ProjectCard } from '@/components/site/cards';
 import { Empty } from '@/components/ui/misc';
 
 export const revalidate = 300;
-export const metadata: Metadata = { title: 'New projects in Gurgaon — RERA registered launches', description: 'New launch and under-construction residential & commercial projects in Gurgaon with prices, configurations, RERA details and brochures.' };
+export const metadata: Metadata = {
+  title: 'New projects in Gurgaon — RERA registered launches',
+  description: 'New launch and under-construction residential & commercial projects in Gurgaon with prices, configurations, RERA details and brochures.',
+};
 
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   await requireSaleListings();
@@ -29,7 +32,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
             ))}
           </div>
         ) : (
-          <Empty icon={<Building2 className="size-6" />} title="Projects जल्द आ रहे हैं" text="Super Admin → Master Data → Projects से नए projects जोड़े जा सकते हैं।" />
+          <Empty
+            icon={<Building2 className="size-6" />}
+            title="Projects जल्द आ रहे हैं"
+            text="Super Admin → Master Data → Projects से नए projects जोड़े जा सकते हैं।"
+          />
         )}
       </div>
     </PageShell>

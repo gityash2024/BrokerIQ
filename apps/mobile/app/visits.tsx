@@ -33,41 +33,80 @@ export default function Visits() {
   };
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
-      <Header title="Site visits" subtitle={`${start.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(end.getTime() - 1).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`} />
+      <Header
+        title="Site visits"
+        subtitle={`${start.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(end.getTime() - 1).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+      />
       <Row style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
         <Chip label="← पिछले 7 दिन" onPress={() => setDays(days - 7)} />
         <Chip label="आज से" active={days === 0} onPress={() => setDays(0)} />
         <Chip label="अगले 7 दिन →" onPress={() => setDays(days + 7)} />
       </Row>
-      {q.isError ? <ErrorView error={q.error} /> : (
+      {q.isError ? (
+        <ErrorView error={q.error} />
+      ) : (
         <FlatList
           data={q.data ?? []}
           keyExtractor={(x) => x.id}
           refreshing={q.isRefetching}
           onRefresh={() => q.refetch()}
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 40 }}
-          ListEmptyComponent={q.isLoading ? <Skeleton h={120} /> : <Empty icon={<CalendarCheck size={28} color={c.brand} />} title="कोई visit नहीं" text="Lead page से visit schedule करें।" />}
+          ListEmptyComponent={
+            q.isLoading ? (
+              <Skeleton h={120} />
+            ) : (
+              <Empty icon={<CalendarCheck size={28} color={c.brand} />} title="कोई visit नहीं" text="Lead page से visit schedule करें।" />
+            )
+          }
           renderItem={({ item: v, index }) => {
             const open = v.status === 'SCHEDULED' || v.status === 'CONFIRMED';
-            const loc = v.listing?.latitude ? `${v.listing.latitude},${v.listing.longitude}` : v.address ?? v.listing?.address;
+            const loc = v.listing?.latitude ? `${v.listing.latitude},${v.listing.longitude}` : (v.address ?? v.listing?.address);
             return (
               <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 30)}>
                 <Card style={{ padding: 14, gap: 8 }}>
                   <Row style={{ justifyContent: 'space-between' }}>
-                    <Txt v="bodyStrong" onPress={() => router.push(`/lead/${v.lead.id}`)}>{v.lead.name}</Txt>
+                    <Txt v="bodyStrong" onPress={() => router.push(`/lead/${v.lead.id}`)}>
+                      {v.lead.name}
+                    </Txt>
                     <Badge label={VISIT_STATUS_LABELS[v.status as VisitStatus]} color={TONE[v.status]} />
                   </Row>
-                  <Txt v="small" color="brand">{new Date(v.scheduledAt).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Txt>
-                  {!!(v.listing?.title || v.address) && <Row gap={4}><MapPin size={13} color={c.muted} /><Txt v="small" color="muted" style={{ flex: 1 }}>{v.listing?.title ?? v.address}</Txt></Row>}
-                  {v.checkInAt && <Txt v="caption" color="success">📍 Checked-in {new Date(v.checkInAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}</Txt>}
+                  <Txt v="small" color="brand">
+                    {new Date(v.scheduledAt).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                  </Txt>
+                  {!!(v.listing?.title || v.address) && (
+                    <Row gap={4}>
+                      <MapPin size={13} color={c.muted} />
+                      <Txt v="small" color="muted" style={{ flex: 1 }}>
+                        {v.listing?.title ?? v.address}
+                      </Txt>
+                    </Row>
+                  )}
+                  {v.checkInAt && (
+                    <Txt v="caption" color="success">
+                      📍 Checked-in {new Date(v.checkInAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                    </Txt>
+                  )}
                   <Row wrap gap={6}>
-                    <IconBtn onPress={() => Linking.openURL(`tel:${v.lead.phone}`)} style={{ backgroundColor: c.surface2 }}><Phone size={17} color={c.brand} /></IconBtn>
-                    {!!loc && <IconBtn onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(loc)}`)} style={{ backgroundColor: c.surface2 }}><Navigation size={17} color={c.brand} /></IconBtn>}
+                    <IconBtn onPress={() => Linking.openURL(`tel:${v.lead.phone}`)} style={{ backgroundColor: c.surface2 }}>
+                      <Phone size={17} color={c.brand} />
+                    </IconBtn>
+                    {!!loc && (
+                      <IconBtn
+                        onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(loc)}`)}
+                        style={{ backgroundColor: c.surface2 }}
+                      >
+                        <Navigation size={17} color={c.brand} />
+                      </IconBtn>
+                    )}
                     {open && v.status === 'SCHEDULED' && <Chip label="Confirm" onPress={() => upd.mutate({ id: v.id, status: 'CONFIRMED' })} />}
                     {open && !v.checkInAt && <Chip label="📍 Check-in" onPress={() => checkIn(v)} />}
                     {open && <Chip label="✓ Done" color={c.success} active onPress={() => (setDone(v), setFb({ feedback: '', rating: 0 }))} />}
                     {open && new Date(v.scheduledAt) < new Date() && <Chip label="No-show" onPress={() => upd.mutate({ id: v.id, status: 'NO_SHOW' })} />}
-                    {open && new Date(v.scheduledAt) > new Date() && <IconBtn onPress={() => upd.mutate({ id: v.id, status: 'CANCELLED' })}><X size={17} color={c.muted} /></IconBtn>}
+                    {open && new Date(v.scheduledAt) > new Date() && (
+                      <IconBtn onPress={() => upd.mutate({ id: v.id, status: 'CANCELLED' })}>
+                        <X size={17} color={c.muted} />
+                      </IconBtn>
+                    )}
                   </Row>
                 </Card>
               </Animated.View>
@@ -76,9 +115,25 @@ export default function Visits() {
         />
       )}
       <Sheet open={!!done} onClose={() => setDone(null)} title="Visit कैसी रही?">
-        <Row>{[1, 2, 3, 4, 5].map((n) => <PressableScale key={n} onPress={() => setFb({ ...fb, rating: n })}><Star size={34} color="#F59E0B" fill={n <= fb.rating ? '#F59E0B' : 'transparent'} /></PressableScale>)}</Row>
+        <Row>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <PressableScale key={n} onPress={() => setFb({ ...fb, rating: n })}>
+              <Star size={34} color="#F59E0B" fill={n <= fb.rating ? '#F59E0B' : 'transparent'} />
+            </PressableScale>
+          ))}
+        </Row>
         <Input value={fb.feedback} onChangeText={(v) => setFb({ ...fb, feedback: v })} multiline placeholder="Client का feedback" />
-        <Button title="Save" variant="success" icon={<Check size={18} color="#fff" />} onPress={() => upd.mutate({ id: done.id, status: 'COMPLETED', feedback: fb.feedback || null, rating: fb.rating || null }, { onSuccess: () => (setDone(null), toast.success('Visit completed')) })} />
+        <Button
+          title="Save"
+          variant="success"
+          icon={<Check size={18} color="#fff" />}
+          onPress={() =>
+            upd.mutate(
+              { id: done.id, status: 'COMPLETED', feedback: fb.feedback || null, rating: fb.rating || null },
+              { onSuccess: () => (setDone(null), toast.success('Visit completed')) },
+            )
+          }
+        />
       </Sheet>
     </Screen>
   );

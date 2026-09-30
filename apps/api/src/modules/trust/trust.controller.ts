@@ -10,12 +10,45 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { AccessService } from '../../core/access/access.service';
 
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/);
-const slotsSchema = z.object({ days: z.array(z.number().int().min(0).max(6)).min(1).max(7), start: hhmm, end: hhmm, slotMinutes: z.number().int(), maxPerSlot: z.number().int().min(1).max(10) });
-const bookSchema = z.object({ at: z.string().datetime(), name: z.string().trim().min(2).max(80).optional().nullable(), phone: phoneSchema.optional().nullable(), note: z.string().max(300).optional().nullable() });
+const slotsSchema = z.object({
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  start: hhmm,
+  end: hhmm,
+  slotMinutes: z.number().int(),
+  maxPerSlot: z.number().int().min(1).max(10),
+});
+const bookSchema = z.object({
+  at: z.string().datetime(),
+  name: z.string().trim().min(2).max(80).optional().nullable(),
+  phone: phoneSchema.optional().nullable(),
+  note: z.string().max(300).optional().nullable(),
+});
 const rating = z.number().int().min(1).max(5);
-const reviewSchema = z.object({ societyName: z.string().trim().max(80).optional().nullable(), water: rating, power: rating, safety: rating, parking: rating, connectivity: rating, maintenance: rating, pros: z.string().max(800).optional().nullable(), cons: z.string().max(800).optional().nullable(), isResident: z.boolean().default(true), livedYears: z.number().int().min(0).max(60).optional().nullable() });
-const tokenSchema = z.object({ amount: z.number().min(100).max(10_000_000), mode: z.enum(['UPI', 'CASH', 'BANK', 'OTHER']).default('UPI'), ref: z.string().max(80).optional().nullable(), notes: z.string().max(300).optional().nullable() });
-const photoSchema = z.object({ photos: z.array(z.object({ url: z.string().url(), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })).min(1).max(12) });
+const reviewSchema = z.object({
+  societyName: z.string().trim().max(80).optional().nullable(),
+  water: rating,
+  power: rating,
+  safety: rating,
+  parking: rating,
+  connectivity: rating,
+  maintenance: rating,
+  pros: z.string().max(800).optional().nullable(),
+  cons: z.string().max(800).optional().nullable(),
+  isResident: z.boolean().default(true),
+  livedYears: z.number().int().min(0).max(60).optional().nullable(),
+});
+const tokenSchema = z.object({
+  amount: z.number().min(100).max(10_000_000),
+  mode: z.enum(['UPI', 'CASH', 'BANK', 'OTHER']).default('UPI'),
+  ref: z.string().max(80).optional().nullable(),
+  notes: z.string().max(300).optional().nullable(),
+});
+const photoSchema = z.object({
+  photos: z
+    .array(z.object({ url: z.string().url(), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
+    .min(1)
+    .max(12),
+});
 
 @ApiTags('trust')
 @Controller()
@@ -93,7 +126,10 @@ export class TrustController {
   }
 
   @Patch('me/tenant-profile')
-  updateTenantProfile(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ occupation: z.string().max(60).optional().nullable(), employer: z.string().max(80).optional().nullable() }))) body: any) {
+  updateTenantProfile(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ occupation: z.string().max(60).optional().nullable(), employer: z.string().max(80).optional().nullable() }))) body: any,
+  ) {
     return this.trust.updateTenantProfile(user.id, body);
   }
 
@@ -167,7 +203,11 @@ export class TrustController {
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Feature('visit_tokens')
   @Patch('broker/tokens/:id')
-  markToken(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ status: z.enum(['RECEIVED', 'REFUNDED', 'CANCELLED']), notes: z.string().max(300).optional().nullable() }))) body: any) {
+  markToken(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ status: z.enum(['RECEIVED', 'REFUNDED', 'CANCELLED']), notes: z.string().max(300).optional().nullable() }))) body: any,
+  ) {
     return this.trust.markToken(user, id, body.status, body.notes);
   }
 }

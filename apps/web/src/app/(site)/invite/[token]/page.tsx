@@ -47,7 +47,10 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
             </Button>
             {!user && (
               <p className="mt-3 text-sm text-muted">
-                Account नहीं है? <a className="text-brand-600" href={`/signup?next=/invite/${token}`}>{q.data.email} से sign up करें</a>
+                Account नहीं है?{' '}
+                <a className="text-brand-600" href={`/signup?next=/invite/${token}`}>
+                  {q.data.email} से sign up करें
+                </a>
               </p>
             )}
           </div>

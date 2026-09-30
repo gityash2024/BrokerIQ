@@ -51,23 +51,44 @@ function Boost() {
     <Screen edges={['top', 'bottom']}>
       <Header title="Listing boost करें" subtitle={title} />
       <LinearGradient colors={['#F59E0B', '#EA580C']} style={{ borderRadius: 24, padding: 22, gap: 8, marginTop: 8 }}>
-        <Animated.View entering={ZoomIn.springify()}><Rocket size={40} color="#fff" /></Animated.View>
-        <Txt v="h1" color="white">Featured listing</Txt>
+        <Animated.View entering={ZoomIn.springify()}>
+          <Rocket size={40} color="#fff" />
+        </Animated.View>
+        <Txt v="h1" color="white">
+          Featured listing
+        </Txt>
         <Txt color="rgba(255,255,255,0.9)">Search में सबसे ऊपर, homepage पर “Handpicked” में, और Featured badge — औसतन कई गुना ज़्यादा views और enquiries।</Txt>
       </LinearGradient>
-      <Txt v="label" color="subtle" style={{ marginTop: 22, marginBottom: 10 }}>Duration</Txt>
+      <Txt v="label" color="subtle" style={{ marginTop: 22, marginBottom: 10 }}>
+        Duration
+      </Txt>
       <Row wrap gap={10}>
         {[1, 2, 4, 8].map((w) => (
-          <Card key={w} onPress={() => setWeeks(w)} style={{ width: '47%', padding: 16, gap: 4, borderColor: weeks === w ? c.brand : c.line, borderWidth: weeks === w ? 2 : 1 }}>
-            <Txt v="h2">{w} week{w > 1 ? 's' : ''}</Txt>
-            <Txt v="small" color="muted">{formatINR(per * w)} + GST</Txt>
-            {w === 4 && <Txt v="caption" color="success">Most popular</Txt>}
+          <Card
+            key={w}
+            onPress={() => setWeeks(w)}
+            style={{ width: '47%', padding: 16, gap: 4, borderColor: weeks === w ? c.brand : c.line, borderWidth: weeks === w ? 2 : 1 }}
+          >
+            <Txt v="h2">
+              {w} week{w > 1 ? 's' : ''}
+            </Txt>
+            <Txt v="small" color="muted">
+              {formatINR(per * w)} + GST
+            </Txt>
+            {w === 4 && (
+              <Txt v="caption" color="success">
+                Most popular
+              </Txt>
+            )}
           </Card>
         ))}
       </Row>
       <View style={{ marginTop: 20, gap: 6 }}>
         {['Search results में top placement', 'Homepage featured section', 'Featured badge और highlighted card', 'Payment पर GST invoice'].map((t) => (
-          <Row key={t}><Check size={16} color={c.success} /><Txt v="small">{t}</Txt></Row>
+          <Row key={t}>
+            <Check size={16} color={c.success} />
+            <Txt v="small">{t}</Txt>
+          </Row>
         ))}
       </View>
       <Button title={`Pay ${formatINR(total)} (incl. ${gst}% GST)`} size="lg" style={{ marginTop: 24 }} loading={busy} onPress={pay} />

@@ -1,13 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, type LeadSource, type LeadStage } from '@prisma/client';
-import {
-  LEAD_SOURCE_LABELS,
-  LEAD_STAGE_LABELS,
-  formatPriceShort,
-  normalizeIndianPhone,
-  type LeadInput,
-  type LeadRequirementInput,
-} from '@brokeriq/shared';
+import { LEAD_SOURCE_LABELS, LEAD_STAGE_LABELS, formatPriceShort, normalizeIndianPhone, type LeadInput, type LeadRequirementInput } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -184,7 +177,11 @@ export class LeadsService {
       const admins = await this.prisma.user.findMany({ where: { organizationId: orgId, role: 'BROKER_ADMIN', status: 'ACTIVE' }, select: { email: true } });
       if (admins.length) {
         this.mail
-          .trySendTemplate('lead.new', admins.map((a) => a.email), { lead, source: LEAD_SOURCE_LABELS[lead.source], link: `${env().PUBLIC_WEB_URL}${link}` })
+          .trySendTemplate(
+            'lead.new',
+            admins.map((a) => a.email),
+            { lead, source: LEAD_SOURCE_LABELS[lead.source], link: `${env().PUBLIC_WEB_URL}${link}` },
+          )
           .catch(() => undefined);
       }
     }
@@ -204,7 +201,14 @@ export class LeadsService {
     if (q.to) and.push({ createdAt: { lte: new Date(q.to) } });
     if (q.q) {
       const s = q.q.trim();
-      and.push({ OR: [{ name: { contains: s, mode: 'insensitive' } }, { phone: { contains: s.replace(/\s/g, '') } }, { email: { contains: s, mode: 'insensitive' } }, { sourceDetail: { contains: s, mode: 'insensitive' } }] });
+      and.push({
+        OR: [
+          { name: { contains: s, mode: 'insensitive' } },
+          { phone: { contains: s.replace(/\s/g, '') } },
+          { email: { contains: s, mode: 'insensitive' } },
+          { sourceDetail: { contains: s, mode: 'insensitive' } },
+        ],
+      });
     }
     switch (q.view) {
       case 'unassigned':
@@ -310,7 +314,7 @@ export class LeadsService {
     if (assignedToId !== undefined && assignedToId !== lead.assignedToId) await this.assign(id, assignedToId, user);
     const data: Prisma.LeadUpdateInput = { ...(rest as any), email: rest.email === '' ? null : rest.email };
     if (phone) data.phone = normalizeIndianPhone(phone) ?? phone;
-    if (alternatePhone !== undefined) data.alternatePhone = alternatePhone ? normalizeIndianPhone(alternatePhone) ?? alternatePhone : null;
+    if (alternatePhone !== undefined) data.alternatePhone = alternatePhone ? (normalizeIndianPhone(alternatePhone) ?? alternatePhone) : null;
     delete (data as any).source;
     delete (data as any).listingId;
     if (rest.listingId !== undefined) data.listing = rest.listingId ? { connect: { id: rest.listingId } } : { disconnect: true };
@@ -330,7 +334,7 @@ export class LeadsService {
       data: {
         stage,
         stageChangedAt: new Date(),
-        lostReason: stage === 'LOST' ? lostReason ?? null : null,
+        lostReason: stage === 'LOST' ? (lostReason ?? null) : null,
         lastActivityAt: new Date(),
         firstResponseAt: lead.firstResponseAt ?? (stage !== 'NEW' ? new Date() : null),
         activities: {
@@ -378,7 +382,13 @@ export class LeadsService {
     });
     await this.prisma.followUp.updateMany({ where: { leadId: id, status: 'PENDING' }, data: { assignedToId: assigneeId } });
     if (assignee && assignee.id !== user?.id) {
-      await this.notifications.notify(assignee.id, { kind: 'LEAD_ASSIGNED', title: `Lead assigned: ${lead.name}`, body: `${LEAD_SOURCE_LABELS[lead.source]} · ${lead.phone}`, link: `/broker/leads/${id}`, data: { leadId: id } });
+      await this.notifications.notify(assignee.id, {
+        kind: 'LEAD_ASSIGNED',
+        title: `Lead assigned: ${lead.name}`,
+        body: `${LEAD_SOURCE_LABELS[lead.source]} · ${lead.phone}`,
+        link: `/broker/leads/${id}`,
+        data: { leadId: id },
+      });
     }
     return { ok: true };
   }
@@ -400,7 +410,15 @@ export class LeadsService {
   async addActivity(id: string, input: { type: any; content?: string | null; callOutcome?: any; durationSec?: number | null }, user: RequestUser) {
     const lead = await this.getScoped(id, user);
     const activity = await this.prisma.activity.create({
-      data: { organizationId: lead.organizationId, leadId: id, userId: user.id, type: input.type, content: input.content, callOutcome: input.callOutcome, durationSec: input.durationSec },
+      data: {
+        organizationId: lead.organizationId,
+        leadId: id,
+        userId: user.id,
+        type: input.type,
+        content: input.content,
+        callOutcome: input.callOutcome,
+        durationSec: input.durationSec,
+      },
       include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     });
     const patch: Prisma.LeadUpdateInput = { lastActivityAt: new Date() };
@@ -421,7 +439,9 @@ export class LeadsService {
 
   async bulk(user: RequestUser, body: { ids: string[]; action: 'assign' | 'stage' | 'tag' | 'delete'; value?: string | null }) {
     if (!body.ids?.length) return { updated: 0 };
-    const ids = (await this.prisma.lead.findMany({ where: { id: { in: body.ids.slice(0, 500) }, ...this.scope(user) }, select: { id: true } })).map((l) => l.id);
+    const ids = (await this.prisma.lead.findMany({ where: { id: { in: body.ids.slice(0, 500) }, ...this.scope(user) }, select: { id: true } })).map(
+      (l) => l.id,
+    );
     for (const id of ids) {
       if (body.action === 'assign') await this.assign(id, body.value ?? null, user);
       else if (body.action === 'stage' && body.value) await this.changeStage(id, body.value as LeadStage, user);
@@ -448,10 +468,19 @@ export class LeadsService {
       ...(r?.purpose ? { purpose: r.purpose } : {}),
       ...(r?.propertyTypes?.length ? { propertyType: { in: r.propertyTypes } } : {}),
       ...(r?.localityIds?.length ? { localityId: { in: r.localityIds } } : {}),
-      ...(r?.maxBudget ? { price: { lte: r.maxBudget * 1.1, ...(r.minBudget ? { gte: r.minBudget * 0.8 } : {}) } } : r?.minBudget ? { price: { gte: r.minBudget * 0.8 } } : {}),
+      ...(r?.maxBudget
+        ? { price: { lte: r.maxBudget * 1.1, ...(r.minBudget ? { gte: r.minBudget * 0.8 } : {}) } }
+        : r?.minBudget
+          ? { price: { gte: r.minBudget * 0.8 } }
+          : {}),
       ...(r?.bedrooms?.length ? { bedrooms: { in: r.bedrooms } } : {}),
     };
-    const listings = await this.prisma.listing.findMany({ where, take: 40, orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }], select: { ...LISTING_CARD_SELECT, localityId: true, amenities: true } });
+    const listings = await this.prisma.listing.findMany({
+      where,
+      take: 40,
+      orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
+      select: { ...LISTING_CARD_SELECT, localityId: true, amenities: true },
+    });
     const scored = listings.map((l) => {
       let score = 50;
       if (r?.localityIds?.includes(l.localityId)) score += 20;
@@ -471,7 +500,9 @@ export class LeadsService {
     await this.prisma.shareLink.create({ data: { code, organizationId: lead.organizationId, listingId, leadId: id, createdById: user.id } });
     const url = `${env().PUBLIC_WEB_URL}/s/${code}`;
     const text = `नमस्ते ${lead.name} 👋\nआपकी requirement के हिसाब से यह property देखिए:\n*${listing.title}*\n💰 ${formatPriceShort(listing.price)}${listing.purpose === 'RENT' ? '/month' : ''} · 📍 ${listing.locality.name}\n${url}`;
-    await this.prisma.activity.create({ data: { organizationId: lead.organizationId, leadId: id, userId: user.id, type: 'PROPERTY_SHARED', content: listing.title, meta: { listingId, code } } });
+    await this.prisma.activity.create({
+      data: { organizationId: lead.organizationId, leadId: id, userId: user.id, type: 'PROPERTY_SHARED', content: listing.title, meta: { listingId, code } },
+    });
     await this.prisma.lead.update({ where: { id }, data: { lastActivityAt: new Date() } });
     return { url, code, text };
   }
@@ -499,7 +530,10 @@ export class LeadsService {
       { feature: 'lead_insights', orgId: lead.organizationId, userId: user.id, maxTokens: 700, temperature: 0.2, schema: leadInsightsSchema },
     );
     const score = Math.max(0, Math.min(100, Math.round(Number(out.score) || 0)));
-    await this.prisma.lead.update({ where: { id }, data: { aiSummary: out.summary, temperature: ['HOT', 'WARM', 'COLD'].includes(out.temperature) ? out.temperature : undefined, score } });
+    await this.prisma.lead.update({
+      where: { id },
+      data: { aiSummary: out.summary, temperature: ['HOT', 'WARM', 'COLD'].includes(out.temperature) ? out.temperature : undefined, score },
+    });
     return { ...out, score };
   }
 
@@ -515,7 +549,19 @@ export class LeadsService {
       page++;
     }
     const header = ['Name', 'Phone', 'Email', 'Source', 'Stage', 'Temperature', 'Assigned to', 'Tags', 'Created', 'Last activity', 'Notes'];
-    const rows = all.map((l) => [l.name, l.phone, l.email ?? '', LEAD_SOURCE_LABELS[l.source], LEAD_STAGE_LABELS[l.stage], l.temperature ?? '', l.assignedTo?.name ?? '', l.tags.join('|'), l.createdAt.toISOString(), l.lastActivityAt?.toISOString() ?? '', (l.notes ?? '').replace(/\s+/g, ' ')]);
+    const rows = all.map((l) => [
+      l.name,
+      l.phone,
+      l.email ?? '',
+      LEAD_SOURCE_LABELS[l.source],
+      LEAD_STAGE_LABELS[l.stage],
+      l.temperature ?? '',
+      l.assignedTo?.name ?? '',
+      l.tags.join('|'),
+      l.createdAt.toISOString(),
+      l.lastActivityAt?.toISOString() ?? '',
+      (l.notes ?? '').replace(/\s+/g, ' '),
+    ]);
     return [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
   }
 
@@ -535,7 +581,16 @@ export class LeadsService {
         continue;
       }
       try {
-        const res = await this.ingest({ orgId, name: get('name', 'full name', 'customer name'), phone, email: get('email', 'email id'), source: 'CSV_IMPORT', message: get('notes', 'requirement', 'remarks', 'message'), sourceDetail: get('source', 'project', 'property'), actorId: user.id });
+        const res = await this.ingest({
+          orgId,
+          name: get('name', 'full name', 'customer name'),
+          phone,
+          email: get('email', 'email id'),
+          source: 'CSV_IMPORT',
+          message: get('notes', 'requirement', 'remarks', 'message'),
+          sourceDetail: get('source', 'project', 'property'),
+          actorId: user.id,
+        });
         if (res.isNew) created++;
         else merged++;
       } catch (e) {

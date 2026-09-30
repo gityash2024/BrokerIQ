@@ -59,8 +59,14 @@ export const POSSESSION_LABELS: Record<PossessionStatus, string> = {
 };
 
 export const FACING_LABELS: Record<Facing, string> = {
-  NORTH: 'North', SOUTH: 'South', EAST: 'East', WEST: 'West',
-  NORTH_EAST: 'North-East', NORTH_WEST: 'North-West', SOUTH_EAST: 'South-East', SOUTH_WEST: 'South-West',
+  NORTH: 'North',
+  SOUTH: 'South',
+  EAST: 'East',
+  WEST: 'West',
+  NORTH_EAST: 'North-East',
+  NORTH_WEST: 'North-West',
+  SOUTH_EAST: 'South-East',
+  SOUTH_WEST: 'South-West',
 };
 
 export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {

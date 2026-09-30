@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, BedDouble, Bell, Building2, Calculator, KeyRound, Landmark, Search, Sofa, Sparkles, Store , ClipboardList } from 'lucide-react-native';
+import { ArrowRight, BedDouble, Bell, Building2, Calculator, KeyRound, Landmark, Search, Sofa, Sparkles, Store, ClipboardList } from 'lucide-react-native';
 import { api, img } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig, useFlag } from '@/lib/config';
@@ -31,27 +31,66 @@ function Hero({ s }: { s: any }) {
   const stats = s?.data ?? {};
   const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications'), enabled: !!user });
   return (
-    <LinearGradient colors={['#1E1B4B', '#3730A3', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden' }}>
-      {!!s?.config?.backgroundUrl && <Image source={{ uri: img(s.config.backgroundUrl, 1000) }} style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.25 }} contentFit="cover" />}
+    <LinearGradient
+      colors={['#1E1B4B', '#3730A3', '#4F46E5']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{ borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden' }}
+    >
+      {!!s?.config?.backgroundUrl && (
+        <Image
+          source={{ uri: img(s.config.backgroundUrl, 1000) }}
+          style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.25 }}
+          contentFit="cover"
+        />
+      )}
       <View style={{ position: 'absolute', right: -60, top: -40, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(245,158,11,0.25)' }} />
       <SafeAreaView edges={['top']} style={{ paddingHorizontal: 20, paddingBottom: 28 }}>
         <Row style={{ justifyContent: 'space-between', paddingTop: 6 }}>
           <View>
-            <Txt v="caption" color="rgba(255,255,255,0.7)">{user ? `नमस्ते, ${user.name.split(' ')[0]} 👋` : `${app.city} में आपका स्वागत है`}</Txt>
-            <Txt v="h2" color="white">{app.siteName}</Txt>
+            <Txt v="caption" color="rgba(255,255,255,0.7)">
+              {user ? `नमस्ते, ${user.name.split(' ')[0]} 👋` : `${app.city} में आपका स्वागत है`}
+            </Txt>
+            <Txt v="h2" color="white">
+              {app.siteName}
+            </Txt>
           </View>
-          <IconBtn onPress={() => router.push(user ? '/notifications' : '/login')} badge={notif.data?.unreadCount} style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}>
+          <IconBtn
+            onPress={() => router.push(user ? '/notifications' : '/login')}
+            badge={notif.data?.unreadCount}
+            style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}
+          >
             <Bell size={20} color="#fff" />
           </IconBtn>
         </Row>
         <Animated.View entering={FadeInDown.duration(500)}>
-          <Txt v="display" color="white" style={{ marginTop: 22 }}>{s?.title ?? `${app.city} में अपना अगला घर ढूँढिए`}</Txt>
-          {!!s?.subtitle && <Txt color="rgba(255,255,255,0.75)" style={{ marginTop: 8 }} numberOfLines={2}>{s.subtitle}</Txt>}
+          <Txt v="display" color="white" style={{ marginTop: 22 }}>
+            {s?.title ?? `${app.city} में अपना अगला घर ढूँढिए`}
+          </Txt>
+          {!!s?.subtitle && (
+            <Txt color="rgba(255,255,255,0.75)" style={{ marginTop: 8 }} numberOfLines={2}>
+              {s.subtitle}
+            </Txt>
+          )}
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(120).duration(500)}>
-          <PressableScale onPress={() => router.push('/(user)/search')} style={{ marginTop: 20, height: 54, borderRadius: 18, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
+          <PressableScale
+            onPress={() => router.push('/(user)/search')}
+            style={{
+              marginTop: 20,
+              height: 54,
+              borderRadius: 18,
+              backgroundColor: '#fff',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              paddingHorizontal: 16,
+            }}
+          >
             <Search size={20} color={palette.brand[600]} />
-            <Txt color="#64748B" style={{ flex: 1 }}>Sector, society या project खोजें…</Txt>
+            <Txt color="#64748B" style={{ flex: 1 }}>
+              Sector, society या project खोजें…
+            </Txt>
             <View style={{ backgroundColor: palette.saffron[500], borderRadius: 12, padding: 8 }}>
               <ArrowRight size={16} color="#111" />
             </View>
@@ -61,19 +100,49 @@ function Hero({ s }: { s: any }) {
           {QUICK.map((q, i) => (
             <Animated.View key={q.label} entering={FadeInDown.delay(200 + i * 60)}>
               <PressableScale onPress={() => router.push({ pathname: '/(user)/search', params: q.params })} style={{ alignItems: 'center', gap: 6, width: 72 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+                <View
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 18,
+                    backgroundColor: 'rgba(255,255,255,0.14)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.2)',
+                  }}
+                >
                   <q.icon size={22} color="#fff" />
                 </View>
-                <Txt v="caption" color="white" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{q.label}</Txt>
+                <Txt v="caption" color="white" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                  {q.label}
+                </Txt>
               </PressableScale>
             </Animated.View>
           ))}
         </Row>
         {requirementsOn && (
-        <PressableScale onPress={() => router.push(user ? '/requirements' : '/login')} style={{ marginTop: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }}>
-          <ClipboardList size={16} color="#fff" />
-          <Txt v="small" color="white">अपनी ज़रूरत बताएँ — मिलती property पर alert</Txt>
-        </PressableScale>
+          <PressableScale
+            onPress={() => router.push(user ? '/requirements' : '/login')}
+            style={{
+              marginTop: 16,
+              alignSelf: 'flex-start',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              borderRadius: 999,
+              backgroundColor: 'rgba(255,255,255,0.14)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.25)',
+            }}
+          >
+            <ClipboardList size={16} color="#fff" />
+            <Txt v="small" color="white">
+              अपनी ज़रूरत बताएँ — मिलती property पर alert
+            </Txt>
+          </PressableScale>
         )}
         {[stats.listings, stats.localities, stats.brokers].some(showStat) && (
           <Row gap={20} wrap style={{ marginTop: 20, rowGap: 10, alignItems: 'flex-start' }}>
@@ -85,8 +154,12 @@ function Hero({ s }: { s: any }) {
               .filter(([n]) => showStat(n))
               .map(([n, l]) => (
                 <View key={l as string} style={{ maxWidth: 160 }}>
-                  <Txt v="h2" color="white">{Number(n).toLocaleString('en-IN')}+</Txt>
-                  <Txt v="caption" color="rgba(255,255,255,0.6)" numberOfLines={2}>{l}</Txt>
+                  <Txt v="h2" color="white">
+                    {Number(n).toLocaleString('en-IN')}+
+                  </Txt>
+                  <Txt v="caption" color="rgba(255,255,255,0.6)" numberOfLines={2}>
+                    {l}
+                  </Txt>
                 </View>
               ))}
           </Row>
@@ -130,7 +203,13 @@ function Section({ s }: { s: any }) {
     case 'FEATURED_LISTINGS':
       return items.length ? (
         <>
-          <T action={<Txt v="small" color="brand" onPress={() => router.push('/(user)/search')}>सब देखें</Txt>} />
+          <T
+            action={
+              <Txt v="small" color="brand" onPress={() => router.push('/(user)/search')}>
+                सब देखें
+              </Txt>
+            }
+          />
           <HScroll data={items} keyOf={(x) => x.id} render={(l) => <ListingCard l={l} width={290} />} />
         </>
       ) : null;
@@ -158,11 +237,17 @@ function Section({ s }: { s: any }) {
               { label: 'Move-in cost', icon: Calculator, tint: c.brand, tab: 'movein' },
               { label: 'Rent split', icon: Landmark, tint: c.accent, tab: 'split' },
             ].map((t) => (
-              <Card key={t.label} onPress={() => router.push({ pathname: '/tools', params: { tab: t.tab } })} style={{ flex: 1, padding: 14, gap: 8, alignItems: 'flex-start' }}>
+              <Card
+                key={t.label}
+                onPress={() => router.push({ pathname: '/tools', params: { tab: t.tab } })}
+                style={{ flex: 1, padding: 14, gap: 8, alignItems: 'flex-start' }}
+              >
                 <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: `${t.tint}22`, alignItems: 'center', justifyContent: 'center' }}>
                   <t.icon size={20} color={t.tint} />
                 </View>
-                <Txt v="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t.label}</Txt>
+                <Txt v="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                  {t.label}
+                </Txt>
               </Card>
             ))}
           </Row>
@@ -173,20 +258,43 @@ function Section({ s }: { s: any }) {
         <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
           <LinearGradient colors={['#F59E0B', '#EA580C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 20, gap: 8 }}>
             <Building2 size={28} color="#fff" />
-            <Txt v="h2" color="white">{s.title}</Txt>
+            <Txt v="h2" color="white">
+              {s.title}
+            </Txt>
             {!!s.subtitle && <Txt color="rgba(255,255,255,0.9)">{s.subtitle}</Txt>}
-            <Button title={s.config?.ctaLabel ?? 'Get started'} variant="dark" size="sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => router.push(!user ? '/login' : isBroker ? '/(broker)/dashboard' : '/broker-onboarding')} />
+            <Button
+              title={s.config?.ctaLabel ?? 'Get started'}
+              variant="dark"
+              size="sm"
+              style={{ alignSelf: 'flex-start', marginTop: 6 }}
+              onPress={() => router.push(!user ? '/login' : isBroker ? '/(broker)/dashboard' : '/broker-onboarding')}
+            />
           </LinearGradient>
         </View>
       );
     case 'BANNER':
       return s.config?.imageUrl ? (
         <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
-          <PressableScale onPress={() => s.config.link && Linking.openURL(String(s.config.link).startsWith('http') ? s.config.link : `${app.siteUrl}${s.config.link}`)} style={{ borderRadius: 22, overflow: 'hidden' }}>
+          <PressableScale
+            onPress={() => s.config.link && Linking.openURL(String(s.config.link).startsWith('http') ? s.config.link : `${app.siteUrl}${s.config.link}`)}
+            style={{ borderRadius: 22, overflow: 'hidden' }}
+          >
             <Image source={{ uri: img(s.config.imageUrl, 1000) }} style={{ width: '100%', aspectRatio: 2 }} contentFit="cover" />
             {!!s.config.sponsor && (
-              <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 }}>
-                <Txt v="caption" color="white">Sponsored · {s.config.sponsor}</Txt>
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  borderRadius: 99,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                }}
+              >
+                <Txt v="caption" color="white">
+                  Sponsored · {s.config.sponsor}
+                </Txt>
               </View>
             )}
           </PressableScale>
@@ -205,7 +313,9 @@ function Section({ s }: { s: any }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Txt v="bodyStrong">{it.title}</Txt>
-                    <Txt v="small" color="muted">{it.text}</Txt>
+                    <Txt v="small" color="muted">
+                      {it.text}
+                    </Txt>
                   </View>
                 </Card>
               </Animated.View>
@@ -227,7 +337,12 @@ export default function HomeScreen() {
   const hero = sections.find((s) => s.type === 'HERO');
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <Animated.ScrollView onScroll={scrim.onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <Animated.ScrollView
+        onScroll={scrim.onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
         <Hero s={hero} />
         {q.isError && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {q.isLoading && (
@@ -240,7 +355,11 @@ export default function HomeScreen() {
             <Skeleton h={260} r={22} />
           </View>
         )}
-        {sections.filter((s) => s.type !== 'HERO').map((s) => <Section key={s.id} s={s} />)}
+        {sections
+          .filter((s) => s.type !== 'HERO')
+          .map((s) => (
+            <Section key={s.id} s={s} />
+          ))}
       </Animated.ScrollView>
       {scrim.view}
     </View>

@@ -63,7 +63,13 @@ export function ProfileForm() {
           </label>
           <div>
             <p className="font-semibold">{user?.email}</p>
-            {user?.emailVerified ? <Badge tone="success"><BadgeCheck className="size-3" /> Email verified</Badge> : <Badge tone="warning">Email not verified</Badge>}
+            {user?.emailVerified ? (
+              <Badge tone="success">
+                <BadgeCheck className="size-3" /> Email verified
+              </Badge>
+            ) : (
+              <Badge tone="warning">Email not verified</Badge>
+            )}
           </div>
         </div>
         <div className="mt-5 space-y-4">
@@ -73,16 +79,30 @@ export function ProfileForm() {
           <Field label="Mobile" hint="Enquiries और chat के लिए ज़रूरी">
             <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           </Field>
-          <Button onClick={save} loading={saving}>Save</Button>
+          <Button onClick={save} loading={saving}>
+            Save
+          </Button>
         </div>
       </div>
       <div className="space-y-6">
         <div className="card p-6">
           <h2 className="font-display text-lg font-bold">Password</h2>
           <div className="mt-4 space-y-3">
-            <Input type="password" placeholder="Current password (अगर set है)" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
-            <Input type="password" placeholder="नया password (8+ अक्षर)" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
-            <Button variant="secondary" onClick={changePw} disabled={pw.newPassword.length < 8}>Update password</Button>
+            <Input
+              type="password"
+              placeholder="Current password (अगर set है)"
+              value={pw.currentPassword}
+              onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })}
+            />
+            <Input
+              type="password"
+              placeholder="नया password (8+ अक्षर)"
+              value={pw.newPassword}
+              onChange={(e) => setPw({ ...pw, newPassword: e.target.value })}
+            />
+            <Button variant="secondary" onClick={changePw} disabled={pw.newPassword.length < 8}>
+              Update password
+            </Button>
           </div>
         </div>
         <KycCard />
@@ -115,11 +135,20 @@ export function KycCard({ broker }: { broker?: boolean }) {
       <h2 className="flex items-center gap-2 font-display text-lg font-bold">
         <ShieldCheck className="size-5 text-emerald-500" /> Verification (KYC)
       </h2>
-      <p className="mt-1 text-sm text-muted">{broker ? 'RERA / GST document upload करें — verified badge से 3x ज़्यादा trust और leads।' : 'Ownership proof से आपकी listings पर “Verified” badge लगेगा।'}</p>
+      <p className="mt-1 text-sm text-muted">
+        {broker
+          ? 'RERA / GST document upload करें — verified badge से 3x ज़्यादा trust और leads।'
+          : 'Ownership proof से आपकी listings पर “Verified” badge लगेगा।'}
+      </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Select value={docType} onChange={(e) => setDocType(e.target.value)}>
-          {(broker ? ['RERA_CERTIFICATE', 'GST_CERTIFICATE', 'PAN', 'AADHAAR', 'OTHER'] : ['OWNERSHIP_PROOF', 'ELECTRICITY_BILL', 'AADHAAR', 'PAN', 'OTHER']).map((d) => (
-            <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>
+          {(broker
+            ? ['RERA_CERTIFICATE', 'GST_CERTIFICATE', 'PAN', 'AADHAAR', 'OTHER']
+            : ['OWNERSHIP_PROOF', 'ELECTRICITY_BILL', 'AADHAAR', 'PAN', 'OTHER']
+          ).map((d) => (
+            <option key={d} value={d}>
+              {d.replace(/_/g, ' ')}
+            </option>
           ))}
         </Select>
         <Input placeholder="Document number (optional)" value={docNumber} onChange={(e) => setDocNumber(e.target.value)} />
@@ -132,9 +161,17 @@ export function KycCard({ broker }: { broker?: boolean }) {
         <div className="mt-4 space-y-2">
           {q.data.map((d) => (
             <div key={d.id} className="flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-sm">
-              <a href={d.fileUrl} target="_blank" rel="noreferrer" className="font-medium hover:underline">{d.docType.replace(/_/g, ' ')}</a>
+              <a href={d.fileUrl} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+                {d.docType.replace(/_/g, ' ')}
+              </a>
               <span className="flex items-center gap-1 text-xs">
-                {d.status === 'VERIFIED' ? <BadgeCheck className="size-4 text-emerald-500" /> : d.status === 'REJECTED' ? <XCircle className="size-4 text-rose-500" /> : <Clock className="size-4 text-amber-500" />}
+                {d.status === 'VERIFIED' ? (
+                  <BadgeCheck className="size-4 text-emerald-500" />
+                ) : d.status === 'REJECTED' ? (
+                  <XCircle className="size-4 text-rose-500" />
+                ) : (
+                  <Clock className="size-4 text-amber-500" />
+                )}
                 {d.status} · {formatDate(d.createdAt)}
               </span>
             </div>

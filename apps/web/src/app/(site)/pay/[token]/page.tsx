@@ -22,7 +22,9 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
         <div className="card overflow-hidden">
           <div className="bg-gradient-to-br from-brand-700 to-violet-600 p-6 text-white">
             <p className="text-sm text-white/80">Invoice {inv.number}</p>
-            <p className="mt-1 font-display text-2xl font-extrabold" data-no-i18n>{inv.org.name}</p>
+            <p className="mt-1 font-display text-2xl font-extrabold" data-no-i18n>
+              {inv.org.name}
+            </p>
             <p className="mt-4 font-display text-4xl font-black">{formatINR(inv.total)}</p>
             {inv.dueDate && !paid && <p className="mt-1 text-sm text-white/80">Due {new Date(inv.dueDate).toLocaleDateString('en-IN')}</p>}
           </div>
@@ -45,18 +47,29 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
               )}
             </div>
             {paid ? (
-              <p className="rounded-xl bg-emerald-50 p-4 text-center font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">✓ Paid{inv.paidAt ? ` on ${new Date(inv.paidAt).toLocaleDateString('en-IN')}` : ''}</p>
+              <p className="rounded-xl bg-emerald-50 p-4 text-center font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                ✓ Paid{inv.paidAt ? ` on ${new Date(inv.paidAt).toLocaleDateString('en-IN')}` : ''}
+              </p>
             ) : inv.upi ? (
               <div className="space-y-3 text-center">
-                <a href={inv.upi} className="block rounded-2xl bg-emerald-600 px-5 py-4 font-bold text-white shadow-lg hover:bg-emerald-700">UPI app से pay करें</a>
-                { }
+                <a href={inv.upi} className="block rounded-2xl bg-emerald-600 px-5 py-4 font-bold text-white shadow-lg hover:bg-emerald-700">
+                  UPI app से pay करें
+                </a>
+                {}
                 <img src={`${API_URL}/api/public/invoices/${token}/qr`} alt="UPI QR" className="mx-auto size-52 rounded-xl border border-line bg-white p-2" />
-                <p className="text-xs text-muted">किसी भी UPI app (GPay, PhonePe, Paytm) से QR scan करें · UPI ID: <span data-no-i18n>{inv.org.upiId}</span></p>
+                <p className="text-xs text-muted">
+                  किसी भी UPI app (GPay, PhonePe, Paytm) से QR scan करें · UPI ID: <span data-no-i18n>{inv.org.upiId}</span>
+                </p>
               </div>
             ) : (
               <p className="rounded-xl bg-surface-2 p-4 text-sm text-muted">Payment के लिए broker से संपर्क करें{inv.org.phone ? `: ${inv.org.phone}` : ''}।</p>
             )}
-            <a href={`${API_URL}/api/public/invoices/${token}/pdf`} target="_blank" rel="noreferrer" className="block text-center text-sm font-semibold text-brand-600 hover:underline">
+            <a
+              href={`${API_URL}/api/public/invoices/${token}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center text-sm font-semibold text-brand-600 hover:underline"
+            >
               PDF download करें
             </a>
             <p className="text-center text-xs text-subtle">पैसा सीधे broker को जाता है — BrokerIQ payment नहीं रखता।</p>

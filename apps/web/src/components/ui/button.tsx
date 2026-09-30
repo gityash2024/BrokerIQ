@@ -14,7 +14,14 @@ const variants = {
   whatsapp: 'bg-[#25D366] text-white hover:bg-[#1fb857] active:scale-[0.98]',
   link: 'text-brand-600 hover:underline px-0 h-auto',
 } as const;
-const sizes = { xs: 'h-7 px-2.5 text-xs gap-1 rounded-lg', sm: 'h-9 px-3.5 text-sm gap-1.5 rounded-xl', md: 'h-11 px-5 text-sm gap-2 rounded-xl', lg: 'h-13 px-7 text-base gap-2 rounded-2xl', icon: 'h-10 w-10 rounded-xl', 'icon-sm': 'h-8 w-8 rounded-lg' } as const;
+const sizes = {
+  xs: 'h-7 px-2.5 text-xs gap-1 rounded-lg',
+  sm: 'h-9 px-3.5 text-sm gap-1.5 rounded-xl',
+  md: 'h-11 px-5 text-sm gap-2 rounded-xl',
+  lg: 'h-13 px-7 text-base gap-2 rounded-2xl',
+  icon: 'h-10 w-10 rounded-xl',
+  'icon-sm': 'h-8 w-8 rounded-lg',
+} as const;
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;
@@ -24,7 +31,10 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   external?: boolean;
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = 'primary', size = 'md', loading, className, children, href, external, disabled, ...rest }, ref) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'primary', size = 'md', loading, className, children, href, external, disabled, ...rest },
+  ref,
+) {
   const cls = cn(
     'inline-flex items-center justify-center font-semibold whitespace-nowrap transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 select-none',
     variants[variant],

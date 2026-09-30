@@ -65,7 +65,9 @@ export class AutomationService implements OnModuleInit {
     const count = await this.prisma.automationRule.count({ where: { organizationId: orgId, isActive: true } });
     if (input.isActive) await this.usage.assert(orgId, 'automations', count);
     this.validate(input);
-    return this.prisma.automationRule.create({ data: { organizationId: orgId, ...input, conditions: input.conditions as Prisma.InputJsonValue, actions: input.actions as Prisma.InputJsonValue } });
+    return this.prisma.automationRule.create({
+      data: { organizationId: orgId, ...input, conditions: input.conditions as Prisma.InputJsonValue, actions: input.actions as Prisma.InputJsonValue },
+    });
   }
 
   async update(orgId: string, id: string, input: Partial<AutomationRuleInput>) {
@@ -78,7 +80,11 @@ export class AutomationService implements OnModuleInit {
     if (input.actions) this.validate({ ...(rule as any), ...input });
     return this.prisma.automationRule.update({
       where: { id },
-      data: { ...input, conditions: (input.conditions ?? undefined) as Prisma.InputJsonValue | undefined, actions: (input.actions ?? undefined) as Prisma.InputJsonValue | undefined },
+      data: {
+        ...input,
+        conditions: (input.conditions ?? undefined) as Prisma.InputJsonValue | undefined,
+        actions: (input.actions ?? undefined) as Prisma.InputJsonValue | undefined,
+      },
     });
   }
 
@@ -88,7 +94,12 @@ export class AutomationService implements OnModuleInit {
   }
 
   runs(orgId: string, ruleId: string) {
-    return this.prisma.automationRun.findMany({ where: { ruleId, rule: { organizationId: orgId } }, orderBy: { createdAt: 'desc' }, take: 100, include: { lead: { select: { id: true, name: true } } } });
+    return this.prisma.automationRun.findMany({
+      where: { ruleId, rule: { organizationId: orgId } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { lead: { select: { id: true, name: true } } },
+    });
   }
 
   private validate(input: Pick<AutomationRuleInput, 'actions'>) {
@@ -109,7 +120,15 @@ export class AutomationService implements OnModuleInit {
         name: 'नई lead को तुरंत WhatsApp welcome',
         trigger: 'LEAD_CREATED',
         conditions: { sources: [], stages: [] },
-        actions: [{ type: 'SEND_WHATSAPP_TEXT', delayMinutes: 0, params: { text: 'नमस्ते {{lead.name}} 👋\n{{org.name}} से बात कर रहे हैं। आपकी enquiry मिल गई है — {{agent.name}} जल्दी ही आपसे संपर्क करेंगे। अपना budget, BHK और preferred location यहीं भेज दीजिए।' } }],
+        actions: [
+          {
+            type: 'SEND_WHATSAPP_TEXT',
+            delayMinutes: 0,
+            params: {
+              text: 'नमस्ते {{lead.name}} 👋\n{{org.name}} से बात कर रहे हैं। आपकी enquiry मिल गई है — {{agent.name}} जल्दी ही आपसे संपर्क करेंगे। अपना budget, BHK और preferred location यहीं भेज दीजिए।',
+            },
+          },
+        ],
         respectBusinessHours: false,
       },
       {
@@ -117,7 +136,10 @@ export class AutomationService implements OnModuleInit {
         name: 'Leads को team में बारी-बारी assign करें',
         trigger: 'LEAD_CREATED',
         conditions: { sources: [], stages: [] },
-        actions: [{ type: 'ASSIGN_ROUND_ROBIN', delayMinutes: 0, params: {} }, { type: 'CREATE_FOLLOW_UP', delayMinutes: 0, params: { inMinutes: 15, type: 'CALL', note: 'नई lead — 15 मिनट में call करें' } }],
+        actions: [
+          { type: 'ASSIGN_ROUND_ROBIN', delayMinutes: 0, params: {} },
+          { type: 'CREATE_FOLLOW_UP', delayMinutes: 0, params: { inMinutes: 15, type: 'CALL', note: 'नई lead — 15 मिनट में call करें' } },
+        ],
         respectBusinessHours: false,
       },
       {
@@ -126,9 +148,19 @@ export class AutomationService implements OnModuleInit {
         trigger: 'LEAD_CREATED',
         conditions: { sources: ['HOUSING', 'ACRES99', 'MAGICBRICKS', 'NOBROKER'], stages: [] },
         actions: [
-          { type: 'SEND_WHATSAPP_TEXT', delayMinutes: 0, params: { text: 'Hi {{lead.name}}, {{source}} पर आपकी enquiry के लिए धन्यवाद! मैं {{agent.name}}, {{org.name}} से। क्या आज बात करने का सही समय बता सकते हैं?' } },
+          {
+            type: 'SEND_WHATSAPP_TEXT',
+            delayMinutes: 0,
+            params: {
+              text: 'Hi {{lead.name}}, {{source}} पर आपकी enquiry के लिए धन्यवाद! मैं {{agent.name}}, {{org.name}} से। क्या आज बात करने का सही समय बता सकते हैं?',
+            },
+          },
           { type: 'CREATE_FOLLOW_UP', delayMinutes: 60 * 24, params: { inMinutes: 0, type: 'CALL', note: 'Day-1 follow-up call' } },
-          { type: 'SEND_WHATSAPP_TEXT', delayMinutes: 60 * 72, params: { text: '{{lead.name}} जी, आपकी requirement के हिसाब से कुछ नए options आए हैं — site visit plan करें?' } },
+          {
+            type: 'SEND_WHATSAPP_TEXT',
+            delayMinutes: 60 * 72,
+            params: { text: '{{lead.name}} जी, आपकी requirement के हिसाब से कुछ नए options आए हैं — site visit plan करें?' },
+          },
         ],
         respectBusinessHours: true,
       },
@@ -137,7 +169,10 @@ export class AutomationService implements OnModuleInit {
         name: '48 घंटे तक कोई activity नहीं तो alert',
         trigger: 'NO_ACTIVITY',
         conditions: { sources: [], stages: ['NEW', 'CONTACTED', 'INTERESTED'], noActivityHours: 48 },
-        actions: [{ type: 'NOTIFY_TEAM', delayMinutes: 0, params: { message: '⏰ {{lead.name}} पर 48 घंटे से कोई activity नहीं हुई' } }, { type: 'ADD_TAG', delayMinutes: 0, params: { tag: 'stale' } }],
+        actions: [
+          { type: 'NOTIFY_TEAM', delayMinutes: 0, params: { message: '⏰ {{lead.name}} पर 48 घंटे से कोई activity नहीं हुई' } },
+          { type: 'ADD_TAG', delayMinutes: 0, params: { tag: 'stale' } },
+        ],
         respectBusinessHours: false,
       },
       {
@@ -145,7 +180,13 @@ export class AutomationService implements OnModuleInit {
         name: 'Site visit schedule होते ही confirmation',
         trigger: 'VISIT_SCHEDULED',
         conditions: { sources: [], stages: [] },
-        actions: [{ type: 'SEND_WHATSAPP_TEXT', delayMinutes: 0, params: { text: 'नमस्ते {{lead.name}}, आपकी site visit {{visit.time}} पर confirm है। 📍 {{visit.address}}\n— {{agent.name}}, {{org.name}}' } }],
+        actions: [
+          {
+            type: 'SEND_WHATSAPP_TEXT',
+            delayMinutes: 0,
+            params: { text: 'नमस्ते {{lead.name}}, आपकी site visit {{visit.time}} पर confirm है। 📍 {{visit.address}}\n— {{agent.name}}, {{org.name}}' },
+          },
+        ],
         respectBusinessHours: false,
       },
     ];
@@ -180,7 +221,12 @@ export class AutomationService implements OnModuleInit {
       let runAt = new Date(Date.now() + (actions[i].delayMinutes ?? 0) * 60_000);
       if (rule.respectBusinessHours && hours?.enabled) runAt = nextBusinessTime(runAt, hours);
       if (runAt.getTime() - Date.now() < 5_000) await this.runAction(rule.id, leadId, i, ctx);
-      else await this.jobs.enqueue('automation.action', { ruleId: rule.id, leadId, index: i, context: ctx }, { runAt, key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}` });
+      else
+        await this.jobs.enqueue(
+          'automation.action',
+          { ruleId: rule.id, leadId, index: i, context: ctx },
+          { runAt, key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}` },
+        );
     }
   }
 
@@ -203,7 +249,12 @@ export class AutomationService implements OnModuleInit {
       agent: { name: lead.assignedTo?.name ?? lead.organization.name },
       listing: { title: lead.listing?.title ?? '', link: lead.listing ? `${env().PUBLIC_WEB_URL}/property/${lead.listing.slug}` : '' },
       source: LEAD_SOURCE_LABELS[lead.source],
-      visit: visit ? { time: visit.scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }), address: visit.address ?? visit.listing?.address ?? visit.listing?.title ?? '' } : {},
+      visit: visit
+        ? {
+            time: visit.scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }),
+            address: visit.address ?? visit.listing?.address ?? visit.listing?.title ?? '',
+          }
+        : {},
     };
     let status: 'SUCCESS' | 'FAILED' | 'SKIPPED' = 'SUCCESS';
     let message = '';
@@ -223,12 +274,23 @@ export class AutomationService implements OnModuleInit {
             message = 'WhatsApp not connected';
             break;
           }
-          if (action.type === 'SEND_WHATSAPP_TEXT') await this.wa.send(lead.organizationId, lead.phone, { type: 'text', text: renderTemplate(String(p.text), vars) }, { leadId, contactName: lead.name, meta: { automation: ruleId } });
+          if (action.type === 'SEND_WHATSAPP_TEXT')
+            await this.wa.send(
+              lead.organizationId,
+              lead.phone,
+              { type: 'text', text: renderTemplate(String(p.text), vars) },
+              { leadId, contactName: lead.name, meta: { automation: ruleId } },
+            );
           else
             await this.wa.send(
               lead.organizationId,
               lead.phone,
-              { type: 'template', name: String(p.templateName), language: String(p.language ?? 'en'), params: ((p.params as string[]) ?? []).map((x) => renderTemplate(String(x), vars)) },
+              {
+                type: 'template',
+                name: String(p.templateName),
+                language: String(p.language ?? 'en'),
+                params: ((p.params as string[]) ?? []).map((x) => renderTemplate(String(x), vars)),
+              },
               { leadId, contactName: lead.name, meta: { automation: ruleId } },
             );
           message = 'WhatsApp sent';
@@ -240,7 +302,12 @@ export class AutomationService implements OnModuleInit {
             message = 'lead has no email';
             break;
           }
-          await this.mail.send({ to: lead.email, subject: renderTemplate(String(p.subject), vars), html: renderTemplate(String(p.body), vars).replace(/\n/g, '<br/>'), replyTo: lead.organization.email ?? undefined });
+          await this.mail.send({
+            to: lead.email,
+            subject: renderTemplate(String(p.subject), vars),
+            html: renderTemplate(String(p.body), vars).replace(/\n/g, '<br/>'),
+            replyTo: lead.organization.email ?? undefined,
+          });
           message = 'Email sent';
           break;
         case 'ASSIGN_ROUND_ROBIN':
@@ -258,7 +325,14 @@ export class AutomationService implements OnModuleInit {
         case 'CREATE_FOLLOW_UP': {
           const fresh = await this.prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
           await this.prisma.followUp.create({
-            data: { organizationId: lead.organizationId, leadId, type: p.type ?? 'CALL', dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000), note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up', assignedToId: fresh.assignedToId },
+            data: {
+              organizationId: lead.organizationId,
+              leadId,
+              type: p.type ?? 'CALL',
+              dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000),
+              note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up',
+              assignedToId: fresh.assignedToId,
+            },
           });
           await this.leads.refreshNextFollowUp(leadId);
           message = 'Follow-up created';
@@ -322,12 +396,22 @@ export class AutomationService implements OnModuleInit {
   async followUpReminders() {
     if (!env().JOBS_ENABLED) return;
     const soon = new Date(Date.now() + 10 * 60_000);
-    const due = await this.prisma.followUp.findMany({ where: { status: 'PENDING', reminderSentAt: null, dueAt: { lte: soon } }, include: { lead: true }, take: 200 });
+    const due = await this.prisma.followUp.findMany({
+      where: { status: 'PENDING', reminderSentAt: null, dueAt: { lte: soon } },
+      include: { lead: true },
+      take: 200,
+    });
     for (const f of due) {
       await this.prisma.followUp.update({ where: { id: f.id }, data: { reminderSentAt: new Date() } });
       if (f.dueAt.getTime() < Date.now() - 6 * 3600_000) continue; // don't spam very old ones
       const who = f.assignedToId ?? f.lead.assignedToId;
-      const input = { kind: 'FOLLOW_UP_DUE', title: `⏰ Follow-up: ${f.lead.name}`, body: `${f.type}${f.note ? ` — ${f.note}` : ''}`, link: `/broker/leads/${f.leadId}`, data: { leadId: f.leadId, phone: f.lead.phone } };
+      const input = {
+        kind: 'FOLLOW_UP_DUE',
+        title: `⏰ Follow-up: ${f.lead.name}`,
+        body: `${f.type}${f.note ? ` — ${f.note}` : ''}`,
+        link: `/broker/leads/${f.leadId}`,
+        data: { leadId: f.leadId, phone: f.lead.phone },
+      };
       if (who) await this.notifications.notify(who, input);
       else await this.notifications.notifyOrg(f.organizationId, input, { adminsOnly: true });
     }
@@ -337,11 +421,19 @@ export class AutomationService implements OnModuleInit {
   async visitReminders() {
     if (!env().JOBS_ENABLED) return;
     const inHour = new Date(Date.now() + 60 * 60_000);
-    const visits = await this.prisma.siteVisit.findMany({ where: { status: { in: ['SCHEDULED', 'CONFIRMED'] }, reminderSentAt: null, scheduledAt: { lte: inHour, gte: new Date() } }, include: { lead: true, listing: true } });
+    const visits = await this.prisma.siteVisit.findMany({
+      where: { status: { in: ['SCHEDULED', 'CONFIRMED'] }, reminderSentAt: null, scheduledAt: { lte: inHour, gte: new Date() } },
+      include: { lead: true, listing: true },
+    });
     for (const v of visits) {
       await this.prisma.siteVisit.update({ where: { id: v.id }, data: { reminderSentAt: new Date() } });
       const who = v.assignedToId ?? v.lead.assignedToId;
-      const input = { kind: 'VISIT_REMINDER', title: `🏠 Site visit 1 घंटे में: ${v.lead.name}`, body: v.listing?.title ?? v.address ?? '', link: `/broker/leads/${v.leadId}` };
+      const input = {
+        kind: 'VISIT_REMINDER',
+        title: `🏠 Site visit 1 घंटे में: ${v.lead.name}`,
+        body: v.listing?.title ?? v.address ?? '',
+        link: `/broker/leads/${v.leadId}`,
+      };
       if (who) await this.notifications.notify(who, input);
       else await this.notifications.notifyOrg(v.organizationId, input, { adminsOnly: true });
       await this.trigger('VISIT_REMINDER', v.organizationId, v.leadId, { visitId: v.id });

@@ -66,7 +66,6 @@ export function ImageInput({ value, onChange, kind = 'cms' }: { value: string; o
     <div className="flex items-center gap-3">
       <label className="relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed border-line bg-surface-2 hover:border-brand-400">
         {value ? (
-           
           <img src={img(value, 200)} alt="" className="h-full w-full object-cover" />
         ) : busy ? (
           <Loader2 className="size-5 animate-spin text-brand-600" />
@@ -96,9 +95,14 @@ export function TagsInput({ value, onChange, placeholder }: { value: string[]; o
     <div className="rounded-xl border border-line bg-surface p-2">
       <div className="flex flex-wrap gap-1.5">
         {value.map((x) => (
-          <span key={x} className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200">
+          <span
+            key={x}
+            className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"
+          >
             {x}
-            <button type="button" onClick={() => onChange(value.filter((y) => y !== x))} aria-label="Remove"><X className="size-3" /></button>
+            <button type="button" onClick={() => onChange(value.filter((y) => y !== x))} aria-label="Remove">
+              <X className="size-3" />
+            </button>
           </span>
         ))}
         <input
@@ -124,16 +128,38 @@ export function FieldInput({ f, value, onChange }: { f: CrudField; value: any; o
     case 'textarea':
       return <Textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={f.placeholder} />;
     case 'richtext':
-      return <Textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={f.placeholder ?? 'Markdown / HTML'} className="min-h-72 font-mono text-xs leading-5" />;
+      return (
+        <Textarea
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={f.placeholder ?? 'Markdown / HTML'}
+          className="min-h-72 font-mono text-xs leading-5"
+        />
+      );
     case 'number':
-      return <Input type="number" value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} placeholder={f.placeholder} />;
+      return (
+        <Input
+          type="number"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+          placeholder={f.placeholder}
+        />
+      );
     case 'switch':
-      return <div className="flex h-11 items-center"><Switch checked={!!value} onCheckedChange={onChange} /></div>;
+      return (
+        <div className="flex h-11 items-center">
+          <Switch checked={!!value} onCheckedChange={onChange} />
+        </div>
+      );
     case 'select':
       return (
         <Select value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
           <option value="">—</option>
-          {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {f.options?.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </Select>
       );
     case 'image':
@@ -145,7 +171,12 @@ export function FieldInput({ f, value, onChange }: { f: CrudField; value: any; o
     case 'color':
       return (
         <div className="flex gap-2">
-          <input type="color" value={value || '#4f46e5'} onChange={(e) => onChange(e.target.value)} className="h-11 w-14 cursor-pointer rounded-xl border border-line bg-surface" />
+          <input
+            type="color"
+            value={value || '#4f46e5'}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-11 w-14 cursor-pointer rounded-xl border border-line bg-surface"
+          />
           <Input value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
         </div>
       );
@@ -221,9 +252,25 @@ export function AdminCrud({
 }) {
   const key = queryKey ?? endpoint;
   const [q, setQ] = useState('');
-  const list = useQuery({ queryKey: [key, serverSearch ? q : ''], queryFn: () => api<any>(`${endpoint}${serverSearch && q ? `?q=${encodeURIComponent(q)}` : ''}`), placeholderData: (p) => p });
+  const list = useQuery({
+    queryKey: [key, serverSearch ? q : ''],
+    queryFn: () => api<any>(`${endpoint}${serverSearch && q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    placeholderData: (p) => p,
+  });
   const rows: any[] = useMemo(() => (Array.isArray(list.data) ? list.data : (list.data?.items ?? [])), [list.data]);
-  const filtered = useMemo(() => (serverSearch || !q ? rows : rows.filter((r) => searchKeys.some((k) => String(get(r, k) ?? '').toLowerCase().includes(q.toLowerCase())))), [rows, q, serverSearch, searchKeys]);
+  const filtered = useMemo(
+    () =>
+      serverSearch || !q
+        ? rows
+        : rows.filter((r) =>
+            searchKeys.some((k) =>
+              String(get(r, k) ?? '')
+                .toLowerCase()
+                .includes(q.toLowerCase()),
+            ),
+          ),
+    [rows, q, serverSearch, searchKeys],
+  );
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
   const [loading, setLoading] = useState(false);
@@ -264,7 +311,11 @@ export function AdminCrud({
         actions={
           <>
             {headerActions}
-            {canCreate && <Button size="sm" onClick={() => open(null)}><Plus className="size-4" /> नया जोड़ें</Button>}
+            {canCreate && (
+              <Button size="sm" onClick={() => open(null)}>
+                <Plus className="size-4" /> नया जोड़ें
+              </Button>
+            )}
           </>
         }
       />
@@ -282,17 +333,42 @@ export function AdminCrud({
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
               <tr>
-                {columns.map((c) => <th key={c.key} className={cn('px-4 py-3', c.className)}>{c.label}</th>)}
+                {columns.map((c) => (
+                  <th key={c.key} className={cn('px-4 py-3', c.className)}>
+                    {c.label}
+                  </th>
+                ))}
                 <th className="w-24 px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((r, i) => (
-                <motion.tr key={r.id ?? i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 20) * 0.015 }} className="border-b border-line last:border-0 hover:bg-surface-2/40">
-                  {columns.map((c) => <td key={c.key} className={cn('px-4 py-3', c.className)}>{c.render ? c.render(r) : String(get(r, c.key) ?? '—')}</td>)}
+                <motion.tr
+                  key={r.id ?? i}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: Math.min(i, 20) * 0.015 }}
+                  className="border-b border-line last:border-0 hover:bg-surface-2/40"
+                >
+                  {columns.map((c) => (
+                    <td key={c.key} className={cn('px-4 py-3', c.className)}>
+                      {c.render ? c.render(r) : String(get(r, c.key) ?? '—')}
+                    </td>
+                  ))}
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <Button size="icon-sm" variant="ghost" onClick={() => open(r)} aria-label="Edit"><Pencil className="size-4" /></Button>
-                    {canDelete && <Button size="icon-sm" variant="ghost" onClick={() => confirm(`"${itemTitle(r)}" ${deleteLabel.toLowerCase()} करें?`) && remove.mutate(r.id)} aria-label={deleteLabel}><Trash2 className="size-4" /></Button>}
+                    <Button size="icon-sm" variant="ghost" onClick={() => open(r)} aria-label="Edit">
+                      <Pencil className="size-4" />
+                    </Button>
+                    {canDelete && (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => confirm(`"${itemTitle(r)}" ${deleteLabel.toLowerCase()} करें?`) && remove.mutate(r.id)}
+                        aria-label={deleteLabel}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </td>
                 </motion.tr>
               ))}
@@ -313,7 +389,13 @@ export function AdminCrud({
                 {fields
                   .filter((f) => !f.createOnly || isNew)
                   .map((f) => (
-                    <Field key={f.key} label={f.label} required={f.required} hint={f.hint} className={cn((f.wide || ['textarea', 'richtext', 'image', 'images', 'tags', 'json'].includes(f.type ?? '')) && 'sm:col-span-2')}>
+                    <Field
+                      key={f.key}
+                      label={f.label}
+                      required={f.required}
+                      hint={f.hint}
+                      className={cn((f.wide || ['textarea', 'richtext', 'image', 'images', 'tags', 'json'].includes(f.type ?? '')) && 'sm:col-span-2')}
+                    >
                       <FieldInput f={f} value={get(form, f.key)} onChange={(v) => setForm((x: any) => set(x, f.key, v))} />
                     </Field>
                   ))}
@@ -321,8 +403,17 @@ export function AdminCrud({
             )}
           </div>
           <div className="flex justify-end gap-2 border-t border-line p-4">
-            <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={() => save.mutate(undefined)} loading={save.isPending} disabled={missing.length > 0 || loading} title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}>Save</Button>
+            <Button variant="secondary" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => save.mutate(undefined)}
+              loading={save.isPending}
+              disabled={missing.length > 0 || loading}
+              title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}
+            >
+              Save
+            </Button>
           </div>
         </div>
       </Sheet>
@@ -334,9 +425,15 @@ export function Pager({ page, totalPages, total, onPage }: { page: number; total
   if (totalPages <= 1) return total != null ? <p className="mt-3 text-right text-xs text-subtle">{total} results</p> : null;
   return (
     <div className="mt-4 flex items-center justify-end gap-2 text-sm">
-      <span className="text-muted">{total != null && `${total} · `}Page {page} / {totalPages}</span>
-      <Button size="xs" variant="secondary" disabled={page <= 1} onClick={() => onPage(page - 1)}>Prev</Button>
-      <Button size="xs" variant="secondary" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Next</Button>
+      <span className="text-muted">
+        {total != null && `${total} · `}Page {page} / {totalPages}
+      </span>
+      <Button size="xs" variant="secondary" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        Prev
+      </Button>
+      <Button size="xs" variant="secondary" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+        Next
+      </Button>
     </div>
   );
 }

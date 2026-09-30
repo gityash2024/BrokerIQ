@@ -42,11 +42,23 @@ export class MailService {
     const app = await this.settings.getAppConfig();
     const count = [input.to, input.bcc].flat().filter(Boolean).length;
     try {
-      await tx.sendMail({ from, to: input.to, bcc: input.bcc, subject: input.subject, html: wrapHtml(input.html, app.siteName, app.primaryColor), text: input.text, replyTo: input.replyTo });
+      await tx.sendMail({
+        from,
+        to: input.to,
+        bcc: input.bcc,
+        subject: input.subject,
+        html: wrapHtml(input.html, app.siteName, app.primaryColor),
+        text: input.text,
+        replyTo: input.replyTo,
+      });
       // Counted for Admin → Cost & usage (free SMTP plans have daily limits).
-      await this.prisma.integrationLog.create({ data: { integration: 'smtp', action: 'send', success: true, meta: { recipients: count } } }).catch(() => undefined);
+      await this.prisma.integrationLog
+        .create({ data: { integration: 'smtp', action: 'send', success: true, meta: { recipients: count } } })
+        .catch(() => undefined);
     } catch (e) {
-      await this.prisma.integrationLog.create({ data: { integration: 'smtp', action: 'send', success: false, message: (e as Error).message.slice(0, 300) } }).catch(() => undefined);
+      await this.prisma.integrationLog
+        .create({ data: { integration: 'smtp', action: 'send', success: false, message: (e as Error).message.slice(0, 300) } })
+        .catch(() => undefined);
       throw e;
     }
   }

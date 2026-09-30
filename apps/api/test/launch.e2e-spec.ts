@@ -35,11 +35,19 @@ describe('Launch readiness (e2e)', () => {
     prisma = app.get(PrismaService);
     settings = app.get(SettingsService);
     http = request(app.getHttpServer());
-    admin = (await http.post('/api/auth/login').send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' }).expect(200)).body.accessToken;
+    admin = (
+      await http
+        .post('/api/auth/login')
+        .send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' })
+        .expect(200)
+    ).body.accessToken;
     await settings.updateAppConfig({ auth: { allowBrokerSignup: true }, monetization: { freeMode: true }, ai: { dailyCap: 200 } } as any);
     await prisma.featureFlag.updateMany({ where: { key: 'sale_listings' }, data: { enabled: false } });
     app.get(FeaturesService).invalidate();
-    const b = await http.post('/api/auth/register').send({ name: 'Launch Broker', email: email('broker'), password: 'Passw0rd!', accountType: 'BROKER', firmName: `Launch Realty ${uniq}` }).expect(201);
+    const b = await http
+      .post('/api/auth/register')
+      .send({ name: 'Launch Broker', email: email('broker'), password: 'Passw0rd!', accountType: 'BROKER', firmName: `Launch Realty ${uniq}` })
+      .expect(201);
     broker = { token: b.body.accessToken, orgId: b.body.user.organizationId };
   });
 
@@ -118,10 +126,16 @@ describe('Launch readiness (e2e)', () => {
   });
 
   it('account deletion removes personal data and blocks login', async () => {
-    const u = await http.post('/api/auth/register').send({ name: 'Delete Me', email: email('del'), password: 'Passw0rd!', phone: '9811100066' }).expect(201);
+    const u = await http
+      .post('/api/auth/register')
+      .send({ name: 'Delete Me', email: email('del'), password: 'Passw0rd!', phone: '9811100066' })
+      .expect(201);
     const token = u.body.accessToken;
     const id = u.body.user.id;
-    await http.post('/api/me/saved-searches').set(auth(token)).send({ name: 'Rent 2BHK', filters: { bedrooms: '2' } });
+    await http
+      .post('/api/me/saved-searches')
+      .set(auth(token))
+      .send({ name: 'Rent 2BHK', filters: { bedrooms: '2' } });
     await prisma.userLocation.create({ data: { userId: id, lat: 28.4, lng: 77.0, source: 'APP' } as any }).catch(() => undefined);
     await http.delete('/api/me').set(auth(token)).expect(200);
     const row = await prisma.user.findUniqueOrThrow({ where: { id } });
@@ -129,6 +143,9 @@ describe('Launch readiness (e2e)', () => {
     expect(row.email).toContain('@brokeriq.invalid');
     expect(await prisma.savedSearch.count({ where: { userId: id } })).toBe(0);
     expect(await prisma.userLocation.count({ where: { userId: id } })).toBe(0);
-    await http.post('/api/auth/login').send({ email: email('del'), password: 'Passw0rd!' }).expect(401);
+    await http
+      .post('/api/auth/login')
+      .send({ email: email('del'), password: 'Passw0rd!' })
+      .expect(401);
   });
 });
