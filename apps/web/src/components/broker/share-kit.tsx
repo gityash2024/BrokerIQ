@@ -35,7 +35,7 @@ export function ShareKitDialog({ listingId, leadId, onClose }: { listingId: stri
           <div className="grid grid-cols-[1fr_0.56fr] gap-3">
             {(['post', 'story'] as const).map((f) => (
               <div key={f} className="space-y-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                { }
                 <img src={kit.images[f]} alt={f} className="w-full rounded-xl border border-line" />
                 <Button size="xs" variant="secondary" className="w-full" href={`${kit.images[f]}&download=1`} external><Download className="size-3.5" /> {f === 'post' ? 'Post (1:1)' : 'Story (9:16)'}</Button>
               </div>

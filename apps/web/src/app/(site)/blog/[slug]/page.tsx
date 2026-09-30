@@ -26,7 +26,7 @@ export default async function PostPage({ params }: Props) {
         </p>
         <h1 className="mt-2 font-display text-4xl leading-tight font-extrabold tracking-tight">{p.title}</h1>
         {p.coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={img(p.coverUrl, 1400)} alt="" className="mt-8 w-full rounded-3xl" />
         )}
         <div className="prose-cms mt-8" dangerouslySetInnerHTML={{ __html: p.content }} />

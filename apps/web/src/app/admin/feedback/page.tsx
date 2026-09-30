@@ -93,7 +93,7 @@ function FeedbackSheet({ item, onClose }: { item: any; onClose: () => void }) {
               <div className="mt-4 flex flex-wrap gap-2">
                 {item.screenshots.map((u: string) => (
                   <a key={u} href={u} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img src={u} alt="" className="size-24 rounded-xl border border-line object-cover" />
                   </a>
                 ))}

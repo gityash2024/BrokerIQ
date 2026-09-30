@@ -1,12 +1,10 @@
-import { Injectable, Logger, Module } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { MailService } from '../../core/mail/mail.service';
 import { ListingsService } from '../listings/listings.service';
-import { ListingsModule } from '../listings/listings.module';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 import { SettingsService } from '../../core/settings/settings.service';
 import { env } from '../../config/env';
 
@@ -75,6 +73,3 @@ export class MaintenanceService {
     }
   }
 }
-
-@Module({ imports: [ListingsModule, WhatsAppModule], providers: [MaintenanceService] })
-export class MaintenanceModule {}

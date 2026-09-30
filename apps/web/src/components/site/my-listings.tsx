@@ -79,7 +79,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
             <div key={l.id} className="card flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
               <Link href={`/property/${l.slug}`} className="relative h-24 w-full shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:w-36">
                 {l.coverUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={img(l.coverUrl, 300)} alt="" className="h-full w-full object-cover" />
                 )}
                 {l.isFeatured && <Badge className="absolute top-1.5 left-1.5 bg-saffron-500 text-slate-950">Featured</Badge>}

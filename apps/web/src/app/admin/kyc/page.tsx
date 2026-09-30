@@ -39,7 +39,7 @@ export default function KycPage() {
                     {isPdf ? (
                       <div className="grid h-full place-items-center text-muted"><FileText className="size-10" /></div>
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
+                       
                       <img src={d.fileUrl} alt="" className="h-full w-full object-contain" />
                     )}
                     <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-lg bg-slate-900/70 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100"><ExternalLink className="size-3" /> Open</span>

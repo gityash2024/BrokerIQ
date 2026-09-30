@@ -24,7 +24,7 @@ export function ListingCard({ l, layout = 'grid', active, onHover }: { l: L; lay
     >
       <div className={cn('relative overflow-hidden bg-surface-2', row ? 'aspect-[4/3] sm:aspect-auto sm:w-72 sm:shrink-0' : 'aspect-[4/3]')}>
         {l.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={img(l.coverUrl, 640)} alt={l.title} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         ) : (
           <div className="grid h-full place-items-center bg-gradient-to-br from-brand-100 to-brand-50 text-brand-300 dark:from-brand-950 dark:to-surface-2">

@@ -66,7 +66,7 @@ export function ImageInput({ value, onChange, kind = 'cms' }: { value: string; o
     <div className="flex items-center gap-3">
       <label className="relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed border-line bg-surface-2 hover:border-brand-400">
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={img(value, 200)} alt="" className="h-full w-full object-cover" />
         ) : busy ? (
           <Loader2 className="size-5 animate-spin text-brand-600" />
@@ -222,7 +222,7 @@ export function AdminCrud({
   const key = queryKey ?? endpoint;
   const [q, setQ] = useState('');
   const list = useQuery({ queryKey: [key, serverSearch ? q : ''], queryFn: () => api<any>(`${endpoint}${serverSearch && q ? `?q=${encodeURIComponent(q)}` : ''}`), placeholderData: (p) => p });
-  const rows: any[] = Array.isArray(list.data) ? list.data : (list.data?.items ?? []);
+  const rows: any[] = useMemo(() => (Array.isArray(list.data) ? list.data : (list.data?.items ?? [])), [list.data]);
   const filtered = useMemo(() => (serverSearch || !q ? rows : rows.filter((r) => searchKeys.some((k) => String(get(r, k) ?? '').toLowerCase().includes(q.toLowerCase())))), [rows, q, serverSearch, searchKeys]);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});

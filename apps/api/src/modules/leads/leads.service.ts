@@ -536,7 +536,8 @@ export class LeadsService {
       }
       try {
         const res = await this.ingest({ orgId, name: get('name', 'full name', 'customer name'), phone, email: get('email', 'email id'), source: 'CSV_IMPORT', message: get('notes', 'requirement', 'remarks', 'message'), sourceDetail: get('source', 'project', 'property'), actorId: user.id });
-        res.isNew ? created++ : merged++;
+        if (res.isNew) created++;
+        else merged++;
       } catch (e) {
         errors.push({ row: i + 2, error: (e as Error).message });
       }

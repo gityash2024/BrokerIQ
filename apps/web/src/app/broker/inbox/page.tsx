@@ -204,7 +204,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                   <motion.div key={m.id} initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className={cn('flex', out ? 'justify-end' : 'justify-start')}>
                     <div className={cn('max-w-[78%] rounded-2xl px-3.5 py-2 text-sm shadow-sm', out ? 'rounded-br-md bg-emerald-600 text-white' : 'rounded-bl-md bg-surface')}>
                       {m.mediaUrl && m.type === 'IMAGE' && (
-                        // eslint-disable-next-line @next/next/no-img-element
+                         
                         <img src={m.mediaUrl} alt="" className="mb-1.5 max-h-64 rounded-xl" />
                       )}
                       {m.templateName && <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase', out ? 'text-white/70' : 'text-subtle')}><FileText className="size-3" /> {m.templateName}</p>}

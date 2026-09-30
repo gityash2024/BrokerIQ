@@ -76,7 +76,7 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
           <AnimatePresence>
             {value.map((p, i) => (
               <Reorder.Item key={p.url} value={p} className="group relative size-32 cursor-grab overflow-hidden rounded-xl border border-line bg-surface-2 active:cursor-grabbing" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                { }
                 <img src={img(p.url, 300)} alt="" className="pointer-events-none h-full w-full object-cover" />
                 {i === 0 && (
                   <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-saffron-500 px-2 py-0.5 text-[10px] font-bold text-slate-950">
@@ -100,7 +100,7 @@ export function PhotoUploader({ value, onChange, max = 25, kind = 'listing' }: {
           </AnimatePresence>
           {uploading.map((u) => (
             <div key={u.id} className="relative size-32 overflow-hidden rounded-xl border border-line">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <img src={u.preview} alt="" className="h-full w-full object-cover opacity-50" />
               <div className="absolute inset-0 grid place-items-center">
                 <div className="flex flex-col items-center gap-1 text-xs font-bold">

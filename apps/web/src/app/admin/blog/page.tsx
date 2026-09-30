@@ -22,7 +22,7 @@ export default function Page() {
           render: (r) => (
             <div className="flex items-center gap-3">
               {r.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={img(r.coverUrl, 120)} alt="" className="size-10 rounded-lg object-cover" />
               ) : (
                 <span className="size-10 rounded-lg bg-surface-2" />

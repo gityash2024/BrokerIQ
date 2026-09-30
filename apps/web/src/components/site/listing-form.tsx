@@ -1,10 +1,9 @@
 'use client';
 import { useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, Building2, Check, Home, Landmark, MapPin, Sparkles, Store, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Check, Home, MapPin, Sparkles, Store, Wand2 } from 'lucide-react';
 import { BROKERAGE_LABELS, FACING_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, pricePerSqft, formatINR } from '@brokeriq/shared';
 import { api, ApiError, errorMessage, uploadFile } from '@/lib/api';
 import { useFlag } from '@/lib/config';

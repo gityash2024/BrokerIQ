@@ -69,7 +69,7 @@ export function Empty({ icon, title, text, action, className }: { icon?: React.R
 export function Avatar({ name, src, size = 36, className }: { name?: string | null; src?: string | null; size?: number; className?: string }) {
   const hue = [...(name ?? '?')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
   return src ? (
-    // eslint-disable-next-line @next/next/no-img-element
+     
     <img src={img(src, size * 2)} alt={name ?? ''} width={size} height={size} className={cn('shrink-0 rounded-full object-cover', className)} style={{ width: size, height: size }} />
   ) : (
     <span

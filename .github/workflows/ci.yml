@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [main, 'feat/**', 'claude/**']
   pull_request:
 
 concurrency:
@@ -36,6 +36,11 @@ jobs:
         run: pnpm --filter @brokeriq/shared build
       - name: Shared unit tests
         run: pnpm --filter @brokeriq/shared test
+      - name: Lint (ESLint) and formatting (Prettier)
+        run: |
+          pnpm --filter @brokeriq/api exec prisma generate
+          pnpm exec eslint apps/api/src apps/api/test apps/web/src apps/mobile/app apps/mobile/src packages/shared/src
+          pnpm format:check
       - name: Typecheck (api, web, mobile)
         run: |
           pnpm --filter @brokeriq/api exec prisma generate

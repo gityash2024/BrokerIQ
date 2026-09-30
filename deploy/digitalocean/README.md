@@ -32,7 +32,7 @@ pm2 logs brokeriq-api --lines 100           # logs (files: /opt/brokeriq/logs)
 
 ## पहली बार setup (नए server पर)
 
-1. `git clone -b claude/nifty-ritchie-wvtzhc https://github.com/gityash2024/BrokerIQ.git /opt/brokeriq/app`
+1. `git clone -b feat/production https://github.com/gityash2024/BrokerIQ.git /opt/brokeriq/app`
 2. `/opt/brokeriq/secrets/api.env` और `web.env` बनाएँ (नीचे template)।
 3. `bash /opt/brokeriq/app/deploy/digitalocean/bootstrap.sh` → `bash /opt/brokeriq/app/deploy/digitalocean/deploy.sh` → `bash /opt/brokeriq/app/deploy/digitalocean/install-edge.sh`
 

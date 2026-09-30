@@ -2,7 +2,7 @@
 import { RequirementButton } from '../site/requirement';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { ArrowRight, BadgeCheck, Calculator, IndianRupee, Landmark, MapPinned, MessagesSquare, Scale, ShieldCheck, Smartphone, Sparkles, Star, Wallet } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Calculator, IndianRupee, MapPinned, MessagesSquare, Scale, ShieldCheck, Smartphone, Sparkles, Star, Wallet } from 'lucide-react';
 import { CountUp, Reveal, Stagger, StaggerItem } from '../motion/reveal';
 import { HeroSearch } from '../site/search-box';
 import { ListingCard } from '../site/listing-card';
@@ -28,7 +28,7 @@ export function HeroSection({ s }: { s: any }) {
     <section className="relative -mt-16 overflow-hidden pt-16">
       <div className="mesh-hero absolute inset-0" />
       {bg && (
-        // eslint-disable-next-line @next/next/no-img-element
+         
         <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-overlay" />
       )}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><path d=%22M0 39.5h40M39.5 0v40%22 stroke=%22white%22 stroke-opacity=%220.05%22/></svg>')]" />
@@ -316,7 +316,7 @@ export function BlogSection({ s }: { s: any }) {
             <Link href={`/blog/${p.slug}`} className="group card block overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
               <div className="aspect-[16/9] bg-gradient-to-br from-brand-100 to-saffron-100 dark:from-brand-950 dark:to-surface-2">
                 {p.coverUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={p.coverUrl} alt={p.title} loading="lazy" className="h-full w-full object-cover" />
                 )}
               </div>
@@ -362,7 +362,7 @@ export function BannerSection({ s }: { s: any }) {
   if (!c.imageUrl) return null;
   const inner = (
     <div className="group relative overflow-hidden rounded-[28px] border border-line bg-surface-2 shadow-sm">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      { }
       <img src={img(c.imageUrl, 1600)} alt={s.title ?? ''} className="aspect-[21/7] w-full object-cover transition duration-700 group-hover:scale-[1.02]" />
       {(s.title || s.subtitle) && (
         <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-black/10 to-transparent p-6 sm:p-10">

@@ -211,7 +211,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
           {l.floorPlanUrl && (
             <section>
               <h2 className="font-display text-xl font-bold">Floor plan</h2>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <img src={l.floorPlanUrl} alt="Floor plan" className="card mt-4 w-full bg-white p-4" />
             </section>
           )}

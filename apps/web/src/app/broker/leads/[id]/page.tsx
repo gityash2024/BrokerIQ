@@ -295,7 +295,7 @@ function Matches({ lead }: { lead: any }) {
           <div key={m.id} className="card flex items-center gap-4 p-3">
             <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-surface-2">
               {m.coverUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={img(m.coverUrl, 240)} alt="" className="h-full w-full object-cover" />
               )}
               <span className="absolute top-1 left-1 rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white">{m.matchScore}%</span>
@@ -511,6 +511,7 @@ function TagEditor({ lead, onChange }: { lead: any; onChange: () => void }) {
 
 /** Exotel click-to-call: the agent's phone rings first, then the lead. */
 function ClickToCall({ leadId, onDone }: { leadId: string; onDone: () => void }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
@@ -519,7 +520,7 @@ function ClickToCall({ leadId, onDone }: { leadId: string; onDone: () => void })
       toast.success('📞 Call लग रही है — पहले आपका phone बजेगा');
       onDone();
     } catch (e) {
-      if (e instanceof ApiError && e.isNotConfigured) toast.error('Click-to-call के लिए Lead connectors में Exotel जोड़ें', { action: { label: 'Setup', onClick: () => (window.location.href = '/broker/connectors?key=exotel') } });
+      if (e instanceof ApiError && e.isNotConfigured) toast.error('Click-to-call के लिए Lead connectors में Exotel जोड़ें', { action: { label: 'Setup', onClick: () => router.push('/broker/connectors?key=exotel') } });
       else toast.error(errorMessage(e));
     } finally {
       setBusy(false);

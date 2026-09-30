@@ -49,7 +49,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
             ) : inv.upi ? (
               <div className="space-y-3 text-center">
                 <a href={inv.upi} className="block rounded-2xl bg-emerald-600 px-5 py-4 font-bold text-white shadow-lg hover:bg-emerald-700">UPI app से pay करें</a>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                { }
                 <img src={`${API_URL}/api/public/invoices/${token}/qr`} alt="UPI QR" className="mx-auto size-52 rounded-xl border border-line bg-white p-2" />
                 <p className="text-xs text-muted">किसी भी UPI app (GPay, PhonePe, Paytm) से QR scan करें · UPI ID: <span data-no-i18n>{inv.org.upiId}</span></p>
               </div>

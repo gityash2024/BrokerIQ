@@ -25,7 +25,7 @@ export default async function BlogPage() {
             <Link href={`/blog/${first.slug}`} className="group card mt-10 grid overflow-hidden md:grid-cols-2">
               <div className="aspect-[16/10] bg-gradient-to-br from-brand-100 to-saffron-100 dark:from-brand-950 dark:to-surface-2">
                 {first.coverUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={img(first.coverUrl, 1000)} alt="" className="h-full w-full object-cover" />
                 )}
               </div>
@@ -40,7 +40,7 @@ export default async function BlogPage() {
                 <Link key={p.id} href={`/blog/${p.slug}`} className="group card overflow-hidden">
                   <div className="aspect-[16/9] bg-surface-2">
                     {p.coverUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
+                       
                       <img src={img(p.coverUrl, 600)} alt="" className="h-full w-full object-cover" />
                     )}
                   </div>

@@ -174,7 +174,7 @@ export default function ScannerPage() {
           <div className="card relative overflow-hidden p-5">
             <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border-2 border-dashed border-line bg-surface-2">
               {preview ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={preview} alt="Scanned page" className="h-full w-full object-contain" />
               ) : (
                 <div className="grid h-full place-items-center p-6 text-center">
@@ -214,7 +214,7 @@ export default function ScannerPage() {
                 {pages.map((pg, i) => (
                   <div key={pg.key} className="shrink-0 text-center">
                     <button type="button" onClick={() => setActive(pg.key)} className={cn('relative block h-24 w-[72px] overflow-hidden rounded-xl border-2', pg.status === 'error' ? 'border-rose-500' : pg.status === 'done' ? 'border-emerald-500' : 'border-line', active === pg.key && 'ring-2 ring-brand-500')}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      { }
                       <img src={pg.dataUrl} alt={`Page ${i + 1}`} className="h-full w-full object-cover" />
                       {pg.status === 'scanning' && <span className="absolute inset-0 grid place-items-center bg-brand-950/40"><Sparkles className="size-5 animate-pulse text-white" /></span>}
                     </button>

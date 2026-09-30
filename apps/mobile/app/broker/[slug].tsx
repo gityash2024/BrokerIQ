@@ -14,7 +14,7 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { ListingRow } from '@/components/listing';
-import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, SectionTitle, Segmented, Sheet, Txt } from '@/ui';
+import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, SectionTitle, Sheet, Txt } from '@/ui';
 
 export default function BrokerMicrosite() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -24,7 +24,7 @@ export default function BrokerMicrosite() {
   const chatOn = useFlag('chat');
   const reviewsOn = useFlag('reviews');
   const q = useQuery({ queryKey: ['broker', slug], queryFn: () => api<any>(`/brokers/${slug}`, { auth: false }) });
-  const [tab, setTab] = useState<'SALE' | 'RENT'>('RENT');
+  const tab = 'RENT' as 'SALE' | 'RENT'; // rental marketplace
   const [review, setReview] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');

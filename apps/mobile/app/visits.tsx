@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Linking, View } from 'react-native';
+import { FlatList, Linking } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { useQuery } from '@tanstack/react-query';

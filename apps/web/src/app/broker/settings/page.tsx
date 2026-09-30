@@ -125,7 +125,7 @@ function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; on
       <div className="card overflow-hidden">
         <label className="group relative block h-40 cursor-pointer bg-gradient-to-br from-brand-600 to-violet-600">
           {f.coverUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
+             
             <img src={img(f.coverUrl, 1200)} alt="" className="h-full w-full object-cover" />
           )}
           <span className="absolute inset-0 grid place-items-center bg-black/30 text-sm font-semibold text-white opacity-0 transition group-hover:opacity-100"><span className="flex items-center gap-2"><ImagePlus className="size-5" /> Cover photo बदलें</span></span>

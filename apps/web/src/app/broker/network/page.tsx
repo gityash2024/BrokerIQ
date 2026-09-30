@@ -49,7 +49,7 @@ function Network() {
             <div key={l.id} className="card overflow-hidden">
               <Link href={`/property/${l.slug}`} target="_blank" className="block aspect-[16/10] bg-surface-2">
                 {l.coverUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={img(l.coverUrl, 480)} alt="" className="h-full w-full object-cover" />
                 )}
               </Link>

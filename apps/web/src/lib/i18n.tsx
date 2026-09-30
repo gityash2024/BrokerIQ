@@ -158,7 +158,7 @@ function DomTranslator() {
       const cur = node.nodeValue ?? '';
       const prev = texts.get(node);
       const src = prev && cur === prev.out ? prev.src : cur;
-      if (!/[A-Za-zऀ-ॿ]/.test(src)) return;
+      if (!/[A-Za-z]|\p{Script=Devanagari}/u.test(src)) return;
       const out = t(src);
       texts.set(node, { src, out });
       if (out !== cur) node.nodeValue = out;

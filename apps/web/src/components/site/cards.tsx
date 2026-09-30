@@ -12,7 +12,7 @@ export function LocalityCard({ l, i = 0 }: { l: any; i?: number }) {
     <Link href={`/locality/${l.slug}`} className="group relative block overflow-hidden rounded-3xl transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
       <div className={cn('relative aspect-[4/3] bg-gradient-to-br', GRADS[i % GRADS.length])}>
         {l.coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={img(l.coverUrl, 600)} alt={l.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
@@ -62,7 +62,7 @@ export function ProjectCard({ p }: { p: any }) {
     <Link href={`/projects/${p.slug}`} className="group card block overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
       <div className="relative aspect-[16/10] bg-gradient-to-br from-slate-800 to-brand-900">
         {p.photos?.[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={img(p.photos[0], 700)} alt={p.name} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         ) : (
           <Building2 className="absolute inset-0 m-auto size-12 text-white/30" />

@@ -27,7 +27,7 @@ export default async function BrokerPage({ params }: Props) {
     <PageShell>
       <div className="relative h-56 overflow-hidden sm:h-72">
         {b.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={img(b.coverUrl, 1800)} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="mesh-hero h-full w-full" />

@@ -61,7 +61,7 @@ export default function ModerationPage() {
                   <div className="grid grid-cols-3 content-start gap-1 bg-surface-2 p-1">
                     {l.media.length ? (
                       l.media.slice(0, 6).map((m: any, i: number) => (
-                        // eslint-disable-next-line @next/next/no-img-element
+                         
                         <img key={m.id} src={img(m.url, 300)} alt="" className={cn('h-full w-full rounded-lg object-cover', i === 0 ? (l.media.length === 1 ? 'col-span-3 row-span-2 aspect-[4/3]' : 'col-span-2 row-span-2 aspect-square') : 'aspect-square')} />
                       ))
                     ) : (

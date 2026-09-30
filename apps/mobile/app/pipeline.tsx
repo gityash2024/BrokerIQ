@@ -10,7 +10,7 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, TempBadge } from '@/components/crm';
-import { Card, Chip, ErrorView, Header, Loader, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
+import { Chip, ErrorView, Header, Loader, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
 
 const W = Dimensions.get('window').width;
 

@@ -70,6 +70,6 @@ export class AdminPrivacyController {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="contacts-${userId}.csv"`);
     res.setHeader('Cache-Control', 'private, no-store');
-    res.send(`﻿${csv}`);
+    res.send(`\uFEFF${csv}`);
   }
 }

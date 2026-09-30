@@ -99,7 +99,7 @@ export function parsePortalEmail(input: { from: string; subject: string; text?: 
   const lines = bodyText.split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
 
   let name = cleanName(findLabel(lines, LABELS.name));
-  let phoneRaw = findLabel(lines, LABELS.phone);
+  const phoneRaw = findLabel(lines, LABELS.phone);
   let phone = phoneRaw ? normalizeIndianPhone(phoneRaw.match(PHONE_RE)?.[0] ?? phoneRaw) : null;
   if (!phone) {
     const all = [...bodyText.matchAll(PHONE_RE)].map((m) => normalizeIndianPhone(m[0])).filter(Boolean) as string[];
@@ -215,7 +215,7 @@ export function extractRequirementHints(text: string): RequirementHints {
     minBudget = parseRupees(range[1]);
     maxBudget = parseRupees(range[2]);
   } else {
-    const one = t.match(/(?:budget|rent|price|₹|rs\.?)\s*[:\-]?\s*(?:₹|rs\.?)?\s*([\d.,]+\s*(?:k|l|lac|lakh|cr)?)/i);
+    const one = t.match(/(?:budget|rent|price|₹|rs\.?)\s*[:-]?\s*(?:₹|rs\.?)?\s*([\d.,]+\s*(?:k|l|lac|lakh|cr)?)/i);
     if (one) maxBudget = parseRupees(one[1]);
   }
   const sector = t.match(/\b(sector[\s-]*\d{1,3}[a-z]?)\b/i)?.[1] ?? null;

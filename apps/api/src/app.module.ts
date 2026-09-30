@@ -24,7 +24,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { InsightsModule } from './modules/insights/insights.module';
 import { AiModule } from './modules/ai/ai.module';
 import { ChatModule } from './modules/chat/chat.module';
-import { MaintenanceModule } from './modules/maintenance/maintenance.service';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { MediaModule } from './modules/media/media.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';

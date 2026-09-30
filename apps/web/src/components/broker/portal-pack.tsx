@@ -52,7 +52,7 @@ export function PortalPackDialog({ listingId, onClose }: { listingId: string | n
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {d.photos.map((u: string, i: number) => (
                   <a key={u} href={u} download={`photo-${i + 1}.jpg`} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-lg bg-surface-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img src={img(u, 200)} alt="" className="h-full w-full object-cover" />
                     <span className="absolute inset-0 grid place-items-center bg-slate-950/40 text-white opacity-0 transition group-hover:opacity-100"><Download className="size-4" /></span>
                   </a>

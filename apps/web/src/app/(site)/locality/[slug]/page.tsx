@@ -34,7 +34,7 @@ export default async function LocalityPage({ params }: Props) {
       <section className="relative overflow-hidden">
         <div className="mesh-hero absolute inset-0" />
         {l.coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={l.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-overlay" />
         )}
         <div className="container-x relative grid gap-8 py-14 text-white lg:grid-cols-[1fr_420px] lg:items-center">

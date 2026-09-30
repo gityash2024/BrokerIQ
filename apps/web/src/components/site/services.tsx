@@ -33,7 +33,7 @@ function MoveInServicesInner({ localityId, listingId, title = 'Move-in services'
         {q.data.map((p) => (
           <button key={p.id} onClick={() => setPick(p)} className="card flex items-center gap-3 p-4 text-left transition hover:border-brand-300">
             {p.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
+               
               <img src={img(p.logoUrl, 96)} alt="" className="size-11 rounded-xl object-cover" />
             ) : (
               <Avatar name={p.name} size={44} />

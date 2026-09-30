@@ -69,7 +69,8 @@ function LoginInner() {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            otpSent ? run(async () => done(await api('/auth/otp/verify', { method: 'POST', body: { email, code }, auth: false }))) : sendOtp();
+            if (otpSent) run(async () => done(await api('/auth/otp/verify', { method: 'POST', body: { email, code }, auth: false })));
+            else sendOtp();
           }}
         >
           <Field label="Email">

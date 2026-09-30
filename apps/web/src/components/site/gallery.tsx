@@ -44,7 +44,7 @@ export function Gallery({ photos, title }: { photos: { url: string; caption?: st
             onClick={() => setOpen(i)}
             className={cn('group relative overflow-hidden bg-surface-2', photos.length >= 3 ? (i === 0 ? 'col-span-4 row-span-2 aspect-[4/3] sm:col-span-2 sm:aspect-auto' : 'hidden sm:block') : 'aspect-[16/9]')}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            { }
             <img src={img(p.url, i === 0 ? 1400 : 700)} alt={p.caption ?? `${title} photo ${i + 1}`} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
             {i === 4 && photos.length > 5 && <span className="absolute inset-0 grid place-items-center bg-black/50 text-lg font-bold text-white">+{photos.length - 5} more</span>}
           </button>
@@ -92,7 +92,7 @@ export function Gallery({ photos, title }: { photos: { url: string; caption?: st
             <div className="flex gap-2 overflow-x-auto p-4 scrollbar-none">
               {photos.map((p, i) => (
                 <button key={i} onClick={() => setOpen(i)} className={cn('h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2', i === open ? 'border-saffron-400' : 'border-transparent opacity-60')}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  { }
                   <img src={img(p.url, 200)} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}

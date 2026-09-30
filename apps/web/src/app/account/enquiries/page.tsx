@@ -29,7 +29,7 @@ function Inner() {
           {q.data.map((e) => (
             <div key={e.id} className="card flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
               {e.listing?.coverUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={img(e.listing.coverUrl, 200)} alt="" className="h-20 w-28 rounded-xl object-cover" />
               )}
               <div className="min-w-0 flex-1">

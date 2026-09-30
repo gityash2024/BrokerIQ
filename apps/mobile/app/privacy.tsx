@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Switch, View } from 'react-native';
+import { Switch, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Contact, Lock, MapPin, RefreshCw } from 'lucide-react-native';
 import { DATA_CONSENT_TEXT as T, plural, type ConsentKind } from '@brokeriq/shared';

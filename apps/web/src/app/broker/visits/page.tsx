@@ -117,7 +117,7 @@ export default function VisitsPage() {
                     {v.listing ? (
                       <Link href={`/property/${v.listing.slug}`} target="_blank" className="mt-1 flex items-center gap-2 text-sm text-muted hover:text-fg">
                         {v.listing.coverUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element
+                           
                           <img src={img(v.listing.coverUrl, 80)} alt="" className="size-8 rounded-lg object-cover" />
                         )}
                         <span className="line-clamp-1">{v.listing.title}</span>

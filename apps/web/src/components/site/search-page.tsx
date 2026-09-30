@@ -53,12 +53,16 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
 
   const setF = (patch: Record<string, string | null | undefined>) => {
     const next = new URLSearchParams(sp.toString());
-    for (const [k, v] of Object.entries(patch)) (v == null || v === '' ? next.delete(k) : next.set(k, v));
+    for (const [k, v] of Object.entries(patch)) {
+      if (v == null || v === '') next.delete(k);
+      else next.set(k, v);
+    }
     router.replace(`${pathname}${next.toString() ? `?${next}` : ''}`, { scroll: false });
   };
   const toggleCsv = (key: string, val: string) => {
     const set = new Set((f[key] ?? '').split(',').filter(Boolean));
-    set.has(val) ? set.delete(val) : set.add(val);
+    if (set.has(val)) set.delete(val);
+    else set.add(val);
     setF({ [key]: [...set].join(',') });
   };
   const csvHas = (key: string, val: string) => (f[key] ?? '').split(',').includes(val);

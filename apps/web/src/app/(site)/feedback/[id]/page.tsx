@@ -58,7 +58,7 @@ export default function FeedbackDetail({ params }: { params: Promise<{ id: strin
               <div className="mt-4 flex flex-wrap gap-3">
                 {f.screenshots.map((s: string) => (
                   <a key={s} href={s} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img src={img(s, 300)} alt="" className="h-28 rounded-xl border border-line object-cover" />
                   </a>
                 ))}

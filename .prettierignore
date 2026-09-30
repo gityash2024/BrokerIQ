@@ -1,0 +1,16 @@
+node_modules
+dist
+.next
+.expo
+.turbo
+coverage
+releases
+apps/mobile/android
+apps/mobile/ios
+apps/api/prisma/migrations
+pnpm-lock.yaml
+# generated / data files
+packages/shared/src/i18n/locales
+scripts/i18n
+apps/web/next-env.d.ts
+**/*.md

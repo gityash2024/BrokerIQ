@@ -33,7 +33,7 @@ export interface InvoiceInput {
 
 const MAX_REMINDERS = 3;
 const REMINDER_GAP_DAYS = 3;
-const UPI_ID = /^[\w.\-]{2,256}@[a-zA-Z][\w]{2,64}$/;
+const UPI_ID = /^[\w.-]{2,256}@[a-zA-Z][\w]{2,64}$/;
 
 function fontPath(file: string) {
   const dirs = [join(__dirname, '../../../assets/fonts'), join(__dirname, '../../../../assets/fonts'), join(process.cwd(), 'assets/fonts'), join(process.cwd(), 'apps/api/assets/fonts')];

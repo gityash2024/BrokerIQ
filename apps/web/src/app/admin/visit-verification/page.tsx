@@ -66,7 +66,7 @@ export default function VisitVerificationPage() {
             <div key={l.id} className="card overflow-hidden">
               <div className="aspect-[16/9] bg-surface-2">
                 {l.coverUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={img(l.coverUrl, 480)} alt="" className="h-full w-full object-cover" />
                 )}
               </div>
