@@ -53,6 +53,8 @@ jobs:
         run: |
           bash apps/api/test/setup-db.sh
           pnpm --filter @brokeriq/api test:e2e
+      - name: Mobile unit tests
+        run: pnpm --filter @brokeriq/mobile test
       - name: API production build
         run: pnpm --filter @brokeriq/api build
       - name: Web production build
@@ -60,3 +62,8 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
           NEXT_PUBLIC_SITE_URL: http://localhost:3001
+      - name: Website smoke tests (Playwright, system Chrome)
+        run: pnpm --filter @brokeriq/web e2e
+        env:
+          JOBS_ENABLED: 'false'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'

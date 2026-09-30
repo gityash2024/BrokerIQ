@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start -p ${PORT:-3001}",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@brokeriq/shared": "workspace:*",
@@ -34,6 +35,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/leaflet": "^1.9.20",
     "@types/node": "^22.18.0",
