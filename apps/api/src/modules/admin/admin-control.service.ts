@@ -432,15 +432,16 @@ export class AdminControlService {
 
   /** Staff-queue counts for the admin dashboard. */
   async pendingCounts() {
-    const [pendingListings, reportsOpen, localityReviews, errorsOpen, blockedListings, kycPending] = await Promise.all([
+    const [pendingListings, reportsOpen, localityReviews, errorsOpen, blockedListings, kycPending, chatReports] = await Promise.all([
       this.prisma.listing.count({ where: { status: 'PENDING_REVIEW', deletedAt: null } }),
       this.prisma.listingReport.count({ where: { status: 'OPEN' } }).catch(() => 0),
       this.prisma.localityReview.count({ where: { status: 'PENDING' } }).catch(() => 0),
       this.prisma.errorLog.count({ where: { resolvedAt: null } }),
       this.prisma.listing.count({ where: { status: 'BLOCKED', deletedAt: null } }),
       this.prisma.kycDocument.count({ where: { status: 'PENDING' } }).catch(() => 0),
+      this.prisma.contentReport.count({ where: { type: 'CHAT', status: 'OPEN' } }),
     ]);
-    return { pendingListings, reportsOpen, localityReviews, errorsOpen, blockedListings, kycPending };
+    return { pendingListings, reportsOpen, localityReviews, errorsOpen, blockedListings, kycPending, chatReports };
   }
 
   private async mailUser(email: string | null, subject: string, text: string) {

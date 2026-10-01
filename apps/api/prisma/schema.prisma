@@ -1226,6 +1226,9 @@ model Conversation {
   lastInboundAt  DateTime?
   lastPreview    String?
   unreadCount    Int       @default(0)
+  /// Set by an admin after a report: nobody can post in this chat any more
+  blockedAt      DateTime?
+  blockedReason  String?
   createdAt      DateTime  @default(now())
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -2089,6 +2092,26 @@ model ServicePartner {
   requests ServiceRequest[]
 
   @@index([category, isActive])
+}
+
+/// User-reported content other than listings (today: in-app chats). Reviewed by SUPER_ADMIN / MODERATOR.
+model ContentReport {
+  id           String       @id @default(cuid())
+  /// CHAT
+  type         String
+  targetId     String
+  reporterId   String?
+  /// SPAM | ABUSE | FRAUD | OTHER
+  reason       String
+  details      String?
+  status       ReportStatus @default(OPEN)
+  resolution   String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@index([type, status])
+  @@index([targetId])
 }
 
 model ServiceRequest {

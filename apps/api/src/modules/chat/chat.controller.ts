@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoun
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
+import { contentReportSchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -96,8 +97,21 @@ export class ChatController {
     return this.post(id, user, body.text);
   }
 
+  /** Either side can report a chat; staff review it under Admin → Chat reports. One open report per person per chat. */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('threads/:id/report')
+  async report(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(contentReportSchema)) body: z.infer<typeof contentReportSchema>) {
+    await this.access(id, user);
+    const open = await this.prisma.contentReport.findFirst({ where: { type: 'CHAT', targetId: id, reporterId: user.id, status: 'OPEN' } });
+    if (open) await this.prisma.contentReport.update({ where: { id: open.id }, data: { reason: body.reason, details: body.details ?? null } });
+    else
+      await this.prisma.contentReport.create({ data: { type: 'CHAT', targetId: id, reporterId: user.id, reason: body.reason, details: body.details ?? null } });
+    return { ok: true };
+  }
+
   private async post(id: string, user: RequestUser, text: string) {
     const { c, isUser } = await this.access(id, user);
+    if (c.blockedAt) throw new ForbiddenException('यह chat BrokerIQ team ने बंद कर दी है');
     const msg = await this.prisma.message.create({
       data: {
         conversationId: id,

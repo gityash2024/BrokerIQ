@@ -220,6 +220,9 @@ export const enquirySchema = z.object({
 });
 export type EnquiryInput = z.infer<typeof enquirySchema>;
 
+export const CONTENT_REPORT_REASONS = ['SPAM', 'ABUSE', 'FRAUD', 'OTHER'] as const;
+/** Report an in-app chat (by the user or the broker firm in it). */
+export const contentReportSchema = z.object({ reason: z.enum(CONTENT_REPORT_REASONS), details: z.string().trim().max(1000).optional() });
 export const reportSchema = z.object({ listingId: z.string(), reason: enumOf(ReportReason), details: z.string().max(1000).optional() });
 export const reviewSchema = z.object({ organizationId: z.string(), rating: z.number().int().min(1).max(5), comment: z.string().trim().max(1500).optional() });
 export const savedSearchSchema = z.object({

@@ -32,6 +32,7 @@ import {
   Ban,
   Users,
   Contact,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
@@ -58,6 +59,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/admin/visit-verification', label: 'Visit verification', icon: BadgeCheck, roles: ['MODERATOR'] },
         { href: '/admin/locality-reviews', label: 'Locality reviews', icon: ListChecks, roles: ['MODERATOR'] },
         { href: '/admin/reports', label: 'Reported listings', icon: ShieldAlert, badge: k?.reportsOpen || null, roles: ['MODERATOR'] },
+        { href: '/admin/chat-reports', label: 'Reported chats', icon: MessageSquareWarning, badge: k?.chatReports || null, roles: ['MODERATOR'] },
         { href: '/admin/listings', label: 'All listings', icon: Home, roles: ['MODERATOR'] },
         { href: '/admin/content', label: 'Reviews & profiles', icon: MessageSquareHeart, roles: ['MODERATOR'] },
         { href: '/admin/blocklist', label: 'Blocklist', icon: Ban, roles: ['MODERATOR'] },
@@ -82,7 +84,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/admin/payments', label: 'Payments', icon: BadgeIndianRupee, flag: 'paid' },
         { href: '/admin/coupons', label: 'Coupons', icon: TicketPercent, flag: 'paid' },
         { href: '/admin/broker-invites', label: 'Broker invites', icon: TicketPercent },
-        { href: '/admin/services', label: 'Move-in services', icon: TicketPercent },
+        { href: '/admin/services', label: 'Move-in services', icon: TicketPercent, roles: ['MODERATOR'] },
       ],
     },
     {

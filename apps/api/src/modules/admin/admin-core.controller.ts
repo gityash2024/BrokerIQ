@@ -47,7 +47,7 @@ export class AdminCoreController {
   async dashboard() {
     const day = 86400_000;
     const since30 = new Date(Date.now() - 30 * day);
-    const [users, brokers, listings, pending, leads30, enquiries30, kycPending, reportsOpen, paid30, tickets, subs] = await Promise.all([
+    const [users, brokers, listings, pending, leads30, enquiries30, kycPending, reportsOpen, paid30, tickets, subs, chatReports] = await Promise.all([
       this.prisma.user.count({ where: { deletedAt: null, role: 'USER' } }),
       this.prisma.organization.count({ where: { status: 'ACTIVE' } }),
       this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null } }),
@@ -59,6 +59,7 @@ export class AdminCoreController {
       this.prisma.payment.aggregate({ where: { status: 'PAID', paidAt: { gte: since30 } }, _sum: { amount: true } }),
       this.prisma.contactMessage.count({ where: { status: 'OPEN' } }),
       this.prisma.subscription.findMany({ where: { status: { in: ['ACTIVE', 'TRIALING'] } }, include: { plan: true } }),
+      this.prisma.contentReport.count({ where: { type: 'CHAT', status: 'OPEN' } }),
     ]);
     const mrr = subs.reduce((s, x) => s + (x.status === 'ACTIVE' ? (x.billingCycle === 'YEARLY' ? x.plan.priceYearly / 12 : x.plan.priceMonthly) : 0), 0);
     const planMix = Object.entries(subs.reduce<Record<string, number>>((acc, s) => ((acc[s.plan.name] = (acc[s.plan.name] ?? 0) + 1), acc), {})).map(
@@ -86,6 +87,7 @@ export class AdminCoreController {
         enquiries30,
         kycPending,
         reportsOpen,
+        chatReports,
         revenue30: (paid30._sum.amount ?? 0) / 100,
         mrr: Math.round(mrr),
         openTickets: tickets,

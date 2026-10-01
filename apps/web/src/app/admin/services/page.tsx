@@ -1,14 +1,22 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { Trash2 } from 'lucide-react';
 import { AdminCrud } from '@/components/admin/crud';
 import { Badge } from '@/components/ui/misc';
 import { api } from '@/lib/api';
+import { del, patch, useApiMutation } from '@/lib/hooks';
+import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/field';
 import { formatDateTime } from '@/lib/utils';
 import { SERVICE_LABELS } from '@/components/site/services';
 
 /** Move-in service partners shown to tenants (only real partners — nothing is shown while empty). */
 export default function Page() {
   const reqs = useQuery({ queryKey: ['service-requests'], queryFn: () => api<any[]>('/admin/service-requests') });
+  const setStatus = useApiMutation((b: { id: string; status: string }) => patch(`/admin/service-requests/${b.id}`, { status: b.status }), {
+    invalidate: [['service-requests']],
+  });
+  const remove = useApiMutation((id: string) => del(`/admin/service-requests/${id}`), { success: 'Deleted', invalidate: [['service-requests']] });
   return (
     <>
       <AdminCrud
@@ -58,13 +66,25 @@ export default function Page() {
         ) : (
           <div className="divide-y divide-line text-sm">
             {reqs.data.slice(0, 50).map((r) => (
-              <div key={r.id} className="flex flex-wrap justify-between gap-2 py-2">
-                <span>
-                  {r.name} · {r.phone}
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span className="min-w-0 flex-1">
+                  <span data-no-i18n>
+                    {r.name} · {r.phone}
+                  </span>
+                  <span className="block text-xs text-muted">
+                    {r.partner.name} · {formatDateTime(r.createdAt)}
+                  </span>
                 </span>
-                <span className="text-muted">
-                  {r.partner.name} · {formatDateTime(r.createdAt)}
-                </span>
+                <Select className="h-8 w-36 text-xs" value={r.status} onChange={(e) => setStatus.mutate({ id: r.id, status: e.target.value })}>
+                  {['NEW', 'CONTACTED', 'DONE', 'SPAM'].map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+                <Button size="icon-sm" variant="ghost" aria-label="Delete" onClick={() => confirm('यह request हटाएँ?') && remove.mutate(r.id)}>
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
             ))}
           </div>

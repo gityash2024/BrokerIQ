@@ -4,14 +4,56 @@ import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Send } from 'lucide-react-native';
+import { Flag, Send } from 'lucide-react-native';
+import { CONTENT_REPORT_REASONS } from '@brokeriq/shared';
 import { api, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { fonts, useTheme } from '@/lib/theme';
 import { tr } from '@/lib/i18n';
-import { ErrorView, Header, IconBtn, Loader, Txt } from '@/ui';
+import { toast } from '@/lib/toast';
+import { Button, Chip, ErrorView, Header, IconBtn, Input, Loader, Row, Sheet, Txt } from '@/ui';
+
+const REASON_LABEL: Record<(typeof CONTENT_REPORT_REASONS)[number], string> = {
+  SPAM: 'Spam',
+  ABUSE: 'गाली-गलौज',
+  FRAUD: 'Fraud / पैसे माँगना',
+  OTHER: 'कुछ और',
+};
+
+/** Report this chat to the BrokerIQ team. */
+function ReportSheet({ id, open, onClose }: { id: string; open: boolean; onClose: () => void }) {
+  const [reason, setReason] = useState<(typeof CONTENT_REPORT_REASONS)[number]>('SPAM');
+  const [details, setDetails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await post(`/chat/threads/${id}/report`, { reason, details: details.trim() || undefined });
+      toast.success('Report भेज दी — team इसे देखेगी');
+      onClose();
+    } catch (e) {
+      showError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet open={open} onClose={onClose} title="Chat report करें">
+      <Txt v="caption" color="muted">
+        BrokerIQ team यह chat देखकर कार्रवाई करेगी। आपकी पहचान दूसरी तरफ़ नहीं बताई जाती।
+      </Txt>
+      <Row wrap style={{ marginTop: 10 }}>
+        {CONTENT_REPORT_REASONS.map((r) => (
+          <Chip key={r} label={REASON_LABEL[r]} active={reason === r} onPress={() => setReason(r)} />
+        ))}
+      </Row>
+      <Input label="क्या हुआ? (optional)" value={details} onChangeText={setDetails} multiline maxLength={1000} containerStyle={{ marginTop: 10 }} />
+      <Button title="Report भेजें" variant="danger" full loading={busy} onPress={submit} style={{ marginTop: 12 }} />
+    </Sheet>
+  );
+}
 
 /** In-app chat thread. Works for both sides: the user (INBOUND = mine) and broker (OUTBOUND = mine). */
 export default function ChatScreen() {
@@ -22,6 +64,7 @@ export default function ChatScreen() {
   const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<any>(`/chat/threads/${id}`) });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const list = useRef<FlatList>(null);
   useRealtime<any>('chat:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['chat', id] }));
   useEffect(() => {
@@ -46,7 +89,15 @@ export default function ChatScreen() {
   const title = name ?? (isBroker ? q.data?.conversation?.contactName : q.data?.conversation?.organization?.name);
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: c.bg }}>
-      <Header title={title ?? 'Chat'} subtitle="Real-time chat" />
+      <Header
+        title={title ?? 'Chat'}
+        subtitle="Real-time chat"
+        right={
+          <IconBtn onPress={() => setReporting(true)} accessibilityLabel="Report">
+            <Flag size={18} color={c.muted} />
+          </IconBtn>
+        }
+      />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {q.isLoading ? (
           <Loader />
@@ -85,32 +136,41 @@ export default function ChatScreen() {
             }}
           />
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder={tr('Message लिखें…')}
-            placeholderTextColor={c.subtle}
-            multiline
-            style={{
-              flex: 1,
-              maxHeight: 120,
-              minHeight: 44,
-              borderRadius: 22,
-              backgroundColor: c.surface2,
-              paddingHorizontal: 16,
-              paddingTop: 12,
-              paddingBottom: 12,
-              color: c.fg,
-              fontFamily: fonts.body,
-              fontSize: 15,
-            }}
-          />
-          <IconBtn onPress={send} style={{ backgroundColor: c.brand, width: 46, height: 46, borderRadius: 23, opacity: sending || !text.trim() ? 0.5 : 1 }}>
-            <Send size={19} color="#fff" />
-          </IconBtn>
-        </View>
+        {q.data?.conversation?.blockedAt ? (
+          <Txt color="muted" style={{ textAlign: 'center', padding: 14, borderTopWidth: 1, borderColor: c.line }}>
+            यह chat BrokerIQ team ने बंद कर दी है।
+          </Txt>
+        ) : (
+          <View
+            style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}
+          >
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder={tr('Message लिखें…')}
+              placeholderTextColor={c.subtle}
+              multiline
+              style={{
+                flex: 1,
+                maxHeight: 120,
+                minHeight: 44,
+                borderRadius: 22,
+                backgroundColor: c.surface2,
+                paddingHorizontal: 16,
+                paddingTop: 12,
+                paddingBottom: 12,
+                color: c.fg,
+                fontFamily: fonts.body,
+                fontSize: 15,
+              }}
+            />
+            <IconBtn onPress={send} style={{ backgroundColor: c.brand, width: 46, height: 46, borderRadius: 23, opacity: sending || !text.trim() ? 0.5 : 1 }}>
+              <Send size={19} color="#fff" />
+            </IconBtn>
+          </View>
+        )}
       </KeyboardAvoidingView>
+      <ReportSheet id={id} open={reporting} onClose={() => setReporting(false)} />
     </SafeAreaView>
   );
 }

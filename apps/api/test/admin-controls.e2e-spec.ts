@@ -251,4 +251,40 @@ describe('Admin controls (e2e)', () => {
     const after = await prisma.organization.findUniqueOrThrow({ where: { id: broker.orgId } });
     expect(after.reviewCount).toBe(before.reviewCount - 1);
   });
+  it('reported chat: staff see the messages, can close the chat for both sides; service requests get a status', async () => {
+    const conv = await http
+      .post('/api/chat/start')
+      .set(auth(tenant.token))
+      .send({ organizationId: broker.orgId, message: 'Hello, is the flat available?' })
+      .expect(201);
+    await http.post(`/api/chat/threads/${conv.body.id}/report`).set(auth(tenant.token)).send({ reason: 'NOPE' }).expect(400);
+    await http.post(`/api/chat/threads/${conv.body.id}/report`).set(auth(tenant.token)).send({ reason: 'ABUSE', details: 'rude replies' }).expect(201);
+    // Reporting twice keeps one open report.
+    await http.post(`/api/chat/threads/${conv.body.id}/report`).set(auth(tenant.token)).send({ reason: 'SPAM' }).expect(201);
+    expect(await prisma.contentReport.count({ where: { targetId: conv.body.id, status: 'OPEN' } })).toBe(1);
+    // Tenant is not staff.
+    await http.get('/api/admin/chat-reports').set(auth(tenant.token)).expect(403);
+    const list = await http.get('/api/admin/chat-reports').set(auth(admin)).expect(200);
+    const rep = list.body.find((r: any) => r.targetId === conv.body.id);
+    expect(rep).toMatchObject({ reason: 'SPAM', reporterSide: 'USER' });
+    expect(rep.conversation.messages[0].body).toBe('Hello, is the flat available?');
+    expect((await http.get('/api/admin/pending').set(auth(admin)).expect(200)).body.chatReports).toBeGreaterThan(0);
+
+    await http
+      .patch(`/api/admin/chat-reports/${rep.id}`)
+      .set(auth(admin))
+      .send({ status: 'RESOLVED', resolution: 'Abusive messages', blockChat: true })
+      .expect(200);
+    await http.post(`/api/chat/threads/${conv.body.id}`).set(auth(tenant.token)).send({ text: 'hello?' }).expect(403);
+    await http.post(`/api/chat/threads/${conv.body.id}`).set(auth(broker.token)).send({ text: 'hi' }).expect(403);
+    await http.patch(`/api/admin/chats/${conv.body.id}/block`).set(auth(admin)).send({ blocked: false }).expect(200);
+    await http.post(`/api/chat/threads/${conv.body.id}`).set(auth(tenant.token)).send({ text: 'hello again' }).expect(201);
+
+    const partner = await prisma.servicePartner.create({ data: { name: `Packers ${uniq}`, category: 'PACKERS' } });
+    const sr = await prisma.serviceRequest.create({ data: { partnerId: partner.id, userId: tenant.id, name: 'Control Tenant', phone: '9811100055' } });
+    await http.patch(`/api/admin/service-requests/${sr.id}`).set(auth(admin)).send({ status: 'BOGUS' }).expect(400);
+    await http.patch(`/api/admin/service-requests/${sr.id}`).set(auth(admin)).send({ status: 'SPAM' }).expect(200);
+    await http.delete(`/api/admin/service-requests/${sr.id}`).set(auth(admin)).expect(200);
+    await prisma.servicePartner.delete({ where: { id: partner.id } });
+  });
 });

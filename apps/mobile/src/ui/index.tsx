@@ -263,15 +263,17 @@ export function IconBtn({
   onPress,
   style,
   badge,
+  accessibilityLabel,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   badge?: number;
+  accessibilityLabel?: string;
 }) {
   const { c } = useTheme();
   return (
-    <PressableScale onPress={onPress} style={[{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]} hitSlop={6}>
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={[{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]} hitSlop={6}>
       {children}
       {!!badge && (
         <View

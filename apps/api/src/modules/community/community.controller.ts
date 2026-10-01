@@ -225,7 +225,7 @@ export class CommunityController {
     return this.prisma.servicePartner.update({ where: { id }, data: { isActive: false } });
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'MODERATOR')
   @Get('admin/service-requests')
   serviceRequests() {
     return this.prisma.serviceRequest.findMany({ orderBy: { createdAt: 'desc' }, take: 300, include: { partner: { select: { name: true, category: true } } } });
