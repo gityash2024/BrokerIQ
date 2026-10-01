@@ -1,11 +1,11 @@
-# BrokerIQ — Google Play release guide (v1.3.0)
+# BrokerIQ — Google Play release guide (v1.3.1, versionCode 7)
 
 ## 1. Files
 
 | File | Use |
 | --- | --- |
-| `releases/BrokerIQ-v1.3.0.aab` | **Play Console upload** (Android App Bundle) |
-| `releases/BrokerIQ-v1.3.0.apk` | Direct install / testing (same signature) |
+| `releases/BrokerIQ-v1.3.1.aab` | **Play Console upload** (Android App Bundle) |
+| `releases/BrokerIQ-v1.3.1.apk` | Direct install / testing (same signature) |
 
 Both are signed with the **BrokerIQ upload key**:
 
@@ -14,7 +14,7 @@ Both are signed with the **BrokerIQ upload key**:
 - **Backup both files now** (password manager + offline copy). If the upload key is lost you must request an upload-key reset from Google (takes days).
 - Use **Play App Signing** (default): Google keeps the app signing key, you keep only this upload key.
 
-> Earlier APKs (≤ 1.2.2) were signed with the debug key. Phones that have that APK must **uninstall it once** before installing 1.3.0 — Android refuses an update signed with a different key.
+> Earlier APKs (≤ 1.2.2) were signed with the debug key. Phones that have that APK must **uninstall it once** before installing 1.3.x — Android refuses an update signed with a different key.
 
 ### Rebuilding
 
@@ -105,7 +105,7 @@ For `READ_CONTACTS` Play may ask for a declaration video: record Profile → Pri
 ## 4. Release steps
 
 1. Play Console → Create app → fill the store listing and app content above.
-2. Testing → **Internal testing** → Create release → upload `BrokerIQ-v1.3.0.aab` → add testers' emails → roll out.
+2. Testing → **Internal testing** → Create release → upload `BrokerIQ-v1.3.1.aab` → add testers' emails → roll out.
 3. Install from the internal-testing link on 2–3 phones; check login, search, visit booking, broker CRM, push notifications.
 4. **Closed testing** (new personal developer accounts need 12+ testers for 14 days before production).
 5. Production → Create release → promote the same build → staged rollout 20% → 100%.
