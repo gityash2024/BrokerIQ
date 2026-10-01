@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   name: process.env.APP_NAME ?? 'BrokerIQ',
   slug: 'brokeriq',
   scheme: 'brokeriq',
-  version: '1.2.2',
+  version: '1.3.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -26,7 +26,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 5,
+    versionCode: 6,
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
     permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'READ_CONTACTS', 'RECORD_AUDIO'],
     intentFilters: [
@@ -40,6 +40,7 @@ const config: ExpoConfig = {
   },
   web: { favicon: './assets/favicon.png' },
   plugins: [
+    './plugins/with-release-signing',
     'expo-router',
     'expo-secure-store',
     'expo-web-browser',
