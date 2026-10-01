@@ -1,18 +1,21 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import type { RentAgreement } from '@prisma/client';
-import { formatINR } from '@brokeriq/shared';
+import { formatINR, whatsappLink } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../core/mail/mail.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { EventsService } from '../../core/events/events.service';
+import { WhatsAppWindowClosedException } from '../../common/exceptions';
 import { CommunityService } from '../community/community.service';
 import { randomToken, sha256 } from '../../common/utils';
 import { pdfText } from '../../common/pdf';
 import { env } from '../../config/env';
-import { issueOtp, maskContact, verifyOtp } from './otp';
+import { issueOtp, maskContact, otpRequestCode, samePhone, sendOtpOnWhatsApp, verifyOtp } from './otp';
 
 type Party = 'LANDLORD' | 'TENANT';
 const web = () => env().PUBLIC_WEB_URL.replace(/\/$/, '');
 const api = () => env().PUBLIC_API_URL.replace(/\/$/, '');
+const otpText = (otp: string) => `Rent agreement confirm करने का OTP: ${otp} (10 मिनट तक)। किसी को न बताएँ।`;
 const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /** SHA-256 over the agreement's terms (what both parties confirm); any change to a term changes it. */
@@ -43,13 +46,19 @@ export function agreementHash(a: RentAgreement) {
  * It records consent; it is not a substitute for stamp duty or registration.
  */
 @Injectable()
-export class EsignService {
+export class EsignService implements OnModuleInit {
+  private readonly logger = new Logger(EsignService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly wa: WhatsAppService,
     private readonly community: CommunityService,
+    private readonly events: EventsService,
   ) {}
+
+  onModuleInit() {
+    this.events.on('whatsapp.otp_request', (p) => this.relayOtp(p));
+  }
 
   /** Email when the party has one, else WhatsApp text from the firm's own number. */
   private async deliver(
@@ -80,6 +89,8 @@ export class EsignService {
       where: { id: a.id },
       data: { signStatus: 'SIGNING', documentHash, landlordEmail: parties[0].email, tenantEmail: parties[1].email },
     });
+    // Parties the firm's WhatsApp couldn't reach (24h window closed): the broker forwards the link from their own WhatsApp.
+    const manual: { party: Party; name: string; phone: string; url: string; waLink: string }[] = [];
     for (const p of parties) {
       const existing = a.signatures.find((s) => s.party === p.party);
       if (existing?.signedAt && existing.email === p.email && existing.phone === p.phone) continue;
@@ -89,18 +100,24 @@ export class EsignService {
         update: { email: p.email, phone: p.phone, name: p.name, signedAt: null, otpHash: null, otpExpiresAt: null, attempts: 0, token: randomToken(18) },
       });
       const link = `${web()}/sign/${sig.token}`;
-      await this.deliver(a.organizationId, p, {
-        subject: `Rent agreement confirm करें — ${a.propertyAddress.slice(0, 60)}`,
-        html:
-          `<p>नमस्ते ${escape(p.name)},</p><p>${escape(a.propertyAddress)} का rent agreement (किराया ${formatINR(a.rent)}/month) आपकी confirmation के लिए तैयार है।</p>` +
-          `<p><a href="${link}">Agreement पढ़ें और OTP से confirm करें</a></p>` +
-          `<p style="color:#64748b;font-size:12px">यह electronic confirmation है — stamp duty / registration की जगह नहीं लेता।</p>`,
-        text:
-          `नमस्ते ${p.name}, ${a.propertyAddress} का rent agreement (किराया ${formatINR(a.rent)}/month) आपकी confirmation के लिए तैयार है।\n` +
-          `पढ़ें और OTP से confirm करें: ${link}\n(यह electronic confirmation है — stamp duty / registration की जगह नहीं लेता।)`,
-      });
+      const text =
+        `नमस्ते ${p.name}, ${a.propertyAddress} का rent agreement (किराया ${formatINR(a.rent)}/month) आपकी confirmation के लिए तैयार है।\n` +
+        `पढ़ें और OTP से confirm करें: ${link}\n(यह electronic confirmation है — stamp duty / registration की जगह नहीं लेता।)`;
+      try {
+        await this.deliver(a.organizationId, p, {
+          subject: `Rent agreement confirm करें — ${a.propertyAddress.slice(0, 60)}`,
+          html:
+            `<p>नमस्ते ${escape(p.name)},</p><p>${escape(a.propertyAddress)} का rent agreement (किराया ${formatINR(a.rent)}/month) आपकी confirmation के लिए तैयार है।</p>` +
+            `<p><a href="${link}">Agreement पढ़ें और OTP से confirm करें</a></p>` +
+            `<p style="color:#64748b;font-size:12px">यह electronic confirmation है — stamp duty / registration की जगह नहीं लेता।</p>`,
+          text,
+        });
+      } catch (e) {
+        if (!(e instanceof WhatsAppWindowClosedException) || !p.phone) throw e;
+        manual.push({ party: p.party, name: p.name, phone: p.phone, url: link, waLink: whatsappLink(p.phone, text) });
+      }
     }
-    return this.status(a.id);
+    return { ...(await this.status(a.id)), manual };
   }
 
   async status(agreementId: string) {
@@ -161,14 +178,36 @@ export class EsignService {
     if (!s.email && !s.phone) throw new BadRequestException('Email/phone नहीं है — जिसने agreement भेजा उससे संपर्क करें');
     const { otp, state } = issueOtp(`sign:${s.id}`);
     await this.prisma.agreementSignature.update({ where: { id: s.id }, data: { otpHash: state.hash, otpExpiresAt: new Date(state.exp), attempts: 0 } });
-    const text = `Rent agreement confirm करने का OTP: ${otp} (10 मिनट तक)। किसी को न बताएँ।`;
-    await this.deliver(s.agreement.organizationId, s, {
-      subject: `OTP ${otp} — rent agreement confirmation`,
-      html: `<p>Rent agreement confirm करने का OTP: <b>${otp}</b> (10 मिनट तक)। किसी को न बताएँ।</p>`,
-      text,
-      storedText: text.replace(otp, '******'),
-    });
+    if (s.email)
+      await this.mail.send({
+        to: s.email,
+        subject: `OTP ${otp} — rent agreement confirmation`,
+        html: `<p>Rent agreement confirm करने का OTP: <b>${otp}</b> (10 मिनट तक)। किसी को न बताएँ।</p>`,
+      });
+    else {
+      if (!s.agreement.organizationId) throw new BadRequestException('Email/phone नहीं है — जिसने agreement भेजा उससे संपर्क करें');
+      await sendOtpOnWhatsApp(
+        this.wa,
+        s.agreement.organizationId,
+        { name: s.name, phone: s.phone! },
+        { text: otpText(otp), otp, code: otpRequestCode('sign', s.id, s.party) },
+      );
+    }
     return { sentTo: maskContact((s.email ?? s.phone)!) };
+  }
+
+  /** "BrokerIQ OTP <code>" from the party's own phone: reply with a fresh OTP inside the now-open 24h window. */
+  async relayOtp(p: { orgId: string; phone: string; code: string }) {
+    const pending = await this.prisma.agreementSignature.findMany({
+      where: { signedAt: null, email: null, agreement: { organizationId: p.orgId, signStatus: 'SIGNING' } },
+    });
+    const s = pending.find((x) => samePhone(x.phone, p.phone) && otpRequestCode('sign', x.id, x.party) === p.code);
+    if (!s) return;
+    const { otp, state } = issueOtp(`sign:${s.id}`);
+    await this.prisma.agreementSignature.update({ where: { id: s.id }, data: { otpHash: state.hash, otpExpiresAt: new Date(state.exp), attempts: 0 } });
+    await sendOtpOnWhatsApp(this.wa, p.orgId, { name: s.name, phone: s.phone! }, { text: otpText(otp), otp, code: p.code }).catch((e) =>
+      this.logger.warn(`OTP relay ${s.id}: ${(e as Error).message}`),
+    );
   }
 
   async confirm(token: string, otp: string, meta: { ip?: string; ua?: string }) {

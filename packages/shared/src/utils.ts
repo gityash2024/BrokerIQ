@@ -64,8 +64,9 @@ export function normalizeIndianPhone(input: string | null | undefined): string |
 }
 
 /** "+919876543210" -> "919876543210" (format wa.me & WhatsApp Cloud API expect) */
+/** Digits WhatsApp expects (country code, no "+"): "98111 00077" → "919811100077". */
 export function phoneForWhatsApp(phone: string): string {
-  return phone.replace(/[^\d]/g, '');
+  return (normalizeIndianPhone(phone) ?? phone).replace(/[^\d]/g, '');
 }
 
 export function whatsappLink(phone: string, text?: string): string {

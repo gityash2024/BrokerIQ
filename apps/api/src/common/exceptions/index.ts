@@ -39,6 +39,13 @@ export class IntegrationFailedException extends AppException {
   }
 }
 
+/** Meta refused a free-form message because the 24-hour customer-service window is closed. */
+export class WhatsAppWindowClosedException extends IntegrationFailedException {
+  constructor() {
+    super('whatsapp', '24 घंटे की window बंद है — lead ने पिछले 24 घंटे में message नहीं किया। Approved template भेजें।');
+  }
+}
+
 export class PlanLimitException extends AppException {
   constructor(metric: string, limit: number) {
     super(HttpStatus.PAYMENT_REQUIRED, ErrorCode.PLAN_LIMIT_REACHED, `आपके plan की limit (${limit} ${metric}) पूरी हो गई है। Billing में plan upgrade करें।`, {

@@ -7,6 +7,8 @@ export interface DomainEvents {
   'visit.scheduled': { visitId: string; orgId: string; leadId: string };
   'message.inbound': { conversationId: string; orgId: string | null; leadId?: string | null };
   'listing.published': { listingId: string };
+  /** Someone messaged the firm "BrokerIQ OTP <code>" to receive a confirmation OTP inside WhatsApp's 24h window. */
+  'whatsapp.otp_request': { orgId: string; phone: string; code: string };
   'deal.closed': { dealId: string; orgId: string; userId?: string };
   /** Something on the lead changed that can affect its score (note/call logged, requirement edited). */
   'lead.updated': { leadId: string; orgId: string };

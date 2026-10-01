@@ -7,10 +7,13 @@ import { SettingsService, type IntegrationValues } from '../../core/settings/set
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { EventsService } from '../../core/events/events.service';
-import { IntegrationFailedException, IntegrationNotConfiguredException } from '../../common/exceptions';
+import { IntegrationFailedException, IntegrationNotConfiguredException, WhatsAppWindowClosedException } from '../../common/exceptions';
 import { LeadsService } from '../leads/leads.service';
 import { sha256 } from '../../common/utils';
 import { GRAPH } from '../integrations/integration-tester.service';
+
+/** Message a person sends the firm to get a confirmation OTP on WhatsApp (see rentals/otp.ts otpRequestCode). */
+export const OTP_REQUEST = /BrokerIQ\s+OTP\s+([A-Z0-9]{6})\b/i;
 
 export interface WaCreds {
   scope: 'organization' | 'platform';
@@ -46,6 +49,15 @@ export class WhatsAppService {
     return platform ? { scope: 'platform', values: platform } : null;
   }
 
+  /** The firm's own WhatsApp Business number (for "message us first" links), or null when it hasn't connected one. */
+  async firmNumber(orgId: string): Promise<string | null> {
+    const c = await this.creds(orgId);
+    if (c?.scope !== 'organization') return null;
+    const shown = typeof c.values.displayPhone === 'string' ? c.values.displayPhone : null;
+    const org = shown ? null : await this.prisma.organization.findUnique({ where: { id: orgId }, select: { whatsapp: true } });
+    return normalizeIndianPhone(shown ?? org?.whatsapp ?? '') ?? null;
+  }
+
   async requireCreds(orgId: string | null) {
     const c = await this.creds(orgId);
     if (!c) throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
@@ -77,11 +89,8 @@ export class WhatsAppService {
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       const code = data?.error?.code;
-      const msg =
-        code === 131047 || code === 131026
-          ? '24 घंटे की window बंद है — lead ने पिछले 24 घंटे में message नहीं किया। Approved template भेजें।'
-          : (data?.error?.error_data?.details ?? data?.error?.message ?? `Meta API ${res.status}`);
-      throw new IntegrationFailedException('whatsapp', msg);
+      if (code === 131047 || code === 131026) throw new WhatsAppWindowClosedException();
+      throw new IntegrationFailedException('whatsapp', data?.error?.error_data?.details ?? data?.error?.message ?? `Meta API ${res.status}`);
     }
     return data?.messages?.[0]?.id as string | undefined;
   }
@@ -248,8 +257,15 @@ export class WhatsAppService {
         text = `[${m.type}]`;
     }
 
+    // "BrokerIQ OTP <code>": a landlord/tenant asking for their confirmation OTP — answered by the rentals module, not a new lead.
+    const otpAsk = orgId ? OTP_REQUEST.exec(text) : null;
     let leadId: string | null = null;
-    if (orgId) {
+    if (orgId && otpAsk) {
+      const existing = await this.prisma.lead.findUnique({
+        where: { organizationId_phone: { organizationId: orgId, phone: normalizeIndianPhone(phone) ?? phone } },
+      });
+      leadId = existing?.id ?? null;
+    } else if (orgId) {
       const existing = await this.prisma.lead.findUnique({
         where: { organizationId_phone: { organizationId: orgId, phone: normalizeIndianPhone(phone) ?? phone } },
       });
@@ -290,6 +306,7 @@ export class WhatsAppService {
     }
     this.emit(orgId, 'wa:message', { conversationId: conv.id, message: saved });
     this.events.emit('message.inbound', { conversationId: conv.id, orgId, leadId });
+    if (orgId && otpAsk) this.events.emit('whatsapp.otp_request', { orgId, phone, code: otpAsk[1].toUpperCase() });
     if (orgId && leadId) await this.handleOptOut(orgId, leadId, phone, text).catch((e) => this.logger.warn(`opt-out: ${(e as Error).message}`));
   }
 

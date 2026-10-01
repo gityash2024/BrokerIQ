@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatINR, formatPriceShort, normalizeIndianPhone, slugify, renderTemplate, calculateEmi } from '../utils';
+import { formatINR, formatPriceShort, normalizeIndianPhone, phoneForWhatsApp, slugify, renderTemplate, calculateEmi, whatsappLink } from '../utils';
 import { INTEGRATIONS } from '../integrations/registry';
 import { DEFAULT_APP_CONFIG } from '../app-config';
 
@@ -29,3 +29,10 @@ test('registry keys are unique and have steps', () => {
   for (const i of INTEGRATIONS) assert.ok(i.steps.length >= 2, i.key);
 });
 test('default app config parses', () => assert.equal(DEFAULT_APP_CONFIG.city, 'Gurgaon'));
+
+test('phoneForWhatsApp adds the country code to local numbers', () => {
+  assert.equal(phoneForWhatsApp('98111 00077'), '919811100077');
+  assert.equal(phoneForWhatsApp('+91 98111-00077'), '919811100077');
+  assert.equal(phoneForWhatsApp('+14155550100'), '14155550100');
+  assert.equal(whatsappLink('9811100077', 'hi'), 'https://wa.me/919811100077?text=hi');
+});

@@ -7,7 +7,9 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { FeaturesService } from '../src/core/features/features.service';
 import { SettingsService } from '../src/core/settings/settings.service';
-import { WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
+import { OTP_REQUEST, WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
+import { EsignService } from '../src/modules/rentals/esign.service';
+import { WhatsAppWindowClosedException } from '../src/common/exceptions';
 import { MailService } from '../src/core/mail/mail.service';
 import { RentService } from '../src/modules/rentals/rent.service';
 
@@ -309,6 +311,60 @@ describe('Tenant & owner tools (e2e)', () => {
     expect(sent[1].opts.storedBody).not.toContain(otp);
     await http.post(`/api/public/sign/${token}/confirm`).send({ otp }).expect(201);
     spy.mockRestore();
+  });
+
+  it('WhatsApp 24h window closed: broker gets a share link, party messages the firm and the OTP comes back automatically', async () => {
+    const wa = app.get(WhatsAppService);
+    let windowOpen = false;
+    const sent: { to: string; text: string; opts: any }[] = [];
+    const sendSpy = jest.spyOn(wa, 'send').mockImplementation(async (_org: any, to: string, msg: any, opts: any) => {
+      if (!windowOpen) throw new WhatsAppWindowClosedException();
+      sent.push({ to, text: msg.text, opts });
+      return {} as any;
+    });
+    const firmSpy = jest.spyOn(wa, 'firmNumber').mockResolvedValue('+919800000099');
+    const a = await http
+      .post('/api/agreements')
+      .set(auth(broker.token))
+      .send({
+        landlordName: 'Window Owner',
+        landlordPhone: '9811100077',
+        tenantName: 'Tara Tenant',
+        propertyAddress: 'Flat 15, Sector 65, Gurugram',
+        rent: 31000,
+        deposit: 62000,
+        startDate: istToday(),
+      })
+      .expect(201);
+    // Link can't go from the firm's number: the broker gets a wa.me link to forward from their own WhatsApp.
+    const st = await http.post(`/api/agreements/${a.body.id}/sign`).set(auth(broker.token)).send({ tenantEmail: tenant.email }).expect(201);
+    expect(st.body.manual).toHaveLength(1);
+    expect(st.body.manual[0]).toMatchObject({ party: 'LANDLORD' });
+    expect(st.body.manual[0].waLink).toContain('wa.me/919811100077');
+    const token = /\/sign\/([\w-]+)/.exec(st.body.manual[0].url)![1];
+
+    // OTP request: 409 with the "message the firm first" link carrying the request code.
+    const r = await http.post(`/api/public/sign/${token}/otp`).expect(409);
+    expect(r.body.code).toBe('WHATSAPP_WINDOW_CLOSED');
+    expect(r.body.details.waLink).toContain('wa.me/919800000099');
+    const code = r.body.details.code as string;
+    expect(decodeURIComponent(r.body.details.waLink)).toContain(`BrokerIQ OTP ${code}`);
+
+    // Someone else's phone with the right code gets nothing.
+    windowOpen = true;
+    const sig = await prisma.agreementSignature.findUniqueOrThrow({ where: { token } });
+    await app.get(EsignService).relayOtp({ orgId: broker.orgId, phone: '+919811100000', code });
+    expect(sent).toHaveLength(0);
+    // The party's own message: OTP sent back, masked in the firm's inbox.
+    await app.get(EsignService).relayOtp({ orgId: broker.orgId, phone: '+919811100077', code });
+    expect(sent).toHaveLength(1);
+    const otp = /(\d{6})/.exec(sent[0].text)![1];
+    expect(sent[0].opts.storedBody).not.toContain(otp);
+    await http.post(`/api/public/sign/${token}/confirm`).send({ otp }).expect(201);
+    expect((await prisma.agreementSignature.findUniqueOrThrow({ where: { id: sig.id } })).signedAt).not.toBeNull();
+    expect(OTP_REQUEST.exec(`hello BrokerIQ OTP ${code.toLowerCase()} thanks`)?.[1].toUpperCase()).toBe(code);
+    sendSpy.mockRestore();
+    firmSpy.mockRestore();
   });
 
   it('fair rent: median and range from real listings; says so when data is thin', async () => {

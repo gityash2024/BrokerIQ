@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking } from 'react-native';
+import { Linking, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { FileSignature, Plus } from 'lucide-react-native';
 import { formatINR } from '@brokeriq/shared';
@@ -117,13 +117,21 @@ function SignSheet({ agreement, onClose, onSent }: { agreement: any | null; onCl
   const [f, setF] = useState({ landlordEmail: '', tenantEmail: '' });
   const [busy, setBusy] = useState(false);
   const reachable = (email: string, phone?: string | null) => !!email || !!phone;
+  // Parties the firm's WhatsApp couldn't reach (24h window): forwarded from the broker's own WhatsApp.
+  const [manual, setManual] = useState<{ party: string; name: string; waLink: string }[]>([]);
+  const close = () => (setManual([]), onClose());
   const send = async () => {
     setBusy(true);
     try {
-      await post(`/agreements/${agreement.id}/sign`, f);
-      toast.success('दोनों को sign link भेज दिया');
+      const r = await post<{ manual?: { party: string; name: string; waLink: string }[] }>(`/agreements/${agreement.id}/sign`, f);
       onSent();
-      onClose();
+      if (r.manual?.length) {
+        setManual(r.manual);
+        toast.success('Link तैयार — नीचे के button से अपने WhatsApp से भेजें');
+        return;
+      }
+      toast.success('दोनों को sign link भेज दिया');
+      close();
     } catch (e) {
       showError(e);
     } finally {
@@ -131,7 +139,15 @@ function SignSheet({ agreement, onClose, onSent }: { agreement: any | null; onCl
     }
   };
   return (
-    <Sheet open={!!agreement} onClose={onClose} title="OTP से sign करवाएँ">
+    <Sheet open={!!agreement} onClose={close} title="OTP से sign करवाएँ">
+      {manual.length > 0 && (
+        <View style={{ gap: 8, marginBottom: 12 }}>
+          <Txt v="small">इन्होंने पिछले 24 घंटे में आपके business WhatsApp पर message नहीं किया, इसलिए link अपने WhatsApp से भेजें:</Txt>
+          {manual.map((m) => (
+            <Button key={m.party} title={`WhatsApp: ${m.name}`} variant="secondary" onPress={() => Linking.openURL(m.waLink)} />
+          ))}
+        </View>
+      )}
       <Input
         label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}${agreement?.landlordPhone ? ' — optional' : ''}`}
         value={f.landlordEmail}

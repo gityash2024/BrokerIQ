@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import type { Prisma, TenancyInspection } from '@prisma/client';
 import type { InspectionInput } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,8 +7,9 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { randomToken } from '../../common/utils';
 import { pdfImage, pdfMoney, pdfTable, pdfText, renderPdf } from '../../common/pdf';
 import { LocalStorageService } from '../../core/media/local-storage.service';
+import { EventsService } from '../../core/events/events.service';
 import { env } from '../../config/env';
-import { issueOtp, maskContact, verifyOtp, type OtpState } from './otp';
+import { issueOtp, maskContact, otpRequestCode, samePhone, sendOtpOnWhatsApp, verifyOtp, type OtpState } from './otp';
 
 type Party = 'LANDLORD' | 'TENANT';
 type Room = { name: string; items: { name: string; condition: string; note?: string | null }[] };
@@ -16,15 +17,33 @@ const web = () => env().PUBLIC_WEB_URL.replace(/\/$/, '');
 const api = () => env().PUBLIC_API_URL.replace(/\/$/, '');
 const KIND_LABEL = { MOVE_IN: 'Move-in', MOVE_OUT: 'Move-out' } as const;
 
+const INSPECTION_INCLUDE = {
+  tenancy: {
+    include: {
+      owner: { select: { name: true, email: true, phone: true } },
+      listing: { select: { title: true, societyName: true, address: true, locality: { select: { name: true } } } },
+      organization: { select: { name: true } },
+      inspections: { where: { kind: 'MOVE_IN' } },
+    },
+  },
+} satisfies Prisma.TenancyInspectionInclude;
+type LoadedInspection = Prisma.TenancyInspectionGetPayload<{ include: typeof INSPECTION_INCLUDE }>;
+
 /** Move-in / move-out condition record with deposit settlement; landlord and tenant confirm by OTP. */
 @Injectable()
-export class InspectionService {
+export class InspectionService implements OnModuleInit {
+  private readonly logger = new Logger(InspectionService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly wa: WhatsAppService,
     private readonly store: LocalStorageService,
+    private readonly events: EventsService,
   ) {}
+
+  onModuleInit() {
+    this.events.on('whatsapp.otp_request', (p) => this.relayOtp(p));
+  }
 
   private links(i: Pick<TenancyInspection, 'token'>) {
     return {
@@ -70,22 +89,13 @@ export class InspectionService {
   private async load(token: string) {
     const i = await this.prisma.tenancyInspection.findUnique({
       where: { token },
-      include: {
-        tenancy: {
-          include: {
-            owner: { select: { name: true, email: true, phone: true } },
-            listing: { select: { title: true, societyName: true, address: true, locality: { select: { name: true } } } },
-            organization: { select: { name: true } },
-            inspections: { where: { kind: 'MOVE_IN' } },
-          },
-        },
-      },
+      include: INSPECTION_INCLUDE,
     });
     if (!i) throw new NotFoundException('Link गलत है');
     return i;
   }
 
-  private contact(i: Awaited<ReturnType<InspectionService['load']>>, party: Party) {
+  private contact(i: LoadedInspection, party: Party) {
     const t = i.tenancy;
     return party === 'LANDLORD'
       ? { name: t.owner?.name ?? 'Landlord', email: t.owner?.email ?? null, phone: t.owner?.phone ?? null }
@@ -127,19 +137,41 @@ export class InspectionService {
     if ((party === 'LANDLORD' ? i.landlordConfirmedAt : i.tenantConfirmedAt) != null) throw new BadRequestException('पहले ही confirm हो चुका है');
     const c = this.contact(i, party);
     if (!c.email && !c.phone) throw new BadRequestException('इस व्यक्ति का email/phone broker के पास नहीं है — broker से जोड़ने को कहें');
+    const { otp, text } = await this.issue(i, party);
+    if (c.email) await this.mail.send({ to: c.email, subject: `OTP ${otp} — ${KIND_LABEL[i.kind]} checklist`, html: `<p>${text}</p>` });
+    else await sendOtpOnWhatsApp(this.wa, i.organizationId, { name: c.name, phone: c.phone! }, { text, otp, code: otpRequestCode('insp', i.id, party) });
+    return { sentTo: maskContact(c.email ?? c.phone!) };
+  }
+
+  /** New OTP for one party (stored hashed); returns it with the message text. */
+  private async issue(i: LoadedInspection, party: Party) {
     const { otp, state } = issueOtp(`insp:${i.id}:${party}`);
-    const otps = { ...((i.otp as unknown as Record<string, OtpState>) ?? {}), [party]: state };
+    const fresh = await this.prisma.tenancyInspection.findUniqueOrThrow({ where: { id: i.id }, select: { otp: true } });
+    const otps = { ...((fresh.otp as unknown as Record<string, OtpState>) ?? {}), [party]: state };
     await this.prisma.tenancyInspection.update({ where: { id: i.id }, data: { otp: otps as unknown as Prisma.InputJsonValue } });
     const text = `${KIND_LABEL[i.kind]} checklist confirm करने का OTP: ${otp} (10 मिनट तक). किसी को न बताएँ। — ${i.tenancy.organization.name}`;
-    if (c.email) await this.mail.send({ to: c.email, subject: `OTP ${otp} — ${KIND_LABEL[i.kind]} checklist`, html: `<p>${text}</p>` });
-    else
-      await this.wa.send(
-        i.organizationId,
-        c.phone!,
-        { type: 'text', text },
-        { contactName: c.name, ownNumberOnly: true, storedBody: text.replace(otp, '******') },
-      );
-    return { sentTo: maskContact(c.email ?? c.phone!) };
+    return { otp, text };
+  }
+
+  /** "BrokerIQ OTP <code>" from a party's own phone: reply with a fresh OTP inside the now-open 24h window. */
+  async relayOtp(p: { orgId: string; phone: string; code: string }) {
+    const pending = await this.prisma.tenancyInspection.findMany({
+      where: { organizationId: p.orgId, OR: [{ landlordConfirmedAt: null }, { tenantConfirmedAt: null }] },
+      include: INSPECTION_INCLUDE,
+      orderBy: { updatedAt: 'desc' },
+      take: 300,
+    });
+    for (const i of pending)
+      for (const party of ['LANDLORD', 'TENANT'] as const) {
+        if ((party === 'LANDLORD' ? i.landlordConfirmedAt : i.tenantConfirmedAt) != null) continue;
+        const c = this.contact(i, party);
+        if (c.email || !samePhone(c.phone, p.phone) || otpRequestCode('insp', i.id, party) !== p.code) continue;
+        const { otp, text } = await this.issue(i, party);
+        await sendOtpOnWhatsApp(this.wa, p.orgId, { name: c.name, phone: c.phone! }, { text, otp, code: p.code }).catch((e) =>
+          this.logger.warn(`OTP relay ${i.id}: ${(e as Error).message}`),
+        );
+        return;
+      }
   }
 
   async confirm(token: string, party: Party, otp: string, meta: { ip?: string; ua?: string }) {

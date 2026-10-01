@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Download, ExternalLink, FileSignature, PenLine, Plus } from 'lucide-react';
+import { Download, ExternalLink, FileSignature, PenLine, Plus, MessageCircle } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
@@ -221,12 +221,19 @@ function SignDialog({ agreement, onClose, onSent }: { agreement: any | null; onC
   const [f, setF] = useState({ landlordEmail: '', tenantEmail: '' });
   const [busy, setBusy] = useState(false);
   const reachable = (email: string, phone?: string | null) => !!email.trim() || !!phone;
+  // Parties the firm's WhatsApp couldn't reach (24h window): forwarded from the broker's own WhatsApp.
+  const [manual, setManual] = useState<{ party: string; name: string; waLink: string }[]>([]);
   const send = async () => {
     setBusy(true);
     try {
-      await api(`/agreements/${agreement.id}/sign`, { method: 'POST', body: f });
-      toast.success('दोनों को sign link भेज दिया');
+      const r = await api<{ manual?: { party: string; name: string; waLink: string }[] }>(`/agreements/${agreement.id}/sign`, { method: 'POST', body: f });
       onSent();
+      if (r.manual?.length) {
+        setManual(r.manual);
+        toast.success('Link तैयार — नीचे के button से अपने WhatsApp से भेजें');
+        return;
+      }
+      toast.success('दोनों को sign link भेज दिया');
       onClose();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -237,7 +244,7 @@ function SignDialog({ agreement, onClose, onSent }: { agreement: any | null; onC
   return (
     <Dialog
       open={!!agreement}
-      onOpenChange={(v) => !v && onClose()}
+      onOpenChange={(v) => !v && (setManual([]), onClose())}
       title="OTP से sign करवाएँ"
       description="Landlord और tenant को link जाएगा — agreement पढ़कर OTP से confirm करेंगे। Email न हो तो link और OTP आपकी firm के अपने WhatsApp से जाएँगे। Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ जाता है।"
       footer={
@@ -251,6 +258,18 @@ function SignDialog({ agreement, onClose, onSent }: { agreement: any | null; onC
       }
     >
       <div className="space-y-3">
+        {manual.length > 0 && (
+          <div className="space-y-2 rounded-xl bg-emerald-50 p-3 text-sm dark:bg-emerald-500/10">
+            <p>इन्होंने पिछले 24 घंटे में आपके business WhatsApp पर message नहीं किया, इसलिए link अपने WhatsApp से भेजें:</p>
+            <div className="flex flex-wrap gap-2">
+              {manual.map((m) => (
+                <Button key={m.party} size="sm" variant="whatsapp" external href={m.waLink}>
+                  <MessageCircle className="size-4" /> <span data-no-i18n>{m.name}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
         <Field
           label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}`}
           hint={agreement?.landlordPhone ? `खाली छोड़ें तो WhatsApp ${agreement.landlordPhone} पर जाएगा` : undefined}
