@@ -101,6 +101,8 @@ export class WhatsAppService {
       meta?: Record<string, unknown>;
       /** Never fall back to the platform number (broadcasts: the cost must be the firm's own) */
       ownNumberOnly?: boolean;
+      /** What the firm's inbox shows instead of the real text (OTPs must not be readable by the broker) */
+      storedBody?: string;
     } = {},
   ) {
     const phone = normalizeIndianPhone(to) ?? to;
@@ -108,11 +110,12 @@ export class WhatsAppService {
     if (opts.ownNumberOnly && creds.scope !== 'organization') throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
     const conv = await this.conversationFor(orgId, phone, { leadId: opts.leadId, name: opts.contactName });
     const body =
-      msg.type === 'text'
+      opts.storedBody ??
+      (msg.type === 'text'
         ? msg.text
         : msg.type === 'template'
           ? `[Template] ${msg.name}${msg.params.length ? `: ${msg.params.join(' | ')}` : ''}`
-          : (msg.caption ?? '');
+          : (msg.caption ?? ''));
     const type: MessageType = msg.type === 'text' ? 'TEXT' : msg.type === 'template' ? 'TEMPLATE' : msg.type === 'image' ? 'IMAGE' : 'DOCUMENT';
     const record = await this.prisma.message.create({
       data: {

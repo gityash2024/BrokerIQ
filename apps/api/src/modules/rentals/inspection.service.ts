@@ -130,7 +130,13 @@ export class InspectionService {
     await this.prisma.tenancyInspection.update({ where: { id: i.id }, data: { otp: otps as unknown as Prisma.InputJsonValue } });
     const text = `${KIND_LABEL[i.kind]} checklist confirm करने का OTP: ${otp} (10 मिनट तक). किसी को न बताएँ। — ${i.tenancy.organization.name}`;
     if (c.email) await this.mail.send({ to: c.email, subject: `OTP ${otp} — ${KIND_LABEL[i.kind]} checklist`, html: `<p>${text}</p>` });
-    else await this.wa.send(i.organizationId, c.phone!, { type: 'text', text }, { contactName: c.name, ownNumberOnly: true });
+    else
+      await this.wa.send(
+        i.organizationId,
+        c.phone!,
+        { type: 'text', text },
+        { contactName: c.name, ownNumberOnly: true, storedBody: text.replace(otp, '******') },
+      );
     return { sentTo: maskContact(c.email ?? c.phone!) };
   }
 

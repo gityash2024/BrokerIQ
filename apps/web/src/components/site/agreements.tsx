@@ -216,15 +216,16 @@ function AgreementDialog({ open, onClose, onSaved }: { open: boolean; onClose: (
   );
 }
 
-/** Sends both parties a link to read the agreement and confirm it with an OTP on their email. */
+/** Sends both parties a link to read the agreement and confirm it with an OTP (email, or the firm's own WhatsApp when there is no email). */
 function SignDialog({ agreement, onClose, onSent }: { agreement: any | null; onClose: () => void; onSent: () => void }) {
   const [f, setF] = useState({ landlordEmail: '', tenantEmail: '' });
   const [busy, setBusy] = useState(false);
+  const reachable = (email: string, phone?: string | null) => !!email.trim() || !!phone;
   const send = async () => {
     setBusy(true);
     try {
       await api(`/agreements/${agreement.id}/sign`, { method: 'POST', body: f });
-      toast.success('दोनों को email पर sign link भेज दिया');
+      toast.success('दोनों को sign link भेज दिया');
       onSent();
       onClose();
     } catch (e) {
@@ -238,18 +239,30 @@ function SignDialog({ agreement, onClose, onSent }: { agreement: any | null; onC
       open={!!agreement}
       onOpenChange={(v) => !v && onClose()}
       title="OTP से sign करवाएँ"
-      description="Landlord और tenant को email पर link जाएगा — agreement पढ़कर OTP से confirm करेंगे। Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ जाता है।"
+      description="Landlord और tenant को link जाएगा — agreement पढ़कर OTP से confirm करेंगे। Email न हो तो link और OTP आपकी firm के अपने WhatsApp से जाएँगे। Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ जाता है।"
       footer={
-        <Button onClick={send} loading={busy} disabled={!f.landlordEmail || !f.tenantEmail}>
+        <Button
+          onClick={send}
+          loading={busy}
+          disabled={!agreement || !reachable(f.landlordEmail, agreement.landlordPhone) || !reachable(f.tenantEmail, agreement.tenantPhone)}
+        >
           Link भेजें
         </Button>
       }
     >
       <div className="space-y-3">
-        <Field label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}`} required>
+        <Field
+          label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}`}
+          hint={agreement?.landlordPhone ? `खाली छोड़ें तो WhatsApp ${agreement.landlordPhone} पर जाएगा` : undefined}
+          required={!agreement?.landlordPhone}
+        >
           <Input type="email" value={f.landlordEmail} onChange={(e) => setF({ ...f, landlordEmail: e.target.value })} data-no-i18n />
         </Field>
-        <Field label={`Tenant email${agreement ? ` (${agreement.tenantName})` : ''}`} required>
+        <Field
+          label={`Tenant email${agreement ? ` (${agreement.tenantName})` : ''}`}
+          hint={agreement?.tenantPhone ? `खाली छोड़ें तो WhatsApp ${agreement.tenantPhone} पर जाएगा` : undefined}
+          required={!agreement?.tenantPhone}
+        >
           <Input type="email" value={f.tenantEmail} onChange={(e) => setF({ ...f, tenantEmail: e.target.value })} data-no-i18n />
         </Field>
         <p className="text-xs text-muted">Electronic confirmation सहमति का सबूत है; stamp duty / registration की जगह नहीं लेता।</p>

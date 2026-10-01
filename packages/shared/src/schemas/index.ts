@@ -629,8 +629,17 @@ export const inspectionSchema = z.object({
 });
 export type InspectionInput = z.infer<typeof inspectionSchema>;
 
+/** Email is optional per party: without one, the link and OTP go on WhatsApp from the firm's own number. */
+const optionalEmail = (msg: string) =>
+  z
+    .string()
+    .trim()
+    .max(200)
+    .refine((v) => v === '' || z.string().email().safeParse(v).success, msg)
+    .optional()
+    .transform((v) => v || undefined);
 export const signStartSchema = z.object({
-  landlordEmail: z.string().trim().email('Landlord का email डालें').max(200),
-  tenantEmail: z.string().trim().email('Tenant का email डालें').max(200),
+  landlordEmail: optionalEmail('Landlord का email सही नहीं है'),
+  tenantEmail: optionalEmail('Tenant का email सही नहीं है'),
 });
 export const otpSchema = z.object({ otp: z.string().regex(/^\d{6}$/, '6 अंकों का OTP डालें') });

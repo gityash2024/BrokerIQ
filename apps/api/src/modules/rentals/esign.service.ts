@@ -3,6 +3,7 @@ import type { RentAgreement } from '@prisma/client';
 import { formatINR } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../core/mail/mail.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { CommunityService } from '../community/community.service';
 import { randomToken, sha256 } from '../../common/utils';
 import { pdfText } from '../../common/pdf';
@@ -38,7 +39,7 @@ export function agreementHash(a: RentAgreement) {
 
 /**
  * Electronic confirmation of a rent agreement: each party gets a link, reads the draft and confirms with an OTP
- * sent to their email. The PDF then carries a certificate page (who, when, IP, SHA-256 of the terms).
+ * sent to their email (or, without one, on WhatsApp from the firm's own number; the firm's inbox never shows the OTP). The PDF then carries a certificate page (who, when, IP, SHA-256 of the terms).
  * It records consent; it is not a substitute for stamp duty or registration.
  */
 @Injectable()
@@ -46,37 +47,57 @@ export class EsignService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly wa: WhatsAppService,
     private readonly community: CommunityService,
   ) {}
 
-  async start(userId: string, agreementId: string, emails: { landlordEmail: string; tenantEmail: string }) {
+  /** Email when the party has one, else WhatsApp text from the firm's own number. */
+  private async deliver(
+    orgId: string | null,
+    to: { name: string; email: string | null; phone: string | null },
+    msg: { subject: string; html: string; text: string; storedText?: string },
+  ) {
+    if (to.email) return this.mail.send({ to: to.email, subject: msg.subject, html: msg.html });
+    if (!orgId || !to.phone) throw new BadRequestException(`${to.name} का email या phone नहीं है`);
+    await this.wa.send(orgId, to.phone, { type: 'text', text: msg.text }, { contactName: to.name, ownNumberOnly: true, storedBody: msg.storedText });
+  }
+
+  async start(userId: string, agreementId: string, emails: { landlordEmail?: string; tenantEmail?: string }) {
     const a = await this.prisma.rentAgreement.findFirst({ where: { id: agreementId, createdById: userId }, include: { signatures: true } });
     if (!a) throw new NotFoundException('Agreement नहीं मिला');
     if (a.signStatus === 'SIGNED') throw new BadRequestException('यह agreement पहले ही sign हो चुका है');
+    const parties: { party: Party; name: string; email: string | null; phone: string | null }[] = [
+      { party: 'LANDLORD', name: a.landlordName, email: emails.landlordEmail?.toLowerCase() ?? null, phone: a.landlordPhone },
+      { party: 'TENANT', name: a.tenantName, email: emails.tenantEmail?.toLowerCase() ?? null, phone: a.tenantPhone },
+    ];
+    for (const p of parties) {
+      if (p.email) continue;
+      if (!p.phone) throw new BadRequestException(`${p.name} का email डालें (agreement में phone भी नहीं है)`);
+      if (!a.organizationId) throw new BadRequestException(`${p.name} का email डालें — WhatsApp से भेजने के लिए firm account चाहिए`);
+    }
     const documentHash = agreementHash(a);
     await this.prisma.rentAgreement.update({
       where: { id: a.id },
-      data: { signStatus: 'SIGNING', documentHash, landlordEmail: emails.landlordEmail.toLowerCase(), tenantEmail: emails.tenantEmail.toLowerCase() },
+      data: { signStatus: 'SIGNING', documentHash, landlordEmail: parties[0].email, tenantEmail: parties[1].email },
     });
-    const parties: { party: Party; name: string; email: string; phone: string | null }[] = [
-      { party: 'LANDLORD', name: a.landlordName, email: emails.landlordEmail.toLowerCase(), phone: a.landlordPhone },
-      { party: 'TENANT', name: a.tenantName, email: emails.tenantEmail.toLowerCase(), phone: a.tenantPhone },
-    ];
     for (const p of parties) {
       const existing = a.signatures.find((s) => s.party === p.party);
-      if (existing?.signedAt && existing.email === p.email) continue;
+      if (existing?.signedAt && existing.email === p.email && existing.phone === p.phone) continue;
       const sig = await this.prisma.agreementSignature.upsert({
         where: { agreementId_party: { agreementId: a.id, party: p.party } },
         create: { agreementId: a.id, party: p.party, name: p.name, email: p.email, phone: p.phone, token: randomToken(18) },
-        update: { email: p.email, name: p.name, signedAt: null, otpHash: null, otpExpiresAt: null, attempts: 0, token: randomToken(18) },
+        update: { email: p.email, phone: p.phone, name: p.name, signedAt: null, otpHash: null, otpExpiresAt: null, attempts: 0, token: randomToken(18) },
       });
-      await this.mail.send({
-        to: p.email,
+      const link = `${web()}/sign/${sig.token}`;
+      await this.deliver(a.organizationId, p, {
         subject: `Rent agreement confirm करें — ${a.propertyAddress.slice(0, 60)}`,
         html:
           `<p>नमस्ते ${escape(p.name)},</p><p>${escape(a.propertyAddress)} का rent agreement (किराया ${formatINR(a.rent)}/month) आपकी confirmation के लिए तैयार है।</p>` +
-          `<p><a href="${web()}/sign/${sig.token}">Agreement पढ़ें और OTP से confirm करें</a></p>` +
+          `<p><a href="${link}">Agreement पढ़ें और OTP से confirm करें</a></p>` +
           `<p style="color:#64748b;font-size:12px">यह electronic confirmation है — stamp duty / registration की जगह नहीं लेता।</p>`,
+        text:
+          `नमस्ते ${p.name}, ${a.propertyAddress} का rent agreement (किराया ${formatINR(a.rent)}/month) आपकी confirmation के लिए तैयार है।\n` +
+          `पढ़ें और OTP से confirm करें: ${link}\n(यह electronic confirmation है — stamp duty / registration की जगह नहीं लेता।)`,
       });
     }
     return this.status(a.id);
@@ -88,7 +109,14 @@ export class EsignService {
       signStatus: a.signStatus,
       documentHash: a.documentHash,
       signedAt: a.signedAt,
-      signatures: a.signatures.map((s) => ({ party: s.party, name: s.name, email: s.email ? maskContact(s.email) : null, signedAt: s.signedAt })),
+      signatures: a.signatures.map((s) => ({
+        party: s.party,
+        name: s.name,
+        email: s.email ? maskContact(s.email) : null,
+        sentTo: s.email || s.phone ? maskContact((s.email ?? s.phone)!) : null,
+        via: s.email ? 'EMAIL' : 'WHATSAPP',
+        signedAt: s.signedAt,
+      })),
       pdfUrl: a.signatures[0] ? `${api()}/api/public/sign/${a.signatures[0].token}/pdf` : null,
     };
   }
@@ -123,22 +151,24 @@ export class EsignService {
       },
       parties: a.signatures.map((x) => ({ party: x.party, name: x.name, signedAt: x.signedAt })),
       pdfUrl: `${api()}/api/public/sign/${token}/pdf`,
-      sentTo: s.email ? maskContact(s.email) : null,
+      sentTo: s.email || s.phone ? maskContact((s.email ?? s.phone)!) : null,
     };
   }
 
   async requestOtp(token: string) {
     const s = await this.byToken(token);
     if (s.signedAt) throw new BadRequestException('आप पहले ही confirm कर चुके हैं');
-    if (!s.email) throw new BadRequestException('Email नहीं है — जिसने agreement भेजा उससे संपर्क करें');
+    if (!s.email && !s.phone) throw new BadRequestException('Email/phone नहीं है — जिसने agreement भेजा उससे संपर्क करें');
     const { otp, state } = issueOtp(`sign:${s.id}`);
     await this.prisma.agreementSignature.update({ where: { id: s.id }, data: { otpHash: state.hash, otpExpiresAt: new Date(state.exp), attempts: 0 } });
-    await this.mail.send({
-      to: s.email,
+    const text = `Rent agreement confirm करने का OTP: ${otp} (10 मिनट तक)। किसी को न बताएँ।`;
+    await this.deliver(s.agreement.organizationId, s, {
       subject: `OTP ${otp} — rent agreement confirmation`,
       html: `<p>Rent agreement confirm करने का OTP: <b>${otp}</b> (10 मिनट तक)। किसी को न बताएँ।</p>`,
+      text,
+      storedText: text.replace(otp, '******'),
     });
-    return { sentTo: maskContact(s.email) };
+    return { sentTo: maskContact((s.email ?? s.phone)!) };
   }
 
   async confirm(token: string, otp: string, meta: { ip?: string; ua?: string }) {
@@ -158,14 +188,14 @@ export class EsignService {
     const all = await this.prisma.agreementSignature.findMany({ where: { agreementId: a.id } });
     if (all.length === 2 && all.every((x) => x.signedAt)) {
       await this.prisma.rentAgreement.update({ where: { id: a.id }, data: { signStatus: 'SIGNED', signedAt: new Date() } });
-      for (const x of all.filter((y) => y.email))
-        await this.mail
-          .send({
-            to: x.email!,
-            subject: 'Rent agreement — दोनों ने confirm किया',
-            html: `<p>Landlord और tenant दोनों ने agreement confirm कर दिया है।</p><p><a href="${api()}/api/public/sign/${x.token}/pdf">Final PDF (certificate के साथ)</a></p>`,
-          })
-          .catch(() => undefined);
+      for (const x of all) {
+        const pdfUrl = `${api()}/api/public/sign/${x.token}/pdf`;
+        await this.deliver(a.organizationId, x, {
+          subject: 'Rent agreement — दोनों ने confirm किया',
+          html: `<p>Landlord और tenant दोनों ने agreement confirm कर दिया है।</p><p><a href="${pdfUrl}">Final PDF (certificate के साथ)</a></p>`,
+          text: `Landlord और tenant दोनों ने rent agreement confirm कर दिया है। Final PDF (certificate के साथ): ${pdfUrl}`,
+        }).catch(() => undefined);
+      }
     }
     return this.view(token);
   }
@@ -187,7 +217,7 @@ export class EsignService {
           .font('R')
           .text(
             x.signedAt
-              ? `Confirmed on ${x.signedAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST with a one-time password sent to ${x.email ? maskContact(x.email) : '-'}; IP ${x.ip ?? '-'}; device ${pdfText(x.userAgent?.slice(0, 90)) || '-'}`
+              ? `Confirmed on ${x.signedAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST with a one-time password sent to ${x.email ? maskContact(x.email) : x.phone ? `WhatsApp ${maskContact(x.phone)}` : '-'}; IP ${x.ip ?? '-'}; device ${pdfText(x.userAgent?.slice(0, 90)) || '-'}`
               : 'Pending',
           );
         doc.moveDown(0.5);

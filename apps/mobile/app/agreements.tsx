@@ -112,15 +112,16 @@ function NewAgreement({ open, onClose, onSaved }: { open: boolean; onClose: () =
   );
 }
 
-/** Both parties get an email link to read the agreement and confirm it with an OTP. */
+/** Both parties get a link (email, or the firm's own WhatsApp when there is no email) to read the agreement and confirm it with an OTP. */
 function SignSheet({ agreement, onClose, onSent }: { agreement: any | null; onClose: () => void; onSent: () => void }) {
   const [f, setF] = useState({ landlordEmail: '', tenantEmail: '' });
   const [busy, setBusy] = useState(false);
+  const reachable = (email: string, phone?: string | null) => !!email || !!phone;
   const send = async () => {
     setBusy(true);
     try {
       await post(`/agreements/${agreement.id}/sign`, f);
-      toast.success('दोनों को email पर sign link भेज दिया');
+      toast.success('दोनों को sign link भेज दिया');
       onSent();
       onClose();
     } catch (e) {
@@ -132,14 +133,14 @@ function SignSheet({ agreement, onClose, onSent }: { agreement: any | null; onCl
   return (
     <Sheet open={!!agreement} onClose={onClose} title="OTP से sign करवाएँ">
       <Input
-        label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}`}
+        label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}${agreement?.landlordPhone ? ' — optional' : ''}`}
         value={f.landlordEmail}
         onChangeText={(v) => setF({ ...f, landlordEmail: v.trim() })}
         keyboardType="email-address"
         autoCapitalize="none"
       />
       <Input
-        label={`Tenant email${agreement ? ` (${agreement.tenantName})` : ''}`}
+        label={`Tenant email${agreement ? ` (${agreement.tenantName})` : ''}${agreement?.tenantPhone ? ' — optional' : ''}`}
         value={f.tenantEmail}
         onChangeText={(v) => setF({ ...f, tenantEmail: v.trim() })}
         keyboardType="email-address"
@@ -147,9 +148,17 @@ function SignSheet({ agreement, onClose, onSent }: { agreement: any | null; onCl
         containerStyle={{ marginTop: 10 }}
       />
       <Txt v="caption" color="muted" style={{ marginTop: 8 }}>
-        Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ता है। यह stamp duty / registration की जगह नहीं लेता।
+        Email न हो तो link और OTP आपकी firm के अपने WhatsApp से जाएँगे। Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ता है। यह stamp duty /
+        registration की जगह नहीं लेता।
       </Txt>
-      <Button title="Link भेजें" full loading={busy} disabled={!f.landlordEmail || !f.tenantEmail} onPress={send} style={{ marginTop: 12 }} />
+      <Button
+        title="Link भेजें"
+        full
+        loading={busy}
+        disabled={!agreement || !reachable(f.landlordEmail, agreement.landlordPhone) || !reachable(f.tenantEmail, agreement.tenantPhone)}
+        onPress={send}
+        style={{ marginTop: 12 }}
+      />
     </Sheet>
   );
 }

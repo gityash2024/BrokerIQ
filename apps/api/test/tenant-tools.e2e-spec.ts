@@ -7,6 +7,7 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { FeaturesService } from '../src/core/features/features.service';
 import { SettingsService } from '../src/core/settings/settings.service';
+import { WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
 import { MailService } from '../src/core/mail/mail.service';
 import { RentService } from '../src/modules/rentals/rent.service';
 
@@ -267,6 +268,42 @@ describe('Tenant & owner tools (e2e)', () => {
     expect(done.signatures.every((s) => s.signedAt && s.ip)).toBe(true);
     const pdf = await http.get(`/api/public/sign/${links[0]}/pdf`).buffer(true).parse(binary).expect(200);
     expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('agreement OTP-sign without an email goes on the firm own WhatsApp and keeps the OTP out of the inbox', async () => {
+    const sent: { to: string; text: string; opts: any }[] = [];
+    const spy = jest
+      .spyOn(app.get(WhatsAppService), 'send')
+      .mockImplementation(async (_org: any, to: string, msg: any, opts: any) => void sent.push({ to, text: msg.text, opts }) as any);
+    const a = await http
+      .post('/api/agreements')
+      .set(auth(broker.token))
+      .send({
+        landlordName: 'Omkar Owner',
+        landlordPhone: '9811100001',
+        tenantName: 'Tara Tenant',
+        propertyAddress: 'Flat 14, Sector 65, Gurugram',
+        rent: 30000,
+        deposit: 60000,
+        startDate: istToday(),
+      })
+      .expect(201);
+    // Tenant has neither email nor phone: refused up front, nothing sent.
+    await http.post(`/api/agreements/${a.body.id}/sign`).set(auth(broker.token)).send({ landlordEmail: '' }).expect(400);
+    expect(sent).toHaveLength(0);
+    const before = mails.length;
+    const st = await http.post(`/api/agreements/${a.body.id}/sign`).set(auth(broker.token)).send({ tenantEmail: tenant.email }).expect(201);
+    expect(st.body.signatures.find((x: any) => x.party === 'LANDLORD').via).toBe('WHATSAPP');
+    expect(mails.length - before).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].opts.ownNumberOnly).toBe(true);
+    const token = /\/sign\/([\w-]+)/.exec(sent[0].text)![1];
+    const r = await http.post(`/api/public/sign/${token}/otp`).expect(201);
+    expect(r.body.sentTo).toMatch(/0001$/);
+    const otp = /(\d{6})/.exec(sent[1].text)![1];
+    expect(sent[1].opts.storedBody).not.toContain(otp);
+    await http.post(`/api/public/sign/${token}/confirm`).send({ otp }).expect(201);
+    spy.mockRestore();
   });
 
   it('fair rent: median and range from real listings; says so when data is thin', async () => {
