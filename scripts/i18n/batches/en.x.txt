@@ -799,3 +799,35 @@
 1323	🎥 On a video call
 1326	💻 From the website
 1327	📱 From the app
+1328	The BrokerIQ team will review this chat and act. Your identity is not shared with the other side.
+1329	Report chat
+1330	Without an email, the link and OTP go from your firm’s own WhatsApp. The final PDF gets a confirmation certificate (time, IP, SHA-256). It does not replace stamp duty / registration.
+1331	No email/phone — contact whoever sent the agreement
+1332	Download CSV for Excel/Tally and PDF for your CA
+1333	GST CSV
+1334	Landlord email{n}{n}
+1335	Landlord {n}
+1336	Landlord and tenant get a link — they read the agreement and confirm with an OTP. Without an email, the link and OTP go from your firm’s own WhatsApp. The final PDF gets a confirmation certificate (time, IP, SHA-256).
+1337	Link expired — download again from the app
+1338	Search locality…
+1339	PDF (for CA)
+1340	Photos
+1341	Photos ({n})
+1342	Report
+1343	Report sent — the team will review it
+1344	Type a tag and press done
+1345	Tenant email{n}{n}
+1346	Tenant {n}
+1347	Refund to tenant: {n}
+1348	Enter {n}’s email (the agreement has no phone either)
+1349	Enter {n}’s email — sending on WhatsApp needs a firm account
+1350	{n} has no email or phone
+1351	{n} days
+1352	Reason
+1353	What happened? (optional)
+1354	Leave empty to send on WhatsApp {n}
+1355	Walls, floors, fittings, meters — this is the evidence in deposit disputes. Also printed in the PDF.
+1356	Sign link sent to both
+1357	Both parties confirm with an OTP
+1358	This chat has been closed by the BrokerIQ team
+1359	This chat has been closed by the BrokerIQ team.
