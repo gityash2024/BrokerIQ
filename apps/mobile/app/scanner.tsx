@@ -8,7 +8,7 @@ import DocumentScanner from 'react-native-document-scanner-plugin';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { AlertCircle, CheckCircle2, FileText, ImagePlus, RotateCw, ScanLine, Send, Sparkles, Trash2 } from 'lucide-react-native';
-import { BROKERAGE_LABELS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, plural, type PropertyType } from '@brokeriq/shared';
+import { BROKERAGE_LABELS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, plural, type PropertyType, type LocalityListItem } from '@brokeriq/shared';
 import { api, post } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
@@ -41,7 +41,7 @@ const rowKey = (r: any) => [r.contactPhone ?? '', (r.unit ?? '').toLowerCase(), 
 export default function Scanner() {
   const { c } = useTheme();
   const qc = useQueryClient();
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const [pages, setPages] = useState<PageState[]>([]);
   const [rows, setRows] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);

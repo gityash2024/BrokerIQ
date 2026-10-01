@@ -3,7 +3,16 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Ban, Mail, Megaphone, MessageCircle, Plus, Send, Trash2, Users } from 'lucide-react';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, timeAgo, type CampaignSegment } from '@brokeriq/shared';
+import {
+  LEAD_SOURCES,
+  LEAD_SOURCE_LABELS,
+  LEAD_STAGES,
+  LEAD_STAGE_LABELS,
+  timeAgo,
+  type CampaignSegment,
+  type LocalityListItem,
+  type WaTemplate,
+} from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { del, post, useApiMutation, useDebounced } from '@/lib/hooks';
 import { formatDate } from '@/lib/utils';
@@ -102,8 +111,12 @@ function CampaignEditor({ onClose, onCreated }: { onClose: () => void; onCreated
   const [tag, setTag] = useState('');
   const segment = useDebounced(seg, 400);
   const preview = useQuery({ queryKey: ['campaign-preview', segment], queryFn: () => post<any>('/broker/campaigns/preview', { segment }) });
-  const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: f.channel !== 'EMAIL' });
-  const localities = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: f.channel !== 'EMAIL' });
+  const localities = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+  });
   const approved = (templates.data ?? []).filter((t) => !t.status || t.status === 'APPROVED');
   const tpl = approved.find((t) => `${t.name}|${t.language}` === `${f.templateName}|${f.templateLanguage}`);
   const slots = tpl?.body ? (tpl.body.match(/\{\{\d+\}\}/g) ?? []).length : 0;

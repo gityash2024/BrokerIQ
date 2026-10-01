@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Switch, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardList, Plus } from 'lucide-react-native';
-import { formatINR } from '@brokeriq/shared';
+import { formatINR, type LocalityListItem } from '@brokeriq/shared';
 import { api, del, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
@@ -95,7 +95,12 @@ export default function Requirements() {
 function RequirementSheet({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: (id: string) => void }) {
   const { user } = useAuth();
   const { c } = useTheme();
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000, enabled: open });
+  const locs = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+    enabled: open,
+  });
   const [f, setF] = useState({
     name: user?.name ?? '',
     phone: user?.phone ?? '',

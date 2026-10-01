@@ -20,7 +20,7 @@ import {
   Search,
   Send,
 } from 'lucide-react';
-import { renderTemplate, timeAgo } from '@brokeriq/shared';
+import { renderTemplate, timeAgo, type WaTemplate } from '@brokeriq/shared';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { post, useDebounced } from '@/lib/hooks';
@@ -397,7 +397,7 @@ function TemplateDialog({
   name?: string | null;
 }) {
   const { user } = useAuth();
-  const tpls = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: open });
+  const tpls = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: open });
   const [sel, setSel] = useState<any>(null);
   const [params, setParams] = useState<string[]>([]);
   const count = sel?.body ? new Set(sel.body.match(/\{\{\d+\}\}/g) ?? []).size : 0;

@@ -3,6 +3,7 @@ export * from './labels';
 export * from './utils';
 export * from './errors';
 export * from './types';
+export * from './api-types';
 export * from './app-config';
 export * from './schemas';
 export * from './integrations/registry';

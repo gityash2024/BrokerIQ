@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flag, Send } from 'lucide-react-native';
-import { CONTENT_REPORT_REASONS } from '@brokeriq/shared';
+import { CONTENT_REPORT_REASONS, type ChatThreadResponse } from '@brokeriq/shared';
 import { api, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
@@ -61,7 +61,7 @@ export default function ChatScreen() {
   const { c } = useTheme();
   const { isBroker } = useAuth();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<any>(`/chat/threads/${id}`) });
+  const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<ChatThreadResponse>(`/chat/threads/${id}`) });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -106,7 +106,7 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             ref={list}
-            data={q.data.items}
+            data={q.data?.items ?? []}
             keyExtractor={(m) => m.id}
             contentContainerStyle={{ padding: 16, gap: 8 }}
             renderItem={({ item: m }) => {

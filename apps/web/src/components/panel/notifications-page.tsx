@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
-import { timeAgo } from '@brokeriq/shared';
+import { timeAgo, type NotificationsResponse } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { PageHeader } from './shell';
@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { Empty } from '../ui/misc';
 
 export function NotificationsPage() {
-  const q = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications') });
+  const q = useQuery({ queryKey: ['notifications'], queryFn: () => api<NotificationsResponse>('/me/notifications') });
   const markAll = async () => {
     await api('/me/notifications/read', { method: 'POST', body: {} });
     q.refetch();

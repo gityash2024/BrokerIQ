@@ -10,11 +10,12 @@ import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Textarea } from '@/components/ui/field';
 import { Avatar, Logo } from '@/components/ui/misc';
+import type { LocalityListItem } from '@brokeriq/shared';
 
 export default function Onboarding() {
   const { user, setSession } = useAuth();
   const router = useRouter();
-  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }) });
+  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }) });
   const [f, setF] = useState({
     firmName: user?.organization?.name ?? '',
     phone: user?.phone ?? '',

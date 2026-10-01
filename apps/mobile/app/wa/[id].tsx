@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
-import { renderTemplate } from '@brokeriq/shared';
+import { renderTemplate, type WaTemplate } from '@brokeriq/shared';
 import { api, post } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -197,7 +197,7 @@ function TemplateSheet({
   name?: string | null;
 }) {
   const { c } = useTheme();
-  const q = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: open });
+  const q = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: open });
   const [sel, setSel] = useState<any>(null);
   const [params, setParams] = useState<string[]>([]);
   const approved = (q.data ?? []).filter((t) => !t.status || t.status === 'APPROVED');

@@ -14,7 +14,7 @@ import { palette, useTheme } from '@/lib/theme';
 import { BrokerCard, LocalityCard, ProjectCard } from '@/components/cards';
 import { ListingCard } from '@/components/listing';
 import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
-import { showStat } from '@brokeriq/shared';
+import { showStat, type NotificationsResponse } from '@brokeriq/shared';
 
 // Rental marketplace quick filters (search is always RENT).
 const QUICK = [
@@ -29,7 +29,7 @@ function Hero({ s }: { s: any }) {
   const requirementsOn = useFlag('tenant_requirements');
   const { user } = useAuth();
   const stats = s?.data ?? {};
-  const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications'), enabled: !!user });
+  const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<NotificationsResponse>('/me/notifications'), enabled: !!user });
   return (
     <LinearGradient
       colors={['#1E1B4B', '#3730A3', '#4F46E5']}

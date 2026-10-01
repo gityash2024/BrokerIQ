@@ -15,13 +15,14 @@ import { showError, useLightStatusBar } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Button, Chip, Input, PressableScale, Row, Screen, Txt } from '@/ui';
+import type { LocalityListItem } from '@brokeriq/shared';
 
 export default function BrokerOnboarding() {
   useLightStatusBar();
   const { c } = useTheme();
   const { user, setSession } = useAuth();
   const insets = useSafeAreaInsets();
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const [f, setF] = useState({
     firmName: user?.organization?.name ?? '',
     phone: user?.phone ?? '',

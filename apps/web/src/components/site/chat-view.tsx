@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Flag, Send } from 'lucide-react';
 import { toast } from 'sonner';
-import { CONTENT_REPORT_REASONS } from '@brokeriq/shared';
+import { CONTENT_REPORT_REASONS, type ChatThreadResponse } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useRealtime } from '@/lib/realtime';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -74,7 +74,7 @@ function ReportChat({ id }: { id: string }) {
 /** In-app chat thread (user ↔ broker). `side` decides bubble alignment. */
 export function ChatThread({ id, side }: { id: string; side: 'user' | 'broker' }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<any>(`/chat/threads/${id}`) });
+  const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<ChatThreadResponse>(`/chat/threads/${id}`) });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const end = useRef<HTMLDivElement>(null);

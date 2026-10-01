@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BadgeCheck, MessageCircle } from 'lucide-react-native';
-import { timeAgo } from '@brokeriq/shared';
+import { timeAgo, type ChatThreadSummary } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useRealtime } from '@/lib/realtime';
@@ -14,7 +14,7 @@ import { Avatar, Button, Empty, ErrorView, PressableScale, Row, Screen, Skeleton
 export default function Messages() {
   const { user } = useAuth();
   const { c } = useTheme();
-  const q = useQuery({ queryKey: ['chat-threads'], queryFn: () => api<any[]>('/chat/threads'), enabled: !!user });
+  const q = useQuery({ queryKey: ['chat-threads'], queryFn: () => api<ChatThreadSummary[]>('/chat/threads'), enabled: !!user });
   useRealtime('chat:message', () => q.refetch());
   if (!user) return <LoginPrompt title="Brokers से सीधे chat करें" text="Login करें — property पर सवाल पूछें और real-time जवाब पाएँ।" />;
   return (

@@ -14,6 +14,7 @@ import {
   formatPriceShort,
   pricePerSqft,
   formatINR,
+  type LocalityListItem,
 } from '@brokeriq/shared';
 import { api, ApiError, errorMessage, uploadFile } from '@/lib/api';
 import { useFlag } from '@/lib/config';
@@ -106,7 +107,11 @@ export function ListingForm({
   const cat: Cat = (PROPERTY_TYPE_CATEGORY as any)[v.propertyType] ?? 'RESIDENTIAL';
 
   const { data: tax } = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
-  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const { data: locs } = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+  });
   const [locQ, setLocQ] = useState('');
   const loc = locs?.find((l) => l.id === v.localityId);
   const area = v.superArea ?? v.carpetArea ?? v.plotArea;

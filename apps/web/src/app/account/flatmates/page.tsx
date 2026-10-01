@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BadgeCheck, MessageCircle, Phone, Users } from 'lucide-react';
-import { OFFICE_HUBS, formatINR, whatsappLink } from '@brokeriq/shared';
+import { OFFICE_HUBS, formatINR, whatsappLink, type LocalityListItem } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { patch, useApiMutation } from '@/lib/hooks';
 import { PageHeader } from '@/components/panel/shell';
@@ -46,7 +46,7 @@ export default function FlatmatesPage() {
 }
 
 function ProfileForm({ initial, onSaved }: { initial: any; onSaved: () => void }) {
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const [f, setF] = useState<any>({
     lookingFor: 'FLATMATE',
     gender: 'MALE',

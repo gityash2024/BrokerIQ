@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { LEAD_SOURCE_LABELS, PROPERTY_TYPE_LABELS } from '@brokeriq/shared';
+import { LEAD_SOURCE_LABELS, PROPERTY_TYPE_LABELS, type LocalityListItem } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { post, useApiMutation } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
@@ -19,7 +19,7 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const team = useTeam();
   const { data: locs } = useQuery({
     queryKey: ['localities-all'],
-    queryFn: () => api<any[]>('/public/localities', { auth: false }),
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
     staleTime: 600_000,
     enabled: open,
   });

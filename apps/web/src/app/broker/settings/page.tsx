@@ -17,6 +17,7 @@ import { Avatar, Badge, PageLoader, Switch } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { BrandingSettings, VisitingCardPanel } from '@/components/broker/growth-tools';
 import { useFlag, useFreeMode } from '@/lib/config';
+import type { LocalityListItem } from '@brokeriq/shared';
 
 const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
 
@@ -98,7 +99,11 @@ export default function SettingsPage() {
 function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; onSaved: () => void }) {
   const { setSession } = useAuth();
   const freeMode = useFreeMode();
-  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const { data: locs } = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+  });
   const [f, setF] = useState<any>(null);
   const [q, setQ] = useState('');
   const [saving, setSaving] = useState(false);

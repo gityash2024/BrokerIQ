@@ -15,6 +15,7 @@ import {
   whatsappLink,
   type LeadSource,
   type LeadStage,
+  type NotificationsResponse,
 } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -29,7 +30,7 @@ export default function Dashboard() {
   const { c } = useTheme();
   const { user } = useAuth();
   const q = useQuery({ queryKey: ['broker-dashboard'], queryFn: () => api<any>('/broker/dashboard') });
-  const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications') });
+  const notif = useQuery({ queryKey: ['notifications'], queryFn: () => api<NotificationsResponse>('/me/notifications') });
   const d = q.data;
   const k = d?.kpis;
   const hour = new Date().getHours();

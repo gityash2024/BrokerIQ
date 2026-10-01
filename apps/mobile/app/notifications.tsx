@@ -2,7 +2,7 @@ import { FlatList, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Bell, CheckCheck } from 'lucide-react-native';
-import { timeAgo } from '@brokeriq/shared';
+import { timeAgo, type NotificationsResponse } from '@brokeriq/shared';
 import { api, post } from '@/lib/api';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
@@ -11,7 +11,7 @@ import { Empty, ErrorView, Header, IconBtn, PressableScale, Screen, Skeleton, Tx
 
 export default function Notifications() {
   const { c } = useTheme();
-  const q = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications') });
+  const q = useQuery({ queryKey: ['notifications'], queryFn: () => api<NotificationsResponse>('/me/notifications') });
   useRealtime('notification', () => q.refetch());
   const readAll = async () => {
     await post('/me/notifications/read', {}).catch(() => undefined);

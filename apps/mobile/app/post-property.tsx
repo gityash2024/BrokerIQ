@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInRight, FadeOutLeft, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, Check, ImagePlus, LocateFixed, Sparkles, Star, X } from 'lucide-react-native';
-import { FURNISHING_LABELS, POSSESSION_LABELS, formatPriceShort, BROKERAGE_LABELS, RENTABLE_TYPES } from '@brokeriq/shared';
+import { FURNISHING_LABELS, POSSESSION_LABELS, formatPriceShort, BROKERAGE_LABELS, RENTABLE_TYPES, type LocalityListItem } from '@brokeriq/shared';
 import { api, img, post, patch, uploadUri } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
@@ -45,7 +45,7 @@ export default function PostProperty() {
   });
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const tax = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const existing = useQuery({ queryKey: ['listing-edit', id], queryFn: () => api<any>(`/listings/${id}?track=0`), enabled: !!id });
   useEffect(() => {
     const l = existing.data;

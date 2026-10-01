@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Scale } from 'lucide-react';
-import { formatINR } from '@brokeriq/shared';
+import { formatINR, type LocalityListItem } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useFlag } from '@/lib/config';
 import { cn } from '@/lib/utils';
@@ -95,7 +95,7 @@ export function FairRentCard({
 /** /tools/fair-rent — pick locality + BHK (+ furnishing) and see the real rent range. */
 export function FairRentTool() {
   const on = useFlag('fair_rent');
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const [f, setF] = useState({ localityId: '', bedrooms: '2', furnishing: '', price: '' });
   const [asked, setAsked] = useState<typeof f | null>(null);
   const q = useQuery({

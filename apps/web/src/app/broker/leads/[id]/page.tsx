@@ -38,6 +38,7 @@ import {
   timeAgo,
   whatsappLink,
   RENTABLE_TYPES,
+  type LocalityListItem,
 } from '@brokeriq/shared';
 import { api, ApiError, authStore, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -585,7 +586,11 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
 
 function Requirement({ lead, onChange }: { lead: any; onChange: () => void }) {
   const r = lead.requirement ?? {};
-  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const { data: locs } = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+  });
   const [f, setF] = useState({
     purpose: r.purpose ?? 'RENT',
     propertyTypes: r.propertyTypes ?? [],

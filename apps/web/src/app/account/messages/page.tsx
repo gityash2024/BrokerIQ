@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { MessagesSquare } from 'lucide-react';
-import { timeAgo } from '@brokeriq/shared';
+import { timeAgo, type ChatThreadSummary } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
@@ -15,7 +15,7 @@ function Inner() {
   const sp = useSearchParams();
   const router = useRouter();
   const active = sp.get('c');
-  const q = useQuery({ queryKey: ['chat-threads'], queryFn: () => api<any[]>('/chat/threads'), refetchInterval: 30_000 });
+  const q = useQuery({ queryKey: ['chat-threads'], queryFn: () => api<ChatThreadSummary[]>('/chat/threads'), refetchInterval: 30_000 });
   return (
     <>
       <PageHeader title="Messages" subtitle="Brokers के साथ आपकी बातचीत" />

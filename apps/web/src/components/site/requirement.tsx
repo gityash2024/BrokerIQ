@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ClipboardList } from 'lucide-react';
-import { FURNISHING_LABELS } from '@brokeriq/shared';
+import { FURNISHING_LABELS, type LocalityListItem } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Dialog } from '../ui/dialog';
@@ -25,7 +25,7 @@ export function RequirementDialog({ open, onClose, prefill }: { open: boolean; o
   const router = useRouter();
   const { data: locs } = useQuery({
     queryKey: ['localities-all'],
-    queryFn: () => api<any[]>('/public/localities', { auth: false }),
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
     staleTime: 600_000,
     enabled: open,
   });

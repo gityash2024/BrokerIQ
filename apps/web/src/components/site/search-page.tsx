@@ -6,7 +6,16 @@ import * as Pop from '@radix-ui/react-popover';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { BadgeCheck, BellPlus, Briefcase, Check, ChevronDown, LayoutGrid, List, Map as MapIcon, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
-import { formatPriceShort, FURNISHING_LABELS, OFFICE_HUBS, PROPERTY_TYPE_CATEGORY, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, plural } from '@brokeriq/shared';
+import {
+  formatPriceShort,
+  FURNISHING_LABELS,
+  OFFICE_HUBS,
+  PROPERTY_TYPE_CATEGORY,
+  PROPERTY_TYPE_LABELS,
+  RENTABLE_TYPES,
+  plural,
+  type LocalityListItem,
+} from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn, qs } from '@/lib/utils';
@@ -68,7 +77,11 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
   const csvHas = (key: string, val: string) => (f[key] ?? '').split(',').includes(val);
 
   const { data: tax } = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
-  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const { data: locs } = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+  });
 
   const key = qs(filters);
   const q = useInfiniteQuery({

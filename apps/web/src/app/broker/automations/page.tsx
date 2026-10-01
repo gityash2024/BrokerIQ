@@ -22,7 +22,7 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, timeAgo } from '@brokeriq/shared';
+import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, timeAgo, type WaTemplate } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -245,7 +245,7 @@ export default function AutomationsPage() {
 
 function Builder({ rule, onClose }: { rule: any; onClose: () => void }) {
   const team = useTeam();
-  const tpls = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: !!rule });
+  const tpls = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: !!rule });
   const [r, setR] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);
   if (rule && r?.__src !== rule) {

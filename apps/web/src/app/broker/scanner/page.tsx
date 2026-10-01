@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { Camera, CheckCircle2, FileImage, FileText, Plus, RotateCcw, RotateCw, ScanLine, Sparkles, Trash2, Upload } from 'lucide-react';
-import { BROKERAGE_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort } from '@brokeriq/shared';
+import { BROKERAGE_LABELS, FURNISHING_LABELS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, type LocalityListItem } from '@brokeriq/shared';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { post } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
@@ -107,7 +107,11 @@ export default function ScannerPage() {
   const [importing, setImporting] = useState<false | 'draft' | 'submit'>(false);
   const [done, setDone] = useState<{ created: number; submitted: boolean } | null>(null);
   const [notConfigured, setNotConfigured] = useState<ApiError | null>(null);
-  const { data: locs } = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const { data: locs } = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    staleTime: 600_000,
+  });
   const preview = pages.find((p) => p.key === active)?.dataUrl ?? pages[pages.length - 1]?.dataUrl ?? null;
 
   /** OCR + AI-extract pages one at a time (small requests, visible progress). */

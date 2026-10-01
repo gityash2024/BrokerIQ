@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import * as DM from '@radix-ui/react-dropdown-menu';
 import { Bell, ExternalLink, LogOut, Menu, type LucideIcon } from 'lucide-react';
-import { timeAgo } from '@brokeriq/shared';
+import { timeAgo, type NotificationsResponse } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { isGateOpen, useConfig } from '@/lib/config';
@@ -86,7 +86,7 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
 }
 
 export function NotificationsBell({ href }: { href: string }) {
-  const { data, refetch } = useQuery({ queryKey: ['notifications'], queryFn: () => api<any>('/me/notifications'), refetchInterval: 60_000 });
+  const { data, refetch } = useQuery({ queryKey: ['notifications'], queryFn: () => api<NotificationsResponse>('/me/notifications'), refetchInterval: 60_000 });
   useRealtime('notification', () => refetch());
   const unread = data?.unreadCount ?? 0;
   const markAll = async () => {

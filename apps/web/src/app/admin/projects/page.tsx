@@ -1,13 +1,13 @@
 'use client';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { POSSESSION_LABELS, formatPriceShort } from '@brokeriq/shared';
+import { POSSESSION_LABELS, formatPriceShort, type LocalityListItem } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { AdminCrud } from '@/components/admin/crud';
 import { Badge } from '@/components/ui/misc';
 
 export default function Page() {
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const tax = useQuery({ queryKey: ['taxonomies'], queryFn: () => api<any>('/public/taxonomies', { auth: false }), staleTime: 600_000 });
   return (
     <AdminCrud

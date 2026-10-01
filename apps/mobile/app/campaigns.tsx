@@ -3,7 +3,16 @@ import { Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ban, Megaphone, Plus, Send } from 'lucide-react-native';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, timeAgo, type CampaignSegment } from '@brokeriq/shared';
+import {
+  LEAD_SOURCES,
+  LEAD_SOURCE_LABELS,
+  LEAD_STAGES,
+  LEAD_STAGE_LABELS,
+  timeAgo,
+  type CampaignSegment,
+  type LocalityListItem,
+  type WaTemplate,
+} from '@brokeriq/shared';
 import { api, del, post } from '@/lib/api';
 import { useApiMutation, useDebounced } from '@/lib/hooks';
 import { tr } from '@/lib/i18n';
@@ -73,7 +82,7 @@ const num = (v: string) => (v.replace(/\D/g, '') ? Number(v.replace(/\D/g, '')) 
 function SegmentFilters({ seg, onChange }: { seg: CampaignSegment; onChange: (s: CampaignSegment) => void }) {
   const [locQ, setLocQ] = useState('');
   const [tag, setTag] = useState('');
-  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }), staleTime: 600_000 });
   const picked = (locs.data ?? []).filter((l) => seg.localityIds?.includes(l.id));
   const shown = locQ ? (locs.data ?? []).filter((l) => l.name.toLowerCase().includes(locQ.toLowerCase()) && !seg.localityIds?.includes(l.id)).slice(0, 12) : [];
   const label = (t: string) => (
@@ -188,7 +197,7 @@ function CreateSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
     queryFn: () => post<any>('/broker/campaigns/preview', { segment }),
     enabled: open,
   });
-  const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: open && f.channel !== 'EMAIL' });
+  const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: open && f.channel !== 'EMAIL' });
   const approved = (templates.data ?? []).filter((t) => !t.status || t.status === 'APPROVED');
   const save = useApiMutation(
     () => {
