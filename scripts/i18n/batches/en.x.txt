@@ -375,3 +375,427 @@
 677	— No deal —
 681	💼 ~{2} min from {1}
 682	📞 Calling — your phone will ring first
+685	Type "DELETE"
+691	) · from the last 12 months
+692	). Stops as soon as it's marked paid.
+693	+ Add source
+694	, with the owner's UPI link
+695	Pick 2–4 homes (tap a card), then press Compare.
+696	Pick 2–5 properties — rent, deposit, area, furnishing, floor and amenities on one page, with your firm's name.
+697	Tap 2–5 properties to select
+698	6 digits
+700	= lead's name)
+701	AI scanner is off right now
+702	AI is busy right now — please try again in a moment. ({n} models tried)
+703	Delete account — BrokerIQ
+704	Account deleted
+706	Account not found
+707	Open Account → Profile & KYC
+711	The agreement terms have changed — ask the sender for a new link.
+712	Agreement not found
+713	The agreement has changed — ask the sender for a new link
+719	BHK typical rent
+723	Block
+724	Reason for blocking
+725	Broker account required. Complete your broker profile first.
+726	Broker accounts are invite-only for now — enter an invite code.
+727	Tell the broker
+728	Broker not found
+729	Talk to the broker
+731	You can delete your BrokerIQ account (Android app and website) yourself at any time.
+732	How to delete your BrokerIQ account and its data (app and website).
+733	View BrokerIQ in {n}? Use BrokerIQ in {n}?
+734	BrokerIQ couldn't load properly. Our team has been notified automatically.
+735	BrokerIQ has turned off "{2}" for {1}. Please contact support.
+736	BrokerIQ removed this listing
+737	From real BrokerIQ listings of the last 12 months — no guesswork, no AI guess.
+738	BrokerIQ — something went wrong
+739	Records of enquiries/deals with brokers and invoices are kept without your identity (anonymised), so brokers' accounts stay correct and legal requirements are met.
+741	For business-initiated messages Meta allows only approved templates.
+744	Campaign draft created — review it once before sending
+745	Campaigns go out from your own WhatsApp Business number — add "My WhatsApp Business number" in Broker panel → Connectors.
+746	Campaign name
+747	Campaign not found
+748	Campaign stopped
+749	Campaign started
+750	Campaign started — messages are going out in small batches
+755	Open card
+756	Card not found
+758	Checklist saved — now get both sides to confirm
+759	The client scans it with their phone camera — call, WhatsApp, listings and save contact, all on one page.
+761	Code expired — send again
+762	Wrong code
+763	Code: {n} · No money involved — just thanks and a badge 🙏
+768	Compare
+770	Comparison PDF ready
+771	Confirm
+772	Confirmed ✓
+777	Save contact
+778	Contacts sharing permission was not given
+779	Copied
+780	Coupon is not valid
+781	Current password is wrong
+782	Invalid date range
+785	Deal not found
+788	Deals, commission, invoices and GST — CSV for Excel/Tally, PDF for your CA
+790	Reason for deduction
+794	Save draft
+795	Draft created
+796	Delete draft
+797	Draft deleted
+799	Reminder to the tenant 3 days before the due date and on the day (app notification + email
+800	Due date, pay the owner directly by UPI, and a rent receipt every month (for HRA)
+802	Electronic confirmation is proof of consent; it doesn't replace stamp duty / registration.
+803	Email OTP isn't available yet — configure Super Admin → Settings → Integrations → Email (SMTP). Until then, log in with your password.
+804	Email message ({name} = name)
+806	No email — contact the person who sent the agreement
+807	Wrong email or password
+808	Email is not valid
+811	End time must be after start time
+812	Entry deleted
+813	Excel/Tally CSV and PDF for your CA: on the website, Broker → Reports & GST.
+823	Check fair rent
+824	Share with family
+829	File is larger than {n}MB
+830	The final PDF gets a confirmation certificate (time, IP, SHA-256). It doesn't replace stamp duty / registration.
+831	Firm's card
+833	No payment needed for the Free plan
+840	Google email isn't verified
+841	Google login couldn't be verified
+844	Go to Home
+845	Housing, 99acres, MagicBricks, Facebook leads — all connectors
+854	Invite code is not valid.
+856	Invite has expired
+857	Share invite link
+858	Invoice not found
+859	Invoice sent{n}{n}
+860	Invoices are created only for paid payments
+869	Landlord and tenant get a link by email — they read the agreement and confirm with an OTP. The final PDF gets a confirmation certificate (time, IP, SHA-256).
+872	View lead
+873	Lead not found
+874	Lease not found
+876	Link copied
+877	Link expired
+878	Link is wrong or old
+879	Wrong link
+880	Link turned off
+881	Turn off link
+882	Send link
+883	Send the link or QR — the client can call, WhatsApp, see your listings and “Save contact” in one tap. No printed card needed.
+885	Listing not found
+887	Live listing not found
+891	Select locality
+892	Choose locality and BHK
+893	Choose a locality — you'll see typical rent from real BrokerIQ listings.
+894	Locality not found
+895	Location sharing permission was not given
+898	Log in, or enter an email for replies
+899	Can't log in?
+904	Message is empty
+908	Enter mobile number
+914	New projects aren't available yet.
+915	Turn on notifications?
+916	Log in to see the number
+917	OTP expired — request a new OTP
+918	OTP expired — request a new OTP
+919	Wrong OTP
+920	OTP sent: {n}
+921	Get OTP
+922	Get it signed by OTP
+925	Enter your office / company email (Gmail, Yahoo etc. won't work)
+929	Owner details saved
+931	Add the owner's UPI ID (Owners → open owner) so the tenant can pay directly.
+932	Owner's UPI:
+933	Owner's UPI: {n}
+934	Add the owner's email
+935	To owner
+936	Show the owner how you're promoting their property — views, enquiries, visits. Tenants' numbers are not shown.
+937	Send to owner
+938	Owner not found
+941	Create PDF ({n})
+942	Mark paid + receipt
+943	Marked paid — receipt sent to the tenant
+944	The receipt will appear here once it's marked paid.
+946	Partner not found
+947	Password signup is off — log in with Email OTP.
+948	Pay, then tell the broker
+951	The photo carries the phone's GPS — within 300 m of the map pin (1.5 km of the locality if there's no pin) it gets the "Visit verified" badge.
+952	Take a photo to verify
+955	Photos are far from the property ({n}) — take the photo within {n}m
+956	Watermark on photos
+957	Plan not found
+961	For privacy, tenants' full names and numbers are not shown.
+962	Profile (name, email, phone, photo), saved properties and searches, alerts, requirements, flatmate profile, location and contacts data, push tokens and KYC documents — immediately. Your own (owner) listings are archived.
+964	Profile not available
+965	Open profile
+966	Open Profile → Edit profile
+968	Project not found
+970	Property is no longer available
+971	Property not found
+972	At the property
+973	Visit the property
+974	Take the photo at the property
+976	Show the QR or send the link — no printed card needed
+979	Recording not found ({n})
+980	No recording
+984	Reject
+985	Reason for rejection
+986	Reminder off
+990	Rent reminder settings saved
+992	Report link created
+993	Create report link
+994	Wrong report type
+997	The request is not at this stage
+999	Add room
+1000	Remove room
+1001	Room-wise condition, meter readings, keys — landlord and tenant both confirm by OTP. No more deposit disputes.
+1004	Saved — applies to new photos
+1005	Pick 2–4 homes from Saved properties to compare.
+1007	Score (hot first)
+1008	Why this score
+1010	Choose sector and BHK — see typical rent from real listings.
+1012	Choose a segment, write the message, then review the draft and send.
+1016	Share kit is created only for live listings
+1017	Share link turned off
+1019	Share shortlist
+1022	Super Admin can't create a broker account
+1024	Type a tag and press Enter
+1027	Template "{n}" isn't approved yet ({n})
+1028	Connect your own WhatsApp number to sync templates
+1033	To tenant
+1034	Refund to tenant:
+1036	Search title or slug
+1039	UPI ID copied
+1040	The UPI ID goes into rent reminders (the tenant pays the owner directly). PAN is printed on the rent receipt (for HRA).
+1041	UPI ID is not valid (e.g. name@okicici)
+1043	UPI app not found
+1044	Pay by UPI, rent receipts
+1045	Pay the owner directly by UPI; receipts are here
+1053	Your firm's name on every listing photo as soon as it's uploaded — even if someone copies it to portals or WhatsApp, your name shows.
+1054	Enter a valid mobile number
+1055	A valid phone number is required
+1057	Join video call
+1059	Video visit booked: {n} — link in "Visits"
+1060	Video visit booked: {n} 🎉 — the call link is in “Visits” and in the reminder
+1061	Video visit scheduled 🎥 — the link is on the visit
+1062	Visited
+1063	Wants a visit ·
+1066	Voice input needs a Groq or Gemini key — until then use your phone's voice typing.
+1072	Add the owner's email for the weekly report
+1075	WhatsApp template not found — "Sync" in Inbox → Templates and pick an approved template
+1080	leadId or conversationId is required
+1081	listingId, organizationId or projectId is required
+1082	listings). Try a nearby sector or another BHK.
+1087	A phone field is required (phone / mobile / phone_number)
+1088	shares opened
+1090	{name} = lead's name. An unsubscribe link is added automatically at the bottom.
+1091	{name} ji, new 3 BHK in Sector 65
+1092	Write {name} to insert each lead's name
+1093	{n} / {n} sent
+1094	{n} checklist — view and confirm with OTP: {n}
+1095	{n} deals · received {n} · invoiced {n} · GST {n}
+1101	{n} · {n} BHK: typical rent {n} – {n} (median {n}) · {n} listings, last 12 months
+1103	{n} is off right now.
+1104	{n} rent
+1105	{n} rent is already marked paid
+1106	{n} ji, a comparison of properties for you: {n}
+1107	{n} new leads · {n} visits
+1108	Posted on {n}
+1109	{n} received
+1111	{n} — the above is correct, confirm
+1122	· {n} min
+1124	· {n} have email
+1125	· live since {n}
+1128	· last 12 months
+1129	· every month on the {n}
+1130	Brightness, colour and sharpness of dark or dull photos fixed automatically.
+1131	You can't change your own role/status
+1132	You can't review your own firm
+1133	You can't chat with your own firm
+1134	You can't enquire on your own property
+1135	BrokerIQ is completely free right now
+1136	BrokerIQ is completely free right now — no boost needed, all listings are shown equally.
+1137	BrokerIQ is completely free right now — paid plans and boost are off.
+1138	BrokerIQ is completely free right now — no plan, limit or payment.
+1139	No live homes in this shortlist right now.
+1140	No campaigns yet
+1141	No closed deals or invoices yet.
+1142	No entries yet.
+1143	No lease linked yet
+1144	No posts yet.
+1145	No property added yet.
+1146	No receipts yet — when rent is received, the receipt appears here as soon as the broker/owner marks it &ldquo;paid&rdquo;.
+1147	Send now
+1148	Send now? You can stop it after sending, but not take it back.
+1149	Everything is free right now
+1150	Figures are from your BrokerIQ records — check with your CA before filing.
+1151	Last changed:
+1152	Today's AI limit ({n}) is used up — use it again tomorrow.
+1153	You're already in another team
+1154	You have already confirmed
+1155	Your invite link
+1156	Your firm's account is suspended. Please contact support.
+1157	Your profile, saved properties, requirements, alerts, location/contacts data and documents will be removed. This can't be undone.
+1158	is promoting your property like this ·
+1159	Your account doesn't have this access
+1160	If your broker added your lease on BrokerIQ, it shows up here automatically via your mobile number or email.
+1161	If your broker added your lease on BrokerIQ, it shows up here automatically (via your mobile number or email).
+1162	Nearest to you first
+1163	Rent you were asked (optional)
+1164	Pricier than nearby
+1165	Cheaper than nearby
+1166	An account with this email already exists — log in.
+1167	This financial year's numbers
+1168	No live property matches this lead's requirement. Fill the requirement or add listings.
+1169	This link shows your saved homes (only the properties — not your phone/email). Homes you save later show up too.
+1170	This listing has no slot booking — send an enquiry
+1171	Not enough data yet for this locality + BHK (
+1172	Not enough data yet for this locality + BHK ({n} listings).
+1173	An owner with this number already exists
+1174	No leads in this segment (leads who sent STOP are removed automatically)
+1175	No deals or invoices in this period
+1176	The broker doesn't have this person's email/phone — ask the broker to add it
+1177	See such homes →
+1178	Pick at least 2 properties
+1179	Pick at least 2 different properties
+1180	Add at least one item
+1181	Which leads (stage)
+1182	Which leads?
+1183	Rent
+1184	Rent received
+1185	Rent received — mark paid
+1186	Rented:
+1187	's shortlist
+1188	Some properties are no longer live — pick again
+1189	Something went wrong
+1190	Total
+1191	How to send
+1192	No approved template — Sync in Inbox → Templates.
+1193	No approved template — Sync in Inbox → Templates on the website.
+1194	No plan, no limit, no card — join by invite and use all of BrokerIQ.
+1195	No plan, limit or payment — use every feature. We'll tell you well in advance before paid plans start.
+1196	Is this rent fair?
+1197	What stays
+1198	What is removed
+1199	What's free
+1200	You can't remove yourself
+1201	Strength
+1202	Strength ({n}%)
+1203	Counting…
+1204	homes · saved on BrokerIQ
+1205	Send BrokerIQ to friends looking for a home
+1206	Send BrokerIQ to friends, colleagues and family looking for a home
+1207	Found a home (move-in)
+1208	Compare homes
+1209	Keys (count)
+1210	Keys:
+1211	Turn on
+1212	WhatsApp template or email to selected leads at once
+1213	Send a WhatsApp template or email to selected leads at once — from your own WhatsApp number. Leads who write STOP are removed automatically.
+1214	Position
+1215	At most 20 saved searches
+1216	A report can cover at most 3 years
+1217	At most 4 homes
+1218	At most 5 properties
+1219	At most {n} photos
+1220	Most homes
+1221	ji
+1222	e.g. Sector 65 new listings
+1223	e.g. Sector 65 new listings — October
+1224	e.g. fake photos, wrong rent, spam…
+1225	Please try again in a little while
+1226	View / book a visit
+1227	View →
+1228	Both
+1229	Sign link emailed to both
+1230	Send this link to both (confirm with OTP)
+1231	Try again
+1232	Send again
+1233	Friends joined
+1234	Invite friends
+1235	As soon as a new listing goes live, its photo and details go to your own Page / Instagram. First add
+1236	New listing or offer — send it to the right leads in one tap. Leads who write STOP are removed automatically.
+1237	New listing, price drop or festival offer — send it to the right leads in one click.
+1238	New matching properties, broker replies and visit reminders instantly — even when the browser is closed.
+1239	New campaign
+1240	Press “Delete account” below and confirm
+1241	Are you sure you want to delete?
+1242	(valid for 10 minutes).
+1243	Create your first campaign
+1244	First add &quot;Facebook Page + Instagram&quot; in Connectors →
+1245	First add your WhatsApp Business number in Connectors →
+1246	Request an OTP first
+1247	First add your mobile number in Profile — the call rings your phone first.
+1248	Enter your office email first
+1249	First fill the checklist on the website (Owners → Leases → Checklist), then send the link from here
+1250	First add your WhatsApp Business number —
+1251	Create your flatmate profile first
+1252	Already confirmed
+1253	Already posted
+1254	Before:
+1255	Active in the last how many days
+1256	Read the full agreement (PDF)
+1257	Too many OTP requests — try after 15 minutes.
+1258	Too many wrong attempts — request a new OTP
+1259	Too many wrong OTPs — request a new OTP
+1260	Stop the rest
+1261	Later
+1262	A sent campaign can't be changed — create a new one
+1263	sent
+1264	Month
+1265	in
+1266	add &ldquo;Facebook Page + Instagram&rdquo;.
+1267	My card
+1268	My card (
+1269	My digital visiting card: {n}
+1270	My rent
+1271	See the homes on my shortlist: {n}
+1272	I'm the landlord
+1273	I'm the tenant
+1274	I use BrokerIQ to find a home — verified listings, talk to brokers directly, all free. Have a look: {n}
+1275	I have read the agreement and agree to its terms
+1276	This is for the BrokerIQ team
+1277	This account is suspended. Please contact support.
+1278	This account or number can't be used on BrokerIQ. Please contact support.
+1279	You can't do this action
+1280	This agreement is already signed
+1281	This is an electronic confirmation (OTP, time, IP and the agreement's SHA-256 fingerprint are recorded). It doesn't replace stamp duty, notary or registration.
+1282	Delete this entry?
+1283	This invite code has expired.
+1284	This invite code has been fully used.
+1285	This invite is for {n} — log in with that email
+1286	This link has been turned off
+1287	This listing is not open for co-broking yet
+1288	This page didn't load properly. Our team has been notified automatically. Please try again.
+1289	This record is closed
+1290	This request has expired — please say it again
+1291	This screen didn't load properly. Our team has been notified automatically.
+1292	This slot is not available
+1293	This slot is full — pick another time
+1294	This tool isn't available right now.
+1295	This user is not in your team
+1296	This user is already in a broker team
+1297	This is your own listing
+1298	This can't be undone. Type "DELETE" below to confirm.
+1299	Stopped
+1300	Start
+1301	All listings are verified
+1302	All clear 🎉
+1303	Lowest rent
+1304	All
+1305	Only admins can assign leads
+1306	Only admins can delete leads
+1307	Only the firm admin can change the profile
+1308	from your registered email/phone — we'll delete the account within 30 days. Full details:
+1309	Delete permanently
+1310	Day of the month
+1311	Email every Monday
+1312	Recent enquiries
+1313	Recent posts
+1314	. Campaigns go from your number, so Meta's template charge is on your account.
+1315	. Please contact support.
+1316	Press “Delete account”, type “DELETE” to confirm
+1322	🎥 Video call
+1323	🎥 On a video call
+1326	💻 From the website
+1327	📱 From the app
