@@ -2,14 +2,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Download, ExternalLink, FileSignature, Plus } from 'lucide-react';
+import { Download, ExternalLink, FileSignature, PenLine, Plus } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
 import { Dialog } from '../ui/dialog';
-import { Empty, Skeleton } from '../ui/misc';
+import { Badge, Empty, Skeleton } from '../ui/misc';
+import { useFlag } from '@/lib/config';
 
 const STEPS = [
   [
@@ -25,6 +26,8 @@ const STEPS = [
 export function Agreements() {
   const q = useQuery({ queryKey: ['agreements'], queryFn: () => api<any[]>('/agreements') });
   const [open, setOpen] = useState(false);
+  const [sign, setSign] = useState<any>(null);
+  const esignOn = useFlag('agreement_esign');
   const download = async (id: string) => {
     try {
       const { url } = await api<{ url: string }>(`/agreements/${id}/link`, { method: 'POST' });
@@ -75,16 +78,33 @@ export function Agreements() {
                 <p className="truncate text-sm text-muted">
                   <span data-no-i18n>{a.propertyAddress}</span> · {formatINR(a.rent)}/month · {formatDate(a.startDate)} से {a.months} महीने
                 </p>
+                {a.signStatus !== 'DRAFT' && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {(a.signatures ?? []).map((s: any) => (
+                      <Badge key={s.party} tone={s.signedAt ? 'success' : 'warning'}>
+                        {s.party === 'LANDLORD' ? 'Landlord' : 'Tenant'} {s.signedAt ? '✓ signed' : 'pending'}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Button size="sm" variant="secondary" onClick={() => download(a.id)}>
-                <Download className="size-4" /> PDF
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {esignOn && a.signStatus !== 'SIGNED' && (
+                  <Button size="sm" onClick={() => setSign(a)}>
+                    <PenLine className="size-4" /> {a.signStatus === 'SIGNING' ? 'दोबारा भेजें' : 'OTP से sign करवाएँ'}
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={() => download(a.id)}>
+                  <Download className="size-4" /> PDF
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       )}
       <p className="mt-6 text-xs text-subtle">यह एक standard template है, legal सलाह नहीं। ज़रूरत हो तो किसी वकील से जाँच करवाएँ।</p>
       <AgreementDialog open={open} onClose={() => setOpen(false)} onSaved={(id) => (q.refetch(), download(id))} />
+      <SignDialog agreement={sign} onClose={() => setSign(null)} onSent={() => q.refetch()} />
     </>
   );
 }
@@ -191,6 +211,48 @@ function AgreementDialog({ open, onClose, onSaved }: { open: boolean; onClose: (
             <Textarea rows={3} value={f.extra} onChange={(e) => setF({ ...f, extra: e.target.value })} />
           </Field>
         </div>
+      </div>
+    </Dialog>
+  );
+}
+
+/** Sends both parties a link to read the agreement and confirm it with an OTP on their email. */
+function SignDialog({ agreement, onClose, onSent }: { agreement: any | null; onClose: () => void; onSent: () => void }) {
+  const [f, setF] = useState({ landlordEmail: '', tenantEmail: '' });
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    try {
+      await api(`/agreements/${agreement.id}/sign`, { method: 'POST', body: f });
+      toast.success('दोनों को email पर sign link भेज दिया');
+      onSent();
+      onClose();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      open={!!agreement}
+      onOpenChange={(v) => !v && onClose()}
+      title="OTP से sign करवाएँ"
+      description="Landlord और tenant को email पर link जाएगा — agreement पढ़कर OTP से confirm करेंगे। Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ जाता है।"
+      footer={
+        <Button onClick={send} loading={busy} disabled={!f.landlordEmail || !f.tenantEmail}>
+          Link भेजें
+        </Button>
+      }
+    >
+      <div className="space-y-3">
+        <Field label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}`} required>
+          <Input type="email" value={f.landlordEmail} onChange={(e) => setF({ ...f, landlordEmail: e.target.value })} data-no-i18n />
+        </Field>
+        <Field label={`Tenant email${agreement ? ` (${agreement.tenantName})` : ''}`} required>
+          <Input type="email" value={f.tenantEmail} onChange={(e) => setF({ ...f, tenantEmail: e.target.value })} data-no-i18n />
+        </Field>
+        <p className="text-xs text-muted">Electronic confirmation सहमति का सबूत है; stamp duty / registration की जगह नहीं लेता।</p>
       </div>
     </Dialog>
   );

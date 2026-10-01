@@ -7,10 +7,13 @@ import { Field, Input, Select } from '../ui/field';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/misc';
 import { RangeSlider } from './emi';
+import { FairRentTool } from './fair-rent';
+import { useFlag } from '@/lib/config';
 
 /** Rent tools — BrokerIQ is a rental marketplace (old ?t=emi/stamp/… links land on the first tool). */
-type Tool = 'rent' | 'movein' | 'split';
+type Tool = 'fair' | 'rent' | 'movein' | 'split';
 const TOOLS: { value: Tool; label: string }[] = [
+  { value: 'fair', label: 'Fair rent' },
   { value: 'rent', label: 'Rent budget' },
   { value: 'movein', label: 'Move-in cost' },
   { value: 'split', label: 'Rent split' },
@@ -20,11 +23,13 @@ export function ToolsHub() {
   const sp = useSearchParams();
   const router = useRouter();
   const raw = sp.get('t') as Tool;
-  const t: Tool = TOOLS.some((x) => x.value === raw) ? raw : 'rent';
+  const fairOn = useFlag('fair_rent');
+  const tools = TOOLS.filter((x) => x.value !== 'fair' || fairOn);
+  const t: Tool = tools.some((x) => x.value === raw) ? raw : tools[0].value;
   return (
     <div className="container-x py-10">
-      <Segmented value={t} onChange={(v) => router.replace(`/tools?t=${v}`, { scroll: false })} options={TOOLS} />
-      <div className="mt-8">{t === 'rent' ? <RentBudget /> : t === 'movein' ? <MoveIn /> : <Split />}</div>
+      <Segmented value={t} onChange={(v) => router.replace(`/tools?t=${v}`, { scroll: false })} options={tools} />
+      <div className="mt-8">{t === 'fair' ? <FairRentTool /> : t === 'rent' ? <RentBudget /> : t === 'movein' ? <MoveIn /> : <Split />}</div>
     </div>
   );
 }

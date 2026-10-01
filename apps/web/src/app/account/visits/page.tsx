@@ -8,6 +8,7 @@ import { patch, useApiMutation } from '@/lib/hooks';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
+import { VideoJoin } from '@/components/site/video-join';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 
 const TOKEN_TONE: Record<string, any> = { CLAIMED: 'warning', RECEIVED: 'success', REFUNDED: 'info', CANCELLED: 'neutral' };
@@ -40,6 +41,7 @@ export default function MyVisitsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={upcoming ? 'brand' : v.status === 'CANCELLED' ? 'neutral' : 'success'}>{upcoming ? 'Upcoming' : v.status}</Badge>
                     <span className="font-semibold">{formatDateTime(v.scheduledAt)}</span>
+                    {v.mode === 'VIDEO' && <Badge tone="info">Video visit</Badge>}
                   </div>
                   {v.listing && (
                     <Link href={`/property/${v.listing.slug}`} className="mt-1 block truncate text-sm text-brand-600 hover:underline" data-no-i18n>
@@ -51,6 +53,7 @@ export default function MyVisitsPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {upcoming && <VideoJoin visit={v} />}
                   {phone && (
                     <Button size="sm" variant="secondary" href={`tel:${phone}`}>
                       <Phone className="size-4" /> Call

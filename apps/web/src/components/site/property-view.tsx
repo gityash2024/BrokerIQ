@@ -43,6 +43,7 @@ import { ContactCard } from './contact-card';
 import { EmiCalculator } from './emi';
 import { ListingCard } from './listing-card';
 import { SaveButton } from './save-button';
+import { FairRentCard } from './fair-rent';
 import { Map } from './map';
 
 function toPascal(s?: string | null) {
@@ -330,6 +331,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <ContactCard listing={l} />
+          <FairRentCard listing={l} />
         </aside>
       </div>
 

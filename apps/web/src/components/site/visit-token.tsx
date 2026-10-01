@@ -10,6 +10,8 @@ import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
 import { Skeleton } from '../ui/misc';
+import { Segmented } from '../ui/tabs';
+import { useFlag } from '@/lib/config';
 
 /** Anti-scam reminder shown next to every contact option. */
 export function SafetyNote({ className }: { className?: string }) {
@@ -41,6 +43,8 @@ export function SlotBooking({
   const [day, setDay] = useState<string | null>(null);
   const [at, setAt] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [mode, setMode] = useState<'IN_PERSON' | 'VIDEO'>('IN_PERSON');
+  const videoOn = useFlag('video_visits');
   const [busy, setBusy] = useState(false);
   const days: { date: string; slots: { at: string; available: number }[] }[] = q.data?.days ?? [];
   const activeDay = day ?? days.find((d) => d.slots.some((s) => s.available > 0))?.date ?? null;
@@ -48,8 +52,12 @@ export function SlotBooking({
     if (!at) return;
     setBusy(true);
     try {
-      const r = await api<any>(`/listings/${listingId}/book-visit`, { method: 'POST', body: { at, note: note || undefined } });
-      toast.success(`Visit book हो गई: ${r.when} 🎉 — एक दिन पहले और 1 घंटा पहले reminder मिलेगा`);
+      const r = await api<any>(`/listings/${listingId}/book-visit`, { method: 'POST', body: { at, note: note || undefined, mode } });
+      toast.success(
+        mode === 'VIDEO'
+          ? `Video visit book हो गई: ${r.when} 🎉 — call link “Visits” में और reminder में मिलेगा`
+          : `Visit book हो गई: ${r.when} 🎉 — एक दिन पहले और 1 घंटा पहले reminder मिलेगा`,
+      );
       onBooked(r.when);
       onClose();
     } catch (e) {
@@ -77,6 +85,16 @@ export function SlotBooking({
         <p className="text-sm text-muted">अगले 7 दिन में कोई slot खाली नहीं — enquiry भेजें, broker समय तय करेंगे।</p>
       ) : (
         <div className="space-y-4">
+          {videoOn && (
+            <Segmented
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'IN_PERSON', label: 'Property पर जाकर' },
+                { value: 'VIDEO', label: '🎥 Video call पर' },
+              ]}
+            />
+          )}
           <div className="flex gap-2 overflow-x-auto pb-1">
             {days.map((d) => (
               <button

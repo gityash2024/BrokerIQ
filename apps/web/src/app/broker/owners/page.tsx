@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarClock, KeyRound, MessageCircle, Phone, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
+import { CalendarClock, ClipboardCheck, IndianRupee, KeyRound, MessageCircle, Phone, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
 import { formatINR, whatsappLink } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { patch, post, useApiMutation } from '@/lib/hooks';
@@ -15,6 +15,8 @@ import { Field, Input, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { OwnerReportCard } from '@/components/broker/growth-tools';
+import { InspectionDialog, OwnerPaymentCard, RentDialog } from '@/components/broker/lease-tools';
+import { useFlag } from '@/lib/config';
 
 const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400_000);
 
@@ -143,6 +145,7 @@ function OwnerDialog({ id, onClose }: { id: string | null; onClose: () => void }
               {o.notes}
             </p>
           )}
+          <OwnerPaymentCard key={`pay-${o.id}`} owner={o} />
           <OwnerReportCard key={o.id} owner={o} />
         </div>
       )}
@@ -194,6 +197,10 @@ function Leases() {
     invalidate: [['tenancies']],
   });
   const end = useApiMutation((id: string) => patch(`/broker/tenancies/${id}`, { status: 'ENDED' }), { success: 'Lease बंद', invalidate: [['tenancies']] });
+  const rentOn = useFlag('rent_tracker');
+  const inspectOn = useFlag('inspections');
+  const [rentFor, setRentFor] = useState<string | null>(null);
+  const [checkFor, setCheckFor] = useState<any>(null);
   return (
     <>
       <div className="mb-4 flex justify-end">
@@ -234,7 +241,17 @@ function Leases() {
                   )}
                 </div>
                 {t.status === 'ACTIVE' && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {rentOn && (
+                      <Button size="sm" variant="secondary" onClick={() => setRentFor(t.id)}>
+                        <IndianRupee className="size-4" /> किराया
+                      </Button>
+                    )}
+                    {inspectOn && (
+                      <Button size="sm" variant="secondary" onClick={() => setCheckFor(t)}>
+                        <ClipboardCheck className="size-4" /> Checklist
+                      </Button>
+                    )}
                     <Button size="sm" variant="secondary" onClick={() => renew.mutate(t.id)}>
                       <RefreshCw className="size-4" /> Renew
                     </Button>
@@ -249,6 +266,8 @@ function Leases() {
         </div>
       )}
       <AddLease open={add} onClose={() => setAdd(false)} />
+      <RentDialog tenancyId={rentFor} onClose={() => setRentFor(null)} />
+      <InspectionDialog tenancy={checkFor} onClose={() => setCheckFor(null)} />
     </>
   );
 }

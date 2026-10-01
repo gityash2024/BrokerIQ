@@ -14,6 +14,7 @@ import {
   CalendarCheck,
   Users,
   FileSignature,
+  IndianRupee,
 } from 'lucide-react';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell } from '@/components/panel/shell';
@@ -28,6 +29,7 @@ const GROUPS = [
       { href: '/account/searches', label: 'Saved searches & alerts', icon: Search },
       { href: '/account/requirements', label: 'मेरी ज़रूरतें', icon: ClipboardList, flag: 'tenant_requirements' },
       { href: '/account/visits', label: 'Visits & tokens', icon: CalendarCheck },
+      { href: '/account/rent', label: 'मेरा किराया', icon: IndianRupee, flag: 'rent_tracker' },
       { href: '/account/flatmates', label: 'Flatmates', icon: Users, flag: 'flatmates' },
       { href: '/account/agreements', label: 'Rent agreement', icon: FileSignature, flag: 'rent_agreement' },
       { href: '/account/enquiries', label: 'Enquiries', icon: Send },

@@ -51,6 +51,7 @@ import { Avatar, Badge, Empty, PageLoader } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ComparisonDialog } from '@/components/broker/growth-tools';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
+import { VideoJoin } from '@/components/site/video-join';
 import { useFlag } from '@/lib/config';
 
 const ACT_ICON: Record<string, any> = {
@@ -452,7 +453,8 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
   const tomorrow = new Date(Date.now() + 86400_000);
   tomorrow.setHours(11, 0, 0, 0);
   const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
-  const [vi, setVi] = useState({ scheduledAt: toLocalInput(tomorrow), listingId: '', address: '', note: '' });
+  const [vi, setVi] = useState({ scheduledAt: toLocalInput(tomorrow), listingId: '', address: '', note: '', mode: 'IN_PERSON' as 'IN_PERSON' | 'VIDEO' });
+  const videoOn = useFlag('video_visits');
   const addFu = useApiMutation(() => post('/follow-ups', { leadId: lead.id, type: fu.type, dueAt: new Date(fu.dueAt).toISOString(), note: fu.note || null }), {
     success: 'Follow-up scheduled ⏰',
     onSuccess: () => (setFu({ ...fu, note: '' }), onChange()),
@@ -466,8 +468,9 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         listingId: vi.listingId || null,
         address: vi.address || null,
         note: vi.note || null,
+        mode: vi.mode,
       }),
-    { success: 'Site visit scheduled 🏠', onSuccess: onChange },
+    { success: vi.mode === 'VIDEO' ? 'Video visit scheduled 🎥 — link visit पर है' : 'Site visit scheduled 🏠', onSuccess: onChange },
   );
   const visitSt = useApiMutation((v: { id: string; status: string }) => patch(`/visits/${v.id}`, { status: v.status }), { onSuccess: onChange });
   const quick = (h: number) => setFu({ ...fu, dueAt: toLocalInput(new Date(Date.now() + h * 3600_000)) });
@@ -529,8 +532,21 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         <h3 className="flex items-center gap-2 font-display font-bold">
           <CalendarCheck className="size-5 text-brand-600" /> Site visit
         </h3>
+        {videoOn && (
+          <Segmented
+            size="sm"
+            value={vi.mode}
+            onChange={(mode) => setVi({ ...vi, mode })}
+            options={[
+              { value: 'IN_PERSON', label: 'Property पर' },
+              { value: 'VIDEO', label: '🎥 Video call' },
+            ]}
+          />
+        )}
         <Input type="datetime-local" value={vi.scheduledAt} onChange={(e) => setVi({ ...vi, scheduledAt: e.target.value })} />
-        <Input placeholder="Address / meeting point" value={vi.address} onChange={(e) => setVi({ ...vi, address: e.target.value })} />
+        {vi.mode === 'IN_PERSON' && (
+          <Input placeholder="Address / meeting point" value={vi.address} onChange={(e) => setVi({ ...vi, address: e.target.value })} />
+        )}
         <Input placeholder="Note" value={vi.note} onChange={(e) => setVi({ ...vi, note: e.target.value })} />
         <Button onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
           Schedule visit
@@ -546,7 +562,8 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
               </div>
               {v.listing && <p className="text-xs text-muted">{v.listing.title}</p>}
               {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
-                <div className="mt-2 flex gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <VideoJoin visit={v} size="xs" />
                   <Button size="xs" variant="success" onClick={() => visitSt.mutate({ id: v.id, status: 'COMPLETED' })}>
                     Done
                   </Button>

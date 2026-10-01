@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
+import { VideoJoin } from '@/components/site/video-join';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const STATUS_TONE: Record<VisitStatus, 'brand' | 'info' | 'success' | 'danger' | 'neutral'> = {
@@ -155,6 +156,7 @@ export default function VisitsPage() {
                         {v.lead.name || v.lead.phone}
                       </Link>
                       <Badge tone={STATUS_TONE[v.status as VisitStatus]}>{VISIT_STATUS_LABELS[v.status as VisitStatus]}</Badge>
+                      {v.mode === 'VIDEO' && <Badge tone="info">Video</Badge>}
                     </div>
                     {v.listing ? (
                       <Link href={`/property/${v.listing.slug}`} target="_blank" className="mt-1 flex items-center gap-2 text-sm text-muted hover:text-fg">
@@ -184,6 +186,7 @@ export default function VisitsPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 border-t border-line bg-surface-2/50 px-4 py-2.5">
+                  {!past && <VideoJoin visit={v} size="xs" />}
                   <Button size="icon-sm" variant="ghost" href={`tel:${v.lead.phone}`} aria-label="Call">
                     <Phone className="size-4" />
                   </Button>

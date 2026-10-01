@@ -3,7 +3,9 @@ import { SITE_URL } from '@/lib/utils';
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: '*', allow: '/', disallow: ['/admin', '/broker', '/account', '/s/', '/invite/', '/pay/', '/o/'] }],
+    rules: [
+      { userAgent: '*', allow: '/', disallow: ['/admin', '/broker', '/account', '/s/', '/invite/', '/pay/', '/o/', '/i/', '/sign/', '/shortlist/', '/card/'] },
+    ],
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }
