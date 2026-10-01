@@ -38,6 +38,8 @@ export const registerSchema = z.object({
   accountType: z.enum(['USER', 'BROKER']).default('USER'),
   firmName: z.string().trim().min(2).max(120).optional(),
   inviteCode: z.string().trim().max(40).optional(),
+  /** A friend's referral code (from ?ref=) */
+  ref: z.string().trim().max(20).optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -49,11 +51,13 @@ export const otpVerifySchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   accountType: z.enum(['USER', 'BROKER']).optional(),
   inviteCode: z.string().trim().max(40).optional(),
+  ref: z.string().trim().max(20).optional(),
 });
 export const googleLoginSchema = z.object({
   idToken: z.string().min(10),
   accountType: z.enum(['USER', 'BROKER']).optional(),
   inviteCode: z.string().trim().max(40).optional(),
+  ref: z.string().trim().max(20).optional(),
 });
 export const refreshSchema = z.object({ refreshToken: z.string().min(10) });
 export const resetPasswordSchema = z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/), password: passwordSchema });

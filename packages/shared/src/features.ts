@@ -35,6 +35,8 @@ export const GROWTH_FEATURES = [
   { key: 'video_visits', name: 'Video visits', description: 'Book a video site visit (free Jitsi Meet link)' },
   { key: 'agreement_esign', name: 'Agreement OTP-sign', description: 'Landlord and tenant confirm the rent agreement by OTP (certificate page + SHA-256)' },
   { key: 'compare_shortlist', name: 'Compare & shared shortlist', description: 'Compare 2–4 homes side by side; share saved homes with family' },
+  { key: 'web_push', name: 'Website push notifications', description: 'Browser notifications on the website (free, VAPID; no third-party service)' },
+  { key: 'referrals', name: 'Invite friends', description: 'Every user gets a personal invite link; signups and move-ins are counted (no money)' },
   {
     key: 'sale_listings',
     name: 'Sale & new projects',

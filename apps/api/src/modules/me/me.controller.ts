@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { normalizeIndianPhone, pushTokenSchema, savedSearchSchema, updateProfileSchema } from '@brokeriq/shared';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
@@ -28,6 +28,22 @@ export class MeController {
 
   @Post('push-tokens')
   async addPush(@CurrentUser() user: RequestUser, @Body(new ZodPipe(pushTokenSchema)) body: z.infer<typeof pushTokenSchema>) {
+    if (body.platform === 'web') {
+      // A browser PushSubscription (JSON); only accept real https push endpoints.
+      let sub: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null = null;
+      try {
+        sub = JSON.parse(body.token);
+      } catch {
+        sub = null;
+      }
+      if (
+        typeof sub?.endpoint !== 'string' ||
+        !sub.endpoint.startsWith('https://') ||
+        typeof sub.keys?.p256dh !== 'string' ||
+        typeof sub.keys?.auth !== 'string'
+      )
+        throw new BadRequestException('Invalid push subscription');
+    }
     await this.prisma.pushToken.upsert({
       where: { token: body.token },
       create: { ...body, userId: user.id },

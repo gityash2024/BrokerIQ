@@ -7,6 +7,7 @@ import { JobsService } from './jobs/jobs.service';
 import { MailService } from './mail/mail.service';
 import { RealtimeGateway } from './realtime/realtime.gateway';
 import { NotificationsService } from './notifications/notifications.service';
+import { WebPushService } from './notifications/web-push.service';
 import { AiService } from './ai/ai.service';
 import { MediaService } from './media/media.service';
 import { LocalStorageService } from './media/local-storage.service';
@@ -25,6 +26,7 @@ const services = [
   MailService,
   RealtimeGateway,
   NotificationsService,
+  WebPushService,
   AiService,
   LocalStorageService,
   MediaService,

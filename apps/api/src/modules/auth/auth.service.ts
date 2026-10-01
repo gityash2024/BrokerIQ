@@ -14,6 +14,7 @@ import { AppException, IntegrationNotConfiguredException } from '../../common/ex
 import { randomOtp, randomToken, sha256, shortCode } from '../../common/utils';
 import { env } from '../../config/env';
 import { AccessService } from '../../core/access/access.service';
+import { NotificationsService } from '../../core/notifications/notifications.service';
 
 type UserWithOrg = User & { organization: Organization | null };
 interface ClientMeta {
@@ -32,6 +33,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly mail: MailService,
     private readonly audit: AuditService,
     private readonly invites: BrokerInvitesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Ensure the Super Admin from env exists (idempotent). */
@@ -148,9 +150,27 @@ export class AuthService implements OnApplicationBootstrap {
       data: { name: input.name, email: input.email, phone: input.phone, passwordHash: await bcrypt.hash(input.password, 12) },
     });
     if (input.accountType === 'BROKER') await this.createBrokerOrg(user.id, input.firmName || `${input.name} Realty`, this.prisma, invite);
+    await this.linkReferral(user.id, input.ref);
     await this.audit.log({ id: user.id, role: user.role }, 'auth.register', 'User', user.id, { accountType: input.accountType }, meta.ip);
     this.requestOtp(input.email, 'VERIFY_EMAIL').catch(() => undefined);
     return this.issue((await this.findUser({ id: user.id }))!, meta);
+  }
+
+  /** New account came from a friend's invite link: remember who invited them and say thanks (no money involved). */
+  private async linkReferral(userId: string, ref?: string | null) {
+    const code = ref?.trim().toUpperCase();
+    if (!code) return;
+    const by = await this.prisma.user.findUnique({ where: { referralCode: code }, select: { id: true } });
+    if (!by || by.id === userId) return;
+    const u = await this.prisma.user.update({ where: { id: userId }, data: { referredById: by.id }, select: { name: true } });
+    await this.notifications
+      .notify(by.id, {
+        kind: 'REFERRAL',
+        title: '🎉 आपके invite से कोई जुड़ा',
+        body: `${u.name.split(' ')[0]} ने BrokerIQ join किया — धन्यवाद!`,
+        link: '/account/invite',
+      })
+      .catch(() => undefined);
   }
 
   async login(email: string, password: string, meta: ClientMeta) {
@@ -201,13 +221,14 @@ export class AuthService implements OnApplicationBootstrap {
     await this.prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
   }
 
-  async verifyOtp(input: { email: string; code: string; name?: string; accountType?: 'USER' | 'BROKER'; inviteCode?: string }, meta: ClientMeta) {
+  async verifyOtp(input: { email: string; code: string; name?: string; accountType?: 'USER' | 'BROKER'; inviteCode?: string; ref?: string }, meta: ClientMeta) {
     await this.consumeOtp(input.email, input.code, ['LOGIN', 'VERIFY_EMAIL']);
     let user = await this.findUser({ email: input.email });
     if (!user) {
       const invite = input.accountType === 'BROKER' ? await this.brokerGate(input.inviteCode) : null;
       const created = await this.prisma.user.create({ data: { email: input.email, name: input.name || input.email.split('@')[0], emailVerified: true } });
       if (input.accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`, this.prisma, invite);
+      await this.linkReferral(created.id, input.ref);
       user = await this.findUser({ id: created.id });
     } else if (!user.emailVerified) {
       await this.prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
@@ -217,7 +238,7 @@ export class AuthService implements OnApplicationBootstrap {
     return this.issue(user!, meta);
   }
 
-  async google(idToken: string, accountType: 'USER' | 'BROKER' | undefined, meta: ClientMeta, inviteCode?: string) {
+  async google(idToken: string, accountType: 'USER' | 'BROKER' | undefined, meta: ClientMeta, inviteCode?: string, ref?: string) {
     const cfg = await this.settings.require('google_oauth');
     const audience = [cfg.webClientId, cfg.androidClientId, cfg.iosClientId].filter(Boolean).map(String);
     const client = new OAuth2Client();
@@ -237,6 +258,7 @@ export class AuthService implements OnApplicationBootstrap {
         data: { email, name: payload.name ?? email.split('@')[0], googleId: payload.sub, avatarUrl: payload.picture, emailVerified: true },
       });
       if (accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`, this.prisma, invite);
+      await this.linkReferral(created.id, ref);
       user = await this.findUser({ id: created.id });
     } else if (!user.googleId) {
       await this.prisma.user.update({

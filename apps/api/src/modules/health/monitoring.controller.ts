@@ -6,6 +6,8 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MonitoringService } from '../../core/monitoring/monitoring.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { WebPushService } from '../../core/notifications/web-push.service';
+import { Feature } from '../../common/decorators';
 
 const clientErrorSchema = z.object({
   source: z.enum(['WEB', 'MOBILE']),
@@ -21,7 +23,16 @@ export class MonitoringController {
     private readonly prisma: PrismaService,
     private readonly monitoring: MonitoringService,
     private readonly audit: AuditService,
+    private readonly webPush: WebPushService,
   ) {}
+
+  /** VAPID public key the website needs to subscribe to browser push (generated on first use). */
+  @Public()
+  @Feature('web_push')
+  @Get('public/webpush-key')
+  async webPushKey() {
+    return { publicKey: await this.webPush.publicKey() };
+  }
 
   /** Website error boundary / app crash handler report here (login optional). */
   @Public()

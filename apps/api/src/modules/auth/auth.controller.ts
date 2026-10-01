@@ -58,7 +58,7 @@ export class AuthController {
   @HttpCode(200)
   @Post('google')
   google(@Body(new ZodPipe(googleLoginSchema)) body: z.infer<typeof googleLoginSchema>, @Req() req: any) {
-    return this.auth.google(body.idToken, body.accountType, meta(req), body.inviteCode);
+    return this.auth.google(body.idToken, body.accountType, meta(req), body.inviteCode, body.ref);
   }
 
   @Public()

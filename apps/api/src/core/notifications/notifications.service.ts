@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { SettingsService } from '../settings/settings.service';
+import { WebPushService } from './web-push.service';
 
 export interface NotifyInput {
   kind: string;
@@ -20,6 +21,7 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly settings: SettingsService,
+    private readonly webPush: WebPushService,
   ) {}
 
   async notify(userIds: string | string[], input: NotifyInput) {
@@ -36,7 +38,12 @@ export class NotificationsService {
       })),
     });
     for (const id of ids) this.realtime.toUser(id, 'notification', { kind: input.kind, title: input.title, body: input.body, link: input.link });
-    if (input.push !== false) await this.push(ids, input.title, input.body ?? '', { link: input.link, kind: input.kind, ...input.data });
+    if (input.push !== false) {
+      await this.push(ids, input.title, input.body ?? '', { link: input.link, kind: input.kind, ...input.data });
+      await this.webPush
+        .send(ids, input.title, input.body ?? '', { link: input.link, kind: input.kind })
+        .catch((e) => this.logger.warn(`web push: ${(e as Error).message}`));
+    }
   }
 
   async notifyOrg(orgId: string, input: NotifyInput, opts: { adminsOnly?: boolean; include?: string[] } = {}) {
