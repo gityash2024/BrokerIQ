@@ -18,7 +18,7 @@ export default defineConfig({
   use: { baseURL: WEB, channel: 'chrome', headless: true, locale: 'en-IN' },
   webServer: [
     {
-      command: `PORT=${API_PORT} CORS_ORIGINS=${WEB} PUBLIC_WEB_URL=${WEB} pnpm --filter @brokeriq/api exec nest start`,
+      command: `PORT=${API_PORT} CORS_ORIGINS=${WEB} PUBLIC_WEB_URL=${WEB} SUPER_ADMIN_EMAIL=admin.web@e2e.test SUPER_ADMIN_PASSWORD=Admin@12345 pnpm --filter @brokeriq/api exec nest start`,
       url: `${API}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
