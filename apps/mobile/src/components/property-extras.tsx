@@ -8,7 +8,7 @@ import { api, post } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Button, Card, Chip, Input, Loader, Row, SectionTitle, Sheet, Txt } from '@/ui';
+import { Button, Card, Chip, Input, Loader, Row, SectionTitle, Segmented, Sheet, Txt } from '@/ui';
 import { useFlag } from '@/lib/config';
 
 /** Anti-scam reminder next to contact options. */
@@ -35,6 +35,8 @@ export function SlotSheet({ listingId, open, onClose }: { listingId: string; ope
   const q = useQuery({ queryKey: ['slots', listingId], queryFn: () => api<any>(`/listings/${listingId}/slots?days=7`, { auth: false }), enabled: open });
   const [day, setDay] = useState<string | null>(null);
   const [at, setAt] = useState<string | null>(null);
+  const [mode, setMode] = useState<'IN_PERSON' | 'VIDEO'>('IN_PERSON');
+  const videoOn = useFlag('video_visits');
   const [busy, setBusy] = useState(false);
   const days: { date: string; slots: { at: string; available: number }[] }[] = q.data?.days ?? [];
   const active = day ?? days.find((d) => d.slots.some((s) => s.available > 0))?.date ?? null;
@@ -42,8 +44,8 @@ export function SlotSheet({ listingId, open, onClose }: { listingId: string; ope
     if (!at) return;
     setBusy(true);
     try {
-      const r = await post<any>(`/listings/${listingId}/book-visit`, { at });
-      toast.success(`Visit book हो गई: ${r.when}`);
+      const r = await post<any>(`/listings/${listingId}/book-visit`, { at, mode });
+      toast.success(mode === 'VIDEO' ? `Video visit book हो गई: ${r.when} — link "Visits" में` : `Visit book हो गई: ${r.when}`);
       onClose();
     } catch (e) {
       showError(e);
@@ -62,6 +64,16 @@ export function SlotSheet({ listingId, open, onClose }: { listingId: string; ope
         </Txt>
       ) : (
         <View style={{ gap: 12 }}>
+          {videoOn && (
+            <Segmented
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'IN_PERSON', label: 'Property पर' },
+                { value: 'VIDEO', label: '🎥 Video call' },
+              ]}
+            />
+          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {days.map((d) => (
               <Chip key={d.date} label={dayLabel(d.date)} active={active === d.date} onPress={() => (setDay(d.date), setAt(null))} />

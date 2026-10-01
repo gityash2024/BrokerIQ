@@ -7,13 +7,16 @@ import { api, post } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Button, Card, Empty, Header, Input, Loader, Screen, Sheet, Txt } from '@/ui';
+import { Badge, Button, Card, Empty, Header, Input, Loader, Row, Screen, Sheet, Txt } from '@/ui';
+import { useFlag } from '@/lib/config';
 
 /** Draft 11-month rent agreement PDF (opens in the browser via a short-lived link). */
 export default function AgreementsScreen() {
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['agreements'], queryFn: () => api<any[]>('/agreements') });
   const [open, setOpen] = useState(false);
+  const [sign, setSign] = useState<any>(null);
+  const esignOn = useFlag('agreement_esign');
   const pdf = (id: string) =>
     post<{ url: string }>(`/agreements/${id}/link`)
       .then((r) => Linking.openURL(r.url))
@@ -41,11 +44,28 @@ export default function AgreementsScreen() {
           <Card key={a.id} style={{ padding: 14, gap: 4, marginTop: 10 }}>
             <Txt v="bodyStrong">{`${a.landlordName} → ${a.tenantName}`}</Txt>
             <Txt v="caption" color="muted" numberOfLines={1}>{`${a.propertyAddress} · ${formatINR(a.rent)}/month`}</Txt>
-            <Button title="PDF खोलें" size="sm" variant="secondary" onPress={() => pdf(a.id)} />
+            {a.signStatus !== 'DRAFT' && (
+              <Row wrap gap={6}>
+                {(a.signatures ?? []).map((s: any) => (
+                  <Badge
+                    key={s.party}
+                    label={`${s.party === 'LANDLORD' ? 'Landlord' : 'Tenant'} ${s.signedAt ? '✓' : 'pending'}`}
+                    color={s.signedAt ? c.success : c.warning}
+                  />
+                ))}
+              </Row>
+            )}
+            <Row wrap>
+              <Button title="PDF खोलें" size="sm" variant="secondary" onPress={() => pdf(a.id)} />
+              {esignOn && a.signStatus !== 'SIGNED' && (
+                <Button title={a.signStatus === 'SIGNING' ? 'दोबारा भेजें' : 'OTP से sign करवाएँ'} size="sm" onPress={() => setSign(a)} />
+              )}
+            </Row>
           </Card>
         ))
       )}
       <NewAgreement open={open} onClose={() => setOpen(false)} onSaved={(id) => (q.refetch(), pdf(id))} />
+      <SignSheet agreement={sign} onClose={() => setSign(null)} onSent={() => q.refetch()} />
     </Screen>
   );
 }
@@ -88,6 +108,48 @@ function NewAgreement({ open, onClose, onSaved }: { open: boolean; onClose: () =
         disabled={!f.landlordName || !f.tenantName || !f.propertyAddress || !f.rent || !/^\d{4}-\d{2}-\d{2}$/.test(f.startDate)}
         onPress={save}
       />
+    </Sheet>
+  );
+}
+
+/** Both parties get an email link to read the agreement and confirm it with an OTP. */
+function SignSheet({ agreement, onClose, onSent }: { agreement: any | null; onClose: () => void; onSent: () => void }) {
+  const [f, setF] = useState({ landlordEmail: '', tenantEmail: '' });
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    try {
+      await post(`/agreements/${agreement.id}/sign`, f);
+      toast.success('दोनों को email पर sign link भेज दिया');
+      onSent();
+      onClose();
+    } catch (e) {
+      showError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet open={!!agreement} onClose={onClose} title="OTP से sign करवाएँ">
+      <Input
+        label={`Landlord email${agreement ? ` (${agreement.landlordName})` : ''}`}
+        value={f.landlordEmail}
+        onChangeText={(v) => setF({ ...f, landlordEmail: v.trim() })}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+      <Input
+        label={`Tenant email${agreement ? ` (${agreement.tenantName})` : ''}`}
+        value={f.tenantEmail}
+        onChangeText={(v) => setF({ ...f, tenantEmail: v.trim() })}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        containerStyle={{ marginTop: 10 }}
+      />
+      <Txt v="caption" color="muted" style={{ marginTop: 8 }}>
+        Final PDF में confirmation certificate (समय, IP, SHA-256) जुड़ता है। यह stamp duty / registration की जगह नहीं लेता।
+      </Txt>
+      <Button title="Link भेजें" full loading={busy} disabled={!f.landlordEmail || !f.tenantEmail} onPress={send} style={{ marginTop: 12 }} />
     </Sheet>
   );
 }

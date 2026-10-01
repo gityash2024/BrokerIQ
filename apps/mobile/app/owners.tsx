@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Linking } from 'react-native';
+import { Linking, Share } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { FileBarChart, KeyRound, MessageCircle, Phone, UserRound } from 'lucide-react-native';
 import { formatINR, whatsappLink } from '@brokeriq/shared';
 import { api, patch, post } from '@/lib/api';
 import { useFlag } from '@/lib/config';
-import { useApiMutation } from '@/lib/hooks';
+import { showError, useApiMutation } from '@/lib/hooks';
+import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Badge, Button, Card, Empty, Header, Input, Loader, Row, Screen, Segmented, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, Header, Input, Loader, Row, Screen, Segmented, Sheet, Txt } from '@/ui';
 
 const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400_000);
 
@@ -94,6 +95,20 @@ function Leases() {
     invalidate: [['tenancies']],
   });
   const end = useApiMutation((id: string) => patch(`/broker/tenancies/${id}`, { status: 'ENDED' }), { success: 'Lease बंद', invalidate: [['tenancies']] });
+  const rentOn = useFlag('rent_tracker');
+  const inspectOn = useFlag('inspections');
+  const [payFor, setPayFor] = useState<any>(null);
+  /** The checklist is filled on the website (room-wise editor); here we share its confirmation link. */
+  const checklist = async (id: string) => {
+    try {
+      const list = await api<any[]>(`/broker/tenancies/${id}/inspections`);
+      const latest = list.find((i) => i.kind === 'MOVE_OUT') ?? list.find((i) => i.kind === 'MOVE_IN');
+      if (!latest) return toast.info('पहले website पर Owners → Leases → Checklist भरें, फिर यहाँ से link भेजें');
+      await Share.share({ message: `${latest.kind === 'MOVE_OUT' ? 'Move-out' : 'Move-in'} checklist देखें और OTP से confirm करें: ${latest.url}` });
+    } catch (e) {
+      showError(e);
+    }
+  };
   if (list.isLoading) return <Loader />;
   if (!list.data?.length)
     return <Empty icon={<KeyRound size={26} color={c.brand} />} title="अभी कोई lease नहीं" text="Rent deal close करने पर lease अपने-आप बनता है (11 महीने)।" />;
@@ -115,7 +130,9 @@ function Leases() {
             <Txt v="small" color="muted" numberOfLines={1}>{`${t.listing?.title ?? 'Property'} · ${formatINR(t.rent)}/month`}</Txt>
             <Txt v="caption" color="subtle">{`${new Date(t.startDate).toLocaleDateString('en-IN')} → ${new Date(t.endDate).toLocaleDateString('en-IN')}`}</Txt>
             {t.status === 'ACTIVE' && (
-              <Row>
+              <Row wrap>
+                {rentOn && <Button title="किराया मिला" size="sm" onPress={() => setPayFor(t)} />}
+                {inspectOn && <Button title="Checklist" size="sm" variant="secondary" onPress={() => checklist(t.id)} />}
                 <Button title="Renew (11 महीने)" size="sm" variant="secondary" onPress={() => renew.mutate(t.id)} />
                 <Button title="बंद करें" size="sm" variant="ghost" onPress={() => end.mutate(t.id)} />
               </Row>
@@ -123,6 +140,50 @@ function Leases() {
           </Card>
         );
       })}
+      <RentPaidSheet tenancy={payFor} onClose={() => setPayFor(null)} />
     </>
+  );
+}
+
+const istMonth = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 7);
+
+/** Mark this month's rent received → tenant gets the receipt (app + email). */
+function RentPaidSheet({ tenancy, onClose }: { tenancy: any | null; onClose: () => void }) {
+  const [f, setF] = useState({ amount: '', mode: 'UPI', reference: '' });
+  const month = istMonth();
+  const save = useApiMutation(
+    () =>
+      post<any>(`/broker/tenancies/${tenancy.id}/rent-payments`, {
+        month,
+        amount: Number(f.amount || tenancy.rent),
+        mode: f.mode,
+        reference: f.reference || null,
+      }),
+    {
+      success: 'Paid mark हुआ — tenant को receipt भेज दी',
+      onSuccess: (r) => (onClose(), setF({ amount: '', mode: 'UPI', reference: '' }), Linking.openURL(r.receiptUrl)),
+    },
+  );
+  return (
+    <Sheet
+      open={!!tenancy}
+      onClose={onClose}
+      title={`${new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' })} का किराया`}
+    >
+      <Input
+        label="Amount (₹)"
+        placeholder={tenancy ? String(tenancy.rent) : ''}
+        value={f.amount}
+        onChangeText={(v) => setF({ ...f, amount: v.replace(/\D/g, '') })}
+        keyboardType="number-pad"
+      />
+      <Row wrap style={{ marginTop: 10 }}>
+        {['UPI', 'BANK', 'CASH', 'CHEQUE'].map((m) => (
+          <Chip key={m} label={m} active={f.mode === m} onPress={() => setF({ ...f, mode: m })} />
+        ))}
+      </Row>
+      <Input label="Ref / UTR (optional)" value={f.reference} onChangeText={(v) => setF({ ...f, reference: v })} containerStyle={{ marginTop: 10 }} />
+      <Button title="Paid mark करें + receipt" full loading={save.isPending} onPress={() => save.mutate(undefined)} style={{ marginTop: 12 }} />
+    </Sheet>
   );
 }

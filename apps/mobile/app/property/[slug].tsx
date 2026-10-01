@@ -53,6 +53,7 @@ import { palette, useTheme } from '@/lib/theme';
 import { ListingCard, SaveButton, areaOf } from '@/components/listing';
 import { MapView } from '@/components/map';
 import { CommuteCard, PanoramaSheet, ReviewsSummary, SafetyNote, SlotSheet, TokenSheet } from '@/components/property-extras';
+import { FairRentCard } from '@/components/fair-rent';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, SectionTitle, Sheet, Txt } from '@/ui';
 
 const W = Dimensions.get('window').width;
@@ -370,6 +371,7 @@ export default function Property() {
           )}
 
           <CommuteCard l={l} />
+          <FairRentCard l={l} />
           <ReviewsSummary localitySlug={l.locality.slug} society={l.societyName} />
 
           {moveIn && (

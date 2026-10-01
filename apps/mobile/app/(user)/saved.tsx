@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Share, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Bell, BellOff, Heart, Search, Trash2 } from 'lucide-react-native';
-import { api, del, patch } from '@/lib/api';
+import { Bell, BellOff, Columns3, Heart, Search, Share2, Trash2 } from 'lucide-react-native';
+import { api, del, patch, post } from '@/lib/api';
+import { useFlag } from '@/lib/config';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/auth';
-import { useApiMutation } from '@/lib/hooks';
+import { showError, useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { ListingRow, SaveButton } from '@/components/listing';
 import { LoginPrompt } from '@/components/login-prompt';
@@ -21,9 +23,22 @@ export default function Saved() {
   const searches = useQuery({ queryKey: ['saved-searches'], queryFn: () => api<any[]>('/me/saved-searches'), enabled: !!user && tab === 'searches' });
   const toggle = useApiMutation((s: any) => patch(`/me/saved-searches/${s.id}`, { alertsEnabled: !s.alertsEnabled }), { invalidate: [['saved-searches']] });
   const remove = useApiMutation((id: string) => del(`/me/saved-searches/${id}`), { success: 'Search हटाई', invalidate: [['saved-searches']] });
+  const shortlistOn = useFlag('compare_shortlist');
+  const [picked, setPicked] = useState<string[] | null>(null);
   if (!user)
     return <LoginPrompt title="अपनी पसंदीदा properties save करें" text="Login करें — saved homes, searches और price alerts सब devices पर sync होंगे।" />;
   const listQ = tab === 'recent' ? recent : saved;
+  const homesTools = tab === 'homes' && shortlistOn && (saved.data?.length ?? 0) > 0;
+  const togglePick = (id: string) =>
+    setPicked((p) => (!p ? p : p.includes(id) ? p.filter((x) => x !== id) : p.length >= 4 ? (toast.error('ज़्यादा से ज़्यादा 4 घर'), p) : [...p, id]));
+  const shareShortlist = async () => {
+    try {
+      const r = await post<{ url: string }>('/me/shortlist/share');
+      await Share.share({ message: `मेरी shortlist के घर देखो: ${r.url}` });
+    } catch (e) {
+      showError(e);
+    }
+  };
   const rows = (listQ.data ?? []).map((x: any) => x.listing ?? x);
   return (
     <Screen scroll={false} padded={false}>
@@ -38,6 +53,28 @@ export default function Saved() {
             { value: 'recent', label: 'Recently viewed' },
           ]}
         />
+        {homesTools && (
+          <Row wrap>
+            {picked ? (
+              <>
+                <Button
+                  title={`Compare (${picked.length})`}
+                  size="sm"
+                  disabled={picked.length < 2}
+                  onPress={() => (router.push({ pathname: '/compare', params: { ids: picked.join(',') } }), setPicked(null))}
+                />
+                <Button title="Cancel" size="sm" variant="ghost" onPress={() => setPicked(null)} />
+              </>
+            ) : (
+              <>
+                {(saved.data?.length ?? 0) > 1 && (
+                  <Button title="Compare करें" size="sm" variant="secondary" icon={<Columns3 size={14} color={c.fg} />} onPress={() => setPicked([])} />
+                )}
+                <Button title="Family के साथ share" size="sm" variant="secondary" icon={<Share2 size={14} color={c.fg} />} onPress={shareShortlist} />
+              </>
+            )}
+          </Row>
+        )}
       </View>
       {tab === 'searches' ? (
         <FlatList
@@ -97,7 +134,12 @@ export default function Saved() {
           }
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40)}>
-              <ListingRow l={item} right={tab === 'homes' ? <SaveButton id={item.id} /> : undefined} />
+              <ListingRow
+                l={item}
+                right={tab === 'homes' && !picked ? <SaveButton id={item.id} /> : undefined}
+                onPress={picked && tab === 'homes' ? () => togglePick(item.id) : undefined}
+                selected={!!picked?.includes(item.id)}
+              />
             </Animated.View>
           )}
         />

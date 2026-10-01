@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { formatINR, moveInCost, rentAffordability, rentSplit } from '@brokeriq/shared';
+import { FairRentTool } from '@/components/fair-rent';
+import { useFlag } from '@/lib/config';
 import { Button, Card, Chip, Header, Input, Row, Screen, Segmented, Txt } from '@/ui';
 
 /** Rent tools — BrokerIQ is a rental marketplace (old emi/stamp/afford links open the first tool). */
-type Tab = 'rent' | 'movein' | 'split';
-const TABS: Tab[] = ['rent', 'movein', 'split'];
+type Tab = 'fair' | 'rent' | 'movein' | 'split';
+const TABS: Tab[] = ['fair', 'rent', 'movein', 'split'];
 const n = (v: string) => Number(v.replace(/[^\d.]/g, '')) || 0;
 
 function Result({ label, value, big }: { label: string; value: string; big?: boolean }) {
@@ -24,6 +26,7 @@ function Result({ label, value, big }: { label: string; value: string; big?: boo
 
 export default function Tools() {
   const params = useLocalSearchParams<{ tab?: string }>();
+  const fairOn = useFlag('fair_rent');
   const [tab, setTab] = useState<Tab>(TABS.includes(params.tab as Tab) ? (params.tab as Tab) : 'rent');
   // rent budget
   const [income, setIncome] = useState('100000');
@@ -59,12 +62,14 @@ export default function Tools() {
         value={tab}
         onChange={setTab}
         options={[
+          ...(fairOn ? [{ value: 'fair' as const, label: 'Fair rent' }] : []),
           { value: 'rent', label: 'Rent budget' },
           { value: 'movein', label: 'Move-in cost' },
           { value: 'split', label: 'Rent split' },
         ]}
       />
       <Animated.View key={tab} entering={FadeIn} style={{ gap: 14, marginTop: 16 }}>
+        {tab === 'fair' && fairOn && <FairRentTool />}
         {tab === 'rent' && (
           <>
             <Card style={{ padding: 16, gap: 12 }}>

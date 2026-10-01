@@ -36,7 +36,10 @@ export default function MyVisits() {
             <Card key={v.id} style={{ padding: 14, gap: 6, marginTop: 10 }} onPress={v.listing ? () => router.push(`/property/${v.listing.slug}`) : undefined}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Txt v="bodyStrong">{when(v.scheduledAt)}</Txt>
-                <Badge label={upcoming ? 'Upcoming' : v.status} color={upcoming ? c.brand : c.muted} />
+                <Row gap={6}>
+                  {v.mode === 'VIDEO' && <Badge label="Video" color={c.info} />}
+                  <Badge label={upcoming ? 'Upcoming' : v.status} color={upcoming ? c.brand : c.muted} />
+                </Row>
               </Row>
               {!!v.listing && (
                 <Txt v="small" color="brand" numberOfLines={1}>
@@ -44,7 +47,10 @@ export default function MyVisits() {
                 </Txt>
               )}
               <Txt v="caption" color="muted" numberOfLines={2}>{`${v.address ?? ''} · ${v.organization?.name ?? ''}`}</Txt>
-              <Row>
+              <Row wrap>
+                {upcoming && v.mode === 'VIDEO' && !!v.meetingUrl && (
+                  <Button title="Video call join करें" size="sm" onPress={() => Linking.openURL(v.meetingUrl)} />
+                )}
                 {!!phone && (
                   <Button
                     title="WhatsApp"

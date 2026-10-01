@@ -28,6 +28,7 @@ import {
   Sun,
   SunMoon,
   UserCog,
+  IndianRupee,
 } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -185,6 +186,15 @@ export default function Profile() {
                 tint={c.info}
                 label="Visits & tokens"
                 onPress={() => router.push(user ? '/my-visits' : '/login')}
+              />
+            )}
+            {flags.rent_tracker !== false && (
+              <Item
+                icon={<IndianRupee size={20} color={c.success} />}
+                tint={c.success}
+                label="मेरा किराया"
+                sub="UPI से pay करें, rent receipts"
+                onPress={() => router.push(user ? '/my-rent' : '/login')}
               />
             )}
             {flags.flatmates !== false && (
