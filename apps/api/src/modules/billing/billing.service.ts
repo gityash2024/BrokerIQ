@@ -12,6 +12,7 @@ import { AuditService } from '../../core/audit/audit.service';
 import { UsageService } from '../../core/usage/usage.service';
 import { IntegrationFailedException } from '../../common/exceptions';
 import type { RequestUser } from '../../common/decorators';
+import { registerPdfFonts } from '../../common/pdf';
 import { env } from '../../config/env';
 
 @Injectable()
@@ -246,6 +247,7 @@ export class BillingService {
       const chunks: Buffer[] = [];
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
+      registerPdfFonts(doc);
       doc
         .fillColor(app.primaryColor)
         .fontSize(22)
@@ -271,7 +273,7 @@ export class BillingService {
       doc.moveDown(2);
       const line = (label: string, value: string, bold = false) => {
         doc
-          .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+          .font(bold ? 'B' : 'R')
           .fontSize(11)
           .text(label, 50, doc.y, { continued: true, width: 350 })
           .text(value, { align: 'right' });
@@ -280,15 +282,15 @@ export class BillingService {
         payment.purpose === 'SUBSCRIPTION'
           ? `${plan?.name ?? 'Plan'} subscription (${(payment.billingCycle ?? 'MONTHLY').toLowerCase()})`
           : `Featured listing boost (${meta.weeks ?? 1} week)`,
-        `Rs. ${formatINR(taxable, false)}`,
+        formatINR(taxable),
       );
       if (payment.couponCode) line(`Coupon applied: ${payment.couponCode}`, '');
-      line(`GST @ ${gstPct}%`, `Rs. ${formatINR(gst, false)}`);
+      line(`GST @ ${gstPct}%`, formatINR(gst));
       doc.moveDown(0.5);
-      line('Total paid', `Rs. ${formatINR(total, false)}`, true);
+      line('Total paid', formatINR(total), true);
       doc
         .moveDown(2)
-        .font('Helvetica')
+        .font('R')
         .fontSize(9)
         .fillColor('#64748b')
         .text(`Razorpay payment ID: ${payment.razorpayPaymentId ?? '-'}`)

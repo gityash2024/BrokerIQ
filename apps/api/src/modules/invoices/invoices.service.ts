@@ -1,5 +1,3 @@
-import { existsSync } from 'fs';
-import { join } from 'path';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
@@ -13,6 +11,7 @@ import { AuditService } from '../../core/audit/audit.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { randomToken, requireOrg } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
+import { registerPdfFonts } from '../../common/pdf';
 import { env } from '../../config/env';
 
 export interface InvoiceItem {
@@ -34,16 +33,6 @@ export interface InvoiceInput {
 const MAX_REMINDERS = 3;
 const REMINDER_GAP_DAYS = 3;
 const UPI_ID = /^[\w.-]{2,256}@[a-zA-Z][\w]{2,64}$/;
-
-function fontPath(file: string) {
-  const dirs = [
-    join(__dirname, '../../../assets/fonts'),
-    join(__dirname, '../../../../assets/fonts'),
-    join(process.cwd(), 'assets/fonts'),
-    join(process.cwd(), 'apps/api/assets/fonts'),
-  ];
-  return join(dirs.find((d) => existsSync(join(d, file))) ?? dirs[0], file);
-}
 
 /** upi://pay link any UPI app opens with the amount prefilled (no gateway, money goes to the firm). */
 export function upiLink(org: Pick<Organization, 'upiId' | 'upiName' | 'name'>, inv: Pick<ClientInvoice, 'total' | 'number'>) {
@@ -257,8 +246,7 @@ export class InvoicesService {
       const chunks: Buffer[] = [];
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.registerFont('R', fontPath('Inter_500Medium.ttf'));
-      doc.registerFont('B', fontPath('Inter_700Bold.ttf'));
+      registerPdfFonts(doc);
       doc.font('B').fillColor('#4F46E5').fontSize(20).text(org.name);
       doc.font('R').fillColor('#475569').fontSize(9);
       [org.address, org.phone, org.email, org.gstNumber ? `GSTIN: ${org.gstNumber}` : null, org.reraNumber ? `RERA: ${org.reraNumber}` : null]

@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import PDFDocument from 'pdfkit';
 
-/** Finds the bundled Inter fonts from both src (ts-node/jest) and dist (production) layouts. */
+/** Finds the bundled fonts from both src (ts-node/jest) and dist (production) layouts. */
 export function fontPath(file: string) {
   const dirs = [
     join(__dirname, '../../assets/fonts'),
@@ -15,7 +15,14 @@ export function fontPath(file: string) {
 
 export type Pdf = PDFKit.PDFDocument;
 
-/** Renders an A4 PDF with fonts 'R' (regular) and 'B' (bold) registered. PDFs are Latin-only (Inter has no Devanagari). */
+/** "BrokerIQ Sans" = Inter (Latin, ₹) merged with Noto Sans Devanagari, so Hindi names and addresses print correctly. */
+export function registerPdfFonts(doc: Pdf) {
+  doc.registerFont('R', fontPath('BrokerIQSans-Regular.ttf'));
+  doc.registerFont('B', fontPath('BrokerIQSans-Bold.ttf'));
+  return doc.font('R');
+}
+
+/** Renders an A4 PDF with fonts 'R' (regular) and 'B' (bold) registered (Latin + Devanagari). */
 export function renderPdf(build: (doc: Pdf) => void | Promise<void>, opts: PDFKit.PDFDocumentOptions = {}): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 44, bufferPages: true, ...opts });
@@ -23,25 +30,22 @@ export function renderPdf(build: (doc: Pdf) => void | Promise<void>, opts: PDFKi
     doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-    doc.registerFont('R', fontPath('Inter_500Medium.ttf'));
-    doc.registerFont('B', fontPath('Inter_700Bold.ttf'));
-    doc.font('R');
+    registerPdfFonts(doc);
     Promise.resolve(build(doc))
       .then(() => doc.end())
       .catch(reject);
   });
 }
 
-/** Keeps only characters the bundled Latin font can draw (Devanagari etc. would print as boxes). */
+/** Keeps only characters the bundled font can draw: Latin, Devanagari, common punctuation and ₹ (other scripts and emoji would print as boxes). */
 export const pdfText = (s: string | null | undefined) =>
   (s ?? '')
-    .replace(/[₹]/g, 'Rs ')
-    .replace(/[^\x20-\x7E\u00A0-\u024F\n]/g, '')
+    .replace(/[^\x20-\x7E\u00A0-\u024F\u0900-\u097F\u200C\u200D\u2010-\u2027\u20B9\n]/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 
-/** "Rs 25,000" — formatted for PDFs (Inter lacks the ₹ glyph in some builds). */
-export const pdfMoney = (n: number | null | undefined) => (n == null ? '-' : `Rs ${Math.round(n).toLocaleString('en-IN')}`);
+/** "₹25,000" — formatted for PDFs. */
+export const pdfMoney = (n: number | null | undefined) => (n == null ? '-' : `₹${Math.round(n).toLocaleString('en-IN')}`);
 
 /** Simple table: header row + rows, columns sized by weight. Adds pages as needed. */
 export function pdfTable(doc: Pdf, headers: string[], rows: string[][], weights?: number[]) {

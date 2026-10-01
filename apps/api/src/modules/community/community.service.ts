@@ -1,5 +1,3 @@
-import { existsSync } from 'fs';
-import { join } from 'path';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import type { FlatmateProfile, Prisma, RentAgreement } from '@prisma/client';
@@ -8,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { MailService } from '../../core/mail/mail.service';
 import type { RequestUser } from '../../common/decorators';
+import { registerPdfFonts } from '../../common/pdf';
 
 export type FlatmateInput = Omit<Prisma.FlatmateProfileUncheckedCreateInput, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 
@@ -29,16 +28,6 @@ export function flatmateScore(a: FlatmateProfile, b: FlatmateProfile) {
   if (a.drinking === b.drinking) s += 3;
   if (a.pets === b.pets) s += 3;
   return Math.min(100, s);
-}
-
-function fontPath(file: string) {
-  const dirs = [
-    join(__dirname, '../../../assets/fonts'),
-    join(__dirname, '../../../../assets/fonts'),
-    join(process.cwd(), 'assets/fonts'),
-    join(process.cwd(), 'apps/api/assets/fonts'),
-  ];
-  return join(dirs.find((d) => existsSync(join(d, file))) ?? dirs[0], file);
 }
 
 const ordinalMonths = (n: number) =>
@@ -198,8 +187,7 @@ export class CommunityService {
       const chunks: Buffer[] = [];
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.registerFont('R', fontPath('Inter_500Medium.ttf'));
-      doc.registerFont('B', fontPath('Inter_700Bold.ttf'));
+      registerPdfFonts(doc);
       doc.font('B').fontSize(16).text('LEAVE AND LICENCE (RENT) AGREEMENT', { align: 'center' });
       doc
         .moveDown(0.3)

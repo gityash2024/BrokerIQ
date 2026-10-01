@@ -163,13 +163,13 @@ export class RentService {
       doc.moveDown(2);
       doc.font('R').text('Landlord signature: ______________________');
       if (p.amount > 5000 && p.mode === 'CASH')
-        doc.moveDown(0.5).fontSize(9).fillColor('#64748b').text('Cash payment above Rs 5,000: affix a revenue stamp before signing.');
+        doc.moveDown(0.5).fontSize(9).fillColor('#64748b').text('Cash payment above ₹5,000: affix a revenue stamp before signing.');
       doc
         .moveDown(2)
         .fontSize(8)
         .fillColor('#94a3b8')
         .text(
-          `Recorded by ${pdfText(t.organization.name)} on BrokerIQ. Tenants can use this receipt for HRA; landlord PAN is required when annual rent exceeds Rs 1,00,000.`,
+          `Recorded by ${pdfText(t.organization.name)} on BrokerIQ. Tenants can use this receipt for HRA; landlord PAN is required when annual rent exceeds ₹1,00,000.`,
         );
     });
   }
