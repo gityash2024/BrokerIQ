@@ -180,7 +180,8 @@ describe('Broker growth tools (e2e)', () => {
       .spyOn(settings, 'resolve')
       .mockImplementation(async (key: string, orgId?: string | null) => (key === 'smtp' ? { host: 'x' } : realResolve(key, orgId)));
     const sent: any[] = [];
-    jest.spyOn(app.get(MailService), 'send').mockImplementation(async (m: any) => void sent.push(m));
+    // Only campaign mails (they carry an unsubscribe link); new-listing alerts to other users' saved requirements are ignored.
+    jest.spyOn(app.get(MailService), 'send').mockImplementation(async (m: any) => void (String(m.html).includes('/public/unsubscribe/') && sent.push(m)));
 
     const em = await http
       .post('/api/broker/campaigns')
