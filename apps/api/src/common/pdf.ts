@@ -37,10 +37,25 @@ export function renderPdf(build: (doc: Pdf) => void | Promise<void>, opts: PDFKi
   });
 }
 
+const PDF_RANGES: [number, number][] = [
+  [0x0a, 0x0a],
+  [0x20, 0x7e],
+  [0xa0, 0x24f], // Latin
+  [0x900, 0x97f], // Devanagari
+  [0x200c, 0x200d], // ZWNJ / ZWJ (Devanagari conjunct control)
+  [0x2010, 0x2027], // dashes, quotes, bullets, ellipsis
+  [0x20b9, 0x20b9], // ₹
+];
+const pdfDrawable = (c: string) => {
+  const cp = c.codePointAt(0) ?? 0;
+  return PDF_RANGES.some(([a, b]) => cp >= a && cp <= b);
+};
+
 /** Keeps only characters the bundled font can draw: Latin, Devanagari, common punctuation and ₹ (other scripts and emoji would print as boxes). */
 export const pdfText = (s: string | null | undefined) =>
-  (s ?? '')
-    .replace(/[^\x20-\x7E\u00A0-\u024F\u0900-\u097F\u200C\u200D\u2010-\u2027\u20B9\n]/g, '')
+  Array.from(s ?? '')
+    .filter(pdfDrawable)
+    .join('')
     .replace(/\s{2,}/g, ' ')
     .trim();
 
