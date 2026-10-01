@@ -3,9 +3,9 @@ import { Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ban, Megaphone, Plus, Send } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_LABELS, timeAgo, type LeadStage } from '@brokeriq/shared';
+import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, timeAgo, type CampaignSegment } from '@brokeriq/shared';
 import { api, del, post } from '@/lib/api';
-import { useApiMutation } from '@/lib/hooks';
+import { useApiMutation, useDebounced } from '@/lib/hooks';
 import { tr } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import { Badge, Button, Card, Chip, Empty, ErrorView, Header, Input, Loader, Row, Screen, Segmented, Sheet, Txt } from '@/ui';
@@ -63,12 +63,129 @@ export default function Campaigns() {
   );
 }
 
+function toggle<T>(arr: T[] | undefined, v: T) {
+  const a = arr ?? [];
+  return a.includes(v) ? a.filter((x) => x !== v) : [...a, v];
+}
+const num = (v: string) => (v.replace(/\D/g, '') ? Number(v.replace(/\D/g, '')) : null);
+
+/** Who gets the campaign: stage, temperature, source, BHK, locality, tags, budget, recent activity. */
+function SegmentFilters({ seg, onChange }: { seg: CampaignSegment; onChange: (s: CampaignSegment) => void }) {
+  const [locQ, setLocQ] = useState('');
+  const [tag, setTag] = useState('');
+  const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<any[]>('/public/localities', { auth: false }), staleTime: 600_000 });
+  const picked = (locs.data ?? []).filter((l) => seg.localityIds?.includes(l.id));
+  const shown = locQ ? (locs.data ?? []).filter((l) => l.name.toLowerCase().includes(locQ.toLowerCase()) && !seg.localityIds?.includes(l.id)).slice(0, 12) : [];
+  const label = (t: string) => (
+    <Txt v="caption" color="muted" style={{ marginTop: 6 }}>
+      {t}
+    </Txt>
+  );
+  return (
+    <View style={{ gap: 8 }}>
+      {label('Stage')}
+      <Row wrap>
+        {LEAD_STAGES.map((s) => (
+          <Chip key={s} label={LEAD_STAGE_LABELS[s]} active={!!seg.stages?.includes(s)} onPress={() => onChange({ ...seg, stages: toggle(seg.stages, s) })} />
+        ))}
+      </Row>
+      {label('Temperature')}
+      <Row wrap>
+        {(['HOT', 'WARM', 'COLD'] as const).map((t) => (
+          <Chip
+            key={t}
+            label={t === 'HOT' ? '🔥 Hot' : t === 'WARM' ? 'Warm' : 'Cold'}
+            active={!!seg.temperatures?.includes(t)}
+            onPress={() => onChange({ ...seg, temperatures: toggle(seg.temperatures, t) })}
+          />
+        ))}
+      </Row>
+      {label('Source')}
+      <Row wrap>
+        {LEAD_SOURCES.map((s) => (
+          <Chip
+            key={s}
+            label={LEAD_SOURCE_LABELS[s]}
+            active={!!seg.sources?.includes(s)}
+            onPress={() => onChange({ ...seg, sources: toggle(seg.sources, s) })}
+          />
+        ))}
+      </Row>
+      {label('BHK')}
+      <Row wrap>
+        {[1, 2, 3, 4].map((b) => (
+          <Chip key={b} label={`${b} BHK`} active={!!seg.bedrooms?.includes(b)} onPress={() => onChange({ ...seg, bedrooms: toggle(seg.bedrooms, b) })} />
+        ))}
+      </Row>
+      {label('Locality (requirement)')}
+      <Row wrap>
+        {picked.map((l) => (
+          <Chip key={l.id} label={`${l.name} ✕`} active onPress={() => onChange({ ...seg, localityIds: toggle(seg.localityIds, l.id) })} />
+        ))}
+      </Row>
+      <Input placeholder="Locality खोजें…" value={locQ} onChangeText={setLocQ} />
+      {shown.length > 0 && (
+        <Row wrap>
+          {shown.map((l) => (
+            <Chip key={l.id} label={l.name} onPress={() => (onChange({ ...seg, localityIds: toggle(seg.localityIds, l.id) }), setLocQ(''))} />
+          ))}
+        </Row>
+      )}
+      {label('Tags')}
+      <Row wrap>
+        {(seg.tags ?? []).map((t) => (
+          <Chip key={t} label={`${t} ✕`} active onPress={() => onChange({ ...seg, tags: toggle(seg.tags, t) })} />
+        ))}
+      </Row>
+      <Input
+        placeholder="Tag लिखकर done दबाएँ"
+        value={tag}
+        onChangeText={setTag}
+        returnKeyType="done"
+        onSubmitEditing={() => {
+          if (tag.trim()) onChange({ ...seg, tags: [...new Set([...(seg.tags ?? []), tag.trim()])] });
+          setTag('');
+        }}
+      />
+      {label('Budget (₹/month)')}
+      <Row>
+        <Input
+          placeholder="Min"
+          keyboardType="number-pad"
+          value={seg.minBudget != null ? String(seg.minBudget) : ''}
+          onChangeText={(v) => onChange({ ...seg, minBudget: num(v) })}
+          containerStyle={{ flex: 1 }}
+        />
+        <Input
+          placeholder="Max"
+          keyboardType="number-pad"
+          value={seg.maxBudget != null ? String(seg.maxBudget) : ''}
+          onChangeText={(v) => onChange({ ...seg, maxBudget: num(v) })}
+          containerStyle={{ flex: 1 }}
+        />
+      </Row>
+      {label('पिछले कितने दिनों में active')}
+      <Row wrap>
+        {[null, 7, 30, 90].map((d) => (
+          <Chip
+            key={String(d)}
+            label={d ? `${d} दिन` : 'कोई भी'}
+            active={(seg.activeWithinDays ?? null) === d}
+            onPress={() => onChange({ ...seg, activeWithinDays: d })}
+          />
+        ))}
+      </Row>
+    </View>
+  );
+}
+
 function CreateSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const [f, setF] = useState({ name: '', channel: 'WHATSAPP', template: '', emailSubject: '', emailBody: '' });
-  const [stages, setStages] = useState<LeadStage[]>(['NEW', 'CONTACTED', 'INTERESTED']);
+  const [seg, setSeg] = useState<CampaignSegment>({ stages: ['NEW', 'CONTACTED', 'INTERESTED'] });
+  const segment = useDebounced(seg, 400);
   const preview = useQuery({
-    queryKey: ['campaign-preview', stages],
-    queryFn: () => post<any>('/broker/campaigns/preview', { segment: { stages } }),
+    queryKey: ['campaign-preview', segment],
+    queryFn: () => post<any>('/broker/campaigns/preview', { segment }),
     enabled: open,
   });
   const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<any[]>('/whatsapp/templates'), enabled: open && f.channel !== 'EMAIL' });
@@ -79,7 +196,7 @@ function CreateSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
       return post<any>('/broker/campaigns', {
         name: f.name,
         channel: f.channel,
-        segment: { stages },
+        segment: seg,
         templateName: f.channel === 'EMAIL' ? null : templateName || null,
         templateLanguage: f.channel === 'EMAIL' ? null : templateLanguage || null,
         params: ['{name}'],
@@ -102,19 +219,8 @@ function CreateSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
             { value: 'BOTH', label: 'दोनों' },
           ]}
         />
-        <Txt v="caption" color="muted">
-          किन leads को (stage)
-        </Txt>
-        <Row wrap>
-          {LEAD_STAGES.map((s) => (
-            <Chip
-              key={s}
-              label={LEAD_STAGE_LABELS[s]}
-              active={stages.includes(s)}
-              onPress={() => setStages(stages.includes(s) ? stages.filter((x) => x !== s) : [...stages, s])}
-            />
-          ))}
-        </Row>
+        <Txt v="bodyStrong">किन leads को?</Txt>
+        <SegmentFilters seg={seg} onChange={setSeg} />
         <Txt v="small">{preview.data ? `${preview.data.total} leads${f.channel !== 'WHATSAPP' ? ` · ${preview.data.withEmail} के पास email` : ''}` : '…'}</Txt>
         {f.channel !== 'EMAIL' &&
           (preview.data && !preview.data.whatsappConnected ? (

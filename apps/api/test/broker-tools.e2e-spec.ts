@@ -344,6 +344,18 @@ describe('Broker growth tools (e2e)', () => {
     expect(gst.text).toContain('Taxable value');
     const pdf = await http.get('/api/broker/reports/export.pdf').set(auth(broker.token)).buffer(true).parse(binary).expect(200);
     expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    // Mobile: signed 10-minute link opened in the browser (no auth header).
+    const link = await http.post('/api/broker/reports/download-link').set(auth(broker.token)).send({ format: 'csv', type: 'deals' }).expect(201);
+    const path = link.body.url.slice(link.body.url.indexOf('/api/'));
+    expect((await http.get(path).expect(200)).text).toContain('Report deal');
+    await http.get(`${path.slice(0, -3)}xyz`).expect(404);
+    const pdfLink = await http.post('/api/broker/reports/download-link').set(auth(broker.token)).send({ format: 'pdf' }).expect(201);
+    const pdf2 = await http
+      .get(pdfLink.body.url.slice(pdfLink.body.url.indexOf('/api/')))
+      .buffer(true)
+      .parse(binary)
+      .expect(200);
+    expect((pdf2.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
     await http.get('/api/broker/reports?from=2026-13-01').set(auth(broker.token)).expect(400);
     await http.get('/api/broker/reports?from=2026-09-30&to=2026-01-01').set(auth(broker.token)).expect(400);
   });

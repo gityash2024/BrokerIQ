@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -8,7 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { CurrentUser, Feature, Public, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
-import { requireOrg } from '../../common/utils';
+import { requireOrg, signId, verifySignedId } from '../../common/utils';
+import { env } from '../../config/env';
 import { PhotoBrandingService } from '../media/photo-branding.service';
 import { SocialService } from './social.service';
 import { ComparisonService } from './comparison.service';
@@ -17,6 +18,28 @@ import { OwnerReportService } from './owner-report.service';
 
 const brandingSchema = z.object({ photoBranding: photoBrandingSchema.optional(), socialAutoPost: z.boolean().optional() });
 const weeklySchema = z.object({ on: z.boolean() });
+
+const REPORT_KINDS = ['deals', 'invoices', 'gst', 'agents'] as const satisfies readonly ReportKind[];
+const reportLinkSchema = z.object({
+  format: z.enum(['csv', 'pdf']),
+  type: z.enum(REPORT_KINDS).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+interface ReportDownload {
+  o: string;
+  f: 'csv' | 'pdf';
+  k?: string;
+  from?: string;
+  to?: string;
+  e?: number;
+}
 
 /** Broker growth tools: photo branding, social auto-post, comparison PDF, reports, owner report links. */
 @ApiTags('broker-tools')
@@ -110,28 +133,55 @@ export class GrowthController {
   @Feature('broker_reports')
   @Roles('BROKER_ADMIN')
   @Get('broker/reports/export.csv')
-  async exportCsv(
+  exportCsv(
     @CurrentUser() user: RequestUser,
     @Query('type') type: string,
     @Query('from') from: string | undefined,
     @Query('to') to: string | undefined,
     @Res() res: Response,
   ) {
-    const kind = (['deals', 'invoices', 'gst', 'agents'] as const).find((k) => k === type) ?? 'deals';
-    const out = await this.reports.csv(requireOrg(user), kind as ReportKind, from, to);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${out.name}"`);
-    res.send(out.body);
+    return this.sendReport(res, { o: requireOrg(user), f: 'csv', k: type, from, to });
   }
 
   @Feature('broker_reports')
   @Roles('BROKER_ADMIN')
   @Get('broker/reports/export.pdf')
-  async exportPdf(@CurrentUser() user: RequestUser, @Query('from') from: string | undefined, @Query('to') to: string | undefined, @Res() res: Response) {
-    const pdf = await this.reports.pdf(requireOrg(user), from, to);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="business-report.pdf"');
-    res.send(pdf);
+  exportPdf(@CurrentUser() user: RequestUser, @Query('from') from: string | undefined, @Query('to') to: string | undefined, @Res() res: Response) {
+    return this.sendReport(res, { o: requireOrg(user), f: 'pdf', from, to });
+  }
+
+  /** Short-lived signed link (10 min) so the mobile app can open a download in the browser without its auth header. */
+  @Feature('broker_reports')
+  @Roles('BROKER_ADMIN')
+  @Post('broker/reports/download-link')
+  downloadLink(@CurrentUser() user: RequestUser, @Body(new ZodPipe(reportLinkSchema)) b: z.infer<typeof reportLinkSchema>) {
+    const payload: ReportDownload = { o: requireOrg(user), f: b.format, k: b.type, from: b.from, to: b.to, e: Date.now() + 10 * 60_000 };
+    const token = signId('report-download', Buffer.from(JSON.stringify(payload)).toString('base64url'));
+    return { url: `${env().PUBLIC_API_URL.replace(/\/$/, '')}/api/public/reports/download/${token}` };
+  }
+
+  @Public()
+  @Feature('broker_reports')
+  @Get('public/reports/download/:token')
+  download(@Param('token') token: string, @Res() res: Response) {
+    const raw = verifySignedId('report-download', token);
+    const p = raw ? (JSON.parse(Buffer.from(raw, 'base64url').toString()) as ReportDownload) : null;
+    if (!p || !p.e || p.e < Date.now()) throw new NotFoundException('Link expire हो गया — app से दोबारा download करें');
+    return this.sendReport(res, p);
+  }
+
+  private async sendReport(res: Response, p: ReportDownload) {
+    if (p.f === 'pdf') {
+      const pdf = await this.reports.pdf(p.o, p.from, p.to);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="business-report.pdf"');
+      return res.send(pdf);
+    }
+    const kind = REPORT_KINDS.find((k) => k === p.k) ?? 'deals';
+    const out = await this.reports.csv(p.o, kind, p.from, p.to);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${out.name}"`);
+    return res.send(out.body);
   }
 
   // ------------------------------------------------------------------ owner report links
