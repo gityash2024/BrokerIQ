@@ -83,7 +83,7 @@ export class MeController {
   /** Signed direct upload (Cloudinary / S3). */
   @Post('uploads/sign')
   sign(@CurrentUser() user: RequestUser, @Body() body: { kind?: UploadKind; contentType?: string }) {
-    const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat'] as const).includes(body?.kind as any) ? body.kind! : 'listing';
+    const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any) ? body.kind! : 'listing';
     return this.media.sign(kind, body?.contentType ?? 'image/jpeg', user.orgId ?? user.id);
   }
 

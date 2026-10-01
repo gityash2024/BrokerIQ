@@ -20,11 +20,14 @@ export function PhotoUploader({
   onChange,
   max = 25,
   kind = 'listing',
+  plain = false,
 }: {
   value: Photo[];
   onChange: (v: Photo[]) => void;
   max?: number;
   kind?: string;
+  /** Evidence photos (checklists etc.): no cover badge, no 360° toggle, no listing tips. */
+  plain?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<{ id: string; pct: number; preview: string }[]>([]);
@@ -89,7 +92,10 @@ export function PhotoUploader({
           <ImagePlus className="size-7" />
         </motion.div>
         <p className="mt-3 font-semibold">Photos यहाँ drag करें या click करके चुनें</p>
-        <p className="text-sm text-muted">JPG / PNG · ज़्यादा से ज़्यादा {max} · अच्छी रोशनी वाली photos ज़्यादा enquiries लाती हैं</p>
+        <p className="text-sm text-muted">
+          JPG / PNG · ज़्यादा से ज़्यादा {max}
+          {!plain && ' · अच्छी रोशनी वाली photos ज़्यादा enquiries लाती हैं'}
+        </p>
         <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && handle(e.target.files)} />
       </div>
 
@@ -107,23 +113,25 @@ export function PhotoUploader({
               >
                 {}
                 <img src={img(p.url, 300)} alt="" className="pointer-events-none h-full w-full object-cover" />
-                {i === 0 && (
+                {i === 0 && !plain && (
                   <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-saffron-500 px-2 py-0.5 text-[10px] font-bold text-slate-950">
                     <Star className="size-3" /> Cover
                   </span>
                 )}
                 <GripVertical className="absolute top-1.5 right-1.5 size-4 text-white opacity-0 drop-shadow transition group-hover:opacity-100" />
-                <button
-                  type="button"
-                  onClick={() => onChange(value.map((x) => (x.url === p.url ? { ...x, kind: x.kind === 'PANORAMA' ? 'PHOTO' : 'PANORAMA' } : x)))}
-                  className={cn(
-                    'absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-bold transition',
-                    p.kind === 'PANORAMA' ? 'bg-brand-600 text-white' : 'bg-black/50 text-white opacity-0 group-hover:opacity-100',
-                  )}
-                  title="360° photo है? निशान लगाएँ"
-                >
-                  <Orbit className="size-3" /> 360°
-                </button>
+                {!plain && (
+                  <button
+                    type="button"
+                    onClick={() => onChange(value.map((x) => (x.url === p.url ? { ...x, kind: x.kind === 'PANORAMA' ? 'PHOTO' : 'PANORAMA' } : x)))}
+                    className={cn(
+                      'absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-bold transition',
+                      p.kind === 'PANORAMA' ? 'bg-brand-600 text-white' : 'bg-black/50 text-white opacity-0 group-hover:opacity-100',
+                    )}
+                    title="360° photo है? निशान लगाएँ"
+                  >
+                    <Orbit className="size-3" /> 360°
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onChange(value.filter((x) => x.url !== p.url))}
@@ -151,7 +159,9 @@ export function PhotoUploader({
           ))}
         </Reorder.Group>
       )}
-      {value.length > 1 && <p className="mt-2 text-xs text-subtle">Drag करके order बदलें — पहली photo cover बनेगी। 360° camera वाली photo पर "360°" दबाएँ।</p>}
+      {value.length > 1 && !plain && (
+        <p className="mt-2 text-xs text-subtle">Drag करके order बदलें — पहली photo cover बनेगी। 360° camera वाली photo पर "360°" दबाएँ।</p>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { IntegrationNotConfiguredException } from '../../common/exceptions';
 import { shortCode } from '../../common/utils';
 import { LocalStorageService } from './local-storage.service';
 
-export type UploadKind = 'listing' | 'avatar' | 'logo' | 'kyc' | 'project' | 'cms' | 'scan' | 'chat';
+export type UploadKind = 'listing' | 'avatar' | 'logo' | 'kyc' | 'project' | 'cms' | 'scan' | 'chat' | 'inspection';
 
 const NOT_CONFIGURED = 'File upload configured नहीं है। Super Admin → Settings → Integrations में Cloudinary (या S3/R2) जोड़ें।';
 

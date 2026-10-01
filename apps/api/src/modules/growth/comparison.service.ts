@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { randomToken } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
-import { pdfMoney, pdfText, renderPdf } from '../../common/pdf';
+import { pdfImage, pdfMoney, pdfText, renderPdf } from '../../common/pdf';
 import { env } from '../../config/env';
 
 const api = () => env().PUBLIC_API_URL.replace(/\/$/, '');
@@ -40,22 +40,6 @@ export class ComparisonService {
     return this.prisma.comparison.findMany({ where: { organizationId: orgId, ...(leadId ? { leadId } : {}) }, orderBy: { createdAt: 'desc' }, take: 30 });
   }
 
-  private async photo(url: string | null): Promise<Buffer | null> {
-    if (!url) return null;
-    try {
-      // Own media store: read directly (no HTTP round trip); anything else: fetch a small version.
-      const m = /\/api\/media\/f\/(.+?)(\?|$)/.exec(url);
-      if (m && this.store.enabled) {
-        const { body } = await this.store.read(m[1], 480);
-        return body;
-      }
-      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-      return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
-    } catch {
-      return null;
-    }
-  }
-
   async pdf(token: string): Promise<Buffer> {
     const c = await this.prisma.comparison.findUnique({
       where: { token },
@@ -71,20 +55,7 @@ export class ComparisonService {
       include: { locality: { select: { name: true } } },
     });
     const listings = c.listingIds.map((id) => rows.find((r) => r.id === id)).filter((l): l is (typeof rows)[number] => !!l);
-    // PDF images must be JPEG/PNG; the media store serves WebP.
-    const sharp = (await import('sharp')).default;
-    const photos = await Promise.all(
-      listings.map(async (l) => {
-        const raw = await this.photo(l.coverUrl);
-        return raw
-          ? sharp(raw)
-              .resize(480, 320, { fit: 'cover' })
-              .jpeg({ quality: 80 })
-              .toBuffer()
-              .catch(() => null)
-          : null;
-      }),
-    );
+    const photos = await Promise.all(listings.map((l) => pdfImage(this.store, l.coverUrl, 480, 320)));
     const org = c.organization;
     return renderPdf(
       (doc) => {

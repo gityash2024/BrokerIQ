@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Linking, Share } from 'react-native';
+import { Linking } from 'react-native';
+import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { FileBarChart, KeyRound, MessageCircle, Phone, UserRound } from 'lucide-react-native';
 import { formatINR, whatsappLink } from '@brokeriq/shared';
 import { api, patch, post } from '@/lib/api';
 import { useFlag } from '@/lib/config';
-import { showError, useApiMutation } from '@/lib/hooks';
-import { toast } from '@/lib/toast';
+import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { Badge, Button, Card, Chip, Empty, Header, Input, Loader, Row, Screen, Segmented, Sheet, Txt } from '@/ui';
 
@@ -98,17 +98,6 @@ function Leases() {
   const rentOn = useFlag('rent_tracker');
   const inspectOn = useFlag('inspections');
   const [payFor, setPayFor] = useState<any>(null);
-  /** The checklist is filled on the website (room-wise editor); here we share its confirmation link. */
-  const checklist = async (id: string) => {
-    try {
-      const list = await api<any[]>(`/broker/tenancies/${id}/inspections`);
-      const latest = list.find((i) => i.kind === 'MOVE_OUT') ?? list.find((i) => i.kind === 'MOVE_IN');
-      if (!latest) return toast.info('पहले website पर Owners → Leases → Checklist भरें, फिर यहाँ से link भेजें');
-      await Share.share({ message: `${latest.kind === 'MOVE_OUT' ? 'Move-out' : 'Move-in'} checklist देखें और OTP से confirm करें: ${latest.url}` });
-    } catch (e) {
-      showError(e);
-    }
-  };
   if (list.isLoading) return <Loader />;
   if (!list.data?.length)
     return <Empty icon={<KeyRound size={26} color={c.brand} />} title="अभी कोई lease नहीं" text="Rent deal close करने पर lease अपने-आप बनता है (11 महीने)।" />;
@@ -132,7 +121,7 @@ function Leases() {
             {t.status === 'ACTIVE' && (
               <Row wrap>
                 {rentOn && <Button title="किराया मिला" size="sm" onPress={() => setPayFor(t)} />}
-                {inspectOn && <Button title="Checklist" size="sm" variant="secondary" onPress={() => checklist(t.id)} />}
+                {inspectOn && <Button title="Checklist" size="sm" variant="secondary" onPress={() => router.push(`/inspection/${t.id}`)} />}
                 <Button title="Renew (11 महीने)" size="sm" variant="secondary" onPress={() => renew.mutate(t.id)} />
                 <Button title="बंद करें" size="sm" variant="ghost" onPress={() => end.mutate(t.id)} />
               </Row>

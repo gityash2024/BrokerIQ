@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import PDFDocument from 'pdfkit';
+import type { LocalStorageService } from '../core/media/local-storage.service';
 
 /** Finds the bundled fonts from both src (ts-node/jest) and dist (production) layouts. */
 export function fontPath(file: string) {
@@ -87,4 +88,29 @@ export function pdfTable(doc: Pdf, headers: string[], rows: string[][], weights?
   drawRow(headers, true, true);
   rows.forEach((r, i) => drawRow(r, false, i % 2 === 1));
   doc.moveDown(0.5);
+}
+
+/**
+ * Loads a photo as JPEG for pdfkit (which can't draw WebP). Own media store files are read from disk,
+ * anything else is fetched with a short timeout. Returns null when the photo can't be used.
+ */
+export async function pdfImage(store: LocalStorageService, url: string | null | undefined, w: number, h: number): Promise<Buffer | null> {
+  if (!url) return null;
+  try {
+    let raw: Buffer;
+    const m = /\/api\/media\/f\/(.+?)(\?|$)/.exec(url);
+    if (m && store.enabled) raw = (await store.read(m[1], w > 480 ? 800 : 480)).body;
+    else {
+      // User-supplied URLs: public https hosts only, no redirects (never let a PDF probe the server's network).
+      const u = new URL(url);
+      if (u.protocol !== 'https:' || /^(localhost|\[|\d+\.\d+\.\d+\.\d+$)/i.test(u.hostname) || u.hostname.endsWith('.local')) return null;
+      const res = await fetch(u, { signal: AbortSignal.timeout(6000), redirect: 'error' });
+      if (!res.ok) return null;
+      raw = Buffer.from(await res.arrayBuffer());
+    }
+    const sharp = (await import('sharp')).default;
+    return await sharp(raw).rotate().resize(w, h, { fit: 'cover' }).jpeg({ quality: 80 }).toBuffer();
+  } catch {
+    return null;
+  }
 }

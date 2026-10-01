@@ -599,6 +599,16 @@ export const ownerPaymentSchema = z.object({
 });
 
 export const INSPECTION_CONDITIONS = ['GOOD', 'OK', 'DAMAGED', 'MISSING'] as const;
+export type InspectionItem = { name: string; condition: (typeof INSPECTION_CONDITIONS)[number]; note?: string | null };
+export type InspectionRoom = { name: string; items: InspectionItem[] };
+const goodItems = (names: string[]): InspectionItem[] => names.map((name) => ({ name, condition: 'GOOD' }));
+/** Starting checklist for a typical Gurgaon flat; brokers add/remove rooms and items. */
+export const INSPECTION_TEMPLATE: InspectionRoom[] = [
+  { name: 'Living room', items: goodItems(['Walls & paint', 'Flooring', 'Fan / lights', 'AC', 'Sofa', 'Curtains']) },
+  { name: 'Kitchen', items: goodItems(['Platform & sink', 'Chimney', 'Cabinets', 'Fridge', 'RO / water purifier']) },
+  { name: 'Bedroom 1', items: goodItems(['Walls & paint', 'Bed', 'Wardrobe', 'Fan / lights', 'AC']) },
+  { name: 'Bathroom 1', items: goodItems(['Taps & shower', 'Geyser', 'WC & wash basin', 'Exhaust fan']) },
+];
 export const inspectionSchema = z.object({
   kind: z.enum(['MOVE_IN', 'MOVE_OUT']),
   rooms: z

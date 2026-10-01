@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ClipboardCheck, ExternalLink, IndianRupee, MessageCircle, Plus, Receipt, Trash2, X } from 'lucide-react';
-import { INSPECTION_CONDITIONS, formatINR, whatsappLink } from '@brokeriq/shared';
+import { INSPECTION_CONDITIONS, INSPECTION_TEMPLATE, formatINR, whatsappLink, type InspectionItem, type InspectionRoom } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useFlag } from '@/lib/config';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
@@ -13,6 +13,7 @@ import { Field, Input, Select, Textarea } from '../ui/field';
 import { Badge, Skeleton } from '../ui/misc';
 import { Segmented } from '../ui/tabs';
 import { CopyField } from '../panel/integration-card';
+import { PhotoUploader } from '../site/photo-uploader';
 
 const put = <T = any,>(path: string, body: unknown) => api<T>(path, { method: 'PUT', body });
 const istMonth = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 7);
@@ -148,14 +149,9 @@ export function RentDialog({ tenancyId, onClose }: { tenancyId: string | null; o
 }
 
 // ------------------------------------------------------------------ move-in / move-out checklist
-type Item = { name: string; condition: (typeof INSPECTION_CONDITIONS)[number]; note?: string };
-type Room = { name: string; items: Item[] };
-const TEMPLATE: Room[] = [
-  { name: 'Living room', items: ['Walls & paint', 'Flooring', 'Fan / lights', 'AC', 'Sofa', 'Curtains'].map((n) => ({ name: n, condition: 'GOOD' })) },
-  { name: 'Kitchen', items: ['Platform & sink', 'Chimney', 'Cabinets', 'Fridge', 'RO / water purifier'].map((n) => ({ name: n, condition: 'GOOD' })) },
-  { name: 'Bedroom 1', items: ['Walls & paint', 'Bed', 'Wardrobe', 'Fan / lights', 'AC'].map((n) => ({ name: n, condition: 'GOOD' })) },
-  { name: 'Bathroom 1', items: ['Taps & shower', 'Geyser', 'WC & wash basin', 'Exhaust fan'].map((n) => ({ name: n, condition: 'GOOD' })) },
-];
+type Item = InspectionItem;
+type Room = InspectionRoom;
+const TEMPLATE = INSPECTION_TEMPLATE;
 const COND_TONE: Record<string, string> = {
   GOOD: 'bg-emerald-600 text-white',
   OK: 'bg-sky-600 text-white',
@@ -171,6 +167,7 @@ export function InspectionDialog({ tenancy, onClose }: { tenancy: any | null; on
   const [rooms, setRooms] = useState<Room[]>(TEMPLATE);
   const [f, setF] = useState({ electricity: '', water: '', gas: '', keys: '', notes: '', deposit: '' });
   const [deductions, setDeductions] = useState<{ reason: string; amount: string }[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]);
   useEffect(() => {
     const src = current ?? (kind === 'MOVE_OUT' ? moveIn : null);
     setRooms((src?.rooms as Room[]) ?? TEMPLATE);
@@ -184,6 +181,7 @@ export function InspectionDialog({ tenancy, onClose }: { tenancy: any | null; on
       deposit: current?.depositAmount != null ? String(current.depositAmount) : '',
     });
     setDeductions(((current?.deductions as any[]) ?? []).map((d) => ({ reason: d.reason, amount: String(d.amount) })));
+    setPhotos(current?.photos ?? []);
   }, [current, moveIn, kind]);
   const save = useApiMutation(
     () =>
@@ -192,6 +190,7 @@ export function InspectionDialog({ tenancy, onClose }: { tenancy: any | null; on
         rooms: rooms.map((r) => ({ ...r, items: r.items.filter((i) => i.name.trim()) })).filter((r) => r.name.trim()),
         meters: { ...(f.electricity && { electricity: f.electricity }), ...(f.water && { water: f.water }), ...(f.gas && { gas: f.gas }) },
         keys: f.keys ? Number(f.keys) : null,
+        photos,
         notes: f.notes || null,
         depositAmount: kind === 'MOVE_OUT' && f.deposit ? Number(f.deposit) : null,
         deductions: kind === 'MOVE_OUT' ? deductions.filter((d) => d.reason && d.amount).map((d) => ({ reason: d.reason, amount: Number(d.amount) })) : null,
@@ -309,6 +308,9 @@ export function InspectionDialog({ tenancy, onClose }: { tenancy: any | null; on
             <Input inputMode="numeric" value={f.keys} onChange={(e) => setF({ ...f, keys: e.target.value.replace(/\D/g, '') })} />
           </Field>
         </div>
+        <Field label="Photos" hint="दीवारें, फ़र्श, fittings, meter — deposit के झगड़े में यही सबूत हैं। PDF में भी छपती हैं।">
+          <PhotoUploader plain kind="inspection" max={40} value={photos.map((url) => ({ url }))} onChange={(v) => setPhotos(v.map((p) => p.url))} />
+        </Field>
         <Field label="Notes">
           <Textarea rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
         </Field>

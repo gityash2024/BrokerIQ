@@ -5,7 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../core/mail/mail.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { randomToken } from '../../common/utils';
-import { pdfMoney, pdfTable, pdfText, renderPdf } from '../../common/pdf';
+import { pdfImage, pdfMoney, pdfTable, pdfText, renderPdf } from '../../common/pdf';
+import { LocalStorageService } from '../../core/media/local-storage.service';
 import { env } from '../../config/env';
 import { issueOtp, maskContact, verifyOtp, type OtpState } from './otp';
 
@@ -22,6 +23,7 @@ export class InspectionService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly wa: WhatsAppService,
+    private readonly store: LocalStorageService,
   ) {}
 
   private links(i: Pick<TenancyInspection, 'token'>) {
@@ -170,6 +172,8 @@ export class InspectionService {
     const rooms = v.rooms as Room[];
     const before = (v.moveIn?.rooms as Room[] | undefined) ?? null;
     const cond = (rs: Room[] | null, room: string, item: string) => rs?.find((r) => r.name === room)?.items.find((x) => x.name === item)?.condition ?? '-';
+    // Photos are the evidence in deposit disputes: print up to 24 of them, 3 per row.
+    const photos = (await Promise.all(v.photos.slice(0, 24).map((u) => pdfImage(this.store, u, 480, 360)))).filter((b): b is Buffer => !!b);
     return renderPdf((doc) => {
       doc.font('B').fontSize(16).fillColor('#0f172a').text(`${KIND_LABEL[v.kind]} inspection`, { align: 'center' });
       doc.moveDown(0.3).font('R').fontSize(9).fillColor('#64748b').text(pdfText(v.property), { align: 'center' });
@@ -218,7 +222,23 @@ export class InspectionService {
           [3, 1],
         );
       }
-      if (v.photos.length) doc.font('R').fontSize(9).fillColor('#475569').text(`${v.photos.length} photos on record (see online link).`);
+      if (photos.length) {
+        doc.moveDown(0.6).font('B').fontSize(11).fillColor('#0f172a').text(`Photos (${v.photos.length})`);
+        const left = doc.page.margins.left;
+        const gap = 8;
+        const w = (doc.page.width - left - doc.page.margins.right - gap * 2) / 3;
+        const h = w * 0.75;
+        photos.forEach((b, i) => {
+          if (i % 3 === 0) {
+            if (i > 0) doc.y += h + gap;
+            if (doc.y + h > doc.page.height - doc.page.margins.bottom) doc.addPage();
+          }
+          doc.image(b, left + (i % 3) * (w + gap), doc.y, { width: w, height: h });
+        });
+        doc.y += h + gap;
+        doc.x = left;
+        if (v.photos.length > photos.length) doc.font('R').fontSize(9).fillColor('#475569').text('More photos on the online link.');
+      }
       doc.moveDown(0.8).font('B').fontSize(10).fillColor('#0f172a').text('Confirmations (OTP verified)');
       const conf = (label: string, at: Date | null) =>
         doc.font('R').text(`${label}: ${at ? new Date(at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'pending'}`);

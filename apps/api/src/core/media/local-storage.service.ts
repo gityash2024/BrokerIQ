@@ -17,7 +17,7 @@ const FLAG_BROTLI = 1;
 const MB = 1024 * 1024;
 
 /** Kinds whose files must never be cached by browsers / Cloudflare. */
-export const PRIVATE_KINDS: readonly UploadKind[] = ['kyc', 'scan', 'chat'];
+export const PRIVATE_KINDS: readonly UploadKind[] = ['kyc', 'scan', 'chat', 'inspection'];
 /** Widths the API resizes to on `?w=` — a fixed set keeps the CDN cache small. */
 export const RESIZE_WIDTHS = [320, 480, 800, 1200] as const;
 

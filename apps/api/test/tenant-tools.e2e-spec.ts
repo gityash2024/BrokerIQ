@@ -213,9 +213,12 @@ describe('Tenant & owner tools (e2e)', () => {
         ],
         depositAmount: 64000,
         deductions: [{ reason: 'AC remote', amount: 1500 }],
+        // Internal / plain-http photo URLs are never fetched by the PDF renderer.
+        photos: ['http://127.0.0.1:9/secret.jpg', 'https://169.254.169.254/latest/meta-data.jpg'],
       })
       .expect(200);
     expect(mo.body.refundAmount).toBe(62500);
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
     const moView = await http.get(`/api/public/inspections/${mo.body.url.split('/i/')[1]}`).expect(200);
     expect(moView.body.moveIn.rooms[0].items[0].condition).toBe('GOOD');
     const pdf = await http
@@ -223,6 +226,8 @@ describe('Tenant & owner tools (e2e)', () => {
       .buffer(true)
       .parse(binary)
       .expect(200);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
     expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
   });
 

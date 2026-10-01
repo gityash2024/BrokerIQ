@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
 import { api } from '@/lib/api';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, img } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge, Logo, Skeleton } from '@/components/ui/misc';
 import { Segmented } from '@/components/ui/tabs';
@@ -64,6 +64,19 @@ export default function InspectionPage({ params }: { params: Promise<{ token: st
                 </ul>
               </div>
             ))}
+            {v.photos?.length > 0 && (
+              <div className="card p-4">
+                <p className="mb-2 font-semibold">Photos ({v.photos.length})</p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {v.photos.map((u: string) => (
+                    <a key={u} href={u} target="_blank" rel="noreferrer" className="block aspect-[4/3] overflow-hidden rounded-xl bg-surface-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img(u, 320)} alt="" loading="lazy" className="size-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="card space-y-1 p-4 text-sm">
               {Object.entries(v.meters ?? {}).map(([k, val]) => (
                 <p key={k}>
