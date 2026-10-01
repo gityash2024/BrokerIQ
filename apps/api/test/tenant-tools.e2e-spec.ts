@@ -270,7 +270,8 @@ describe('Tenant & owner tools (e2e)', () => {
   });
 
   it('fair rent: median and range from real listings; says so when data is thin', async () => {
-    // 7 BHK keeps this test's listings apart from everything else in the database.
+    // 7 BHK keeps this test's listings apart from everything else; earlier runs' copies are removed so reruns stay exact.
+    await prisma.listing.deleteMany({ where: { localityId, bedrooms: { in: [7, 9] } } });
     for (const price of [30000, 40000, 50000]) await newListing({ bedrooms: 7, price, securityDeposit: price * 2 });
     const r = await http.get(`/api/public/fair-rent?localityId=${localityId}&bedrooms=7&price=60000`).expect(200);
     expect(r.body).toMatchObject({ enough: true, samples: 3, median: 40000, p25: 35000, p75: 45000, verdict: 'HIGH', scope: 'LOCALITY' });
