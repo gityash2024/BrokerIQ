@@ -32,6 +32,7 @@ out/
 **/android/local.properties
 *.apk
 *.aab
+*.aab
 *.keystore
 *.jks
 
