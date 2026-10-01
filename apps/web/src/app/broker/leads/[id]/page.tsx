@@ -102,7 +102,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
       </Link>
 
       <div className="card overflow-hidden">
-        <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-5 p-6 xl:flex-row xl:items-center">
           <Avatar name={l.name} size={64} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
