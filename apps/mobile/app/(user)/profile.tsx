@@ -29,6 +29,7 @@ import {
   SunMoon,
   UserCog,
   IndianRupee,
+  Gift,
 } from 'lucide-react-native';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -195,6 +196,15 @@ export default function Profile() {
                 label="मेरा किराया"
                 sub="UPI से pay करें, rent receipts"
                 onPress={() => router.push(user ? '/my-rent' : '/login')}
+              />
+            )}
+            {user && flags.referrals !== false && (
+              <Item
+                icon={<Gift size={20} color={c.accent} />}
+                tint={c.accent}
+                label="दोस्तों को बुलाएँ"
+                sub="Invite link share करें"
+                onPress={() => router.push('/invite')}
               />
             )}
             {flags.flatmates !== false && (

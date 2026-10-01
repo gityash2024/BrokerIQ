@@ -10,6 +10,8 @@ import { FeedbackWidget } from '@/components/feedback/feedback-widget';
 import { AssistantWidget } from '@/components/assistant/assistant';
 import { I18nProvider } from '@/lib/i18n';
 import { installGlobalErrorHandlers } from '@/lib/report-error';
+import { captureReferral } from '@/lib/referral';
+import { WebPushPrompt } from '@/components/site/web-push';
 
 export function Providers({ children, config }: { children: React.ReactNode; config: PublicConfig | null }) {
   const [qc] = useState(
@@ -24,7 +26,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
         },
       }),
   );
-  useEffect(() => installGlobalErrorHandlers(), []);
+  useEffect(() => (installGlobalErrorHandlers(), captureReferral()), []);
   return (
     <QueryClientProvider client={qc}>
       <ConfigProvider initial={config}>
@@ -33,6 +35,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
             {children}
             <FeedbackWidget />
             <AssistantWidget />
+            <WebPushPrompt />
             <Toaster position="top-center" richColors closeButton />
           </I18nProvider>
         </AuthProvider>

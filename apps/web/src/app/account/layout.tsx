@@ -15,6 +15,7 @@ import {
   Users,
   FileSignature,
   IndianRupee,
+  Gift,
 } from 'lucide-react';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell } from '@/components/panel/shell';
@@ -43,6 +44,7 @@ const GROUPS = [
   {
     title: 'Account',
     items: [
+      { href: '/account/invite', label: 'दोस्तों को बुलाएँ', icon: Gift, flag: 'referrals' },
       { href: '/account/notifications', label: 'Notifications', icon: Bell },
       { href: '/account/feedback', label: 'My feedback', icon: MessageSquareHeart },
       { href: '/account/profile', label: 'Profile & KYC', icon: UserCircle },

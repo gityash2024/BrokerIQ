@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { AuthShell } from '@/components/site/auth-shell';
 import { GoogleButton } from '@/components/site/google-button';
 import { Button } from '@/components/ui/button';
+import { pendingReferral } from '@/lib/referral';
 import { Field, Input } from '@/components/ui/field';
 
 function SignupInner() {
@@ -45,6 +46,7 @@ function SignupInner() {
             firmName: type === 'BROKER' ? f.firmName || undefined : undefined,
             inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined,
             accountType: type,
+            ref: pendingReferral(),
           },
         }),
       );
@@ -94,7 +96,7 @@ function SignupInner() {
             done(
               await api('/auth/google', {
                 method: 'POST',
-                body: { idToken, accountType: type, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined },
+                body: { idToken, accountType: type, inviteCode: type === 'BROKER' && f.inviteCode ? f.inviteCode : undefined, ref: pendingReferral() },
                 auth: false,
               }),
             );

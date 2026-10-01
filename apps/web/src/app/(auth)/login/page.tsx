@@ -12,6 +12,7 @@ import { AuthShell } from '@/components/site/auth-shell';
 import { GoogleButton } from '@/components/site/google-button';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
+import { pendingReferral } from '@/lib/referral';
 import { Segmented } from '@/components/ui/tabs';
 
 function LoginInner() {
@@ -52,7 +53,9 @@ function LoginInner() {
 
   return (
     <AuthShell title="Welcome back" subtitle="अपने account में login करें">
-      <GoogleButton onCredential={(idToken) => run(async () => done(await api('/auth/google', { method: 'POST', body: { idToken }, auth: false })))} />
+      <GoogleButton
+        onCredential={(idToken) => run(async () => done(await api('/auth/google', { method: 'POST', body: { idToken, ref: pendingReferral() }, auth: false })))}
+      />
       {app.auth.allowEmailOtp && app.auth.allowPasswordLogin && (
         <Segmented
           className="mb-5 w-full [&>button]:flex-1"
@@ -83,7 +86,7 @@ function LoginInner() {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (otpSent) run(async () => done(await api('/auth/otp/verify', { method: 'POST', body: { email, code }, auth: false })));
+            if (otpSent) run(async () => done(await api('/auth/otp/verify', { method: 'POST', body: { email, code, ref: pendingReferral() }, auth: false })));
             else sendOtp();
           }}
         >
