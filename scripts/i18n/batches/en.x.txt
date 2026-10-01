@@ -831,3 +831,15 @@
 1357	Both parties confirm with an OTP
 1358	This chat has been closed by the BrokerIQ team
 1359	This chat has been closed by the BrokerIQ team.
+1360	Link ready — send it from your own WhatsApp with the button below
+1361	The OTP will come on WhatsApp — first send the firm the pre-written message with the button below. The OTP arrives as a reply in that chat; enter it here.
+1362	Send message on WhatsApp
+1363	WhatsApp: {n}
+1364	They haven’t messaged your business WhatsApp in the last 24 hours, so send the link from your own WhatsApp:
+1365	First message the firm on WhatsApp — the OTP will come back as a reply in that chat
+1366	Spam / pointless messages
+1367	Abuse / rude behaviour
+1368	Fraud / asking for money
+1369	Something else
+1370	Abuse
+1371	Tags
