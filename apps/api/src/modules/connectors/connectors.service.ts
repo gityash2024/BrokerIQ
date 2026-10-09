@@ -37,6 +37,7 @@ const ORG_KEY_TO_TYPE: Record<string, ConnectorType> = {
 const LIMITED_TYPES: ConnectorType[] = ['EMAIL_INBOX', 'META_LEAD_ADS', 'HOUSING_API'];
 const HOUSING_FIRST_SYNC_DAYS = 7;
 const HOUSING_OVERLAP_SEC = 600;
+const HOUSING_MAX_SPAN_SEC = 2 * 86400 - 120; // Housing enforces date difference <= 2 days
 
 @Injectable()
 export class ConnectorsService implements OnModuleInit {
@@ -335,8 +336,17 @@ export class ConnectorsService implements OnModuleInit {
     let skipped = 0;
     try {
       const leads = await this.fetchHousingWindow(cfg, start, nowSec);
-      fetched = leads.length;
-      for (const l of leads.sort((a, b) => Number(a.lead_date ?? 0) - Number(b.lead_date ?? 0))) {
+      const seen = new Set<string>();
+      const uniqueLeads: HousingLead[] = [];
+      for (const l of leads) {
+        const ref = housingLeadRef(l);
+        if (!seen.has(ref)) {
+          seen.add(ref);
+          uniqueLeads.push(l);
+        }
+      }
+      fetched = uniqueLeads.length;
+      for (const l of uniqueLeads.sort((a, b) => Number(a.lead_date ?? 0) - Number(b.lead_date ?? 0))) {
         const r = await this.ingestHousingLead(orgId, l);
         if (r === 'imported') imported++;
         else skipped++;
@@ -356,8 +366,20 @@ export class ConnectorsService implements OnModuleInit {
     return { imported, fetched, skipped };
   }
 
-  /** Housing returns at most per_page rows; when a window is full, split it in halves. */
+  /** Housing returns at most per_page rows; when a window exceeds Housing 2-day limit, chunk it; when full, split in halves. */
   private async fetchHousingWindow(cfg: HousingCreds, start: number, end: number, depth = 0): Promise<HousingLead[]> {
+    if (start >= end) return [];
+    if (end - start > HOUSING_MAX_SPAN_SEC) {
+      const allLeads: HousingLead[] = [];
+      let curStart = start;
+      while (curStart < end) {
+        const curEnd = Math.min(curStart + HOUSING_MAX_SPAN_SEC, end);
+        const slice = await this.fetchHousingWindow(cfg, curStart, curEnd, depth);
+        allLeads.push(...slice);
+        curStart = curEnd + 1;
+      }
+      return allLeads;
+    }
     const rows = await fetchHousingLeads(cfg, start, end);
     if (rows.length < HOUSING_MAX_PER_PAGE || depth >= 6 || end - start < 120) return rows;
     const mid = Math.floor((start + end) / 2);

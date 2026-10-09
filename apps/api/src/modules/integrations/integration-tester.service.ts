@@ -102,12 +102,14 @@ export class IntegrationTesterService {
       }
       case 'housing_api': {
         const now = Math.floor(Date.now() / 1000);
+        // Housing Lead API enforces date difference <= 2 days (error phl-5 if > 2 days)
+        const maxSpanSec = 2 * 86400 - 120;
         const rows = await fetchHousingLeads(
           { profileId: v.profileId, encryptionKey: v.encryptionKey, accountType: v.accountType, listingIds: v.listingIds },
-          now - 7 * 86400,
+          now - maxSpanSec,
           now,
         );
-        return `Housing connected — पिछले 7 दिन में ${rows.length} leads`;
+        return `Housing connected — पिछले 48 घंटे में ${rows.length} leads`;
       }
       case 'exotel': {
         const res = await fetch(`${exotelBase(v as any)}.json`, { headers: { Authorization: exotelAuth(v as any) } });
