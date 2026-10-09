@@ -6,21 +6,22 @@ const nextConfig: NextConfig = {
   // optimizer is disabled to keep hosting free (no Vercel image-optimization quota).
   images: { unoptimized: true },
   poweredByHeader: false,
-  // Broker-first pivot: consumer & marketplace entrypoints redirect to broker login.
+  // Broker-first pivot: consumer & marketplace entrypoints redirect to broker login (/login).
   // Old routes are kept intact for future rollout.
   async redirects() {
     return [
-      { source: '/', destination: '/broker/login', permanent: false },
-      { source: '/buy', destination: '/broker/login', permanent: false },
-      { source: '/rent', destination: '/broker/login', permanent: false },
-      { source: '/plots', destination: '/broker/login', permanent: false },
-      { source: '/projects', destination: '/broker/login', permanent: false },
-      { source: '/projects/:slug*', destination: '/broker/login', permanent: false },
-      { source: '/account', destination: '/broker/login', permanent: false },
-      { source: '/account/:path*', destination: '/broker/login', permanent: false },
-      { source: '/search', destination: '/broker/login', permanent: false },
-      { source: '/property/:path*', destination: '/broker/login', permanent: false },
-      { source: '/locality/:path*', destination: '/broker/login', permanent: false },
+      { source: '/', destination: '/login', permanent: false },
+      { source: '/broker/login', destination: '/login', permanent: false },
+      { source: '/buy', destination: '/login', permanent: false },
+      { source: '/rent', destination: '/login', permanent: false },
+      { source: '/plots', destination: '/login', permanent: false },
+      { source: '/projects', destination: '/login', permanent: false },
+      { source: '/projects/:slug*', destination: '/login', permanent: false },
+      { source: '/account', destination: '/login', permanent: false },
+      { source: '/account/:path*', destination: '/login', permanent: false },
+      { source: '/search', destination: '/login', permanent: false },
+      { source: '/property/:path*', destination: '/login', permanent: false },
+      { source: '/locality/:path*', destination: '/login', permanent: false },
     ];
   },
   async headers() {

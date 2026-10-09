@@ -40,5 +40,5 @@ const RENDERERS: Record<string, (p: { s: any }) => React.ReactNode> = {
 */
 
 export default function HomePage() {
-  redirect('/broker/login');
+  redirect('/login');
 }

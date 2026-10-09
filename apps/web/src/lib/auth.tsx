@@ -18,11 +18,11 @@ interface AuthCtx {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function homeFor(user: AuthUser | null) {
-  if (!user) return '/broker/login';
+  if (!user) return '/login';
   if (user.role === 'SUPER_ADMIN') return '/admin';
   if (user.role === 'BROKER_ADMIN' || user.role === 'BROKER_AGENT')
     return user.organization?.onboarded === false && user.role === 'BROKER_ADMIN' ? '/broker/onboarding' : '/broker';
-  return '/broker/login';
+  return '/login';
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cur = authStore.get();
     authStore.set(null);
     await api('/auth/logout', { method: 'POST', body: { refreshToken: cur?.refreshToken }, auth: false }).catch(() => undefined);
-    router.push('/broker/login');
+    router.push('/login');
   }, [router]);
 
   const value = useMemo<AuthCtx>(
