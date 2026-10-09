@@ -470,6 +470,7 @@ model User {
   consents       UserConsent[]
   locations      UserLocation[]
   contacts       UserContact[]
+  inventoryCreated InventoryItem[] @relation("InventoryCreatedBy")
 
   @@index([organizationId])
   @@index([role])
@@ -653,6 +654,7 @@ model Organization {
   campaigns            Campaign[]
   socialPosts          SocialPost[]
   comparisons          Comparison[]
+  inventoryItems       InventoryItem[]
 
   @@index([status])
 }
@@ -2394,4 +2396,42 @@ model ShortlistShare {
   token     String   @unique
   opens     Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+/// Internal broker inventory ledger (Google Sheet / Excel register style).
+model InventoryItem {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  createdById        String?
+  date               DateTime  @default(now())
+  sector             String
+  localityId         String?
+  houseNo            String
+  ownerName          String?
+  ownerPhone         String?
+  propertyType       String    @default("BUILDER_FLOOR")
+  purpose            String    @default("RENT") // RENT | SALE
+  bhk                Int?
+  floor              String?
+  furnishing         String?   // UNFURNISHED | SEMI_FURNISHED | FULLY_FURNISHED
+  rent               Float?
+  securityDeposit    Float?
+  brokerage          String?
+  tenantPreference   String?
+  amenities          String[]  @default([])
+  notes              String?
+  status             String    @default("DRAFT") // DRAFT | ACTIVE | RENTED
+  pageNo             Int?
+  isPublished        Boolean   @default(false)
+  publishedListingId String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([organizationId, sector])
+  @@index([organizationId, houseNo])
+  @@index([organizationId, date])
 }

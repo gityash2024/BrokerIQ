@@ -61,8 +61,9 @@ export default function InspectionEditor() {
     { success: 'Checklist save — अब दोनों से confirm करवाएँ', invalidate: [['inspections', tenancyId]] },
   );
 
+  // Functional updates: fast typing (several events before a re-render) must not drop earlier edits.
   const setItem = (ri: number, ii: number, p: Partial<InspectionItem>) =>
-    setRooms(rooms.map((r, i) => (i !== ri ? r : { ...r, items: r.items.map((it, j) => (j === ii ? { ...it, ...p } : it)) })));
+    setRooms((rs) => rs.map((r, i) => (i !== ri ? r : { ...r, items: r.items.map((it, j) => (j === ii ? { ...it, ...p } : it)) })));
 
   const addPhotos = async (camera: boolean) => {
     const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -122,8 +123,8 @@ export default function InspectionEditor() {
       {rooms.map((r, ri) => (
         <Card key={ri} style={{ padding: 12, gap: 8, marginTop: 12 }}>
           <Row>
-            <Input value={r.name} onChangeText={(v) => setRooms(rooms.map((x, i) => (i === ri ? { ...x, name: v } : x)))} containerStyle={{ flex: 1 }} />
-            <Pressable accessibilityLabel="Room हटाएँ" hitSlop={8} onPress={() => setRooms(rooms.filter((_, i) => i !== ri))}>
+            <Input value={r.name} onChangeText={(v) => setRooms((rs) => rs.map((x, i) => (i === ri ? { ...x, name: v } : x)))} containerStyle={{ flex: 1 }} />
+            <Pressable accessibilityLabel="Room हटाएँ" hitSlop={8} onPress={() => setRooms((rs) => rs.filter((_, i) => i !== ri))}>
               <X size={20} color={c.muted} />
             </Pressable>
           </Row>
@@ -134,7 +135,7 @@ export default function InspectionEditor() {
                 <Pressable
                   accessibilityLabel="Remove"
                   hitSlop={8}
-                  onPress={() => setRooms(rooms.map((x, i) => (i === ri ? { ...x, items: x.items.filter((_, j) => j !== ii) } : x)))}
+                  onPress={() => setRooms((rs) => rs.map((x, i) => (i === ri ? { ...x, items: x.items.filter((_, j) => j !== ii) } : x)))}
                 >
                   <Trash2 size={18} color={c.muted} />
                 </Pressable>
@@ -152,7 +153,7 @@ export default function InspectionEditor() {
             size="sm"
             variant="ghost"
             icon={<Plus size={16} color={c.brand} />}
-            onPress={() => setRooms(rooms.map((x, i) => (i === ri ? { ...x, items: [...x.items, { name: '', condition: 'GOOD' }] } : x)))}
+            onPress={() => setRooms((rs) => rs.map((x, i) => (i === ri ? { ...x, items: [...x.items, { name: '', condition: 'GOOD' }] } : x)))}
           />
         </Card>
       ))}
@@ -166,20 +167,20 @@ export default function InspectionEditor() {
 
       <Card style={{ padding: 12, gap: 10, marginTop: 12 }}>
         <Row>
-          <Input label="Electricity meter" value={f.electricity} onChangeText={(v) => setF({ ...f, electricity: v })} containerStyle={{ flex: 1 }} />
-          <Input label="Water meter" value={f.water} onChangeText={(v) => setF({ ...f, water: v })} containerStyle={{ flex: 1 }} />
+          <Input label="Electricity meter" value={f.electricity} onChangeText={(v) => setF((p) => ({ ...p, electricity: v }))} containerStyle={{ flex: 1 }} />
+          <Input label="Water meter" value={f.water} onChangeText={(v) => setF((p) => ({ ...p, water: v }))} containerStyle={{ flex: 1 }} />
         </Row>
         <Row>
-          <Input label="Gas meter" value={f.gas} onChangeText={(v) => setF({ ...f, gas: v })} containerStyle={{ flex: 1 }} />
+          <Input label="Gas meter" value={f.gas} onChangeText={(v) => setF((p) => ({ ...p, gas: v }))} containerStyle={{ flex: 1 }} />
           <Input
             label="चाबियाँ (गिनती)"
             value={f.keys}
             keyboardType="number-pad"
-            onChangeText={(v) => setF({ ...f, keys: v.replace(/\D/g, '') })}
+            onChangeText={(v) => setF((p) => ({ ...p, keys: v.replace(/\D/g, '') }))}
             containerStyle={{ flex: 1 }}
           />
         </Row>
-        <Input label="Notes" value={f.notes} multiline onChangeText={(v) => setF({ ...f, notes: v })} />
+        <Input label="Notes" value={f.notes} multiline onChangeText={(v) => setF((p) => ({ ...p, notes: v }))} />
       </Card>
 
       <Card style={{ padding: 12, gap: 10, marginTop: 12 }}>
@@ -193,7 +194,7 @@ export default function InspectionEditor() {
               <Image source={{ uri: img(u, 320) }} style={{ width: 92, height: 70, borderRadius: 10, backgroundColor: c.surface2 }} contentFit="cover" />
               <Pressable
                 accessibilityLabel="Remove"
-                onPress={() => setPhotos(photos.filter((x) => x !== u))}
+                onPress={() => setPhotos((ps) => ps.filter((x) => x !== u))}
                 style={{ position: 'absolute', top: 4, right: 4, backgroundColor: c.danger, borderRadius: 8, padding: 3 }}
               >
                 <X size={12} color="#fff" />
@@ -225,23 +226,28 @@ export default function InspectionEditor() {
       {kind === 'MOVE_OUT' && (
         <Card style={{ padding: 12, gap: 10, marginTop: 12 }}>
           <Txt v="bodyStrong">Deposit settlement</Txt>
-          <Input label="Security deposit (₹)" value={f.deposit} keyboardType="number-pad" onChangeText={(v) => setF({ ...f, deposit: v.replace(/\D/g, '') })} />
+          <Input
+            label="Security deposit (₹)"
+            value={f.deposit}
+            keyboardType="number-pad"
+            onChangeText={(v) => setF((p) => ({ ...p, deposit: v.replace(/\D/g, '') }))}
+          />
           {deductions.map((d, i) => (
             <Row key={i}>
               <Input
                 placeholder="Deduction का कारण"
                 value={d.reason}
-                onChangeText={(v) => setDeductions(deductions.map((x, j) => (j === i ? { ...x, reason: v } : x)))}
+                onChangeText={(v) => setDeductions((ds) => ds.map((x, j) => (j === i ? { ...x, reason: v } : x)))}
                 containerStyle={{ flex: 2 }}
               />
               <Input
                 placeholder="₹"
                 value={d.amount}
                 keyboardType="number-pad"
-                onChangeText={(v) => setDeductions(deductions.map((x, j) => (j === i ? { ...x, amount: v.replace(/\D/g, '') } : x)))}
+                onChangeText={(v) => setDeductions((ds) => ds.map((x, j) => (j === i ? { ...x, amount: v.replace(/\D/g, '') } : x)))}
                 containerStyle={{ flex: 1 }}
               />
-              <Pressable accessibilityLabel="Remove" hitSlop={8} onPress={() => setDeductions(deductions.filter((_, j) => j !== i))}>
+              <Pressable accessibilityLabel="Remove" hitSlop={8} onPress={() => setDeductions((ds) => ds.filter((_, j) => j !== i))}>
                 <X size={18} color={c.muted} />
               </Pressable>
             </Row>

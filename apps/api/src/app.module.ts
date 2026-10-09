@@ -41,6 +41,7 @@ import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { GrowthModule } from './modules/growth/growth.module';
 import { RentalsModule } from './modules/rentals/rentals.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -83,6 +84,7 @@ import { isInternalCall } from './common/internal';
     GrowthModule,
     RentalsModule,
     ReferralsModule,
+    InventoryModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
