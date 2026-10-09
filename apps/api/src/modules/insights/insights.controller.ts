@@ -30,7 +30,7 @@ export class InsightsController {
     const leadScope: Prisma.LeadWhereInput = { organizationId: orgId, deletedAt: null, ...(mine ? { assignedToId: user.id } : {}) };
     const today0 = startOfDay();
     const today1 = endOfDay();
-    const [newToday, open, unassigned, overdue, todayFollowUps, todayVisits, pipeline, recentLeads, sources7, wonMonth, activeListings, unread] =
+    const [newToday, open, unassigned, overdue, todayFollowUps, todayVisits, pipeline, recentLeads, sources7, wonMonth, activeListings, unread, totalInventory, activeInventory, sectorSpread, housingConnector] =
       await Promise.all([
         this.prisma.lead.count({ where: { ...leadScope, createdAt: { gte: today0 } } }),
         this.prisma.lead.count({ where: { ...leadScope, stage: { notIn: ['WON', 'LOST'] } } }),
@@ -71,6 +71,19 @@ export class InsightsController {
         }),
         this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null } }),
         this.prisma.conversation.aggregate({ where: { organizationId: orgId, unreadCount: { gt: 0 } }, _sum: { unreadCount: true } }),
+        this.prisma.inventoryItem.count({ where: { organizationId: orgId } }),
+        this.prisma.inventoryItem.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
+        this.prisma.inventoryItem.groupBy({
+          by: ['sector'],
+          where: { organizationId: orgId },
+          _count: true,
+          orderBy: { _count: { sector: 'desc' } },
+          take: 6,
+        }),
+        this.prisma.connectorState.findUnique({
+          where: { organizationId_type: { organizationId: orgId, type: 'HOUSING_API' } },
+          select: { status: true, lastSyncAt: true, leadsImported: true },
+        }),
       ]);
     return {
       kpis: {
@@ -79,6 +92,8 @@ export class InsightsController {
         unassigned,
         overdue,
         activeListings,
+        totalInventory,
+        activeInventory,
         unreadMessages: unread._sum.unreadCount ?? 0,
         wonThisMonth: wonMonth._count,
         commissionThisMonth: wonMonth._sum.commissionAmount ?? 0,
@@ -89,6 +104,8 @@ export class InsightsController {
       pipeline: pipeline.map((p) => ({ stage: p.stage, count: p._count._all })),
       recentLeads,
       sources7d: sources7.map((s) => ({ source: s.source, count: s._count._all })),
+      sectors: sectorSpread.map((s) => ({ sector: s.sector, count: s._count })),
+      housingConnector,
     };
   }
 

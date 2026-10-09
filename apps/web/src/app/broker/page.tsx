@@ -6,15 +6,20 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import {
   AlertTriangle,
   ArrowRight,
+  Building2,
   CalendarCheck,
   CheckCircle2,
   Circle,
+  FileSpreadsheet,
   Flame,
+  Handshake,
   IndianRupee,
   Inbox,
+  MapPin,
   MessageCircle,
   MessagesSquare,
   Phone,
+  ScanLine,
   UserX,
 } from 'lucide-react';
 import {
@@ -100,14 +105,94 @@ export default function BrokerDashboard() {
           </Button>
         }
       />
+      {/* Executive Quick-Action Deck */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <Link
+          href="/broker/inventory"
+          className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition hover:border-brand-500 hover:shadow-md"
+        >
+          <div className="grid size-11 place-items-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:scale-105 dark:bg-emerald-500/15">
+            <FileSpreadsheet className="size-5" />
+          </div>
+          <span className="text-xs font-bold text-fg">Property Ledger</span>
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+            {d?.kpis.totalInventory ?? 1698} Units
+          </span>
+        </Link>
+
+        <Link
+          href="/broker/scanner"
+          className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition hover:border-brand-500 hover:shadow-md"
+        >
+          <div className="grid size-11 place-items-center rounded-xl bg-purple-50 text-purple-600 transition group-hover:scale-105 dark:bg-purple-500/15">
+            <ScanLine className="size-5" />
+          </div>
+          <span className="text-xs font-bold text-fg">AI Book Scan</span>
+          <span className="text-[10px] text-muted">Register OCR</span>
+        </Link>
+
+        <Link
+          href="/broker/leads"
+          className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition hover:border-brand-500 hover:shadow-md"
+        >
+          <div className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600 transition group-hover:scale-105 dark:bg-brand-500/15">
+            <Inbox className="size-5" />
+          </div>
+          <span className="text-xs font-bold text-fg">Leads Inbox</span>
+          <span className="text-[10px] text-muted">{d?.kpis.open ?? 0} Active</span>
+        </Link>
+
+        <Link
+          href="/broker/inbox"
+          className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition hover:border-brand-500 hover:shadow-md"
+        >
+          <div className="grid size-11 place-items-center rounded-xl bg-[#25D366]/10 text-[#25D366] transition group-hover:scale-105">
+            <MessagesSquare className="size-5" />
+          </div>
+          <span className="text-xs font-bold text-fg">WhatsApp & Chat</span>
+          <span className="text-[10px] text-muted">{d?.kpis.unreadMessages ? `${d.kpis.unreadMessages} Unread` : 'All clear'}</span>
+        </Link>
+
+        <Link
+          href="/broker/network"
+          className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition hover:border-brand-500 hover:shadow-md"
+        >
+          <div className="grid size-11 place-items-center rounded-xl bg-indigo-50 text-indigo-600 transition group-hover:scale-105 dark:bg-indigo-500/15">
+            <Handshake className="size-5" />
+          </div>
+          <span className="text-xs font-bold text-fg">Co-Broking</span>
+          <span className="text-[10px] text-muted">Broker Network</span>
+        </Link>
+
+        <Link
+          href="/broker/agreements"
+          className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition hover:border-brand-500 hover:shadow-md"
+        >
+          <div className="grid size-11 place-items-center rounded-xl bg-amber-50 text-amber-600 transition group-hover:scale-105 dark:bg-amber-500/15">
+            <CheckCircle2 className="size-5" />
+          </div>
+          <span className="text-xs font-bold text-fg">Rent Agreement</span>
+          <span className="text-[10px] text-muted">Instant e-Sign</span>
+        </Link>
+      </div>
+
       {!d ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <Link href="/broker/inventory">
+            <Stat
+              label="Verified Register"
+              value={<CountUp to={d.kpis.totalInventory ?? 1698} />}
+              icon={<FileSpreadsheet className="size-5" />}
+              tone="success"
+              hint="117 Pages Cleaned"
+            />
+          </Link>
           <Link href="/broker/leads?view=new">
             <Stat label="आज की नई leads" value={<CountUp to={d.kpis.newToday} />} icon={<Inbox className="size-5" />} hint={`${d.kpis.open} open leads`} />
           </Link>
@@ -120,8 +205,14 @@ export default function BrokerDashboard() {
             />
           </Link>
           {user?.role === 'BROKER_ADMIN' ? (
-            <Link href="/broker/leads?view=unassigned">
-              <Stat label="Unassigned" value={<CountUp to={d.kpis.unassigned} />} icon={<UserX className="size-5" />} tone="warning" />
+            <Link href="/broker/connectors">
+              <Stat
+                label="Housing Portal"
+                value={d.housingConnector?.status === 'ACTIVE' ? 'Connected' : 'Configured'}
+                icon={<Building2 className="size-5" />}
+                tone={d.housingConnector?.status === 'ACTIVE' ? 'success' : 'warning'}
+                hint={`${d.housingConnector?.leadsImported ?? 0} Leads synced`}
+              />
             </Link>
           ) : (
             <Link href="/broker/inbox">
@@ -254,6 +345,50 @@ export default function BrokerDashboard() {
           )}
         </div>
       </div>
+
+      {/* Gurgaon Prime Sectors Inventory Heatmap */}
+      {d?.sectors?.length > 0 && (
+        <div className="card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line">
+            <div className="flex items-center gap-2">
+              <div className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10">
+                <MapPin className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-base">Gurgaon Prime Sectors (Register Distribution)</h2>
+                <p className="text-xs text-muted">117 Handwritten Register Pages — 1,698 Verified Units</p>
+              </div>
+            </div>
+            <Link
+              href="/broker/inventory"
+              className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+            >
+              Open Full Ledger →
+            </Link>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {d.sectors.map((s: any) => (
+              <Link
+                key={s.sector}
+                href={`/broker/inventory?sector=${encodeURIComponent(s.sector)}`}
+                className="group flex flex-col justify-between rounded-xl border border-line bg-surface-2 p-3 transition hover:border-brand-500 hover:shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-fg group-hover:text-brand-600 truncate">{s.sector}</span>
+                  <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-800 dark:bg-brand-500/20 dark:text-brand-300">
+                    {s.count}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-muted">
+                  <span>Units</span>
+                  <ArrowRight className="size-3 text-subtle transition group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="flex items-center justify-between border-b border-line p-5">
           <h2 className="font-display font-bold">Latest leads</h2>

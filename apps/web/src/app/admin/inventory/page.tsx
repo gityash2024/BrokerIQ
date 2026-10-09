@@ -10,6 +10,7 @@ import {
   Filter,
   Layers,
   MapPin,
+  MessageCircle,
   Pencil,
   Phone,
   Plus,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation, useDebounced } from '@/lib/hooks';
 import { cn, formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
@@ -28,6 +30,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { InventoryWhatsAppDialog } from '@/components/broker/inventory-whatsapp-dialog';
 import { toast } from 'sonner';
 
 interface InventoryItem {
@@ -68,6 +71,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function AdminInventoryPage() {
+  const { user } = useAuth();
+  const [waItem, setWaItem] = useState<InventoryItem | null>(null);
   const [filters, setFilters] = useState({
     search: '',
     organizationId: '',
@@ -618,15 +623,14 @@ export default function AdminInventoryPage() {
                               <Phone className="size-3" />
                               {row.ownerPhone}
                             </a>
-                            <a
-                              href={`https://wa.me/91${row.ownerPhone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] text-emerald-600 hover:underline"
-                              title="WhatsApp"
+                            <button
+                              type="button"
+                              onClick={() => setWaItem(row)}
+                              className="inline-flex items-center gap-0.5 rounded bg-[#25D366]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#128C7E] hover:bg-[#25D366]/25 transition"
+                              title="Dynamic WhatsApp Message"
                             >
-                              WA
-                            </a>
+                              <MessageCircle className="size-3" /> WA
+                            </button>
                           </div>
                         ) : (
                           <span className="text-subtle italic">No phone</span>
@@ -646,6 +650,17 @@ export default function AdminInventoryPage() {
                       {/* Action Buttons */}
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Dynamic WhatsApp Pitch Button */}
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            className="h-7 w-7 text-[#25D366] hover:bg-[#25D366]/10"
+                            onClick={() => setWaItem(row)}
+                            title="Send WhatsApp pitch / availability check"
+                          >
+                            <MessageCircle className="size-3.5" />
+                          </Button>
+
                           {row.isPublished ? (
                             <span
                               className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
@@ -897,6 +912,15 @@ export default function AdminInventoryPage() {
           </div>
         )}
       </Dialog>
+
+      {/* Dynamic WhatsApp Action Dialog */}
+      <InventoryWhatsAppDialog
+        open={!!waItem}
+        onOpenChange={(open) => !open && setWaItem(null)}
+        item={waItem}
+        brokerName={user?.name}
+        brokerFirm={user?.organization?.name}
+      />
     </div>
   );
 }

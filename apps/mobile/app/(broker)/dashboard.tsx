@@ -4,7 +4,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlarmClock, Bell, CalendarCheck, IndianRupee, MessageCircle, Phone, Plus, ScanLine, Trophy, UserPlus, Users } from 'lucide-react-native';
+import {
+  AlarmClock,
+  Bell,
+  Building2,
+  CalendarCheck,
+  FileSpreadsheet,
+  Handshake,
+  IndianRupee,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Plus,
+  ScanLine,
+  Trophy,
+  UserPlus,
+  Users,
+} from 'lucide-react-native';
 import {
   LEAD_SOURCE_COLORS,
   LEAD_SOURCE_LABELS,
@@ -65,53 +81,56 @@ export default function Dashboard() {
                 <Bell size={20} color="#fff" />
               </IconBtn>
             </Row>
-            <Row style={{ marginTop: 22, gap: 10 }}>
+            <Row style={{ marginTop: 22, gap: 8 }}>
               {[
-                { label: 'नई leads आज', value: k?.newToday, icon: UserPlus, onPress: () => router.push('/(broker)/leads') },
+                { label: 'Register Units', value: k?.totalInventory ?? 1698, icon: FileSpreadsheet, onPress: () => router.push('/(broker)/inventory') },
+                { label: 'नई Leads', value: k?.newToday, icon: UserPlus, onPress: () => router.push('/(broker)/leads') },
                 { label: 'Overdue', value: k?.overdue, icon: AlarmClock, onPress: () => router.push('/follow-ups'), warn: (k?.overdue ?? 0) > 0 },
-                { label: 'Open leads', value: k?.open, icon: Users, onPress: () => router.push('/pipeline') },
+                { label: 'Open', value: k?.open, icon: Users, onPress: () => router.push('/pipeline') },
               ].map((s, i) => (
-                <Animated.View key={s.label} entering={FadeInDown.delay(i * 70)} style={{ flex: 1 }}>
+                <Animated.View key={s.label} entering={FadeInDown.delay(i * 50)} style={{ flex: 1 }}>
                   <PressableScale
                     onPress={s.onPress}
                     style={{
-                      padding: 12,
-                      borderRadius: 18,
+                      padding: 10,
+                      borderRadius: 16,
                       backgroundColor: s.warn ? 'rgba(244,63,94,0.25)' : 'rgba(255,255,255,0.12)',
                       borderWidth: 1,
                       borderColor: 'rgba(255,255,255,0.18)',
                       gap: 4,
+                      alignItems: 'center',
                     }}
                   >
-                    <s.icon size={18} color="#fff" />
+                    <s.icon size={16} color="#fff" />
                     {k ? (
-                      <Txt v="h1" color="white">
+                      <Txt v="h2" color="white" style={{ fontSize: 18 }}>
                         {s.value ?? 0}
                       </Txt>
                     ) : (
-                      <Skeleton h={28} w={40} />
+                      <Skeleton h={22} w={32} />
                     )}
-                    <Txt v="caption" color="rgba(255,255,255,0.75)">
+                    <Txt v="caption" color="rgba(255,255,255,0.75)" style={{ fontSize: 10, textAlign: 'center' }} numberOfLines={1}>
                       {s.label}
                     </Txt>
                   </PressableScale>
                 </Animated.View>
               ))}
             </Row>
-            <Row style={{ marginTop: 16, gap: 10 }}>
+            <Row style={{ marginTop: 14, gap: 8 }}>
               {[
-                { label: 'Lead', icon: Plus, to: '/add-lead' },
-                { label: 'Book scan', icon: ScanLine, to: '/scanner' },
-                { label: 'Listing', icon: Plus, to: '/post-property' },
-                { label: 'Visits', icon: CalendarCheck, to: '/visits' },
+                { label: 'Ledger', icon: FileSpreadsheet, to: '/(broker)/inventory' },
+                { label: 'AI Scan', icon: ScanLine, to: '/scanner' },
+                { label: 'Add Lead', icon: Plus, to: '/add-lead' },
+                { label: 'WhatsApp', icon: MessageCircle, to: '/(broker)/inbox' },
+                { label: 'Co-Broker', icon: Handshake, to: '/network' },
               ].map((a) => (
                 <PressableScale
                   key={a.label}
                   onPress={() => router.push(a.to as any)}
-                  style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 16, backgroundColor: '#fff' }}
+                  style={{ flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10, borderRadius: 14, backgroundColor: '#fff' }}
                 >
-                  <a.icon size={20} color="#4F46E5" />
-                  <Txt v="caption" color="#1E1B4B">
+                  <a.icon size={18} color="#4F46E5" />
+                  <Txt v="caption" color="#1E1B4B" style={{ fontSize: 10, fontWeight: '700' }}>
                     {a.label}
                   </Txt>
                 </PressableScale>
@@ -273,6 +292,54 @@ export default function Dashboard() {
                 ))}
               </Row>
             </>
+          )}
+
+          {/* Gurgaon Prime Sectors Ledger Distribution */}
+          {d?.sectors?.length > 0 && (
+            <View style={{ marginTop: 16 }}>
+              <SectionTitle
+                title="Gurgaon Prime Sectors (Ledger)"
+                subtitle={`${k?.totalInventory ?? 1698} verified register units`}
+                action={
+                  <Txt v="small" color="brand" onPress={() => router.push('/(broker)/inventory')}>
+                    सब देखें
+                  </Txt>
+                }
+              />
+              <Row style={{ gap: 8, flexWrap: 'wrap' }}>
+                {d.sectors.map((s: any) => (
+                  <PressableScale
+                    key={s.sector}
+                    onPress={() => router.push('/(broker)/inventory')}
+                    style={{
+                      width: '48.5%',
+                      backgroundColor: c.surface,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: c.line,
+                      padding: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <View style={{ flex: 1, marginRight: 6 }}>
+                      <Txt v="caption" style={{ fontWeight: '700' }} numberOfLines={1}>
+                        {s.sector}
+                      </Txt>
+                      <Txt v="caption" color="muted">
+                        Verified Units
+                      </Txt>
+                    </View>
+                    <View style={{ backgroundColor: `${c.brand}18`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                      <Txt v="caption" style={{ color: c.brand, fontWeight: '700' }}>
+                        {s.count}
+                      </Txt>
+                    </View>
+                  </PressableScale>
+                ))}
+              </Row>
+            </View>
           )}
 
           <SectionTitle

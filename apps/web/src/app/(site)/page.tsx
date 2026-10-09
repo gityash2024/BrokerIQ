@@ -1,3 +1,7 @@
+import { redirect } from 'next/navigation';
+// Broker-first pivot: Consumer marketplace is parked for now; app routes directly to Broker OS.
+// Preserved sections and imports below for future consumer marketplace rollout.
+/*
 import { sget } from '@/lib/server';
 import { PageShell } from '@/components/site/page-shell';
 import {
@@ -33,19 +37,8 @@ const RENDERERS: Record<string, (p: { s: any }) => React.ReactNode> = {
   CTA_BANNER: CtaBannerSection,
   BANNER: BannerSection,
 };
+*/
 
-export default async function HomePage() {
-  const sections = (await sget<any[]>('/public/homepage', 60)) ?? [];
-  const hasHero = sections.some((s) => s.type === 'HERO');
-  return (
-    <PageShell transparentHeader={hasHero}>
-      {!sections.length && (
-        <HeroSection s={{ title: 'Gurgaon में अपना अगला घर ढूँढिए', subtitle: 'Verified properties, trusted brokers.', config: {}, data: null }} />
-      )}
-      {sections.map((s) => {
-        const R = RENDERERS[s.type];
-        return R ? <R key={s.id} s={s} /> : null;
-      })}
-    </PageShell>
-  );
+export default function HomePage() {
+  redirect('/broker/login');
 }

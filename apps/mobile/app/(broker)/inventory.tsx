@@ -12,9 +12,12 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   Building2,
+  Check,
   CheckCircle2,
+  Copy,
   FileSpreadsheet,
   MapPin,
+  MessageCircle,
   Pencil,
   Phone,
   Plus,
@@ -25,14 +28,16 @@ import {
   Trash2,
   X,
 } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { formatINR } from '@brokeriq/shared';
 import { api, del, patch, post, qs } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { alert } from '@/lib/i18n';
 import { ListingsManager } from '@/components/listings-manager';
-import { Badge, Button, Card, Chip, Empty, IconBtn, Row, Skeleton, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, IconBtn, PressableScale, Row, Skeleton, Txt } from '@/ui';
 
 interface InventoryItem {
   id: string;
@@ -71,6 +76,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function Inventory() {
   const { c } = useTheme();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'ledger' | 'listings'>('ledger');
 
   // Filters for ledger
@@ -82,6 +88,73 @@ export default function Inventory() {
 
   // Edit modal
   const [editItem, setEditItem] = useState<Partial<InventoryItem> | null>(null);
+
+  // WhatsApp dynamic pitch modal
+  const [waItem, setWaItem] = useState<InventoryItem | null>(null);
+  const [waTemplate, setWaTemplate] = useState<'owner' | 'client'>('owner');
+  const [waMessage, setWaMessage] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const generateWaMessage = (item: InventoryItem, type: 'owner' | 'client') => {
+    const brokerName = user?.name || 'Broker';
+    const brokerFirm = user?.organization?.name || 'Real Estate';
+    const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : 'Sir/Ma\'am';
+    const bhkStr = item.bhk ? `${item.bhk} BHK` : '';
+    const floorStr = item.floor ? `${item.floor} Floor` : '';
+    const configStr = [bhkStr, floorStr].filter(Boolean).join(' ');
+    const priceStr = item.rent ? formatINR(item.rent) : 'Price on request';
+    const houseStr = item.houseNo && item.houseNo !== '--' ? `House No. ${item.houseNo}` : 'Property';
+    const furnStr = item.furnishing ? item.furnishing.replace(/_/g, ' ').toLowerCase() : 'standard';
+
+    if (type === 'owner') {
+      return `Namaste ${owner}, I am ${brokerName} from ${brokerFirm}. Regarding your property in ${item.sector} ${houseStr} (${configStr}, ${item.purpose === 'SALE' ? 'Sale' : 'Rent'}: ₹${priceStr}), is it currently available for deal/visit? Please let me know suitable time for client site visit.`;
+    } else {
+      return `🏠 *Verified Property in ${item.sector}*\n` +
+        `• Unit: ${houseStr}\n` +
+        (configStr ? `• Configuration: ${configStr}\n` : '') +
+        (item.furnishing ? `• Furnishing: ${furnStr}\n` : '') +
+        `• ${item.purpose === 'SALE' ? 'Demand' : 'Rent'}: ₹${priceStr}\n` +
+        (item.tenantPreference ? `• Suitable for: ${item.tenantPreference}\n` : '') +
+        `• Contact: ${brokerName} (${brokerFirm})\n\n` +
+        `Interested in scheduling a site visit? Reply to this message or call directly.`;
+    }
+  };
+
+  const openWaDialog = (item: InventoryItem, initialType: 'owner' | 'client' = 'owner') => {
+    setWaItem(item);
+    setWaTemplate(initialType);
+    setWaMessage(generateWaMessage(item, initialType));
+    setCopied(false);
+    setClientPhone('');
+  };
+
+  const handleSendWa = () => {
+    if (!waItem) return;
+    const encoded = encodeURIComponent(waMessage);
+    if (waTemplate === 'owner') {
+      const cleanPhone = (waItem.ownerPhone || '').replace(/\D/g, '');
+      if (!cleanPhone || cleanPhone.length < 10) {
+        toast.error('Owner ka valid phone number nahi mila');
+        return;
+      }
+      Linking.openURL(`https://wa.me/91${cleanPhone}?text=${encoded}`);
+    } else {
+      const cleanClient = clientPhone.replace(/\D/g, '');
+      if (cleanClient && cleanClient.length >= 10) {
+        Linking.openURL(`https://wa.me/91${cleanClient}?text=${encoded}`);
+      } else {
+        Linking.openURL(`https://api.whatsapp.com/send?text=${encoded}`);
+      }
+    }
+  };
+
+  const handleCopyWa = async () => {
+    await Clipboard.setStringAsync(waMessage);
+    setCopied(true);
+    toast.success('Message copied to clipboard');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Query Sectors
   const sectorsQuery = useQuery({
@@ -518,15 +591,30 @@ export default function Inventory() {
                           size="sm"
                           variant="whatsapp"
                           title="WA"
-                          onPress={() => Linking.openURL(`https://wa.me/91${item.ownerPhone?.replace(/\D/g, '')}`)}
+                          icon={<MessageCircle size={13} color="#fff" />}
+                          onPress={() => openWaDialog(item, 'owner')}
                         />
                       </Row>
                     ) : (
-                      <Txt v="caption" color="subtle">No phone</Txt>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="WA Pitch"
+                        icon={<MessageCircle size={13} color="#25D366" />}
+                        onPress={() => openWaDialog(item, 'client')}
+                      />
                     )}
 
                     {/* Action buttons */}
                     <Row style={{ gap: 6 }}>
+                      {/* WhatsApp pitch icon */}
+                      <IconBtn
+                        onPress={() => openWaDialog(item, 'client')}
+                        style={{ width: 32, height: 32, backgroundColor: '#25D36620' }}
+                      >
+                        <MessageCircle size={15} color="#25D366" />
+                      </IconBtn>
+
                       {item.isPublished ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4 }}>
                           <CheckCircle2 size={14} color="#059669" />
@@ -721,6 +809,177 @@ export default function Inventory() {
                       loading={saveMutation.isPending}
                       onPress={() => editItem && saveMutation.mutate(editItem)}
                     />
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          </Modal>
+
+          {/* Dynamic WhatsApp Action Modal */}
+          <Modal
+            visible={Boolean(waItem)}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setWaItem(null)}
+          >
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+              <View
+                style={{
+                  backgroundColor: c.surface,
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
+                  padding: 20,
+                  maxHeight: '85%',
+                }}
+              >
+                <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Row style={{ gap: 8, alignItems: 'center' }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#25D36620', alignItems: 'center', justifyContent: 'center' }}>
+                      <MessageCircle size={18} color="#25D366" />
+                    </View>
+                    <Txt v="h3">WhatsApp Message</Txt>
+                  </Row>
+                  <IconBtn onPress={() => setWaItem(null)} style={{ width: 32, height: 32 }}>
+                    <X size={18} color={c.fg} />
+                  </IconBtn>
+                </Row>
+
+                {waItem && (
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {/* Unit Info Summary */}
+                    <Card style={{ padding: 10, backgroundColor: c.surface2, marginBottom: 12 }}>
+                      <Txt v="caption" color="fg" style={{ fontWeight: '700' }}>
+                        House {waItem.houseNo}, {waItem.sector}
+                      </Txt>
+                      <Txt v="caption" color="muted">
+                        {waItem.bhk ? `${waItem.bhk} BHK` : ''} {waItem.floor ? `· ${waItem.floor}` : ''} · {waItem.rent ? `${formatINR(waItem.rent)}/mo` : 'Price N/A'}
+                        {waItem.ownerPhone ? ` · Owner: ${waItem.ownerPhone}` : ''}
+                      </Txt>
+                    </Card>
+
+                    {/* Template Switcher */}
+                    <Txt v="caption" color="muted" style={{ marginBottom: 6 }}>
+                      संदेश प्रकार (Template):
+                    </Txt>
+                    <Row style={{ gap: 8, marginBottom: 12 }}>
+                      <PressableScale
+                        onPress={() => {
+                          setWaTemplate('owner');
+                          setWaMessage(generateWaMessage(waItem, 'owner'));
+                        }}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          borderRadius: 12,
+                          backgroundColor: waTemplate === 'owner' ? '#25D36618' : c.surface2,
+                          borderWidth: 1.5,
+                          borderColor: waTemplate === 'owner' ? '#25D366' : 'transparent',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Txt
+                          v="caption"
+                          style={{
+                            fontWeight: '700',
+                            color: waTemplate === 'owner' ? '#128C7E' : c.fg,
+                          }}
+                        >
+                          Owner Availability
+                        </Txt>
+                      </PressableScale>
+
+                      <PressableScale
+                        onPress={() => {
+                          setWaTemplate('client');
+                          setWaMessage(generateWaMessage(waItem, 'client'));
+                        }}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          borderRadius: 12,
+                          backgroundColor: waTemplate === 'client' ? '#25D36618' : c.surface2,
+                          borderWidth: 1.5,
+                          borderColor: waTemplate === 'client' ? '#25D366' : 'transparent',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Txt
+                          v="caption"
+                          style={{
+                            fontWeight: '700',
+                            color: waTemplate === 'client' ? '#128C7E' : c.fg,
+                          }}
+                        >
+                          Client Pitch
+                        </Txt>
+                      </PressableScale>
+                    </Row>
+
+                    {/* Optional Client Phone Input */}
+                    {waTemplate === 'client' && (
+                      <View style={{ marginBottom: 12 }}>
+                        <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                          Client Phone Number (वैकल्पिक / Optional):
+                        </Txt>
+                        <TextInput
+                          style={{
+                            backgroundColor: c.surface2,
+                            borderRadius: 10,
+                            padding: 10,
+                            color: c.fg,
+                            fontSize: 13,
+                          }}
+                          placeholder="e.g. 9876543210 (खाली छोड़ेंगे तो WhatsApp contact chooser खुलेगा)"
+                          placeholderTextColor={c.subtle}
+                          keyboardType="phone-pad"
+                          value={clientPhone}
+                          onChangeText={setClientPhone}
+                        />
+                      </View>
+                    )}
+
+                    {/* Message Preview & Edit */}
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      संदेश का पूर्वावलोकन (Preview / Edit):
+                    </Txt>
+                    <TextInput
+                      multiline
+                      numberOfLines={6}
+                      style={{
+                        backgroundColor: c.surface2,
+                        borderRadius: 12,
+                        padding: 12,
+                        color: c.fg,
+                        marginBottom: 16,
+                        minHeight: 120,
+                        textAlignVertical: 'top',
+                        fontSize: 13,
+                        lineHeight: 18,
+                      }}
+                      value={waMessage}
+                      onChangeText={setWaMessage}
+                    />
+
+                    {/* Action Buttons: Copy & Send on WhatsApp */}
+                    <Row style={{ gap: 10, marginBottom: 10 }}>
+                      <Button
+                        style={{ flex: 1 }}
+                        variant="secondary"
+                        size="lg"
+                        title={copied ? 'Copied!' : 'Copy Text'}
+                        icon={copied ? <Check size={16} color="#059669" /> : <Copy size={16} color={c.fg} />}
+                        onPress={handleCopyWa}
+                      />
+                      <Button
+                        style={{ flex: 1.4, backgroundColor: '#25D366' }}
+                        size="lg"
+                        title="Send on WhatsApp"
+                        icon={<MessageCircle size={18} color="#fff" />}
+                        onPress={handleSendWa}
+                      />
+                    </Row>
                   </ScrollView>
                 )}
               </View>

@@ -165,7 +165,7 @@ export function PanelShell({
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2 px-5">
-        <Link href="/">
+        <Link href={title === 'Super Admin' ? '/admin' : '/broker'}>
           <Logo name={app.siteName} className="text-lg" />
         </Link>
         <Badge tone={accent === 'dark' ? 'danger' : 'brand'} className="ml-auto text-[10px]">
@@ -201,10 +201,11 @@ export function PanelShell({
           <button className="rounded-xl p-2 lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">
             <Menu className="size-5" />
           </button>
-          <div className="flex-1">{headerExtra}</div>
+          {/* Consumer website link commented out during broker-first pivot
           <Link href="/" target="_blank" className="hidden items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface-2 sm:flex">
             Website <ExternalLink className="size-3.5" />
           </Link>
+          */}
           {title !== 'Super Admin' && <LanguagePicker />}
           <ThemeToggle />
           <NotificationsBell href={notificationsHref} />

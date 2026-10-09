@@ -6,14 +6,21 @@ const nextConfig: NextConfig = {
   // optimizer is disabled to keep hosting free (no Vercel image-optimization quota).
   images: { unoptimized: true },
   poweredByHeader: false,
-  // Rental marketplace: sale-only sections (buy, plots, new-launch projects) point to rentals.
-  // Temporary redirects so the old pages can come back without cache issues.
+  // Broker-first pivot: consumer & marketplace entrypoints redirect to broker login.
+  // Old routes are kept intact for future rollout.
   async redirects() {
     return [
-      { source: '/buy', destination: '/rent', permanent: false },
-      { source: '/plots', destination: '/rent', permanent: false },
-      { source: '/projects', destination: '/rent', permanent: false },
-      { source: '/projects/:slug', destination: '/rent', permanent: false },
+      { source: '/', destination: '/broker/login', permanent: false },
+      { source: '/buy', destination: '/broker/login', permanent: false },
+      { source: '/rent', destination: '/broker/login', permanent: false },
+      { source: '/plots', destination: '/broker/login', permanent: false },
+      { source: '/projects', destination: '/broker/login', permanent: false },
+      { source: '/projects/:slug*', destination: '/broker/login', permanent: false },
+      { source: '/account', destination: '/broker/login', permanent: false },
+      { source: '/account/:path*', destination: '/broker/login', permanent: false },
+      { source: '/search', destination: '/broker/login', permanent: false },
+      { source: '/property/:path*', destination: '/broker/login', permanent: false },
+      { source: '/locality/:path*', destination: '/broker/login', permanent: false },
     ];
   },
   async headers() {

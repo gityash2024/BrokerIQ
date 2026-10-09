@@ -110,13 +110,15 @@ export default function More() {
             ))}
         </View>
         <Card style={{ marginTop: 16 }}>
+          {/* Marketplace view commented out during broker-first pivot
           <PressableScale onPress={() => router.replace('/(user)/home')} style={{ padding: 16 }}>
             <Row>
               <UserRound size={20} color={c.brand} />
               <Txt v="bodyStrong">Marketplace (buyer view) देखें</Txt>
             </Row>
           </PressableScale>
-          <PressableScale onPress={() => router.push('/privacy')} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
+          */}
+          <PressableScale onPress={() => router.push('/privacy')} style={{ padding: 16 }}>
             <Row>
               <ShieldCheck size={20} color={c.brand} />
               <Txt v="bodyStrong">Privacy & data sharing</Txt>
