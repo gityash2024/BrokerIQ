@@ -4,7 +4,7 @@ import { isApiErrorBody, type ApiErrorBody, type AuthResponse, type AuthUser } f
 import { create } from './store';
 import { tr } from './i18n';
 
-export const API_URL = (process.env.EXPO_PUBLIC_API_URL || (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:3000/api').replace(/\/$/, '');
+export const API_URL = (process.env.EXPO_PUBLIC_API_URL || (Constants.expoConfig?.extra?.apiUrl as string) || 'https://brokeriqapi.mymultimeds.com/api').replace(/\/$/, '');
 export const SOCKET_URL = API_URL.replace(/\/api$/, '');
 
 export class ApiError extends Error {

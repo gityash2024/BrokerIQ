@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001').replace(/\/$/, '');
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://brokeriqapi.mymultimeds.com').replace(/\/$/, '');
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://brokeriq.mymultimeds.com').replace(/\/$/, '');
 
 /** On-the-fly resize for Cloudinary and self-hosted (/api/media) URLs; no-op for other hosts. */
 export function img(url: string | null | undefined, w = 800): string {
