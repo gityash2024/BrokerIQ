@@ -516,11 +516,26 @@ export default function BrokerInventoryPage() {
           text="फिल्टर बदलें या नया लेजर रिकॉर्ड जोड़ने के लिए ऊपर '+ Add Ledger Row' पर क्लिक करें।"
         />
       ) : (
+        
         <div className="card overflow-hidden">
+          {selectedIds.size > 0 && (
+            <div className="bg-brand-50 dark:bg-brand-500/10 border-b border-brand-200 dark:border-brand-500/20 px-4 py-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
+                {selectedIds.size} properties selected
+              </span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" className="bg-white" onClick={() => handleBulkStatus('ACTIVE')}>Make Active</Button>
+                <Button size="sm" variant="secondary" className="bg-white text-amber-600" onClick={() => handleBulkStatus('DRAFT')}>Make Draft</Button>
+                <Button size="sm" variant="secondary" className="bg-white text-red-600" onClick={() => handleBulkStatus('INACTIVE')}>Make Inactive</Button>
+              </div>
+            </div>
+          )}
           <div className="overflow-x-auto">
+
             <table className="w-full min-w-[1100px] border-collapse text-left text-xs">
               <thead className="border-b border-line bg-surface-2 text-subtle font-semibold uppercase tracking-wider sticky top-0">
                 <tr>
+                  <th className="px-3 py-3 w-10 text-center"><input type="checkbox" className="rounded border-line" onChange={toggleAll} checked={data?.items?.length > 0 && selectedIds.size === data.items.length} /></th>
                   <th className="px-3 py-3 w-14"># / Page</th>
                   <th className="px-3 py-3 w-28">Date</th>
                   <th className="px-3 py-3 w-32">Sector</th>
@@ -544,6 +559,7 @@ export default function BrokerInventoryPage() {
                       className="group transition-colors hover:bg-brand-50/40 dark:hover:bg-brand-500/10"
                     >
                       {/* Serial & Page No */}
+                      <td className="px-3 py-2.5 text-center"><input type="checkbox" className="rounded border-line cursor-pointer" checked={selectedIds.has(row.id)} onChange={() => toggleSelection(row.id)} /></td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-muted">
                         <span>{serial}.</span>
                         {row.pageNo && (
