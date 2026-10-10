@@ -30,7 +30,7 @@ import { del, patch, post, useApiMutation, useDebounced } from '@/lib/hooks';
 import { cn, formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';

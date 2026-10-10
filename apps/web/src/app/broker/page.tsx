@@ -10,6 +10,8 @@ import {
   CalendarCheck,
   CheckCircle2,
   Circle,
+  CircleDollarSign,
+  Plug,
   FileSpreadsheet,
   Flame,
   Handshake,
@@ -17,6 +19,8 @@ import {
   Inbox,
   MapPin,
   MessageCircle,
+  CircleDollarSign,
+  Plug,
   MessagesSquare,
   Phone,
   ScanLine,
@@ -400,7 +404,7 @@ export default function BrokerDashboard() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-black text-lg">{(k?.unreadMessages || 0) + 24}</p>
+                <p className="font-black text-lg">{(d?.kpis?.unreadMessages || 0) + 24}</p>
                 <p className="text-[10px] text-muted">24h Messages</p>
               </div>
             </div>
