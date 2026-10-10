@@ -19,8 +19,6 @@ import {
   Inbox,
   MapPin,
   MessageCircle,
-  CircleDollarSign,
-  Plug,
   MessagesSquare,
   Phone,
   ScanLine,
