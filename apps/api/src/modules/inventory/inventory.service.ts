@@ -327,7 +327,7 @@ export class InventoryService {
     return this.prisma.inventoryItem.updateMany({
       where: {
         id: { in: ids },
-        organizationId: user.role !== 'SUPER_ADMIN' ? user.orgId : undefined,
+        organizationId: user.role !== 'SUPER_ADMIN' ? (user.orgId || undefined) : undefined,
       },
       data,
     });
