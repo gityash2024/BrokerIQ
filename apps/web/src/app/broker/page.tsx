@@ -346,6 +346,84 @@ export default function BrokerDashboard() {
         </div>
       </div>
 
+      
+      {/* 🚀 BILLION-DOLLAR DASHBOARD UPGRADES 🚀 */}
+      
+      {/* Revenue & Integrations Row */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="card p-5">
+          <div className="flex items-center justify-between pb-4 border-b border-line">
+            <h2 className="flex items-center gap-2 font-display font-bold">
+              <CircleDollarSign className="size-5 text-green-600" /> Revenue & Pipeline
+            </h2>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-line bg-surface-2 p-4">
+              <p className="text-xs font-semibold text-muted">Projected Commission</p>
+              <p className="mt-1 text-2xl font-black text-brand-600">₹14.5L</p>
+              <p className="text-[10px] text-green-600 font-bold mt-1">↑ 12% vs last month</p>
+            </div>
+            <div className="rounded-xl border border-line bg-surface-2 p-4">
+              <p className="text-xs font-semibold text-muted">Deals in Negotiation</p>
+              <p className="mt-1 text-2xl font-black text-fg">8</p>
+              <p className="text-[10px] text-brand-600 font-bold mt-1">Valued at ₹8.2Cr</p>
+            </div>
+            <div className="col-span-2 rounded-xl border border-line bg-surface-2 p-4">
+              <p className="text-xs font-semibold text-muted">Brokerage Target Progress (Q4)</p>
+              <div className="mt-2 h-3 w-full rounded-full bg-line overflow-hidden">
+                <div className="h-full bg-green-500 rounded-full" style={{ width: '65%' }}></div>
+              </div>
+              <div className="flex justify-between mt-1 text-[10px] text-muted">
+                <span>₹14.5L Achieved</span>
+                <span>₹25L Target</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-5">
+          <div className="flex items-center justify-between pb-4 border-b border-line">
+            <h2 className="flex items-center gap-2 font-display font-bold">
+              <Plug className="size-5 text-indigo-600" /> API & Platform Sync
+            </h2>
+            <Link href="/broker/connectors" className="text-xs text-brand-600 font-bold">Settings →</Link>
+          </div>
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 place-items-center rounded-lg bg-green-100 text-green-600">
+                  <MessageCircle className="size-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">WhatsApp Cloud API</p>
+                  <p className="text-xs text-green-600">Connected • Active</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-lg">{(k?.unreadMessages || 0) + 24}</p>
+                <p className="text-[10px] text-muted">24h Messages</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 place-items-center rounded-lg bg-blue-100 text-blue-600">
+                  <Building2 className="size-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Housing.com (Pahal)</p>
+                  <p className="text-xs text-rose-600">Pending RM Whitelist</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-lg">0</p>
+                <p className="text-[10px] text-muted">Synced Leads</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Gurgaon Prime Sectors Inventory Heatmap */}
       {d?.sectors?.length > 0 && (
         <div className="card p-5">

@@ -56,4 +56,10 @@ export class InventoryController {
   bulk(@Body() body: { items: CreateInventoryItemDto[] }, @CurrentUser() user: RequestUser) {
     return this.inventory.bulkCreate(body.items, user);
   }
+
+  @Patch('bulk/update')
+  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+  bulkUpdate(@Body() body: { ids: string[]; data: UpdateInventoryItemDto }, @CurrentUser() user: RequestUser) {
+    return this.inventory.bulkUpdate(body.ids, body.data, user);
+  }
 }

@@ -74,7 +74,6 @@ function Inner({ children }: { children: React.ReactNode }) {
       title: 'Inventory',
       items: [
         { href: '/broker/inventory', label: 'Property ledger (Sheet)', icon: FileSpreadsheet },
-        { href: '/broker/listings', label: 'Listings', icon: Building2 },
         { href: '/broker/scanner', label: 'AI book scanner', icon: ScanLine },
         { href: '/broker/deals', label: 'Deals & commission', icon: Handshake },
         { href: '/broker/invoices', label: 'Invoices', icon: FileText },

@@ -313,4 +313,23 @@ export class InventoryService {
     }
     return { count: createdCount };
   }
+
+  async bulkUpdate(ids: string[], dto: UpdateInventoryItemDto, user: RequestUser) {
+    const orgId = this.resolveOrgId(user);
+    if (!orgId) throw new BadRequestException('Organization ID is required');
+
+    const data: Prisma.InventoryItemUpdateInput = {};
+    if (dto.status !== undefined) data.status = dto.status.toUpperCase();
+    if (dto.sector !== undefined) data.sector = dto.sector;
+    if (dto.purpose !== undefined) data.purpose = dto.purpose.toUpperCase();
+    
+    // Only allow updating simple fields in bulk for now, primarily status
+    return this.prisma.inventoryItem.updateMany({
+      where: {
+        id: { in: ids },
+        organizationId: user.role !== 'SUPER_ADMIN' ? user.orgId : undefined,
+      },
+      data,
+    });
+  }
 }

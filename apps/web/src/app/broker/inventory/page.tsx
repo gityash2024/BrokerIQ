@@ -30,6 +30,7 @@ import { del, patch, post, useApiMutation, useDebounced } from '@/lib/hooks';
 import { cn, formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
@@ -153,6 +154,37 @@ export default function BrokerInventoryPage() {
 
   const data = inventoryQuery.data;
   const statusCounts = data?.statusCounts ?? { ALL: 0, DRAFT: 0, ACTIVE: 0, RENTED: 0 };
+
+  
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const bulkUpdateMutation = useApiMutation((payload: { ids: string[]; data: any }) => patch('/inventory/bulk/update', payload), {
+    success: 'Bulk update successful',
+    invalidate: [['broker-inventory'], ['inventory-sectors']],
+    onSuccess: () => setSelectedIds(new Set()),
+  });
+
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (!data?.items?.length) return;
+    if (selectedIds.size === data.items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(data.items.map((i: any) => i.id)));
+    }
+  };
+
+  const handleBulkStatus = (status: string) => {
+    if (!selectedIds.size) return;
+    bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { status } });
+  };
 
   const handleExportCSV = () => {
     if (!data?.items?.length) {
