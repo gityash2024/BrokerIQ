@@ -64,7 +64,9 @@ export default function Login() {
   const { app, integrations } = useConfig();
   const { setSession } = useAuth();
   const [mode, setMode] = useState<Mode>(app.auth?.allowEmailOtp === false ? 'password' : 'otp');
-  const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
+  // Default to Broker for broker-only launch
+  // const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
+  const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('BROKER');
   const [f, setF] = useState({ email: '', password: '', name: '', phone: '', firmName: '', code: '', inviteCode: '' });
   const inviteOnly = app.auth?.allowBrokerSignup === false;
   const invite = accountType === 'BROKER' && f.inviteCode ? f.inviteCode : undefined;
@@ -171,6 +173,7 @@ export default function Login() {
           }}
         >
           <Segmented value={mode} onChange={(m) => (setMode(m), setOtpSent(false))} options={modes} />
+          {/* Role selector hidden for broker-only launch (defaulted to BROKER)
           {(mode === 'signup' || (mode === 'otp' && otpSent)) && (
             <Animated.View entering={FadeIn} style={{ gap: 8 }}>
               <Txt v="caption" color="muted">
@@ -192,6 +195,7 @@ export default function Login() {
               </Row>
             </Animated.View>
           )}
+          */}
           {mode === 'signup' && <Input label="पूरा नाम" value={f.name} onChangeText={set('name')} icon={<User size={18} color={c.subtle} />} />}
           <Input
             label="Email"
