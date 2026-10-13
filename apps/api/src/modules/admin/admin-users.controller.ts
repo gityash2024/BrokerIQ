@@ -1,4 +1,6 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -23,6 +25,46 @@ export class AdminUsersController {
   ) {}
 
   // ------------------------------------------------------------------ users
+  @Post('organizations')
+  async createBroker(
+    @CurrentUser() actor: RequestUser,
+    @Body(
+      new ZodPipe(
+        z.object({
+          name: z.string().trim().min(2).max(80),
+          firmName: z.string().trim().min(2).max(120),
+          email: z
+            .string()
+            .email()
+            .transform((s) => s.toLowerCase()),
+          password: z.string().min(8).max(128),
+          phone: z.string().max(20).optional(),
+        }),
+      ),
+    )
+    body: { name: string; firmName: string; email: string; password: string; phone?: string },
+  ) {
+    const passwordHash = await bcrypt.hash(body.password, 12);
+    const org = await this.prisma.$transaction(async (tx) => {
+      if (await tx.user.findUnique({ where: { email: body.email } })) throw new BadRequestException('Email already registered');
+      const slug = `${
+        body.firmName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || 'firm'
+      }-${randomBytes(4).toString('hex')}`;
+      const firm = await tx.organization.create({ data: { name: body.firmName, slug, phone: body.phone, email: body.email, onboarded: true } });
+      await tx.user.create({
+        data: { name: body.name, email: body.email, phone: body.phone, role: 'BROKER_ADMIN', organizationId: firm.id, passwordHash, emailVerified: true },
+      });
+      const plan = await tx.plan.findFirst({ where: { isActive: true, priceMonthly: 0 }, orderBy: { sortOrder: 'asc' } });
+      if (plan) await tx.subscription.create({ data: { organizationId: firm.id, planId: plan.id, status: 'ACTIVE' } });
+      return firm;
+    });
+    await this.audit.log(actor, 'broker.create', 'Organization', org.id, { name: org.name });
+    return org;
+  }
+
   @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('users')
   async users(@Query() q: { q?: string; role?: string; status?: string; page?: string }) {

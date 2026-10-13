@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ImapFlow } from 'imapflow';
@@ -43,6 +44,7 @@ const HOUSING_MAX_SPAN_SEC = 2 * 86400 - 120; // Housing enforces date differenc
 export class ConnectorsService implements OnModuleInit {
   private readonly logger = new Logger(ConnectorsService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly jobs: JobsService,
@@ -182,6 +184,7 @@ export class ConnectorsService implements OnModuleInit {
   // ------------------------------------------------------------------ email inbox (Housing / 99acres / MagicBricks / NoBroker)
   @Cron('0 */2 * * * *')
   async scheduleInboxPolls() {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
     const states = await this.prisma.connectorState.findMany({
       where: { type: 'EMAIL_INBOX', status: { in: ['ACTIVE', 'ERROR'] } },
@@ -313,6 +316,7 @@ export class ConnectorsService implements OnModuleInit {
   // ------------------------------------------------------------------ Housing.com CRM Lead API (pull)
   @Cron('0 */5 * * * *')
   async scheduleHousingPolls() {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
     const states = await this.prisma.connectorState.findMany({
       where: { type: 'HOUSING_API', status: { in: ['ACTIVE', 'ERROR'] } },

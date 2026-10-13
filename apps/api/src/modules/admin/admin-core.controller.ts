@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Q
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { GROWTH_FEATURES, INTEGRATIONS, featureDefault, getIntegration, renderSteps } from '@brokeriq/shared';
+import { GROWTH_FEATURES, INTEGRATIONS, featureDefault, getIntegration, renderSteps, modulePolicySchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { AuditService } from '../../core/audit/audit.service';
@@ -16,6 +16,7 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { paged } from '../../common/utils';
 import { env } from '../../config/env';
 import { FeaturesService } from '../../core/features/features.service';
+import { ModulesService } from '../../core/features/modules.service';
 
 const integrationSaveSchema = z.object({ enabled: z.boolean().optional(), fields: z.record(z.string(), z.unknown()).default({}) });
 
@@ -33,9 +34,20 @@ export class AdminCoreController {
     private readonly auth: AuthService,
     private readonly events: EventsService,
     private readonly features: FeaturesService,
+    private readonly modules: ModulesService,
   ) {}
 
   // ------------------------------------------------------------------ dashboard
+  @Get('modules')
+  modulePolicies() {
+    return this.modules.all();
+  }
+
+  @Patch('modules/:key')
+  saveModule(@Param('key') key: string, @Body(new ZodPipe(modulePolicySchema)) body: unknown, @CurrentUser() user: RequestUser) {
+    return this.modules.save(key, body, user);
+  }
+
   @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('dashboard')
   async dashboard() {

@@ -2,36 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-  BarChart3,
-  Bell,
-  Building2,
-  CalendarCheck,
-  CircleDollarSign,
-  Handshake,
-  Inbox,
-  KanbanSquare,
-  LayoutDashboard,
-  ListChecks,
-  MessageSquareHeart,
-  MessagesSquare,
-  Plug,
-  Plus,
-  ScanLine,
-  Settings,
-  Star,
-  Users,
-  Workflow,
-  ShieldCheck,
-  UserPlus,
-  Network,
-  KeyRound,
-  FileText,
-  Wallet,
-  FileSignature,
-  Megaphone,
-  FileSpreadsheet,
-} from 'lucide-react';
+import { Inbox, LayoutDashboard, MessagesSquare, Plus, Workflow, FileSpreadsheet } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PrivacyConsentCard } from '@/components/privacy/privacy';
@@ -46,7 +17,6 @@ function Inner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
-  const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const dash = useQuery({
     queryKey: ['broker-dashboard'],
     queryFn: () => api<any>('/broker/dashboard'),
@@ -62,56 +32,11 @@ function Inner({ children }: { children: React.ReactNode }) {
   const groups: NavGroup[] = [
     {
       items: [
-        { href: '/broker', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-        { href: '/broker/leads', label: 'Leads', icon: Inbox, badge: k?.newToday || null },
-        { href: '/broker/pipeline', label: 'Pipeline', icon: KanbanSquare },
-        { href: '/broker/follow-ups', label: 'Follow-ups', icon: ListChecks, badge: k?.overdue || null },
-        { href: '/broker/visits', label: 'Site visits', icon: CalendarCheck },
-        { href: '/broker/inbox', label: 'WhatsApp & chat', icon: MessagesSquare, badge: k?.unreadMessages || null },
-      ],
-    },
-    {
-      title: 'Inventory',
-      items: [
-        { href: '/broker/inventory', label: 'Property ledger (Sheet)', icon: FileSpreadsheet },
-        { href: '/broker/scanner', label: 'AI book scanner', icon: ScanLine },
-        { href: '/broker/deals', label: 'Deals & commission', icon: Handshake },
-        { href: '/broker/invoices', label: 'Invoices', icon: FileText },
-        { href: '/broker/tokens', label: 'Token records', icon: Wallet, flag: 'visit_tokens' },
-        { href: '/broker/agreements', label: 'Rent agreements', icon: FileSignature, flag: 'rent_agreement' },
-        { href: '/broker/owners', label: 'Owners & leases', icon: KeyRound },
-        { href: '/broker/network', label: 'Co-broking network', icon: Network, flag: 'cobroking' },
-      ],
-    },
-    {
-      title: 'Growth',
-      items: [
-        ...(admin
-          ? [
-              { href: '/broker/campaigns', label: 'Campaigns', icon: Megaphone, flag: 'campaigns' },
-              { href: '/broker/automations', label: 'Automations', icon: Workflow },
-              { href: '/broker/connectors', label: 'Lead connectors', icon: Plug },
-            ]
-          : []),
-        { href: '/broker/analytics', label: 'Analytics', icon: BarChart3 },
-        ...(admin ? [{ href: '/broker/reports', label: 'Reports & GST', icon: FileSpreadsheet, flag: 'broker_reports' }] : []),
-        ...(admin ? [{ href: '/broker/reviews', label: 'Reviews', icon: Star }] : []),
-      ],
-    },
-    {
-      title: 'Firm',
-      items: [
-        { href: '/broker/team', label: 'Team', icon: Users },
-        { href: '/broker/invite-brokers', label: 'Brokers को invite करें', icon: UserPlus },
-        ...(admin
-          ? [
-              { href: '/broker/billing', label: 'Plan & billing', icon: CircleDollarSign, flag: 'paid' },
-              { href: '/broker/settings', label: 'Settings', icon: Settings },
-            ]
-          : []),
-        { href: '/broker/notifications', label: 'Notifications', icon: Bell },
-        { href: '/broker/privacy', label: 'Privacy & data sharing', icon: ShieldCheck },
-        { href: '/broker/feedback', label: 'Feedback', icon: MessageSquareHeart },
+        { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, exact: true },
+        { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
+        { href: '/broker/leads', label: 'Leads & Requirements', icon: Inbox, badge: k?.newToday || null },
+        { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
+        { href: '/broker/automations', label: 'Automation & Housing', icon: Workflow },
       ],
     },
   ];
@@ -138,7 +63,7 @@ function Inner({ children }: { children: React.ReactNode }) {
 
 export default function BrokerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RequireAuth roles={['BROKER_ADMIN', 'BROKER_AGENT']}>
+    <RequireAuth roles={['BROKER_ADMIN']}>
       <Inner>{children}</Inner>
     </RequireAuth>
   );

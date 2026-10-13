@@ -3,6 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { Prisma, type Job } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { env } from '../../config/env';
+import { ModulesService } from '../features/modules.service';
 
 export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
@@ -17,7 +18,10 @@ export class JobsService implements OnModuleDestroy {
   private running = false;
   private stopped = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly modules: ModulesService,
+  ) {}
 
   register(type: string, handler: JobHandler) {
     this.handlers.set(type, handler);
@@ -59,6 +63,12 @@ export class JobsService implements OnModuleDestroy {
   }
 
   private async execute(job: Job) {
+    try {
+      await this.modules.assertPath(job.type, 'BROKER_ADMIN', 'job');
+    } catch (error) {
+      await this.prisma.job.update({ where: { id: job.id }, data: { status: 'FAILED', lastError: (error as Error).message, lockedAt: null } });
+      return;
+    }
     const handler = this.handlers.get(job.type);
     if (!handler) {
       await this.prisma.job.update({ where: { id: job.id }, data: { status: 'FAILED', lastError: `No handler for ${job.type}` } });

@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { normalizeIndianPhone, videoRoomUrl } from '@brokeriq/shared';
@@ -55,6 +56,7 @@ export function slotTimes(cfg: VisitSlotConfig, now: Date, days: number): Date[]
 export class VisitBookingService {
   private readonly logger = new Logger(VisitBookingService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly notifications: NotificationsService,
@@ -234,6 +236,7 @@ export class VisitBookingService {
   // ------------------------------------------------------------------ tenant reminders
   @Cron('0 */10 * * * *')
   async remindersTick() {
+    if (!(await this.modulePolicy.enabled('slot_booking'))) return;
     if (!env().JOBS_ENABLED) return;
     await this.sendTenantReminders();
   }

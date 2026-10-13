@@ -13,7 +13,7 @@ export class FeaturesService {
 
   private async flags() {
     if (this.cache && Date.now() - this.cache.at < TTL_MS) return this.cache.flags;
-    const rows = await this.prisma.featureFlag.findMany({ select: { key: true, enabled: true } }).catch(() => []);
+    const rows = await this.prisma.featureFlag.findMany({ select: { key: true, enabled: true } });
     this.cache = { at: Date.now(), flags: new Map(rows.map((r) => [r.key, r.enabled])) };
     return this.cache.flags;
   }

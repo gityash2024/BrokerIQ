@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Prisma, type AutomationRule, type AutomationTrigger, type Lead } from '@prisma/client';
@@ -38,6 +39,7 @@ const IST_OFFSET_MIN = 330;
 export class AutomationService implements OnModuleInit {
   private readonly logger = new Logger(AutomationService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly jobs: JobsService,
@@ -202,6 +204,7 @@ export class AutomationService implements OnModuleInit {
   }
 
   async trigger(trigger: AutomationTrigger, orgId: string, leadId: string, ctx: Record<string, any> = {}) {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     const rules = await this.prisma.automationRule.findMany({ where: { organizationId: orgId, trigger, isActive: true } });
     if (!rules.length) return;
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
@@ -231,6 +234,7 @@ export class AutomationService implements OnModuleInit {
   }
 
   async runAction(ruleId: string, leadId: string, index: number, ctx: Record<string, any>) {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     const rule = await this.prisma.automationRule.findUnique({ where: { id: ruleId } });
     if (!rule?.isActive) return;
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId }, include: { assignedTo: true, organization: true, listing: true } });
@@ -370,6 +374,7 @@ export class AutomationService implements OnModuleInit {
   // ------------------------------------------------------------------ scheduled triggers & reminders
   @Cron('0 */30 * * * *')
   async noActivityScan() {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
     const rules = await this.prisma.automationRule.findMany({ where: { trigger: 'NO_ACTIVITY', isActive: true } });
     for (const rule of rules) {
@@ -394,6 +399,7 @@ export class AutomationService implements OnModuleInit {
 
   @Cron('0 * * * * *')
   async followUpReminders() {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
     const soon = new Date(Date.now() + 10 * 60_000);
     const due = await this.prisma.followUp.findMany({
@@ -419,6 +425,7 @@ export class AutomationService implements OnModuleInit {
 
   @Cron('0 */5 * * * *')
   async visitReminders() {
+    if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
     const inHour = new Date(Date.now() + 60 * 60_000);
     const visits = await this.prisma.siteVisit.findMany({

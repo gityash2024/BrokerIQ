@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import type { Prisma } from '@prisma/client';
@@ -22,6 +23,7 @@ const RESULTS = 5;
 export class WaBotService implements OnModuleInit {
   private readonly logger = new Logger(WaBotService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly settings: SettingsService,
@@ -170,6 +172,7 @@ export class WaBotService implements OnModuleInit {
   // ------------------------------------------------------------------ alerts
   @Cron('0 10 * * * *')
   async hourlyAlerts() {
+    if (!(await this.modulePolicy.enabled('whatsapp_bot'))) return;
     if (!env().JOBS_ENABLED || !(await this.enabled())) return;
     await this.sendAlerts();
   }

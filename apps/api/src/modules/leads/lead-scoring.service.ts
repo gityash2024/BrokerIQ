@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import type { Prisma } from '@prisma/client';
@@ -17,6 +18,7 @@ const OPEN_STAGES = ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATIO
 export class LeadScoringService implements OnModuleInit {
   private readonly logger = new Logger(LeadScoringService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly jobs: JobsService,
@@ -99,6 +101,7 @@ export class LeadScoringService implements OnModuleInit {
 
   @Cron('0 30 20 * * *') // 02:00 IST
   async nightly() {
+    if (!(await this.modulePolicy.enabled('leads'))) return;
     if (!env().JOBS_ENABLED) return;
     let cursor: string | undefined;
     let done = 0;

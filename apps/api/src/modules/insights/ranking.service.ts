@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,10 +28,14 @@ export function rankScore(o: { rating: number; reviewCount: number; responseMinu
 @Injectable()
 export class RankingService {
   private readonly logger = new Logger(RankingService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly modulePolicy: ModulesService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Cron('0 0 21 * * *') // 02:30 IST
   async nightly() {
+    if (!(await this.modulePolicy.enabled('reports'))) return;
     if (!env().JOBS_ENABLED) return;
     await this.recomputeAll();
   }

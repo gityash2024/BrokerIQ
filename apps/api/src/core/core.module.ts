@@ -14,6 +14,7 @@ import { LocalStorageService } from './media/local-storage.service';
 import { EventsService } from './events/events.service';
 import { UsageService } from './usage/usage.service';
 import { FeaturesService } from './features/features.service';
+import { ModulesService } from './features/modules.service';
 import { MonitoringService } from './monitoring/monitoring.service';
 import { AccessService } from './access/access.service';
 import { env } from '../config/env';
@@ -33,6 +34,7 @@ const services = [
   EventsService,
   UsageService,
   FeaturesService,
+  ModulesService,
   MonitoringService,
   AccessService,
 ];

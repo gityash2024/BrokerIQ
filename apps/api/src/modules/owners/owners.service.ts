@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import type { Prisma } from '@prisma/client';
@@ -44,6 +45,7 @@ const addMonths = (d: Date, m: number) => {
 export class OwnersService implements OnModuleInit {
   private readonly logger = new Logger(OwnersService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly notifications: NotificationsService,
@@ -190,6 +192,7 @@ export class OwnersService implements OnModuleInit {
 
   /** A closed rent deal becomes a tenancy (11-month default term) so renewals are tracked. */
   async tenancyFromDeal(dealId: string) {
+    if (!(await this.modulePolicy.enabled('owners'))) return;
     const d = await this.prisma.deal.findUnique({
       where: { id: dealId },
       include: { lead: { select: { name: true, phone: true } }, listing: { select: { id: true, purpose: true, price: true, ownerId: true } } },
@@ -219,6 +222,7 @@ export class OwnersService implements OnModuleInit {
   // ------------------------------------------------------------------ renewal reminders
   @Cron('0 30 4 * * *') // 10:00 IST
   async renewalReminders() {
+    if (!(await this.modulePolicy.enabled('owners'))) return;
     if (!env().JOBS_ENABLED) return;
     await this.runRenewalReminders();
   }

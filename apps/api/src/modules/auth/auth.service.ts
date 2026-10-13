@@ -77,6 +77,8 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async issue(user: UserWithOrg, meta: ClientMeta = {}): Promise<AuthResponse> {
+    if (env().BROKER_FIRST && (!['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role) || (user.role === 'BROKER_ADMIN' && !user.organizationId)))
+      throw new ForbiddenException('यह account अभी broker launch के लिए सक्षम नहीं है।');
     if (user.status !== 'ACTIVE') throw new ForbiddenException('यह account suspend है। Support से संपर्क करें।');
     if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN')
       throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
@@ -140,6 +142,7 @@ export class AuthService implements OnApplicationBootstrap {
 
   // ------------------------------------------------------------------ flows
   async register(input: RegisterInput, meta: ClientMeta) {
+    if (env().BROKER_FIRST && input.accountType !== 'BROKER') throw new ForbiddenException('Consumer signup अभी उपलब्ध नहीं है।');
     await this.access.assertNotBlocked({ email: input.email, phone: input.phone, ip: meta.ip });
     const app = await this.settings.getAppConfig();
     if (!app.auth.allowPasswordLogin) throw new ForbiddenException('Password signup बंद है — Email OTP से login करें।');
@@ -225,6 +228,7 @@ export class AuthService implements OnApplicationBootstrap {
     await this.consumeOtp(input.email, input.code, ['LOGIN', 'VERIFY_EMAIL']);
     let user = await this.findUser({ email: input.email });
     if (!user) {
+      if (env().BROKER_FIRST && input.accountType !== 'BROKER') throw new ForbiddenException('Broker invitation required');
       const invite = input.accountType === 'BROKER' ? await this.brokerGate(input.inviteCode) : null;
       const created = await this.prisma.user.create({ data: { email: input.email, name: input.name || input.email.split('@')[0], emailVerified: true } });
       if (input.accountType === 'BROKER') await this.createBrokerOrg(created.id, `${created.name} Realty`, this.prisma, invite);
@@ -253,6 +257,7 @@ export class AuthService implements OnApplicationBootstrap {
     await this.access.assertNotBlocked({ email, ip: meta.ip });
     let user = (await this.findUser({ googleId: payload.sub })) ?? (await this.findUser({ email }));
     if (!user) {
+      if (env().BROKER_FIRST && accountType !== 'BROKER') throw new ForbiddenException('Broker invitation required');
       const invite = accountType === 'BROKER' ? await this.brokerGate(inviteCode) : null;
       const created = await this.prisma.user.create({
         data: { email, name: payload.name ?? email.split('@')[0], googleId: payload.sub, avatarUrl: payload.picture, emailVerified: true },

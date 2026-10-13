@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
@@ -28,6 +29,7 @@ export function upiRentLink(upiId: string, payee: string, amount: number, month:
 export class RentService {
   private readonly logger = new Logger(RentService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly notifications: NotificationsService,
@@ -218,6 +220,7 @@ export class RentService {
   // ------------------------------------------------------------------ reminders (09:00 IST)
   @Cron('0 30 3 * * *')
   async cron() {
+    if (!(await this.modulePolicy.enabled('rent_tracker'))) return;
     if (!env().JOBS_ENABLED || !(await this.features.isEnabled('rent_tracker'))) return;
     await this.sendReminders();
   }

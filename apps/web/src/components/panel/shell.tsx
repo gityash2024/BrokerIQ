@@ -16,6 +16,8 @@ import { Avatar, Badge, Logo } from '../ui/misc';
 import { Sheet } from '../ui/dialog';
 import { ThemeToggle } from '../ui/theme-toggle';
 import { LanguagePicker } from '../i18n/language-picker';
+import { ModuleAccess } from './module-access';
+import { moduleAllowed, moduleForPath } from '@brokeriq/shared';
 
 export interface NavItem {
   href: string;
@@ -46,7 +48,12 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
       {groups
         .map((g) => ({
           ...g,
-          items: g.items.filter((it) => isGateOpen(config, it.flag) && (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role)))),
+          items: g.items.filter(
+            (it) =>
+              isGateOpen(config, it.flag) &&
+              (!moduleForPath(it.href) || moduleAllowed(config.modules, moduleForPath(it.href)!, role ?? '')) &&
+              (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role))),
+          ),
         }))
         .filter((g) => g.items.length)
         .map((g, gi) => (
@@ -206,11 +213,28 @@ export function PanelShell({
             Website <ExternalLink className="size-3.5" />
           </Link>
           */}
-          {title !== 'Super Admin' && <LanguagePicker />}
+          <Link href="/" className="hidden text-sm font-medium text-muted sm:block">
+            Website
+          </Link>
+          <div className="ml-auto flex items-center gap-3">
+            {title !== 'Super Admin' && (
+              <>
+                <Link href="/broker/upcoming" className="text-xs text-muted">
+                  Upcoming
+                </Link>
+                <Link href="/broker/settings" className="text-sm font-semibold">
+                  Settings
+                </Link>
+              </>
+            )}
+          </div>
+          <LanguagePicker />
           <ThemeToggle />
           <NotificationsBell href={notificationsHref} />
         </header>
-        <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="px-4 py-6 sm:px-6 lg:px-8">
+          <ModuleAccess>{children}</ModuleAccess>
+        </main>
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import { Field, Input, Select } from '@/components/ui/field';
 import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { CreateBroker } from '@/components/admin/create-broker';
 
 const VTONE: Record<string, any> = { VERIFIED: 'success', PENDING: 'warning', REJECTED: 'danger', UNVERIFIED: 'neutral' };
 
@@ -31,6 +32,7 @@ export default function BrokersPage() {
   return (
     <>
       <PageHeader title="Broker firms" subtitle={q.data ? `${q.data.total} firms` : ' '} />
+      <CreateBroker />
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="w-full sm:w-72">
           <Input

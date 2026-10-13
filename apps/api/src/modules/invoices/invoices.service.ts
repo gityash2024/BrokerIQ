@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
@@ -55,6 +56,7 @@ export function upiLink(org: Pick<Organization, 'upiId' | 'upiName' | 'name'>, i
 export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly notifications: NotificationsService,
@@ -302,6 +304,7 @@ export class InvoicesService {
   // ------------------------------------------------------------------ overdue reminders
   @Cron('0 30 5 * * *') // 11:00 IST
   async reminders() {
+    if (!(await this.modulePolicy.enabled('deals'))) return;
     if (!env().JOBS_ENABLED) return;
     await this.runReminders();
   }

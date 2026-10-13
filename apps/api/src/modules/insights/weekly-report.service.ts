@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { LEAD_SOURCE_LABELS, formatINR, type LeadSource } from '@brokeriq/shared';
@@ -24,6 +25,7 @@ export interface WeeklySummary {
 export class WeeklyReportService {
   private readonly logger = new Logger(WeeklyReportService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
@@ -33,6 +35,7 @@ export class WeeklyReportService {
 
   @Cron('0 0 4 * * 1') // Monday 09:30 IST
   async weekly() {
+    if (!(await this.modulePolicy.enabled('reports'))) return;
     if (!env().JOBS_ENABLED) return;
     const orgs = await this.prisma.organization.findMany({
       where: { status: 'ACTIVE', weeklyReport: true, leads: { some: { createdAt: { gte: new Date(Date.now() - 30 * 86400_000) } } } },

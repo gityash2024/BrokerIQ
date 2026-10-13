@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -19,6 +20,7 @@ import { env } from '../../config/env';
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly mail: MailService,
@@ -302,6 +304,7 @@ export class BillingService {
   // ------------------------------------------------------------------ lifecycle
   @Cron('0 15 * * * *')
   async expireSubscriptions() {
+    if (!(await this.modulePolicy.enabled('billing'))) return;
     if (!env().JOBS_ENABLED) return;
     const now = new Date();
     const expired = await this.prisma.subscription.findMany({

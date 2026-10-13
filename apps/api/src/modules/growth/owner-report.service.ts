@@ -1,3 +1,4 @@
+import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { formatINR } from '@brokeriq/shared';
@@ -19,6 +20,7 @@ const maskName = (n: string) => {
 export class OwnerReportService {
   private readonly logger = new Logger(OwnerReportService.name);
   constructor(
+    private readonly modulePolicy: ModulesService,
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly features: FeaturesService,
@@ -120,6 +122,7 @@ export class OwnerReportService {
   // ------------------------------------------------------------------ weekly email (Monday 10:00 IST)
   @Cron('0 30 4 * * 1')
   async weekly() {
+    if (!(await this.modulePolicy.enabled('owner_reports'))) return;
     if (!env().JOBS_ENABLED || !(await this.features.isEnabled('owner_reports'))) return;
     const owners = await this.prisma.owner.findMany({
       where: { weeklyReport: true, email: { not: null }, reportToken: { not: null }, organization: { status: 'ACTIVE' } },

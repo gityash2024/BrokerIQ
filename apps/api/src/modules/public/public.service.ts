@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
 import { FeaturesService } from '../../core/features/features.service';
+import { ModulesService } from '../../core/features/modules.service';
 
 @Injectable()
 export class PublicService {
@@ -12,11 +13,12 @@ export class PublicService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly features: FeaturesService,
+    private readonly modules: ModulesService,
   ) {}
 
   async config() {
     const [app, flags, integrations] = await Promise.all([this.settings.getAppConfig(), this.features.all(), this.settings.publicIntegrations()]);
-    return { app, flags, integrations, apiVersion: '2.0.0' };
+    return { app, flags, integrations, modules: await this.modules.all(), apiVersion: '2.1.0' };
   }
 
   async stats() {

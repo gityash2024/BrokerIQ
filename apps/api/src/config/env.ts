@@ -5,6 +5,10 @@ const devDefault = <T extends z.ZodTypeAny>(schema: T, value: string) => (isProd
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  BROKER_FIRST: z
+    .string()
+    .default('true')
+    .transform((v) => v !== 'false'),
   /** Interactive API docs at /api/docs — off in production unless explicitly enabled. */
   SWAGGER_ENABLED: z.enum(['true', 'false']).optional(),
   /** Server watchdog writes auto-restarts here; the API reports them to Super Admins. */

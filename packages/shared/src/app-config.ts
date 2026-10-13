@@ -142,6 +142,7 @@ export type FeatureFlagKey = (typeof FeatureFlagKey)[keyof typeof FeatureFlagKey
 
 /** Public config payload (what clients receive) */
 export interface PublicConfig {
+  modules?: import('./modules').ModulePolicies;
   app: AppConfig;
   flags: Record<string, boolean>;
   /** Public (non-secret) integration values, e.g. maptiler key, google client ids, razorpay key id */

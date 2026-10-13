@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Role } from '@prisma/client';
 import { IS_PUBLIC, ROLES_KEY, type RequestUser } from '../decorators';
 import { env } from '../../config/env';
+import { PrismaService } from '../../prisma/prisma.service';
 
 /** Global guard: validates the Bearer access token unless the route is @Public(). */
 @Injectable()
@@ -11,9 +12,10 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly reflector: Reflector,
+    private readonly prisma: PrismaService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     if (context.getType() !== 'http') return true;
     const req = context.switchToHttp().getRequest();
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
@@ -26,6 +28,18 @@ export class JwtAuthGuard implements CanActivate {
         req.user = { id: payload.sub, role: payload.role, orgId: payload.orgId ?? null, email: payload.email } satisfies RequestUser;
       } catch {
         if (!isPublic) throw new UnauthorizedException('Session expired. Please log in again.');
+      }
+    }
+    if (req.user) {
+      const current = await this.prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { id: true, role: true, organizationId: true, email: true, status: true, deletedAt: true, organization: { select: { status: true } } },
+      });
+      if (!current || current.deletedAt || current.status !== 'ACTIVE' || (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED')) {
+        if (!isPublic) throw new UnauthorizedException('Account no longer active');
+        delete req.user;
+      } else {
+        req.user = { id: current.id, role: current.role, orgId: current.organizationId, email: current.email } satisfies RequestUser;
       }
     }
     if (isPublic) return true;
