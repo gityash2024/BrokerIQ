@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+// Broker-first pivot: Consumer portal redirected to broker OS.
+// Preserved imports and implementation below for future consumer marketplace rollout.
+/*
 'use client';
 import {
   Bell,
@@ -52,8 +57,11 @@ const GROUPS = [
     ],
   },
 ];
+*/
 
-export default function AccountLayout({ children }: { children: React.ReactNode }) {
+export default function AccountLayout({ children }: { children?: React.ReactNode }) {
+  redirect('/broker');
+  /*
   return (
     <RequireAuth roles={['USER']}>
       <PanelShell
@@ -80,4 +88,5 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       </PanelShell>
     </RequireAuth>
   );
+  */
 }

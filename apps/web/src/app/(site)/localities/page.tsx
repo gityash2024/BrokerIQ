@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+// Broker-first pivot: Consumer marketplace is parked for now; app routes directly to /login.
+// Preserved sections and imports below for future consumer marketplace rollout.
+/*
 import type { Metadata } from 'next';
 import { sget } from '@/lib/server';
 import { PageShell } from '@/components/site/page-shell';
@@ -8,8 +13,11 @@ export const metadata: Metadata = {
   title: 'Gurgaon localities & sectors — prices, listings, guides',
   description: 'Explore every Gurgaon sector and locality: live listings, average ₹/sq.ft, connectivity and neighbourhood guides.',
 };
+*/
 
-export default async function LocalitiesPage() {
+export default function LocalitiesPage() {
+  redirect('/login');
+  /*
   const locs = (await sget<any[]>('/public/localities', 300)) ?? [];
   return (
     <PageShell>
@@ -22,4 +30,5 @@ export default async function LocalitiesPage() {
       <LocalitiesExplorer locs={locs} />
     </PageShell>
   );
+  */
 }

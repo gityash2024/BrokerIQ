@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+// Broker-first pivot: Consumer marketplace is parked for now; app routes directly to /login.
+// Preserved sections and imports below for future consumer marketplace rollout.
+/*
 import type { Metadata } from 'next';
 import { Building2 } from 'lucide-react';
 import { requireSaleListings, sget } from '@/lib/server';
@@ -10,8 +15,11 @@ export const metadata: Metadata = {
   title: 'New projects in Gurgaon — RERA registered launches',
   description: 'New launch and under-construction residential & commercial projects in Gurgaon with prices, configurations, RERA details and brochures.',
 };
+*/
 
-export default async function ProjectsPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+export default function ProjectsPage({ searchParams }: { searchParams?: Promise<Record<string, string>> }) {
+  redirect('/login');
+  /*
   await requireSaleListings();
   const sp = await searchParams;
   const qs = new URLSearchParams(sp).toString();
@@ -41,4 +49,5 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       </div>
     </PageShell>
   );
+  */
 }

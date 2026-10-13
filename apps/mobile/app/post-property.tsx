@@ -1,3 +1,29 @@
+// BROKER-ONLY LAUNCH: Consumer screen disabled
+// Original code commented out below
+import { View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Screen, Txt } from '@/ui';
+
+export default function DisabledScreen() {
+  useEffect(() => {
+    // Auto-redirect to broker dashboard
+    const timer = setTimeout(() => router.replace('/(broker)/dashboard'), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Screen title="Coming Soon">
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Txt v="h2" center>🚧 Coming Soon</Txt>
+        <Txt v="body" center style={{ marginTop: 8, opacity: 0.6 }}>
+          यह feature जल्द ही उपलब्ध होगा। Broker Dashboard पर redirect हो रहे हैं...
+        </Txt>
+      </View>
+    </Screen>
+  );
+}
+
+/* === ORIGINAL CODE (commented out for broker-only launch) ===
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -23,6 +49,18 @@ const STEPS = ['Basics', 'Location', 'Details', 'Photos'];
 const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(/[^\d.]/g, '')));
 
 export default function PostProperty() {
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <Header title="Property post करें" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
+        <Txt v="h2">Coming Soon</Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          यह फीचर जल्द ही उपलब्ध होगा।
+        </Txt>
+      </View>
+    </SafeAreaView>
+  );
+  /*
   const coBrokingOn = useFlag('cobroking');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { c } = useTheme();
@@ -527,4 +565,7 @@ export default function PostProperty() {
       </Row>
     </SafeAreaView>
   );
+  */
 }
+
+=== END ORIGINAL CODE === */

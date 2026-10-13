@@ -1,3 +1,29 @@
+// BROKER-ONLY LAUNCH: Consumer screen disabled
+// Original code commented out below
+import { View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Screen, Txt } from '@/ui';
+
+export default function DisabledScreen() {
+  useEffect(() => {
+    // Auto-redirect to broker dashboard
+    const timer = setTimeout(() => router.replace('/(broker)/dashboard'), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Screen title="Coming Soon">
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Txt v="h2" center>🚧 Coming Soon</Txt>
+        <Txt v="body" center style={{ marginTop: 8, opacity: 0.6 }}>
+          यह feature जल्द ही उपलब्ध होगा। Broker Dashboard पर redirect हो रहे हैं...
+        </Txt>
+      </View>
+    </Screen>
+  );
+}
+
+/* === ORIGINAL CODE (commented out for broker-only launch) ===
 import { useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
@@ -13,6 +39,18 @@ import { Badge, Card, Empty, ErrorView, Header, IconBtn, Row, Screen, Segmented,
 const TONE: Record<string, string> = { NEW: '#4F46E5', RESPONDED: '#10B981', CLOSED: '#94A3B8' };
 
 export default function Enquiries() {
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <Header title="Enquiries" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
+        <Txt v="h2">Coming Soon</Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          यह फीचर जल्द ही उपलब्ध होगा।
+        </Txt>
+      </View>
+    </Screen>
+  );
+  /*
   const { c } = useTheme();
   const [tab, setTab] = useState<'sent' | 'received'>('sent');
   const q = useQuery({ queryKey: ['enquiries', tab], queryFn: () => api<any[]>(`/enquiries/${tab}`) });
@@ -102,4 +140,7 @@ export default function Enquiries() {
       )}
     </Screen>
   );
+  */
 }
+
+=== END ORIGINAL CODE === */

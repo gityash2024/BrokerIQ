@@ -1,4 +1,31 @@
+// BROKER-ONLY LAUNCH: Consumer screen disabled
+// Original code commented out below
+import { View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Screen, Txt } from '@/ui';
+
+export default function DisabledScreen() {
+  useEffect(() => {
+    // Auto-redirect to broker dashboard
+    const timer = setTimeout(() => router.replace('/(broker)/dashboard'), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Screen title="Coming Soon">
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Txt v="h2" center>🚧 Coming Soon</Txt>
+        <Txt v="body" center style={{ marginTop: 8, opacity: 0.6 }}>
+          यह feature जल्द ही उपलब्ध होगा। Broker Dashboard पर redirect हो रहे हैं...
+        </Txt>
+      </View>
+    </Screen>
+  );
+}
+
+/* === ORIGINAL CODE (commented out for broker-only launch) ===
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck } from 'lucide-react-native';
 import { api, patch, post } from '@/lib/api';
@@ -9,6 +36,18 @@ import { Badge, Button, Card, Header, Input, Loader, Row, Screen, Txt } from '@/
 
 /** "Verified tenant" via office email OTP — brokers see a badge and prioritise the enquiry. */
 export default function VerifyTenant() {
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <Header title="Verified tenant" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
+        <Txt v="h2">Coming Soon</Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          यह फीचर जल्द ही उपलब्ध होगा।
+        </Txt>
+      </View>
+    </Screen>
+  );
+  /*
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['tenant-profile'], queryFn: () => api<any>('/me/tenant-profile') });
   const [f, setF] = useState({ occupation: '', employer: '', email: '', code: '' });
@@ -96,4 +135,7 @@ export default function VerifyTenant() {
       )}
     </Screen>
   );
+  */
 }
+
+=== END ORIGINAL CODE === */

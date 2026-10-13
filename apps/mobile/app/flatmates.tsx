@@ -1,3 +1,29 @@
+// BROKER-ONLY LAUNCH: Consumer screen disabled
+// Original code commented out below
+import { View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Screen, Txt } from '@/ui';
+
+export default function DisabledScreen() {
+  useEffect(() => {
+    // Auto-redirect to broker dashboard
+    const timer = setTimeout(() => router.replace('/(broker)/dashboard'), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Screen title="Coming Soon">
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Txt v="h2" center>🚧 Coming Soon</Txt>
+        <Txt v="body" center style={{ marginTop: 8, opacity: 0.6 }}>
+          यह feature जल्द ही उपलब्ध होगा। Broker Dashboard पर redirect हो रहे हैं...
+        </Txt>
+      </View>
+    </Screen>
+  );
+}
+
+/* === ORIGINAL CODE (commented out for broker-only launch) ===
 import { useEffect, useState } from 'react';
 import { Linking, Switch, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +37,18 @@ import { Avatar, Badge, Button, Card, Chip, Empty, Header, Input, Loader, Row, S
 
 /** Flatmate / room-share matching; phone only after both accept. */
 export default function Flatmates() {
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <Header title="Flatmates" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
+        <Txt v="h2">Coming Soon</Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          यह फीचर जल्द ही उपलब्ध होगा।
+        </Txt>
+      </View>
+    </Screen>
+  );
+  /*
   const me = useQuery({ queryKey: ['flatmate-me'], queryFn: () => api<any>('/flatmates/me') });
   const [tab, setTab] = useState<'matches' | 'requests' | 'profile'>('matches');
   useEffect(() => {
@@ -37,6 +75,7 @@ export default function Flatmates() {
       )}
     </Screen>
   );
+  */
 }
 
 function ProfileForm({ initial, onSaved }: { initial: any; onSaved: () => void }) {
@@ -228,3 +267,5 @@ function Requests() {
     </>
   );
 }
+
+=== END ORIGINAL CODE === */

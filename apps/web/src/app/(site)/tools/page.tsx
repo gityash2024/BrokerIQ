@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+// Broker-first pivot: Consumer marketplace is parked for now; app routes directly to /login.
+// Preserved sections and imports below for future consumer marketplace rollout.
+/*
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { PageShell } from '@/components/site/page-shell';
@@ -8,8 +13,11 @@ export const metadata: Metadata = {
   description:
     'Free rent tools for Gurgaon tenants: how much rent you can afford, total move-in cost with deposit and brokerage, and splitting rent between flatmates.',
 };
+*/
 
 export default function ToolsPage() {
+  redirect('/login');
+  /*
   return (
     <PageShell>
       <section className="mesh-hero py-14 text-white">
@@ -23,4 +31,5 @@ export default function ToolsPage() {
       </Suspense>
     </PageShell>
   );
+  */
 }

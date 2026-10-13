@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+// Broker-first pivot: Consumer marketplace is parked for now; app routes directly to /login.
+// Preserved sections and imports below for future consumer marketplace rollout.
+/*
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,8 +13,11 @@ import { RequireAuth } from '@/components/site/require-auth';
 import { ListingForm } from '@/components/site/listing-form';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
+*/
 
 export default function PostPropertyPage() {
+  redirect('/login');
+  /*
   const { isBroker } = useAuth();
   const router = useRouter();
   const [done, setDone] = useState<any>(null);
@@ -66,4 +74,5 @@ export default function PostPropertyPage() {
       </RequireAuth>
     </PageShell>
   );
+  */
 }

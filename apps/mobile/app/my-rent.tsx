@@ -1,3 +1,29 @@
+// BROKER-ONLY LAUNCH: Consumer screen disabled
+// Original code commented out below
+import { View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Screen, Txt } from '@/ui';
+
+export default function DisabledScreen() {
+  useEffect(() => {
+    // Auto-redirect to broker dashboard
+    const timer = setTimeout(() => router.replace('/(broker)/dashboard'), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Screen title="Coming Soon">
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Txt v="h2" center>🚧 Coming Soon</Txt>
+        <Txt v="body" center style={{ marginTop: 8, opacity: 0.6 }}>
+          यह feature जल्द ही उपलब्ध होगा। Broker Dashboard पर redirect हो रहे हैं...
+        </Txt>
+      </View>
+    </Screen>
+  );
+}
+
+/* === ORIGINAL CODE (commented out for broker-only launch) ===
 import { Linking, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
@@ -12,6 +38,18 @@ const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateStri
 
 /** "मेरा किराया": due date, owner's UPI (pay straight from any UPI app), rent receipts for HRA. */
 export default function MyRent() {
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <Header title="मेरा किराया" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
+        <Txt v="h2">Coming Soon</Txt>
+        <Txt color="muted" style={{ textAlign: 'center' }}>
+          यह फीचर जल्द ही उपलब्ध होगा।
+        </Txt>
+      </View>
+    </Screen>
+  );
+  /*
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['my-rent'], queryFn: () => api<any[]>('/me/rent') });
   return (
@@ -87,4 +125,7 @@ export default function MyRent() {
       )}
     </Screen>
   );
+  */
 }
+
+=== END ORIGINAL CODE === */

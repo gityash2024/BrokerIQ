@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+// Broker-first pivot: Consumer marketplace is parked for now; app routes directly to /login.
+// Preserved sections and imports below for future consumer marketplace rollout.
+/*
 import type { Metadata } from 'next';
 import { sget } from '@/lib/server';
 import { PageShell } from '@/components/site/page-shell';
@@ -9,12 +14,16 @@ export const metadata: Metadata = {
   description:
     'Housing.com, 99acres, MagicBricks, Facebook और WhatsApp की सारी leads एक app में। Auto WhatsApp replies, follow-ups, team, AI scanner. Free plan से शुरू करें।',
 };
+*/
 
-export default async function ForBrokersPage() {
+export default function ForBrokersPage() {
+  redirect('/login');
+  /*
   const [plans, faqs] = await Promise.all([sget<any[]>('/billing/plans', 300), sget<any[]>('/public/faqs?category=brokers', 300)]);
   return (
     <PageShell transparentHeader>
       <BrokerLanding plans={plans ?? []} faqs={faqs ?? []} />
     </PageShell>
   );
+  */
 }
