@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   name: process.env.APP_NAME ?? 'BrokerIQ',
   slug: 'brokeriq',
   scheme: 'brokeriq',
-  version: '1.4.0',
+  version: '2.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -26,9 +26,10 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 8,
+    versionCode: 10,
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
-    permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'READ_CONTACTS', 'RECORD_AUDIO'],
+    permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
+    blockedPermissions: ['android.permission.READ_CONTACTS', 'android.permission.WRITE_CONTACTS', 'android.permission.ACCESS_FINE_LOCATION', 'android.permission.ACCESS_COARSE_LOCATION', 'android.permission.RECORD_AUDIO'],
     intentFilters: [
       {
         action: 'VIEW',
@@ -40,6 +41,8 @@ const config: ExpoConfig = {
   },
   web: { favicon: './assets/favicon.png' },
   plugins: [
+    ['expo-sqlite', { useSQLCipher: true }],
+    ['expo-sharing', { android: { enabled: true, singleShareMimeTypes: ['text/plain', 'image/*', 'application/zip'], multipleShareMimeTypes: ['image/*'] }, ios: { enabled: false } }],
     './plugins/with-release-signing',
     'expo-router',
     'expo-secure-store',

@@ -71,6 +71,7 @@ function LeadsInner() {
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-brand-600"><Link href="/broker/leads/requirements">Requirements</Link><Link href="/broker/pipeline">Pipeline</Link><Link href="/broker/follow-ups">Follow-ups</Link><Link href="/broker/visits">Site visits</Link></div>
       <PageHeader
         title="Lead inbox"
         subtitle={q.data ? `${q.data.total} leads — हर portal, ad और WhatsApp से एक जगह` : ' '}

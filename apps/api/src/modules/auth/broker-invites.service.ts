@@ -40,13 +40,14 @@ export class BrokerInvitesService {
     const invite = this.normalize(code) ? await this.validate(code!) : null;
     if (invite) return invite;
     const app = await this.settings.getAppConfig();
-    if (!app.auth.allowBrokerSignup) throw new ForbiddenException('Broker account अभी सिर्फ़ invite से बनता है — invite code डालें।');
+    if (env().BROKER_FIRST || !app.auth.allowBrokerSignup) throw new ForbiddenException('Broker account अभी सिर्फ़ invite से बनता है — invite code डालें।');
     return null;
   }
 
   /** Marks the invite used by a new firm and links the referral. */
   async consume(invite: BrokerInvite, orgId: string, tx: Tx = this.prisma) {
-    await tx.brokerInvite.update({ where: { id: invite.id }, data: { uses: { increment: 1 } } });
+    const consumed=await tx.brokerInvite.updateMany({where:{id:invite.id,isActive:true,uses:{lt:invite.maxUses},OR:[{expiresAt:null},{expiresAt:{gt:new Date()}}]},data:{uses:{increment:1}}});
+    if(consumed.count!==1)throw new ForbiddenException('Invitation is expired or already used');
     await tx.organization.update({ where: { id: orgId }, data: { brokerInviteId: invite.id, referredByOrgId: invite.createdByOrgId ?? undefined } });
   }
 
@@ -66,7 +67,7 @@ export class BrokerInvitesService {
   }
 
   inviteLink(code: string) {
-    return `${env().PUBLIC_WEB_URL.replace(/\/$/, '')}/for-brokers?invite=${encodeURIComponent(code)}`;
+    return `${env().PUBLIC_WEB_URL.replace(/\/$/, '')}/signup?type=broker&invite=${encodeURIComponent(code)}`;
   }
 
   // ------------------------------------------------------------------ broker referrals

@@ -172,19 +172,19 @@ export const INTEGRATIONS: IntegrationDef[] = [
     ],
     fields: [
       { key: 'apiKey', label: 'API key', type: 'password', required: true, secret: true, placeholder: 'sk-or-v1-...' },
-      { key: 'textModel', label: 'Text model', type: 'text', default: 'meta-llama/llama-3.3-70b-instruct:free' },
+      { key: 'textModel', label: 'Text model', type: 'text', default: 'openrouter/free' },
       {
         key: 'fallbackModels',
         label: 'Backup text models (comma)',
         type: 'text',
-        default: 'deepseek/deepseek-chat-v3-0324:free,qwen/qwen-2.5-72b-instruct:free,google/gemini-2.0-flash-exp:free',
+        default: '',
       },
-      { key: 'visionModel', label: 'Vision model (scanner)', type: 'text', default: 'qwen/qwen2.5-vl-72b-instruct:free' },
+      { key: 'visionModel', label: 'Vision model (scanner)', type: 'text', default: 'openrouter/free' },
       {
         key: 'visionFallbackModels',
         label: 'Backup vision models (comma)',
         type: 'text',
-        default: 'google/gemini-2.0-flash-exp:free,meta-llama/llama-3.2-11b-vision-instruct:free',
+        default: '',
       },
     ],
     usedFor: ['AI scanner', 'Lead summary', 'Reply suggestions', 'Description writer', 'AI assistant'],

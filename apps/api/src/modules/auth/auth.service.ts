@@ -2,7 +2,7 @@ import { ForbiddenException, HttpStatus, Injectable, Logger, OnApplicationBootst
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
-import type { Organization, User } from '@prisma/client';
+import type { Organization, User, Prisma } from '@prisma/client';
 import { ErrorCode, slugify, type AuthResponse, type AuthUser, type RegisterInput } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
@@ -110,7 +110,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   /** Creates a broker firm for the user and makes them BROKER_ADMIN with the default plan. */
-  async createBrokerOrg(userId: string, firmName: string, tx = this.prisma, invite: BrokerInvite | null = null) {
+  async createBrokerOrg(userId: string, firmName: string, tx: Prisma.TransactionClient | PrismaService = this.prisma, invite: BrokerInvite | null = null) {
     const org = await tx.organization.create({ data: { name: firmName, slug: await this.uniqueOrgSlug(firmName) } });
     const granted = await this.invites.grantedPlan(invite, tx);
     if (granted) {
@@ -146,13 +146,17 @@ export class AuthService implements OnApplicationBootstrap {
     await this.access.assertNotBlocked({ email: input.email, phone: input.phone, ip: meta.ip });
     const app = await this.settings.getAppConfig();
     if (!app.auth.allowPasswordLogin) throw new ForbiddenException('Password signup बंद है — Email OTP से login करें।');
+    if (env().BROKER_FIRST && !input.inviteCode) throw new ForbiddenException('Public signup is disabled. Ask Super Admin for an invitation.');
     const invite = input.accountType === 'BROKER' ? await this.brokerGate(input.inviteCode) : null;
+    if(invite?.email && invite.email.toLowerCase()!==input.email.toLowerCase())throw new ForbiddenException('Invitation belongs to another email');
     const exists = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (exists) throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'इस email से account पहले से है — login करें।');
-    const user = await this.prisma.user.create({
-      data: { name: input.name, email: input.email, phone: input.phone, passwordHash: await bcrypt.hash(input.password, 12) },
+    const passwordHash=await bcrypt.hash(input.password,12);
+    const user = await this.prisma.$transaction(async(tx)=>{
+      const created=await tx.user.create({data:{name:input.name,email:input.email,phone:input.phone,passwordHash}});
+      if(input.accountType==='BROKER')await this.createBrokerOrg(created.id,input.firmName||`${input.name} Realty`,tx,invite);
+      return created;
     });
-    if (input.accountType === 'BROKER') await this.createBrokerOrg(user.id, input.firmName || `${input.name} Realty`, this.prisma, invite);
     await this.linkReferral(user.id, input.ref);
     await this.audit.log({ id: user.id, role: user.role }, 'auth.register', 'User', user.id, { accountType: input.accountType }, meta.ip);
     this.requestOtp(input.email, 'VERIFY_EMAIL').catch(() => undefined);

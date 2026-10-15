@@ -5,6 +5,7 @@ import { json } from 'express';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { JobsService } from '../src/core/jobs/jobs.service';
 import { SettingsService } from '../src/core/settings/settings.service';
 
 /**
@@ -366,6 +367,8 @@ describe('BrokerIQ API (e2e)', () => {
     for (let i = 0; i < 20; i++) {
       lead = await prisma.lead.findUniqueOrThrow({ where: { id: r.body.leadId }, include: { followUps: true } });
       if (lead.tags.includes('auto') && lead.followUps.length) break;
+      const queued = await prisma.job.findMany({ where: { type: 'automation.action', status: 'PENDING', payload: { path: ['leadId'], equals: r.body.leadId } } });
+      for (const job of queued) { await (app.get(JobsService) as any).execute(job); }
       await sleep(150);
     }
     expect(lead!.tags).toContain('auto');

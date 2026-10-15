@@ -5,7 +5,7 @@ import { unregisterPush } from './push';
 
 export function homeFor(user: AuthUser | null | undefined) {
   if (!user) return '/login' as const;
-  if (user.role === 'BROKER_ADMIN' || user.role === 'BROKER_AGENT') return '/(broker)/dashboard' as const;
+  if (user.role === 'BROKER_ADMIN') return '/(broker)/dashboard' as const;
   return '/login' as const;
 }
 
@@ -16,7 +16,7 @@ export function useAuth() {
   return {
     user,
     ready,
-    isBroker: user?.role === 'BROKER_ADMIN' || user?.role === 'BROKER_AGENT',
+    isBroker: user?.role === 'BROKER_ADMIN',
     isBrokerAdmin: user?.role === 'BROKER_ADMIN',
     setSession: (r: AuthResponse) => authStore.set({ accessToken: r.accessToken, refreshToken: r.refreshToken, user: r.user }),
     refreshMe: async () => {

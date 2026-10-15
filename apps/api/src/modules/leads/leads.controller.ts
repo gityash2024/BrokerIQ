@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { ForbiddenException, Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -8,6 +8,8 @@ import { activityInputSchema, leadInputSchema, leadStageSchema, leadUpdateSchema
 import { LeadsService } from './leads.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { PrismaService } from '../../prisma/prisma.service';
+import { env } from '../../config/env';
 import { AccessService } from '../../core/access/access.service';
 
 const bulkSchema = z.object({
@@ -24,12 +26,20 @@ const importSchema = z.object({ csv: z.string().min(5).max(5_000_000) });
 export class LeadsController {
   constructor(
     private readonly leads: LeadsService,
+    private readonly prisma: PrismaService,
     private readonly access: AccessService,
   ) {}
 
   @Get()
   list(@CurrentUser() user: RequestUser, @Query() q: any) {
     return this.leads.list(user, q);
+  }
+
+  @Get('assignees')
+  async assignees(@CurrentUser() user: RequestUser) {
+    if (!user.orgId) throw new ForbiddenException('A broker firm is required');
+    const members=await this.prisma.user.findMany({where:{organizationId:user.orgId,status:'ACTIVE',deletedAt:null,role:{in:env().BROKER_FIRST?['BROKER_ADMIN']:['BROKER_ADMIN','BROKER_AGENT']}},select:{id:true,name:true,role:true,status:true}});
+    return {members};
   }
 
   @Get('kanban')

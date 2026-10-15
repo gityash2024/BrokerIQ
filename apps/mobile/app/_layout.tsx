@@ -22,7 +22,8 @@ import { cmpVersion, useConfig } from '@/lib/config';
 import { registerPush } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
 import { Button, Toaster, Txt } from '@/ui';
-import { AssistantButton } from '@/components/assistant';
+import { DraftPump } from '@/launch/draft-pump';
+import { NativeModuleGate } from '@/launch/module-gate';
 import { LanguageSuggestion } from '@/components/language';
 import { loadLang } from '@/lib/lang';
 import { installGlobalErrorHandler } from '@/lib/report-error';
@@ -99,7 +100,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={qc}>
           <StatusBar style={isDark ? 'light' : 'dark'} />
-          <Gate>
+          <Gate><NativeModuleGate>
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}>
               <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
               <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
@@ -107,8 +108,8 @@ export default function RootLayout() {
               <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
               <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
             </Stack>
-          </Gate>
-          <AssistantButton />
+          </NativeModuleGate></Gate>
+          <DraftPump />
           <LanguageSuggestion />
           <Toaster />
         </QueryClientProvider>

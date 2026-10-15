@@ -8,13 +8,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AlarmClock, Inbox, MessageCircle, Phone, Plus, Search } from 'lucide-react-native';
 import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink } from '@brokeriq/shared';
+import { BrokerScreen } from '@/launch/screen';
+import { ChoiceField } from '@/launch/form';
 import { api, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge } from '@/components/crm';
-import { Avatar, Chip, Empty, ErrorView, IconBtn, Input, PressableScale, Row, Skeleton, Txt } from '@/ui';
+import { Avatar, Chip, Empty, ErrorView, IconBtn, Input, PressableScale, Row, Skeleton, Txt, Button, Sheet } from '@/ui';
 
 function Action({ color, icon, label, align }: { color: string; icon: React.ReactNode; label: string; align: 'left' | 'right' }) {
   return (
@@ -124,96 +126,50 @@ function LeadItem({ l }: { l: any }) {
 
 export default function Leads() {
   const { c } = useTheme();
-  const { isBrokerAdmin } = useAuth();
   const [text, setText] = useState('');
   const q = useDebounced(text);
   const [view, setView] = useState('');
   const [stage, setStage] = useState('');
+  const [filters, setFilters] = useState(false);
   const list = useInfiniteQuery({
     queryKey: ['leads', q, view, stage],
     queryFn: ({ pageParam }) => api<any>(`/leads${qs({ q, view, stage, page: pageParam, pageSize: 25 })}`),
     initialPageParam: 1,
-    getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
+    getNextPageParam: (p) => (p.page < p.totalPages ? p.page + 1 : undefined),
   });
-  useRealtime('notification', (n: any) => n?.kind === 'NEW_LEAD' && list.refetch());
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
-  const views = [
-    ['', 'All'],
-    ['new', 'New'],
-    ['due', 'Due today'],
-    ...(isBrokerAdmin ? [['unassigned', 'Unassigned']] : []),
-    ['mine', 'Mine'],
-    ['stale', 'No activity 3d+'],
-  ];
+  useRealtime('notification', () => list.refetch());
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
-      <Row style={{ paddingHorizontal: 16, paddingTop: 8, justifyContent: 'space-between' }}>
-        <View>
-          <Txt v="h1">Leads</Txt>
-          <Txt v="caption" color="muted">
-            {list.data ? `${list.data.pages[0].total} leads · swipe → call, ← WhatsApp` : ' '}
-          </Txt>
+    <BrokerScreen title="Leads & Requirements" subtitle={list.data ? `${list.data.pages[0].total} contacts` : 'Contacts, follow-ups and visits.'}>
+      <View style={{ paddingHorizontal: 20, gap: 10, paddingBottom: 12 }}>
+        <Input value={text} onChangeText={setText} placeholder="Name / phone" />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Button title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
+          <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />
+          <Button title="Filters" size="sm" variant="ghost" onPress={() => setFilters(true)} />
         </View>
-        <IconBtn onPress={() => router.push('/add-lead')} style={{ backgroundColor: c.brand }}>
-          <Plus size={22} color="#fff" />
-        </IconBtn>
-      </Row>
-      <View style={{ padding: 16, paddingBottom: 8, gap: 10 }}>
-        <Input value={text} onChangeText={setText} placeholder="नाम या phone…" icon={<Search size={18} color={c.subtle} />} />
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={views}
-          keyExtractor={(v) => v[0] || 'all'}
-          contentContainerStyle={{ gap: 8 }}
-          renderItem={({ item }) => <Chip label={item[1]} active={view === item[0]} onPress={() => setView(item[0])} />}
-        />
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={['', ...LEAD_STAGES]}
-          keyExtractor={(v) => v || 'any'}
-          contentContainerStyle={{ gap: 8 }}
-          renderItem={({ item }) => (
-            <Chip
-              label={item ? LEAD_STAGE_LABELS[item as keyof typeof LEAD_STAGE_LABELS] : 'All stages'}
-              active={stage === item}
-              onPress={() => setStage(item)}
-            />
-          )}
-        />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Button title="Pipeline" size="sm" variant="ghost" onPress={() => router.push('/pipeline')} />
+          <Button title="Follow-ups" size="sm" variant="ghost" onPress={() => router.push('/follow-ups')} />
+          <Button title="Visits" size="sm" variant="ghost" onPress={() => router.push('/visits')} />
+        </View>
       </View>
       <FlatList
-        data={items}
-        keyExtractor={(x) => x.id}
-        contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 10, paddingBottom: 130 }}
+        data={list.data?.pages.flatMap((p) => p.items) ?? []}
+        keyExtractor={(l) => l.id}
+        contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 12, paddingBottom: 30 }}
         refreshing={list.isRefetching}
         onRefresh={() => list.refetch()}
         onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-        onEndReachedThreshold={0.5}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay((index % 25) * 25)}>
-            <LeadItem l={item} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <LeadItem l={item} />}
         ListEmptyComponent={
-          list.isLoading ? (
-            <View style={{ gap: 10 }}>
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} h={110} r={18} />
-              ))}
-            </View>
-          ) : list.isError ? (
-            <ErrorView error={list.error} onRetry={() => list.refetch()} />
-          ) : (
-            <Empty
-              icon={<Inbox size={28} color={c.brand} />}
-              title="कोई lead नहीं"
-              text="Portals connect करें (More → Lead connectors) या manually lead जोड़ें।"
-            />
-          )
+          list.error ? <ErrorView error={list.error} /> : <Empty title="No leads yet" text="Add a contact or capture a requirement from Inbox." />
         }
       />
-    </SafeAreaView>
+      <Sheet open={filters} onClose={() => setFilters(false)} title="Lead filters">
+        <ChoiceField label="View" value={view} choices={['new', 'due', 'mine', 'stale']} onChange={(v) => setView(v ?? '')} />
+        <ChoiceField label="Stage" value={stage} choices={LEAD_STAGES} onChange={(v) => setStage(v ?? '')} />
+        <Button title="Apply filters" onPress={() => setFilters(false)} />
+      </Sheet>
+    </BrokerScreen>
   );
 }

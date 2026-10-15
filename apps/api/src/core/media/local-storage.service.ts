@@ -80,13 +80,13 @@ export class LocalStorageService {
   }
 
   /** Compress + encrypt + atomically write. Returns the stored (possibly converted) content type. */
-  async store(key: string, contentType: string, data: Buffer): Promise<string> {
+  async store(key: string, contentType: string, data: Buffer, preserveSource = false): Promise<string> {
     if (!data.length) throw new BadRequestException('Empty file');
     let ct = contentType.toLowerCase();
     let body: Buffer = data;
     let flags = 0;
 
-    if (isRasterImage(ct)) {
+    if (isRasterImage(ct) && !preserveSource) {
       // rotate() applies EXIF orientation; sharp drops EXIF/GPS metadata by default.
       const webp = await sharp(data, { failOn: 'none' })
         .rotate()
@@ -146,6 +146,12 @@ export class LocalStorageService {
   }
 
   /** Server-side upload of a base64 data URL (AI listing scanner). */
+  async putSource(data: Buffer, contentType: string, ownerId: string): Promise<string> {
+    const key = this.newKey('scan', ownerId);
+    await this.store(key, contentType, data, true);
+    return key;
+  }
+
   async putDataUrl(dataUrl: string, kind: UploadKind, ownerId: string): Promise<string> {
     const m = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(dataUrl);
     if (!m) throw new BadRequestException('Invalid image');

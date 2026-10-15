@@ -140,7 +140,7 @@ function DomTranslator() {
   useEffect(() => {
     const texts = tracked.current;
     const attrs = trackedAttr.current;
-    const active = !!lang && t.has !== identity.has && !pathname.startsWith('/admin');
+    const active = !!lang && t.has !== identity.has;
     const revert = () => {
       for (const [node, v] of texts) if (node.isConnected && node.nodeValue === v.out) node.nodeValue = v.src;
       for (const [el, m] of attrs) for (const [a, v] of Object.entries(m)) if (el.getAttribute(a) === v.out) el.setAttribute(a, v.src);
@@ -149,7 +149,7 @@ function DomTranslator() {
     };
     if (!active) {
       revert();
-      if (!lang || pathname.startsWith('/admin')) release();
+      if (!lang) release();
       return;
     }
     const doText = (node: Text) => {

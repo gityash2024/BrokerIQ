@@ -75,6 +75,17 @@ import { defaultModulePolicies } from '@brokeriq/shared';
     expect((await prisma.job.findUniqueOrThrow({ where: { id: job.id } })).status).toBe('FAILED');
     await request(app.getHttpServer()).patch('/api/admin/modules/inventory').set(headers(admin)).send(defaultModulePolicies().inventory).expect(200);
   });
+  it('keeps public signup closed and consumes expiring invitations exactly once', async()=>{
+    await request(app.getHttpServer()).post('/api/auth/register').send({name:'Signup fixture',email:`open.${uid}@e2e.test`,password:'Fixture@12345',accountType:'BROKER',firmName:'Not created'}).expect(403);
+    const invitation=await request(app.getHttpServer()).post('/api/admin/broker-invites').set(headers(admin)).send({email:`invite.${uid}@e2e.test`,maxUses:1}).expect(201);
+    expect(new Date(invitation.body.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    const input={name:'Invited fixture',firmName:`Invited ${uid}`,email:`invite.${uid}@e2e.test`,password:'Fixture@12345',accountType:'BROKER',inviteCode:invitation.body.code};
+    const joined=await request(app.getHttpServer()).post('/api/auth/register').send(input).expect(201);
+    expect(joined.body.user.role).toBe('BROKER_ADMIN');
+    await request(app.getHttpServer()).post('/api/auth/register').send({...input,email:`other.${uid}@e2e.test`}).expect(400);
+    const expired=await request(app.getHttpServer()).post('/api/admin/broker-invites').set(headers(admin)).send({expiresAt:new Date(Date.now()-60000).toISOString()}).expect(201);
+    await request(app.getHttpServer()).post('/api/auth/register').send({...input,email:`expired.${uid}@e2e.test`,inviteCode:expired.body.code}).expect(400);
+  });
   it('uses current membership rather than stale JWT claims', async () => {
     await prisma.user.updateMany({ where: { organizationId: orgId }, data: { organizationId: null } });
     await request(app.getHttpServer()).get('/api/inventory').set(headers(broker)).expect(403);

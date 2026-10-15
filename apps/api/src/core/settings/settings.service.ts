@@ -91,8 +91,7 @@ export class SettingsService {
 
   private async loadStored(key: string, orgId?: string | null): Promise<{ stored: StoredIntegration | null; meta: any }> {
     const def = this.defOrThrow(key);
-    if (def.scope === 'organization') {
-      if (!orgId) return { stored: null, meta: null };
+    if (def.scope === 'organization' && orgId) {
       return this.cached(`org:${orgId}:${key}`, async () => {
         const row = await this.prisma.orgSetting.findUnique({ where: { organizationId_key: { organizationId: orgId, key: integrationKey(key) } } });
         return { stored: (row?.value as unknown as StoredIntegration) ?? null, meta: row };
@@ -144,7 +143,11 @@ export class SettingsService {
     const { stored } = await this.loadStored(key, orgId);
     if (stored && stored.enabled === false) return null;
     let values = this.decode(stored);
-    if (def.scope === 'platform' && !this.isComplete(def, values)) values = { ...this.envValues(def), ...values };
+    if (def.scope === 'organization' && orgId) {
+      const platform = await this.loadStored(key);
+      if (platform.stored?.enabled !== false) values = {...this.decode(platform.stored), ...values};
+    }
+    if (!this.isComplete(def, values)) values = { ...this.envValues(def), ...values };
     values = this.withDefaults(def, values);
     return this.isComplete(def, values) ? values : null;
   }
@@ -187,7 +190,6 @@ export class SettingsService {
 
   async save(key: string, input: { enabled?: boolean; fields: Record<string, unknown> }, opts: { orgId?: string | null; userId?: string }) {
     const def = this.defOrThrow(key);
-    if (def.scope === 'organization' && !opts.orgId) throw new BadRequestException('Organization required');
     const { stored } = await this.loadStored(key, opts.orgId);
     const existing = stored?.fields ?? {};
     const next: Record<string, StoredValue> = {};
@@ -213,7 +215,7 @@ export class SettingsService {
     }
 
     const value: StoredIntegration = { enabled: input.enabled ?? stored?.enabled ?? true, fields: next };
-    if (def.scope === 'organization') {
+    if (def.scope === 'organization' && opts.orgId) {
       await this.prisma.orgSetting.upsert({
         where: { organizationId_key: { organizationId: opts.orgId!, key: integrationKey(key) } },
         create: { organizationId: opts.orgId!, key: integrationKey(key), value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId },
@@ -233,7 +235,7 @@ export class SettingsService {
 
   async remove(key: string, orgId?: string | null) {
     const def = this.defOrThrow(key);
-    if (def.scope === 'organization') {
+    if (def.scope === 'organization' && orgId) {
       await this.prisma.orgSetting.deleteMany({ where: { organizationId: orgId!, key: integrationKey(key) } });
       this.invalidate(`org:${orgId}:${key}`);
     } else {
@@ -245,7 +247,7 @@ export class SettingsService {
   async recordTest(key: string, orgId: string | null | undefined, ok: boolean, message: string) {
     const def = this.defOrThrow(key);
     const data = { lastTestedAt: new Date(), lastTestOk: ok, lastTestMessage: message.slice(0, 500) };
-    if (def.scope === 'organization') {
+    if (def.scope === 'organization' && orgId) {
       await this.prisma.orgSetting.updateMany({ where: { organizationId: orgId!, key: integrationKey(key) }, data });
       this.invalidate(`org:${orgId}:${key}`);
     } else {
@@ -256,7 +258,7 @@ export class SettingsService {
 
   /** Platform integrations status overview for the admin dashboard. */
   async platformOverview() {
-    return Promise.all(INTEGRATIONS.filter((i) => i.scope === 'platform').map((i) => this.view(i.key)));
+    return Promise.all(INTEGRATIONS.filter((i) => i.scope === 'platform' || i.key === 'housing_api').map((i) => this.view(i.key)));
   }
 
   /** Public, non-secret values safe to ship to clients. */

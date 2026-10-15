@@ -13,7 +13,7 @@ export function LanguageSheet({ open, onClose }: { open: boolean; onClose: () =>
   const setLang = useLang((s) => s.setLang);
   const options: { code: LanguageCode | null; native: string; name: string }[] = [
     { code: null, native: 'Default', name: 'हिंग्लिश (original)' },
-    ...LANGUAGES.map((l) => ({ code: l.code, native: l.native, name: l.name })),
+    ...LANGUAGES.filter((l)=>l.code==='en'||l.code==='hi').map((l) => ({ code: l.code, native: l.native, name: l.name })),
   ];
   return (
     <Sheet open={open} onClose={onClose} title="भाषा चुनें">

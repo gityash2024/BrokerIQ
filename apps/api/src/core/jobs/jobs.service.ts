@@ -27,9 +27,14 @@ export class JobsService implements OnModuleDestroy {
     this.handlers.set(type, handler);
   }
 
-  async enqueue(type: string, payload: Record<string, unknown> = {}, opts: { runAt?: Date; key?: string; maxAttempts?: number } = {}) {
+  async enqueue(type: string, payload: Record<string, unknown> = {}, opts: { runAt?: Date; key?: string; maxAttempts?: number; repeat?: boolean } = {}) {
     const data = { type, payload: payload as Prisma.InputJsonValue, runAt: opts.runAt ?? new Date(), key: opts.key, maxAttempts: opts.maxAttempts ?? 5 };
     if (opts.key) {
+      if (opts.repeat)
+        await this.prisma.job.updateMany({
+          where: { key: opts.key, status: { in: ['DONE', 'FAILED'] } },
+          data: { ...data, status: 'PENDING', attempts: 0, lockedAt: null, lastError: null },
+        });
       return this.prisma.job.upsert({ where: { key: opts.key }, create: data, update: {} });
     }
     return this.prisma.job.create({ data });
@@ -65,6 +70,8 @@ export class JobsService implements OnModuleDestroy {
   private async execute(job: Job) {
     try {
       await this.modules.assertPath(job.type, 'BROKER_ADMIN', 'job');
+      const orgId = (job.payload as any)?.orgId;
+      if (orgId && !(await this.prisma.organization.findFirst({ where: { id: orgId, status: 'ACTIVE' } }))) throw new Error('Firm is inactive or missing');
     } catch (error) {
       await this.prisma.job.update({ where: { id: job.id }, data: { status: 'FAILED', lastError: (error as Error).message, lockedAt: null } });
       return;
@@ -76,14 +83,14 @@ export class JobsService implements OnModuleDestroy {
     }
     try {
       await handler(job.payload, job);
-      await this.prisma.job.update({ where: { id: job.id }, data: { status: 'DONE', lastError: null } });
+      await this.prisma.job.update({ where: { id: job.id }, data: { status: 'DONE', lastError: null, lockedAt: null } });
     } catch (e) {
       const err = (e as Error).message?.slice(0, 1000) ?? 'error';
       const final = job.attempts >= job.maxAttempts;
       const backoffSec = Math.min(3600, 30 * 2 ** (job.attempts - 1));
       await this.prisma.job.update({
         where: { id: job.id },
-        data: { status: final ? 'FAILED' : 'PENDING', lastError: err, runAt: new Date(Date.now() + backoffSec * 1000) },
+        data: { status: final ? 'FAILED' : 'PENDING', lockedAt: null, lastError: err, runAt: new Date(Date.now() + backoffSec * 1000) },
       });
       this.logger.warn(`job ${job.type}#${job.id} failed (attempt ${job.attempts}): ${err}`);
     }
@@ -93,7 +100,13 @@ export class JobsService implements OnModuleDestroy {
   @Interval(5 * 60 * 1000)
   async housekeeping() {
     if (!env().JOBS_ENABLED) return;
-    await this.prisma.job.updateMany({ where: { status: 'RUNNING', lockedAt: { lt: new Date(Date.now() - 10 * 60 * 1000) } }, data: { status: 'PENDING' } });
+    // A crashed outbound send can already have reached the provider. Exhausted jobs
+    // require review rather than an automatic second delivery.
+    await this.prisma.$executeRaw(Prisma.sql`
+      UPDATE "Job" SET status = CASE WHEN attempts >= "maxAttempts" THEN 'FAILED' ELSE 'PENDING' END,
+        "lastError" = 'Worker interrupted; inspect provider status before retrying outbound delivery',
+        "lockedAt" = NULL, "updatedAt" = now()
+      WHERE status = 'RUNNING' AND "lockedAt" < now() - interval '10 minutes'`);
     await this.prisma.job.deleteMany({ where: { status: 'DONE', updatedAt: { lt: new Date(Date.now() - 7 * 86400 * 1000) } } });
   }
 

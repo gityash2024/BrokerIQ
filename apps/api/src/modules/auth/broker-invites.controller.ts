@@ -87,7 +87,7 @@ export class BrokerInvitesController {
         grantPlanCode: body.grantPlanCode || null,
         grantMonths: body.grantMonths,
         maxUses: body.maxUses,
-        expiresAt: body.expiresAt ?? null,
+        expiresAt: body.expiresAt ?? new Date(Date.now()+7*86400_000),
         isActive: body.isActive,
         createdById: user.id,
       },

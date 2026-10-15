@@ -92,7 +92,16 @@ export class AiService {
     const out: Provider[] = [];
     for (const name of order) {
       const v = await this.settings.resolve(name).catch(() => null);
-      if (v?.apiKey) out.push(this.toProvider(name, v));
+      if (v?.apiKey) {
+        const provider = this.toProvider(name, v);
+        // Paid fallback is never used by the broker-first launch.
+        if (env().BROKER_FIRST) {
+          if (name !== 'openrouter') continue;
+          provider.textModels = provider.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+          provider.visionModels = provider.visionModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+        }
+        if (provider.textModels.length || provider.visionModels.length) out.push(provider);
+      }
     }
     return out;
   }
@@ -367,6 +376,10 @@ export class AiService {
   /** Credentials Center "Test": one tiny call, plus (OpenRouter) the free models available right now. */
   async test(key: ProviderName, values: Record<string, unknown>) {
     const p = this.toProvider(key, values);
+    if (env().BROKER_FIRST) {
+      if (key !== 'openrouter') throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses OpenRouter free models only.');
+      p.textModels = p.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+    }
     const errors: string[] = [];
     for (const model of p.textModels) {
       try {

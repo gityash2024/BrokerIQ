@@ -12,7 +12,7 @@ export function ConfigProvider({ initial, children }: { initial: PublicConfig | 
     queryKey: ['public-config'],
     queryFn: () => api<PublicConfig>('/public/config', { auth: false }),
     initialData: initial ?? undefined,
-    staleTime: 60_000,
+    staleTime: 15_000, refetchInterval: 15_000,
   });
   return <Ctx.Provider value={data ?? fallback}>{children}</Ctx.Provider>;
 }

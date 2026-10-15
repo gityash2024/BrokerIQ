@@ -1,3 +1,4 @@
+import { IntegrationNotConfiguredException } from '../../common/exceptions';
 import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
@@ -148,9 +149,9 @@ export class ConnectorsService implements OnModuleInit {
       update: { status: body.enabled === false ? 'DISABLED' : 'ACTIVE', lastError: null },
     });
     if (key === 'meta_leads' && view.configured) await this.subscribeMetaPage(orgId).catch((e) => this.setError(orgId, 'META_LEAD_ADS', (e as Error).message));
-    if (key === 'email_inbox' && view.configured) await this.jobs.enqueue('connector.email.poll', { orgId }, { key: `email-poll:${orgId}` });
+    if (key === 'email_inbox' && view.configured) await this.jobs.enqueue('connector.email.poll', { orgId }, { key: `email-poll:${orgId}`, repeat: true });
     if (key === 'housing_api' && view.configured && body.enabled !== false)
-      await this.jobs.enqueue('connector.housing.poll', { orgId }, { key: `housing-poll:${orgId}` });
+      await this.jobs.enqueue('connector.housing.poll', { orgId }, { key: `housing-poll:${orgId}`, repeat: true });
     return view;
   }
 
@@ -191,7 +192,7 @@ export class ConnectorsService implements OnModuleInit {
       select: { organizationId: true },
     });
     for (const s of states)
-      await this.jobs.enqueue('connector.email.poll', { orgId: s.organizationId }, { key: `email-poll:${s.organizationId}`, maxAttempts: 1 });
+      await this.jobs.enqueue('connector.email.poll', { orgId: s.organizationId }, { key: `email-poll:${s.organizationId}`, maxAttempts: 1, repeat: true });
   }
 
   async pollInbox(orgId: string): Promise<{ imported: number; scanned: number }> {
@@ -323,15 +324,15 @@ export class ConnectorsService implements OnModuleInit {
       select: { organizationId: true },
     });
     for (const s of states)
-      await this.jobs.enqueue('connector.housing.poll', { orgId: s.organizationId }, { key: `housing-poll:${s.organizationId}`, maxAttempts: 1 });
+      await this.jobs.enqueue('connector.housing.poll', { orgId: s.organizationId }, { key: `housing-poll:${s.organizationId}`, maxAttempts: 1, repeat: true });
   }
 
   /** Pulls new Housing leads since the last sync (with overlap; duplicates are skipped via ExternalLeadRef). */
   async pollHousing(orgId: string): Promise<{ imported: number; fetched: number; skipped: number }> {
     const cfg = (await this.settings.resolve('housing_api', orgId)) as HousingCreds | null;
-    if (!cfg?.profileId || !cfg.encryptionKey) return { imported: 0, fetched: 0, skipped: 0 };
+    if (!cfg?.profileId || !cfg.encryptionKey) throw new IntegrationNotConfiguredException('housing_api');
     const state = await this.prisma.connectorState.findUnique({ where: { organizationId_type: { organizationId: orgId, type: 'HOUSING_API' } } });
-    if (state?.status === 'DISABLED') return { imported: 0, fetched: 0, skipped: 0 };
+    if (state?.status === 'DISABLED') throw new BadRequestException('Housing connector disabled. Enable it before syncing.');
     const nowSec = Math.floor(Date.now() / 1000);
     const lastEnd = Number((state?.cursor as { lastEnd?: number } | null)?.lastEnd ?? 0);
     const start = lastEnd > 0 ? lastEnd - HOUSING_OVERLAP_SEC : nowSec - HOUSING_FIRST_SYNC_DAYS * 86400;
@@ -361,7 +362,7 @@ export class ConnectorsService implements OnModuleInit {
       await this.prisma.integrationLog.create({
         data: { organizationId: orgId, integration: 'housing_api', action: 'poll', success: false, message: (e as Error).message.slice(0, 500) },
       });
-      return { imported, fetched, skipped };
+      throw e;
     }
     if (imported)
       await this.prisma.integrationLog.create({

@@ -39,7 +39,7 @@ function HousingForm({ configured }: { configured: boolean }) {
   const [open, setOpen] = useState(!configured);
   const [f, setF] = useState({ profileId: '', encryptionKey: '', accountType: 'broker' });
   const save = useApiMutation(() => patch('/broker/connectors/housing_api', { enabled: true, fields: f }), {
-    success: 'Housing connect हो गया — leads आने लगेंगी',
+    success: 'Housing credentials saved. Test the connection before syncing.',
     invalidate: [['connectors']],
     onSuccess: () => setOpen(false),
   });
@@ -123,7 +123,7 @@ export default function Connectors() {
           ))}
         </Row>
       )}
-      {d.connectors.map((cn: any) => {
+      {d.connectors.filter((cn: any)=>['housing_api','whatsapp'].includes(cn.key)).map((cn: any) => {
         const Icon = ICON[cn.key] ?? Webhook;
         const on = cn.config?.configured;
         return (
@@ -148,7 +148,7 @@ export default function Connectors() {
                 </Txt>
               </View>
               {on ? (
-                <Badge label="Connected" color={c.success} icon={<CheckCircle2 size={11} color={c.success} />} />
+                <Badge label="Credentials set" color={c.success} icon={<CheckCircle2 size={11} color={c.success} />} />
               ) : (
                 <Badge label="Not set" color={c.warning} />
               )}

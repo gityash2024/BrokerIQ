@@ -30,6 +30,7 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   SHOWROOM: 'Showroom',
   WAREHOUSE: 'Warehouse',
   INDUSTRIAL: 'Industrial',
+  AGRICULTURAL_LAND: 'Agricultural land',
 };
 
 export const CATEGORY_LABELS: Record<PropertyCategory, string> = {

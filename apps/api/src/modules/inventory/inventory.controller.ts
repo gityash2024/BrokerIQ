@@ -1,65 +1,61 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { z } from 'zod';
+import { inventoryInputSchema, inventoryFilterSchema, availabilitySchema } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
+import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { InventoryService } from './inventory.service';
 import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemDto } from './inventory.dto';
 
 @ApiTags('inventory')
+@Roles('SUPER_ADMIN', 'BROKER_ADMIN')
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
-
-  @Get()
-  @Roles('SUPER_ADMIN', 'MODERATOR', 'BROKER_ADMIN', 'BROKER_AGENT')
-  findAll(@Query() query: InventoryFilterQuery, @CurrentUser() user: RequestUser) {
+  @Get() findAll(@Query(new ZodPipe(inventoryFilterSchema)) query: InventoryFilterQuery, @CurrentUser() user: RequestUser) {
     return this.inventory.findAll(query, user);
   }
-
-  @Get('stats')
-  @Roles('SUPER_ADMIN', 'MODERATOR', 'BROKER_ADMIN', 'BROKER_AGENT')
-  getStats(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
+  @Get('stats') getStats(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getStats(user, orgId);
   }
-
-  @Get('sectors')
-  @Roles('SUPER_ADMIN', 'MODERATOR', 'BROKER_ADMIN', 'BROKER_AGENT')
-  getSectors(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
+  @Get('sectors') getSectors(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getSectors(user, orgId);
   }
-
-  @Post()
-  @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
-  create(@Body() dto: CreateInventoryItemDto, @CurrentUser() user: RequestUser) {
+  @Get(':id') get(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.inventory.get(id, user);
+  }
+  @Post() create(@Body(new ZodPipe(inventoryInputSchema)) dto: CreateInventoryItemDto, @CurrentUser() user: RequestUser) {
     return this.inventory.create(dto, user);
   }
-
-  @Patch(':id')
-  @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
-  update(@Param('id') id: string, @Body() dto: UpdateInventoryItemDto, @CurrentUser() user: RequestUser) {
+  @Patch('bulk/update') bulkUpdate(
+    @Body(
+      new ZodPipe(
+        z.object({
+          ids: z.array(z.string().min(1)).min(1).max(2000),
+          data: z
+            .object({ status: z.enum(['DRAFT', 'ACTIVE', 'INACTIVE', 'RENTED']).optional(), availability: availabilitySchema.optional() })
+            .refine((d) => d.status || d.availability, 'Select a change'),
+        }),
+      ),
+    )
+    body: { ids: string[]; data: UpdateInventoryItemDto },
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.inventory.bulkUpdate(body.ids, body.data, user);
+  }
+  @Patch(':id') update(@Param('id') id: string, @Body(new ZodPipe(inventoryInputSchema)) dto: UpdateInventoryItemDto, @CurrentUser() user: RequestUser) {
     return this.inventory.update(id, dto, user);
   }
-
-  @Delete(':id')
-  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
-  delete(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+  @Delete(':id') delete(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.inventory.delete(id, user);
   }
-
-  @Post(':id/publish')
-  @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
-  publish(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.inventory.publishToListing(id, user);
+  @Post(':id/publish') publish() {
+    return this.inventory.publishToListing();
   }
-
-  @Post('bulk')
-  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
-  bulk(@Body() body: { items: CreateInventoryItemDto[] }, @CurrentUser() user: RequestUser) {
+  @Post('bulk') bulk(
+    @Body(new ZodPipe(z.object({ items: z.array(inventoryInputSchema).min(1).max(500) }))) body: { items: CreateInventoryItemDto[] },
+    @CurrentUser() user: RequestUser,
+  ) {
     return this.inventory.bulkCreate(body.items, user);
-  }
-
-  @Patch('bulk/update')
-  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
-  bulkUpdate(@Body() body: { ids: string[]; data: UpdateInventoryItemDto }, @CurrentUser() user: RequestUser) {
-    return this.inventory.bulkUpdate(body.ids, body.data, user);
   }
 }

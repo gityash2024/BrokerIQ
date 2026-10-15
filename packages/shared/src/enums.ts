@@ -77,6 +77,7 @@ export const PropertyType = {
   SHOWROOM: 'SHOWROOM',
   WAREHOUSE: 'WAREHOUSE',
   INDUSTRIAL: 'INDUSTRIAL',
+  AGRICULTURAL_LAND: 'AGRICULTURAL_LAND',
 } as const;
 export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
 export const PROPERTY_TYPES = values(PropertyType);
@@ -98,6 +99,7 @@ export const PROPERTY_TYPE_CATEGORY: Record<PropertyType, PropertyCategory> = {
   SHOWROOM: 'COMMERCIAL',
   WAREHOUSE: 'COMMERCIAL',
   INDUSTRIAL: 'COMMERCIAL',
+  AGRICULTURAL_LAND: 'PLOT',
 };
 
 /** BrokerIQ is a rental & brokerage marketplace for Gurgaon, Haryana. Sale listings stay off unless Super Admin enables "sale_listings". */

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma, type MessageType } from '@prisma/client';
 import { normalizeIndianPhone, phoneForWhatsApp } from '@brokeriq/shared';
@@ -10,6 +10,9 @@ import { EventsService } from '../../core/events/events.service';
 import { IntegrationFailedException, IntegrationNotConfiguredException, WhatsAppWindowClosedException } from '../../common/exceptions';
 import { LeadsService } from '../leads/leads.service';
 import { sha256 } from '../../common/utils';
+import { JobsService } from '../../core/jobs/jobs.service';
+import { LocalStorageService } from '../../core/media/local-storage.service';
+import { env } from '../../config/env';
 import { GRAPH } from '../integrations/integration-tester.service';
 
 /** Message a person sends the firm to get a confirmation OTP on WhatsApp (see rentals/otp.ts otpRequestCode). */
@@ -33,7 +36,9 @@ export class WhatsAppService {
     private readonly notifications: NotificationsService,
     private readonly events: EventsService,
     private readonly leads: LeadsService,
-  ) {}
+    private readonly jobs: JobsService,
+    private readonly storage: LocalStorageService,
+  ) {this.jobs.register('whatsapp.event',(payload)=>this.processEvent(payload.eventId));}
 
   /** Webhook verify token shown to the broker for their Meta app. */
   orgVerifyToken(webhookKey: string) {
@@ -192,7 +197,7 @@ export class WhatsAppService {
 
   // ------------------------------------------------------------------ webhook
   verifySignature(appSecret: string | undefined, rawBody: Buffer | undefined, header: string | undefined) {
-    if (!appSecret) return true; // signature check only when app secret configured
+    if (!appSecret) return !env().BROKER_FIRST;
     if (!rawBody || !header?.startsWith('sha256=')) return false;
     const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
     const a = Buffer.from(expected);
@@ -212,20 +217,29 @@ export class WhatsAppService {
 
   async handleWebhook(key: string, body: any) {
     const target = await this.resolveWebhookTarget(key);
-    await this.prisma.webhookEvent.create({
-      data: { provider: 'whatsapp', organizationId: target.orgId, payload: body as Prisma.InputJsonValue, status: 'PROCESSED', processedAt: new Date() },
-    });
+    const externalId=`${key}:${sha256(JSON.stringify(body))}`;
+    const event=await this.prisma.webhookEvent.upsert({where:{provider_externalId:{provider:'whatsapp',externalId}},create:{provider:'whatsapp',organizationId:target.orgId,externalId,payload:body as Prisma.InputJsonValue},update:{}});
+    if(event.status!=='PROCESSED')await this.jobs.enqueue('whatsapp.event',{eventId:event.id},{key:`whatsapp:${event.id}`,repeat:true});
+  }
+  private async processEvent(eventId:string) {
+    const event=await this.prisma.webhookEvent.findUniqueOrThrow({where:{id:eventId}});
+    if(event.status==='PROCESSED')return;
+    const target={orgId:event.organizationId}; const body:any=event.payload;
+    try {
     for (const entry of body?.entry ?? []) {
       for (const change of entry?.changes ?? []) {
         const value = change?.value ?? {};
         const contacts: any[] = value.contacts ?? [];
         for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name);
-        for (const s of value.statuses ?? []) await this.onStatus(s);
+        for (const s of value.statuses ?? []) await this.onStatus(s,target.orgId);
       }
     }
+        await this.prisma.webhookEvent.update({where:{id:eventId},data:{status:'PROCESSED',processedAt:new Date(),error:null}});
+    } catch(error) {await this.prisma.webhookEvent.update({where:{id:eventId},data:{status:'FAILED',error:(error as Error).message.slice(0,500)}});throw error;}
   }
 
   private async onInbound(orgId: string | null, m: any, profileName?: string) {
+    if (!m.id || typeof m.id!=='string' || !/^[0-9]{10,15}$/.test(String(m.from))) throw new BadRequestException('Malformed WhatsApp message');
     if (await this.prisma.message.findUnique({ where: { externalId: m.id } })) return;
     const phone = `+${m.from}`;
     let text = '';
@@ -284,7 +298,8 @@ export class WhatsAppService {
       }
     }
     const conv = await this.conversationFor(orgId, phone, { name: profileName, leadId });
-    const saved = await this.prisma.message.create({
+    if(mediaUrl&&orgId)mediaUrl=await this.retrieveMedia(mediaUrl.slice('wa-media:'.length),orgId);
+    let saved;try {saved = await this.prisma.message.create({
       data: {
         conversationId: conv.id,
         direction: 'INBOUND',
@@ -296,6 +311,7 @@ export class WhatsAppService {
         meta: { raw: m } as Prisma.InputJsonValue,
       },
     });
+    }catch(error){if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==='P2002')return;throw error;}
     await this.touchConversation(conv.id, text, true);
     if (leadId && orgId) {
       await this.prisma.activity.create({ data: { organizationId: orgId, leadId, type: 'WHATSAPP', content: `📥 ${text.slice(0, 500)}` } });
@@ -334,12 +350,27 @@ export class WhatsAppService {
     await this.send(orgId, phone, { type: 'text', text: reply }, { leadId, ownNumberOnly: true }).catch(() => undefined);
   }
 
-  private async onStatus(s: any) {
+  private async retrieveMedia(mediaId:string,orgId:string) {
+    if(!/^[0-9]+$/.test(mediaId))throw new BadRequestException('Invalid WhatsApp media id');
+    const creds=await this.requireCreds(orgId); const headers={Authorization:`Bearer ${creds.values.accessToken}`};
+    const metadata=await fetch(`${GRAPH}/${mediaId}`,{headers,signal:AbortSignal.timeout(15000)});
+    if(!metadata.ok)throw new IntegrationFailedException('whatsapp','Media lookup failed');
+    const details:any=await metadata.json(); const url=new URL(details.url);
+    if(url.protocol!=='https:'||!['facebook.com','fbcdn.net','fbsbx.com'].some((domain)=>url.hostname===domain||url.hostname.endsWith(`.${domain}`)))throw new BadRequestException('Unexpected media host');
+    const response=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(30000)});
+    if(!response.ok||!response.body)throw new IntegrationFailedException('whatsapp','Media download failed');
+    const max=12*1024*1024;const chunks:Buffer[]=[];let size=0;
+    for await (const chunk of response.body as any){size+=chunk.length;if(size>max)throw new BadRequestException('WhatsApp media exceeds 12MB');chunks.push(Buffer.from(chunk));}
+    const key=await this.storage.putSource(Buffer.concat(chunks),details.mime_type??'application/octet-stream',orgId);
+    return `${env().PUBLIC_API_URL.replace(/\/$/,'')}/api/media/f/${key}`;
+  }
+
+  private async onStatus(s: any,orgId:string|null) {
     const map: Record<string, any> = { sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED' };
     const status = map[s.status];
     if (!status || !s.id) return;
     const msg = await this.prisma.message.findUnique({ where: { externalId: s.id }, include: { conversation: true } });
-    if (!msg) return;
+    if (!msg || msg.conversation.organizationId!==orgId) return;
     const order = ['QUEUED', 'SENT', 'DELIVERED', 'READ'];
     if (status !== 'FAILED' && order.indexOf(status) <= order.indexOf(msg.status)) return;
     const updated = await this.prisma.message.update({

@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Inbox, LayoutDashboard, MessagesSquare, Plus, Workflow, FileSpreadsheet } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { PrivacyConsentCard } from '@/components/privacy/privacy';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
@@ -56,7 +55,6 @@ function Inner({ children }: { children: React.ReactNode }) {
     >
       {children}
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
-      <PrivacyConsentCard />
     </PanelShell>
   );
 }

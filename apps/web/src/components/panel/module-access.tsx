@@ -10,7 +10,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
   const config = useConfig();
   const role = useAuth().user?.role ?? '';
   const key = moduleForPath(path);
-  if (!key || moduleAllowed(config.modules, key, role)) return <>{children}</>;
+  if (!key || (!!config.modules && moduleAllowed(config.modules, key, role))) return <>{children}</>;
   return (
     <div className="mx-auto max-w-lg rounded-2xl border border-line bg-surface p-8 text-center">
       <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Coming soon • जल्द आ रहा है</p>

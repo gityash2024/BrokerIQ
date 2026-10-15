@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
@@ -55,7 +56,7 @@ export class AutomationService implements OnModuleInit {
     this.events.on('lead.created', (e) => (e.isNew ? this.trigger('LEAD_CREATED', e.orgId, e.leadId) : undefined));
     this.events.on('lead.stage_changed', (e) => this.trigger('STAGE_CHANGED', e.orgId, e.leadId, { toStage: e.to }));
     this.events.on('visit.scheduled', (e) => this.trigger('VISIT_SCHEDULED', e.orgId, e.leadId, { visitId: e.visitId }));
-    this.jobs.register('automation.action', (p) => this.runAction(p.ruleId, p.leadId, p.index, p.context ?? {}));
+    this.jobs.register('automation.action', (p, job) => this.runAction(p.ruleId, p.leadId, p.index, p.context ?? {}, job.id));
   }
 
   // ------------------------------------------------------------------ CRUD
@@ -67,6 +68,7 @@ export class AutomationService implements OnModuleInit {
     const count = await this.prisma.automationRule.count({ where: { organizationId: orgId, isActive: true } });
     if (input.isActive) await this.usage.assert(orgId, 'automations', count);
     this.validate(input);
+    if (input.isActive) await this.checkOutbound(orgId, input.actions);
     return this.prisma.automationRule.create({
       data: { organizationId: orgId, ...input, conditions: input.conditions as Prisma.InputJsonValue, actions: input.actions as Prisma.InputJsonValue },
     });
@@ -80,6 +82,7 @@ export class AutomationService implements OnModuleInit {
       await this.usage.assert(orgId, 'automations', count);
     }
     if (input.actions) this.validate({ ...(rule as any), ...input });
+    if (input.isActive ?? rule.isActive) await this.checkOutbound(orgId, (input.actions ?? rule.actions) as unknown as Action[]);
     return this.prisma.automationRule.update({
       where: { id },
       data: {
@@ -104,6 +107,12 @@ export class AutomationService implements OnModuleInit {
     });
   }
 
+  private async checkOutbound(orgId: string, actions: { type: string }[]) {
+    if (actions.some((a) => a.type.startsWith('SEND_WHATSAPP'))) await this.wa.requireCreds(orgId);
+    if (env().BROKER_FIRST && actions.some((a) => a.type === 'SEND_EMAIL' || a.type.startsWith('ASSIGN_')))
+      throw new BadRequestException('Email and team automation are upcoming features');
+  }
+
   private validate(input: Pick<AutomationRuleInput, 'actions'>) {
     for (const a of input.actions) {
       if (a.type === 'SEND_WHATSAPP_TEXT' && !a.params?.text) throw new BadRequestException('WhatsApp text action में message लिखें');
@@ -117,6 +126,14 @@ export class AutomationService implements OnModuleInit {
   /** Ready-made rules the broker can add with one click. */
   presets() {
     return [
+      {
+        key: 'lead_follow_up',
+        name: 'नई lead पर call follow-up',
+        trigger: 'LEAD_CREATED',
+        conditions: { sources: [], stages: [] },
+        actions: [{ type: 'CREATE_FOLLOW_UP', delayMinutes: 0, params: { inMinutes: 15, type: 'CALL', note: 'नई lead — 15 मिनट में call करें' } }],
+        respectBusinessHours: false,
+      },
       {
         key: 'welcome_whatsapp',
         name: 'नई lead को तुरंत WhatsApp welcome',
@@ -208,7 +225,7 @@ export class AutomationService implements OnModuleInit {
     const rules = await this.prisma.automationRule.findMany({ where: { organizationId: orgId, trigger, isActive: true } });
     if (!rules.length) return;
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
-    if (!lead || lead.deletedAt) return;
+    if (!lead || lead.deletedAt || lead.organizationId !== orgId) return;
     for (const rule of rules) {
       if (!this.matches(rule, lead, ctx)) continue;
       await this.prisma.automationRule.update({ where: { id: rule.id }, data: { runCount: { increment: 1 }, lastRunAt: new Date() } });
@@ -223,30 +240,33 @@ export class AutomationService implements OnModuleInit {
     for (let i = 0; i < actions.length; i++) {
       let runAt = new Date(Date.now() + (actions[i].delayMinutes ?? 0) * 60_000);
       if (rule.respectBusinessHours && hours?.enabled) runAt = nextBusinessTime(runAt, hours);
-      if (runAt.getTime() - Date.now() < 5_000) await this.runAction(rule.id, leadId, i, ctx);
-      else
-        await this.jobs.enqueue(
-          'automation.action',
-          { ruleId: rule.id, leadId, index: i, context: ctx },
-          { runAt, key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}` },
-        );
+      await this.jobs.enqueue(
+        'automation.action',
+        { orgId: rule.organizationId, ruleId: rule.id, leadId, index: i, context: ctx },
+        { runAt, maxAttempts: actions[i].type.startsWith('SEND_') ? 1 : 5, key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}` },
+      );
     }
   }
 
-  async runAction(ruleId: string, leadId: string, index: number, ctx: Record<string, any>) {
+  async runAction(ruleId: string, leadId: string, index: number, ctx: Record<string, any>, executionKey?: string) {
     if (!(await this.modulePolicy.enabled('automation'))) return;
     const rule = await this.prisma.automationRule.findUnique({ where: { id: ruleId } });
     if (!rule?.isActive) return;
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId }, include: { assignedTo: true, organization: true, listing: true } });
-    if (!lead || lead.deletedAt) return;
+    if (!lead || lead.deletedAt || lead.organizationId !== rule.organizationId) return;
+    if (lead.organization.status !== 'ACTIVE') throw new BadRequestException('Firm is inactive');
     const action = ((rule.actions ?? []) as unknown as Action[])[index];
     if (!action) return;
+    if (['CREATE_FOLLOW_UP', 'SET_STAGE', 'ADD_TAG', 'NOTIFY_TEAM'].includes(action.type) && !(await this.modulePolicy.enabled('leads')))
+      throw new BadRequestException('Leads module is disabled');
     // Delayed drip steps stop once the lead is closed.
     if (action.delayMinutes > 0 && ['WON', 'LOST'].includes(lead.stage)) {
       await this.prisma.automationRun.create({ data: { ruleId, leadId, status: 'SKIPPED', log: { action: action.type, reason: 'lead closed' } } });
       return;
     }
-    const visit = ctx.visitId ? await this.prisma.siteVisit.findUnique({ where: { id: ctx.visitId }, include: { listing: true } }) : null;
+    const visit = ctx.visitId
+      ? await this.prisma.siteVisit.findFirst({ where: { id: ctx.visitId, organizationId: rule.organizationId, leadId }, include: { listing: true } })
+      : null;
     const vars = {
       lead: { name: lead.name.split(' ')[0] || lead.name, fullName: lead.name, phone: lead.phone },
       org: { name: lead.organization.name, phone: lead.organization.phone },
@@ -328,16 +348,17 @@ export class AutomationService implements OnModuleInit {
           break;
         case 'CREATE_FOLLOW_UP': {
           const fresh = await this.prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
-          await this.prisma.followUp.create({
-            data: {
-              organizationId: lead.organizationId,
-              leadId,
-              type: p.type ?? 'CALL',
-              dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000),
-              note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up',
-              assignedToId: fresh.assignedToId,
-            },
-          });
+          const effectId = executionKey ? `auto_${createHash('sha256').update(executionKey).digest('hex').slice(0, 28)}` : undefined;
+          const followUp = {
+            organizationId: lead.organizationId,
+            leadId,
+            type: p.type ?? 'CALL',
+            dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000),
+            note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up',
+            assignedToId: fresh.assignedToId,
+          };
+          if (effectId) await this.prisma.followUp.upsert({ where: { id: effectId }, create: { ...followUp, id: effectId }, update: {} });
+          else await this.prisma.followUp.create({ data: followUp });
           await this.leads.refreshNextFollowUp(leadId);
           message = 'Follow-up created';
           break;
@@ -366,6 +387,7 @@ export class AutomationService implements OnModuleInit {
       message = (e as any)?.response?.message ?? (e as Error).message;
     }
     await this.prisma.automationRun.create({ data: { ruleId, leadId, status, log: { action: action.type, message } } });
+    if (status === 'FAILED') throw new BadRequestException(message);
     if (status === 'SUCCESS' && action.type.startsWith('SEND_')) {
       await this.prisma.activity.create({ data: { organizationId: lead.organizationId, leadId, type: 'AUTOMATION', content: `⚡ ${rule.name}: ${message}` } });
     }

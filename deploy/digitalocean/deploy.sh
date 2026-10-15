@@ -30,8 +30,7 @@ log "Database migrations + master data seed (idempotent)"
 ( set -a; source "$BASE/secrets/api.env"; set +a; cd apps/api && pnpm exec prisma migrate deploy && node dist/prisma/seed.js )
 
 log "Start / reload"
-pm2 startOrReload "$BASE/ecosystem.config.js" --update-env
-pm2 save
+pm2 startOrReload "$BASE/ecosystem.config.js" --only brokeriq-api,brokeriq-web --update-env
 
 log "Health check"
 for i in $(seq 1 30); do

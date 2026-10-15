@@ -106,20 +106,28 @@ export class AdminCoreController {
     };
   }
 
+  @Get('launch-overview')
+  async launchOverview() {
+    const [firms,brokers,inventory,requirements,pendingImports,failedJobs]=await Promise.all([
+      this.prisma.organization.count({where:{status:'ACTIVE'}}),this.prisma.user.count({where:{role:'BROKER_ADMIN',status:'ACTIVE',deletedAt:null}}),this.prisma.inventoryItem.count({where:{deletedAt:null}}),this.prisma.brokerRequirement.count({where:{deletedAt:null,status:'OPEN'}}),this.prisma.sourceEntry.count({where:{reviewState:'NEEDS_REVIEW'}}),this.prisma.job.count({where:{status:'FAILED'}})
+    ]);
+    return {firms,brokers,inventory,requirements,pendingImports,failedJobs,integrations:(await this.settings.platformOverview()).filter((i)=>['housing_api','whatsapp_platform','openrouter'].includes(i.key)).map((i)=>({key:i.key,configured:i.configured,lastTestOk:i.lastTestOk}))};
+  }
+
   // ------------------------------------------------------------------ credentials center
   @Get('integrations')
   async integrations(@Query('scope') scope?: string) {
     const apiUrl = env().PUBLIC_API_URL;
-    const defs = INTEGRATIONS.filter((d) => (scope ? d.scope === scope : d.scope === 'platform'));
+    const defs = INTEGRATIONS.filter((d) => (scope ? d.scope === scope : d.scope === 'platform' || d.key === 'housing_api'));
     return Promise.all(
-      defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: d.scope === 'platform' ? await this.settings.view(d.key) : null })),
+      defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: await this.settings.view(d.key) })),
     );
   }
 
   @Get('integrations/:key')
   async integration(@Param('key') key: string) {
     const def = getIntegration(key);
-    if (!def || def.scope !== 'platform') throw new NotFoundException();
+    if (!def || (def.scope !== 'platform' && def.key !== 'housing_api')) throw new NotFoundException();
     return { ...def, steps: renderSteps(def, env().PUBLIC_API_URL), state: await this.settings.view(key) };
   }
 
@@ -130,7 +138,7 @@ export class AdminCoreController {
     @Body(new ZodPipe(integrationSaveSchema)) body: z.infer<typeof integrationSaveSchema>,
   ) {
     const def = getIntegration(key);
-    if (!def || def.scope !== 'platform') throw new NotFoundException();
+    if (!def || (def.scope !== 'platform' && def.key !== 'housing_api')) throw new NotFoundException();
     const state = await this.settings.save(key, body, { userId: user.id });
     await this.audit.log(user, 'credentials.update', 'Integration', key, { fields: Object.keys(body.fields ?? {}), enabled: body.enabled });
     return state;

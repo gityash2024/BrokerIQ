@@ -158,6 +158,7 @@ export default function LeadDetail() {
               {l.sourceDetail}
             </Txt>
           )}
+          <Button title="Requirements & matching" variant="secondary" size="sm" onPress={() => router.push({pathname:"/requirements",params:{leadId:id}})} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
               const on = l.stage === s;
@@ -165,7 +166,7 @@ export default function LeadDetail() {
               return (
                 <PressableScale
                   key={s}
-                  onPress={() => (s === 'LOST' ? setSheet('lost') : s === 'WON' ? setSheet('deal') : stage.mutate({ stage: s }))}
+                  onPress={() => (s === 'LOST' ? setSheet('lost') : stage.mutate({ stage: s }))}
                   style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
                 >
                   <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
@@ -366,8 +367,8 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
   const [at, setAt] = useState<Date | null>(null);
   const [listingId, setListingId] = useState<string | null>(lead.listing?.id ?? null);
   const [address, setAddress] = useState('');
-  const mine = useQuery({ queryKey: ['my-listings-pick'], queryFn: () => api<any>('/listings/mine?pageSize=50&status=ACTIVE'), enabled: open });
-  const save = useApiMutation(() => post('/visits', { leadId: lead.id, listingId, scheduledAt: at!.toISOString(), address: address || null }), {
+  const mine = useQuery({ queryKey: ['my-listings-pick'], queryFn: () => api<any>('/inventory?pageSize=50'), enabled: open });
+  const save = useApiMutation(() => post('/visits', { leadId: lead.id, scheduledAt: at!.toISOString(), address: address || null }), {
     success: 'Site visit scheduled 🗓',
     onSuccess: () => {
       scheduleReminder(`🏠 Site visit: ${lead.name}`, address || 'Visit शुरू होने वाली है', at!, 30).catch(() => undefined);
@@ -387,7 +388,7 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
       </Txt>
       <Row wrap>
         {(mine.data?.items ?? []).slice(0, 12).map((x: any) => (
-          <Chip key={x.id} label={x.title.slice(0, 32)} active={listingId === x.id} onPress={() => setListingId(listingId === x.id ? null : x.id)} />
+          <Chip key={x.id} label={[x.houseNo, x.unitLabel, x.sector].filter(Boolean).join(' ').slice(0, 32)} active={listingId === x.id} onPress={() => {setListingId(x.id);setAddress([x.houseNo,x.unitLabel,x.sector,x.address].filter(Boolean).join(', '));}} />
         ))}
       </Row>
       <Input value={address} onChangeText={setAddress} placeholder="Meeting point (optional)" />

@@ -6,7 +6,7 @@ const FALLBACK: PublicConfig = { app: DEFAULT_APP_CONFIG, flags: {}, integration
 
 /** Runtime config from Super Admin (branding, flags, public integration keys, versions). */
 export function useConfig() {
-  const q = useQuery({ queryKey: ['public-config'], queryFn: () => api<PublicConfig>('/public/config', { auth: false }), staleTime: 5 * 60_000 });
+  const q = useQuery({ queryKey: ['public-config'], queryFn: () => api<PublicConfig>('/public/config', { auth: false }), staleTime: 15_000, refetchInterval: 15_000 });
   return { ...(q.data ?? FALLBACK), loaded: !!q.data, error: q.error, refetch: q.refetch };
 }
 

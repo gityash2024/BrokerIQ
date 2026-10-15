@@ -11,7 +11,7 @@ import { env } from './config/env';
 async function bootstrap() {
   const e = env();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true, bodyParser: false });
-  app.use(json({ limit: '12mb', verify: (req: any, _res, buf) => (req.rawBody = buf) }));
+  app.use(json({ limit: '20mb', verify: (req: any, _res, buf) => (req.rawBody = buf) }));
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   configureApp(app);
 

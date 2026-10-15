@@ -33,6 +33,7 @@ export default function BrokersPage() {
     <>
       <PageHeader title="Broker firms" subtitle={q.data ? `${q.data.total} firms` : ' '} />
       <CreateBroker />
+      <Link href="/admin/broker-invites" className="mb-4 inline-block text-sm font-semibold text-brand-600">Expiring broker invitations →</Link>
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="w-full sm:w-72">
           <Input

@@ -66,7 +66,8 @@ const featurePaths: Record<string, [string[], string[]]> = {
 
 /** One registry drives web/native navigation, HTTP authorization and worker execution. */
 export const PLATFORM_MODULES: PlatformModule[] = [
-  core('today', 'Today • आज का काम', 'Follow-ups, visits and next actions', '/broker', ['/broker/dashboard'], ['/broker/dashboard']),
+  core('today', 'Today • आज का काम', 'Follow-ups, visits and next actions', '/broker', ['/broker/dashboard'], ['/broker/dashboard', '/broker/today']),
+  core('directory','Area Directory • क्षेत्र निर्देशिका','Gurugram societies, apartments and commercial projects; map and list','/broker/inventory/directory',['/broker/inventory/directory'],['/area-directory']),
   core(
     'inventory',
     'Inventory • इन्वेंटरी',
@@ -82,7 +83,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'Requirements, pipeline, matches, follow-ups and visits',
     '/broker/leads',
     ['/broker/leads', '/broker/pipeline', '/broker/follow-ups', '/broker/visits'],
-    ['/leads', '/follow-ups', '/visits', '/requirements/broker'],
+    ['/leads', '/follow-ups', '/visits', '/requirements/broker', '/broker-requirements'],
     ['lead.score'],
   ),
   core(
@@ -92,7 +93,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/inbox',
     ['/broker/inbox', '/broker/imports'],
     ['/whatsapp', '/broker/whatsapp', '/webhooks/whatsapp', '/chat', '/imports'],
-    ['import.extract'],
+    ['import.extract', 'whatsapp.event'],
   ),
   core(
     'automation',

@@ -1,3 +1,7 @@
+// Refuse implicit .env connections: regression suites create and mutate fixture rows.
+const selectedDatabase = process.env.DATABASE_URL;
+if (!selectedDatabase || !/^brokeriq_(?:release_test|test)/.test(new URL(selectedDatabase).pathname.slice(1)))
+  throw new Error('Tests require an explicitly selected isolated BrokerIQ test DATABASE_URL');
 // Runs before test modules are imported (env() is read at module load).
 process.env.E2E_UNIQ = process.env.E2E_UNIQ || Date.now().toString(36);
 process.env.NODE_ENV = 'test';

@@ -57,10 +57,11 @@ async function refresh(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: cur.refreshToken }),
       });
       if (!res.ok) {
-        await authStore.set(null);
+        if (authStore.get()?.user.id === cur.user.id) await authStore.set(null);
         return false;
       }
       const d: AuthResponse = await res.json();
+      if (authStore.get()?.user.id !== cur.user.id) return false;
       await authStore.set({ accessToken: d.accessToken, refreshToken: d.refreshToken, user: d.user });
       return true;
     } catch {
@@ -72,11 +73,12 @@ async function refresh(): Promise<boolean> {
   return refreshing;
 }
 
-type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string> };
+type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string>; ownerId?: string };
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { body, auth = true, method = body === undefined ? 'GET' : 'POST', headers } = opts;
   const send = () => {
+    if (opts.ownerId && authStore.get()?.user.id !== opts.ownerId) throw new Error("Account changed. Saved operation remains with its original account.");
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}${path}`, {
       method,

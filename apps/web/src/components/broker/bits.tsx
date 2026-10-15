@@ -46,5 +46,5 @@ export function TempBadge({ t }: { t?: string | null }) {
 }
 
 export function useTeam() {
-  return useQuery({ queryKey: ['team'], queryFn: () => api<any>('/broker/team'), staleTime: 60_000 });
+  return useQuery({ queryKey: ['team'], queryFn: () => api<any>('/leads/assignees'), staleTime: 60_000 });
 }

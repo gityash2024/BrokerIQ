@@ -63,12 +63,17 @@ export default function Login() {
   const insets = useSafeAreaInsets();
   const { app, integrations } = useConfig();
   const { setSession } = useAuth();
-  const [mode, setMode] = useState<Mode>(app.auth?.allowEmailOtp === false ? 'password' : 'otp');
+  const [mode, setMode] = useState<Mode>('password');
   // Default to Broker for broker-only launch
   // const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
   const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('BROKER');
   const [f, setF] = useState({ email: '', password: '', name: '', phone: '', firmName: '', code: '', inviteCode: '' });
   const inviteOnly = app.auth?.allowBrokerSignup === false;
+  useEffect(() => {
+    if (mode === 'otp' && app.auth?.allowEmailOtp === false) setMode('password');
+    if (mode === 'password' && app.auth?.allowPasswordLogin === false && app.auth?.allowEmailOtp !== false) setMode('otp');
+  }, [app.auth?.allowEmailOtp, app.auth?.allowPasswordLogin, mode]);
+
   const invite = accountType === 'BROKER' && f.inviteCode ? f.inviteCode : undefined;
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);

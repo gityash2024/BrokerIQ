@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import type { PublicConfig } from '@brokeriq/shared';
-import { AuthProvider } from '@/lib/auth';
-import { ConfigProvider } from '@/lib/config';
+import { moduleAllowed, type PublicConfig } from '@brokeriq/shared';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { ConfigProvider, useConfig } from '@/lib/config';
 import { ApiError } from '@/lib/api';
 import { FeedbackWidget } from '@/components/feedback/feedback-widget';
 import { AssistantWidget } from '@/components/assistant/assistant';
@@ -33,9 +33,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
         <AuthProvider>
           <I18nProvider>
             {children}
-            <FeedbackWidget />
-            <AssistantWidget />
-            <WebPushPrompt />
+            <OptionalWidgets />
             <Toaster position="top-center" richColors closeButton />
           </I18nProvider>
         </AuthProvider>
@@ -43,3 +41,5 @@ export function Providers({ children, config }: { children: React.ReactNode; con
     </QueryClientProvider>
   );
 }
+
+function OptionalWidgets(){const config=useConfig();const role=useAuth().user?.role??'';return <>{moduleAllowed(config.modules,'assistant',role)&&<AssistantWidget/>}{moduleAllowed(config.modules,'web_push',role)&&<WebPushPrompt/>}{moduleAllowed(config.modules,'legacy',role)&&<FeedbackWidget/>}</>;}

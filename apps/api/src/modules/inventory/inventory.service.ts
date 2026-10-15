@@ -1,335 +1,300 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { type InventoryInput, type BrokerRequirementInput, ledgerMatch, areaSqft, normalizeIndianPhone, propertyDetailsSchema, PROPERTY_FIELDS, INVENTORY_SORTS } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../core/audit/audit.service';
 import type { RequestUser } from '../../common/decorators';
-import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemDto } from './inventory.dto';
+import type { InventoryFilterQuery } from './inventory.dto';
 
-function slugify(text: string) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+const include = {
+  contacts: true,
+  sourceEntry: { select: { id: true, rawText: true, pageNo: true, bbox: true, batch: { select: { id: true, sourceType: true, fileName: true } } } },
+} as const;
+export function ledgerJson<T extends Record<string, any>>(item: T) {
+  const result: Record<string, any> = { ...item };
+  for (const key of ['monthlyRent', 'totalSalePrice', 'ratePerArea', 'area', 'minBudget', 'maxBudget', 'minArea', 'maxArea', 'price', 'ratePerSqft'])
+    if (result[key] != null) result[key] = Number(result[key]);
+  return result;
 }
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private resolveOrgId(user: RequestUser, requestedOrgId?: string): string | undefined {
-    if (user.role === 'SUPER_ADMIN') {
-      return requestedOrgId || undefined;
-    }
-    if (!user.orgId) {
-      throw new ForbiddenException('User organization does not exist');
-    }
-    return user.orgId;
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+  orgId(user: RequestUser, requested?: string, required = true) {
+    const id = user.role === 'SUPER_ADMIN' ? requested : user.orgId;
+    if (!id && (required || user.role !== 'SUPER_ADMIN')) throw new ForbiddenException('Organization required');
+    return id || undefined;
   }
-
-  async findAll(query: InventoryFilterQuery, user: RequestUser) {
-    const orgId = this.resolveOrgId(user, query.organizationId);
-
-    const where: Prisma.InventoryItemWhereInput = {};
-    if (orgId) {
-      where.organizationId = orgId;
+  private scope(user: RequestUser, requested?: string): Prisma.InventoryItemWhereInput {
+    return { organizationId: this.orgId(user, requested, false), deletedAt: null };
+  }
+  async findAll(q: InventoryFilterQuery, user: RequestUser) {
+    const where = this.scope(user, q.organizationId);
+    if (q.sector) where.sector = { equals: q.sector, mode: 'insensitive' };
+    if (q.houseNo) where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
+    for (const key of ['bhk', 'status', 'purpose', 'propertyType', 'category', 'furnishing', 'roomKind', 'availability', 'sourceType'] as const)
+      if (q[key] != null) (where as any)[key] = q[key];
+    if (q.search)
+      where.OR = ['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
+        [key]: { contains: q.search, mode: 'insensitive' },
+      }));
+    const and: Prisma.InventoryItemWhereInput[] = [];
+    const csv=(value:string)=>value.split(',').map((v)=>v.trim()).filter(Boolean).slice(0,100);
+    if(q.localities)and.push({sector:{in:csv(q.localities),mode:'insensitive'}});
+    if(q.propertyTypes)and.push({propertyType:{in:csv(q.propertyTypes)}});
+    if(q.roomKinds)and.push({roomKind:{in:csv(q.roomKinds)}});
+    if(q.floor)where.floor={equals:q.floor,mode:'insensitive'};
+    if(q.verificationStatus)where.verificationStatus=q.verificationStatus;
+    if(q.hasPhotos)and.push({photoUrls:{isEmpty:q.hasPhotos==='false'}});
+    if(q.hasVideos)and.push({videoUrls:{isEmpty:q.hasVideos==='false'}});
+    if(q.amenities)and.push({amenities:{hasEvery:csv(q.amenities)}});
+    if(q.minRate!=null||q.maxRate!=null)where.ratePerSqft={...(q.minRate!=null?{gte:q.minRate}:{}),...(q.maxRate!=null?{lte:q.maxRate}:{})};
+    if(q.detailFilters){
+      let details:Record<string,unknown>;try{details=JSON.parse(q.detailFilters);}catch{throw new BadRequestException('Invalid property filters');}
+      if(!details||Array.isArray(details)||typeof details!=='object')throw new BadRequestException('Invalid property filters');
+      for(const [key,value] of Object.entries(details)){
+        const field=PROPERTY_FIELDS.find((f)=>f.key===key);if(!field)throw new BadRequestException(`Unknown property filter: ${key}`);
+        if(value==null||value==='')continue;
+        if(field.kind==='number'){
+          const range=value as {min?:number;max?:number};
+          if(!range||typeof range!=='object'||Object.keys(range).some((k)=>!['min','max'].includes(k)))throw new BadRequestException('Invalid numeric range');
+          for(const [bound,amount] of Object.entries(range)){
+            if(typeof amount!=='number'||!Number.isFinite(amount)||amount<(field.min??0)||amount>(field.max??1e13))throw new BadRequestException('Invalid numeric filter');
+            and.push({details:bound==='min'?{path:[key],gte:amount}:{path:[key],lte:amount}});
+          }
+        }else if(field.kind==='text'){
+          if(typeof value!=='string'||value.length>200)throw new BadRequestException('Invalid text filter');
+          and.push({details:{path:[key],string_contains:value,mode:'insensitive'}});
+        }else{
+          const values=Array.isArray(value)?value:[value];if(values.length>100)throw new BadRequestException('Too many filter choices');
+          for(const v of values)if(!propertyDetailsSchema.safeParse({[key]:v}).success)throw new BadRequestException('Invalid property filter choice');
+          and.push({OR:values.map((v)=>({details:{path:[key],equals:v as Prisma.InputJsonValue}}))});
+        }
+      }
     }
-
-    if (query.sector) {
-      where.sector = { contains: query.sector, mode: 'insensitive' };
+    if (q.minBudget != null || q.maxBudget != null) {
+      const range = { ...(q.minBudget != null ? { gte: q.minBudget } : {}), ...(q.maxBudget != null ? { lte: q.maxBudget } : {}) };
+      and.push({
+        OR: [
+          { purpose: 'RENT', monthlyRent: range },
+          { purpose: 'SALE', totalSalePrice: range },
+        ],
+      });
     }
-
-    if (query.houseNo) {
-      where.houseNo = { contains: query.houseNo, mode: 'insensitive' };
-    }
-
-    if (query.bhk) {
-      where.bhk = Number(query.bhk);
-    }
-
-    if (query.status) {
-      where.status = query.status.toUpperCase();
-    }
-
-    if (query.purpose) {
-      where.purpose = query.purpose.toUpperCase();
-    }
-
-    if (query.furnishing) {
-      where.furnishing = query.furnishing.toUpperCase();
-    }
-
-    if (query.dateFrom || query.dateTo) {
-      where.date = {};
-      if (query.dateFrom) where.date.gte = new Date(query.dateFrom);
-      if (query.dateTo) where.date.lte = new Date(query.dateTo);
-    }
-
-    if (query.search?.trim()) {
-      const s = query.search.trim();
-      where.OR = [
-        { houseNo: { contains: s, mode: 'insensitive' } },
-        { sector: { contains: s, mode: 'insensitive' } },
-        { ownerPhone: { contains: s, mode: 'insensitive' } },
-        { ownerName: { contains: s, mode: 'insensitive' } },
-        { notes: { contains: s, mode: 'insensitive' } },
-      ];
-    }
-
-    const page = Math.max(1, Number(query.page) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 15));
-    const skip = (page - 1) * pageSize;
-
+    if (q.minArea != null || q.maxArea != null) {
+      if (!q.areaUnit) throw new BadRequestException('Area unit required');
+      const units = ['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE'];
+      and.push({
+        OR: units.map((unit) => ({
+          areaUnit: unit,
+          area: {
+            ...(q.minArea != null ? { gte: areaSqft(q.minArea, q.areaUnit!)! / areaSqft(1, unit)! } : {}),
+            ...(q.maxArea != null ? { lte: areaSqft(q.maxArea, q.areaUnit!)! / areaSqft(1, unit)! } : {}),
+          },
+        })),
+      });
+    } else if (q.areaUnit) where.areaUnit = q.areaUnit;
+    if (and.length) where.AND = and;
+    if (q.dateFrom || q.dateTo) where.date = { ...(q.dateFrom ? { gte: new Date(q.dateFrom) } : {}), ...(q.dateTo ? { lte: new Date(q.dateTo) } : {}) };
+    if(q.sort&&!INVENTORY_SORTS.some((s)=>s.value===q.sort))throw new BadRequestException('Invalid sort');
+    const [sortField,sortDirection]=q.sort?.split(':')??[];
+    const order = sortField ?? (q.sortBy === 'rent' ? 'monthlyRent' : q.sortBy);
     const [items, total] = await Promise.all([
       this.prisma.inventoryItem.findMany({
         where,
-        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-        skip,
-        take: pageSize,
-        include: {
-          organization: { select: { id: true, name: true, slug: true } },
-          createdBy: { select: { id: true, name: true, email: true } },
-        },
+        include,
+        orderBy: [{ [order]: ['price','ratePerSqft','monthlyRent','totalSalePrice'].includes(order)?{sort:sortDirection??q.sortOrder,nulls:'last'}:sortDirection??q.sortOrder }, { id: 'asc' }],
+        take: q.pageSize,
+        skip: (q.page - 1) * q.pageSize,
       }),
       this.prisma.inventoryItem.count({ where }),
     ]);
-
-    // Status counts for tabs
-    const statusWhere: Prisma.InventoryItemWhereInput = orgId ? { organizationId: orgId } : {};
-    const [allCount, draftCount, activeCount, rentedCount] = await Promise.all([
-      this.prisma.inventoryItem.count({ where: statusWhere }),
-      this.prisma.inventoryItem.count({ where: { ...statusWhere, status: 'DRAFT' } }),
-      this.prisma.inventoryItem.count({ where: { ...statusWhere, status: 'ACTIVE' } }),
-      this.prisma.inventoryItem.count({ where: { ...statusWhere, status: 'RENTED' } }),
+    return { items: items.map(ledgerJson), total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
+  }
+  async get(id: string, user: RequestUser) {
+    const item = await this.prisma.inventoryItem.findFirst({ where: { ...this.scope(user), id }, include });
+    if (!item) throw new NotFoundException('Inventory item not found');
+    return ledgerJson(item);
+  }
+  async getStats(user: RequestUser, organizationId?: string) {
+    const where = this.scope(user, organizationId);
+    const [total, statuses, availability, reviewed] = await Promise.all([
+      this.prisma.inventoryItem.count({ where }),
+      this.prisma.inventoryItem.groupBy({ by: ['status'], where, _count: { id: true } }),
+      this.prisma.inventoryItem.groupBy({ by: ['availability'], where, _count: { id: true } }),
+      this.prisma.inventoryItem.count({ where: { ...where, verificationStatus: 'VERIFIED' } }),
     ]);
-
+    const count = (state: string) => statuses.find((x) => x.status === state)?._count.id ?? 0;
+    const avail = (state: string) => availability.find((x) => x.availability === state)?._count.id ?? 0;
     return {
-      items,
       total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-      statusCounts: {
-        ALL: allCount,
-        DRAFT: draftCount,
-        ACTIVE: activeCount,
-        RENTED: rentedCount,
-      },
+      draft: count('DRAFT'),
+      active: count('ACTIVE'),
+      inactive: count('INACTIVE'),
+      rented: avail('RENTED'),
+      sold: avail('SOLD'),
+      available: avail('AVAILABLE'),
+      unknown: avail('UNKNOWN'),
+      reviewed,
+      published: 0,
     };
   }
-
-  async getStats(user: RequestUser, organizationId?: string) {
-    const orgId = this.resolveOrgId(user, organizationId);
-    const where: Prisma.InventoryItemWhereInput = orgId ? { organizationId: orgId } : {};
-
-    const [total, draft, active, rented, published] = await Promise.all([
-      this.prisma.inventoryItem.count({ where }),
-      this.prisma.inventoryItem.count({ where: { ...where, status: 'DRAFT' } }),
-      this.prisma.inventoryItem.count({ where: { ...where, status: 'ACTIVE' } }),
-      this.prisma.inventoryItem.count({ where: { ...where, status: 'RENTED' } }),
-      this.prisma.inventoryItem.count({ where: { ...where, isPublished: true } }),
-    ]);
-
-    return { total, draft, active, rented, published };
-  }
-
   async getSectors(user: RequestUser, organizationId?: string) {
-    const orgId = this.resolveOrgId(user, organizationId);
-    const where: Prisma.InventoryItemWhereInput = orgId ? { organizationId: orgId } : {};
-
-    const sectors = await this.prisma.inventoryItem.groupBy({
+    const rows = await this.prisma.inventoryItem.groupBy({
       by: ['sector'],
-      where,
+      where: { ...this.scope(user, organizationId), sector: { not: null } },
       _count: { id: true },
       orderBy: { sector: 'asc' },
     });
-
-    return sectors.map((s) => ({ sector: s.sector, count: s._count.id }));
+    return rows.map((r) => ({ sector: r.sector, count: r._count.id }));
   }
-
-  async create(dto: CreateInventoryItemDto, user: RequestUser) {
-    const orgId = this.resolveOrgId(user);
-    if (!orgId) throw new BadRequestException('Organization ID is required');
-
-    // Try finding matching locality
-    const locality = await this.prisma.locality.findFirst({
-      where: { name: { contains: dto.sector, mode: 'insensitive' } },
-    });
-
-    return this.prisma.inventoryItem.create({
-      data: {
-        organizationId: orgId,
-        createdById: user.id,
-        sector: dto.sector,
-        localityId: locality?.id ?? null,
-        houseNo: dto.houseNo,
-        ownerName: dto.ownerName ?? null,
-        ownerPhone: dto.ownerPhone ?? null,
-        propertyType: dto.propertyType ?? 'BUILDER_FLOOR',
-        purpose: dto.purpose ? dto.purpose.toUpperCase() : 'RENT',
-        bhk: dto.bhk ? Number(dto.bhk) : null,
-        floor: dto.floor ?? null,
-        furnishing: dto.furnishing ? dto.furnishing.toUpperCase() : null,
-        rent: dto.rent != null ? Number(dto.rent) : null,
-        securityDeposit: dto.securityDeposit != null ? Number(dto.securityDeposit) : null,
-        brokerage: dto.brokerage ?? null,
-        tenantPreference: dto.tenantPreference ?? null,
-        amenities: dto.amenities ?? [],
-        notes: dto.notes ?? null,
-        status: (dto.status ?? 'DRAFT').toUpperCase(),
-        date: dto.date ? new Date(dto.date) : new Date(),
-        pageNo: dto.pageNo ? Number(dto.pageNo) : null,
-      },
-    });
+  private fields(input: InventoryInput, previous?:any) {
+    const { contacts: _contacts, organizationId: _org, expectedRevision: _revision, details:_details, ...data } = input;
+    const monthly = input.monthlyRent !== undefined ? input.monthlyRent : input.rent;
+    const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
+    if (input.ownerPhone && !primaryPhone) throw new BadRequestException('Invalid Indian phone number');
+    const effective={...previous,...data,...(monthly!==undefined?{monthlyRent:monthly}:{})};
+    const details=input.details?{...(previous?.details??{}),...input.details}:undefined;
+    const price=effective.purpose==='RENT'?effective.monthlyRent??effective.rent:effective.purpose==='SALE'?effective.totalSalePrice:null;
+    const size=effective.area!=null&&effective.areaUnit?areaSqft(Number(effective.area),effective.areaUnit):null;
+    const rate=effective.ratePerArea!=null&&effective.rateAreaUnit?Number(effective.ratePerArea)/areaSqft(1,effective.rateAreaUnit)!:size&&price!=null?Number(price)/size:null;
+    return {
+      ...data,
+      price:price==null?null:Number(price),ratePerSqft:rate,
+      ...(details?{details:details as Prisma.InputJsonValue}:{}),
+      ownerPhone: primaryPhone,
+      ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}),
+      ...(input.date ? { date: new Date(input.date) } : {}),
+      ...(input.availability ? { availabilityAt: new Date() } : {}),
+    };
   }
-
-  async update(id: string, dto: UpdateInventoryItemDto, user: RequestUser) {
-    const item = await this.prisma.inventoryItem.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException('Inventory item not found');
-
-    if (user.role !== 'SUPER_ADMIN' && item.organizationId !== user.orgId) {
-      throw new ForbiddenException('Not permitted to edit this item');
-    }
-
-    const data: Prisma.InventoryItemUpdateInput = {};
-    if (dto.sector !== undefined) data.sector = dto.sector;
-    if (dto.houseNo !== undefined) data.houseNo = dto.houseNo;
-    if (dto.ownerName !== undefined) data.ownerName = dto.ownerName;
-    if (dto.ownerPhone !== undefined) data.ownerPhone = dto.ownerPhone;
-    if (dto.propertyType !== undefined) data.propertyType = dto.propertyType;
-    if (dto.purpose !== undefined) data.purpose = dto.purpose.toUpperCase();
-    if (dto.bhk !== undefined) data.bhk = dto.bhk ? Number(dto.bhk) : null;
-    if (dto.floor !== undefined) data.floor = dto.floor;
-    if (dto.furnishing !== undefined) data.furnishing = dto.furnishing ? dto.furnishing.toUpperCase() : null;
-    if (dto.rent !== undefined) data.rent = dto.rent != null ? Number(dto.rent) : null;
-    if (dto.securityDeposit !== undefined) data.securityDeposit = dto.securityDeposit != null ? Number(dto.securityDeposit) : null;
-    if (dto.brokerage !== undefined) data.brokerage = dto.brokerage;
-    if (dto.tenantPreference !== undefined) data.tenantPreference = dto.tenantPreference;
-    if (dto.amenities !== undefined) data.amenities = dto.amenities;
-    if (dto.notes !== undefined) data.notes = dto.notes;
-    if (dto.status !== undefined) data.status = dto.status.toUpperCase();
-    if (dto.date !== undefined) data.date = new Date(dto.date);
-    if (dto.pageNo !== undefined) data.pageNo = dto.pageNo ? Number(dto.pageNo) : null;
-
-    return this.prisma.inventoryItem.update({
-      where: { id },
-      data,
-    });
+  private contacts(input: InventoryInput) {
+    return (
+      input.contacts ??
+      (input.ownerName || input.ownerPhone
+        ? [{ name: input.ownerName ?? null, phone: input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null, role: 'OWNER' }]
+        : [])
+    );
   }
-
-  async delete(id: string, user: RequestUser) {
-    const item = await this.prisma.inventoryItem.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException('Inventory item not found');
-
-    if (user.role !== 'SUPER_ADMIN' && item.organizationId !== user.orgId) {
-      throw new ForbiddenException('Not permitted to delete this item');
-    }
-
-    return this.prisma.inventoryItem.delete({ where: { id } });
-  }
-
-  /**
-   * One-click move/publish inventory row to a public marketplace Listing
-   */
-  async publishToListing(id: string, user: RequestUser) {
-    const item = await this.prisma.inventoryItem.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException('Inventory item not found');
-
-    if (user.role !== 'SUPER_ADMIN' && item.organizationId !== user.orgId) {
-      throw new ForbiddenException('Not permitted to publish this item');
-    }
-
-    // Find locality
-    let locality = item.localityId ? await this.prisma.locality.findUnique({ where: { id: item.localityId } }) : null;
-    if (!locality) {
-      locality = await this.prisma.locality.findFirst({
-        where: { name: { contains: item.sector, mode: 'insensitive' } },
+  async create(input: InventoryInput, user: RequestUser) {
+    const organizationId = this.orgId(user, input.organizationId)!;
+    if (input.clientMutationId) {
+      const existing = await this.prisma.inventoryItem.findUnique({
+        where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
+        include,
       });
+      if (existing) return ledgerJson(existing);
     }
-    if (!locality) {
-      // Fallback to first gurgaon locality
-      locality = await this.prisma.locality.findFirst();
-    }
-
-    const title = `${item.bhk ? `${item.bhk} BHK ` : ''}${item.floor ? `${item.floor} Floor ` : ''}${item.furnishing ? `${item.furnishing.replace(/_/g, ' ')} ` : ''}for ${item.purpose === 'SALE' ? 'Sale' : 'Rent'} in ${item.sector}`;
-    const slug = `${slugify(title)}-${Math.random().toString(36).substring(2, 7)}`;
-
-    const desc = [
-      `House: ${item.houseNo}, ${item.sector}, Gurgaon`,
-      item.notes ? `Details: ${item.notes}` : '',
-      item.tenantPreference ? `Preference: ${item.tenantPreference}` : '',
-      `Published directly from Olive State verified inventory.`,
-    ].filter(Boolean).join('\n');
-
-    // Create public Listing
-    const listing = await this.prisma.listing.create({
+    if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
+    const creation = {
       data: {
-        title,
-        slug,
-        purpose: item.purpose === 'SALE' ? 'SALE' : 'RENT',
-        category: item.propertyType === 'RESIDENTIAL_PLOT' ? 'PLOT' : 'RESIDENTIAL',
-        propertyType: (item.propertyType as any) || 'BUILDER_FLOOR',
-        status: 'ACTIVE',
-        localityId: locality?.id ?? '',
-        address: `House ${item.houseNo}, ${item.sector}, Gurgaon`,
-        latitude: locality?.latitude,
-        longitude: locality?.longitude,
-        price: item.rent ?? 0,
-        securityDeposit: item.securityDeposit ?? null,
-        brokerageAmount: item.brokerage ? (item.rent ? item.rent / 2 : null) : null,
-        brokerageType: item.brokerage ? 'DAYS_15' : 'NONE',
-        bedrooms: item.bhk ?? null,
-        bathrooms: item.bhk ?? 1,
-        floor: item.floor ? parseInt(item.floor, 10) || null : null,
-        furnishing: (item.furnishing as any) || null,
-        description: desc,
-        contactName: item.ownerName || 'Olive State',
-        contactPhone: item.ownerPhone || '9899980802',
-        postedByType: 'BROKER',
-        postedById: user.id,
-        organizationId: item.organizationId,
-        isVerified: true,
-        publishedAt: new Date(),
-        expiresAt: new Date(Date.now() + 90 * 86400000),
+        ...this.fields(input),
+        organizationId,
+        createdById: user.id,
+        verificationStatus: input.verificationStatus ?? 'VERIFIED',
+        contacts: { create: this.contacts(input) },
       },
-    });
-
-    // Mark inventory item as published
-    const updated = await this.prisma.inventoryItem.update({
-      where: { id },
-      data: {
-        isPublished: true,
-        publishedListingId: listing.id,
-        status: 'ACTIVE',
-      },
-    });
-
-    return { inventory: updated, listing };
+      include,
+    };
+    const item = input.clientMutationId
+      ? await this.prisma.inventoryItem.upsert({
+          where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
+          create: creation.data,
+          update: {},
+          include,
+        })
+      : await this.prisma.inventoryItem.create(creation);
+    await this.audit.log(user, 'inventory.create', 'InventoryItem', item.id);
+    return ledgerJson(item);
   }
-
-  async bulkCreate(items: CreateInventoryItemDto[], user: RequestUser) {
-    const orgId = this.resolveOrgId(user);
-    if (!orgId) throw new BadRequestException('Organization ID is required');
-
-    let createdCount = 0;
-    for (const dto of items) {
-      await this.create(dto, user);
-      createdCount++;
-    }
-    return { count: createdCount };
+  async update(id: string, input: InventoryInput, user: RequestUser) {
+    const item = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
+      if (!current) throw new NotFoundException('Inventory item not found');
+      const changed = await tx.inventoryItem.updateMany({
+        where: { id, deletedAt: null, revision: input.expectedRevision ?? current.revision },
+        data: { ...this.fields(input,current), revision: { increment: 1 } },
+      });
+      if (!changed.count) throw new ConflictException('Property changed. Reload before saving.');
+      if (input.contacts !== undefined) {
+        await tx.inventoryContact.deleteMany({ where: { inventoryId: id } });
+        if (input.contacts.length) await tx.inventoryContact.createMany({ data: input.contacts.map((c) => ({ ...c, inventoryId: id })) });
+      } else if (input.ownerPhone !== undefined || input.ownerName !== undefined) {
+        const owner = await tx.inventoryContact.findFirst({ where: { inventoryId: id, role: 'OWNER' } });
+        const contact = {
+          name: input.ownerName !== undefined ? input.ownerName : current.ownerName,
+          phone: input.ownerPhone !== undefined ? (input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null) : current.ownerPhone,
+          role: 'OWNER',
+        };
+        if (owner) await tx.inventoryContact.update({ where: { id: owner.id }, data: contact });
+        else if (contact.name || contact.phone) await tx.inventoryContact.create({ data: { ...contact, inventoryId: id } });
+      }
+      return tx.inventoryItem.findUniqueOrThrow({ where: { id }, include });
+    });
+    await this.audit.log(user, 'inventory.update', 'InventoryItem', id, {
+      fields: Object.keys(input).filter((k) => k !== 'contacts'),
+      revision: item.revision,
+    });
+    return ledgerJson(item);
   }
-
-  async bulkUpdate(ids: string[], dto: UpdateInventoryItemDto, user: RequestUser) {
-    const orgId = this.resolveOrgId(user);
-    if (!orgId) throw new BadRequestException('Organization ID is required');
-
-    const data: Prisma.InventoryItemUpdateInput = {};
-    if (dto.status !== undefined) data.status = dto.status.toUpperCase();
-    if (dto.sector !== undefined) data.sector = dto.sector;
-    if (dto.purpose !== undefined) data.purpose = dto.purpose.toUpperCase();
-    
-    // Only allow updating simple fields in bulk for now, primarily status
-    return this.prisma.inventoryItem.updateMany({
+  async delete(id: string, user: RequestUser) {
+    await this.get(id, user);
+    await this.prisma.inventoryItem.update({ where: { id }, data: { deletedAt: new Date(), revision: { increment: 1 } } });
+    await this.audit.log(user, 'inventory.archive', 'InventoryItem', id);
+    return { ok: true };
+  }
+  publishToListing() {
+    throw new ForbiddenException({ statusCode: 403, code: 'FEATURE_DISABLED', message: 'Public marketplace publishing is coming soon.' });
+  }
+  async bulkCreate(items: InventoryInput[], user: RequestUser) {
+    // Validation happens on the complete batch before any write. Every insert is atomic.
+    const orgId = this.orgId(user, items[0]?.organizationId)!;
+    if (items.some((i) => !i.sector && !i.address)) throw new BadRequestException('Every item needs a locality/address');
+    const data = items.map((i) => ({
+      ...this.fields(i),
+      organizationId: orgId,
+      createdById: user.id,
+      verificationStatus: i.verificationStatus ?? 'VERIFIED',
+      contacts: { create: this.contacts(i) },
+    }));
+    await this.prisma.$transaction(data.map((d) => this.prisma.inventoryItem.create({ data: d })));
+    await this.audit.log(user, 'inventory.bulk_create', 'Organization', orgId, { count: items.length });
+    return { count: items.length };
+  }
+  async bulkUpdate(ids: string[], input: Pick<InventoryInput, 'status' | 'availability'>, user: RequestUser) {
+    const unique = [...new Set(ids)];
+    const count = await this.prisma.$transaction(async (tx) => {
+      const items = await tx.inventoryItem.findMany({ where: { ...this.scope(user), id: { in: unique } }, select: { id: true, organizationId: true } });
+      if (items.length !== unique.length || new Set(items.map((i) => i.organizationId)).size !== 1)
+        throw new ForbiddenException('Select properties from one authorized firm only');
+      return tx.inventoryItem.updateMany({
+        where: { id: { in: unique }, organizationId: items[0].organizationId },
+        data: { ...input, ...(input.availability ? { availabilityAt: new Date() } : {}), revision: { increment: 1 } },
+      });
+    });
+    await this.audit.log(user, 'inventory.bulk_update', 'InventoryItem', unique.join(',').slice(0, 100), { count: count.count, ...input });
+    return count;
+  }
+  async matching(requirement: BrokerRequirementInput, user: RequestUser) {
+    const rows = await this.prisma.inventoryItem.findMany({
       where: {
-        id: { in: ids },
-        organizationId: user.role !== 'SUPER_ADMIN' ? (user.orgId || undefined) : undefined,
+        ...this.scope(user),
+        status: { not: 'INACTIVE' },
+        availability: { in: ['UNKNOWN', 'AVAILABLE'] },
+        purpose: requirement.purpose ?? '__unknown__',
       },
-      data,
+      include,
     });
+    const matches = rows
+      .map((r) => {
+        const item = ledgerJson(r);
+        const match = ledgerMatch(requirement, item);
+        return match ? { item, ...match } : null;
+      })
+      .filter((m) => m !== null);
+    return { available: matches.filter((m) => m.availability === 'AVAILABLE'), unknown: matches.filter((m) => m.availability === 'UNKNOWN') };
   }
 }

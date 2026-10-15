@@ -77,6 +77,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}/api${path}`, {
       ...rest,
+      method: rest.method ?? (body === undefined ? 'GET' : 'POST'),
       headers: {
         ...(body !== undefined && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -155,4 +156,13 @@ export async function compressImage(file: File, maxW = 1920, quality = 0.82): Pr
   canvas.height = Math.round(bmp.height * scale);
   canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
   return new Promise((res) => canvas.toBlob((b) => res(b ?? file), 'image/jpeg', quality));
+}
+
+/** Authenticated binary reads for private source images and exports. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const send = () => fetch(`${API_URL}/api${path}`, { headers: { Authorization: `Bearer ${authStore.get()?.accessToken ?? ''}` } });
+  let response = await send();
+  if (response.status === 401 && await refresh()) response = await send();
+  if (!response.ok) { const body = await response.json().catch(() => ({ message: 'Source could not be loaded' })); throw new ApiError(response.status, body); }
+  return response.blob();
 }

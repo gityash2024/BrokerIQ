@@ -1376,6 +1376,7 @@ model WebhookEvent {
   createdAt      DateTime      @default(now())
   processedAt    DateTime?
 
+  @@unique([provider, externalId])
   @@index([provider, createdAt])
   @@index([organizationId])
 }
@@ -2404,13 +2405,13 @@ model InventoryItem {
   organizationId     String
   createdById        String?
   date               DateTime  @default(now())
-  sector             String
+  sector             String?
   localityId         String?
-  houseNo            String
+  houseNo            String?
   ownerName          String?
   ownerPhone         String?
-  propertyType       String    @default("BUILDER_FLOOR")
-  purpose            String    @default("RENT") // RENT | SALE
+  propertyType       String?
+  purpose            String?   // RENT | SALE; null when absent in the source
   bhk                Int?
   floor              String?
   furnishing         String?   // UNFURNISHED | SEMI_FURNISHED | FULLY_FURNISHED
@@ -2422,6 +2423,30 @@ model InventoryItem {
   notes              String?
   status             String    @default("DRAFT") // DRAFT | ACTIVE | RENTED
   pageNo             Int?
+  category           String?
+  address            String?
+  unitLabel          String?
+  roomKind           String?   // BHK | RK | STUDIO, never inferred from a phone number
+  area               Decimal?  @db.Decimal(18, 4)
+  areaUnit           String?   // SQ_FT | SQ_YD | SQ_M | ACRE | HECTARE
+  monthlyRent        Decimal?  @db.Decimal(18, 2)
+  totalSalePrice     Decimal?  @db.Decimal(18, 2)
+  ratePerArea        Decimal?  @db.Decimal(18, 2)
+  rateAreaUnit       String?
+  availability       String    @default("UNKNOWN")
+  availabilityAt     DateTime?
+  verificationStatus String    @default("NEEDS_REVIEW")
+  sourceType         String    @default("MANUAL")
+  sourceEntryId      String?
+  sourceUnitKey      String?
+  details            Json      @default("{}")
+  photoUrls          String[]  @default([])
+  videoUrls          String[]  @default([])
+  price              Decimal?  @db.Decimal(18, 2)
+  ratePerSqft        Decimal?  @db.Decimal(18, 4)
+  revision           Int       @default(1)
+  clientMutationId   String?
+  deletedAt          DateTime?
   isPublished        Boolean   @default(false)
   publishedListingId String?
   createdAt          DateTime  @default(now())
@@ -2430,8 +2455,141 @@ model InventoryItem {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
+  contacts InventoryContact[]
+  sourceEntry SourceEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: Restrict)
+  @@unique([sourceEntryId, sourceUnitKey])
+  @@unique([organizationId, clientMutationId])
+  @@index([organizationId, availability])
+  @@index([organizationId, sourceType])
   @@index([organizationId, status])
   @@index([organizationId, sector])
   @@index([organizationId, houseNo])
   @@index([organizationId, date])
+}
+
+
+/// Captured source is immutable; review edits live on entries and canonical records.
+model ImportBatch {
+  id             String @id @default(cuid())
+  organizationId String
+  createdById    String?
+  sourceType     String
+  sourceHash     String
+  fileName       String?
+  mediaRef       String?
+  rawText        String?
+  senderName     String?
+  senderPhone    String?
+  groupName      String?
+  status         String @default("PENDING")
+  lastError      String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  entries        SourceEntry[]
+  @@unique([organizationId, sourceType, sourceHash])
+  @@index([organizationId, status])
+}
+
+model SourceEntry {
+  organizationId String?
+  messageIdentity String?
+  duplicateOfId String?
+  id             String @id @default(cuid())
+  batchId        String
+  entryKey       String
+  pageNo         Int?
+  rowNo          Int?
+  bbox           Json?
+  rawText        String
+  ocr            Json?
+  extracted      Json
+  reviewState    String @default("NEEDS_REVIEW")
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewNote     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  batch          ImportBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  inventories    InventoryItem[]
+  requirements   BrokerRequirement[]
+  @@unique([batchId, entryKey])
+  @@unique([organizationId,messageIdentity])
+  @@index([batchId, reviewState])
+}
+
+model InventoryContact {
+  id          String @id @default(cuid())
+  inventoryId String
+  name        String?
+  phone       String?
+  role        String @default("UNKNOWN")
+  note        String?
+  inventory   InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  @@index([inventoryId])
+}
+
+/// Multiple independent requirements per contact; legacy LeadRequirement remains intact.
+model BrokerRequirement {
+  id              String @id @default(cuid())
+  organizationId  String
+  leadId          String?
+  sourceEntryId   String?
+  sourceUnitKey   String?
+  clientMutationId String?
+  contactName     String?
+  contactPhone    String?
+  purpose         String?
+  category        String?
+  propertyTypes   String[]
+  localityNames   String[]
+  minBudget       Decimal? @db.Decimal(18, 2)
+  maxBudget       Decimal? @db.Decimal(18, 2)
+  bedrooms        Int[]
+  roomKind        String?
+  furnishing      String?
+  minArea         Decimal? @db.Decimal(18, 4)
+  maxArea         Decimal? @db.Decimal(18, 4)
+  areaUnit        String?
+  notes           String?
+  status          String @default("OPEN")
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  sourceEntry     SourceEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: Restrict)
+  @@unique([sourceEntryId, sourceUnitKey])
+  @@unique([organizationId, clientMutationId])
+  @@index([organizationId, status])
+  @@index([organizationId, leadId])
+}
+
+/// Public project/colony facts. Records remain distinct by source identity; no guessed merging.
+model AreaDirectoryEntry {
+  id                 String @id @default(cuid())
+  provider           String
+  externalId         String
+  name               String
+  builderName        String?
+  address            String?
+  sector             String?
+  city               String @default("Gurugram")
+  category           String @default("UNCLASSIFIED")
+  categoryEvidence   String?
+  registrationNumber String?
+  registrationStatus String?
+  registrationUntil  String?
+  sourceUrl          String
+  sourceFetchedAt    DateTime
+  sourceHash         String
+  latitude           Float?
+  longitude          Float?
+  geometry           Json?
+  coordinateSource   String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  @@unique([provider,externalId])
+  @@index([city,category])
+  @@index([sector])
+  @@index([builderName])
 }

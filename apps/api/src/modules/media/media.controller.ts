@@ -1,4 +1,5 @@
-import { Controller, Get, NotFoundException, Param, PayloadTooLargeException, Put, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, PayloadTooLargeException, Put, Query, Req, Res, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
@@ -13,6 +14,7 @@ export class MediaController {
   constructor(
     private readonly store: LocalStorageService,
     private readonly branding: PhotoBrandingService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /** Body is the raw file; the signed token (from /me/uploads/sign) authorises exactly one key. */
@@ -35,6 +37,14 @@ export class MediaController {
     const width = RESIZE_WIDTHS.find((x) => String(x) === w);
     const etag = `"${p.id}${width ? `-${width}` : ''}"`;
     const isPrivate = this.store.isPrivate(key);
+    if (isPrivate) {
+      const user = (req as any).user;
+      if (!user) throw new UnauthorizedException('Private media requires login');
+      if (user.role !== 'SUPER_ADMIN' && user.id !== p.owner && user.orgId !== p.owner) {
+        const owner = await this.prisma.user.findUnique({ where: { id: p.owner }, select: { organizationId: true } });
+        if (!user.orgId || owner?.organizationId !== user.orgId) throw new ForbiddenException('Private media belongs to another firm');
+      }
+    }
     res.setHeader('Cache-Control', isPrivate ? 'private, no-store' : 'public, max-age=31536000, immutable');
     res.setHeader('ETag', etag);
     if (!isPrivate && req.headers['if-none-match'] === etag) return res.status(304).end();
