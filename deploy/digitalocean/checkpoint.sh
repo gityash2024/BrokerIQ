@@ -15,13 +15,15 @@ counts() {
   db -d "$1" -tAc "SELECT format('SELECT %L, count(*) FROM %I.%I;', tablename, schemaname, tablename) FROM pg_tables WHERE schemaname='public' ORDER BY tablename" |
     db -d "$1" -tA -F $'\t'
 }
+APP="$BASE/app"
+[ ! -e "$BASE/current" ] || APP="$(readlink -f "$BASE/current")"
 log "Checkpoint $DEST"
 runuser -u postgres -- pg_dump -p "$PG_PORT" -Fc -Z 6 "$DB_NAME" | enc -out "$DEST/db.dump.enc"
 counts "$DB_NAME" > "$DEST/table-counts.tsv"
 tar -C "$BASE/secrets" -cz api.env web.env db.password | enc -out "$DEST/secrets.tgz.enc"
-tar -C "$BASE/app" --exclude=.git --exclude=node_modules --exclude=.next --exclude=dist --exclude=build --exclude=.turbo -cz . |
+tar -C "$APP" --exclude=.git --exclude=node_modules --exclude=.next --exclude=dist --exclude=build --exclude=.turbo -cz . |
   enc -out "$DEST/source.tgz.enc"
-git -C "$BASE/app" rev-parse HEAD > "$DEST/release-commit.txt"
+git -C "$APP" rev-parse HEAD > "$DEST/release-commit.txt"
 rsync -a "$BASE/storage/media/" "$DEST/media/"
 db -d postgres -c "CREATE DATABASE $SCRATCH OWNER $DB_OWNER"
 trap 'db -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH" >/dev/null' EXIT

@@ -1,6 +1,7 @@
 // pm2 apps for BrokerIQ. Both run on BrokerIQ's own Node 22 (not the server's global Node).
 const fs = require('fs');
 const BASE = '/opt/brokeriq';
+const APP = fs.existsSync(`${BASE}/current`) ? fs.realpathSync(`${BASE}/current`) : `${BASE}/app`;
 const NODE = `${BASE}/runtime/node/bin/node`;
 
 function loadEnv(file) {
@@ -28,7 +29,7 @@ module.exports = {
     {
       ...common,
       name: 'brokeriq-api',
-      cwd: `${BASE}/app/apps/api`,
+      cwd: `${APP}/apps/api`,
       script: 'dist/src/main.js',
       env: { WATCHDOG_INCIDENTS_FILE: `${BASE}/logs/incidents.log`, ...loadEnv(`${BASE}/secrets/api.env`) },
       max_memory_restart: '1200M',
@@ -38,7 +39,7 @@ module.exports = {
     {
       ...common,
       name: 'brokeriq-web',
-      cwd: `${BASE}/app/apps/web`,
+      cwd: `${APP}/apps/web`,
       script: 'node_modules/next/dist/bin/next',
       args: `start -H 127.0.0.1 -p ${loadEnv(`${BASE}/secrets/web.env`).PORT || 3101}`,
       env: { NODE_ENV: 'production', ...loadEnv(`${BASE}/secrets/web.env`) },

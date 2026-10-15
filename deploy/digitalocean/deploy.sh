@@ -4,12 +4,11 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/config.sh"
-cd "$BASE/app"
+cd "${BASE}/current" 2>/dev/null || cd "$BASE/app"
 
 log "Pull $BRANCH"
 git fetch --prune origin "$BRANCH"
-git checkout -q "$BRANCH"
-git reset -q --hard "origin/$BRANCH"
+git checkout -q --detach "origin/$BRANCH"
 git log --oneline -1
 
 log "Install scripts into $BASE/bin"
