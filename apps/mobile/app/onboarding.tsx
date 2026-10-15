@@ -17,20 +17,20 @@ const { width } = Dimensions.get('window');
 const SLIDES = [
   {
     icon: Search,
-    title: 'Gurgaon के verified rental घर',
-    text: 'Furnished flats, builder floors, PG और offices — sector-wise rent, brokerage और map के साथ।',
+    title: 'आपकी property book, एक जगह',
+    text: 'Rent, sale, commercial और land की inventory रखें। हर floor, contact और source अलग सुरक्षित रहता है।',
     colors: ['#312E81', '#4F46E5'] as const,
   },
   {
     icon: ShieldCheck,
-    title: 'भरोसेमंद brokers, असली listings',
-    text: 'RERA verified brokers, reviews, और एक tap में call, WhatsApp या site visit।',
+    title: 'हर requirement का अगला कदम',
+    text: 'Client की requirements, matching, follow-ups और visits एक focused workspace में सँभालें।',
     colors: ['#4338CA', '#7C3AED'] as const,
   },
   {
     icon: Sparkles,
-    title: 'Brokers के लिए सबसे smart CRM',
-    text: 'Housing, 99acres, Facebook की सारी leads एक app में — WhatsApp automation और AI के साथ।',
+    title: 'WhatsApp से reviewed record तक',
+    text: 'Message, screenshot या chat export capture करें। Details review करके save करें; Housing और messaging के लिए अपना connection जोड़ें।',
     colors: ['#7C2D12', '#D97706'] as const,
   },
 ];
@@ -45,7 +45,7 @@ export default function Onboarding() {
   const { app } = useConfig();
   const [i, setI] = useState(0);
   const list = useRef<FlatList>(null);
-  const finish = async (to: '/login' | '/(user)/home') => {
+  const finish = async (to: '/login') => {
     await SecureStore.setItemAsync('biq.onboarded', '1').catch(() => undefined);
     router.replace(to);
   };
@@ -59,7 +59,7 @@ export default function Onboarding() {
           </Txt>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <LanguagePill light />
-            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/(user)/home')}>
+            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/login')}>
               Skip
             </Txt>
           </View>
@@ -138,14 +138,8 @@ export default function Onboarding() {
             <Button title="आगे" variant="accent" size="lg" onPress={() => list.current?.scrollToIndex({ index: i + 1 })} />
           ) : (
             <>
-              <Button title="Login / Sign up" variant="accent" size="lg" onPress={() => finish('/login')} />
-              <Button
-                title="Properties देखें"
-                variant="ghost"
-                color="#fff"
-                onPress={() => finish('/(user)/home')}
-                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
-              />
+              <Button title="Open your workspace" variant="accent" size="lg" onPress={() => finish('/login')} />
+
             </>
           )}
         </View>

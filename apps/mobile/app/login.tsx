@@ -132,7 +132,7 @@ export default function Login() {
     ...(app.auth?.allowPasswordLogin !== false
       ? [
           { value: 'password' as Mode, label: 'Password' },
-          { value: 'signup' as Mode, label: 'Sign up' },
+          { value: 'signup' as Mode, label: 'Join with invite' },
         ]
       : []),
   ];
