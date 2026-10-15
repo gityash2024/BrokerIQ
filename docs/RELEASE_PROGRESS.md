@@ -53,3 +53,12 @@ Approved scope: two initial accounts (Super Admin and Olive State broker), five 
 - Controlled register source importer stores original PDF and all 117 authenticated page images with checksums. Isolated import: 1,461 candidate blocks, all NEEDS_REVIEW, zero invented/auto-approved inventory. This is not a final property count or a completed page-by-page transcription.
 - Register review supports selecting the original page and splitting multiple units. Source import is resumable and does not overwrite existing reviewed entries.
 - Mobile draft selection, completed-review state, source group preservation, pushed-screen safe areas and password-first login corrected. Updated signed Android build and emulator checks are in progress.
+
+### Staging cutover — 15 October 2026
+
+- Fresh database `brokeriq_b2b_20261015` is active. Original `brokeriq` database and original `/opt/brokeriq/app` checkout retained. Only BrokerIQ API/web process registrations changed; nginx and other product processes unchanged.
+- Current application pointer: `/opt/brokeriq/current` → `/opt/brokeriq/releases/f02daa4` (release commit a403ad3 plus later operational updates). New encrypted media root `/opt/brokeriq/storage/media-b2b`.
+- Verified over public HTTPS: Yash SUPER_ADMIN login, Rahul BROKER_ADMIN login, admin modules 200 for admin/403 for broker, disabled deals 403 FEATURE_DISABLED, directory 2102, import batches 1, Today 200. Actual old-process cwd retention was detected and corrected by recreating only the two BrokerIQ process registrations.
+- Rollback: `/opt/brokeriq/backups/cutover/20261015-175526/rollback.sh` restores original environments, release pointer and BrokerIQ registrations. Old business database is not dropped or renamed.
+- Original PDF and all 117 pages imported privately; 1461 candidate blocks NEEDS_REVIEW, canonical inventory 0. Manual transcription/reconciliation is still required; do not claim full inventory completion.
+- Android v2.0.0 build10 signed, certificate verified and installed on emulator. SHA256 `e3d7933c3cc9a6b32d77bd9cd6a735694ed01bfe496ac6ec80b20cc603881b77`. HTTPS APK returns 200. Native broker login and Today with live review count verified; further native flow checks ongoing. Real-device and live-provider tests pending.

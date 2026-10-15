@@ -58,17 +58,17 @@ function Inner() {
             />
           </div>
           <p className="mt-3 text-sm text-white/70">
-            सब free tier पर चलते हैं — शुरुआत में ₹0 खर्च। सबसे ज़रूरी: <b className="text-white">SMTP (OTP login)</b>,{' '}
-            <b className="text-white">Cloudinary (photos)</b>, <b className="text-white">Groq (AI)</b>।
+            Launch setup: Housing और WhatsApp credentials जोड़ें। OCR इसी server पर चलता है; optional AI केवल OpenRouter free models इस्तेमाल करता है। Provider
+            messaging charges अलग हो सकते हैं।
           </p>
         </div>
         <div className="card flex flex-col justify-center gap-2 p-5 text-sm text-muted">
-          <p className="font-semibold text-fg">Priority order</p>
-          <p>1. Email (SMTP) → login OTP</p>
-          <p>2. Cloudinary / R2 → photos upload</p>
-          <p>3. Groq → AI scanner & descriptions</p>
-          <p>4. Razorpay → revenue (plans, boosts)</p>
-          <p>5. Google login, MapTiler, WhatsApp, Sentry</p>
+          <p className="font-semibold text-fg">Launch connections</p>
+          <p>1. Housing → partner lead sync</p>
+          <p>2. WhatsApp Cloud API → conversations और templates</p>
+          <p>3. SMTP → password recovery और invitations</p>
+          <p>4. OpenRouter free models → optional extraction assistance</p>
+          <p>Media server पर encrypted है। Paid AI fallback बंद है।</p>
         </div>
       </div>
       <div className="mb-5 max-w-sm">
