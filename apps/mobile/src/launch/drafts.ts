@@ -39,6 +39,7 @@ async function open() {
       payload TEXT NOT NULL, file_uri TEXT, mime TEXT, state TEXT NOT NULL DEFAULT 'DRAFT',
       server_id TEXT, error TEXT, attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS local_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS local_mutations_owner ON local_mutations(owner_id,state,updated_at);`);
   await db.runAsync("UPDATE local_mutations SET state='QUEUED' WHERE state='SYNCING'");
   return db;
@@ -239,4 +240,18 @@ export async function completeReviewDraft(id: string, entryId: string) {
     id,
     ownerId(),
   );
+}
+
+// Cache only public, last-known launch policy; server authorization still decides sync.
+export async function readLaunchConfig() {
+  const row = await (await db()).getFirstAsync<{ value: string }>('SELECT value FROM local_settings WHERE key=?', 'public-config');
+  if (!row) return null;
+  const value = JSON.parse(row.value);
+  if (!value?.app || !value?.modules || typeof value.modules !== 'object') throw new Error('Saved launch configuration could not be read. It was preserved.');
+  return value;
+}
+export async function saveLaunchConfig(value: unknown) {
+  await (
+    await db()
+  ).runAsync('INSERT INTO local_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', 'public-config', JSON.stringify(value));
 }

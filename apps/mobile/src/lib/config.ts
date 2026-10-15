@@ -1,4 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { readLaunchConfig, saveLaunchConfig } from '@/launch/drafts';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_APP_CONFIG, type PublicConfig, featureDefault } from '@brokeriq/shared';
 import { api } from './api';
 
@@ -6,7 +8,28 @@ const FALLBACK: PublicConfig = { app: DEFAULT_APP_CONFIG, flags: {}, integration
 
 /** Runtime config from Super Admin (branding, flags, public integration keys, versions). */
 export function useConfig() {
-  const q = useQuery({ queryKey: ['public-config'], queryFn: () => api<PublicConfig>('/public/config', { auth: false }), staleTime: 15_000, refetchInterval: 15_000 });
+  const client = useQueryClient();
+  useEffect(() => {
+    let active = true;
+    readLaunchConfig()
+      .then((cached) => {
+        if (active && cached && !client.getQueryData(['public-config'])) client.setQueryData(['public-config'], cached, { updatedAt: 0 });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [client]);
+  const q = useQuery({
+    queryKey: ['public-config'],
+    queryFn: async () => {
+      const result = await api<PublicConfig>('/public/config', { auth: false });
+      await saveLaunchConfig(result).catch(() => undefined);
+      return result;
+    },
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+  });
   return { ...(q.data ?? FALLBACK), loaded: !!q.data, error: q.error, refetch: q.refetch };
 }
 
