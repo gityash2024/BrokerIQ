@@ -3,13 +3,14 @@ import { View, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X } from 'lucide-react-native';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, type PagedLedger } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger } from '@brokeriq/shared';
 import { api, qs, errorMessage } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { Txt, Input, Button, Sheet, Chip } from '@/ui';
 import { BrokerScreen } from '@/launch/screen';
+import { ChoiceField } from '@/launch/form';
 import { NativeAdvancedFilters } from '@/launch/advanced-filters';
 import { PropertyCard } from '@/launch/property-card';
 const initial = {
@@ -199,27 +200,31 @@ export default function Inventory() {
           </View>
         </View>
       )}
-      <Sheet open={filterOpen} onClose={() => setFilterOpen(false)} title="Filter inventory">
+      <Sheet
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title="Filter inventory"
+        footer={
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button title="Reset filters" variant="secondary" style={{ flex: 1 }} onPress={() => setFilters(initial)} />
+            <Button title="Show properties" style={{ flex: 1 }} onPress={() => setFilterOpen(false)} />
+          </View>
+        }
+      >
         {Object.entries(choices).map(([name, options]) => (
-          <View key={name} style={{ marginBottom: 18, gap: 8 }}>
-            <Txt v="title">{name}</Txt>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
-              <Chip label="All" active={!(filters as any)[name]} onPress={() => setFilters({ ...filters, [name]: '' })} />
-              {options.map((option) => (
-                <Chip
-                  key={option}
-                  label={option.replace(/_/g, ' ')}
-                  active={(filters as any)[name] === option}
-                  onPress={() => setFilters({ ...filters, [name]: option })}
-                />
-              ))}
-            </View>
+          <View key={name} style={{ marginBottom: 14 }}>
+            <ChoiceField
+              label={INVENTORY_FILTER_LABELS[name] ?? name}
+              value={(filters as any)[name] || null}
+              choices={[...options]}
+              onChange={(value) => setFilters({ ...filters, [name]: value ?? '' })}
+            />
           </View>
         ))}
         {['minBudget', 'maxBudget', 'minArea', 'maxArea'].map((name) => (
           <Input
             key={name}
-            label={name}
+            label={INVENTORY_FILTER_LABELS[name] ?? name}
             keyboardType="decimal-pad"
             value={(filters as any)[name]}
             onChangeText={(value) => setFilters({ ...filters, [name]: value })}
@@ -227,7 +232,6 @@ export default function Inventory() {
           />
         ))}
         <NativeAdvancedFilters filters={filters} onChange={setFilters} />
-        <Button title="Show properties" onPress={() => setFilterOpen(false)} />
       </Sheet>
     </BrokerScreen>
   );

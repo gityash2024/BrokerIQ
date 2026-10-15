@@ -146,3 +146,22 @@ export function preparePropertyDetails(value: Record<string, any> = {}) {
   }
   return result;
 }
+
+export const INVENTORY_FILTER_LABELS: Record<string, string> = {
+  sector: 'Sector / locality',
+  purpose: 'Purpose',
+  propertyType: 'Property type',
+  category: 'Property category',
+  bhk: 'Rooms',
+  roomKinds: 'Room kind',
+  furnishing: 'Furnishing',
+  availability: 'Availability',
+  sourceType: 'Source',
+  areaUnit: 'Area unit',
+  minBudget: 'Minimum budget ₹',
+  maxBudget: 'Maximum budget ₹',
+  minArea: 'Minimum area',
+  maxArea: 'Maximum area',
+  minRate: 'Minimum ₹ / sq.ft.',
+  maxRate: 'Maximum ₹ / sq.ft.',
+};

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Phone, MessageCircle } from 'lucide-react';
-import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, formatINR } from '@brokeriq/shared';
+import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, formatINR } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
 import { qs } from '@/lib/utils';
@@ -143,7 +143,7 @@ export default function LedgerPage() {
                 onClick={() => setFilters({ ...filters, [key]: '' })}
                 className="flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs text-brand-700"
               >
-                {key}: {value}
+                {INVENTORY_FILTER_LABELS[key] ?? key}: {value}
                 <X size={12} />
               </button>
             ))}
@@ -308,7 +308,7 @@ export default function LedgerPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {Object.entries(fields).map(([name, choices]) => (
             <label key={name} className="text-xs font-semibold">
-              {name}
+              {INVENTORY_FILTER_LABELS[name] ?? name}
               <select
                 value={(filters as any)[name]}
                 onChange={(e) => setFilters({ ...filters, [name]: e.target.value })}
@@ -325,7 +325,7 @@ export default function LedgerPage() {
           ))}
           {['minBudget', 'maxBudget', 'minArea', 'maxArea'].map((name) => (
             <label key={name} className="text-xs font-semibold">
-              {name}
+              {INVENTORY_FILTER_LABELS[name] ?? name}
               <input
                 type="number"
                 min={0}

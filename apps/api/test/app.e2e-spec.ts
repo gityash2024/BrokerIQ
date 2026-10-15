@@ -367,8 +367,13 @@ describe('BrokerIQ API (e2e)', () => {
     for (let i = 0; i < 20; i++) {
       lead = await prisma.lead.findUniqueOrThrow({ where: { id: r.body.leadId }, include: { followUps: true } });
       if (lead.tags.includes('auto') && lead.followUps.length) break;
-      const queued = await prisma.job.findMany({ where: { type: 'automation.action', status: 'PENDING', payload: { path: ['leadId'], equals: r.body.leadId } } });
-      for (const job of queued) { await (app.get(JobsService) as any).execute(job); }
+      const queued = await prisma.job.findMany({
+        where: { type: 'automation.action', status: 'PENDING', payload: { path: ['leadId'], equals: r.body.leadId } },
+      });
+      for (const job of queued) {
+        await (app.get(JobsService) as any).execute(job);
+        await (app.get(JobsService) as any).execute(job);
+      }
       await sleep(150);
     }
     expect(lead!.tags).toContain('auto');

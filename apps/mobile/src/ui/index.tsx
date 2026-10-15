@@ -273,7 +273,13 @@ export function IconBtn({
 }) {
   const { c } = useTheme();
   return (
-    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={[{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]} hitSlop={6}>
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={[{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]}
+      hitSlop={6}
+    >
       {children}
       {!!badge && (
         <View
@@ -662,12 +668,14 @@ export function Sheet({
   title,
   children,
   full,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
   full?: boolean;
+  footer?: React.ReactNode;
 }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
@@ -702,6 +710,7 @@ export function Sheet({
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
               {children}
             </ScrollView>
+            {footer && <View style={{ paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line }}>{footer}</View>}
           </Animated.View>
         )}
       </KeyboardAvoidingView>

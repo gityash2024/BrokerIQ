@@ -26,10 +26,16 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 10,
+    versionCode: 11,
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
     permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
-    blockedPermissions: ['android.permission.READ_CONTACTS', 'android.permission.WRITE_CONTACTS', 'android.permission.ACCESS_FINE_LOCATION', 'android.permission.ACCESS_COARSE_LOCATION', 'android.permission.RECORD_AUDIO'],
+    blockedPermissions: [
+      'android.permission.READ_CONTACTS',
+      'android.permission.WRITE_CONTACTS',
+      'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.ACCESS_COARSE_LOCATION',
+      'android.permission.RECORD_AUDIO',
+    ],
     intentFilters: [
       {
         action: 'VIEW',
@@ -42,7 +48,13 @@ const config: ExpoConfig = {
   web: { favicon: './assets/favicon.png' },
   plugins: [
     ['expo-sqlite', { useSQLCipher: true }],
-    ['expo-sharing', { android: { enabled: true, singleShareMimeTypes: ['text/plain', 'image/*', 'application/zip'], multipleShareMimeTypes: ['image/*'] }, ios: { enabled: false } }],
+    [
+      'expo-sharing',
+      {
+        android: { enabled: true, singleShareMimeTypes: ['text/plain', 'image/*', 'application/zip'], multipleShareMimeTypes: ['image/*'] },
+        ios: { enabled: false },
+      },
+    ],
     './plugins/with-release-signing',
     'expo-router',
     'expo-secure-store',

@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -21,7 +21,11 @@ function LoginInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const next = sp.get('next');
-  const [mode, setMode] = useState<'otp' | 'password'>(app.auth.allowEmailOtp ? 'otp' : 'password');
+  const [mode, setMode] = useState<'otp' | 'password'>('password');
+  useEffect(() => {
+    if (mode === 'otp' && !app.auth.allowEmailOtp) setMode('password');
+    if (mode === 'password' && !app.auth.allowPasswordLogin && app.auth.allowEmailOtp) setMode('otp');
+  }, [mode, app.auth.allowEmailOtp, app.auth.allowPasswordLogin]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
