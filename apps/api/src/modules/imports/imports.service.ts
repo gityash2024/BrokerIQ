@@ -209,7 +209,17 @@ export class ImportsService {
             }
           }
         } else if (file.contentType === 'application/zip') {
-          const archive = unzipSync(file.body, { filter: (entry) => entry.originalSize <= 12 * 1024 * 1024 && /\.txt$/i.test(entry.name) });
+          let files = 0,
+            totalBytes = 0;
+          const archive = unzipSync(file.body, {
+            filter: (entry) => {
+              if (!/\.txt$/i.test(entry.name)) return false;
+              files++;
+              totalBytes += entry.originalSize;
+              if (files > 20 || entry.originalSize > 12 * 1024 * 1024 || totalBytes > 16 * 1024 * 1024) throw new Error('Export exceeds safe text limit');
+              return true;
+            },
+          });
           const documents = Object.values(archive);
           if (documents.reduce((s, b) => s + b.length, 0) > 16 * 1024 * 1024 || documents.length > 20) throw new Error('Export exceeds safe text limit');
           text = documents.map((document) => strFromU8(document)).join('\n');

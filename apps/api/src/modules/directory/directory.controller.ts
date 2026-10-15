@@ -85,9 +85,14 @@ export class DirectoryController {
       longitude: { not: null },
       ...(q.category ? { category: q.category } : {}),
       ...(q.provider ? { provider: q.provider } : {}),
+      ...(q.builder ? { builderName: { contains: q.builder, mode: 'insensitive' as const } } : {}),
       ...(q.sector ? { sector: { contains: q.sector, mode: 'insensitive' as const } } : {}),
       ...(q.search
-        ? { OR: ['name', 'builderName', 'address', 'sector'].map((field) => ({ [field]: { contains: q.search, mode: 'insensitive' as const } })) }
+        ? {
+            OR: ['name', 'builderName', 'address', 'sector', 'registrationNumber'].map((field) => ({
+              [field]: { contains: q.search, mode: 'insensitive' as const },
+            })),
+          }
         : {}),
     };
     const items = await this.prisma.areaDirectoryEntry.findMany({

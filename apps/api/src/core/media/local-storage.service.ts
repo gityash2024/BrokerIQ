@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { brotliCompress, brotliDecompress, constants as zlib } from 'zlib';
 import sharp from 'sharp';
 import { env } from '../../config/env';
+import { IntegrationNotConfiguredException } from '../../common/exceptions';
 import { shortCode } from '../../common/utils';
 import type { UploadKind } from './media.service';
 
@@ -147,6 +148,7 @@ export class LocalStorageService {
 
   /** Server-side upload of a base64 data URL (AI listing scanner). */
   async putSource(data: Buffer, contentType: string, ownerId: string): Promise<string> {
+    if (!this.enabled) throw new IntegrationNotConfiguredException('private_storage', 'Private source storage requires server MEDIA_ROOT configuration. Original content was not imported.');
     const key = this.newKey('scan', ownerId);
     await this.store(key, contentType, data, true);
     return key;

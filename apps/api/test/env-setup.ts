@@ -4,6 +4,7 @@ if (!selectedDatabase || !/^brokeriq_(?:release_test|test)/.test(new URL(selecte
   throw new Error('Tests require an explicitly selected isolated BrokerIQ test DATABASE_URL');
 // Runs before test modules are imported (env() is read at module load).
 process.env.E2E_UNIQ = process.env.E2E_UNIQ || Date.now().toString(36);
+process.env.MEDIA_ROOT ||= require('node:path').join(require('node:os').tmpdir(), 'brokeriq-tests', process.env.E2E_UNIQ);
 process.env.NODE_ENV = 'test';
 process.env.JOBS_ENABLED = 'false';
 // Legacy module regression suites run explicitly with the full historical platform.

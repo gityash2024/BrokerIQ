@@ -6,6 +6,7 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JobsService } from '../src/core/jobs/jobs.service';
 import { WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
+import { zipSync, strToU8 } from 'fflate';
 import { createHmac } from 'crypto';
 import { ImportsService } from '../src/modules/imports/imports.service';
 
@@ -89,20 +90,71 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     expect(next.id).toBe(old.id);
     expect(next.status).toBe('PENDING');
   });
-  it('retains overlapping export source evidence without importing the same exact message twice',async()=>{
-    const message='[10/10/2026, 10:00:00] Fixture sender: Requirement 2 BHK for rent Sector 45 budget 45k to 55k';
-    const first=await api().post('/api/imports').set(header(a)).send({sourceType:'CHAT_EXPORT',groupName:`export-group.${uid}`,rawText:message}).expect(201);await app.get(ImportsService).extract(first.body.id);
-    const second=await api().post('/api/imports').set(header(a)).send({sourceType:'CHAT_EXPORT',groupName:`export-group.${uid}`,rawText:message+'\n[11/10/2026, 10:00:00] Fixture sender: Not a property message'}).expect(201);await app.get(ImportsService).extract(second.body.id);
-    const batch=await api().get(`/api/imports/${second.body.id}`).set(header(a)).expect(200);expect(batch.body.entries[0].reviewState).toBe('DUPLICATE');expect(batch.body.entries[0].duplicateOfId).toBeTruthy();expect(batch.body.entries[0].rawText).toContain('Requirement');
+  it('retains overlapping export source evidence without importing the same exact message twice', async () => {
+    const message = '[10/10/2026, 10:00:00] Fixture sender: Requirement 2 BHK for rent Sector 45 budget 45k to 55k';
+    const first = await api()
+      .post('/api/imports')
+      .set(header(a))
+      .send({ sourceType: 'CHAT_EXPORT', groupName: `export-group.${uid}`, rawText: message })
+      .expect(201);
+    await app.get(ImportsService).extract(first.body.id);
+    const second = await api()
+      .post('/api/imports')
+      .set(header(a))
+      .send({
+        sourceType: 'CHAT_EXPORT',
+        groupName: `export-group.${uid}`,
+        rawText: message + '\n[11/10/2026, 10:00:00] Fixture sender: Not a property message',
+      })
+      .expect(201);
+    await app.get(ImportsService).extract(second.body.id);
+    const batch = await api().get(`/api/imports/${second.body.id}`).set(header(a)).expect(200);
+    expect(batch.body.entries[0].reviewState).toBe('DUPLICATE');
+    expect(batch.body.entries[0].duplicateOfId).toBeTruthy();
+    expect(batch.body.entries[0].rawText).toContain('Requirement');
   });
-  it('filters typed commercial facts, units, media and null-safe price sorting',async()=>{
-    const one=await api().post('/api/inventory').set(header(a)).send({sector:'Sector 56',houseNo:'Commercial filter fixture',purpose:'SALE',category:'COMMERCIAL',propertyType:'SHOP',area:400,areaUnit:'SQ_FT',totalSalePrice:15000000,photoUrls:['https://example.test/photo.jpg'],details:{purchaseType:'RESALE',possessionStatus:'READY_TO_MOVE',investmentType:'PRE_LEASED',areaBasis:'CARPET',postedBy:'OWNER',bathrooms:2},amenities:['LIFT','POWER_BACKUP']}).expect(201);
-    const filter={investmentType:['PRE_LEASED'],postedBy:['OWNER'],bathrooms:{min:2,max:3}};
-    const filtered=await api().get('/api/inventory').set(header(a)).query({sector:'Sector 56',detailFilters:JSON.stringify(filter),hasPhotos:'true',amenities:'LIFT,POWER_BACKUP',sort:'ratePerSqft:asc'}).expect(200);
-    expect(filtered.body.items.map((r:any)=>r.id)).toContain(one.body.id);expect(one.body.ratePerSqft).toBe(37500);
-    await api().get('/api/inventory').set(header(a)).query({detailFilters:'{"bathrooms":{"min":"oops"}}'}).expect(400);
-    await api().patch(`/api/inventory/${one.body.id}`).set(header(a)).send({expectedRevision:one.body.revision,totalSalePrice:16000000,details:{bathrooms:3}}).expect(200);
-    const updated=await api().get(`/api/inventory/${one.body.id}`).set(header(a)).expect(200);expect(updated.body.ratePerSqft).toBe(40000);expect(updated.body.details.purchaseType).toBe('RESALE');
+  it('filters typed commercial facts, units, media and null-safe price sorting', async () => {
+    const one = await api()
+      .post('/api/inventory')
+      .set(header(a))
+      .send({
+        sector: 'Sector 56',
+        houseNo: 'Commercial filter fixture',
+        purpose: 'SALE',
+        category: 'COMMERCIAL',
+        propertyType: 'SHOP',
+        area: 400,
+        areaUnit: 'SQ_FT',
+        totalSalePrice: 15000000,
+        photoUrls: ['https://example.test/photo.jpg'],
+        details: {
+          purchaseType: 'RESALE',
+          possessionStatus: 'READY_TO_MOVE',
+          investmentType: 'PRE_LEASED',
+          areaBasis: 'CARPET',
+          postedBy: 'OWNER',
+          bathrooms: 2,
+        },
+        amenities: ['LIFT', 'POWER_BACKUP'],
+      })
+      .expect(201);
+    const filter = { investmentType: ['PRE_LEASED'], postedBy: ['OWNER'], bathrooms: { min: 2, max: 3 } };
+    const filtered = await api()
+      .get('/api/inventory')
+      .set(header(a))
+      .query({ sector: 'Sector 56', detailFilters: JSON.stringify(filter), hasPhotos: 'true', amenities: 'LIFT,POWER_BACKUP', sort: 'ratePerSqft:asc' })
+      .expect(200);
+    expect(filtered.body.items.map((r: any) => r.id)).toContain(one.body.id);
+    expect(one.body.ratePerSqft).toBe(37500);
+    await api().get('/api/inventory').set(header(a)).query({ detailFilters: '{"bathrooms":{"min":"oops"}}' }).expect(400);
+    await api()
+      .patch(`/api/inventory/${one.body.id}`)
+      .set(header(a))
+      .send({ expectedRevision: one.body.revision, totalSalePrice: 16000000, details: { bathrooms: 3 } })
+      .expect(200);
+    const updated = await api().get(`/api/inventory/${one.body.id}`).set(header(a)).expect(200);
+    expect(updated.body.ratePerSqft).toBe(40000);
+    expect(updated.body.details.purchaseType).toBe('RESALE');
   });
   it('requires webhook signature configuration and deduplicates durable events', async () => {
     const wa = app.get(WhatsAppService);
@@ -148,5 +200,19 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     const updated = (await api().get(`/api/broker-requirements/${first.id}/matches`).set(header(a)).expect(200)).body;
     expect(updated.available).toHaveLength(1);
     expect(updated.unknown).toHaveLength(0);
+  });
+  it('rejects oversized archive structure before extracting all documents and preserves its original', async () => {
+    const files = Object.fromEntries(Array.from({ length: 21 }, (_, i) => [`${i}.txt`, strToU8('Requirement 2 BHK Sector 43')]));
+    const archive = Buffer.from(zipSync(files));
+    const capture = await api()
+      .post('/api/imports')
+      .set(header(a))
+      .send({ sourceType: 'CHAT_EXPORT', fileDataUrl: 'data:application/zip;base64,' + archive.toString('base64') })
+      .expect(201);
+    await expect(app.get(ImportsService).extract(capture.body.id)).rejects.toThrow('Export exceeds safe text limit');
+    const batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: capture.body.id } });
+    expect(batch.status).toBe('FAILED');
+    expect(batch.mediaRef).toBeTruthy();
+    await api().get(`/api/imports/${batch.id}/source`).set(header(b)).expect(404);
   });
 });
