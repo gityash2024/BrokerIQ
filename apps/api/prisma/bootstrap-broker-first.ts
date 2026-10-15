@@ -20,6 +20,7 @@ async function main() {
   await prisma.$transaction(async (tx) => {
     const unexpected = await tx.user.count({ where: { email: { notIn: [adminEmail, brokerEmail] } } });
     if (unexpected) throw new Error('Bootstrap refuses to reset an existing business database');
+    await tx.user.updateMany({ where: { email: adminEmail, role: 'SUPER_ADMIN', passwordHash: null }, data: { passwordHash: adminHash, name: 'Yash' } });
     await tx.user.upsert({
       where: { email: adminEmail },
       create: { email: adminEmail, name: 'Yash', role: 'SUPER_ADMIN', emailVerified: true, passwordHash: adminHash },
