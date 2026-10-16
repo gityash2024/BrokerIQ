@@ -9,6 +9,7 @@ import { capturedEntitySchema } from '@brokeriq/shared';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { assertNoDroppedSourceFields } from '../src/common/utils/source-validation';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const stable = (value: any): string =>
@@ -46,7 +47,9 @@ async function main() {
   const origin = new URL(apiOrigin);
   if (origin.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(origin.hostname) || !['3100', '3099', '3320'].includes(origin.port))
     throw new Error('Only a BrokerIQ local API origin is allowed');
-  const review = schema.parse(JSON.parse(await readFile(file, 'utf8')));
+  const input = JSON.parse(await readFile(file, 'utf8'));
+  const review = schema.parse(input);
+  assertNoDroppedSourceFields(input, review);
   const annotationSha = sha(stable(review));
   if (new Set(review.groups.map((g) => g.groupNo)).size !== review.groups.length) throw new Error('Repeated source group identity');
   for (const group of review.groups) {
