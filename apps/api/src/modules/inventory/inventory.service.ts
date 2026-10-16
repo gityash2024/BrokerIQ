@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { type InventoryInput, type BrokerRequirementInput, ledgerMatch, areaSqft, normalizeIndianPhone, propertyDetailsSchema, PROPERTY_FIELDS, INVENTORY_SORTS } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { ModulesService } from '../../core/features/modules.service';
 import type { RequestUser } from '../../common/decorators';
 import type { InventoryFilterQuery } from './inventory.dto';
 
@@ -22,6 +23,7 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly modules: ModulesService,
   ) {}
   orgId(user: RequestUser, requested?: string, required = true) {
     const id = user.role === 'SUPER_ADMIN' ? requested : user.orgId;
@@ -279,6 +281,7 @@ export class InventoryService {
     return count;
   }
   async matching(requirement: BrokerRequirementInput, user: RequestUser) {
+    await this.modules.assertPath('/inventory', user.role);
     const rows = await this.prisma.inventoryItem.findMany({
       where: {
         ...this.scope(user),

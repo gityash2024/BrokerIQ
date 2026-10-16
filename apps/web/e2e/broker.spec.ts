@@ -23,6 +23,17 @@ test.beforeAll(async () => {
     headers: { Authorization: `Bearer ${adminToken}` },
     data: { auth: { allowBrokerSignup: true, allowPasswordLogin: true } },
   });
+  if (process.env.BROKER_FIRST === 'true') {
+    const firm = await api.post('admin/organizations', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { name: 'PW Broker', email: broker.email, password: broker.password, firmName: broker.firm },
+    });
+    expect(firm.status(), await firm.text()).toBe(201);
+    const login = await api.post('auth/login', { data: { email: broker.email, password: broker.password } });
+    expect(login.status()).toBe(200);
+    token = (await login.json()).accessToken;
+    return;
+  }
   const reg = await api.post('auth/register', {
     data: { name: 'PW Broker', email: broker.email, password: broker.password, accountType: 'BROKER', firmName: broker.firm },
   });
@@ -58,7 +69,10 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
     await page.keyboard.press('Escape');
     await expect(consent).toBeHidden();
   }
-  await page.getByRole('button', { name: 'Lead', exact: true }).click();
+  await page
+    .getByRole('button', { name: /^(Lead|Add lead)$/, exact: true })
+    .first()
+    .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.locator('input').nth(0).fill(lead.name);
@@ -68,6 +82,19 @@ test('broker logs in, adds a lead and moves it to Contacted', async ({ page }) =
   await expect(page).toHaveURL(/\/broker\/leads\/[\w-]+$/, { timeout: 20_000 });
   const leadId = page.url().split('/').pop()!;
   await expect(page.getByText(lead.name).first()).toBeVisible();
+
+  if (process.env.BROKER_FIRST === 'true') {
+    await page.getByRole('button', { name: 'Requirement', exact: true }).click();
+    await page.getByRole('button', { name: 'Add requirement', exact: true }).click();
+    const requirement = page.getByRole('dialog');
+    await requirement.locator('input[name=localityNames]').fill('Sector 43');
+    await requirement.locator('select[name=purpose]').selectOption('RENT');
+    await requirement.getByRole('button', { name: 'Save requirement', exact: true }).click();
+    await expect(requirement).toBeHidden();
+    await expect(page.getByText('Sector 43', { exact: true }).first()).toBeVisible();
+    const saved = await api.get(`broker-requirements?leadId=${leadId}`, { headers: { Authorization: `Bearer ${token}` } });
+    expect((await saved.json()).total).toBe(1);
+  }
 
   await page.getByRole('button', { name: 'Contacted', exact: true }).click();
   await expect

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { LEAD_SOURCE_LABELS, PROPERTY_TYPE_LABELS, type LocalityListItem } from '@brokeriq/shared';
@@ -15,6 +15,7 @@ const MANUAL_SOURCES = ['MANUAL', 'CALL', 'WALK_IN', 'REFERRAL', 'HOUSING', 'ACR
 
 export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const router = useRouter();
+  const requirementMutationId = useRef<string | null>(null);
   const { user } = useAuth();
   const team = useTeam();
   const { data: locs } = useQuery({
@@ -38,28 +39,42 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     bedrooms: [] as number[],
   });
   const m = useApiMutation(
-    () =>
-      post<any>('/leads', {
+    async () => {
+      const hasRequirement = !!(f.types.length || f.localityIds.length || f.bedrooms.length || f.minBudget || f.maxBudget);
+      if (hasRequirement && !f.localityIds.length) throw new Error('Purpose and preferred locality required');
+      const lead = await post<any>('/leads', {
         name: f.name,
         phone: f.phone,
         email: f.email || null,
         source: f.source,
         notes: f.notes || null,
         assignedToId: f.assignedToId || null,
-        requirement: {
+      });
+      if (hasRequirement) {
+        requirementMutationId.current ??= crypto.randomUUID();
+        await post('/broker-requirements', {
+          clientMutationId: requirementMutationId.current,
+          leadId: lead.id,
+          contactName: f.name,
+          contactPhone: f.phone,
           purpose: f.purpose,
           propertyTypes: f.types,
-          localityIds: f.localityIds,
+          localityNames: f.localityIds.map((id) => locs?.find((l) => l.id === id)?.name).filter(Boolean),
           minBudget: f.minBudget ? Number(f.minBudget) : null,
           maxBudget: f.maxBudget ? Number(f.maxBudget) : null,
           bedrooms: f.bedrooms,
-        },
-      }),
+          roomKind: f.bedrooms.length ? 'BHK' : null,
+          status: 'OPEN',
+        });
+      }
+      return lead;
+    },
     {
       success: 'Lead add हो गई',
       invalidate: [['leads'], ['broker-dashboard'], ['kanban']],
       onSuccess: (l) => {
         onOpenChange(false);
+        requirementMutationId.current = null;
         setF({ ...f, name: '', phone: '', email: '', notes: '' });
         router.push(`/broker/leads/${l.id}`);
       },
@@ -114,6 +129,10 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       </div>
       <div className="mt-6 space-y-4 rounded-2xl bg-surface-2 p-4">
         <p className="text-sm font-bold">Requirement</p>
+        <Select value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })}>
+          <option value="RENT">Rent</option>
+          <option value="SALE">Sale</option>
+        </Select>
         <div className="flex flex-wrap gap-2">
           {['APARTMENT', 'BUILDER_FLOOR', 'VILLA', 'PG', 'OFFICE', 'SHOP'].map((t) => (
             <Chip key={t} active={f.types.includes(t)} onClick={() => setF({ ...f, types: toggle(f.types, t) })}>

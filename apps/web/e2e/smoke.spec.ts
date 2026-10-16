@@ -21,18 +21,32 @@ test('home page renders without errors', async ({ page }) => {
 
 test('rent search page shows filters', async ({ page }) => {
   await page.goto('/rent');
+  if (process.env.BROKER_FIRST === 'true') {
+    await expect(page).toHaveURL(/\/login/);
+    return;
+  }
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByText(/BHK/).first()).toBeVisible();
 });
 
 test('for-brokers shows the free launch offer, not prices', async ({ page }) => {
   await page.goto('/for-brokers');
+  if (process.env.BROKER_FIRST === 'true') {
+    await expect(page).toHaveURL(/\/login/);
+    return;
+  }
   await expect(page.getByText('अभी सब कुछ free है')).toBeVisible();
   await expect(page.getByText('Simple pricing')).toHaveCount(0);
 });
 
 test('sale pages redirect to rent while sale listings are off', async ({ page }) => {
   await page.goto('/buy');
+  if (process.env.BROKER_FIRST === 'true') {
+    await expect(page).toHaveURL(/\/login/);
+    await page.goto('/projects');
+    await expect(page).toHaveURL(/\/login/);
+    return;
+  }
   await expect(page).toHaveURL(/\/rent/);
   await page.goto('/projects');
   await expect(page).toHaveURL(/\/rent/);

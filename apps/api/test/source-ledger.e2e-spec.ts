@@ -200,6 +200,12 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     const updated = (await api().get(`/api/broker-requirements/${first.id}/matches`).set(header(a)).expect(200)).body;
     expect(updated.available).toHaveLength(1);
     expect(updated.unknown).toHaveLength(0);
+    try {
+      await api().patch('/api/admin/modules/inventory').set(header(admin)).send({ state: 'HIDDEN', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] }).expect(200);
+      await api().get(`/api/broker-requirements/${first.id}/matches`).set(header(a)).expect(403);
+    } finally {
+      await api().patch('/api/admin/modules/inventory').set(header(admin)).send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] }).expect(200);
+    }
   });
   it('rejects oversized archive structure before extracting all documents and preserves its original', async () => {
     const files = Object.fromEntries(Array.from({ length: 21 }, (_, i) => [`${i}.txt`, strToU8('Requirement 2 BHK Sector 43')]));

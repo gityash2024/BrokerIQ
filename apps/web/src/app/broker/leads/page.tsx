@@ -20,6 +20,7 @@ import { Input, Select, Textarea } from '@/components/ui/field';
 import { Avatar, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { AddLeadDialog } from '@/components/broker/add-lead';
 
 function LeadsInner() {
   const sp = useSearchParams();
@@ -37,6 +38,7 @@ function LeadsInner() {
   };
   const [sel, setSel] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const q = useQuery({ queryKey: ['leads', f], queryFn: () => api<Paged<LeadRow>>(`/leads${qs({ ...f, pageSize: 30 })}`), placeholderData: (p) => p });
   useRealtime('notification', (n: any) => n?.kind === 'NEW_LEAD' && q.refetch());
   const bulk = useApiMutation((b: { action: string; value?: string | null }) => post('/leads/bulk', { ids: sel, ...b }), {
@@ -71,12 +73,20 @@ function LeadsInner() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-brand-600"><Link href="/broker/leads/requirements">Requirements</Link><Link href="/broker/pipeline">Pipeline</Link><Link href="/broker/follow-ups">Follow-ups</Link><Link href="/broker/visits">Site visits</Link></div>
+      <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-brand-600">
+        <Link href="/broker/leads/requirements">Requirements</Link>
+        <Link href="/broker/pipeline">Pipeline</Link>
+        <Link href="/broker/follow-ups">Follow-ups</Link>
+        <Link href="/broker/visits">Site visits</Link>
+      </div>
       <PageHeader
         title="Lead inbox"
         subtitle={q.data ? `${q.data.total} leads — हर portal, ad और WhatsApp से एक जगह` : ' '}
         actions={
           <>
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <UserPlus className="size-4" /> Add lead
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="size-4" /> Import CSV
             </Button>
@@ -86,6 +96,7 @@ function LeadsInner() {
           </>
         }
       />
+      <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
       <div className="mb-4 flex flex-col gap-3">
         <Segmented value={f.view ?? ''} onChange={(v) => setF({ view: v || null })} options={views} />
         <div className="flex flex-wrap items-center gap-2">
@@ -371,7 +382,7 @@ function ImportDialog({ open, onOpenChange, onDone }: { open: boolean; onOpenCha
             rows={6}
             value={csv}
             onChange={(e) => setCsv(e.target.value)}
-            placeholder={'Name,Phone,Email,Source,Notes\nRahul Sharma,9876543210,rahul@gmail.com,Housing,3BHK Sector 65'}
+            placeholder="Name,Phone,Email,Source,Notes"
             className="font-mono text-xs"
           />
         </div>

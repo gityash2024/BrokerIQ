@@ -38,6 +38,7 @@ import {
   timeAgo,
   whatsappLink,
   RENTABLE_TYPES,
+  moduleAllowed,
   type LocalityListItem,
 } from '@brokeriq/shared';
 import { api, ApiError, authStore, errorMessage } from '@/lib/api';
@@ -53,7 +54,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { ComparisonDialog } from '@/components/broker/growth-tools';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
 import { VideoJoin } from '@/components/site/video-join';
-import { useFlag } from '@/lib/config';
+import { useFlag, useConfig } from '@/lib/config';
+import { LeadRequirements } from '@/components/broker/launch/lead-requirements';
 
 const ACT_ICON: Record<string, any> = {
   NOTE: StickyNote,
@@ -73,6 +75,8 @@ const ACT_ICON: Record<string, any> = {
 export default function LeadDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
+  const config = useConfig();
+  const allowed = (key: string) => moduleAllowed(config.modules, key, user?.role ?? '');
   const router = useRouter();
   const qc = useQueryClient();
   const admin = user?.role === 'BROKER_ADMIN';
@@ -136,7 +140,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             <Button href={`tel:${l.phone}`} onClick={() => setTimeout(() => setTab('timeline'), 300)}>
               <Phone className="size-4" /> Call
             </Button>
-            <ClickToCall leadId={l.id} onDone={refresh} />
+            {allowed('legacy') && <ClickToCall leadId={l.id} onDone={refresh} />}
             <Button variant="whatsapp" href={whatsappLink(l.phone, `नमस्ते ${l.name.split(' ')[0]} जी,`)} external>
               <MessageCircle className="size-4" /> WhatsApp
             </Button>
@@ -199,14 +203,14 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             ]}
           />
           {tab === 'timeline' && <Timeline lead={l} onChange={refresh} />}
-          {tab === 'matches' && <Matches lead={l} />}
+          {tab === 'matches' && <LeadRequirements lead={l} />}
           {tab === 'tasks' && <Tasks lead={l} onChange={refresh} />}
-          {tab === 'requirement' && <Requirement lead={l} onChange={refresh} />}
+          {tab === 'requirement' && <LeadRequirements lead={l} />}
         </div>
         <div className="space-y-4">
-          <AiCard lead={l} onChange={refresh} />
-          <CallsCard leadId={l.id} />
-          <DealsCard lead={l} onChange={refresh} />
+          {allowed('assistant') && <AiCard lead={l} onChange={refresh} />}
+          {allowed('legacy') && <CallsCard leadId={l.id} />}
+          {allowed('deals') && <DealsCard lead={l} onChange={refresh} />}
           <div className="card space-y-3 p-5 text-sm">
             <h3 className="font-display font-bold">Details</h3>
             <Row k="Owner" v={l.assignedTo?.name ?? 'Unassigned'} />
