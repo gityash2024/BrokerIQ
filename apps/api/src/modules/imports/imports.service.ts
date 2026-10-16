@@ -277,7 +277,9 @@ export class ImportsService {
   async review(entryId: string, input: z.infer<typeof reviewSchema>, user: RequestUser, approve = false) {
     if (approve && !input.ignore) {
       if (!input.entities.some((e) => e.kind !== 'UNRELATED')) throw new BadRequestException('Approve a property/requirement or choose Ignore');
-      for (const entity of input.entities) await this.modules.assertPath(entity.kind === 'INVENTORY' ? '/inventory' : '/broker-requirements', user.role);
+      for (const entity of input.entities) {
+        if (entity.kind !== 'UNRELATED') await this.modules.assertPath(entity.kind === 'INVENTORY' ? '/inventory' : '/broker-requirements', user.role);
+      }
     }
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${entryId}))`;

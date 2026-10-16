@@ -50,8 +50,24 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     expect(await prisma.inventoryItem.count({ where: { organizationId: orgA } })).toBe(0);
     const entry = batch.entries[0];
     const entity = entry.extracted[0];
-    const entities = [1, 2].map((floor) => ({ ...entity, inventory: { ...entity.inventory, floor: String(floor), monthlyRent: 20000 + floor * 1000 } }));
-    await api().post(`/api/imports/entries/${entry.id}/approve`).set(header(a)).send({ entities, expectedUpdatedAt: entry.updatedAt }).expect(201);
+    const entities = [
+      { kind: 'UNRELATED', warnings: [] },
+      ...[1, 2].map((floor) => ({ ...entity, inventory: { ...entity.inventory, floor: String(floor), monthlyRent: 20000 + floor * 1000 } })),
+    ];
+    try {
+      await api()
+        .patch('/api/admin/modules/leads')
+        .set(header(admin))
+        .send({ state: 'HIDDEN', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
+        .expect(200);
+      await api().post(`/api/imports/entries/${entry.id}/approve`).set(header(a)).send({ entities, expectedUpdatedAt: entry.updatedAt }).expect(201);
+    } finally {
+      await api()
+        .patch('/api/admin/modules/leads')
+        .set(header(admin))
+        .send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
+        .expect(200);
+    }
     let rows = await prisma.inventoryItem.findMany({ where: { organizationId: orgA }, orderBy: { floor: 'asc' } });
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.floor)).toEqual(['1', '2']);
@@ -201,10 +217,18 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     expect(updated.available).toHaveLength(1);
     expect(updated.unknown).toHaveLength(0);
     try {
-      await api().patch('/api/admin/modules/inventory').set(header(admin)).send({ state: 'HIDDEN', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] }).expect(200);
+      await api()
+        .patch('/api/admin/modules/inventory')
+        .set(header(admin))
+        .send({ state: 'HIDDEN', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
+        .expect(200);
       await api().get(`/api/broker-requirements/${first.id}/matches`).set(header(a)).expect(403);
     } finally {
-      await api().patch('/api/admin/modules/inventory').set(header(admin)).send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] }).expect(200);
+      await api()
+        .patch('/api/admin/modules/inventory')
+        .set(header(admin))
+        .send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
+        .expect(200);
     }
   });
   it('rejects oversized archive structure before extracting all documents and preserves its original', async () => {
