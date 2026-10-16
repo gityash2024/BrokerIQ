@@ -211,7 +211,10 @@ async function main() {
         groups: review.groups.length,
         approvedGroups: approved,
         preservedGroups: preserved,
-        unresolvedGroups: repeatedOriginal ? 0 : review.groups.filter((g) => !g.ready).length,
+        unreadyInputGroups: repeatedOriginal ? 0 : review.groups.filter((g) => !g.ready).length,
+        unresolvedGroups: await prisma.sourceEntry.count({
+          where: { batchId: batch.id, pageNo: review.pageNo, entryKey: { startsWith: 'visual-v1-' }, reviewState: 'NEEDS_REVIEW' },
+        }),
         duplicateGroups: repeatedOriginal ? review.groups.length : 0,
         annotationSha,
       }),
