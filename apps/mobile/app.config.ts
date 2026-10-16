@@ -26,10 +26,11 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 15,
+    versionCode: 16,
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
     permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
     blockedPermissions: [
+      'android.permission.SYSTEM_ALERT_WINDOW',
       'android.permission.READ_CONTACTS',
       'android.permission.WRITE_CONTACTS',
       'android.permission.ACCESS_FINE_LOCATION',
