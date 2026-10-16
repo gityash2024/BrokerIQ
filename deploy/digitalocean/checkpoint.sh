@@ -24,7 +24,10 @@ tar -C "$BASE/secrets" -cz api.env web.env db.password | enc -out "$DEST/secrets
 tar -C "$APP" --exclude=.git --exclude=node_modules --exclude=.next --exclude=dist --exclude=build --exclude=.turbo -cz . |
   enc -out "$DEST/source.tgz.enc"
 git -C "$APP" rev-parse HEAD > "$DEST/release-commit.txt"
-rsync -a "$BASE/storage/media/" "$DEST/media/"
+rsync -a "$MEDIA_DIR/" "$DEST/media/"
+printf '%s\n' "$MEDIA_DIR" > "$DEST/media-root.txt"
+diff -q <(cd "$MEDIA_DIR" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum) \
+  <(cd "$DEST/media" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum)
 db -d postgres -c "CREATE DATABASE $SCRATCH OWNER $DB_OWNER"
 trap 'db -d postgres -c "DROP DATABASE IF EXISTS $SCRATCH" >/dev/null' EXIT
 enc -d -in "$DEST/db.dump.enc" |
@@ -34,5 +37,5 @@ cmp "$DEST/table-counts.tsv" "$DEST/restored-counts.tsv"
 db -d postgres -c "DROP DATABASE $SCRATCH"
 trap - EXIT
 (cd "$DEST" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
-printf 'Exact table counts matched after scratch restore.\n' > "$DEST/RESTORE_VERIFIED.txt"
+printf 'Exact table counts matched after scratch restore. Active media snapshot checksums matched.\n' > "$DEST/RESTORE_VERIFIED.txt"
 log "Restore verified: $DEST"

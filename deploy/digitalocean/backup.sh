@@ -23,7 +23,8 @@ runuser -u postgres -- pg_dump -p "$PG_PORT" -Fc -Z 6 "$DB_NAME" | enc -out "$DE
 enc -d -in "$DEST/db.dump.enc" | runuser -u postgres -- pg_restore -l >/dev/null
 
 log "Media snapshot"
-rsync -a --delete ${PREV:+--link-dest="$PREV/media/"} "$BASE/storage/media/" "$DEST/media/"
+rsync -a --delete ${PREV:+--link-dest="$PREV/media/"} "$MEDIA_DIR/" "$DEST/media/"
+printf '%s\n' "$MEDIA_DIR" > "$DEST/media-root.txt"
 
 log "Secrets"
 tar -C "$BASE/secrets" -cz api.env web.env db.password | enc -out "$DEST/secrets.tgz.enc"

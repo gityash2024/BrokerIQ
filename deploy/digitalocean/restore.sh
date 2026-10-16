@@ -32,7 +32,7 @@ psqlp -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='
 psqlp -c "ALTER DATABASE $DB_NAME RENAME TO ${DB_NAME}_before_restore_$(date -u +%Y%m%d%H%M%S)"
 psqlp -c "CREATE DATABASE $DB_NAME OWNER $DB_OWNER"
 dec "$SRC/db.dump.enc" | runuser -u postgres -- pg_restore -p "$PG_PORT" -d "$DB_NAME" --no-owner --role="$DB_OWNER" --exit-on-error
-mv "$BASE/storage/media" "$BASE/storage/media.before_restore_$(date -u +%Y%m%d%H%M%S)"
-cp -a "$SRC/media" "$BASE/storage/media"
+mv "$MEDIA_DIR" "$MEDIA_DIR.before_restore_$(date -u +%Y%m%d%H%M%S)"
+cp -a "$SRC/media" "$MEDIA_DIR"
 pm2 start brokeriq-api brokeriq-web
 log "Live restore done. Old DB/media kept with *_before_restore_* names — drop them once verified."
