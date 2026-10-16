@@ -127,7 +127,7 @@ test('BHK+1 records an unspecified extra space without inventing a bathroom or d
     assert.equal(entry.inventory?.details?.advanceMonths, 1);
     assert.ok(entry.warnings.some((warning) => warning.includes('confirm its use')));
   }
-  for (const layout of ['3BHK+1B', '3BHK+1 bathroom', '3BHK+1 balcony', '3BHK+10', '3BHK'])
+  for (const layout of ['3BHK+1B', '3BHK+1 bathroom', '3BHK+1 balcony', '3BHK+10', '3BHK', '3BHK+1.5', '3BHK + 1 month advance', '3BHK + 1 parking'])
     assert.equal(extractCapture(`${layout} for rent Sector 43`)[0].inventory?.details?.additionalRooms, undefined);
   assert.equal(inventoryInputSchema.safeParse({ details: { additionalRooms: 1 } }).success, true);
   assert.equal(inventoryInputSchema.safeParse({ details: { additionalRooms: 1.5 } }).success, false);

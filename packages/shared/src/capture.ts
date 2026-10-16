@@ -161,7 +161,7 @@ export function extractCapture(text: string): CapturedEntity[] {
     const details: Record<string, any> = {};
     // Broker-confirmed BHK+1 is an extra space (e.g. pooja/store); its use
     // stays unspecified. Explicit +1B/bathroom notation is handled separately.
-    if (/\b\d{1,2}\s*BHK\s*\+\s*1(?!\d|\s*(?:B\b|bathrooms?\b|washrooms?\b|balcon(?:y|ies)\b))(?=\s|[,;.()]|$)/i.test(raw)) {
+    if (/\b\d{1,2}\s*BHK\s*\+\s*1(?![\d.]|\s*(?:B|bathrooms?|washrooms?|balcony|balconies|months?|security|advance|deposit|floors?|parking|lac|lacs|lakh|lakhs|cr|crore|k)\b)(?=\s|[,;.()]|$)/i.test(raw)) {
       details.additionalRooms = 1;
       warnings.push('One additional room/space is recorded; confirm its use from source');
     }
