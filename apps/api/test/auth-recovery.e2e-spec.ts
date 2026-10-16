@@ -46,14 +46,17 @@ describe('Password recovery and one-time OTP consumption', () => {
     let arrived = 0;
     let release!: () => void;
     const bothRead = new Promise<void>((resolve) => { release = resolve; });
-    const spy = jest.spyOn(prisma.otpCode, 'findFirst').mockImplementation(async (args: any) => {
+    const synchronizedRead = async (args: any) => {
       const row = await original(args);
       if (args.where.email === email && args.where.purpose.in.includes('RESET_PASSWORD')) {
         if (++arrived === 2) release();
         await bothRead;
       }
       return row as any;
-    });
+    };
+    // This test wrapper is await-only; Prisma's generated method also exposes
+    // relation chaining, which recovery never uses.
+    const spy = jest.spyOn(prisma.otpCode, 'findFirst').mockImplementation(synchronizedRead as typeof prisma.otpCode.findFirst);
     let results: PromiseSettledResult<unknown>[];
     try {
       results = await Promise.allSettled([
