@@ -40,3 +40,16 @@ test('commercial capture retains explicit possession, purchase, area basis and i
  const result=extractCapture('Office for sale, Sector 56, 400 sqft carpet area. Resale. Ready to move. Pre leased. Bare shell. Ask 1.5 cr. Power backup, lift.')[0];
  assert.equal(result.inventory?.details?.purchaseType,'RESALE');assert.equal(result.inventory?.details?.investmentType,'PRE_LEASED');assert.equal(result.inventory?.details?.areaBasis,'CARPET');assert.equal(result.inventory?.details?.officeCondition,'BARE_SHELL');assert.equal(result.inventory?.totalSalePrice,15000000);assert.equal(result.inventory?.availability,'UNKNOWN');assert.ok(result.inventory?.amenities?.includes('LIFT'));
 });
+
+test('interleaved poster columns cannot mix one property locality with another area or room count', () => {
+ const [entry] = extractCapture('AVAILABLE FOR SALE\nOffice Sector 56, 400 sqft\nApartment Sector 57, 3 BHK, 1800 sqft');
+ assert.equal(entry.kind, 'UNRELATED');
+ assert.equal(entry.inventory, undefined);
+ assert.ok(entry.warnings.some(w => w.includes('interleaved')));
+});
+
+test('mixed screenshot supply and requirement stay in source review without a combined lead', () => {
+ const [entry] = extractCapture('Requirement 2 BHK Sector 43 budget 45k\nAvailable for sale 3 BHK Sector 57, 1800 sqft');
+ assert.equal(entry.kind, 'UNRELATED');
+ assert.equal(entry.requirement, undefined);
+});

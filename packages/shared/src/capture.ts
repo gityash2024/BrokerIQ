@@ -62,6 +62,18 @@ export function extractCapture(text: string): CapturedEntity[] {
   return blocks.map((raw): CapturedEntity => {
     const phones = contactPhones(raw);
     const localities = captureLocalities(raw);
+    const hasRequirement = /requirement|required|looking\s+for|चाहिए|ज़रूरत|जरूरत/i.test(raw);
+    const hasSupply = /(?:available\s+(?:for\s+)?|for\s+)(?:sale|rent)|land\s+for\s+sale/i.test(raw);
+    const roomMentions = [...raw.matchAll(/\b\d{1,2}\s*(?:BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/gi)];
+    const sizeMentions = [...raw.matchAll(/\b\d[\d,]*(?:\.\d+)?\s*(?:sq\.?\s*ft\.?|sqft|sq\.?\s*yd\.?|acre?s?|hectare?s?)\b/gi)];
+    // OCR of columns or several chat bubbles can interleave unrelated facts. Never
+    // combine the first locality, another property's area and a third contact.
+    if ((hasRequirement && hasSupply) || (!hasRequirement && localities.length > 1 && (roomMentions.length > 1 || sizeMentions.length > 1))) {
+      return {
+        kind: 'UNRELATED',
+        warnings: ['Several property/requirement sections may be interleaved. Split them into separate records using the original source; no combined property was inferred.'],
+      };
+    }
     const room = raw.match(/\b(\d{1,2})\s*(BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/i);
     const roomKind = room ? (/^rk$/i.test(room[2]) ? 'RK' : 'BHK') : /\bstudio\b/i.test(raw) ? 'STUDIO' : null;
     const bhk = room ? Number(room[1]) : null;
@@ -115,7 +127,7 @@ export function extractCapture(text: string): CapturedEntity[] {
               ? 'SQ_M'
               : 'SQ_FT'
       : null;
-    if (/requirement|required|looking\s+for|चाहिए|ज़रूरत|जरूरत/i.test(raw)) {
+    if (hasRequirement) {
       const budget = raw.match(new RegExp(`budget\\s*[:=-]?\\s*₹?\\s*${amountPattern}(?:\\s*(?:to|[-–])\\s*₹?\\s*${amountPattern})?`, 'i'));
       const requirement: BrokerRequirementInput = {
         purpose,
