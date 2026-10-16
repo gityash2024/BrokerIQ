@@ -140,7 +140,9 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
   directory.create({ idempotent: true, intermediates: true });
   const safe = (name || 'source').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
   const destination = new File(directory, `${id}-${safe}`);
-  new File(uri).copy(destination);
+  // SDK 57 copy() is asynchronous, including Android content:// providers.
+  // Do not acknowledge the share or queue a file before its private copy exists.
+  await new File(uri).copy(destination);
   if (!destination.exists || destination.size === 0) throw new Error('Source copy failed. Shared content was not cleared.');
   const owner = ownerId();
   const saved = await saveDraft(

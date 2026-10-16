@@ -214,6 +214,7 @@ export default function Inventory() {
         {Object.entries(choices).map(([name, options]) => (
           <View key={name} style={{ marginBottom: 14 }}>
             <ChoiceField
+              emptyLabel="Any"
               label={INVENTORY_FILTER_LABELS[name] ?? name}
               value={(filters as any)[name] || null}
               choices={[...options]}

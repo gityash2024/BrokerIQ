@@ -32,6 +32,7 @@ export default function AreaDirectory() {
           <Button title={view === 'LIST' ? 'Show map' : 'Show list'} variant="secondary" onPress={() => setView(view === 'LIST' ? 'MAP' : 'LIST')} />
         </View>
         <ChoiceField
+          emptyLabel="Any"
           label="Property category"
           value={category || null}
           choices={['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'UNCLASSIFIED']}

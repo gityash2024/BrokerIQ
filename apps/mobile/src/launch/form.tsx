@@ -8,11 +8,13 @@ export function ChoiceField({
   value,
   choices,
   onChange,
+  emptyLabel = 'Not recorded',
 }: {
   label: string;
   value?: string | null;
   choices: string[];
   onChange: (v: string | null) => void;
+  emptyLabel?: string;
 }) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
@@ -36,7 +38,7 @@ export function ChoiceField({
         }}
       >
         <Txt style={{ flex: 1 }} color={value ? 'fg' : 'muted'}>
-          {value?.replace(/_/g, ' ') || 'Not recorded'}
+          {value?.replace(/_/g, ' ') || emptyLabel}
         </Txt>
         <ChevronDown size={16} color={c.muted} />
       </Pressable>
@@ -50,7 +52,7 @@ export function ChoiceField({
             }}
             style={{ padding: 15, minHeight: 48, flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: c.line }}
           >
-            <Txt>{option?.replace(/_/g, ' ') || 'Not recorded'}</Txt>
+            <Txt>{option?.replace(/_/g, ' ') || emptyLabel}</Txt>
             {value === option && <Check size={19} color={c.brand} />}
           </Pressable>
         ))}

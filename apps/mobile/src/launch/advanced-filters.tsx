@@ -38,12 +38,14 @@ export function NativeAdvancedFilters({ filters, onChange }: { filters: Record<s
       {group === 'Sort & source' ? (
         <>
           <ChoiceField
+            emptyLabel="Any"
             label="Sort by"
             value={INVENTORY_SORTS.find((s) => s.value === filters.sort)?.label ?? null}
             choices={INVENTORY_SORTS.map((s) => s.label)}
             onChange={(label) => onChange({ ...filters, sort: INVENTORY_SORTS.find((s) => s.label === label)?.value ?? '' })}
           />
           <ChoiceField
+            emptyLabel="Any"
             label="Data verification"
             value={filters.verificationStatus}
             choices={['VERIFIED', 'NEEDS_REVIEW']}
@@ -126,6 +128,7 @@ export function NativeAdvancedFilters({ filters, onChange }: { filters: Record<s
                 </View>
               ) : f.kind === 'boolean' ? (
                 <ChoiceField
+                  emptyLabel="Any"
                   label={f.label}
                   value={details[f.key] == null ? null : details[f.key] ? 'Yes' : 'No'}
                   choices={['Yes', 'No']}

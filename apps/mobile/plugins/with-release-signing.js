@@ -4,7 +4,7 @@
  * The keystore and its passwords never live in the repo: they are read at build time from
  *   $BROKERIQ_SIGNING_PROPERTIES  or  ~/.brokeriq/android/keystore.properties
  * with keys storeFile, storePassword, keyAlias, keyPassword. Without that file the release
- * build falls back to the debug key (fine for local testing, rejected by Play Store).
+ * release tasks fail before building. Debug builds still work without a release key.
  */
 const { withAppBuildGradle } = require('expo/config-plugins');
 
@@ -13,7 +13,9 @@ const LOAD = `${MARK}
 def biqSigningFile = file(System.getenv('BROKERIQ_SIGNING_PROPERTIES') ?: "\${System.getProperty('user.home')}/.brokeriq/android/keystore.properties")
 def biqSigning = new Properties()
 if (biqSigningFile.exists()) { biqSigningFile.withInputStream { biqSigning.load(it) } }
-else { logger.warn("BrokerIQ: \${biqSigningFile} not found — release build will be signed with the DEBUG key") }
+else if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+    throw new GradleException("BrokerIQ release signing properties are required; refusing a debug-signed release")
+}
 `;
 const CONFIG = `
         release {

@@ -19,7 +19,7 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink, type LeadStage } from '@brokeriq/shared';
+import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink, moduleAllowed, type LeadStage } from '@brokeriq/shared';
 import { api, del, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
@@ -30,7 +30,7 @@ import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge, useTeam } from '@/components/crm';
 import { ListingRow } from '@/components/listing';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, Segmented, Sheet, Txt } from '@/ui';
-import { useFlag } from '@/lib/config';
+import { useFlag, useConfig } from '@/lib/config';
 
 const OUTCOMES = [
   ['CONNECTED', '✅ Connected'],
@@ -44,7 +44,10 @@ const OUTCOMES = [
 export default function LeadDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
-  const { isBrokerAdmin } = useAuth();
+  const { isBrokerAdmin, user } = useAuth();
+  const config = useConfig();
+  const assistantOn = moduleAllowed(config.modules, 'assistant', user?.role ?? '');
+  const dealsOn = moduleAllowed(config.modules, 'deals', user?.role ?? '');
   const qc = useQueryClient();
   const team = useTeam();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
@@ -158,7 +161,12 @@ export default function LeadDetail() {
               {l.sourceDetail}
             </Txt>
           )}
-          <Button title="Requirements & matching" variant="secondary" size="sm" onPress={() => router.push({pathname:"/requirements",params:{leadId:id}})} />
+          <Button
+            title="Requirements & matching"
+            variant="secondary"
+            size="sm"
+            onPress={() => router.push({ pathname: '/requirements', params: { leadId: id } })}
+          />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
               const on = l.stage === s;
@@ -196,8 +204,7 @@ export default function LeadDetail() {
             options={[
               { value: 'timeline', label: 'Timeline' },
               { value: 'tasks', label: 'Tasks', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
-              { value: 'matches', label: 'Matches' },
-              { value: 'ai', label: '✨ AI' },
+              ...(assistantOn ? [{ value: 'ai' as const, label: '✨ AI' }] : []),
             ]}
           />
         </View>
@@ -264,7 +271,7 @@ export default function LeadDetail() {
           )}
           {tab === 'tasks' && <Tasks lead={l} onChange={refresh} openSheet={setSheet} />}
           {tab === 'matches' && <Matches lead={l} onShared={refresh} />}
-          {tab === 'ai' && <Ai lead={l} onDone={refresh} />}
+          {tab === 'ai' && assistantOn && <Ai lead={l} onDone={refresh} />}
         </View>
       </ScrollView>
 
@@ -277,7 +284,7 @@ export default function LeadDetail() {
         onClose={() => setSheet(null)}
         onSave={(reason) => (stage.mutate({ stage: 'LOST', lostReason: reason }), setSheet(null))}
       />
-      <DealSheet open={sheet === 'deal'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
+      {dealsOn && <DealSheet open={sheet === 'deal'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />}
       <WaSheet open={sheet === 'wa'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
     </SafeAreaView>
   );
@@ -388,7 +395,15 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
       </Txt>
       <Row wrap>
         {(mine.data?.items ?? []).slice(0, 12).map((x: any) => (
-          <Chip key={x.id} label={[x.houseNo, x.unitLabel, x.sector].filter(Boolean).join(' ').slice(0, 32)} active={listingId === x.id} onPress={() => {setListingId(x.id);setAddress([x.houseNo,x.unitLabel,x.sector,x.address].filter(Boolean).join(', '));}} />
+          <Chip
+            key={x.id}
+            label={[x.houseNo, x.unitLabel, x.sector].filter(Boolean).join(' ').slice(0, 32)}
+            active={listingId === x.id}
+            onPress={() => {
+              setListingId(x.id);
+              setAddress([x.houseNo, x.unitLabel, x.sector, x.address].filter(Boolean).join(', '));
+            }}
+          />
         ))}
       </Row>
       <Input value={address} onChangeText={setAddress} placeholder="Meeting point (optional)" />
