@@ -15,6 +15,7 @@ import { randomOtp, randomToken, sha256, shortCode } from '../../common/utils';
 import { env } from '../../config/env';
 import { AccessService } from '../../core/access/access.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
+import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 
 type UserWithOrg = User & { organization: Organization | null };
 interface ClientMeta {
@@ -34,6 +35,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly audit: AuditService,
     private readonly invites: BrokerInvitesService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   /** Ensure the Super Admin from env exists (idempotent). */
@@ -82,11 +84,12 @@ export class AuthService implements OnApplicationBootstrap {
     if (user.status !== 'ACTIVE') throw new ForbiddenException('यह account suspend है। Support से संपर्क करें।');
     if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN')
       throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
-    const accessToken = this.jwt.sign({ sub: user.id, role: user.role, orgId: user.organizationId, email: user.email });
+    const accessToken = this.jwt.sign({ sub: user.id, role: user.role, orgId: user.organizationId, email: user.email, sessionVersion: user.sessionVersion });
     const refreshToken = randomToken(48);
     await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
+        sessionVersion: user.sessionVersion,
         tokenHash: sha256(refreshToken),
         expiresAt: new Date(Date.now() + env().REFRESH_TTL_DAYS * 86400_000),
         ip: meta.ip,
@@ -297,9 +300,13 @@ export class AuthService implements OnApplicationBootstrap {
       throw new UnauthorizedException('Session expired');
     }
     if (row.expiresAt < new Date()) throw new UnauthorizedException('Session expired');
-    await this.prisma.refreshToken.update({ where: { id: row.id }, data: { revokedAt: new Date() } });
     const user = await this.findUser({ id: row.userId });
-    if (!user) throw new UnauthorizedException('Session expired');
+    if (!user || row.sessionVersion !== user.sessionVersion) throw new UnauthorizedException('Session expired');
+    const claimed = await this.prisma.refreshToken.updateMany({
+      where: { id: row.id, revokedAt: null, expiresAt: { gt: new Date() } },
+      data: { revokedAt: new Date() },
+    });
+    if (claimed.count !== 1) throw new UnauthorizedException('Session expired');
     return this.issue(user, meta);
   }
 
@@ -360,9 +367,10 @@ export class AuthService implements OnApplicationBootstrap {
     if (!user) throw new UnauthorizedException('Account नहीं मिला');
     const passwordHash = await bcrypt.hash(password, 12);
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash, emailVerified: true } }),
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash, emailVerified: true, sessionVersion: { increment: 1 } } }),
       this.prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
     ]);
+    this.realtime.disconnectUser(user.id);
     await this.audit.log({ id: user.id, role: user.role, orgId: user.organizationId }, 'auth.password_reset', 'User', user.id);
     return { ok: true };
   }

@@ -21,10 +21,13 @@ export class JwtAuthGuard implements CanActivate {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
     const header: string | undefined = req.headers.authorization;
     const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+    let sessionVersion = 0;
 
     if (token) {
       try {
         const payload = this.jwt.verify(token, { secret: env().JWT_ACCESS_SECRET });
+        sessionVersion = payload.sessionVersion ?? 0;
+        if (!Number.isSafeInteger(sessionVersion) || sessionVersion < 0) throw new Error('Invalid session version');
         req.user = { id: payload.sub, role: payload.role, orgId: payload.orgId ?? null, email: payload.email } satisfies RequestUser;
       } catch {
         if (!isPublic) throw new UnauthorizedException('Session expired. Please log in again.');
@@ -33,9 +36,9 @@ export class JwtAuthGuard implements CanActivate {
     if (req.user) {
       const current = await this.prisma.user.findUnique({
         where: { id: req.user.id },
-        select: { id: true, role: true, organizationId: true, email: true, status: true, deletedAt: true, organization: { select: { status: true } } },
+        select: { id: true, role: true, organizationId: true, email: true, status: true, deletedAt: true, sessionVersion: true, organization: { select: { status: true } } },
       });
-      if (!current || current.deletedAt || current.status !== 'ACTIVE' || (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED')) {
+      if (!current || current.sessionVersion !== sessionVersion || current.deletedAt || current.status !== 'ACTIVE' || (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED')) {
         if (!isPublic) throw new UnauthorizedException('Account no longer active');
         delete req.user;
       } else {

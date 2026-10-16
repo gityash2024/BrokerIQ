@@ -424,6 +424,7 @@ model User {
   email               String     @unique
   phone               String?
   passwordHash        String?
+  sessionVersion      Int        @default(0)
   googleId            String?    @unique
   avatarUrl           String?
   role                Role       @default(USER)
@@ -533,6 +534,7 @@ model UserContact {
 model RefreshToken {
   id        String    @id @default(cuid())
   userId    String
+  sessionVersion Int  @default(0)
   tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
