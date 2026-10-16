@@ -162,9 +162,11 @@ export function extractCapture(text: string): CapturedEntity[] {
     // security and one month's advance. It is never a rupee amount or 2+1 BHK.
     if (purpose === 'RENT') {
       const deposits = [...raw.matchAll(/(?<![\w\d+])(\d{1,2})\s*\+\s*(\d{1,2})(?![\w\d+]|\s*(?:BHK|RK|BR|bedrooms?|rooms?))/gi)];
-      if (deposits.length === 1) {
+      if (deposits.length === 1 && deposits[0][1] === '2' && deposits[0][2] === '1') {
         details.securityMonths = Number(deposits[0][1]);
         details.advanceMonths = Number(deposits[0][2]);
+      } else if (deposits.length) {
+        warnings.push('Confirm security/advance month notation before assigning amounts');
       }
     }
     if (/\bresale\b/i.test(raw)) details.purchaseType = 'RESALE';
@@ -181,8 +183,14 @@ export function extractCapture(text: string): CapturedEntity[] {
     else if (/warm[- ]shell/i.test(raw)) details.officeCondition = 'WARM_SHELL';
     if (/\bfreehold\b/i.test(raw)) details.ownershipType = 'FREEHOLD';
     else if (/\bleasehold\b/i.test(raw)) details.ownershipType = 'LEASEHOLD';
-    const bath = raw.match(/(\d{1,2})\s*(?:bathrooms?|washrooms?)/i);
-    if (bath) details.bathrooms = Number(bath[1]);
+    // The broker confirmed B after a BHK layout means bathrooms. A bare +1,
+    // block identifier or conflicting counts must not become a bathroom count.
+    const bathroomCounts = new Set([
+      ...[...raw.matchAll(/(\d{1,2})\s*(?:bathrooms?|washrooms?)\b/gi)].map((m) => Number(m[1])),
+      ...[...raw.matchAll(/\b\d{1,2}\s*BHK\s*\+?\s*(\d{1,2})\s*B\b(?!\s*(?:block|wing|tower)\b)/gi)].map((m) => Number(m[1])),
+    ]);
+    if (bathroomCounts.size === 1) details.bathrooms = [...bathroomCounts][0];
+    else if (bathroomCounts.size > 1) warnings.push('Conflicting bathroom counts; confirm from source');
     const road = raw.match(/(\d{1,3})\s*(?:ft|feet|foot|fut)\s*(?:wide\s*)?road/i);
     if (road) details.roadWidth = Number(road[1]);
     const amenities: string[] = [];

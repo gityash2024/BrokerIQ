@@ -7,7 +7,7 @@ Status: **INCOMPLETE**. This report distinguishes visually examined source group
 - 292 source groups examined; 81 approved groups produced 90 ledger records, including independent floors.
 - 211 examined groups remain unresolved; 1,249 original OCR candidate blocks remain on unexamined pages.
 - All 90 approved records have UNKNOWN current availability. Historical rented/sold/NO notes are evidence only.
-- Pages 8 and 17 have ambiguous locality headings; their locality is null and no entries from those pages are approved.
+- Page 8 locality was confirmed by the user as Sushant Lok (phase unspecified) and applied through version-checked source review. Its other uncertainties remain pending. Page 17 locality is still unconfirmed and null; neither page has approved entries yet.
 - Original PDF/page images and source observations are retained privately; superseded OCR blocks are hidden from the review list, never deleted.
 
 | PDF page | Source groups | Approved groups | Unresolved groups | Ledger records |
@@ -41,4 +41,4 @@ node --env-file=/opt/brokeriq/secrets/api.env dist/prisma/report-register-review
 
 This read-only command emits no owner names, phones, raw transcriptions or credentials. Counts come from current source review states and undeleted source-linked inventory. A report stays incomplete until every page is examined and no source review remains pending.
 
-User-confirmed glossary: FFD = fully furnished; SFD = semi furnished; SF = second floor; FF = first floor; bare 2+1 = two months security plus one month advance. Amounts in months are separate from rupee deposits. Other unresolved notation remains in source review.
+User-confirmed glossary: FFD = fully furnished; SFD = semi furnished; SF = second floor; FF = first floor; bare 2+1 = two months security plus one month advance; 2B = two bathrooms. A bare +1 is not assigned a bathroom count. The meanings of 1+1 and 3+1 still await confirmation. Amounts in months are separate from rupee deposits. Other unresolved notation remains in source review.
