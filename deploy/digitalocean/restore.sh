@@ -12,7 +12,12 @@ KEY="$BASE/secrets/backup.key"
 dec() { openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass "file:$KEY" -in "$1"; }
 psqlp() { runuser -u postgres -- psql -p "$PG_PORT" -v ON_ERROR_STOP=1 -q "$@"; }
 
-( cd "$SRC" && sha256sum -c --quiet SHA256SUMS ) && log "Checksums OK"
+( cd "$SRC" && sha256sum -c --quiet SHA256SUMS )
+log "Checksums OK"
+if [ -f "$SRC/register-source.tgz.enc" ]; then
+  dec "$SRC/register-source.tgz.enc" | tar -tz >/dev/null
+  log "Encrypted register evidence is readable"
+fi
 
 if [ "$MODE" != "--live" ]; then
   T=brokeriq_restore_test
@@ -34,5 +39,11 @@ psqlp -c "CREATE DATABASE $DB_NAME OWNER $DB_OWNER"
 dec "$SRC/db.dump.enc" | runuser -u postgres -- pg_restore -p "$PG_PORT" -d "$DB_NAME" --no-owner --role="$DB_OWNER" --exit-on-error
 mv "$MEDIA_DIR" "$MEDIA_DIR.before_restore_$(date -u +%Y%m%d%H%M%S)"
 cp -a "$SRC/media" "$MEDIA_DIR"
+if [ -f "$SRC/register-source.tgz.enc" ]; then
+  if [ -e "$BASE/storage/register-source" ]; then
+    mv "$BASE/storage/register-source" "$BASE/storage/register-source.before_restore_$(date -u +%Y%m%d%H%M%S)"
+  fi
+  dec "$SRC/register-source.tgz.enc" | tar -xz -C "$BASE/storage" --no-same-owner
+fi
 pm2 start brokeriq-api brokeriq-web
 log "Live restore done. Old DB/media kept with *_before_restore_* names — drop them once verified."

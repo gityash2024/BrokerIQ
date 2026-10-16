@@ -24,6 +24,13 @@ pm2 logs brokeriq-api --lines 100           # logs (files: /opt/brokeriq/logs)
 /opt/brokeriq/bin/restore.sh /opt/brokeriq/backups/daily/<ts> --live   # असली restore
 ```
 
+New daily backups and checkpoints also include encrypted `register-source.tgz.enc`
+when private register inputs exist. The snapshot decrypts/extracts those inputs
+inside its own backup directory and compares every file SHA256 before succeeding.
+Live restore preserves the previous `storage/register-source` directory before
+restoring this evidence. Older backups without that archive remain supported.
+Checksum failure stops restore before any database or process operation.
+
 ## ⚠️ ज़रूरी
 
 - `secrets/api.env` का `ENCRYPTION_MASTER_KEY` **कभी न बदलें और न खोएँ**। सारी media files और admin credentials इसी key से encrypted हैं। `secrets/` folder की एक copy server से बाहर (password manager / offline) ज़रूर रखें।

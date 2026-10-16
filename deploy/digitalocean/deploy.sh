@@ -12,7 +12,7 @@ git checkout -q --detach "origin/$BRANCH"
 git log --oneline -1
 
 log "Install scripts into $BASE/bin"
-install -m 755 deploy/digitalocean/{config.sh,deploy.sh,backup.sh,restore.sh,install-edge.sh,watchdog.sh} "$BASE/bin/"
+install -m 755 deploy/digitalocean/{config.sh,deploy.sh,backup.sh,restore.sh,checkpoint.sh,install-edge.sh,watchdog.sh} "$BASE/bin/"
 # Existing system cron is managed independently. Deploys only write inside BrokerIQ.
 install -m 644 deploy/digitalocean/ecosystem.config.js "$BASE/ecosystem.config.js"
 install -m 644 deploy/digitalocean/nginx/{cloudflare-realip.conf,proxy.conf} "$BASE/nginx/"

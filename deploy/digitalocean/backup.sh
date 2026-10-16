@@ -28,6 +28,7 @@ printf '%s\n' "$MEDIA_DIR" > "$DEST/media-root.txt"
 
 log "Secrets"
 tar -C "$BASE/secrets" -cz api.env web.env db.password | enc -out "$DEST/secrets.tgz.enc"
+snapshot_register_evidence "$DEST"
 
 ( cd "$DEST" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS )
 

@@ -27,3 +27,21 @@ fi
 # pm2 daemon is the server's shared one (global Node 20) — always call it with the system PATH.
 pm2() { env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root pm2 "$@"; }
 log() { printf '\n\033[1;34m[brokeriq]\033[0m %s\n' "$*"; }
+
+# Keep operator transcripts/amendments with the encrypted original source evidence.
+# A real extraction verifies every byte before a snapshot can be trusted.
+snapshot_register_evidence() (
+  set -euo pipefail
+  local dest="${1:?backup destination required}" source_dir="$BASE/storage/register-source" scratch
+  [ -d "$source_dir" ] || exit 0
+  [ "$(readlink -f "$source_dir")" = "$BASE/storage/register-source" ] || { echo 'Unexpected register evidence path' >&2; exit 1; }
+  case "$(readlink -f "$dest")" in "$BASE/backups/"*) ;; *) echo 'Unexpected backup destination' >&2; exit 1 ;; esac
+  tar -C "$BASE/storage" -cz register-source |
+    openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass "file:$BASE/secrets/backup.key" -out "$dest/register-source.tgz.enc"
+  scratch="$(mktemp -d "$dest/evidence-verify.XXXXXX")"
+  trap 'rm -rf -- "$scratch"' EXIT
+  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass "file:$BASE/secrets/backup.key" -in "$dest/register-source.tgz.enc" |
+    tar -xz -C "$scratch" --no-same-owner
+  diff -q <(cd "$source_dir" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum) \
+    <(cd "$scratch/register-source" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum)
+)
