@@ -1,0 +1,14 @@
+{
+  "verifiedAt": "2026-10-16T17:54:48.554919+00:00",
+  "checkpoint": "20261016-175009-broker-first",
+  "sourceCommit": "49bbbc9ab279824bfec7e8730ee06460f49a2455",
+  "serverScratchRestoreVerified": true,
+  "exactRestoredTableCountsMatch": true,
+  "rawInventoryRowsIncludingArchived": 896,
+  "activeInventoryRowsFromLiveSmoke": 895,
+  "offServerManifestFilesVerified": 129,
+  "offServerSecretsArchiveDecrypts": true,
+  "decryptionKeyStoredOutsideBackup": true,
+  "privateLocalPermissionsVerified": true,
+  "offServerFullDatabaseRestorePerformed": false
+}

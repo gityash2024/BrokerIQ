@@ -1,64 +1,68 @@
-# 🚀 Deployment guide — DigitalOcean self-host (web + API + DB + media) · Android app
+# BrokerIQ deployment और rollback
 
-Production एक DigitalOcean droplet पर चलता है, सब कुछ `/opt/brokeriq` folder के अंदर:
+वर्तमान shared DigitalOcean server पर केवल `/opt/brokeriq` तथा PM2 के `brokeriq-api` और `brokeriq-web` बदलें। nginx, PostgreSQL clusters, global runtimes, `/etc/cron.d`, अन्य products और global PM2 state को न बदलें। वर्तमान instance broker-first staging है; live provider और physical-device acceptance अभी बाकी है।
 
-| Part | URL / जगह |
-| --- | --- |
-| Website (Next.js) | `https://brokeriq.mymultimeds.com` — pm2 `brokeriq-web` |
-| API (NestJS) | `https://brokeriqapi.mymultimeds.com/api` — pm2 `brokeriq-api` |
-| Database | PostgreSQL 14 cluster `brokeriq` (port 5433) |
-| Photos/documents | Server disk, compressed + encrypted (`MEDIA_ROOT`) — Cloudinary की ज़रूरत नहीं |
-| Cron | `/etc/cron.d/brokeriq` — रोज़ का encrypted backup + हर 2 मिनट watchdog |
+| भाग | वर्तमान स्थिति |
+|---|---|
+| Web / landing / login | https://brokeriq.mymultimeds.com |
+| API health | https://brokeriqapi.mymultimeds.com/api/health |
+| Active checkout | `/opt/brokeriq/current` → `/opt/brokeriq/releases/f02daa4` — directory का पुराना नाम commit/version नहीं है |
+| Database | `brokeriq_b2b_20261015`, PostgreSQL 14, localhost:5433 |
+| Private encrypted media | `/opt/brokeriq/storage/media-b2b` |
+| Secrets | `/opt/brokeriq/secrets/api.env`, `web.env` |
+| Original rollback state | `/opt/brokeriq/app` और पुराना `brokeriq` database सुरक्षित हैं |
 
-Server setup, backups और restore की पूरी जानकारी: [deploy/digitalocean/README.md](../deploy/digitalocean/README.md)।
+## Deploy
 
-## 1. Deploy (web + API एक साथ)
-
-```bash
-ssh root@<server> /opt/brokeriq/bin/deploy.sh
+```sh
+git push origin feat/production
+ssh root@165.232.182.189 'bash /opt/brokeriq/bin/deploy.sh'
 ```
 
-- `feat/production` branch का latest commit लेता है (branch बदलनी हो: `BRANCH=<name> /opt/brokeriq/bin/deploy.sh`)।
-- `pnpm install --frozen-lockfile` → shared build → Prisma migrations + idempotent seed → API/web build → pm2 reload → health check।
-- Seed सिर्फ़ master data और defaults डालता है; admin के बदले हुए settings/pages कभी overwrite नहीं होते।
+Script shared → API → web builds, fresh active database पर migrations और केवल BrokerIQ PM2 registrations reload करता है। Server का global Node नहीं बदलता। Broker accounts या passwords code/seed में न डालें; bootstrap encrypted/private inputs से होता है। Integration credentials Settings में encrypted रखे जाते हैं।
 
-## 2. Monitoring
+PM2 का cwd/environment बदलने पर केवल process-name reload पर्याप्त नहीं होता। BrokerIQ ecosystem file इस्तेमाल करें:
 
-- **Admin → System health:** DB, jobs, integrations, **Errors** (API 5xx, website और app crashes, grouped) और **Cost & usage** (AI calls per provider, emails, WhatsApp, disk)।
-- नई error, website down, DB धीमा, disk 85%+ या watchdog restart → Super Admins को in-app + email alert।
-- Sentry optional: Credentials → Sentry में DSN डालें, errors वहाँ भी जाएँगे (SDK की ज़रूरत नहीं)।
-- API docs (`/api/docs`) production में बंद हैं; ज़रूरत हो तो `secrets/api.env` में `SWAGGER_ENABLED=true`।
+```sh
+pm2 startOrReload /opt/brokeriq/ecosystem.config.js --only brokeriq-api,brokeriq-web --update-env
+```
 
-## 3. Android app
+Global `pm2 save`, अन्य process reload या पुराने database पर migrations न चलाएँ।
 
-Release build local machine पर Gradle से बनता है (EAS की ज़रूरत नहीं) — steps और Play Store checklist: [docs/PLAY_STORE.md](./PLAY_STORE.md)।
+## Backup और restore verification
 
-- **Force update:** Super Admin → App config → Mobile app versions में `minVersion` बढ़ाएँ।
-- **Push notifications:** Credentials → Expo push (optional access token)।
+```sh
+bash /opt/brokeriq/bin/checkpoint.sh
+```
 
-## 4. Launch checklist
+Checkpoint में encrypted database, secrets, source checkout और register evidence तथा पहले से encrypted private media शामिल हैं। यह अपने scratch database में वास्तविक restore करके सभी public tables की exact counts मिलाता है; media और register evidence के SHA256 भी मिलते हैं। `RESTORE_VERIFIED.txt`, `SHA256SUMS` और `release-commit.txt` प्रमाण हैं। वर्तमान verified checkpoint [release handoff](RELEASE_HANDOFF.md) में दर्ज है।
 
-- [ ] `/api/health` green; `/api/docs` बंद (404)
-- [ ] Credentials: **OpenRouter** (free AI) ✅, SMTP (जैसे Brevo free) ✅, Google Sign-In (optional) — हर एक पर "Test"
-- [ ] App config: site name, support email/phone/WhatsApp; **Free mode ON**; AI daily cap
-- [ ] Pages: Privacy और Terms published (`/p/privacy`, `/p/terms`) — legal review के बाद ज़रूरत हो तो edit करें
-- [ ] Feature flags: जो features launch पर नहीं चाहिए, OFF करें (sale listings default OFF)
-- [ ] Broker invites: पहले brokers के लिए invite codes बनाएँ
-- [ ] एक test broker: onboarding → listing → Housing/email connector → test lead
-- [ ] Android release APK install करके login, search, post property, broker leads check करें
+अतिरिक्त non-live restore test:
 
-## 5. Local development
+```sh
+bash /opt/brokeriq/bin/restore.sh /opt/brokeriq/backups/checkpoints/<checkpoint>
+```
 
-```bash
-docker compose up -d                        # Postgres 16
-cp apps/api/.env.example apps/api/.env      # DATABASE_URL वगैरह
-pnpm install
+यह BrokerIQ scratch database बनाकर हटाता है। `--live` वर्तमान business data बदलता है; इसका उपयोग केवल चुने हुए checkpoint से वास्तविक recovery के समय करें। Checksum failure पर restore database/process operations से पहले रुकता है। Media और secrets encryption keys सुरक्षित रखें; केवल source code से encrypted data नहीं खुलेगा।
+
+पुराने pre-cutover instance पर लौटने का retained script:
+
+```sh
+bash /opt/brokeriq/backups/cutover/20261015-175526/rollback.sh
+```
+
+यह original release/database configuration पर लौटता है; नए database के बाद के edits पुराने database में नहीं आते। पहले नवीनतम checkpoint सुरक्षित रखें। इस release में rollback script दोबारा नहीं चलाया गया है।
+
+## Release acceptance
+
+[RELEASE_HANDOFF.md](RELEASE_HANDOFF.md), [REGISTER_RECONCILIATION.md](REGISTER_RECONCILIATION.md) और [RELEASE_PROGRESS.md](RELEASE_PROGRESS.md) वर्तमान evidence तथा सीमाएँ रखते हैं। Provider credentials, authorized WhatsApp test recipient और physical Android-device verification मिलने तक integrations/device acceptance को complete न मानें। Deployment script global cron configuration नहीं लिखता; इस handoff में recurring scheduling की नई स्थापना का दावा नहीं है।
+
+## Local checks
+
+```sh
 pnpm --filter @brokeriq/shared build
-pnpm --filter @brokeriq/api exec prisma migrate deploy
-pnpm --filter @brokeriq/api seed
-pnpm --filter @brokeriq/api dev             # http://localhost:3000/api
-pnpm --filter @brokeriq/web dev             # http://localhost:3001
-pnpm --filter @brokeriq/mobile start        # Expo (EXPO_PUBLIC_API_URL=http://<LAN-IP>:3000/api)
-pnpm lint && pnpm -r typecheck              # code checks
-pnpm --filter @brokeriq/api test:e2e        # API tests (DATABASE_URL = test DB)
+pnpm -r typecheck
+DATABASE_URL='<isolated-test-database-url>' pnpm --filter @brokeriq/api test:e2e
 ```
+
+Tests के लिए मौजूदा business database इस्तेमाल न करें। Android release के signing material को private रखें; build instructions [PLAY_STORE.md](PLAY_STORE.md) में हैं।

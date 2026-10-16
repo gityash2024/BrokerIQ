@@ -1,0 +1,64 @@
+{
+  "checks": [
+    {
+      "verifiedAt": "2026-10-16T17:46:28.042Z",
+      "checks": {
+        "allPages": true,
+        "page8SriLanka": 8,
+        "page17BodySector28": 11,
+        "page17TopReference": 1,
+        "pragatiVihar": 8,
+        "cBlockSushantLok1": 116,
+        "sector57Continuation": 56,
+        "topFloorWithoutNumber": 5,
+        "repeatedGroups": 16
+      },
+      "inventoryRecords": 895,
+      "unknownAvailability": 895,
+      "originalCandidateBlocksPending": 0
+    },
+    {
+      "verifiedAt": "2026-10-16T17:33:58.738Z",
+      "sourceGroups": 4,
+      "independentFloorUnits": 8,
+      "exactRentAndSecurity": true,
+      "availabilityUnknown": true
+    },
+    {
+      "verifiedAt": "2026-10-16T17:49:44.525Z",
+      "activeUsers": 2,
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN"
+      ],
+      "identityCorrect": true,
+      "inventory": {
+        "http": 200,
+        "total": 895,
+        "dbTotal": 895
+      },
+      "today": {
+        "http": 200,
+        "inventory": 895,
+        "pendingReview": 1053
+      },
+      "repeatedPage69": {
+        "http": 200,
+        "groups": 16,
+        "duplicateGroups": 16,
+        "allDuplicates": true
+      },
+      "reviewQueue": {
+        "http": 200,
+        "total": 1051,
+        "dbPending": 1051,
+        "onlyPending": true,
+        "reviewedPage69Pending": 0
+      },
+      "adminDeniedToBroker": 403,
+      "adminModules": 200,
+      "disabledDeals": 403,
+      "unauthenticatedSource": 401
+    }
+  ]
+}

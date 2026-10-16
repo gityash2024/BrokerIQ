@@ -1,0 +1,44 @@
+{
+  "recordedAt": "2026-10-16T17:42:45.778426+00:00",
+  "deployedRuntimeCode": "e7b163d",
+  "shared": {
+    "passed": 23,
+    "failed": 0
+  },
+  "fullApiSuite": {
+    "passed": 123,
+    "skipped": 12
+  },
+  "brokerFirstAndRecoverySuites": {
+    "passed": 15
+  },
+  "webPlaywright": {
+    "passed": 12,
+    "database": "isolated PostgreSQL",
+    "workerEnabled": true,
+    "serverMode": "Next dev; production build verified separately"
+  },
+  "workspaceTypechecks": [
+    "shared",
+    "api",
+    "web",
+    "mobile",
+    "landing"
+  ],
+  "serverProductionBuilds": [
+    "shared",
+    "api",
+    "web"
+  ],
+  "nativeReleaseBuild": 16,
+  "publicApkFullStreamHashVerified": true,
+  "liveProvidersVerified": false,
+  "physicalAndroidVerified": false,
+  "inventoryReconciliationComplete": false,
+  "sourceReviewCli": "49bbbc9",
+  "userSkippedPages": [
+    84
+  ],
+  "activeInventoryRecords": 895,
+  "pendingPdfGroups": 1051
+}

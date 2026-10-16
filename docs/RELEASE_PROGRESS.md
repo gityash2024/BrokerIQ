@@ -4,16 +4,24 @@ Approved scope: two initial accounts (Super Admin and Olive State broker), five 
 
 ## Current status — 16 October 2026
 
-The sections below this summary are a chronological implementation history; their older counts and pending items describe those checkpoints.
+The sections below this summary are chronological implementation history. Their older counts and pending items describe earlier checkpoints.
 
-- Broker-first staging cutover, two new accounts, module controls, typed inventory/requirements, durable imports, five-section web/native flows, Area Directory and the landing page are deployed. Application code currently at `af4d497`, with reconciliation reporting added separately below. Only BrokerIQ paths and its two PM2 registrations have been changed.
-- Signed Android v2.0.0 build 13 is live at `https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.0.0-build13.apk`; SHA256 `afd4403a084680c5f3620a3243d931f93fe51e88bfc6d7f9b285654bfdc2f074`. Complete public download was hashed. Signing certificate unchanged.
-- Android emulator checks cover broker login, Hindi/English, native text/image Share, persisted offline draft recovery after process restart, directory map/list, and safe-area filter controls. Real Android hardware has not been tested.
-- Latest completed test runs: shared 20 passed; focused API launch 12 passed; all 12 Playwright journeys passed; workspace typechecks and API/web production builds passed. These are isolated fixtures, not proof of live Housing/WhatsApp integration.
-- Source review now covers pages 1–18: 292 groups, 81 approved groups, 90 source-linked ledger records, 211 unresolved examined groups. Another 99 pages / 1,249 candidate blocks need entry review. All imported availability is UNKNOWN. See [REGISTER_RECONCILIATION.md](REGISTER_RECONCILIATION.md). Do not claim complete inventory or production-launch readiness.
-- Checkpoint `/opt/brokeriq/backups/checkpoints/20261016-100938-broker-first` includes the 90 source-linked records and restored successfully into a scratch database with exact table counts and active media checksums. Later user-confirmed source amendments are recorded separately in audit history.
-- Live provider credentials and an explicitly authorized WhatsApp recipient are still awaited. No real outbound integration test has been run. Directory coverage is 2,102 source identities / 1,237 mapped, not an exhaustive list of unique city projects.
-- Original inputs, extraction evidence and old APKs are preserved privately; local releases now retains build 13 only. Product/future-module code and signing material remain intact.
+- Deployed app runtime: `e7b163d`; source-review CLI: `49bbbc9`. Fresh BrokerIQ B2B database, two launch accounts, role/module gates, five broker sections, typed inventory/requirements, durable imports, Area Directory and landing page are live. Only BrokerIQ-owned paths/processes were changed.
+- Signed Android v2.0.0 build 16: `https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.0.0-build16.apk`; SHA256 `ef2bd27e235b88b014bf229a68d44637bbb9b2f0b611d90f051274f14295fc33`. Complete public download was previously hashed; signing certificate unchanged. Build16 includes pending/all source-review views and removes the unused overlay permission, with the broker-confirmed unspecified additional-room field; schema, extraction, web/native editing and filters share it. Upgrade on the emulator preserved the local draft and its value after force-stop/restart.
+- Native emulator checks cover Hindi/English login, text/image Share, persisted offline draft recovery after restart, directory map/list and safe-area filters. Real Android hardware has not been tested.
+- All 117 register pages have a first visual transcription: 1,933 source groups, 851 approved groups, 895 source-linked ledger records, 1,051 unresolved groups and 16 confirmed repeated-scan groups. User requested skipping page84: 15 ignored groups, its prior record recoverably archived; raw evidence retained. Zero unexamined pages / pending original OCR blocks. All ledger availability is UNKNOWN. This is not a final count of unique physical units. See [REGISTER_RECONCILIATION.md](REGISTER_RECONCILIATION.md).
+- User-confirmed pocket/locality corrections and 1+1 / 2+1 / 3+1 security terms were applied through version-checked source review. TF means Top Floor with unknown numeric level; CNP is a historical call-not-picked note. NC/PD do not create structured facts. Original evidence and superseded confirmations remain private.
+- Full 117-page replay created zero new approvals/records. Context amendment replays are also no-ops. Live HTTPS inventory/Today counts match the database; broker admin access and disabled modules return 403; unauthenticated PDF source access returns 401.
+- Latest validation: shared 23 passed; full API suite 123 passed / 12 skipped; broker-first/recovery suites 15 passed; workspace typechecks passed; production API/web builds and post-deploy health passed. Latest runtime Playwright rerun: 12 passed with the isolated PostgreSQL job worker enabled. Native emulator checks remain relevant. No live provider test is implied by isolated fixtures.
+- Current verified backup: `/opt/brokeriq/backups/checkpoints/20261016-175009-broker-first` (895 active ledger records plus the archived page84 record, restore verified). Encrypted DB/secrets/source, active private media and register operator/transcription evidence; actual scratch database restore with exact public-table counts, media SHA256 comparison and decrypt/extract/hash verification of register evidence.
+- Housing/WhatsApp credentials and an explicitly authorized WhatsApp test recipient are still awaited. Real Housing sync, WhatsApp send/receive/delivery and physical Android-device verification remain open. Do not claim full production-launch readiness.
+- Directory coverage: 2,102 source identities / 1,237 mapped; not an exhaustive list of unique city projects. Original inputs, OCR evidence and prior APKs are privately archived; active local/public downloads retain build 16 only. Product/future-module code and signing material remain intact.
+
+## Remaining launch acceptance
+
+- Resolve uncertain register digits, room/floor/unit boundaries, price ranges and possible repeated-property observations in the authenticated review queue. Uncertain fields are not silently guessed or imported as verified values.
+- Verify real Housing sync and WhatsApp send/receive/delivery after the user supplies credentials in Settings and explicitly authorizes a test recipient.
+- Install the signed APK on a physical Android device and verify the five sections, sharing, keyboard, filters and offline drafts. Emulator evidence does not establish physical-device acceptance.
 
 ## Completed verification
 
@@ -24,7 +32,7 @@ The sections below this summary are a chronological implementation history; thei
 - New inventory/source/requirements migration applied to isolated test database. Shared tests: 16 passed. Broker-first + source-ledger e2e: 6 passed (real Postgres). Typechecks passed at checkpoints.
 - Fresh offline Apple Vision OCR and 200dpi renders captured all 117 pages from original PDF. Original SHA256: 46173d8bb00bf10253c3fbb8c72941b69b5793c008c60fff9dc5824c5091764f. Private output in ~/Library/Application Support/BrokerIQ/imports/<sha>. These raw OCR observations are not verified inventory.
 
-## Remaining work (do not mark production ready)
+## Initial implementation backlog (historical; see current acceptance above)
 
 - Finish register segmentation, visual per-page verification, source-backed reconciliation and accurate import for Rahul; preserve uncertain fields in review. Old 1698 JSON is comparison only.
 - Finish broker web journeys and admin overview; mobile native redesign, SQLite drafts/imports, native Android share target, source review, requirements/matching and automation/Housing.

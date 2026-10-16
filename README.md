@@ -36,4 +36,4 @@ No demo business data is seeded. Credentials are encrypted in platform/firm sett
 
 Inventory stores units, contacts, prices and area units separately. Unknown values remain null; source review does not confirm current availability. Original register evidence and extraction datasets stay in private storage, outside Git. Directory records retain source identity and coordinate provenance; coverage is not exhaustive.
 
-Current verification and remaining launch gates: [release progress](docs/RELEASE_PROGRESS.md). Directory sources and boundaries: [source documentation](docs/DIRECTORY_SOURCES.md). Deployment: [deployment guide](docs/DEPLOYMENT.md).
+Current URLs, APK checksum, accounts and recovery evidence: [release handoff](docs/RELEASE_HANDOFF.md). Remaining launch gates: [release progress](docs/RELEASE_PROGRESS.md). Directory sources and boundaries: [source documentation](docs/DIRECTORY_SOURCES.md). Deployment: [deployment guide](docs/DEPLOYMENT.md).

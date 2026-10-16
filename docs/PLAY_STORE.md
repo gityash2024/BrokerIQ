@@ -1,119 +1,43 @@
-# BrokerIQ — Google Play release guide (v1.3.1, versionCode 7)
+# BrokerIQ — Android release और store handoff
 
-## 1. Files
+वर्तमान product broker-first B2B workspace है। Consumer marketplace, tenant accounts और भविष्य के disabled modules को store listing में उपलब्ध सुविधा न बताएँ। यह guide publishing authorization या Play Console submission का प्रमाण नहीं है।
 
-| File | Use |
-| --- | --- |
-| `releases/BrokerIQ-v1.3.1.aab` | **Play Console upload** (Android App Bundle) |
-| `releases/BrokerIQ-v1.3.1.apk` | Direct install / testing (same signature) |
+## वर्तमान artifact
 
-Both are signed with the **BrokerIQ upload key**:
+Signed direct-install APK: `releases/BrokerIQ-v2.0.0-build16.apk`, versionName `2.0.0`, versionCode `16`। Download URL, SHA256 और verification limits [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md) में हैं। इस release के लिए Play-upload AAB बनाया या upload नहीं किया गया है।
 
-- Keystore: `~/.brokeriq/android/brokeriq-upload.keystore` (alias `brokeriq-upload`)
-- Passwords: `~/.brokeriq/android/keystore.properties` (never in git)
-- **Backup both files now** (password manager + offline copy). If the upload key is lost you must request an upload-key reset from Google (takes days).
-- Use **Play App Signing** (default): Google keeps the app signing key, you keep only this upload key.
+Upload key repo के बाहर `~/.brokeriq/android/` में है। `keystore.properties` या keystore/passwords को Git, APK download directory अथवा public documentation में न डालें। Current signing certificate SHA256:
 
-> Earlier APKs (≤ 1.2.2) were signed with the debug key. Phones that have that APK must **uninstall it once** before installing 1.3.x — Android refuses an update signed with a different key.
-
-### Rebuilding
-
-```bash
-cd apps/mobile
-EXPO_PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com/api npx expo prebuild -p android --clean --no-install
-cd android && ./gradlew assembleRelease bundleRelease
-# outputs: app/build/outputs/apk/release/app-release.apk, app/build/outputs/bundle/release/app-release.aab
+```text
+d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce
 ```
 
-Bump `version` and `android.versionCode` in `apps/mobile/app.config.ts` for every Play upload (versionCode must always increase). Signing comes from `apps/mobile/plugins/with-release-signing.js`; another machine can point `BROKERIQ_SIGNING_PROPERTIES` at a copy of `keystore.properties`.
+## Rebuild
 
-## 2. Store listing
+पहले shared package build करें। `apps/mobile/app.config.ts` का versionCode बढ़ाएँ और existing native project में वही code रखें। Clean prebuild से पहले native configuration changes और signing plugin की जाँच करें।
 
-- **App name:** BrokerIQ — Rent homes in Gurgaon
-- **Short description (80):** Verified rental homes in Gurgaon. Talk to brokers directly. Free CRM for brokers.
-- **Full description:**
+```bash
+pnpm --filter @brokeriq/shared build
+cd apps/mobile/android
+EXPO_PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com/api ./gradlew assembleRelease
+# केवल अलग से अधिकृत Play release के लिए: ./gradlew bundleRelease
+```
 
-  BrokerIQ helps you find a rental home in Gurgaon without the runaround.
+Signing properties न मिलने पर release build fail होता है। Artifact को `apksigner verify --print-certs` से जाँचें; direct APK update के लिए certificate पिछले installed release से मिलना चाहिए। Upgrade के लिए app uninstall न करें: unsynced local drafts खो सकते हैं। अलग signature होने पर पहले account drafts/imports का recovery और synchronization सत्यापित करें।
 
-  For tenants
-  • Verified listings with real photos, rent, deposit and brokerage shown upfront
-  • Search by sector, budget, BHK, furnishing — or ask the AI assistant in your language
-  • Book a site visit or a video visit in the broker's free slots
-  • Is the rent fair? See the typical rent for any sector and BHK
-  • Compare homes side by side and share your shortlist with family
-  • Rent reminders, UPI payment to the owner and monthly rent receipts (HRA)
-  • Move-in / move-out checklist confirmed by both sides — no deposit fights
-  • Available in 13 Indian languages
+## Broker-first listing draft
 
-  For brokers (free)
-  • Lead CRM: all portal, WhatsApp, website and call leads in one inbox, with a hot/warm/cold score
-  • Follow-ups, site visits, pipeline, deals, commission, invoices and GST reports
-  • WhatsApp broadcasts from your own number, digital visiting card, photo watermark
-  • Auto-post new listings to your Facebook Page and Instagram
-  • Owner reports, rent agreements with OTP signing, co-broking network
+- नाम: BrokerIQ — Broker Workspace
+- संक्षिप्त विवरण: Gurgaon brokers के लिए inventory, requirements, follow-ups और source capture।
+- मुख्य workflow: आज का काम; Inventory और Area Directory; Leads & Requirements; Inbox; Automation & Housing।
+- Share/Paste/Export से incoming information review queue में आती है। WhatsApp groups को स्वतः पढ़ने का दावा न करें। Provider credentials/configuration के बाद ही संबंधित connector चालू होता है।
+- Area Directory public source identities दिखाती है। Registration या map position किसी unit की current availability या exhaustive city coverage की पुष्टि नहीं है।
+- Launch login firm/admin द्वारा provision होता है; public signup बंद है। App screenshots वास्तविक current APK से लें।
 
-- **Category:** House & Home · **Tags:** Real estate, Rentals
-- **Contact email:** support address from Super Admin → App settings
-- **Privacy policy URL:** `https://brokeriq.mymultimeds.com/p/privacy`
-- **Account deletion URL:** `https://brokeriq.mymultimeds.com/account-deletion`
+## Store submission से पहले
 
-### Graphics checklist
+Physical Android device acceptance, unresolved source review और live provider checks अभी खुले हैं; [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md) देखें। यदि Play Console submission किया जाए तो reviewer account अलग, scoped और owner-authorized हो; super-admin credentials reviewer login के रूप में साझा न करें।
 
-- [ ] App icon 512×512 (from `apps/mobile/assets/icon.png`)
-- [ ] Feature graphic 1024×500
-- [ ] Phone screenshots (min 2, 1080×1920 or similar): Home, Search results, Property, Visit booking, My rent, Broker leads, Broker lead detail, Campaigns
-- [ ] Optional: 7" and 10" tablet screenshots
+Data Safety, app access, privacy policy और account deletion declarations actual release manifest, enabled workflows, server retention और configured providers से मिलाकर भरें। पुराने consumer release की declarations reuse न करें। Current Android launch config contacts, fine/coarse location और microphone permissions block करता है; camera/notifications और system-selected uploads को actual merged manifest/runtime prompts से सत्यापित करें। Encryption-at-rest, free provider usage या third-party sharing के बारे में blanket claims न करें।
 
-## 3. App content answers
-
-| Section | Answer |
-| --- | --- |
-| Privacy policy | URL above |
-| App access | Most features need no login. For review give a test tenant login and a test broker login (create them on production, note them in Play Console → App access) |
-| Ads | **No ads** |
-| Content rating | Questionnaire → category "Utility/Productivity"; no violence, no gambling, user-generated content: **yes** (reviews, listings) with reporting and moderation |
-| Target audience | 18+ |
-| News app | No |
-| Government app | No |
-| Financial features | None (no payments processed in the app; UPI opens the user's own UPI app) |
-| Health | No |
-
-### Data safety
-
-Data is **encrypted in transit** (HTTPS). Users can **request deletion** (in-app Profile → Account delete, or the URL above).
-
-| Data type | Collected | Shared* | Purpose | Optional |
-| --- | --- | --- | --- | --- |
-| Name, email, phone | Yes | No | Account, communication with brokers | Phone optional |
-| Precise / approximate location | Yes | No | Nearby homes, visit check-in | Yes (permission) |
-| Contacts | Yes | No | Only after explicit in-app opt-in (Profile → Privacy) | Yes |
-| Photos | Yes | No | Listing photos, KYC (brokers) | Yes |
-| Audio | Yes (processed, not stored) | No | Voice input to the AI assistant | Yes |
-| App interactions, in-app search history | Yes | No | Saved searches, recommendations | — |
-| Crash logs / diagnostics | Yes | No | App stability (own error log) | — |
-| Device or other IDs | Yes (push token) | No | Notifications | — |
-| Messages (chat with brokers) | Yes | No | App functionality | — |
-
-\* AI and email providers only *process* data on BrokerIQ's behalf (service providers) — not "sharing" under Play's definition. No data is sold.
-
-### Permissions declared
-
-`CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`, `READ_CONTACTS` (prominent disclosure + opt-in shown before the system prompt), `RECORD_AUDIO`.
-
-For `READ_CONTACTS` Play may ask for a declaration video: record Profile → Privacy & data sharing → disclosure → Allow.
-
-## 4. Release steps
-
-1. Play Console → Create app → fill the store listing and app content above.
-2. Testing → **Internal testing** → Create release → upload `BrokerIQ-v1.3.1.aab` → add testers' emails → roll out.
-3. Install from the internal-testing link on 2–3 phones; check login, search, visit booking, broker CRM, push notifications.
-4. **Closed testing** (new personal developer accounts need 12+ testers for 14 days before production).
-5. Production → Create release → promote the same build → staged rollout 20% → 100%.
-
-## 5. Before going live (owner checklist)
-
-- [ ] Legal review of Terms and Privacy pages (seeded drafts; edit in Admin → Pages)
-- [ ] SMTP (e.g. Brevo free) in Admin → Integrations — needed for OTP, receipts, agreement signing
-- [ ] OpenRouter free API key in Admin → Integrations → AI
-- [ ] Keystore backup done (section 1)
-- [ ] Rotate the Housing.com Profile ID / Encryption key that was shared in chat earlier
+Public policy/deletion routes repository में मौजूद हैं; content और operational handling को launch review में जाँचना होगा। Store graphics, Console declarations और publishing इस checkpoint में submit नहीं हुए हैं।

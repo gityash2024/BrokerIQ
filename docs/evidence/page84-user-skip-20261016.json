@@ -1,0 +1,35 @@
+{
+  "userRequestedSkip": true,
+  "pageNo": 84,
+  "checks": [
+    {
+      "mode": "apply",
+      "replayed": false,
+      "ignoredGroups": 15,
+      "archivedInventory": 1,
+      "recordsHardDeleted": 0,
+      "sourcePreserved": true
+    },
+    {
+      "mode": "apply",
+      "replayed": true,
+      "ignoredGroups": 15,
+      "archivedInventory": 0,
+      "recordsHardDeleted": 0,
+      "sourcePreserved": true
+    }
+  ],
+  "activePage84Inventory": 0,
+  "pendingPage84Groups": 0,
+  "ignoredPage84Groups": 15,
+  "sourceTranscriptReplay": {
+    "page": 84,
+    "groups": 15,
+    "approvedGroups": 0,
+    "preservedGroups": 1,
+    "unreadyInputGroups": 14,
+    "unresolvedGroups": 0,
+    "duplicateGroups": 0,
+    "annotationSha": "ff9f99e91641177be55504a6ffed7dc2fe2783b86057c24c0eafbdeb796537ee"
+  }
+}

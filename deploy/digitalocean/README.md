@@ -1,68 +1,18 @@
-# BrokerIQ — DigitalOcean self-host
+# BrokerIQ — shared DigitalOcean server operations
 
-Web, API, PostgreSQL और media सब एक ही server पर चलते हैं, और सब कुछ **सिर्फ़ `/opt/brokeriq`** में रहता है। Server की बाकी apps (mirsat, softlogic वगैरह) को कोई छूता नहीं।
+Current broker-first operational instructions: [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md).
+Current release evidence, APK and verified backup: [docs/RELEASE_HANDOFF.md](../../docs/RELEASE_HANDOFF.md).
 
-| चीज़ | कहाँ |
-|---|---|
-| Website | `https://brokeriq.mymultimeds.com` → pm2 `brokeriq-web` (127.0.0.1:3101) |
-| API | `https://brokeriqapi.mymultimeds.com` → pm2 `brokeriq-api` (127.0.0.1:3100) |
-| Database | अलग PostgreSQL 14 cluster `brokeriq`, 127.0.0.1:5433, data `/opt/brokeriq/data/postgres` |
-| Photos/documents | `/opt/brokeriq/storage/media` — WebP/brotli compressed + AES-256-GCM encrypted |
-| Backups | `/opt/brokeriq/backups/{daily,weekly}` — रोज़ 02:30 IST, 7 daily + 4 weekly |
-| Node | `/opt/brokeriq/runtime/node` (v22, सिर्फ़ BrokerIQ के लिए; server का global Node नहीं बदला) |
-| Secrets | `/opt/brokeriq/secrets/` (api.env, web.env, db.password, backup.key — chmod 600) |
+The existing shared server is already provisioned. Work is restricted to `/opt/brokeriq` and PM2 processes `brokeriq-api` / `brokeriq-web`. Do not run `bootstrap.sh` or `install-edge.sh` on this server: those historical first-server provisioning tools can change system packages, PostgreSQL setup or edge configuration. They remain in source for future dedicated-server provisioning, outside this release workflow.
 
-Folder के बाहर सिर्फ़ ये BrokerIQ-नाम वाली चीज़ें हैं: `/etc/nginx/sites-enabled/brokeriq` (symlink), `/etc/letsencrypt/live/brokeriq.mymultimeds.com`, `/etc/cron.d/brokeriq`, `/etc/postgresql/14/brokeriq`, pm2 processes `brokeriq-api`/`brokeriq-web`।
+- Deploy: `bash /opt/brokeriq/bin/deploy.sh`
+- Immutable restore-tested checkpoint: `bash /opt/brokeriq/bin/checkpoint.sh`
+- Non-live restore test: `bash /opt/brokeriq/bin/restore.sh <backup-directory>`
+- BrokerIQ logs: `/opt/brokeriq/logs`
+- Secrets: `/opt/brokeriq/secrets`, private permissions; never commit them.
 
-## रोज़ के काम
+`config.sh` follows the active database/media environment after the fresh B2B cutover. Current data is in `brokeriq_b2b_20261015` with private encrypted media under `storage/media-b2b`; the original checkout/database are retained for rollback.
 
-```bash
-/opt/brokeriq/bin/deploy.sh                 # नया code: pull → build → migrate → pm2 reload → health check
-pm2 logs brokeriq-api --lines 100           # logs (files: /opt/brokeriq/logs)
-/opt/brokeriq/bin/backup.sh                 # अभी backup लें
-/opt/brokeriq/bin/restore.sh /opt/brokeriq/backups/daily/<ts>          # test restore (scratch DB)
-/opt/brokeriq/bin/restore.sh /opt/brokeriq/backups/daily/<ts> --live   # असली restore
-```
+New checkpoints include encrypted `register-source.tgz.enc` when private source inputs exist. They decrypt/extract it inside the checkpoint directory and compare every file SHA256. Live recovery preserves the previous register-source directory before replacement; older backups remain compatible. Checksum failure stops recovery before database or process changes. Keep `ENCRYPTION_MASTER_KEY` and `backup.key` privately recoverable alongside off-server encrypted backups.
 
-New daily backups and checkpoints also include encrypted `register-source.tgz.enc`
-when private register inputs exist. The snapshot decrypts/extracts those inputs
-inside its own backup directory and compares every file SHA256 before succeeding.
-Live restore preserves the previous `storage/register-source` directory before
-restoring this evidence. Older backups without that archive remain supported.
-Checksum failure stops restore before any database or process operation.
-
-## ⚠️ ज़रूरी
-
-- `secrets/api.env` का `ENCRYPTION_MASTER_KEY` **कभी न बदलें और न खोएँ**। सारी media files और admin credentials इसी key से encrypted हैं। `secrets/` folder की एक copy server से बाहर (password manager / offline) ज़रूर रखें।
-- `secrets/backup.key` के बिना backups नहीं खुलेंगे।
-- Backups उसी server पर हैं। Droplet ही खो जाए तो ये भी जाएँगे; DigitalOcean → Droplet → Backups on करना सस्ता बचाव है।
-
-## पहली बार setup (नए server पर)
-
-1. `git clone -b feat/production https://github.com/gityash2024/BrokerIQ.git /opt/brokeriq/app`
-2. `/opt/brokeriq/secrets/api.env` और `web.env` बनाएँ (नीचे template)।
-3. `bash /opt/brokeriq/app/deploy/digitalocean/bootstrap.sh` → `bash /opt/brokeriq/app/deploy/digitalocean/deploy.sh` → `bash /opt/brokeriq/app/deploy/digitalocean/install-edge.sh`
-
-`api.env`:
-```
-NODE_ENV=production
-HOST=127.0.0.1
-PORT=3100
-DATABASE_URL=postgresql://brokeriq:<db.password>@127.0.0.1:5433/brokeriq?schema=public
-JWT_ACCESS_SECRET=<openssl rand -hex 32>
-JWT_REFRESH_SECRET=<openssl rand -hex 32>
-ENCRYPTION_MASTER_KEY=<openssl rand -hex 32>
-SUPER_ADMIN_EMAIL=...
-SUPER_ADMIN_PASSWORD=...
-PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com
-PUBLIC_WEB_URL=https://brokeriq.mymultimeds.com
-CORS_ORIGINS=https://brokeriq.mymultimeds.com
-MEDIA_ROOT=/opt/brokeriq/storage/media
-```
-`web.env`:
-```
-PORT=3101
-NEXT_PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com
-NEXT_PUBLIC_SITE_URL=https://brokeriq.mymultimeds.com
-API_INTERNAL_URL=http://127.0.0.1:3100
-```
+The deployment script does not write `/etc/cron.d`, modify nginx, replace PostgreSQL clusters, change global runtimes, save global PM2 state or reload other products. No new recurring backup/watchdog scheduling is asserted by this release.
