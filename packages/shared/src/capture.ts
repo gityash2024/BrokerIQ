@@ -156,7 +156,8 @@ export function extractCapture(text: string): CapturedEntity[] {
     const salePrice = purpose === 'SALE' ? parseLabeled(raw, 'ask|asking|demand|price|कीमत|@') : null;
     const perUnit = /(?:per|pr\.?|\/)\s*(acre|एकड़|sq\.?\s*ft|sqft|sq\.?\s*yd)/i.exec(raw);
     const house = raw.match(/(?:house|plot|unit)\s*(?:no\.?|number)?\s*[.:#-]?\s*([A-Za-z]?[-]?\d{1,5}[A-Za-z]?)(?!\d)/i);
-    const floor = raw.match(/\b(basement|ground|GF|FF|SF|[1-9](?:st|nd|rd|th)\s*floor)\b/i);
+    // TF is broker-confirmed as top floor; its numeric level is not known.
+    const floor = raw.match(/\b(basement|ground|GF|FF|SF|TF|top\s*floor|[1-9](?:st|nd|rd|th)\s*floor)\b/i);
     const details: Record<string, any> = {};
     // Owner-confirmed register notation: standalone 1+1, 2+1 and 3+1 express
     // security months plus one month's advance, never rupees or a BHK layout.
@@ -210,7 +211,7 @@ export function extractCapture(text: string): CapturedEntity[] {
       propertyType,
       sector: localities[0] ?? null,
       houseNo: house?.[1] ?? null,
-      floor: floor ? ({ FF: '1', SF: '2', GF: '0', GROUND: '0' }[floor[1].toUpperCase()] ?? floor[1]) : null,
+      floor: floor ? ({ FF: '1', SF: '2', GF: '0', GROUND: '0', TF: 'Top Floor', TOPFLOOR: 'Top Floor' }[floor[1].toUpperCase().replace(/\s/g, '')] ?? floor[1]) : null,
       bhk,
       roomKind,
       furnishing,

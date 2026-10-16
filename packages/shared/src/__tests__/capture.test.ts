@@ -111,3 +111,9 @@ test('confirmed bathroom notation stays separate from BHK, bare additions and bl
   assert.equal(conflict.inventory?.details?.bathrooms, undefined);
   assert.ok(conflict.warnings.some((warning) => warning.includes('Conflicting bathroom')));
 });
+
+test('TF means top floor without inventing its numeric level', () => {
+  assert.equal(extractCapture('2 BHK for rent Sector 57 TF Rent 19k')[0].inventory?.floor, 'Top Floor');
+  assert.equal(extractCapture('2 BHK for rent Sector 57 top floor Rent 19k')[0].inventory?.floor, 'Top Floor');
+  assert.equal(extractCapture('2 BHK for rent Sector 57 3rd floor Rent 19k')[0].inventory?.floor, '3rd floor');
+});
