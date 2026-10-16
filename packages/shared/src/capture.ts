@@ -159,6 +159,12 @@ export function extractCapture(text: string): CapturedEntity[] {
     // TF is broker-confirmed as top floor; its numeric level is not known.
     const floor = raw.match(/\b(basement|ground|GF|FF|SF|TF|top\s*floor|[1-9](?:st|nd|rd|th)\s*floor)\b/i);
     const details: Record<string, any> = {};
+    // Broker-confirmed BHK+1 is an extra space (e.g. pooja/store); its use
+    // stays unspecified. Explicit +1B/bathroom notation is handled separately.
+    if (/\b\d{1,2}\s*BHK\s*\+\s*1(?!\d|\s*(?:B\b|bathrooms?\b|washrooms?\b|balcon(?:y|ies)\b))(?=\s|[,;.()]|$)/i.test(raw)) {
+      details.additionalRooms = 1;
+      warnings.push('One additional room/space is recorded; confirm its use from source');
+    }
     // Owner-confirmed register notation: standalone 1+1, 2+1 and 3+1 express
     // security months plus one month's advance, never rupees or a BHK layout.
     if (purpose === 'RENT') {

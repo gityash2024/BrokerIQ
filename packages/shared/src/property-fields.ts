@@ -10,6 +10,7 @@ export type PropertyField = {
   categories?: string[];
   min?: number;
   max?: number;
+  integer?: boolean;
 };
 /** One contract feeds editing, extraction, import review and filters on web/native. Null means unknown, never no. */
 export const PROPERTY_FIELDS: PropertyField[] = [
@@ -24,6 +25,7 @@ export const PROPERTY_FIELDS: PropertyField[] = [
   { key: 'propertyAge', label: 'Property age (years)', group: 'Possession', kind: 'number', min: 0, max: 200 },
   { key: 'areaBasis', label: 'Area measurement', group: 'Size & rooms', kind: 'select', options: ['CARPET', 'BUILT_UP', 'SUPER_BUILT_UP', 'PLOT'] },
   { key: 'bathrooms', label: 'Bathrooms', group: 'Size & rooms', kind: 'number', min: 0, max: 100 },
+  { key: 'additionalRooms', label: 'Additional rooms (use unspecified)', group: 'Size & rooms', kind: 'number', min: 0, max: 20, integer: true },
   { key: 'balconies', label: 'Balconies', group: 'Size & rooms', kind: 'number', min: 0, max: 100 },
   { key: 'totalFloors', label: 'Total floors', group: 'Size & rooms', kind: 'number', min: 0, max: 300 },
   {
@@ -89,6 +91,7 @@ for (const field of PROPERTY_FIELDS) {
       ? z
           .number()
           .finite()
+          .refine((value) => !field.integer || Number.isInteger(value), 'Enter a whole number')
           .min(field.min ?? 0)
           .max(field.max ?? 1e13)
       : field.kind === 'boolean'

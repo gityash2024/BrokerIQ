@@ -41,6 +41,13 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   await expect(page.getByRole('combobox').filter({ has: page.locator('option[value=UNKNOWN]') })).toBeVisible();
   await page.getByRole('button', { name: /Show results/ }).click();
   await expect(page.locator('table')).toBeVisible();
+  await page.getByRole('button', { name: 'Add property', exact: true }).click();
+  await page.getByText('Additional property details, facilities & media', { exact: true }).click();
+  await page.getByLabel('Additional rooms (use unspecified)', { exact: true }).fill('1');
+  await expect(page.getByLabel('Additional rooms (use unspecified)', { exact: true })).toHaveValue('1');
+  // Close without saving a synthetic property; persistence/filtering is covered
+  // against the isolated database in source-ledger.e2e-spec.ts.
+  await page.keyboard.press('Escape');
   await page.goto('/broker/deals');
   await expect(page.getByRole('heading', { name: 'यह सुविधा अभी उपलब्ध नहीं है' })).toBeVisible();
 });

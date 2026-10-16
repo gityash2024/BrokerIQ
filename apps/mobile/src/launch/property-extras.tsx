@@ -31,7 +31,7 @@ export function NativePropertyExtras({ value, onChange }: { value: Record<string
                 <Input
                   label={f.label}
                   value={details[f.key] == null ? '' : String(details[f.key])}
-                  keyboardType={f.kind === 'number' ? 'decimal-pad' : 'default'}
+                  keyboardType={f.kind === 'number' ? f.integer ? 'number-pad' : 'decimal-pad' : 'default'}
                   onChangeText={(v) => change(f.key, v === '' ? null : v)}
                 />
               )}

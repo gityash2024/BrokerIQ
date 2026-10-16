@@ -31,7 +31,7 @@ export function PropertyExtras({ initial, category }: { initial: Record<string, 
                 type={f.kind === 'number' ? 'number' : f.key.endsWith('Date') || f.key === 'availableFrom' ? 'date' : 'text'}
                 min={f.min}
                 max={f.max}
-                step="any"
+                step={f.integer ? '1' : 'any'}
                 className="mt-1 block w-full rounded-lg border border-line bg-surface p-2.5"
               />
             )}

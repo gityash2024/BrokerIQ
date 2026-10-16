@@ -150,11 +150,12 @@ import { ImportsService } from '../src/modules/imports/imports.service';
           areaBasis: 'CARPET',
           postedBy: 'OWNER',
           bathrooms: 2,
+          additionalRooms: 1,
         },
         amenities: ['LIFT', 'POWER_BACKUP'],
       })
       .expect(201);
-    const filter = { investmentType: ['PRE_LEASED'], postedBy: ['OWNER'], bathrooms: { min: 2, max: 3 } };
+    const filter = { investmentType: ['PRE_LEASED'], postedBy: ['OWNER'], bathrooms: { min: 2, max: 3 }, additionalRooms: { min: 1, max: 1 } };
     const filtered = await api()
       .get('/api/inventory')
       .set(header(a))
@@ -171,6 +172,9 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     const updated = await api().get(`/api/inventory/${one.body.id}`).set(header(a)).expect(200);
     expect(updated.body.ratePerSqft).toBe(40000);
     expect(updated.body.details.purchaseType).toBe('RESALE');
+    expect(updated.body.details.additionalRooms).toBe(1);
+    const excluded = await api().get('/api/inventory').set(header(a)).query({ detailFilters: JSON.stringify({ additionalRooms: { min: 2 } }) }).expect(200);
+    expect(excluded.body.items.map((r: any) => r.id)).not.toContain(one.body.id);
   });
   it('requires webhook signature configuration and deduplicates durable events', async () => {
     const wa = app.get(WhatsAppService);

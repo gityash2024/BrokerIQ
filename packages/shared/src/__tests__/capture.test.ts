@@ -117,3 +117,18 @@ test('TF means top floor without inventing its numeric level', () => {
   assert.equal(extractCapture('2 BHK for rent Sector 57 top floor Rent 19k')[0].inventory?.floor, 'Top Floor');
   assert.equal(extractCapture('2 BHK for rent Sector 57 3rd floor Rent 19k')[0].inventory?.floor, '3rd floor');
 });
+
+test('BHK+1 records an unspecified extra space without inventing a bathroom or deposit', () => {
+  for (const layout of ['3BHK+1', '2 BHK + 1']) {
+    const entry = extractCapture(`${layout} for rent Sector 43 Rent 30k 2+1`)[0];
+    assert.equal(entry.inventory?.details?.additionalRooms, 1);
+    assert.equal(entry.inventory?.details?.bathrooms, undefined);
+    assert.equal(entry.inventory?.details?.securityMonths, 2);
+    assert.equal(entry.inventory?.details?.advanceMonths, 1);
+    assert.ok(entry.warnings.some((warning) => warning.includes('confirm its use')));
+  }
+  for (const layout of ['3BHK+1B', '3BHK+1 bathroom', '3BHK+1 balcony', '3BHK+10', '3BHK'])
+    assert.equal(extractCapture(`${layout} for rent Sector 43`)[0].inventory?.details?.additionalRooms, undefined);
+  assert.equal(inventoryInputSchema.safeParse({ details: { additionalRooms: 1 } }).success, true);
+  assert.equal(inventoryInputSchema.safeParse({ details: { additionalRooms: 1.5 } }).success, false);
+});
