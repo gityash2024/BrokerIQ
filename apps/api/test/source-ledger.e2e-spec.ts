@@ -80,7 +80,14 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     rows = await prisma.inventoryItem.findMany({ where: { organizationId: orgA }, orderBy: { floor: 'asc' } });
     expect(rows).toHaveLength(2);
     expect(Number(rows[0].monthlyRent)).toBe(25000);
+    const pending = await api().get(`/api/imports/${first.body.id}`).set(header(a)).query({ reviewState: 'NEEDS_REVIEW' }).expect(200);
+    expect(pending.body.entries).toEqual([]);
+    expect(pending.body.total).toBe(0);
+    const approved = await api().get(`/api/imports/${first.body.id}`).set(header(a)).query({ reviewState: 'APPROVED' }).expect(200);
+    expect(approved.body.entries.map((e: any) => e.id)).toEqual([entry.id]);
+    await api().get(`/api/imports/${first.body.id}`).set(header(a)).query({ reviewState: 'INVALID' }).expect(400);
     await api().get(`/api/imports/${first.body.id}`).set(header(b)).expect(404);
+    await api().get(`/api/imports/${first.body.id}`).set(header(b)).query({ reviewState: 'APPROVED' }).expect(404);
     await api().get(`/api/inventory/${rows[0].id}`).set(header(b)).expect(404);
   });
   it('deduplicates manual offline saves and retains retryable integration failures', async () => {

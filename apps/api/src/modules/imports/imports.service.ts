@@ -84,12 +84,13 @@ export class ImportsService {
     ]);
     return { items, total, page, pageSize: 30, totalPages: Math.ceil(total / 30) };
   }
-  async get(id: string, user: RequestUser, page = 1, sourcePage?: number) {
+  async get(id: string, user: RequestUser, page = 1, sourcePage?: number, reviewState?: string) {
     const batch = await this.prisma.importBatch.findFirst({ where: { id, ...this.scope(user) } });
     if (!batch) throw new NotFoundException('Import not found');
     const visible = {
       batchId: id,
       ...(sourcePage ? { pageNo: sourcePage } : {}),
+      ...(reviewState ? { reviewState } : {}),
       OR: [{ reviewNote: null }, { reviewNote: { not: 'SUPERSEDED_BY_VISUAL_REVIEW' } }],
     };
     const [entries, total, pending] = await Promise.all([

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type CapturedEntity } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
@@ -14,12 +14,16 @@ export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const [page, setPage] = useState(1);
   const [sourcePage, setSourcePage] = useState('');
+  const [pendingOnly, setPendingOnly] = useState(true);
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['import', id, page, sourcePage],
-    queryFn: () => api<any>(`/imports/${id}?page=${page}${sourcePage ? `&sourcePage=${sourcePage}` : ''}`),
+    queryKey: ['import', id, page, sourcePage, pendingOnly],
+    queryFn: () => api<any>(`/imports/${id}?page=${page}${sourcePage ? `&sourcePage=${sourcePage}` : ''}${pendingOnly ? '&reviewState=NEEDS_REVIEW' : ''}`),
     refetchInterval: 5000,
   });
+  useEffect(() => {
+    if (query.data && page > Math.max(1, query.data.totalPages)) setPage(Math.max(1, query.data.totalPages));
+  }, [query.data, page]);
   async function approve(entry: any, entities: CapturedEntity[], ignore = false, version?: string) {
     await api(`/imports/entries/${entry.id}/approve`, { body: { entities, ignore, expectedUpdatedAt: version ?? entry.updatedAt } });
     await Promise.all(['import', 'ledger', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
@@ -36,6 +40,18 @@ export default function ReviewPage() {
           </Link>
         }
       />
+      <div className="mb-5 flex gap-2" role="group" aria-label="Review status">
+        {[true, false].map((pending) => (
+          <button
+            key={String(pending)}
+            aria-pressed={pendingOnly === pending}
+            className={`rounded-full border px-4 py-2 text-sm ${pendingOnly === pending ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line'}`}
+            onClick={() => { setPendingOnly(pending); setPage(1); }}
+          >
+            {pending ? 'Pending only' : 'All entries'}
+          </button>
+        ))}
+      </div>
       {query.data?.metadata?.pages?.length > 0 && (
         <label className="mb-5 block text-sm">
           Register page
@@ -73,6 +89,7 @@ export default function ReviewPage() {
         </div>
       )}
       {['PENDING', 'PROCESSING'].includes(query.data?.status) && <p className="rounded-xl bg-surface-2 p-5">Source saved. Extraction is processing…</p>}
+      {query.data && !['PENDING', 'PROCESSING'].includes(query.data.status) && query.data.total === 0 && <p className="mb-5 text-sm text-muted">No entries match this view.</p>}
       <div className="space-y-5">
         {query.data?.entries.map((entry: any) => (
           <Entry

@@ -2016,5 +2016,9 @@
  "Today’s visits": "Today’s visits",
  "Security (months)": "Security (months)",
  "Advance rent (months)": "Advance rent (months)",
- "Additional rooms (use unspecified)": "Additional rooms (use unspecified)"
+ "Additional rooms (use unspecified)": "Additional rooms (use unspecified)",
+ "Pending only": "Pending only",
+ "All entries": "All entries",
+ "No entries match this view.": "No entries match this view.",
+ "Review status": "Review status"
 }

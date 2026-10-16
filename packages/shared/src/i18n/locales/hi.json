@@ -3057,5 +3057,9 @@
  "Today’s visits": "आज की visits",
  "Security (months)": "Security (महीने)",
  "Advance rent (months)": "Advance किराया (महीने)",
- "Additional rooms (use unspecified)": "अतिरिक्त कमरे (उपयोग स्पष्ट नहीं)"
+ "Additional rooms (use unspecified)": "अतिरिक्त कमरे (उपयोग स्पष्ट नहीं)",
+ "Pending only": "केवल लंबित",
+ "All entries": "सभी प्रविष्टियाँ",
+ "No entries match this view.": "इस चयन में कोई प्रविष्टि नहीं है।",
+ "Review status": "समीक्षा स्थिति"
 }

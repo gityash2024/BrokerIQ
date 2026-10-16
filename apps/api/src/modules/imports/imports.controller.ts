@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { ImportsService, captureInputSchema, reviewSchema } from './imports.service';
-const paging = z.object({ page: z.coerce.number().int().min(1).default(1), sourcePage: z.coerce.number().int().min(1).max(10000).optional() });
+const paging = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  sourcePage: z.coerce.number().int().min(1).max(10000).optional(),
+  reviewState: z.enum(['NEEDS_REVIEW', 'APPROVED', 'IGNORED', 'DUPLICATE']).optional(),
+});
 @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
 @Controller('imports')
 export class ImportsController {
@@ -13,7 +17,7 @@ export class ImportsController {
     return this.imports.list(user, query.page);
   }
   @Get(':id') get(@Param('id') id: string, @CurrentUser() user: RequestUser, @Query(new ZodPipe(paging)) query: z.infer<typeof paging>) {
-    return this.imports.get(id, user, query.page, query.sourcePage);
+    return this.imports.get(id, user, query.page, query.sourcePage, query.reviewState);
   }
   @Post() capture(@Body(new ZodPipe(captureInputSchema)) input: z.infer<typeof captureInputSchema>, @CurrentUser() user: RequestUser) {
     return this.imports.capture(input, user);

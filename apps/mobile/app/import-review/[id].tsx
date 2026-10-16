@@ -10,20 +10,27 @@ import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { EntityFields, prepareEntity } from '@/launch/entity-fields';
 import { editableDraft, decodeDraft, saveDraft, completeReviewDraft } from '@/launch/drafts';
-import { Button, Txt, ErrorView } from '@/ui';
+import { Button, Txt, ErrorView, Chip } from '@/ui';
 export default function ImportReview() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [page, setPage] = useState(1);
   const [sourcePage, setSourcePage] = useState<string | null>(null);
+  const [pendingOnly, setPendingOnly] = useState(true);
   const [error, setError] = useState('');
   const q = useQuery({
-    queryKey: ['import', id, page, sourcePage],
-    queryFn: () => api<any>(`/imports/${id}?page=${page}${sourcePage ? `&sourcePage=${sourcePage}` : ''}`),
+    queryKey: ['import', id, page, sourcePage, pendingOnly],
+    queryFn: () => api<any>(`/imports/${id}?page=${page}${sourcePage ? `&sourcePage=${sourcePage}` : ''}${pendingOnly ? '&reviewState=NEEDS_REVIEW' : ''}`),
     refetchInterval: 5000,
   });
+  useEffect(() => {
+    if (q.data && page > Math.max(1, q.data.totalPages)) setPage(Math.max(1, q.data.totalPages));
+  }, [q.data, page]);
   return (
     <BrokerScreen title="Review capture" subtitle={q.data ? `${q.data.total} entries · ${q.data.pending} need review` : 'Source saved, loading…'} back>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 50 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[true, false].map((pending) => <Chip key={String(pending)} label={pending ? 'Pending only' : 'All entries'} active={pendingOnly === pending} onPress={() => { setPendingOnly(pending); setPage(1); }} />)}
+        </View>
         {q.data?.metadata?.pages?.length > 0 && (
           <ChoiceField
             label="Register page"
@@ -54,6 +61,7 @@ export default function ImportReview() {
           </NativeCard>
         )}
         {['PENDING', 'PROCESSING'].includes(q.data?.status) && <Txt>Source saved. Extraction is processing…</Txt>}
+        {q.data && !['PENDING', 'PROCESSING'].includes(q.data.status) && q.data.total === 0 && <Txt color="muted">No entries match this view.</Txt>}
         {q.data?.entries.map((entry: any) => (
           <Entry key={entry.id} batchId={id} entry={entry} image={q.data.sourceType === 'IMAGE'} />
         ))}

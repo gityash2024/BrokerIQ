@@ -32,6 +32,8 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   await page.getByRole('button', { name: 'Review source & fields' }).first().click({ timeout: 20000 });
   await page.getByRole('button', { name: 'Save reviewed fields' }).click();
   await page.getByRole('button', { name: 'Approve saved records' }).click();
+  await expect(page.getByText('No entries match this view.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'All entries', exact: true }).click();
   await expect(page.getByText('APPROVED', { exact: true })).toBeVisible();
   await page.goto('/broker/inventory');
   await page
