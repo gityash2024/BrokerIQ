@@ -26,7 +26,10 @@ async function open() {
   let key = await SecureStore.getItemAsync('biq.drafts.key.v1');
   const filename = 'brokeriq-drafts.db';
   if (!key) {
-    if (new File(`${SQLite.defaultDatabaseDirectory}/${filename}`).exists)
+    const directory = SQLite.defaultDatabaseDirectory;
+    if (!directory) throw new Error('Private draft directory is unavailable. Existing files were preserved.');
+    const uri = directory.startsWith('file:') ? directory : `file://${directory}`;
+    if (new File(`${uri.replace(/\/$/, '')}/${filename}`).exists)
       throw new Error('Draft encryption key unavailable. Existing drafts were preserved; restore the key before continuing.');
     key = Array.from(await Crypto.getRandomBytesAsync(32), (b) => b.toString(16).padStart(2, '0')).join('');
     await SecureStore.setItemAsync('biq.drafts.key.v1', key);
@@ -44,7 +47,11 @@ async function open() {
   await db.runAsync("UPDATE local_mutations SET state='QUEUED' WHERE state='SYNCING'");
   return db;
 }
-const db = () => (database ??= open());
+const db = () =>
+  (database ??= open().catch((error) => {
+    database = null;
+    throw error;
+  }));
 export const ownerId = () => authStore.get()?.user.id ?? 'UNASSIGNED';
 export async function editableDraft(kind: DraftKind, key: string) {
   const row = await (
@@ -79,23 +86,22 @@ export async function saveDraft(
   const encoded = JSON.stringify(payload);
   if (encoded.length > 250_000) throw new Error('Use a text file for large imports. Your input was not discarded.');
   const database = await db();
-  await database.withExclusiveTransactionAsync(async (tx) => {
-    const existing = await tx.getFirstAsync<LocalDraft>('SELECT * FROM local_mutations WHERE id=?', id);
-    if (existing && (existing.owner_id !== owner || !['DRAFT', 'FAILED'].includes(existing.state)))
-      throw new Error('This saved operation is already queued. Open a new draft.');
-    await tx.runAsync(
-      `INSERT INTO local_mutations(id,owner_id,kind,draft_key,payload,file_uri,mime,state,updated_at) VALUES(?,?,?,?,?,?,?,'DRAFT',?)
-      ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,file_uri=COALESCE(excluded.file_uri,file_uri),mime=COALESCE(excluded.mime,mime),state='DRAFT',error=NULL,updated_at=excluded.updated_at`,
-      id,
-      owner,
-      kind,
-      key,
-      encoded,
-      file?.uri ?? null,
-      file?.mime ?? null,
-      Date.now(),
-    );
-  });
+  // A single guarded statement is atomic on the already-keyed SQLCipher connection.
+  // Expo's exclusive transaction opens a second connection without its PRAGMA key.
+  const result = await database.runAsync(
+    `INSERT INTO local_mutations(id,owner_id,kind,draft_key,payload,file_uri,mime,state,updated_at) VALUES(?,?,?,?,?,?,?,'DRAFT',?)
+     ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,file_uri=COALESCE(excluded.file_uri,file_uri),mime=COALESCE(excluded.mime,mime),state='DRAFT',error=NULL,updated_at=excluded.updated_at
+     WHERE local_mutations.owner_id=excluded.owner_id AND local_mutations.kind=excluded.kind AND local_mutations.draft_key=excluded.draft_key AND local_mutations.state IN ('DRAFT','FAILED')`,
+    id,
+    owner,
+    kind,
+    key,
+    encoded,
+    file?.uri ?? null,
+    file?.mime ?? null,
+    Date.now(),
+  );
+  if (!result.changes) throw new Error('This saved operation is already queued or belongs to another editor. Its data was preserved.');
   return id;
 }
 export async function queueDraft(id: string) {

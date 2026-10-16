@@ -36,6 +36,7 @@ export function NativeModuleGate({ children }: { children: React.ReactNode }) {
                   ? 'Use the web panel to manage the platform.'
                   : 'This feature is not currently available for your account.'}
             </Txt>
+            {config.storageError && <Txt color="danger">{config.storageError}</Txt>}
             {user?.role === 'BROKER_ADMIN' &&
               [
                 ['inventory', '/inventory', 'Inventory'],
