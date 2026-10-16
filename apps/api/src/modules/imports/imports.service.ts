@@ -77,7 +77,7 @@ export class ImportsService {
           status: true,
           lastError: true,
           createdAt: true,
-          _count: { select: { entries: true } },
+          _count: { select: { entries: { where: { OR: [{ reviewNote: null }, { reviewNote: { not: 'SUPERSEDED_BY_VISUAL_REVIEW' } }] } } } },
         },
       }),
       this.prisma.importBatch.count({ where }),
@@ -87,15 +87,20 @@ export class ImportsService {
   async get(id: string, user: RequestUser, page = 1, sourcePage?: number) {
     const batch = await this.prisma.importBatch.findFirst({ where: { id, ...this.scope(user) } });
     if (!batch) throw new NotFoundException('Import not found');
+    const visible = {
+      batchId: id,
+      ...(sourcePage ? { pageNo: sourcePage } : {}),
+      OR: [{ reviewNote: null }, { reviewNote: { not: 'SUPERSEDED_BY_VISUAL_REVIEW' } }],
+    };
     const [entries, total, pending] = await Promise.all([
       this.prisma.sourceEntry.findMany({
-        where: { batchId: id, ...(sourcePage ? { pageNo: sourcePage } : {}) },
+        where: visible,
         orderBy: [{ pageNo: 'asc' }, { rowNo: 'asc' }, { entryKey: 'asc' }],
         skip: (page - 1) * 50,
         take: 50,
         include: { inventories: { select: { id: true } }, requirements: { select: { id: true } } },
       }),
-      this.prisma.sourceEntry.count({ where: { batchId: id, ...(sourcePage ? { pageNo: sourcePage } : {}) } }),
+      this.prisma.sourceEntry.count({ where: visible }),
       this.prisma.sourceEntry.count({ where: { batchId: id, reviewState: 'NEEDS_REVIEW' } }),
     ]);
     return { ...batch, rawText: batch.rawText?.slice(0, 20000), entries, total, pending, page, pageSize: 50, totalPages: Math.ceil(total / 50) };
