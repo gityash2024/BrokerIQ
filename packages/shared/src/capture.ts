@@ -158,11 +158,11 @@ export function extractCapture(text: string): CapturedEntity[] {
     const house = raw.match(/(?:house|plot|unit)\s*(?:no\.?|number)?\s*[.:#-]?\s*([A-Za-z]?[-]?\d{1,5}[A-Za-z]?)(?!\d)/i);
     const floor = raw.match(/\b(basement|ground|GF|FF|SF|[1-9](?:st|nd|rd|th)\s*floor)\b/i);
     const details: Record<string, any> = {};
-    // Owner-confirmed broker notation: a standalone 2+1 means two months'
-    // security and one month's advance. It is never a rupee amount or 2+1 BHK.
+    // Owner-confirmed register notation: standalone 1+1, 2+1 and 3+1 express
+    // security months plus one month's advance, never rupees or a BHK layout.
     if (purpose === 'RENT') {
       const deposits = [...raw.matchAll(/(?<![\w\d+])(\d{1,2})\s*\+\s*(\d{1,2})(?![\w\d+]|\s*(?:BHK|RK|BR|bedrooms?|rooms?))/gi)];
-      if (deposits.length === 1 && deposits[0][1] === '2' && deposits[0][2] === '1') {
+      if (deposits.length === 1 && ['1', '2', '3'].includes(deposits[0][1]) && deposits[0][2] === '1') {
         details.securityMonths = Number(deposits[0][1]);
         details.advanceMonths = Number(deposits[0][2]);
       } else if (deposits.length) {

@@ -85,8 +85,20 @@ test('confirmed register abbreviations keep floors, furnishing and deposit month
   assert.equal(semi.furnishing, 'SEMI_FURNISHED');
   assert.equal(extractCapture('2+1 BHK for rent Sector 43')[0].inventory?.details?.securityMonths, undefined);
   assert.equal(extractCapture('3 BHK for sale Sector 43 2+1')[0].inventory?.details?.securityMonths, undefined);
-  assert.equal(extractCapture('3 BHK for rent Sector 43 1+1')[0].inventory?.details?.securityMonths, undefined);
-  assert.equal(extractCapture('3 BHK for rent Sector 43 3+1')[0].inventory?.details?.securityMonths, undefined);
+  for (const months of [1, 3]) {
+    const confirmed = extractCapture(`3 BHK for rent Sector 43 ${months}+1`)[0].inventory!;
+    assert.equal(confirmed.details?.securityMonths, months);
+    assert.equal(confirmed.details?.advanceMonths, 1);
+    assert.equal(confirmed.securityDeposit, undefined);
+    assert.equal(extractCapture(`${months}+1 BHK for rent Sector 43`)[0].inventory?.details?.securityMonths, undefined);
+    assert.equal(extractCapture(`3 BHK for sale Sector 43 ${months}+1`)[0].inventory?.details?.securityMonths, undefined);
+  }
+  const conflict = extractCapture('3 BHK for rent Sector 43 1+1 and 3+1')[0];
+  assert.equal(conflict.inventory?.details?.securityMonths, undefined);
+  assert.ok(conflict.warnings.some((warning) => warning.includes('Confirm security')));
+  const unknown = extractCapture('3 BHK for rent Sector 43 2+2')[0];
+  assert.equal(unknown.inventory?.details?.securityMonths, undefined);
+  assert.ok(unknown.warnings.some((warning) => warning.includes('Confirm security')));
 });
 
 test('confirmed bathroom notation stays separate from BHK, bare additions and block names', () => {
