@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,8 +21,6 @@ import {
 import Animated, {
   FadeInDown,
   FadeOutUp,
-  SlideInDown,
-  SlideOutDown,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -680,17 +677,16 @@ export function Sheet({
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      {/* Android sizes the modal root without the system bars even though it draws edge-to-edge, so pin the sheet to the real screen height. */}
+    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      {/* Use the modal's actual available height; physical screen height can put
+          footer buttons underneath Android's navigation bar. */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={Platform.OS === 'android' ? { position: 'absolute', top: 0, left: 0, right: 0, height: Dimensions.get('screen').height } : { flex: 1 }}
+        style={{ flex: 1 }}
       >
         <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
         {open && (
-          <Animated.View
-            entering={SlideInDown.springify().damping(18)}
-            exiting={SlideOutDown}
+          <View
             style={{
               backgroundColor: c.bg,
               borderTopLeftRadius: 28,
@@ -711,7 +707,7 @@ export function Sheet({
               {children}
             </ScrollView>
             {footer && <View style={{ paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line }}>{footer}</View>}
-          </Animated.View>
+          </View>
         )}
       </KeyboardAvoidingView>
     </Modal>

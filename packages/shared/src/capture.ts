@@ -71,7 +71,9 @@ export function extractCapture(text: string): CapturedEntity[] {
     if ((hasRequirement && hasSupply) || (!hasRequirement && localities.length > 1 && (roomMentions.length > 1 || sizeMentions.length > 1))) {
       return {
         kind: 'UNRELATED',
-        warnings: ['Several property/requirement sections may be interleaved. Split them into separate records using the original source; no combined property was inferred.'],
+        warnings: [
+          'Several property/requirement sections may be interleaved. Split them into separate records using the original source; no combined property was inferred.',
+        ],
       };
     }
     const room = raw.match(/\b(\d{1,2})\s*(BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/i);
@@ -96,7 +98,9 @@ export function extractCapture(text: string): CapturedEntity[] {
             : null;
     const propertyType =
       category === 'LAND'
-        ? (/agricultur|खेती/i.test(raw)?'AGRICULTURAL_LAND':null)
+        ? /agricultur|खेती/i.test(raw)
+          ? 'AGRICULTURAL_LAND'
+          : null
         : category === 'PLOT'
           ? 'RESIDENTIAL_PLOT'
           : /\boffice/i.test(raw)
@@ -153,24 +157,52 @@ export function extractCapture(text: string): CapturedEntity[] {
     const perUnit = /(?:per|pr\.?|\/)\s*(acre|एकड़|sq\.?\s*ft|sqft|sq\.?\s*yd)/i.exec(raw);
     const house = raw.match(/(?:house|plot|unit)\s*(?:no\.?|number)?\s*[.:#-]?\s*([A-Za-z]?[-]?\d{1,5}[A-Za-z]?)(?!\d)/i);
     const floor = raw.match(/\b(basement|ground|GF|FF|SF|[1-9](?:st|nd|rd|th)\s*floor)\b/i);
-    const details:Record<string,any>={};
-    if(/\bresale\b/i.test(raw))details.purchaseType='RESALE';else if(/new\s*booking/i.test(raw))details.purchaseType='NEW_BOOKING';
-    if(/pre[- ]leased/i.test(raw))details.investmentType='PRE_LEASED';else if(/pre[- ]rented/i.test(raw))details.investmentType='PRE_RENTED';
-    if(/under\s*construction/i.test(raw))details.possessionStatus='UNDER_CONSTRUCTION';else if(/ready\s*to\s*move/i.test(raw))details.possessionStatus='READY_TO_MOVE';else if(/new\s*launch/i.test(raw))details.possessionStatus='NEW_LAUNCH';
-    if(/\bcarpet\b/i.test(raw))details.areaBasis='CARPET';else if(/super[- ]?built[- ]?up/i.test(raw))details.areaBasis='SUPER_BUILT_UP';else if(/built[- ]?up/i.test(raw))details.areaBasis='BUILT_UP';
-    if(/bare[- ]shell/i.test(raw))details.officeCondition='BARE_SHELL';else if(/warm[- ]shell/i.test(raw))details.officeCondition='WARM_SHELL';
-    if(/\bfreehold\b/i.test(raw))details.ownershipType='FREEHOLD';else if(/\bleasehold\b/i.test(raw))details.ownershipType='LEASEHOLD';
-    const bath=raw.match(/(\d{1,2})\s*(?:bathrooms?|washrooms?)/i);if(bath)details.bathrooms=Number(bath[1]);
-    const road=raw.match(/(\d{1,3})\s*(?:ft|feet|foot|fut)\s*(?:wide\s*)?road/i);if(road)details.roadWidth=Number(road[1]);
-    const amenities:string[]=[];for(const [pattern,value] of [[/\blift\b/i,'LIFT'],[/power\s*back[- ]?up/i,'POWER_BACKUP'],[/\bgym\b/i,'GYM'],[/swimming\s*pool/i,'SWIMMING_POOL'],[/\bcctv\b/i,'CCTV']] as [RegExp,string][])if(pattern.test(raw))amenities.push(value);
+    const details: Record<string, any> = {};
+    // Owner-confirmed broker notation: a standalone 2+1 means two months'
+    // security and one month's advance. It is never a rupee amount or 2+1 BHK.
+    if (purpose === 'RENT') {
+      const deposits = [...raw.matchAll(/(?<![\w\d+])(\d{1,2})\s*\+\s*(\d{1,2})(?![\w\d+]|\s*(?:BHK|RK|BR|bedrooms?|rooms?))/gi)];
+      if (deposits.length === 1) {
+        details.securityMonths = Number(deposits[0][1]);
+        details.advanceMonths = Number(deposits[0][2]);
+      }
+    }
+    if (/\bresale\b/i.test(raw)) details.purchaseType = 'RESALE';
+    else if (/new\s*booking/i.test(raw)) details.purchaseType = 'NEW_BOOKING';
+    if (/pre[- ]leased/i.test(raw)) details.investmentType = 'PRE_LEASED';
+    else if (/pre[- ]rented/i.test(raw)) details.investmentType = 'PRE_RENTED';
+    if (/under\s*construction/i.test(raw)) details.possessionStatus = 'UNDER_CONSTRUCTION';
+    else if (/ready\s*to\s*move/i.test(raw)) details.possessionStatus = 'READY_TO_MOVE';
+    else if (/new\s*launch/i.test(raw)) details.possessionStatus = 'NEW_LAUNCH';
+    if (/\bcarpet\b/i.test(raw)) details.areaBasis = 'CARPET';
+    else if (/super[- ]?built[- ]?up/i.test(raw)) details.areaBasis = 'SUPER_BUILT_UP';
+    else if (/built[- ]?up/i.test(raw)) details.areaBasis = 'BUILT_UP';
+    if (/bare[- ]shell/i.test(raw)) details.officeCondition = 'BARE_SHELL';
+    else if (/warm[- ]shell/i.test(raw)) details.officeCondition = 'WARM_SHELL';
+    if (/\bfreehold\b/i.test(raw)) details.ownershipType = 'FREEHOLD';
+    else if (/\bleasehold\b/i.test(raw)) details.ownershipType = 'LEASEHOLD';
+    const bath = raw.match(/(\d{1,2})\s*(?:bathrooms?|washrooms?)/i);
+    if (bath) details.bathrooms = Number(bath[1]);
+    const road = raw.match(/(\d{1,3})\s*(?:ft|feet|foot|fut)\s*(?:wide\s*)?road/i);
+    if (road) details.roadWidth = Number(road[1]);
+    const amenities: string[] = [];
+    for (const [pattern, value] of [
+      [/\blift\b/i, 'LIFT'],
+      [/power\s*back[- ]?up/i, 'POWER_BACKUP'],
+      [/\bgym\b/i, 'GYM'],
+      [/swimming\s*pool/i, 'SWIMMING_POOL'],
+      [/\bcctv\b/i, 'CCTV'],
+    ] as [RegExp, string][])
+      if (pattern.test(raw)) amenities.push(value);
     const inventory: InventoryInput = {
-      details,amenities,
+      details,
+      amenities,
       purpose,
       category,
       propertyType,
       sector: localities[0] ?? null,
       houseNo: house?.[1] ?? null,
-      floor: floor?.[1] ?? null,
+      floor: floor ? ({ FF: '1', SF: '2', GF: '0', GROUND: '0' }[floor[1].toUpperCase()] ?? floor[1]) : null,
       bhk,
       roomKind,
       furnishing,

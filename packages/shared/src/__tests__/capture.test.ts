@@ -7,7 +7,8 @@ test('requirements retain compound sectors and budget range', () => {
   const entry = extractCapture('Requirement\n2bhk\nSector 27&28&43&42\nBudget 45k to 55k rent\nFully furnished luxury')[0];
   assert.equal(entry.kind, 'REQUIREMENT');
   assert.deepEqual(entry.requirement?.localityNames, ['Sector 27', 'Sector 28', 'Sector 43', 'Sector 42']);
-  assert.equal(entry.requirement?.minBudget, 45000); assert.equal(entry.requirement?.maxBudget, 55000);
+  assert.equal(entry.requirement?.minBudget, 45000);
+  assert.equal(entry.requirement?.maxBudget, 55000);
 });
 test('phone digits cannot become rent; RK and BHK stay separate', () => {
   const entry = extractCapture('1RK for rent Sector 52\nContact 8981015522')[0];
@@ -26,30 +27,62 @@ test('sale total and per-acre rates are not mixed', () => {
 });
 test('exports keep sender and timestamp and retain multi-line content', () => {
   const messages = chatExportMessages('09/10/2026, 15:01 - Rahul: Requirement\n2 BHK\n09/10/2026, 15:02 - Broker: For rent\nSector 45');
-  assert.equal(messages.length, 2); assert.equal(messages[0].sender, 'Rahul'); assert.ok(messages[0].text.includes('2 BHK'));
+  assert.equal(messages.length, 2);
+  assert.equal(messages[0].sender, 'Rahul');
+  assert.ok(messages[0].text.includes('2 BHK'));
 });
 test('matching enforces explicit budget, unit conversion and availability', () => {
-  const requirement = { purpose: 'SALE' as const, propertyTypes: [], localityNames: ['Sector 93'], bedrooms: [], minArea: 40000, areaUnit: 'SQ_FT' as const, status: 'OPEN' as const };
+  const requirement = {
+    purpose: 'SALE' as const,
+    propertyTypes: [],
+    localityNames: ['Sector 93'],
+    bedrooms: [],
+    minArea: 40000,
+    areaUnit: 'SQ_FT' as const,
+    status: 'OPEN' as const,
+  };
   const property = { purpose: 'SALE' as const, sector: 'Sector 93', area: 1, areaUnit: 'ACRE' as const, availability: 'UNKNOWN' as const };
   assert.ok(ledgerMatch(requirement, property));
   assert.equal(ledgerMatch({ ...requirement, maxBudget: 10000000 }, property), null);
   assert.equal(ledgerMatch(requirement, { ...property, availability: 'SOLD' }), null);
 });
 
-test('commercial capture retains explicit possession, purchase, area basis and investment facts',()=>{
- const result=extractCapture('Office for sale, Sector 56, 400 sqft carpet area. Resale. Ready to move. Pre leased. Bare shell. Ask 1.5 cr. Power backup, lift.')[0];
- assert.equal(result.inventory?.details?.purchaseType,'RESALE');assert.equal(result.inventory?.details?.investmentType,'PRE_LEASED');assert.equal(result.inventory?.details?.areaBasis,'CARPET');assert.equal(result.inventory?.details?.officeCondition,'BARE_SHELL');assert.equal(result.inventory?.totalSalePrice,15000000);assert.equal(result.inventory?.availability,'UNKNOWN');assert.ok(result.inventory?.amenities?.includes('LIFT'));
+test('commercial capture retains explicit possession, purchase, area basis and investment facts', () => {
+  const result = extractCapture(
+    'Office for sale, Sector 56, 400 sqft carpet area. Resale. Ready to move. Pre leased. Bare shell. Ask 1.5 cr. Power backup, lift.',
+  )[0];
+  assert.equal(result.inventory?.details?.purchaseType, 'RESALE');
+  assert.equal(result.inventory?.details?.investmentType, 'PRE_LEASED');
+  assert.equal(result.inventory?.details?.areaBasis, 'CARPET');
+  assert.equal(result.inventory?.details?.officeCondition, 'BARE_SHELL');
+  assert.equal(result.inventory?.totalSalePrice, 15000000);
+  assert.equal(result.inventory?.availability, 'UNKNOWN');
+  assert.ok(result.inventory?.amenities?.includes('LIFT'));
 });
 
 test('interleaved poster columns cannot mix one property locality with another area or room count', () => {
- const [entry] = extractCapture('AVAILABLE FOR SALE\nOffice Sector 56, 400 sqft\nApartment Sector 57, 3 BHK, 1800 sqft');
- assert.equal(entry.kind, 'UNRELATED');
- assert.equal(entry.inventory, undefined);
- assert.ok(entry.warnings.some(w => w.includes('interleaved')));
+  const [entry] = extractCapture('AVAILABLE FOR SALE\nOffice Sector 56, 400 sqft\nApartment Sector 57, 3 BHK, 1800 sqft');
+  assert.equal(entry.kind, 'UNRELATED');
+  assert.equal(entry.inventory, undefined);
+  assert.ok(entry.warnings.some((w) => w.includes('interleaved')));
 });
 
 test('mixed screenshot supply and requirement stay in source review without a combined lead', () => {
- const [entry] = extractCapture('Requirement 2 BHK Sector 43 budget 45k\nAvailable for sale 3 BHK Sector 57, 1800 sqft');
- assert.equal(entry.kind, 'UNRELATED');
- assert.equal(entry.requirement, undefined);
+  const [entry] = extractCapture('Requirement 2 BHK Sector 43 budget 45k\nAvailable for sale 3 BHK Sector 57, 1800 sqft');
+  assert.equal(entry.kind, 'UNRELATED');
+  assert.equal(entry.requirement, undefined);
+});
+
+test('confirmed register abbreviations keep floors, furnishing and deposit months distinct', () => {
+  const entry = extractCapture('3 BHK for rent Sector 43 SF FFD Rent 32k\n2+1')[0].inventory!;
+  assert.equal(entry.floor, '2');
+  assert.equal(entry.furnishing, 'FULLY_FURNISHED');
+  assert.equal(entry.details?.securityMonths, 2);
+  assert.equal(entry.details?.advanceMonths, 1);
+  assert.equal(entry.securityDeposit, undefined);
+  const semi = extractCapture('2 BHK for rent Sector 43 FF SFD Rent 20k')[0].inventory!;
+  assert.equal(semi.floor, '1');
+  assert.equal(semi.furnishing, 'SEMI_FURNISHED');
+  assert.equal(extractCapture('2+1 BHK for rent Sector 43')[0].inventory?.details?.securityMonths, undefined);
+  assert.equal(extractCapture('3 BHK for sale Sector 43 2+1')[0].inventory?.details?.securityMonths, undefined);
 });

@@ -78,6 +78,8 @@ export const PROPERTY_FIELDS: PropertyField[] = [
   { key: 'availableFrom', label: 'Available from (YYYY-MM-DD)', group: 'Rental', kind: 'text' },
   { key: 'petFriendly', label: 'Pets allowed', group: 'Rental', kind: 'boolean' },
   { key: 'maintenanceMonthly', label: 'Monthly maintenance ₹', group: 'Rental', kind: 'number', min: 0, max: 10000000 },
+  { key: 'securityMonths', label: 'Security (months)', group: 'Rental', kind: 'number', min: 0, max: 120 },
+  { key: 'advanceMonths', label: 'Advance rent (months)', group: 'Rental', kind: 'number', min: 0, max: 120 },
   { key: 'lockInMonths', label: 'Lock-in (months)', group: 'Rental', kind: 'number', min: 0, max: 600 },
 ];
 const shape: Record<string, z.ZodType> = {};
