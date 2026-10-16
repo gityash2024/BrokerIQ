@@ -15,3 +15,16 @@ export function assertNoDroppedSourceFields(input: unknown, parsed: unknown, pat
     assertNoDroppedSourceFields(value, (parsed as Record<string, unknown>)[key], `${path}.${key}`);
   }
 }
+
+/** Only an explicitly reviewed, complete repeated page may bypass approval.
+ * A shared phone/address is insufficient: every source group must match.
+ */
+export function assertRepeatedSourcePage(
+  groups: { groupNo: number; transcription: string; ready: boolean }[],
+  original: { rowNo: number | null; rawText: string }[],
+): void {
+  if (!groups.length || groups.length !== original.length || groups.some((group) => group.ready))
+    throw new Error('Repeated page must contain all original groups and cannot approve inventory');
+  if (groups.some((group) => original.find((entry) => entry.rowNo === group.groupNo)?.rawText !== group.transcription))
+    throw new Error('Repeated page does not match the reviewed original source groups');
+}

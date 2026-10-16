@@ -1,5 +1,5 @@
 import { capturedEntitySchema } from '@brokeriq/shared';
-import { assertNoDroppedSourceFields } from './source-validation';
+import { assertNoDroppedSourceFields, assertRepeatedSourcePage } from './source-validation';
 
 describe('private source validation', () => {
   it('rejects a misspelled sale price before the transcript can be saved', () => {
@@ -17,5 +17,16 @@ describe('private source validation', () => {
 
   it('rejects discarded source groups instead of silently shrinking coverage', () => {
     expect(() => assertNoDroppedSourceFields({ groups: [{ raw: 'private source' }] }, { groups: [] })).toThrow('review.groups');
+  });
+
+  it('allows a complete repeated source page without reapproving its units', () => {
+    expect(() => assertRepeatedSourcePage([{ groupNo: 1, transcription: 'same source line', ready: false }], [{ rowNo: 1, rawText: 'same source line' }])).not.toThrow();
+  });
+
+  it('rejects shared-contact lookalikes, incomplete pages and ready duplicates', () => {
+    const source = [{ rowNo: 1, rawText: 'source line' }];
+    expect(() => assertRepeatedSourcePage([{ groupNo: 1, transcription: 'different line', ready: false }], source)).toThrow('does not match');
+    expect(() => assertRepeatedSourcePage([], source)).toThrow('all original groups');
+    expect(() => assertRepeatedSourcePage([{ groupNo: 1, transcription: 'source line', ready: true }], source)).toThrow('cannot approve');
   });
 });

@@ -9,7 +9,7 @@ import { capturedEntitySchema } from '@brokeriq/shared';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { assertNoDroppedSourceFields } from '../src/common/utils/source-validation';
+import { assertNoDroppedSourceFields, assertRepeatedSourcePage } from '../src/common/utils/source-validation';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const stable = (value: any): string =>
@@ -19,6 +19,7 @@ const stable = (value: any): string =>
 const schema = z.object({
   sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
   pageNo: z.number().int().min(1).max(500),
+  repeatedPageOf: z.number().int().min(1).max(500).optional(),
   pageImageSha256: z.string().length(64),
   coverageReviewed: z.literal(true),
   reviewMethod: z.string().min(20).max(2000),
@@ -89,6 +90,14 @@ async function main() {
     const previous = metadata.visualReviews?.find((p: any) => p.pageNo === review.pageNo);
     if (previous && previous.annotationSha !== annotationSha)
       throw new Error('This page already has another transcript. Resolve revisions through source review; never overwrite broker corrections');
+    const repeatedOriginal = review.repeatedPageOf
+      ? await prisma.sourceEntry.findMany({ where: { batchId: batch.id, pageNo: review.repeatedPageOf, entryKey: { startsWith: 'visual-v1-' } } })
+      : null;
+    if (repeatedOriginal) {
+      if (review.repeatedPageOf! >= review.pageNo || !metadata.visualReviews?.some((page: any) => page.pageNo === review.repeatedPageOf && !page.repeatedPageOf))
+        throw new Error('Repeated page must refer to an earlier visually reviewed original page');
+      assertRepeatedSourcePage(review.groups, repeatedOriginal);
+    }
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${batch.id}))`;
       const latest = await tx.importBatch.findUniqueOrThrow({ where: { id: batch.id } });
@@ -110,7 +119,12 @@ async function main() {
           bbox: group.bbox,
           ocr: { annotationSha, visualReview: true, sourceImageSha256: review.pageImageSha256, reviewMethod: review.reviewMethod, issues: group.issues },
           extracted: group.entities.map((e) => ({ ...e, warnings: [...e.warnings, ...group.issues] })) as Prisma.InputJsonValue,
-          reviewState: 'NEEDS_REVIEW',
+          reviewState: repeatedOriginal ? 'DUPLICATE' : 'NEEDS_REVIEW',
+          ...(repeatedOriginal ? {
+            reviewNote: `VISUALLY_CONFIRMED_REPEAT_OF:${repeatedOriginal.find((entry) => entry.rowNo === group.groupNo)!.id}`,
+            reviewedById: reviewer.id,
+            reviewedAt: new Date(),
+          } : {}),
         })),
       });
       await tx.sourceEntry.updateMany({
@@ -126,8 +140,10 @@ async function main() {
           annotationSha,
           groups: review.groups.length,
           readyGroups: review.groups.filter((g) => g.ready).length,
-          unresolvedGroups: review.groups.filter((g) => !g.ready).length,
+          unresolvedGroups: repeatedOriginal ? 0 : review.groups.filter((g) => !g.ready).length,
+          duplicateGroups: repeatedOriginal ? review.groups.length : 0,
           headerNotes: review.headerNotes,
+          ...(review.repeatedPageOf ? { repeatedPageOf: review.repeatedPageOf } : {}),
           reviewedBy: 'Codex-assisted source transcription',
         },
       ];
@@ -172,9 +188,10 @@ async function main() {
       const current = await tx.importBatch.findUniqueOrThrow({ where: { id: batch.id } });
       const meta = current.metadata as any;
       const verified = await tx.inventoryItem.count({ where: { sourceEntry: { batchId: batch.id }, deletedAt: null } });
+      const pending = await tx.sourceEntry.count({ where: { batchId: batch.id, reviewState: 'NEEDS_REVIEW' } });
       await tx.importBatch.update({
         where: { id: batch.id },
-        data: { metadata: { ...meta, reconciliation: { ...meta.reconciliation, visuallyVerifiedUnits: verified } } },
+        data: { status: pending ? 'NEEDS_REVIEW' : 'COMPLETE', metadata: { ...meta, reconciliation: { ...meta.reconciliation, visuallyVerifiedUnits: verified } } },
       });
       await tx.auditLog.create({
         data: {
@@ -194,7 +211,8 @@ async function main() {
         groups: review.groups.length,
         approvedGroups: approved,
         preservedGroups: preserved,
-        unresolvedGroups: review.groups.filter((g) => !g.ready).length,
+        unresolvedGroups: repeatedOriginal ? 0 : review.groups.filter((g) => !g.ready).length,
+        duplicateGroups: repeatedOriginal ? review.groups.length : 0,
         annotationSha,
       }),
     );
