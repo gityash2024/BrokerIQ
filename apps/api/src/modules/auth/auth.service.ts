@@ -222,10 +222,19 @@ export class AuthService implements OnApplicationBootstrap {
     if (!otp) throw new UnauthorizedException('OTP expire हो गया — नया OTP मँगाएँ');
     if (otp.attempts >= 5) throw new UnauthorizedException('बहुत ज़्यादा गलत कोशिशें — नया OTP मँगाएँ');
     if (otp.codeHash !== sha256(`${email}:${code}`)) {
-      await this.prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      await this.prisma.otpCode.updateMany({
+        where: { id: otp.id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+        data: { attempts: { increment: 1 } },
+      });
       throw new UnauthorizedException('OTP गलत है');
     }
-    await this.prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
+    // Checking and consuming must be one database operation: concurrent requests
+    // may both have read the same unused code above.
+    const consumed = await this.prisma.otpCode.updateMany({
+      where: { id: otp.id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) throw new UnauthorizedException('OTP expire हो गया — नया OTP मँगाएँ');
   }
 
   async verifyOtp(input: { email: string; code: string; name?: string; accountType?: 'USER' | 'BROKER'; inviteCode?: string; ref?: string }, meta: ClientMeta) {
@@ -349,8 +358,12 @@ export class AuthService implements OnApplicationBootstrap {
     await this.consumeOtp(email, code, ['RESET_PASSWORD']);
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Account नहीं मिला');
-    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(password, 12), emailVerified: true } });
-    await this.revokeAll(user.id);
+    const passwordHash = await bcrypt.hash(password, 12);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash, emailVerified: true } }),
+      this.prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+    await this.audit.log({ id: user.id, role: user.role, orgId: user.organizationId }, 'auth.password_reset', 'User', user.id);
     return { ok: true };
   }
 
