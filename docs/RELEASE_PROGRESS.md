@@ -2,6 +2,19 @@
 
 Approved scope: two initial accounts (Super Admin and Olive State broker), five broker sections, all property types, Hindi/English, share/paste/export capture, free AI, current instance treated as staging. Preserve future product code.
 
+## Current status — 16 October 2026
+
+The sections below this summary are a chronological implementation history; their older counts and pending items describe those checkpoints.
+
+- Broker-first staging cutover, two new accounts, module controls, typed inventory/requirements, durable imports, five-section web/native flows, Area Directory and the landing page are deployed. Application code currently at `af4d497`, with reconciliation reporting added separately below. Only BrokerIQ paths and its two PM2 registrations have been changed.
+- Signed Android v2.0.0 build 13 is live at `https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.0.0-build13.apk`; SHA256 `afd4403a084680c5f3620a3243d931f93fe51e88bfc6d7f9b285654bfdc2f074`. Complete public download was hashed. Signing certificate unchanged.
+- Android emulator checks cover broker login, Hindi/English, native text/image Share, persisted offline draft recovery after process restart, directory map/list, and safe-area filter controls. Real Android hardware has not been tested.
+- Latest completed test runs: shared 20 passed; focused API launch 12 passed; all 12 Playwright journeys passed; workspace typechecks and API/web production builds passed. These are isolated fixtures, not proof of live Housing/WhatsApp integration.
+- Source review now covers pages 1–18: 292 groups, 81 approved groups, 90 source-linked ledger records, 211 unresolved examined groups. Another 99 pages / 1,249 candidate blocks need entry review. All imported availability is UNKNOWN. See [REGISTER_RECONCILIATION.md](REGISTER_RECONCILIATION.md). Do not claim complete inventory or production-launch readiness.
+- Checkpoint `/opt/brokeriq/backups/checkpoints/20261016-063155-broker-first` restored successfully into a scratch database with exact table counts and active media checksums. This checkpoint predates the latest source approvals; take another checkpoint after applying the reviewed pages.
+- Live provider credentials and an explicitly authorized WhatsApp recipient are still awaited. No real outbound integration test has been run. Directory coverage is 2,102 source identities / 1,237 mapped, not an exhaustive list of unique city projects.
+- Original inputs, extraction evidence and old APKs are preserved privately; local releases now retains build 13 only. Product/future-module code and signing material remain intact.
+
 ## Completed verification
 
 - Current initial server release: de168ac, BrokerIQ-specific API/web processes only.
