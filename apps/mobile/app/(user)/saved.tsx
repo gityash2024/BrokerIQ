@@ -84,6 +84,8 @@ export default function Saved() {
           ListEmptyComponent={
             searches.isLoading ? (
               <Skeleton h={80} />
+            ) : searches.isError ? (
+              <ErrorView error={searches.error} onRetry={() => searches.refetch()} />
             ) : (
               <Empty
                 icon={<Search size={28} color={c.brand} />}

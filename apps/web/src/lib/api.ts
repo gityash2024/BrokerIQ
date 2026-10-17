@@ -3,6 +3,13 @@ import { isApiErrorBody, type ApiErrorBody, type AuthResponse } from '@brokeriq/
 import { API_URL } from './utils';
 
 const KEY = 'biq.auth';
+const cacheResets = new Set<() => void>();
+export function registerAuthCacheReset(reset: () => void) {
+  cacheResets.add(reset);
+  return () => {
+    cacheResets.delete(reset);
+  };
+}
 
 export class ApiError extends Error {
   status: number;
@@ -34,6 +41,7 @@ export const authStore = {
   },
   set(v: StoredAuth | null) {
     if (typeof window === 'undefined') return;
+    if (authStore.get()?.user.id !== v?.user.id) cacheResets.forEach((reset) => reset());
     if (v) localStorage.setItem(KEY, JSON.stringify(v));
     else localStorage.removeItem(KEY);
     document.cookie = v ? `biq_role=${v.user.role}; path=/; max-age=2592000; samesite=lax` : 'biq_role=; path=/; max-age=0';
@@ -162,7 +170,10 @@ export async function compressImage(file: File, maxW = 1920, quality = 0.82): Pr
 export async function apiBlob(path: string): Promise<Blob> {
   const send = () => fetch(`${API_URL}/api${path}`, { headers: { Authorization: `Bearer ${authStore.get()?.accessToken ?? ''}` } });
   let response = await send();
-  if (response.status === 401 && await refresh()) response = await send();
-  if (!response.ok) { const body = await response.json().catch(() => ({ message: 'Source could not be loaded' })); throw new ApiError(response.status, body); }
+  if (response.status === 401 && (await refresh())) response = await send();
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ message: 'Source could not be loaded' }));
+    throw new ApiError(response.status, body);
+  }
   return response.blob();
 }

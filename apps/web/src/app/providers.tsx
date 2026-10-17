@@ -5,7 +5,7 @@ import { Toaster } from 'sonner';
 import { moduleAllowed, type PublicConfig } from '@brokeriq/shared';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ConfigProvider, useConfig } from '@/lib/config';
-import { ApiError } from '@/lib/api';
+import { ApiError, registerAuthCacheReset } from '@/lib/api';
 import { FeedbackWidget } from '@/components/feedback/feedback-widget';
 import { AssistantWidget } from '@/components/assistant/assistant';
 import { I18nProvider } from '@/lib/i18n';
@@ -27,6 +27,18 @@ export function Providers({ children, config }: { children: React.ReactNode; con
       }),
   );
   useEffect(() => (installGlobalErrorHandlers(), captureReferral()), []);
+  useEffect(() => {
+    const reset = () => qc.clear();
+    const unregister = registerAuthCacheReset(reset);
+    const crossTab = (event: StorageEvent) => {
+      if (event.key === 'biq.auth') reset();
+    };
+    window.addEventListener('storage', crossTab);
+    return () => {
+      unregister();
+      window.removeEventListener('storage', crossTab);
+    };
+  }, [qc]);
   return (
     <QueryClientProvider client={qc}>
       <ConfigProvider initial={config}>
@@ -42,4 +54,14 @@ export function Providers({ children, config }: { children: React.ReactNode; con
   );
 }
 
-function OptionalWidgets(){const config=useConfig();const role=useAuth().user?.role??'';return <>{moduleAllowed(config.modules,'assistant',role)&&<AssistantWidget/>}{moduleAllowed(config.modules,'web_push',role)&&<WebPushPrompt/>}{moduleAllowed(config.modules,'legacy',role)&&<FeedbackWidget/>}</>;}
+function OptionalWidgets() {
+  const config = useConfig();
+  const role = useAuth().user?.role ?? '';
+  return (
+    <>
+      {moduleAllowed(config.modules, 'assistant', role) && <AssistantWidget />}
+      {moduleAllowed(config.modules, 'web_push', role) && <WebPushPrompt />}
+      {moduleAllowed(config.modules, 'legacy', role) && <FeedbackWidget />}
+    </>
+  );
+}

@@ -2,9 +2,14 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { isApiErrorBody, type ApiErrorBody, type AuthResponse, type AuthUser } from '@brokeriq/shared';
 import { create } from './store';
+import { queryClient } from './query';
 import { tr } from './i18n';
 
-export const API_URL = (process.env.EXPO_PUBLIC_API_URL || (Constants.expoConfig?.extra?.apiUrl as string) || 'https://brokeriqapi.mymultimeds.com/api').replace(/\/$/, '');
+export const API_URL = (
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Constants.expoConfig?.extra?.apiUrl as string) ||
+  'https://brokeriqapi.mymultimeds.com/api'
+).replace(/\/$/, '');
 export const SOCKET_URL = API_URL.replace(/\/api$/, '');
 
 export class ApiError extends Error {
@@ -39,6 +44,7 @@ export const authStore = {
   },
   get: () => useSession.getState().session,
   async set(s: Session | null) {
+    if (authStore.get()?.user.id !== s?.user.id) queryClient.clear();
     useSession.setState({ session: s });
     if (s) await SecureStore.setItemAsync(KEY, JSON.stringify(s));
     else await SecureStore.deleteItemAsync(KEY);
@@ -78,7 +84,7 @@ type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { body, auth = true, method = body === undefined ? 'GET' : 'POST', headers } = opts;
   const send = () => {
-    if (opts.ownerId && authStore.get()?.user.id !== opts.ownerId) throw new Error("Account changed. Saved operation remains with its original account.");
+    if (opts.ownerId && authStore.get()?.user.id !== opts.ownerId) throw new Error('Account changed. Saved operation remains with its original account.');
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}${path}`, {
       method,

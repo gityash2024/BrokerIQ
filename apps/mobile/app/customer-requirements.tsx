@@ -8,20 +8,24 @@ import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Badge, Button, Card, Chip, Empty, Header, Input, Loader, Row, Screen, SectionTitle, Sheet, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, ErrorView, Header, Input, Loader, Row, Screen, SectionTitle, Sheet, Txt } from '@/ui';
 import { ListingRow } from '@/components/listing';
 
 /** "अपनी ज़रूरत बताएँ" — requirements with instant matches and alerts on new listings. */
 export default function Requirements() {
   const { c } = useTheme();
-  const list = useQuery({ queryKey: ['requirements'], queryFn: () => api<any[]>('/requirements/mine') });
+  const list = useQuery({ queryKey: ['consumer-requirements'], queryFn: () => api<any[]>('/requirements/mine') });
   const [sel, setSel] = useState<string | null>(null);
   const [form, setForm] = useState(false);
   const active = sel ?? list.data?.[0]?.id ?? null;
-  const matches = useQuery({ queryKey: ['requirement-matches', active], queryFn: () => api<any[]>(`/requirements/${active}/matches`), enabled: !!active });
+  const matches = useQuery({
+    queryKey: ['consumer-requirement-matches', active],
+    queryFn: () => api<any[]>(`/requirements/${active}/matches`),
+    enabled: !!active,
+  });
   const setStatus = useApiMutation((b: { id: string; status: string }) => patch(`/requirements/${b.id}`, { status: b.status }), {
     success: 'Updated',
-    invalidate: [['requirements']],
+    invalidate: [['consumer-requirements']],
   });
   useEffect(() => {
     if (list.data && !list.data.length) setForm(true);
@@ -35,6 +39,8 @@ export default function Requirements() {
       />
       {list.isLoading ? (
         <Loader />
+      ) : list.isError ? (
+        <ErrorView error={list.error} onRetry={() => list.refetch()} />
       ) : !list.data?.length ? (
         <Empty
           icon={<ClipboardList size={26} color={c.brand} />}
@@ -74,6 +80,8 @@ export default function Requirements() {
           <SectionTitle title={`Matching properties${matches.data ? ` (${matches.data.length})` : ''}`} />
           {matches.isLoading ? (
             <Loader />
+          ) : matches.isError ? (
+            <ErrorView error={matches.error} onRetry={() => matches.refetch()} />
           ) : !matches.data?.length ? (
             <Txt v="small" color="muted">
               अभी कोई नहीं — आते ही बताएँगे।

@@ -6,7 +6,7 @@ import { formatINR, whatsappLink } from '@brokeriq/shared';
 import { api, patch } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
-import { Badge, Button, Card, Empty, Header, Loader, Row, Screen, SectionTitle, Txt } from '@/ui';
+import { Badge, Button, Card, Empty, ErrorView, Header, Loader, Row, Screen, SectionTitle, Txt } from '@/ui';
 
 const TOKEN: Record<string, [string, string]> = {
   CLAIMED: ['Broker की पुष्टि बाकी', '#F59E0B'],
@@ -26,6 +26,8 @@ export default function MyVisits() {
       <Header title="My site visits" />
       {visits.isLoading ? (
         <Loader />
+      ) : visits.isError ? (
+        <ErrorView error={visits.error} onRetry={() => visits.refetch()} />
       ) : !visits.data?.length ? (
         <Empty icon={<CalendarCheck size={26} color={c.brand} />} title="अभी कोई visit नहीं" text="Broker listing पर 'Visit' दबाकर खाली समय चुनें।" />
       ) : (

@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import Constants from 'expo-constants';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -33,7 +33,7 @@ import { AppErrorBoundary } from '@/components/error-boundary';
 export { AppErrorBoundary as ErrorBoundary };
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
-const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
+import { queryClient as qc } from '@/lib/query';
 
 function Gate({ children }: { children: React.ReactNode }) {
   const { c } = useTheme();
@@ -100,15 +100,17 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={qc}>
           <StatusBar style={isDark ? 'light' : 'dark'} />
-          <Gate><NativeModuleGate>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}>
-              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-              <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-              <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
-            </Stack>
-          </NativeModuleGate></Gate>
+          <Gate>
+            <NativeModuleGate>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}>
+                <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+                <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+                <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
+                <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
+              </Stack>
+            </NativeModuleGate>
+          </Gate>
           <DraftPump />
           <LanguageSuggestion />
           <Toaster />
