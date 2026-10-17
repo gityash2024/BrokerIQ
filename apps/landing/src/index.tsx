@@ -287,9 +287,9 @@ const styles = `
 /* The arrow is absolute so only the brand text determines horizontal centering. */
 .biq-wordmark{display:flex;justify-content:center;position:relative;font-family:var(--font-jakarta),sans-serif;font-weight:800;font-size:clamp(64px,15.5vw,208px);line-height:1.25;letter-spacing:-.065em;margin:56px 0 20px;padding:16px 28px 30px;white-space:nowrap}
 
-.biq-wordmark-text{display:inline-flex;position:relative;width:max-content;isolation:isolate}
+.biq-wordmark-text{display:inline-flex;position:relative;width:max-content;isolation:isolate;padding-right:.065em}
 
-.biq-wordmark-name,.biq-wordmark-iq{background:linear-gradient(110deg,#818cf8 8%,#c7d2fe 30%,#fff 45%,#a5b4fc 60%,#818cf8 80%);background-size:300% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;animation:biq-shine 6s linear infinite}
+.biq-wordmark-name,.biq-wordmark-iq{padding-right:.12em;margin-right:-.12em;background:linear-gradient(110deg,#818cf8 8%,#c7d2fe 30%,#fff 45%,#a5b4fc 60%,#818cf8 80%);background-size:300% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;animation:biq-shine 6s linear infinite}
 
 .biq-wordmark-iq{background-image:linear-gradient(110deg,#f59e0b 8%,#fbbf24 30%,#ffedb1 45%,#f59e0b 60%,#f59e0b 80%)}
 
