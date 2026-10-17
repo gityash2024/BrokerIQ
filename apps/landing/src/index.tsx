@@ -15,7 +15,7 @@ export function BrokerIQLanding({
   apkUrl?: string;
   contact?: { email?: string; phone?: string; address?: string };
   checksum?: string;
-  screenshots?: { src: string; label: string }[];
+  screenshots?: { src: string; label: string; caption?: string }[];
 }) {
   return (
     <div className="biq-landing" style={{ '--biq-brand': BRAND.primary, '--biq-accent': BRAND.accent } as React.CSSProperties}>
@@ -147,6 +147,7 @@ export function BrokerIQLanding({
             {screenshots.slice(0, 2).map((s) => (
               <figure key={s.src}>
                 <img src={s.src} alt={s.label} loading="lazy" width="390" height="844" />
+                {s.caption && <figcaption>{s.caption}</figcaption>}
               </figure>
             ))}
           </div>
@@ -272,6 +273,7 @@ const styles = `
 .biq-screens figure{margin:0;max-width:46%;transform:rotate(-4deg)}
 .biq-screens figure+figure{transform:rotate(5deg) translateY(20px)}
 .biq-screens img{display:block;width:100%;height:auto;border:6px solid var(--surface,#fff);border-radius:24px;box-shadow:0 24px 48px -24px #312e8170}
+.biq-screens figcaption{font-size:10px;text-align:center;color:var(--muted,#475569);margin-top:14px;line-height:1.6}
 .biq-cta{border-radius:28px;padding:56px;background:linear-gradient(125deg,#1e1b4b,#4338ca);color:white;position:relative;overflow:hidden;margin-bottom:80px}
 .biq-cta:after{content:'';position:absolute;right:-70px;top:-80px;width:380px;height:380px;border:70px solid #ffffff08;border-radius:50%;pointer-events:none}
 .biq-cta h2{font-size:clamp(32px,4vw,52px);letter-spacing:-1.8px;margin:20px 0}

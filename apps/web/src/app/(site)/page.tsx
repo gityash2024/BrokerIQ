@@ -13,10 +13,11 @@ export default async function Home() {
       apkUrl={process.env.ANDROID_RELEASE_URL}
       checksum={process.env.ANDROID_RELEASE_SHA256}
       screenshots={[
-        { src: '/product/android-area-map.png', label: 'Android · Gurugram Area Directory with clustered source locations. Colony points are approximate.' },
+        { src: '/product/android-workspace-build23.png', label: 'Actual Android build 23 · Broker dashboard with real inventory totals and availability distribution.', caption: 'Broker workspace · Build 23' },
         {
-          src: '/product/android-area-list.png',
-          label: 'Android · Searchable public source records. Registration does not confirm a unit’s current availability.',
+          src: '/product/android-directory-build23.png',
+          label: 'Actual Android build 23 · Gurugram Area Directory with clustered source locations. Colony points are approximate.',
+          caption: 'Area Directory · Build 23',
         },
       ]}
     />
