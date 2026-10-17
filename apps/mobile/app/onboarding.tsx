@@ -18,7 +18,7 @@ const SLIDES = [
   {
     icon: Search,
     title: 'आपकी property book, एक जगह',
-    text: 'Rent, sale, commercial और land की inventory रखें। हर floor, contact और source अलग सुरक्षित रहता है।',
+    text: 'Homes, PG और commercial rentals खोजें और अपनी inventory सँभालें। हर floor, contact और source अलग सुरक्षित रहता है।',
     colors: ['#312E81', '#4F46E5'] as const,
   },
   {
@@ -45,7 +45,7 @@ export default function Onboarding() {
   const { app } = useConfig();
   const [i, setI] = useState(0);
   const list = useRef<FlatList>(null);
-  const finish = async (to: '/login') => {
+  const finish = async (to: '/(user)/home') => {
     await SecureStore.setItemAsync('biq.onboarded', '1').catch(() => undefined);
     router.replace(to);
   };
@@ -59,7 +59,7 @@ export default function Onboarding() {
           </Txt>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <LanguagePill light />
-            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/login')}>
+            <Txt v="bodyStrong" color="rgba(255,255,255,0.8)" onPress={() => finish('/(user)/home')}>
               Skip
             </Txt>
           </View>
@@ -138,8 +138,7 @@ export default function Onboarding() {
             <Button title="आगे" variant="accent" size="lg" onPress={() => list.current?.scrollToIndex({ index: i + 1 })} />
           ) : (
             <>
-              <Button title="Open your workspace" variant="accent" size="lg" onPress={() => finish('/login')} />
-
+              <Button title="Open your workspace" variant="accent" size="lg" onPress={() => finish('/(user)/home')} />
             </>
           )}
         </View>

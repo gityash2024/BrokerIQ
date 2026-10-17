@@ -31,6 +31,7 @@ import { AppErrorBoundary } from '@/components/error-boundary';
 
 /** A crashing screen shows a friendly retry screen and is reported to Admin → Health. */
 export { AppErrorBoundary as ErrorBoundary };
+export const unstable_settings = { initialRouteName: 'index' };
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 import { queryClient as qc } from '@/lib/query';
@@ -103,6 +104,7 @@ export default function RootLayout() {
           <Gate>
             <NativeModuleGate>
               <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}>
+                <Stack.Screen name="index" />
                 <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
                 <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />

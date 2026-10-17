@@ -277,6 +277,7 @@ export default function Login() {
             />
           </>
         )}
+        <Button title="Browse properties as guest" variant="secondary" onPress={() => router.replace('/(user)/home')} />
         <Txt v="caption" color="subtle" style={{ textAlign: 'center' }}>
           Continue करके आप हमारी Terms और Privacy policy से सहमत हैं।
         </Txt>
