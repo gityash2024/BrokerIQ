@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Txt, Input, Button } from '@/ui';
 import { toast } from '@/lib/toast';
-import { BrokerScreen } from '@/launch/screen';
+import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { NativePropertyExtras } from '@/launch/property-extras';
 import { ChoiceField } from '@/launch/form';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
@@ -115,12 +115,15 @@ export default function InventoryEditor() {
           <Txt v="caption" color="muted">
             {draftStatus}
           </Txt>
+          <NativeCard style={{ gap: 14 }}>
           <Txt v="h3">Location</Txt>
           {field('sector', 'Sector / locality')}
           {field('houseNo', 'House / plot no.')}
           {field('unitLabel', 'Unit')}
           {field('address', 'Address')}
           {field('floor', 'Floor')}
+          </NativeCard>
+          <NativeCard style={{ gap: 14 }}>
           <Txt v="h3">Property details</Txt>
           <ChoiceField label="Purpose" value={form.purpose} choices={['RENT', 'SALE']} onChange={(v) => change('purpose', v)} />
           <ChoiceField label="Category" value={form.category} choices={['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']} onChange={(v) => change('category', v)} />
@@ -133,6 +136,8 @@ export default function InventoryEditor() {
             choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
             onChange={(v) => change('furnishing', v)}
           />
+          </NativeCard>
+          <NativeCard style={{ gap: 14 }}>
           <Txt v="h3">Price & area</Txt>
           {form.purpose === 'RENT' ? (
             <>
@@ -164,6 +169,8 @@ export default function InventoryEditor() {
             choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
             onChange={(v) => change('availability', v ?? 'UNKNOWN')}
           />
+          </NativeCard>
+          <NativeCard style={{ gap: 14 }}>
           <Txt v="h3">Contacts</Txt>
           {(form.contacts ?? []).map((contact: any, index: number) => (
             <View key={index} style={{ gap: 10, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: c.line }}>
@@ -217,6 +224,7 @@ export default function InventoryEditor() {
             variant="secondary"
             onPress={() => change('contacts', [...(form.contacts ?? []), { name: null, phone: null, role: 'UNKNOWN' }])}
           />
+          </NativeCard>
           <NativePropertyExtras
             value={form}
             onChange={(next) => {

@@ -30,9 +30,16 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
         backgroundColor: c.surface,
         borderTopWidth: 1,
         borderTopColor: c.line,
-        paddingTop: 7,
+        paddingTop: 10,
         paddingBottom: Math.max(insets.bottom, 9),
         paddingHorizontal: 6,
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+        shadowColor: '#0f172a',
+        shadowOpacity: 0.06,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: -4 },
+        elevation: 8,
       }}
     >
       {state.routes
@@ -54,8 +61,8 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
               }}
               style={{ flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 5 }}
             >
-              <View style={{ paddingHorizontal: 18, paddingVertical: 4, borderRadius: 12, backgroundColor: focused ? c.brandSoft : 'transparent' }}>
-                {options.tabBarIcon?.({ focused, color, size: 21 })}
+              <View style={{ paddingHorizontal: 16, paddingVertical: 7, borderRadius: 14, backgroundColor: focused ? c.brand : 'transparent' }}>
+                {options.tabBarIcon?.({ focused, color: focused ? '#fff' : color, size: 21 })}
                 {badges[route.name] > 0 && (
                   <View style={{ position: 'absolute', right: 5, top: 1, width: 7, height: 7, borderRadius: 4, backgroundColor: c.danger }} />
                 )}

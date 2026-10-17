@@ -1,10 +1,11 @@
 import { usePathname, router } from 'expo-router';
 import { View } from 'react-native';
-import { moduleAllowed, moduleForPath } from '@brokeriq/shared';
+import { moduleAllowed } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { BrokerScreen } from './screen';
 import { Txt, Button } from '@/ui';
+import { nativeConsumerPath as consumer, nativeGuestPath as guest, nativeModuleKey } from './routes';
 const essential = [
   '/',
   '/login',
@@ -19,19 +20,6 @@ const essential = [
   '/privacy',
   '/feedback',
 ];
-const consumer =
-  /^\/(home|search|saved|messages|profile|property|locality|broker|post-property|my-listings|my-visits|enquiries|customer-requirements|customer-overview|chat)(\/|$)/;
-const guest = /^\/(home|search|profile|property|locality|broker)(\/|$)/;
-function keyFor(path: string) {
-  if (consumer.test(path))
-    return path.startsWith('/my-visits') ? 'slot_booking' : path.startsWith('/customer-requirements') ? 'tenant_requirements' : 'consumer';
-  if (path.startsWith('/area-directory')) return 'directory';
-  if (/^\/(inventory(?:-edit)?|publish-rental)(\/|$)/.test(path)) return 'inventory';
-  if (/^\/(lead|leads|add-lead|pipeline|follow-ups|visits|requirements|requirement-edit)(\/|$)/.test(path)) return 'leads';
-  if (/^\/(capture|import-review|wa)(\/|$)/.test(path)) return 'inbox';
-  if (/^\/(automations|connectors)(\/|$)/.test(path)) return 'automation';
-  return path === '/dashboard' ? 'today' : (moduleForPath(path, 'web') ?? 'legacy');
-}
 export function NativeScreenLayout({ children, route }: { children: React.ReactNode; route: { name: string } }) {
   // Navigators retain their state while individual protected screen content waits for policy.
   if (route.name.startsWith('(')) return <>{children}</>;
@@ -43,7 +31,7 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const { user } = useAuth();
   const config = useConfig();
   if (essential.includes(path)) return <>{children}</>;
-  const key = path === '/dashboard-records' ? (user?.role === 'BROKER_ADMIN' ? 'today' : 'consumer') : keyFor(path);
+  const key = path === '/dashboard-records' ? (user?.role === 'BROKER_ADMIN' ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const allowed =
     config.loaded &&

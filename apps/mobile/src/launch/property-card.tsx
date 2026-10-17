@@ -1,7 +1,7 @@
 import { floorLabel } from '@brokeriq/shared';
 import { View, Pressable, Linking, Share } from 'react-native';
 import { router } from 'expo-router';
-import { Phone, Share2, ChevronRight } from 'lucide-react-native';
+import { Building2, Phone, Share2, ChevronRight } from 'lucide-react-native';
 import { formatINR, type LedgerItem } from '@brokeriq/shared';
 import { useTheme } from '@/lib/theme';
 import { Txt } from '@/ui';
@@ -39,6 +39,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
         style={{ gap: 8 }}
       >
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <View style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: c.brandSoft }}><Building2 size={20} color={c.brand} /></View>
           <View style={{ flex: 1 }}>
             <Txt v="h3">
               {item.houseNo ? `House ${item.houseNo}` : 'House not recorded'}
@@ -52,7 +53,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Txt v="caption">{item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms unknown'}</Txt>
-          <Txt v="caption" color="muted">
+          <Txt v="caption" color="muted" style={{ backgroundColor: c.surface2, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
             {floorLabel(item.floor)}
           </Txt>
           <Txt v="caption" color="muted">

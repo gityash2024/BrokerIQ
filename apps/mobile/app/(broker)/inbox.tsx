@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { Inbox as InboxIcon, FileText } from 'lucide-react-native';
+import { useTheme } from '@/lib/theme';
+import { WorkspaceTag } from '@/launch/workspace';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { Button, Txt, ErrorView, Segmented } from '@/ui';
 export default function Inbox() {
+  const { c } = useTheme();
   const [mode, setMode] = useState('CAPTURES');
   const captures = useInfiniteQuery({
     queryKey: ['imports'],
@@ -46,16 +50,17 @@ export default function Inbox() {
           refreshing={captures.isRefetching}
           onRefresh={() => captures.refetch()}
           onEndReached={() => captures.hasNextPage && !captures.isFetchingNextPage && captures.fetchNextPage()}
-          ListEmptyComponent={captures.error ? <ErrorView error={captures.error} /> : <Txt color="muted">Share or paste a WhatsApp message to start.</Txt>}
+          ListEmptyComponent={captures.error ? <ErrorView error={captures.error} onRetry={() => captures.refetch()} /> : captures.isPending ? <ActivityIndicator color={c.brand} style={{ padding: 30 }} /> : <NativeCard><InboxIcon size={26} color={c.brand} /><Txt v="title">Your capture workspace</Txt><Txt color="muted">Share or paste a WhatsApp message to start.</Txt></NativeCard>}
           renderItem={({ item }) => (
             <NativeCard onPress={() => router.push(`/import-review/${item.id}` as any)}>
-              <Txt v="bodyStrong">{item.fileName || item.groupName || 'Message capture'}</Txt>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><View style={{ padding: 10, backgroundColor: c.brandSoft, borderRadius: 12 }}><FileText size={18} color={c.brand} /></View><Txt v="title" style={{ flex: 1 }}>{item.fileName || item.groupName || 'Message capture'}</Txt></View>
               <Txt v="small" color="muted">
-                {item.sourceType} · {item.status}
+                {item.sourceType?.replace(/_/g, ' ')}
               </Txt>
               <Txt v="caption">
-                {item._count.entries} entries · {new Date(item.createdAt).toLocaleDateString()}
+                {item._count?.entries ?? 0} entries · {new Date(item.createdAt).toLocaleDateString()}
               </Txt>
+              <WorkspaceTag tone={item.status === 'FAILED' ? 'warning' : 'muted'} label={item.status?.replace(/_/g, ' ') ?? 'Not recorded'} />
               {item.lastError && (
                 <Txt color="danger" v="small">
                   {item.lastError}
@@ -72,7 +77,7 @@ export default function Inbox() {
           refreshing={chats.isRefetching}
           onRefresh={() => chats.refetch()}
           ListEmptyComponent={
-            chats.error ? <ErrorView error={chats.error} /> : <Txt color="muted">No conversations yet. Configure WhatsApp in Automation & Housing.</Txt>
+            chats.error ? <ErrorView error={chats.error} onRetry={() => chats.refetch()} /> : chats.isPending ? <ActivityIndicator color={c.brand} style={{ padding: 30 }} /> : <NativeCard><InboxIcon size={26} color={c.brand} /><Txt v="title">No conversations yet</Txt><Txt color="muted">No conversations yet. Configure WhatsApp in Automation & Housing.</Txt></NativeCard>
           }
           renderItem={({ item }) => (
             <NativeCard onPress={() => router.push(`/wa/${item.id}`)}>

@@ -3,7 +3,7 @@ import { View, Pressable, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, UserRound } from 'lucide-react-native';
-import { Txt } from '@/ui';
+import { Card, IconBtn, Txt } from '@/ui';
 import { useTheme } from '@/lib/theme';
 export function BrokerScreen({
   title,
@@ -21,20 +21,20 @@ export function BrokerScreen({
   const { c } = useTheme();
   return (
     <SafeAreaView edges={back ? ['top', 'bottom'] : ['top']} style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.line }}>
         {back && (
-          <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={{ padding: 10 }}>
+          <IconBtn accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(broker)/dashboard')} style={{ backgroundColor: c.surface2 }}>
             <ChevronLeft size={22} color={c.fg} />
-          </Pressable>
+          </IconBtn>
         )}
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <Image source={require('../../assets/icon.png')} style={{ width: 16, height: 16, borderRadius: 5 }} />
+            <Image source={require('../../assets/icon.png')} style={{ width: 18, height: 18, borderRadius: 5 }} />
             <Txt v="caption" color="muted" style={{ fontSize: 9, letterSpacing: 1 }}>
-              BROKERIQ · WORKSPACE
+              BROKERIQ
             </Txt>
           </View>
-          <Txt v="h2">{title}</Txt>
+          <Txt v="h2" style={{ fontSize: 22, lineHeight: 29 }}>{title}</Txt>
           {subtitle && (
             <Txt v="caption" color="muted" style={{ marginTop: 3 }}>
               {subtitle}
@@ -65,19 +65,5 @@ export function BrokerScreen({
   );
 }
 export function NativeCard({ children, style, onPress }: { children: React.ReactNode; style?: ViewStyle; onPress?: () => void }) {
-  const { c } = useTheme();
-  const body = (
-    <View style={[{ padding: 16, gap: 8, borderWidth: 1, borderColor: c.line, borderRadius: 18, backgroundColor: c.surface }, style]}>{children}</View>
-  );
-  return onPress ? (
-    <Pressable
-      accessibilityRole="button"
-      style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] })}
-      onPress={onPress}
-    >
-      {body}
-    </Pressable>
-  ) : (
-    body
-  );
+  return <Card onPress={onPress} style={[{ padding: 16, gap: 10, borderRadius: 22 }, style]}>{children}</Card>;
 }

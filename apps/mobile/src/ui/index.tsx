@@ -123,7 +123,7 @@ export function Screen({
 export function Header({ title, subtitle, right, back = true }: { title?: string; subtitle?: string; right?: React.ReactNode; back?: boolean }) {
   const { c } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: c.bg }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.surface, borderRadius: 18 }}>
       {back && (
         <IconBtn onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
           <ChevronLeft size={24} color={c.fg} />
@@ -274,7 +274,7 @@ export function IconBtn({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={[{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]}
+      style={[{ width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]}
       hitSlop={6}
     >
       {children}
@@ -338,14 +338,15 @@ export function Button({
     dark: '#0F172A',
   }[variant];
   const fg = color ?? (variant === 'secondary' || variant === 'ghost' ? c.fg : variant === 'accent' ? '#111827' : '#fff');
-  const h = { sm: 38, md: 48, lg: 56 }[size];
+  const h = { sm: 44, md: 48, lg: 56 }[size];
   return (
     <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
       style={[
         {
-          height: h,
+          minHeight: h,
+          paddingVertical: size === 'sm' ? 10 : 12,
           borderRadius: size === 'lg' ? 18 : 14,
           backgroundColor: bg,
           flexDirection: 'row',
@@ -361,7 +362,7 @@ export function Button({
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon}
-      {!!title && <Text style={[{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15 }, dir]}>{t(title)}</Text>}
+      {!!title && <Text style={[{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15, flexShrink: 1, textAlign: 'center' }, dir]}>{t(title)}</Text>}
     </PressableScale>
   );
 }
@@ -526,7 +527,7 @@ export function Card({ children, style, onPress }: { children: React.ReactNode; 
     style,
   ];
   return onPress ? (
-    <PressableScale onPress={onPress} style={s}>
+    <PressableScale accessibilityRole="button" onPress={onPress} style={s}>
       {children}
     </PressableScale>
   ) : (

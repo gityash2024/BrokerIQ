@@ -1,3 +1,4 @@
+import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { SourceImage } from '@/launch/source-image';
 import { floorLabel } from '@brokeriq/shared';
 import { ScrollView, View, Linking, Share } from 'react-native';
@@ -21,25 +22,17 @@ export default function PropertyDetail() {
         {q.error && <Txt color="danger">{errorMessage(q.error)}</Txt>}
         {item && (
           <>
+            <WorkspaceHero
+              label="PROPERTY OVERVIEW"
+              title={item.monthlyRent != null && item.purpose === 'RENT' ? `${formatINR(item.monthlyRent)}/month` : item.totalSalePrice != null ? formatINR(item.totalSalePrice) : item.ratePerArea != null ? `${formatINR(item.ratePerArea)}/${item.rateAreaUnit}` : 'Price not recorded'}
+              description={`${item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms unknown'} · ${floorLabel(item.floor)}`}
+            />
             <NativeCard>
-              <Txt v="h2">
-                {item.monthlyRent != null && item.purpose === 'RENT'
-                  ? `${formatINR(item.monthlyRent)}/month`
-                  : item.totalSalePrice != null
-                    ? formatINR(item.totalSalePrice)
-                    : item.ratePerArea != null
-                      ? `${formatINR(item.ratePerArea)}/${item.rateAreaUnit}`
-                      : 'Price not recorded'}
-              </Txt>
-              <Txt>
-                {item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms unknown'} · {floorLabel(item.floor)}
-              </Txt>
-              <Txt color="muted">{item.furnishing?.replace(/_/g, ' ') || 'Furnishing unknown'}</Txt>
-              <Txt>{item.area ? `${item.area} ${item.areaUnit}` : 'Area not recorded'}</Txt>
-              <Txt v="title">{item.availability === 'UNKNOWN' ? 'Availability needs confirmation' : (item.availability ?? 'UNKNOWN')}</Txt>
-              <Button title="Edit property" variant="secondary" onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
-              <Button title="Publish / review rental" variant="secondary" onPress={() => router.push(`/publish-rental?id=${id}` as any)} />
-              <Button title="Share property" onPress={() => Share.share({ message: propertyShare(item) })} />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <WorkspaceTag label={item.furnishing?.replace(/_/g, ' ') || 'Furnishing unknown'} />
+                <WorkspaceTag tone="muted" label={item.area ? `${item.area} ${item.areaUnit}` : 'Area not recorded'} />
+              </View>
+              <Txt v="small" color="muted">{item.availability === 'UNKNOWN' ? 'Availability needs confirmation' : (item.availability ?? 'UNKNOWN')}</Txt>
               {item.availability === 'UNKNOWN' && (
                 <Button
                   title="Confirm available"
@@ -56,6 +49,11 @@ export default function PropertyDetail() {
                 />
               )}
             </NativeCard>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button title="Edit property" variant="secondary" style={{ flex: 1 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
+              <Button title="Share property" style={{ flex: 1 }} onPress={() => Share.share({ message: propertyShare(item) })} />
+            </View>
+            <Button title="Publish / review rental" variant="secondary" onPress={() => router.push(`/publish-rental?id=${id}` as any)} />
             <NativeCard>
               <Txt v="h3">Property details</Txt>
               {PROPERTY_FIELDS.filter((field) => item.details?.[field.key] != null).map((field) => (

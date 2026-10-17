@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { Alert, type AlertButton, type AlertOptions } from 'react-native';
 import { languageOf, localizeDates, makeTranslator, type Dictionary, type LanguageCode, type Translator } from '@brokeriq/shared';
 import { useLang } from './lang';
+import { finishingHindi } from './finishing-copy';
 
 /**
  * UI translation for the app. `null` language = the original interface (unchanged).
@@ -29,7 +30,7 @@ const cache = new Map<LanguageCode, Translator>();
 export const translatorFor = (lang: LanguageCode | null): Translator => {
   if (!lang) return identity;
   let t = cache.get(lang);
-  if (!t) cache.set(lang, (t = makeTranslator(DICTS[lang])));
+  if (!t) cache.set(lang, (t = makeTranslator(lang === 'hi' ? { ...DICTS[lang], ...finishingHindi } : DICTS[lang])));
   return t;
 };
 
