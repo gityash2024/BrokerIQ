@@ -402,7 +402,7 @@ export class ListingsService {
   async revealContact(id: string, user?: RequestUser) {
     if (user) await this.access.assertAllowed(user, 'enquire');
     const app = await this.settings.getAppConfig();
-    if (app.listing.contactRevealRequiresLogin && !user) throw new ForbiddenException('Number देखने के लिए login करें');
+    if (!user) throw new ForbiddenException('Number देखने के लिए login करें');
     const l = await this.prisma.listing.findFirst({ where: { id, status: 'ACTIVE', deletedAt: null }, include: { organization: true, postedBy: true } });
     if (!l) throw new NotFoundException();
     // Firms using Exotel show their tracked ExoPhone: calls are recorded as leads and routed to an agent.

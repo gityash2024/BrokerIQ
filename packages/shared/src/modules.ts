@@ -66,14 +66,50 @@ const featurePaths: Record<string, [string[], string[]]> = {
 
 /** One registry drives web/native navigation, HTTP authorization and worker execution. */
 export const PLATFORM_MODULES: PlatformModule[] = [
-  core('today', 'Today • आज का काम', 'Follow-ups, visits and next actions', '/broker', ['/broker/dashboard'], ['/broker/dashboard', '/broker/today']),
-  core('directory','Area Directory • क्षेत्र निर्देशिका','Gurugram societies, apartments and commercial projects; map and list','/broker/inventory/directory',['/broker/inventory/directory'],['/area-directory']),
+  core(
+    'consumer',
+    'User marketplace • ग्राहक पोर्टल',
+    'Rental discovery, owner listings and customer journeys',
+    '/user',
+    ['/user', '/account', '/rent', '/commercial', '/property', '/localities', '/locality', '/post-property', '/brokers'],
+    [
+      '/listings',
+      '/enquiries',
+      '/chat',
+      '/me/dashboard',
+      '/me/saved-searches',
+      '/me/enquiries',
+      '/public/homepage',
+      '/public/stats',
+      '/public/suggest',
+      '/public/seo',
+      '/public/seo-combos',
+      '/public/contact',
+      '/brokers',
+    ],
+  ),
+  core(
+    'today',
+    'Today • आज का काम',
+    'Follow-ups, visits and next actions',
+    '/broker',
+    ['/broker/dashboard', '/broker/activity'],
+    ['/broker/dashboard', '/broker/today'],
+  ),
+  core(
+    'directory',
+    'Area Directory • क्षेत्र निर्देशिका',
+    'Gurugram societies, apartments and commercial projects; map and list',
+    '/broker/inventory/directory',
+    ['/broker/inventory/directory'],
+    ['/area-directory'],
+  ),
   core(
     'inventory',
     'Inventory • इन्वेंटरी',
     'Property ledger, units, contacts and source review',
     '/broker/inventory',
-    ['/broker/inventory', '/broker/scanner'],
+    ['/broker/inventory', '/broker/scanner', '/broker/listings'],
     ['/inventory', '/listings', '/ai/scan'],
     ['import.pdf'],
   ),
@@ -122,7 +158,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
   future('assistant', 'AI assistant', ['/assistant'], ['/assistant', '/ai']),
   future(
     'marketplace',
-    'Consumer marketplace',
+    'Future marketplace extensions',
     [
       '/account',
       '/buy',
@@ -151,21 +187,36 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     routes: featurePaths[f.key]?.[0] ?? [],
     api: featurePaths[f.key]?.[1] ?? [],
     jobs: [],
-    defaultState: 'COMING_SOON',
+    defaultState: ['tenant_requirements', 'slot_booking'].includes(f.key) ? 'ACTIVE' : 'COMING_SOON',
   })),
 ];
 
 export const defaultModulePolicies = (): ModulePolicies =>
-  Object.fromEntries(PLATFORM_MODULES.map((m) => [m.key, { state: m.defaultState, roles: ['SUPER_ADMIN', 'BROKER_ADMIN'] }]));
+  Object.fromEntries(
+    PLATFORM_MODULES.map((m) => [
+      m.key,
+      {
+        state: m.defaultState,
+        roles: [
+          'SUPER_ADMIN',
+          'BROKER_ADMIN',
+          ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
+        ] as ModulePolicy['roles'],
+      },
+    ]),
+  );
 const prefixMatches = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + '/') || (prefix.endsWith('.') && path.startsWith(prefix));
 export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'web'): string | null {
   const clean = path.split('?')[0].replace(/\/$/, '') || '/';
+  if (surface === 'web' && /^\/user\/account\/(flatmates|rent|agreements|invite)(\/|$)/.test(clean))
+    return ({ flatmates: 'flatmates', rent: 'rent_tracker', agreements: 'rent_agreement', invite: 'referrals' } as Record<string, string>)[clean.split('/')[3]];
   if (surface === 'web' && clean === '/broker') return 'today';
   if (
     surface === 'web' &&
     [
       '/login',
       '/register',
+      '/signup',
       '/forgot-password',
       '/invite',
       '/broker/settings',
@@ -207,11 +258,19 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
     (clean === '/me' || ['/me/push-tokens', '/me/notifications', '/me/uploads', '/me/privacy', '/me/consent'].some((p) => prefixMatches(clean, p)))
   )
     return null;
+  if (surface === 'api' && (clean === '/me/visits' || clean.startsWith('/me/visits/') || /^\/listings\/[^/]+\/(slots|book-visit)$/.test(clean)))
+    return 'slot_booking';
+  if (surface === 'api' && (clean === '/chat' || clean.startsWith('/chat/'))) return 'consumer';
+  if (surface === 'api' && clean.startsWith('/listings/ai/')) return 'assistant';
+  if (surface === 'api' && (clean === '/listings' || clean.startsWith('/listings/'))) return 'consumer';
+  if (surface === 'web' && (clean === '/user' || clean.startsWith('/user/'))) return 'consumer';
   const field = surface === 'api' ? 'api' : surface === 'job' ? 'jobs' : 'routes';
   const candidates = PLATFORM_MODULES.flatMap((m) => m[field].filter((p) => prefixMatches(clean, p)).map((p) => ({ key: m.key, length: p.length })));
   return candidates.sort((a, b) => b.length - a.length)[0]?.key ?? 'legacy';
 }
 export function moduleAllowed(policies: ModulePolicies | undefined, key: string, role: string) {
   const policy = policies?.[key] ?? defaultModulePolicies()[key];
-  return !!policy && policy.state === 'ACTIVE' && policy.roles.includes(role as ModulePolicy['roles'][number]);
+  return (
+    !!policy && policy.state === 'ACTIVE' && policy.roles.includes((role === 'PUBLIC' && key === 'consumer' ? 'USER' : role) as ModulePolicy['roles'][number])
+  );
 }

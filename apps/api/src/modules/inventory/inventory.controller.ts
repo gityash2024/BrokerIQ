@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { inventoryInputSchema, inventoryFilterSchema, availabilitySchema } from '@brokeriq/shared';
+import { inventoryInputSchema, inventoryFilterSchema, availabilitySchema, inventoryPublishSchema, type InventoryPublishInput } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { InventoryService } from './inventory.service';
@@ -49,8 +49,12 @@ export class InventoryController {
   @Delete(':id') delete(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.inventory.delete(id, user);
   }
-  @Post(':id/publish') publish() {
-    return this.inventory.publishToListing();
+  @Post(':id/publish') publish(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(inventoryPublishSchema)) body: InventoryPublishInput,
+  ) {
+    return this.inventory.publishToListing(id, body, user);
   }
   @Post('bulk') bulk(
     @Body(new ZodPipe(z.object({ items: z.array(inventoryInputSchema).min(1).max(500) }))) body: { items: CreateInventoryItemDto[] },

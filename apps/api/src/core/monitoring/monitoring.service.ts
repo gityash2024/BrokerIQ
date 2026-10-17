@@ -1,3 +1,4 @@
+import { errorOrigin } from '@brokeriq/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHash, randomBytes } from 'node:crypto';
@@ -55,6 +56,7 @@ export class MonitoringService {
 
   async record(r: ErrorReport) {
     try {
+      const classification = r.source === 'WEB' ? errorOrigin(r.stack) : 'FIRST_PARTY';
       const message = r.message.slice(0, 1000) || 'Unknown error';
       const fingerprint = MonitoringService.fingerprint({ ...r, message });
       const existing = await this.prisma.errorLog.findUnique({ where: { fingerprint } });
@@ -62,6 +64,7 @@ export class MonitoringService {
         ? await this.prisma.errorLog.update({
             where: { id: existing.id },
             data: {
+              classification,
               count: { increment: 1 },
               lastSeenAt: new Date(),
               resolvedAt: null,
@@ -72,6 +75,7 @@ export class MonitoringService {
         : await this.prisma.errorLog.create({
             data: {
               fingerprint,
+              classification,
               source: r.source,
               message,
               stack: r.stack?.slice(0, 8000),
@@ -82,6 +86,8 @@ export class MonitoringService {
               userAgent: r.userAgent?.slice(0, 300),
             },
           });
+      // Retain extension evidence without treating injected third-party code as a product incident.
+      if (classification === 'BROWSER_EXTENSION') return;
       // New, or came back after being marked resolved.
       if (!existing || existing.resolvedAt) {
         await this.alert(

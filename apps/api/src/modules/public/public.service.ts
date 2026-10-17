@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -18,7 +19,13 @@ export class PublicService {
 
   async config() {
     const [app, flags, integrations] = await Promise.all([this.settings.getAppConfig(), this.features.all(), this.settings.publicIntegrations()]);
-    return { app, flags, integrations, modules: await this.modules.all(), apiVersion: '2.1.0' };
+    const modules = await this.modules.all();
+    if (env().BROKER_FIRST) {
+      for (const key of Object.keys(flags)) if (modules[key] && modules[key].state !== 'ACTIVE') flags[key] = false;
+      const aliases: Record<string,string>={ai_assist:'assistant',chat:'consumer',reviews:'locality_reviews',projects:'sale_listings',boosts:'billing',commute:'legacy'};
+      for(const [flag,module] of Object.entries(aliases))flags[flag]=(flags[flag]??true)&&modules[module]?.state==='ACTIVE';
+    }
+    return { app, flags, integrations, modules, apiVersion: '2.1.0' };
   }
 
   async stats() {

@@ -23,3 +23,16 @@ test('coming soon, hidden and disallowed roles cannot enter active modules', () 
   policies.inventory.state = 'COMING_SOON';
   assert.equal(moduleAllowed(policies, 'inventory', 'BROKER_ADMIN'), false);
 });
+
+test('consumer access is explicit and does not reopen private or future modules', () => {
+  const p = defaultModulePolicies();
+  assert.equal(moduleForPath('/user/search'), 'consumer');
+  assert.equal(moduleAllowed(p, 'consumer', 'PUBLIC'), true);
+  assert.equal(moduleAllowed(p, 'consumer', 'USER'), true);
+  assert.equal(moduleForPath('/user/account/flatmates'), 'flatmates');
+  assert.equal(moduleAllowed(p, 'flatmates', 'USER'), false);
+  assert.equal(moduleAllowed(p, 'inventory', 'USER'), false);
+  assert.equal(moduleForPath('/listings/123/book-visit', 'api'), 'slot_booking');
+  p.consumer.state = 'HIDDEN';
+  assert.equal(moduleAllowed(p, 'consumer', 'PUBLIC'), false);
+});

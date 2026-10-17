@@ -72,17 +72,29 @@ export class AdminListingsController {
     const app = await this.settings.getAppConfig();
     const approve = body.action === 'approve';
     if (!approve && !body.reason) throw new BadRequestException('Reject का कारण लिखें');
-    const updated = await this.prisma.listing.update({
-      where: { id },
-      data: approve
-        ? {
-            status: 'ACTIVE',
-            rejectionReason: null,
-            moderationFlags: [],
-            publishedAt: l.publishedAt ?? new Date(),
-            expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000),
-          }
-        : { status: 'REJECTED', rejectionReason: body.reason },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const origin = await tx.inventoryItem.findFirst({ where: { publishedListingId: id } });
+      if (origin) {
+        await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${origin.id} FOR UPDATE`;
+        const current = await tx.inventoryItem.findUniqueOrThrow({ where: { id: origin.id } });
+        if (approve && (current.deletedAt || current.availability !== 'AVAILABLE' || current.status !== 'ACTIVE' || current.purpose !== 'RENT'))
+          throw new BadRequestException('The linked rental is no longer confirmed available.');
+      }
+      const currentListing = await tx.listing.findUniqueOrThrow({ where: { id } });
+      if (currentListing.deletedAt || currentListing.status !== 'PENDING_REVIEW')
+        throw new BadRequestException('Only a pending listing can be reviewed. Reload the queue.');
+      return tx.listing.update({
+        where: { id },
+        data: approve
+          ? {
+              status: 'ACTIVE',
+              rejectionReason: null,
+              moderationFlags: [],
+              publishedAt: l.publishedAt ?? new Date(),
+              expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000),
+            }
+          : { status: 'REJECTED', rejectionReason: body.reason },
+      });
     });
     const link = approve
       ? `${env().PUBLIC_WEB_URL}/property/${l.slug}`

@@ -21,5 +21,7 @@ export * from './capture';
 
 export * from './property-fields';
 
-export * from "./directory-map";
+export * from './directory-map';
 export * from './design';
+export * from './publishing';
+export * from './dashboard';

@@ -787,6 +787,7 @@ model Amenity {
 // ============================================================ Marketplace
 
 model Listing {
+  inventoryOrigin InventoryItem? @relation("InventoryPublicListing")
   blockedReason     String?
   blockedAt         DateTime?
   blockedById       String?
@@ -2160,6 +2161,7 @@ enum ErrorSource {
  * Grouped runtime errors (API 5xx, web/app crashes). Same fingerprint = same row with a counter.
  */
 model ErrorLog {
+  classification String @default("FIRST_PARTY")
   id          String      @id @default(cuid())
   fingerprint String      @unique
   source      ErrorSource
@@ -2450,13 +2452,14 @@ model InventoryItem {
   clientMutationId   String?
   deletedAt          DateTime?
   isPublished        Boolean   @default(false)
-  publishedListingId String?
+  publishedListingId String? @unique
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
+  publishedListing Listing? @relation("InventoryPublicListing", fields:[publishedListingId], references:[id], onDelete:SetNull)
   contacts InventoryContact[]
   sourceEntry SourceEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: Restrict)
   @@unique([sourceEntryId, sourceUnitKey])

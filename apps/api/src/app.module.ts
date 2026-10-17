@@ -1,3 +1,4 @@
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FeatureGuard } from './common/guards/feature.guard';
 import { ModuleGuard } from './common/guards/module.guard';
 import { Module } from '@nestjs/common';
@@ -53,6 +54,7 @@ import { isInternalCall } from './common/internal';
     ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }], skipIf: (ctx) => isInternalCall(ctx.switchToHttp().getRequest()) }),
     PrismaModule,
     CoreModule,
+    DashboardModule,
     AuthModule,
     MeModule,
     HealthModule,

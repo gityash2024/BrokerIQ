@@ -12,7 +12,6 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 export class EnquiriesController {
   constructor(private readonly enquiries: EnquiriesService) {}
 
-  @Public()
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post()
   create(@Body(new ZodPipe(enquirySchema)) body: z.infer<typeof enquirySchema>, @CurrentUser() user?: RequestUser) {

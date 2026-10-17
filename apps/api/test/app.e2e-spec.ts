@@ -38,6 +38,7 @@ describe('BrokerIQ API (e2e)', () => {
     configureApp(app);
     await app.init();
     prisma = app.get(PrismaService);
+    await prisma.featureFlag.upsert({ where: { key: 'sale_listings' }, create: { key: 'sale_listings', enabled: false }, update: { enabled: false } });
     http = request(app.getHttpServer());
     // These suites create broker firms directly; open signup (default is invite-only).
     await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);
@@ -284,7 +285,7 @@ describe('BrokerIQ API (e2e)', () => {
 
   it('enquiry becomes a CRM lead and repeat enquiries merge by phone', async () => {
     await http.post('/api/enquiries').set(auth(user.token)).send({ listingId, name: 'Neha', phone: '98111 00001', message: 'Visit on Sunday?' }).expect(201);
-    await http.post('/api/enquiries').send({ listingId, name: 'Neha B', phone: '+91-9811100001' }).expect(201);
+    await http.post('/api/enquiries').set(auth(user.token)).send({ listingId, name: 'Neha B', phone: '+91-9811100001' }).expect(201);
     const leads = await http.get('/api/leads').set(auth(brokerA.token)).expect(200);
     const mine = leads.body.items.filter((x: any) => x.phone === '+919811100001');
     expect(mine).toHaveLength(1);

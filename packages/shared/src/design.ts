@@ -13,3 +13,10 @@ export function floorLabel(value: string | null | undefined): string {
   if (/^\d+$/.test(value)) return `${value}${value === '1' ? 'st' : value === '2' ? 'nd' : value === '3' ? 'rd' : 'th'} floor`;
   return value.replace(/_/g, ' ');
 }
+/** Extension-only stacks are external; any mixed/app/unknown frame remains first-party. */
+export function errorOrigin(stack?: string | null): 'FIRST_PARTY' | 'BROWSER_EXTENSION' {
+  const frames = (stack ?? '').split('\n').filter((line) => /^\s*at\s/.test(line));
+  return frames.length > 0 && frames.every((line) => /\b(?:chrome|moz|safari-web)-extension:\/\//.test(line) && !/https?:\/\//.test(line))
+    ? 'BROWSER_EXTENSION'
+    : 'FIRST_PARTY';
+}

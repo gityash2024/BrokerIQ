@@ -26,18 +26,33 @@ export const inventoryInputSchema = z
   .object({
     clientMutationId: z.string().max(100).optional(),
     details: propertyDetailsSchema.optional(),
-    photoUrls: z.array(z.string().url().max(2000).refine((s)=>/^https?:\/\//.test(s),'Use HTTP or HTTPS media URLs')).max(50).optional(),
-    videoUrls: z.array(z.string().url().max(2000).refine((s)=>/^https?:\/\//.test(s),'Use HTTP or HTTPS media URLs')).max(10).optional(),
+    photoUrls: z
+      .array(
+        z
+          .string()
+          .url()
+          .max(2000)
+          .refine((s) => /^https?:\/\//.test(s), 'Use HTTP or HTTPS media URLs'),
+      )
+      .max(50)
+      .optional(),
+    videoUrls: z
+      .array(
+        z
+          .string()
+          .url()
+          .max(2000)
+          .refine((s) => /^https?:\/\//.test(s), 'Use HTTP or HTTPS media URLs'),
+      )
+      .max(10)
+      .optional(),
     sector: text,
     houseNo: text,
     address: z.string().max(1000).nullable().optional(),
     unitLabel: text,
     ownerName: text,
     ownerPhone: text,
-    propertyType: z
-      .enum(INVENTORY_PROPERTY_TYPES)
-      .nullable()
-      .optional(),
+    propertyType: z.enum(INVENTORY_PROPERTY_TYPES).nullable().optional(),
     category: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']).nullable().optional(),
     purpose: z.enum(['RENT', 'SALE']).nullable().optional(),
     bhk: z.number().int().min(1).max(100).nullable().optional(),
@@ -77,12 +92,16 @@ export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const inventoryFilterSchema = z.object({
   detailFilters: z.string().max(12000).optional(),
   amenities: z.string().max(2000).optional(),
-  hasPhotos: z.enum(['true','false']).optional(),hasVideos:z.enum(['true','false']).optional(),
-  verificationStatus:z.enum(['VERIFIED','NEEDS_REVIEW']).optional(),
-  localities:z.string().max(4000).optional(),propertyTypes:z.string().max(2000).optional(),
-  floor:z.string().max(200).optional(),roomKinds:z.string().max(100).optional(),
-  minRate:z.coerce.number().nonnegative().optional(),maxRate:z.coerce.number().nonnegative().optional(),
-  sort:z.string().max(100).optional(),
+  hasPhotos: z.enum(['true', 'false']).optional(),
+  hasVideos: z.enum(['true', 'false']).optional(),
+  verificationStatus: z.enum(['VERIFIED', 'NEEDS_REVIEW']).optional(),
+  localities: z.string().max(4000).optional(),
+  propertyTypes: z.string().max(2000).optional(),
+  floor: z.string().max(200).optional(),
+  roomKinds: z.string().max(100).optional(),
+  minRate: z.coerce.number().nonnegative().optional(),
+  maxRate: z.coerce.number().nonnegative().optional(),
+  sort: z.string().max(100).optional(),
 
   search: z.string().max(200).optional(),
   sector: z.string().max(100).optional(),
@@ -137,6 +156,9 @@ export const brokerRequirementSchema = z
   });
 export type BrokerRequirementInput = z.infer<typeof brokerRequirementSchema>;
 export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
+  localityId?: string | null;
+  publishedListingId?: string | null;
+  isPublished?: boolean;
   id: string;
   organizationId: string;
   revision: number;
@@ -200,9 +222,14 @@ export function ledgerMatch(requirement: BrokerRequirementInput, item: Inventory
   return { reasons, availability: item.availability ?? 'UNKNOWN' };
 }
 
-export function inventoryDerived(input: Record<string,any>) {
- const price=input.purpose==='RENT'?input.monthlyRent??input.rent:input.purpose==='SALE'?input.totalSalePrice:null;
- const size=input.area!=null&&input.areaUnit?areaSqft(Number(input.area),input.areaUnit):null;
- const rate=input.ratePerArea!=null&&input.rateAreaUnit?Number(input.ratePerArea)/areaSqft(1,input.rateAreaUnit)!:size&&price!=null?Number(price)/size:null;
- return {price:price==null?null:Number(price),ratePerSqft:rate};
+export function inventoryDerived(input: Record<string, any>) {
+  const price = input.purpose === 'RENT' ? (input.monthlyRent ?? input.rent) : input.purpose === 'SALE' ? input.totalSalePrice : null;
+  const size = input.area != null && input.areaUnit ? areaSqft(Number(input.area), input.areaUnit) : null;
+  const rate =
+    input.ratePerArea != null && input.rateAreaUnit
+      ? Number(input.ratePerArea) / areaSqft(1, input.rateAreaUnit)!
+      : size && price != null
+        ? Number(price) / size
+        : null;
+  return { price: price == null ? null : Number(price), ratePerSqft: rate };
 }
