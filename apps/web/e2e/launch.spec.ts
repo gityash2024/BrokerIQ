@@ -68,6 +68,9 @@ test('admin module toggle blocks direct route and restores navigation', async ({
   } finally {
     await request.patch(`${API}/admin/modules/inventory`, { headers, data: { state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] } });
   }
+  await page.goto('/admin/settings');
+  await expect(page).toHaveURL(/\/admin\/settings\/integrations/);
+  await expect(page.getByRole('heading', { name: 'Credentials center' })).toBeVisible();
   await page.goto('/admin/modules');
   await expect(page.getByRole('heading', { name: 'Modules & permissions', exact: true })).toBeVisible();
 });
