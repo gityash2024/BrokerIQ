@@ -1,4 +1,5 @@
 'use client';
+import { ApiErrorState } from '@/components/ui/api-error';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -63,6 +64,8 @@ export default function SavedPage() {
             <ListingCardSkeleton key={i} />
           ))}
         </div>
+      ) : q.isError ? (
+        <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data?.length ? (
         <Empty
           icon={<Heart className="size-6" />}

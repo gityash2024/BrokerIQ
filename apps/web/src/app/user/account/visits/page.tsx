@@ -1,4 +1,5 @@
 'use client';
+import { ApiErrorState } from '@/components/ui/api-error';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck, MessageCircle, Phone, Wallet } from 'lucide-react';
@@ -24,6 +25,8 @@ export default function MyVisitsPage() {
       <h2 className="mb-3 font-display text-lg font-bold">Site visits</h2>
       {visits.isLoading ? (
         <Skeleton className="h-32" />
+      ) : visits.isError ? (
+        <ApiErrorState error={visits.error} onRetry={() => visits.refetch()} />
       ) : !visits.data?.length ? (
         <Empty
           icon={<CalendarCheck className="size-6" />}

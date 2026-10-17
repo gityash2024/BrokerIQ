@@ -1,4 +1,5 @@
 'use client';
+import { ApiErrorState } from '@/components/ui/api-error';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +20,13 @@ function Inner() {
   return (
     <>
       <PageHeader title="Messages" subtitle="Brokers के साथ आपकी बातचीत" />
-      {!q.data?.length ? (
+      {q.isError ? (
+        <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
+      ) : q.isPending ? (
+        <p className="py-8 text-sm text-muted" role="status">
+          Loading…
+        </p>
+      ) : !q.data?.length ? (
         <Empty
           icon={<MessagesSquare className="size-6" />}
           title="कोई conversation नहीं"

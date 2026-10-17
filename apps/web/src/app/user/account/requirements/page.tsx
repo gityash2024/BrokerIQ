@@ -1,4 +1,5 @@
 'use client';
+import { ApiErrorState } from '@/components/ui/api-error';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -37,6 +38,8 @@ function RequirementsInner() {
       />
       {list.isLoading ? (
         <Skeleton className="h-40" />
+      ) : list.isError ? (
+        <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : !list.data?.length ? (
         <Empty
           icon={<ClipboardList className="size-6" />}
@@ -88,6 +91,8 @@ function RequirementsInner() {
             <p className="mb-3 font-display font-bold">Matching properties {matches.data ? `(${matches.data.length})` : ''}</p>
             {matches.isLoading ? (
               <Skeleton className="h-64" />
+            ) : matches.isError ? (
+              <ApiErrorState error={matches.error} onRetry={() => matches.refetch()} />
             ) : !matches.data?.length ? (
               <Empty title="अभी कोई matching property नहीं" text="जैसे ही आएगी, हम बताएँगे।" />
             ) : (

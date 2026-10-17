@@ -1,4 +1,5 @@
 'use client';
+import { ApiErrorState } from '@/components/ui/api-error';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -36,7 +37,13 @@ function Inner() {
           />
         }
       />
-      {!q.data?.length ? (
+      {q.isError ? (
+        <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
+      ) : q.isPending ? (
+        <p className="py-8 text-sm text-muted" role="status">
+          Loading…
+        </p>
+      ) : !q.data?.length ? (
         <Empty icon={<Send className="size-6" />} title={tab === 'sent' ? 'अभी कोई enquiry नहीं भेजी' : 'अभी कोई enquiry नहीं आई'} />
       ) : (
         <div className="space-y-3">
