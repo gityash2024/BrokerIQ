@@ -1,57 +1,58 @@
-# BrokerIQ — release handoff, 16 अक्टूबर 2026
+# BrokerIQ — Enterprise release handoff, 17 अक्टूबर 2026
 
-Broker-first implementation और fresh database staging पर live हैं। पूरी production acceptance अभी बाकी है: handwritten register की unresolved entries, live providers और physical Android device की जाँच खुली है।
+नया consumer portal, unified branding और Admin/Broker/User dashboards staging पर उपलब्ध हैं। Production acceptance अभी बंद नहीं है: physical Android device, live provider delivery/sync और unresolved register entries की जाँच बाकी है।
 
 | उपयोग | लिंक |
 |---|---|
-| Website | https://brokeriq.mymultimeds.com |
-| Panel login | https://brokeriq.mymultimeds.com/login |
-| Super Admin integrations | https://brokeriq.mymultimeds.com/admin/settings |
-| Broker inventory | https://brokeriq.mymultimeds.com/broker/inventory |
+| Landing | https://brokeriq.mymultimeds.com |
+| User Portal | https://brokeriq.mymultimeds.com/user |
+| Broker Portal | https://brokeriq.mymultimeds.com/broker |
+| Super Admin | https://brokeriq.mymultimeds.com/admin |
+| Signed Android v2.1.0 build22 | https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build22.apk |
 | API health | https://brokeriqapi.mymultimeds.com/api/health |
-| Signed Android APK | https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.0.0-build16.apk |
 
-Accounts: `yash@brokeriq.com` → SUPER_ADMIN; `rahul@brokeriq.com` → BROKER_ADMIN, Olive State। Passwords private bootstrap से लगाए गए हैं; इस document/Git में नहीं रखे गए। Public signup बंद है।
+`yash@brokeriq.com` Super Admin और `rahul@brokeriq.com` Olive State Broker Admin हैं। Existing passwords बदले नहीं गए हैं; वे Git में नहीं रखे गए। Customer signup खुला है; Broker onboarding invitation से है।
 
-## तैयार workflows
+## तैयार व्यवहार
 
-Web/Android के पाँच sections: आज का काम, Inventory, Leads & Requirements, Inbox, Automation & Housing। Area Directory Inventory के अंदर है। Shared module permissions navigation, direct routes, APIs और jobs पर लागू हैं; future modules का code सुरक्षित है और upcoming catalog disabled है।
+Landing, web panels और Android में indigo/saffron और house identity लागू है। `/user` पर residential rent, PG और commercial rent flows हैं। पुराने `/rent`, `/property/...` और `/account/...` links canonical routes पर जाते हैं। Future modules disabled हैं; Broker/Admin की पाँच मुख्य sections बनी हुई हैं।
 
-Inventory में typed rent/sale prices, area units, multiple contacts/units, shared filters, pagination, controlled bulk updates और source-linked review है। Incoming text/image/chat exports durable queue में जाते हैं; broker approval के बाद records बनते हैं। Review में default “Pending only” है; “All entries” से approved/history records मिलते हैं। Offline drafts/imports SQLite में account के अनुसार सुरक्षित हैं। Landing page actual app screenshots, login और signed APK देता है।
+Private inventory अपने-आप public नहीं होती। Confirmed availability और explicit public preview के बाद submission PENDING_REVIEW होता है; Admin approval पर public होता है। Raw register, private contacts और internal notes copy नहीं होते। Linked inventory unavailable/archived होने पर public listing हटती है।
 
-## Register evidence
-
-सभी 117 pages की पहली visual transcription: **1,933 source groups → 851 approved groups → 895 ledger records**। **1,051 groups अभी unresolved**; 16 groups repeated scan के हैं और दूसरी inventory नहीं बनाते। Today के 1,053 pending groups में PDF के 1,051 तथा दो अन्य वास्तविक Share/Paste captures शामिल हैं। आपके निर्देश पर पेज 84 के 15 groups skip हैं; उसका एक पुराना record recoverably archived है और source सुरक्षित है। सभी imported records की current availability UNKNOWN है। यह unique physical properties का अंतिम count नहीं है और पुराने 1,698 count से जबरन नहीं मिलाया गया है।
-
-पेज 8 Sri Lanka / Sector 43; पेज 17 top Sector43 और body Sector28; Pragati Vihar / DLF Phase4; पेज24 divider के बाद और pages25–27 Sushant Lok1; pages42–46 Sector57 की confirmations लागू हैं। BHK+1 एक additional room/space है; उसका उपयोग अनिश्चित रहता है। TF का अर्थ Top Floor है, कोई numeric level नहीं। CNP historical Call Not Picked है। NC/PD से structured facts नहीं बनते।
-
-[पूरी per-page reconciliation](REGISTER_RECONCILIATION.md) और [PII-free counts](evidence/register-reconciliation-20261016.json) देखें। Original PDF, images, crops, raw transcription और correction/audit history private हैं। बाद की broker corrections replay पर overwrite नहीं होतीं।
+Dashboards वास्तविक counts/charts, 7/30/90/custom dates, IST boundaries, current-vs-period labels और scoped drilldowns देते हैं। Empty activity को fabricated trend/growth से नहीं भरा गया है।
 
 ## सत्यापन
 
-- Shared tests: 23 passed। Full API suite: 123 passed, 12 skipped; broker-first/recovery suites: 15 passed। Workspace typechecks और production API/web builds पास। Latest app deployment: `e7b163d`; source-review CLI: `49bbbc9`।
-- सभी 117 pages के replay ने zero new approvals/duplicates बनाए। Context amendment replays भी no-op रहे। Latest HTTPS smoke में Inventory/Today/database के counts 895 मिले; broker→admin और disabled module 403, unauthenticated source 401 मिला।
-- पाँच confirmed Top Floor entries में numeric floor नहीं बनाया गया। दोनों initial roles और सभी user-confirmed locality corrections database में जाँची गईं।
-- Latest runtime पर isolated PostgreSQL और enabled queue के साथ सभी 12 Playwright journeys पास। Android emulator checks: Hindi/English login, native text/image sharing, filter safe area, directory map/list, offline draft recovery after restart। Build15 के live PDF review में pending/all counts 1,065/1,933 (पेज84 skip से पहले) और Hindi/English labels जाँचे गए। Build16 इसी UI का permission cleanup है; overlay/contacts/location/microphone permissions APK manifest में absent हैं। Build16 पर cold restart के बाद authenticated source view और पेज84 skip के बाद 1,051 pending groups भी जाँचे गए। Physical Android device अभी नहीं जाँचा गया है।
-- Housing/WhatsApp के real credentials अभी नहीं मिले। Real sync और authorized test-number send/receive/delivery का दावा नहीं है। Missing configuration visible है; paid AI fallback नहीं है।
-- Directory: 2,102 source identities, 1,237 mapped; यह unique societies की exhaustive सूची नहीं है। [Sources और limitations](DIRECTORY_SOURCES.md)।
+- Shared tests: 28 passed। Full API: 124 passed, 18 conditionally skipped (ये BROKER_FIRST=true वाले अलग run में पास हैं)। BROKER_FIRST boundary/recovery run: 21 passed। Mobile unit: 9 passed। Playwright: 8 passed।
+- Workspace typechecks, production API/web builds, Expo export और signed Android builds पास। Live browser checks में desktop/390px Admin/Broker dashboards, landing और consumer searches पर zero captured page exceptions/unexpected API failures मिले।
+- Emulator पर existing install का upgrade हुआ; uninstall/data-clear नहीं किया गया। पुराने encrypted draft की state/values सुरक्षित रहीं; airplane mode में force-stop/restart के बाद restore जाँचा गया। Native User/Broker modes और dashboard navigation जाँचे गए। Hindi/English dashboard, dark theme और 1.3 font scale emulator पर जाँचे गए; OS preferences वापस की गईं। Physical-device acceptance अलग pending है।
+- Screenshot वाला M_ID stack browser extension का है। Original error/notification/history retained हैं; exact historical record audit के साथ external origin में classified है। Application और mixed stacks की reporting चालू है।
+- Native cold-start regression में navigator को permission gate से बार-बार unmount करने वाला loop reproduce हुआ। Gate अब screen content पर है; navigator mounted रहता है। Build22 पर repeated cold starts, tabs और offline draft recovery दोबारा जाँचे गए। Account switching पर in-memory queries साफ़ होती हैं; disk drafts सुरक्षित रहते हैं।
+- एक full rerun में आए transport failures के बाद test listeners स्थिर किए गए। Shutdown race में pending notifications से पहले DB बंद हो रहा था; handler draining और delayed Prisma disconnect के बाद final full suite में वह error नहीं आया।
 
-APK build16 SHA256:
+APK SHA256:
 
 ```text
-ef2bd27e235b88b014bf229a68d44637bbb9b2f0b611d90f051274f14295fc33
+5f82a30704600025b6ac1f08e84f0f9bad3a0802a0be2aebdb03b202b24ed68e
 ```
 
-Password recovery में single-use OTP consumption, capped attempts, atomic password/refresh revocation और session versions जाँचे गए हैं। पुराने access/refresh tokens तथा sockets reset के बाद बंद होते हैं; current login चलता है। Socket rooms वर्तमान firm/role से तय होते हैं। Email delivery के लिए configured SMTP जरूरी है; provider delivery इस isolated test का हिस्सा नहीं है।
+Signing certificate SHA256: `d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce` — पिछले builds वाला ही certificate। Package `com.brokeriq.app`, minSdk24, targetSdk36; contacts/location/microphone/overlay permissions absent हैं।
 
-## Backup और recovery
+## Data, backup और rollback
 
-Verified server checkpoint: `/opt/brokeriq/backups/checkpoints/20261016-175009-broker-first`। इसमें 895 active ledger records तथा पेज84 का archived record, encrypted DB/secrets/source, private media और सभी register inputs/operator amendments हैं। वास्तविक scratch restore में exact table counts मिले; media तथा decrypted/extracted register evidence के SHA256 मिले। `RESTORE_VERIFIED.txt` और `SHA256SUMS` प्रमाण हैं।
+Staging validation: 895 active private inventory, 1 soft-archived record, 0 public rentals और 1,053 pending source reviews। Page84 skip, original PDF/crops/transcriptions, correction history और SQLCipher drafts सुरक्षित हैं। Area Directory: 2,102 source identities / 1,237 mapped; exhaustive unique-project coverage का दावा नहीं है।
 
-Off-server encrypted copy: `~/Library/Application Support/BrokerIQ/backups/20261016-175009-broker-first`। सभी 129 manifest files के SHA256 और exact table-count evidence स्थानीय copy में मिले। Backup decryption key इस directory में नहीं रखी गई है। Local copy पर encrypted secrets archive की readability भी जाँची गई; पूरा off-server database restore नहीं चलाया गया। वास्तविक restore server के isolated scratch database में किया गया था।
+Pre-release checkpoint `/opt/brokeriq/backups/checkpoints/20261017-015455-broker-first` में encrypted DB/secrets/source/register evidence और media हैं। Scratch restore में table counts और active media/source hashes मिले। Private off-host copy का checksum अलग verify किया गया; अलग host पर full application restore अभी प्रमाणित नहीं है।
 
-Deploy, non-live restore और पुराने pre-cutover state पर rollback के निर्देश [DEPLOYMENT.md](DEPLOYMENT.md) में हैं। पुराने `/opt/brokeriq/app` और original database सुरक्षित हैं। केवल BrokerIQ paths/processes बदले गए हैं। [Cleanup manifest](CLEANUP_MANIFEST.md) में private archive और पुराने APKs का विवरण है।
+Additive migrations: `20261017001000_consumer_enterprise` (nullable unique inventory–listing relation, indexes, approved modules) और `20261017002000_error_attribution` (classification)। Destructive reset/drop नहीं चला। Runtime changes केवल `/opt/brokeriq`, `brokeriq-api`, `brokeriq-web` तक सीमित हैं।
 
-## बची हुई acceptance
+Rollback: checkpoint का code commit और encrypted secrets सुरक्षित हैं। केवल BrokerIQ के API/web processes रोककर उसी release/config को restore करें; schema additions रहने दें। DB restore सामान्य code rollback का हिस्सा नहीं है—नई user writes होने पर पहले incremental export/reconciliation करें। जरूरत पड़ने पर checkpoint restore को पहले scratch DB में जाँचें। पुराने build16 को upgrade fallback के रूप में सुरक्षित रखा गया है; app uninstall न करें।
 
-Register review queue में unclear digits, unit boundaries, conflicting prices और possible repeated-property observations की पुष्टि करें। User Settings में provider credentials जोड़ेंगे और WhatsApp test recipient की स्पष्ट अनुमति देंगे। Physical Android device पर installation और पाँचों workflows का acceptance बाकी है। इन सीमाओं के रहते release को पूरी तरह production-verified न मानें।
+## बाकी acceptance gates
+
+- Housing credentials से real sync; WhatsApp credentials और explicitly authorized recipient से send/receive/delivery। इस release में किसी real recipient को test message नहीं भेजा गया।
+- SMTP-dependent password recovery/email delivery और enabled optional providers की live verification। Missing credentials UI में स्पष्ट हैं।
+- Physical Android device पर install/upgrade, sharing/camera, keyboard/font scaling, reconnect/queued operations और Hindi/light/dark की जाँच।
+- 1,053 uncertain source entries का broker review और public publishing से पहले availability/details confirmation।
+
+Before/after screenshots और local verification artifacts `releases/enterprise-evidence/` में हैं; मशीन paths, raw register files और private credentials public landing पर नहीं हैं। [Implementation detail](ENTERPRISE_IMPLEMENTATION.md), [release evidence](evidence/enterprise-release-20261017.json) और [register reconciliation](REGISTER_RECONCILIATION.md) साथ उपलब्ध हैं।

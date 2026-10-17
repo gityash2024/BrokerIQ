@@ -67,3 +67,6 @@ apps/mobile/ios/
 # Playwright
 test-results/
 playwright-report/
+
+# Local signed releases, screenshots and verification bundles (private handoff artifacts)
+/releases/

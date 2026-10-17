@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-17",
+  "environment": "staging",
+  "implementationCommit": "1ec87b6",
+  "android": {
+    "version": "2.1.0",
+    "build": 22,
+    "package": "com.brokeriq.app",
+    "sha256": "5f82a30704600025b6ac1f08e84f0f9bad3a0802a0be2aebdb03b202b24ed68e",
+    "signingCertificateSha256": "d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce",
+    "url": "https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build22.apk",
+    "upgrade": "adb install -r; no uninstall or data clear",
+    "physicalDevice": "pending",
+    "sourceCommit": "83fd5fa"
+  },
+  "checks": {
+    "shared": {
+      "passed": 28
+    },
+    "fullApi": {
+      "passed": 124,
+      "skipped": 18,
+      "skipReason": "18 BROKER_FIRST-only cases run separately in the 21-pass boundary/recovery suite"
+    },
+    "brokerFirstBoundaries": {
+      "passed": 21
+    },
+    "mobileUnit": {
+      "passed": 9
+    },
+    "playwright": {
+      "passed": 8
+    },
+    "workspaceTypechecks": "passed",
+    "productionBuilds": "API/web/Android passed",
+    "liveBrowser": "landing, consumer rental/commercial search, Admin/Broker desktop and 390px; no captured page exceptions or unexpected API failures",
+    "native": {
+      "build": 22,
+      "repeatedColdStarts": 3,
+      "brokerAndConsumerModes": "verified",
+      "hindiDashboard": "verified",
+      "offlineDraftRestart": "verified on final build22",
+      "display": "Hindi and English dashboard, dark theme and 1.3 font scale verified on emulator; original OS preferences restored"
+    },
+    "openFirstPartyErrors": 0,
+    "apkPublicDownload": "full HTTPS download SHA256 matched the signed local artifact"
+  },
+  "data": {
+    "activePrivateInventory": 895,
+    "softArchivedInventory": 1,
+    "publicRentals": 0,
+    "sourceEntriesAwaitingReview": 1053,
+    "page84": "remains skipped"
+  },
+  "backup": {
+    "checkpoint": "/opt/brokeriq/backups/checkpoints/20261017-015455-broker-first",
+    "scratchRestore": "exact table counts, media and register source checksums verified",
+    "offHostCopy": "129 checksum entries passed",
+    "separateHostFullApplicationRestore": "not verified"
+  },
+  "errors": {
+    "M_ID": "verified extension-only stack; original record retained and reclassified with audit",
+    "nativeColdStart": "navigator unmount loop reproduced during build21 verification; fixed by screen-layout access gates in build22",
+    "shutdown": "pending domain handlers drained before Prisma disconnect; final full API run has no shutdown race error"
+  },
+  "externalAcceptance": [
+    "physical Android device",
+    "Housing live sync credentials",
+    "WhatsApp credentials and an explicitly authorized test recipient",
+    "SMTP/provider delivery",
+    "uncertain source-entry review and property availability confirmation"
+  ]
+}
