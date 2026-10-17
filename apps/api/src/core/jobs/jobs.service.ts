@@ -103,7 +103,7 @@ export class JobsService implements OnModuleDestroy {
     // A crashed outbound send can already have reached the provider. Exhausted jobs
     // require review rather than an automatic second delivery.
     await this.prisma.$executeRaw(Prisma.sql`
-      UPDATE "Job" SET status = CASE WHEN attempts >= "maxAttempts" THEN 'FAILED' ELSE 'PENDING' END,
+      UPDATE "Job" SET status = (CASE WHEN attempts >= "maxAttempts" THEN 'FAILED' ELSE 'PENDING' END)::"JobStatus",
         "lastError" = 'Worker interrupted; inspect provider status before retrying outbound delivery',
         "lockedAt" = NULL, "updatedAt" = now()
       WHERE status = 'RUNNING' AND "lockedAt" < now() - interval '10 minutes'`);
