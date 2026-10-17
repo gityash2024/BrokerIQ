@@ -26,8 +26,8 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 17,
-    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1D2530' },
+    versionCode: 18,
+    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
     blockedPermissions: [
       'android.permission.SYSTEM_ALERT_WINDOW',
@@ -71,7 +71,7 @@ const config: ExpoConfig = {
       { contactsPermission: 'आपकी अनुमति से BrokerIQ admin आपके contacts तक rental services पहुँचा सके — कोई broker या user इन्हें नहीं देख सकता।' },
     ],
     ['expo-notifications', { color: '#4F46E5' }],
-    ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 220, resizeMode: 'contain', backgroundColor: '#1D2530' }],
+    ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 220, resizeMode: 'contain', backgroundColor: '#4F46E5' }],
     'expo-font',
     // Voice input for the in-app AI assistant.
     ['expo-audio', { microphonePermission: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।' }],
