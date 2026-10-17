@@ -1,3 +1,6 @@
+import { useConfig } from '@/lib/config';
+import { moduleAllowed } from '@brokeriq/shared';
+import { NativeScreenLayout } from '@/launch/module-gate';
 import { useAuth } from '@/lib/auth';
 import { Tabs } from 'expo-router/js-tabs';
 import { useQuery } from '@tanstack/react-query';
@@ -8,16 +11,24 @@ import type { ChatThreadSummary, NotificationsResponse } from '@brokeriq/shared'
 
 export default function UserTabs() {
   const { user } = useAuth();
-  const threads = useQuery({ queryKey: ['chat-threads'], queryFn: () => api<ChatThreadSummary[]>('/chat/threads'), enabled: !!user, refetchInterval: 60_000 });
+  const config = useConfig();
+  const permitted = !!user && config.loaded && moduleAllowed(config.modules, 'consumer', user.role);
+  const threads = useQuery({
+    queryKey: ['chat-threads'],
+    queryFn: () => api<ChatThreadSummary[]>('/chat/threads'),
+    enabled: permitted,
+    refetchInterval: 60_000,
+  });
   const notif = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api<NotificationsResponse>('/me/notifications'),
-    enabled: !!user,
+    enabled: permitted,
     refetchInterval: 60_000,
   });
   const unread = (threads.data ?? []).filter((t) => t.lastInboundAt && t.lastMessageAt && t.lastMessageAt !== t.lastInboundAt).length;
   return (
     <Tabs
+      screenLayout={NativeScreenLayout}
       screenOptions={{ headerShown: false }}
       tabBar={(p) => <TabBar {...p} badges={{ messages: unread || undefined, profile: notif.data?.unreadCount || undefined }} />}
     >

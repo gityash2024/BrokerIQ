@@ -23,7 +23,7 @@ import { registerPush } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
 import { Button, Toaster, Txt } from '@/ui';
 import { DraftPump } from '@/launch/draft-pump';
-import { NativeModuleGate } from '@/launch/module-gate';
+import { NativeScreenLayout } from '@/launch/module-gate';
 import { LanguageSuggestion } from '@/components/language';
 import { loadLang } from '@/lib/lang';
 import { installGlobalErrorHandler } from '@/lib/report-error';
@@ -102,16 +102,17 @@ export default function RootLayout() {
         <QueryClientProvider client={qc}>
           <StatusBar style={isDark ? 'light' : 'dark'} />
           <Gate>
-            <NativeModuleGate>
-              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-                <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-                <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
-                <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
-              </Stack>
-            </NativeModuleGate>
+            <Stack
+              screenLayout={NativeScreenLayout}
+              screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+              <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+              <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
+            </Stack>
           </Gate>
           <DraftPump />
           <LanguageSuggestion />

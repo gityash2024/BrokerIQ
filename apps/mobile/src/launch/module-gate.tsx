@@ -32,8 +32,14 @@ function keyFor(path: string) {
   if (/^\/(automations|connectors)(\/|$)/.test(path)) return 'automation';
   return path === '/dashboard' ? 'today' : (moduleForPath(path, 'web') ?? 'legacy');
 }
-export function NativeModuleGate({ children }: { children: React.ReactNode }) {
-  const path = usePathname();
+export function NativeScreenLayout({ children, route }: { children: React.ReactNode; route: { name: string } }) {
+  // Navigators retain their state while individual protected screen content waits for policy.
+  if (route.name.startsWith('(')) return <>{children}</>;
+  return <NativeModuleGate path={route.name === 'index' ? '/' : '/' + route.name}>{children}</NativeModuleGate>;
+}
+export function NativeModuleGate({ children, path: explicitPath }: { children: React.ReactNode; path?: string }) {
+  const currentPath = usePathname();
+  const path = explicitPath ?? currentPath;
   const { user } = useAuth();
   const config = useConfig();
   if (essential.includes(path)) return <>{children}</>;
