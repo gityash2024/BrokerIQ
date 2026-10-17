@@ -26,7 +26,7 @@ export async function searchMetadata(mode: SearchMode, sp: Record<string, string
     .trim();
   return {
     title,
-    description: `${title} — verified rentals with photos, rent, deposit, brokerage, maps and trusted local brokers on BrokerIQ.`,
+    description: `${title} — rental search with photos, rent, deposit, brokerage and locality maps on BrokerIQ.`,
     alternates: { canonical: mode === 'commercial' ? '/user/commercial' : '/user/search' },
   };
 }

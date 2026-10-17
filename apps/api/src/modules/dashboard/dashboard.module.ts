@@ -19,7 +19,7 @@ class DashboardController {
   @Roles('BROKER_ADMIN') @Get('broker/dashboard/records') brokerRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
     return this.records('broker', q, u);
   }
-  @Roles('USER') @Get('me/dashboard/records') userRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
+  @Roles('USER', 'BROKER_ADMIN') @Get('me/dashboard/records') userRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
     return this.records('user', q, u);
   }
 
@@ -32,7 +32,7 @@ class DashboardController {
   ) {
     return this.dashboard.metrics('broker', q, user);
   }
-  @Roles('USER') @Get('me/dashboard') me(@Query(new ZodPipe(dashboardQuerySchema)) q: DashboardQuery, @CurrentUser() user: RequestUser) {
+  @Roles('USER', 'BROKER_ADMIN') @Get('me/dashboard') me(@Query(new ZodPipe(dashboardQuerySchema)) q: DashboardQuery, @CurrentUser() user: RequestUser) {
     return this.dashboard.metrics('user', q, user);
   }
 }

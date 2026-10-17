@@ -22,8 +22,15 @@ export class PublicService {
     const modules = await this.modules.all();
     if (env().BROKER_FIRST) {
       for (const key of Object.keys(flags)) if (modules[key] && modules[key].state !== 'ACTIVE') flags[key] = false;
-      const aliases: Record<string,string>={ai_assist:'assistant',chat:'consumer',reviews:'locality_reviews',projects:'sale_listings',boosts:'billing',commute:'legacy'};
-      for(const [flag,module] of Object.entries(aliases))flags[flag]=(flags[flag]??true)&&modules[module]?.state==='ACTIVE';
+      const aliases: Record<string, string> = {
+        ai_assist: 'assistant',
+        chat: 'consumer',
+        reviews: 'locality_reviews',
+        projects: 'sale_listings',
+        boosts: 'billing',
+        commute: 'legacy',
+      };
+      for (const [flag, module] of Object.entries(aliases)) flags[flag] = (flags[flag] ?? true) && modules[module]?.state === 'ACTIVE';
     }
     return { app, flags, integrations, modules, apiVersion: '2.1.0' };
   }
@@ -83,6 +90,8 @@ export class PublicService {
     const sections = await this.prisma.homepageSection.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } });
     const out = [];
     for (const s of sections) {
+      // Legacy promotional sections link to tools/onboarding outside the approved rental release.
+      if (env().BROKER_FIRST && ['TOOLS', 'BLOG', 'FEATURED_PROJECTS', 'CTA_BANNER', 'WHY_US', 'TESTIMONIALS'].includes(s.type)) continue;
       const cfg = (s.config ?? {}) as Record<string, any>;
       let data: unknown = null;
       switch (s.type) {

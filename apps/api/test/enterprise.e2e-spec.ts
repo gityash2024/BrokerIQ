@@ -63,6 +63,8 @@ const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
   });
   it('permits discovery but rejects private data, cross-role dashboards and future modules', async () => {
     await request(app.getHttpServer()).get('/api/listings').expect(200);
+    const homepage = (await request(app.getHttpServer()).get('/api/public/homepage').expect(200)).body;
+    expect(homepage.some((section: any) => ['TOOLS', 'CTA_BANNER', 'FEATURED_PROJECTS'].includes(section.type))).toBe(false);
     await request(app.getHttpServer()).get('/api/inventory').set(headers(customer)).expect(403);
     await request(app.getHttpServer()).get('/api/admin/dashboard/metrics').set(headers(broker)).expect(403);
     await request(app.getHttpServer()).get('/api/broker/dashboard/metrics').set(headers(customer)).expect(403);
@@ -181,6 +183,8 @@ const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
   it('matches scoped dashboard totals and IST ranges without invented history', async () => {
     const b = (await request(app.getHttpServer()).get('/api/broker/dashboard/metrics?from=2026-10-01&to=2026-10-16').set(headers(broker)).expect(200)).body;
     expect(b.period.timezone).toBe('Asia/Kolkata');
+    const brokerAsConsumer = (await request(app.getHttpServer()).get('/api/me/dashboard').set(headers(broker)).expect(200)).body;
+    expect(brokerAsConsumer.metrics.find((x: any) => x.key === 'enquiries').value).toBe(0);
     expect(b.charts.find((x: any) => x.key === 'leads').points).toHaveLength(16);
     expect(b.metrics.find((x: any) => x.key === 'inventory').value).toBe(await db.inventoryItem.count({ where: { organizationId: orgId, deletedAt: null } }));
     const u = (await request(app.getHttpServer()).get('/api/me/dashboard').set(headers(customer)).expect(200)).body;

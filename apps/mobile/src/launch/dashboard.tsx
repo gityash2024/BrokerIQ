@@ -13,7 +13,8 @@ import { Button, ErrorView, Input, Txt } from '@/ui';
 const colors = ['#4f46e5', '#f59e0b', '#0d9488', '#0284c7', '#e11d48', '#7c3aed'];
 function href(web: string) {
   const [path, query] = web.split('?');
-  if (path === '/broker/activity' || path === '/user/account/activity') return '/dashboard-records' + (query ? '?' + query : '');
+  if (path === '/broker/activity' || path === '/user/account/activity')
+    return '/dashboard-records?' + (path.startsWith('/user/') ? 'view=user&' : '') + (query ?? '');
   const map: Record<string, string> = {
     '/broker/inventory': '/(broker)/inventory',
     '/broker/imports': '/(broker)/inbox',

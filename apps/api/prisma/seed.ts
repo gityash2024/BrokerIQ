@@ -75,7 +75,7 @@ const HOMEPAGE = [
   {
     type: 'HERO',
     title: 'Gurgaon में rent पर अपना अगला घर ढूँढिए',
-    subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।',
+    subtitle: 'Explore flats, builder floors, PG and commercial rentals across Gurgaon.',
     config: { tabs: ['SALE', 'RENT', 'COMMERCIAL', 'PLOT', 'PROJECTS'], backgroundUrl: '', stats: true },
   },
   { type: 'LOCALITIES', title: 'Gurgaon के popular इलाके', subtitle: 'औसत किराया, connectivity और live rentals', config: { limit: 12, popularOnly: true } },
@@ -187,6 +187,11 @@ async function main() {
       update: {},
     });
   }
+  // Correct only the original default claim; preserve administrator-authored copy.
+  await prisma.homepageSection.updateMany({
+    where: { type: 'HERO', subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।' },
+    data: { subtitle: 'Explore flats, builder floors, PG and commercial rentals across Gurgaon.' },
+  });
   // Homepage sections (only when empty so admin ordering is preserved)
   // Rental pivot: refresh sections that still carry the original (sale-oriented) default copy.
   const RENTAL_COPY: [string, string | null, Record<string, unknown>][] = [
@@ -195,7 +200,7 @@ async function main() {
       null,
       {
         title: 'Gurgaon में rent पर अपना अगला घर ढूँढिए',
-        subtitle: 'Verified furnished flats, builder floors, PG और offices — भरोसेमंद local brokers के साथ।',
+        subtitle: 'Explore flats, builder floors, PG and commercial rentals across Gurgaon.',
       },
     ],
     ['Handpicked properties', null, { title: 'Handpicked rentals', subtitle: 'Verified और featured rent listings' }],
