@@ -8,10 +8,20 @@
 | User Portal | https://brokeriq.mymultimeds.com/user |
 | Broker Portal | https://brokeriq.mymultimeds.com/broker |
 | Super Admin | https://brokeriq.mymultimeds.com/admin |
-| Signed Android v2.1.0 build22 | https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build22.apk |
+| Signed Android v2.1.0 build23 | https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build23.apk |
 | API health | https://brokeriqapi.mymultimeds.com/api/health |
 
 `yash@brokeriq.com` Super Admin और `rahul@brokeriq.com` Olive State Broker Admin हैं। Existing passwords बदले नहीं गए हैं; वे Git में नहीं रखे गए। Customer signup खुला है; Broker onboarding invitation से है।
+
+## Build23 finishing — 17 अक्टूबर 2026
+
+Footer के gradient glyph paint bounds सुधारे गए हैं; `Q` का दायाँ हिस्सा पूरा दिखता है। Wordmark centered है और scroll reveal/shimmer reduced-motion preference का सम्मान करते हैं। Landing की पुरानी Directory images अब इसी signed build23 से लिए गए dashboard और Directory screenshots से बदली गई हैं।
+
+Native finishing में shared headers/cards/buttons/tabs, dashboard hierarchy और donut legend, Directory map/list/filter, property overview, grouped inventory forms, Automation controls/history और Inbox capture states शामिल हैं। Inbox route की गलत module mapping ठीक हुई; USER को Broker Inbox access नहीं दिया गया।
+
+Build23 verification: mobile typecheck और 17 unit tests; shared 28 tests; landing typecheck और server production web build पास। Emulator पर पाँचों Broker tabs, Directory filters/map attribution, property details, execution history, User overview और Broker mode में वापसी जाँची। Existing encrypted draft और timestamp upgrade के बाद सुरक्षित रहे; airplane-mode restart में field fingerprint समान रहा। Hindi/dark/1.3 font scale और तीन cold starts जाँचे; OS/language preferences वापस कीं। Physical-device gate अभी खुला है। इस visual patch के लिए API suite दोबारा नहीं चलाई गई; नीचे full API results पिछले enterprise checkpoint के हैं।
+
+Web code `b9c7ad6` पर है; केवल `brokeriq-web` reload हुआ। `brokeriq-api` का PID/restart count अपरिवर्तित रहा। Web rollback: `/opt/brokeriq/backups/20261017-native23-b9c7ad6/` में पिछली `.next` symlink target और private web environment सुरक्षित हैं। पुराने `.next-landing-7e63906` को फिर link करके पिछला web environment restore और केवल web reload किया जा सकता है। इस patch में DB migration नहीं है। Android build22 retained है; uninstall/data-clear की आवश्यकता नहीं है। [Build23 evidence](evidence/native-finishing-build23.json)।
 
 ## तैयार व्यवहार
 
@@ -30,10 +40,10 @@ Dashboards वास्तविक counts/charts, 7/30/90/custom dates, IST bou
 - Native cold-start regression में navigator को permission gate से बार-बार unmount करने वाला loop reproduce हुआ। Gate अब screen content पर है; navigator mounted रहता है। Build22 पर repeated cold starts, tabs और offline draft recovery दोबारा जाँचे गए। Account switching पर in-memory queries साफ़ होती हैं; disk drafts सुरक्षित रहते हैं।
 - एक full rerun में आए transport failures के बाद test listeners स्थिर किए गए। Shutdown race में pending notifications से पहले DB बंद हो रहा था; handler draining और delayed Prisma disconnect के बाद final full suite में वह error नहीं आया।
 
-APK SHA256:
+Current build23 APK SHA256:
 
 ```text
-5f82a30704600025b6ac1f08e84f0f9bad3a0802a0be2aebdb03b202b24ed68e
+54275ed9b073bcf04de8a7100b758c3c74bc43873135118eb106f195c5b2d3a5
 ```
 
 Signing certificate SHA256: `d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce` — पिछले builds वाला ही certificate। Package `com.brokeriq.app`, minSdk24, targetSdk36; contacts/location/microphone/overlay permissions absent हैं।

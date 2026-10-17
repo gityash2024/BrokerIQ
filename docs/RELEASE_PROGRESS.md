@@ -1,6 +1,6 @@
 # Latest enterprise checkpoint — 17 October 2026
 
-Consumer `/user`, unified original branding, reviewed rental publication, role-scoped dashboards and signed Android 2.1.0 build22 are delivered to staging. See [current handoff](RELEASE_HANDOFF.md) for acceptance boundaries, links, counts, artifact hash and backup/rollback details. Customer signup is open; invited Broker onboarding remains. Existing private inventory is not public by default.
+Consumer `/user`, unified original branding, reviewed rental publication, role-scoped dashboards and signed Android 2.1.0 build23 are delivered to staging. See [current handoff](RELEASE_HANDOFF.md) for acceptance boundaries, links, counts, artifact hash and backup/rollback details. Customer signup is open; invited Broker onboarding remains. Existing private inventory is not public by default.
 
 The notes below are historical checkpoints, not the current acceptance statement.
 
