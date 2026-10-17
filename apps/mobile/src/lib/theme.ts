@@ -1,3 +1,4 @@
+import { BRAND, DESIGN } from '@brokeriq/shared';
 import { useColorScheme } from 'react-native';
 import { create } from './store';
 
@@ -31,9 +32,9 @@ const light = {
   fg: '#0F172A',
   muted: '#475569',
   subtle: '#94A3B8',
-  brand: palette.brand[600],
+  brand: String(BRAND.primary),
   brandSoft: palette.brand[50],
-  accent: palette.saffron[500],
+  accent: String(BRAND.accent),
   success: palette.emerald,
   danger: palette.rose,
   warning: palette.amber,
@@ -68,7 +69,7 @@ export const fonts = {
   bold: 'Inter_700Bold',
 };
 
-export const radius = { sm: 10, md: 14, lg: 18, xl: 24, full: 999 };
+export const radius = { ...DESIGN.radius, full: 999 };
 export const space = (n: number) => n * 4;
 
 type Mode = 'system' | 'light' | 'dark';

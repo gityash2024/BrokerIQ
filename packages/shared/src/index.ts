@@ -22,3 +22,4 @@ export * from './capture';
 export * from './property-fields';
 
 export * from "./directory-map";
+export * from './design';

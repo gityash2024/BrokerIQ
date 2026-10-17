@@ -216,3 +216,22 @@ html.i18n-pending body {
 html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, th, small, strong, dt, dd) {
   unicode-bidi: plaintext;
 }
+
+/* Shared enterprise rhythm: compact workspaces, legible controls and deliberate focus. */
+@layer base {
+  button, input, select, textarea { font: inherit; }
+  button:not(:disabled), a, summary { -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 3px solid #818cf8; outline-offset: 3px; }
+  h1, h2, h3 { text-wrap: balance; }
+  input, select, textarea { scroll-margin-block: 100px; }
+}
+@layer components {
+  .workspace-hero { @apply relative overflow-hidden rounded-3xl border border-brand-200/60 bg-gradient-to-br from-brand-50 via-surface to-saffron-50 p-6 dark:border-brand-800 dark:from-brand-950 dark:to-surface; }
+  .metric-card { @apply rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-lift)]; }
+  .metric-label { @apply text-xs font-semibold tracking-wide text-muted; }
+  .metric-value { @apply mt-2 font-display text-3xl font-bold tracking-tight tabular-nums; }
+  .section-kicker { @apply text-[10px] font-bold uppercase tracking-[0.18em] text-brand-600 dark:text-brand-300; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
