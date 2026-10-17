@@ -30,7 +30,8 @@ describe('Admin controls (e2e)', () => {
     app.use(json());
     app.use(urlencoded({ extended: true }));
     configureApp(app);
-    await app.init();
+    // Keep one HTTP listener for the suite; avoid closing/rebinding ephemeral ports between requests.
+    await app.listen(0, '127.0.0.1');
     prisma = app.get(PrismaService);
     http = request(app.getHttpServer());
     await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);

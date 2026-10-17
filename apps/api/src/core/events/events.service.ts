@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter } from 'events';
 
 export interface DomainEvents {
@@ -16,16 +16,24 @@ export interface DomainEvents {
 
 /** Tiny in-process domain event bus (decouples modules, avoids circular DI). */
 @Injectable()
-export class EventsService {
+export class EventsService implements OnModuleDestroy {
+  private readonly pending = new Set<Promise<unknown>>();
   private readonly logger = new Logger(EventsService.name);
   private readonly bus = new EventEmitter().setMaxListeners(50);
 
   on<K extends keyof DomainEvents>(event: K, handler: (payload: DomainEvents[K]) => unknown) {
     this.bus.on(event, (p) => {
-      Promise.resolve()
+      const task = Promise.resolve()
         .then(() => handler(p))
-        .catch((e) => this.logger.error(`handler for ${event} failed: ${(e as Error).message}`));
+        .catch((e) => this.logger.error(`handler for ${event} failed: ${(e as Error).message}`))
+        .finally(() => this.pending.delete(task));
+      this.pending.add(task);
     });
+  }
+
+  /** Shutdown waits for notifications and chained domain handlers before Prisma disconnects. */
+  async onModuleDestroy() {
+    while (this.pending.size) await Promise.allSettled([...this.pending]);
   }
 
   emit<K extends keyof DomainEvents>(event: K, payload: DomainEvents[K]) {

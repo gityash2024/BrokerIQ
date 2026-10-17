@@ -36,7 +36,8 @@ describe('BrokerIQ API (e2e)', () => {
     app = mod.createNestApplication({ bodyParser: false });
     app.use(json({ verify: (req: any, _res, buf) => (req.rawBody = buf) }));
     configureApp(app);
-    await app.init();
+    // Keep one HTTP listener for the suite; avoid closing/rebinding ephemeral ports between requests.
+    await app.listen(0, '127.0.0.1');
     prisma = app.get(PrismaService);
     await prisma.featureFlag.upsert({ where: { key: 'sale_listings' }, create: { key: 'sale_listings', enabled: false }, update: { enabled: false } });
     http = request(app.getHttpServer());
