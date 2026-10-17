@@ -33,7 +33,7 @@ export default function EditProfile() {
   const [docType, setDocType] = useState(isBroker ? 'RERA_CERTIFICATE' : 'OWNERSHIP_PROOF');
   const [docNumber, setDocNumber] = useState('');
   const [uploading, setUploading] = useState(false);
-  const kyc = useQuery({ queryKey: ['kyc'], queryFn: () => api<any[]>('/kyc/mine') });
+  const kyc = useQuery({ queryKey: ['kyc'], queryFn: () => api<any[]>('/kyc/mine'), enabled: false });
   const save = useApiMutation(() => patch('/me', { name: f.name, phone: f.phone || null }), { success: 'Profile saved', onSuccess: () => refreshMe() });
   const changePw = useApiMutation(() => post('/auth/password/change', { currentPassword: pw.currentPassword || undefined, newPassword: pw.newPassword }), {
     success: 'Password बदल गया',
@@ -94,7 +94,7 @@ export default function EditProfile() {
 
   return (
     <Screen edges={['top', 'bottom']} keyboard>
-      <Header title="Profile & KYC" />
+      <Header title="My profile" />
       <View style={{ alignItems: 'center', gap: 8, marginVertical: 12 }}>
         <PressableScale onPress={avatar}>
           <Avatar name={user?.name} uri={user?.avatarUrl} size={96} />
@@ -144,26 +144,6 @@ export default function EditProfile() {
           disabled={pw.newPassword.length < 8}
           onPress={() => changePw.mutate(undefined)}
         />
-      </Card>
-
-      <SectionTitle
-        title="Verification (KYC)"
-        subtitle={isBroker ? 'HRERA certificate से Verified broker badge' : 'Ownership verify करने पर listing पर Verified badge'}
-      />
-      <Card style={{ padding: 16, gap: 12 }}>
-        <Row wrap>
-          {(isBroker ? DOCS_BROKER : DOCS_USER).map(([k, l]) => (
-            <Chip key={k} label={l} active={docType === k} onPress={() => setDocType(k)} />
-          ))}
-        </Row>
-        <Input label="Document number (optional)" value={docNumber} onChangeText={setDocNumber} />
-        <Button title="Photo upload करें" icon={<FileUp size={18} color="#fff" />} loading={uploading} onPress={uploadKyc} />
-        {(kyc.data ?? []).map((d) => (
-          <Row key={d.id} style={{ justifyContent: 'space-between' }}>
-            <Txt v="small">{d.docType.replace(/_/g, ' ')}</Txt>
-            <Badge label={d.status} color={TONE[d.status]} icon={d.status === 'VERIFIED' ? <BadgeCheck size={11} color={TONE.VERIFIED} /> : undefined} />
-          </Row>
-        ))}
       </Card>
 
       <Button

@@ -4,9 +4,9 @@ import { api, authStore, useSession } from './api';
 import { unregisterPush } from './push';
 
 export function homeFor(user: AuthUser | null | undefined) {
-  if (!user) return '/login' as const;
+  if (!user) return '/(user)/home' as const;
   if (user.role === 'BROKER_ADMIN') return '/(broker)/dashboard' as const;
-  return '/login' as const;
+  return user.role === 'USER' ? ('/(user)/home' as const) : ('/login' as const);
 }
 
 export function useAuth() {

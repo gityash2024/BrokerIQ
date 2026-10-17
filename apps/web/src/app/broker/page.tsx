@@ -1,14 +1,9 @@
-'use client';
-import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { api, errorMessage } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
-import { PageHeader } from '@/components/panel/shell';
-export default function TodayPage(){const {user}=useAuth();const q=useQuery({queryKey:['broker-today'],queryFn:()=>api<any>('/broker/today'),refetchInterval:60000});const d=q.data;
-  return <><PageHeader title={`Welcome, ${user?.name?.split(' ')[0]||'Broker'}`} subtitle="आज का काम · Follow-ups, visits and the next action" actions={<Link href="/broker/inventory" className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white">Open inventory →</Link>}/>
-    {q.error&&<p role="alert" className="mb-5 text-rose-600">{errorMessage(q.error)} <button onClick={()=>q.refetch()}>Retry</button></p>}
-    <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[['Available properties',d?.inventory?.available,'/broker/inventory'],['Open requirements',d?.requirements,'/broker/leads/requirements'],['Source entries to review',d?.pendingReview,'/broker/imports'],['Unread messages',d?.unreadMessages,'/broker/inbox']].map(([label,value,href])=><Link key={label as string} href={href as string} className="rounded-2xl border border-line bg-surface p-5"><p className="text-sm text-muted">{label}</p><p className="mt-3 text-3xl font-bold">{value==null?'—':Number(value).toLocaleString('en-IN')}</p></Link>)}</div>
-    <div className="grid gap-6 lg:grid-cols-2">{[['Follow-ups',d?.followUps,'/broker/follow-ups'],['Site visits',d?.visits,'/broker/visits']].map(([label,items,href])=><section key={label as string} className="rounded-2xl border border-line bg-surface p-5"><div className="mb-4 flex justify-between"><h2 className="font-bold">{label as string}</h2><Link href={href as string} className="text-sm font-semibold text-brand-600">View all</Link></div>{(items as any[]|undefined)?.map((item:any)=><Link href={`/broker/leads/${item.lead.id}`} key={item.id} className="mb-2 flex justify-between rounded-xl bg-surface-2 p-3"><div><p className="font-semibold">{item.lead.name}</p><p className="mt-1 text-xs text-muted">{item.note||item.status}</p></div><p className="text-xs text-muted">{new Date(item.dueAt||item.scheduledAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'})}</p></Link>)}{Array.isArray(items)&&items.length===0&&<p className="py-8 text-center text-sm text-muted">Nothing scheduled. Add the next follow-up from a lead.</p>}</section>)}</div>
-    {d?.inventory?.unknown>0&&<Link href="/broker/inventory" className="mt-5 block rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{d.inventory.unknown} properties need availability confirmation. Check with the contact before sharing.</Link>}
-  </>;
+import { EnterpriseDashboard } from '@/components/dashboard/dashboard';
+import { TodayActions } from '@/components/dashboard/today-actions';
+export default function BrokerOverview() {
+  return (
+    <EnterpriseDashboard role="broker">
+      <TodayActions />
+    </EnterpriseDashboard>
+  );
 }

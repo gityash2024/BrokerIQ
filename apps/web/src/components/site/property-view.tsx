@@ -85,7 +85,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
   ];
 
   const share = async () => {
-    const url = `${SITE_URL}/property/${l.slug}`;
+    const url = `${SITE_URL}/user/property/${l.slug}`;
     if (navigator.share) await navigator.share({ title: l.title, url }).catch(() => undefined);
     else {
       await navigator.clipboard.writeText(url);
@@ -100,11 +100,11 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
           Home
         </Link>
         <ChevronRight className="size-3" />
-        <Link href={l.category === 'COMMERCIAL' ? '/commercial' : '/rent'} className="hover:text-fg">
+        <Link href={l.category === 'COMMERCIAL' ? '/user/commercial' : '/user/search'} className="hover:text-fg">
           Rent
         </Link>
         <ChevronRight className="size-3" />
-        <Link href={`/locality/${l.locality.slug}`} className="hover:text-fg">
+        <Link href={`/user/locality/${l.locality.slug}`} className="hover:text-fg">
           {l.locality.name}
         </Link>
         <ChevronRight className="size-3" />
@@ -117,7 +117,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
             Status: <b>{l.status.replace('_', ' ')}</b>
             {l.rejectionReason ? ` — ${l.rejectionReason}` : ''}
           </span>
-          <Button size="sm" variant="secondary" href={l.organization ? `/broker/listings/${l.id}/edit` : `/account/listings/${l.id}/edit`}>
+          <Button size="sm" variant="secondary" href={l.organization ? `/broker/listings/${l.id}/edit` : `/user/account/listings/${l.id}/edit`}>
             <Pencil className="size-4" /> Edit
           </Button>
         </div>
@@ -253,7 +253,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
                   scrollWheelZoom={false}
                 />
               </div>
-              <Link href={`/locality/${l.locality.slug}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600">
+              <Link href={`/user/locality/${l.locality.slug}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600">
                 {l.locality.name} का पूरा guide देखें <ChevronRight className="size-4" />
               </Link>
             </section>

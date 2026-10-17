@@ -1,16 +1,81 @@
-// BROKER-ONLY LAUNCH: Consumer screen disabled
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarCheck, Wallet } from 'lucide-react-native';
+import { formatINR, whatsappLink } from '@brokeriq/shared';
+import { api, patch } from '@/lib/api';
+import { showError } from '@/lib/hooks';
+import { useTheme } from '@/lib/theme';
+import { Badge, Button, Card, Empty, Header, Loader, Row, Screen, SectionTitle, Txt } from '@/ui';
 
-export default function DisabledScreen() {
-  useEffect(() => {
-    const timer = setTimeout(() => router.replace('/(broker)/dashboard'), 2000);
-    return () => clearTimeout(timer);
-  }, []);
+const TOKEN: Record<string, [string, string]> = {
+  CLAIMED: ['Broker की पुष्टि बाकी', '#F59E0B'],
+  RECEIVED: ['Broker ने पुष्टि की', '#10B981'],
+  REFUNDED: ['Refund', '#0EA5E9'],
+  CANCELLED: ['Cancelled', '#94A3B8'],
+};
+const when = (d: string) => new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+
+/** Tenant: booked site visits + token records. */
+export default function MyVisits() {
+  const { c } = useTheme();
+  const visits = useQuery({ queryKey: ['my-visits'], queryFn: () => api<any[]>('/me/visits') });
+  const tokens = useQuery({ queryKey: ['my-tokens'], queryFn: () => api<any[]>('/me/tokens'), enabled: false });
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <View><View /></View>
-    </View>
+    <Screen edges={['top', 'bottom']}>
+      <Header title="My site visits" />
+      {visits.isLoading ? (
+        <Loader />
+      ) : !visits.data?.length ? (
+        <Empty icon={<CalendarCheck size={26} color={c.brand} />} title="अभी कोई visit नहीं" text="Broker listing पर 'Visit' दबाकर खाली समय चुनें।" />
+      ) : (
+        visits.data.map((v) => {
+          const upcoming = new Date(v.scheduledAt) > new Date() && ['SCHEDULED', 'CONFIRMED'].includes(v.status);
+          const phone = v.organization?.whatsapp ?? v.organization?.phone;
+          return (
+            <Card key={v.id} style={{ padding: 14, gap: 6, marginTop: 10 }} onPress={v.listing ? () => router.push(`/property/${v.listing.slug}`) : undefined}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Txt v="bodyStrong">{when(v.scheduledAt)}</Txt>
+                <Row gap={6}>
+                  {v.mode === 'VIDEO' && <Badge label="Video" color={c.info} />}
+                  <Badge label={upcoming ? 'Upcoming' : v.status} color={upcoming ? c.brand : c.muted} />
+                </Row>
+              </Row>
+              {!!v.listing && (
+                <Txt v="small" color="brand" numberOfLines={1}>
+                  {v.listing.title}
+                </Txt>
+              )}
+              <Txt v="caption" color="muted" numberOfLines={2}>{`${v.address ?? ''} · ${v.organization?.name ?? ''}`}</Txt>
+              <Row wrap>
+                {upcoming && v.mode === 'VIDEO' && !!v.meetingUrl && (
+                  <Button title="Video call join करें" size="sm" onPress={() => Linking.openURL(v.meetingUrl)} />
+                )}
+                {!!phone && (
+                  <Button
+                    title="WhatsApp"
+                    size="sm"
+                    variant="whatsapp"
+                    onPress={() => Linking.openURL(whatsappLink(phone, `नमस्ते, site visit ${when(v.scheduledAt)} के बारे में`))}
+                  />
+                )}
+                {upcoming && (
+                  <Button
+                    title="Cancel"
+                    size="sm"
+                    variant="ghost"
+                    onPress={() =>
+                      patch(`/me/visits/${v.id}/cancel`)
+                        .then(() => visits.refetch())
+                        .catch(showError)
+                    }
+                  />
+                )}
+              </Row>
+            </Card>
+          );
+        })
+      )}
+    </Screen>
   );
 }

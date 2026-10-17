@@ -17,7 +17,7 @@ export function LocalityCard({ l, i = 0 }: { l: any; i?: number }) {
   const count = (l.listingsSale ?? 0) + (l.listingsRent ?? 0);
   return (
     <Link
-      href={`/locality/${l.slug}`}
+      href={`/user/locality/${l.slug}`}
       className="group relative block overflow-hidden rounded-3xl transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
     >
       <div className={cn('relative aspect-[4/3] bg-gradient-to-br', GRADS[i % GRADS.length])}>

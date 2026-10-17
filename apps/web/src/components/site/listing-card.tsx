@@ -23,7 +23,7 @@ export function ListingCard({
   const row = layout === 'row';
   return (
     <Link
-      href={`/property/${l.slug}`}
+      href={`/user/property/${l.slug}`}
       onMouseEnter={() => onHover?.(l.id)}
       onMouseLeave={() => onHover?.(null)}
       className={cn(

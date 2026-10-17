@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-17",
+  "errorId": "cmvb9zsxe0002j6j4z3kwk30q",
+  "message": "Cannot read properties of undefined (reading 'M_ID')",
+  "route": "/",
+  "appVersion": "2.0.0",
+  "firstSeenAt": "2026-10-16T18:02:57.458Z",
+  "attribution": "BROWSER_EXTENSION",
+  "evidence": "Both recorded stack frames point to chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/executors/200.js; no BrokerIQ frame is present.",
+  "handling": "Retain ErrorLog evidence; classify extension-only stacks separately. Mixed or unknown stacks remain FIRST_PARTY and alert normally. No product error is dismissed by message text."
+}

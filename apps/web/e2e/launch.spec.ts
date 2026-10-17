@@ -9,10 +9,10 @@ async function login(page: any, email = 'broker.web@e2e.test', password = 'Fixtu
   await page.locator('input[type=password]').press('Enter');
   await expect(page).toHaveURL(email.startsWith('admin') ? /\/admin/ : /\/broker/);
 }
-test('focused landing and consumer redirects', async ({ page }) => {
+test('branded landing and consumer entry points', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Less chasing/ })).toBeVisible();
-  await page.getByRole('link', { name: 'Open BrokerIQ ↗' }).click();
+  await expect(page.getByRole('heading', { name: /A better place/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Broker workspace' }).click();
   await expect(page).toHaveURL(/\/login/);
   await page.goto('/buy');
   await expect(page).toHaveURL(/\/login/);
@@ -49,13 +49,14 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   await expect(page.getByLabel('Additional rooms (use unspecified)', { exact: true })).toHaveValue('1');
   // Close without saving a synthetic property; persistence/filtering is covered
   // against the isolated database in source-ledger.e2e-spec.ts.
+  page.once('dialog', (dialog) => dialog.accept());
   await page.keyboard.press('Escape');
   await page.goto('/broker/deals');
   await expect(page.getByRole('heading', { name: 'यह सुविधा अभी उपलब्ध नहीं है' })).toBeVisible();
 });
 test('admin module toggle blocks direct route and restores navigation', async ({ page, request }) => {
   await login(page, 'admin.web@e2e.test', 'FixtureAdmin123');
-  await expect(page.getByRole('heading', { name: 'Platform overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'A clearer view of BrokerIQ.' })).toBeVisible();
   const auth = await page.evaluate(() => JSON.parse(localStorage.getItem('biq.auth')!));
   const headers = { Authorization: `Bearer ${auth.accessToken}` };
   try {

@@ -42,7 +42,7 @@ export function ContactCard({ listing }: { listing: any }) {
   const isOwn = listing.canManage;
 
   const reveal = async () => {
-    if (!user) return router.push(`/login?next=/property/${listing.slug}`);
+    if (!user) return router.push(`/login?next=/user/property/${listing.slug}`);
     setRevealing(true);
     try {
       setContact(await api(`/listings/${listing.id}/contact`, { method: 'POST' }));
@@ -72,13 +72,13 @@ export function ContactCard({ listing }: { listing: any }) {
   };
 
   const startChat = async () => {
-    if (!user) return router.push(`/login?next=/property/${listing.slug}`);
+    if (!user) return router.push(`/login?next=/user/property/${listing.slug}`);
     try {
       const c = await api<any>('/chat/start', {
         method: 'POST',
         body: { organizationId: org.id, listingId: listing.id, message: `Hi, "${listing.title}" के बारे में जानना है।` },
       });
-      router.push(`/account/messages?c=${c.id}`);
+      router.push(`/user/account/messages?c=${c.id}`);
     } catch (e) {
       toast.error(errorMessage(e));
     }
@@ -132,7 +132,7 @@ export function ContactCard({ listing }: { listing: any }) {
             </Button>
             {contact.tracked && <p className="text-center text-[11px] text-subtle">यह broker का BrokerIQ business number है — call सीधे broker से जुड़ेगी</p>}
             <Button
-              href={whatsappLink(contact.whatsapp ?? contact.phone, `Hi, ${SITE_URL}/property/${listing.slug} के बारे में पूछना था।`)}
+              href={whatsappLink(contact.whatsapp ?? contact.phone, `Hi, ${SITE_URL}/user/property/${listing.slug} के बारे में पूछना था।`)}
               external
               variant="whatsapp"
               className="w-full"
@@ -149,7 +149,7 @@ export function ContactCard({ listing }: { listing: any }) {
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="secondary"
-              onClick={() => (org && slotsOn ? (user ? setSlotsOpen(true) : router.push(`/login?next=/property/${listing.slug}`)) : setVisitOpen(true))}
+              onClick={() => (org && slotsOn ? (user ? setSlotsOpen(true) : router.push(`/login?next=/user/property/${listing.slug}`)) : setVisitOpen(true))}
             >
               <CalendarCheck className="size-4" /> {booked ? 'Booked ✓' : org && slotsOn ? 'Visit book करें' : 'Visit'}
             </Button>

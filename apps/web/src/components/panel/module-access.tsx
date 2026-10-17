@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth';
 export function ModuleAccess({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const config = useConfig();
-  const role = useAuth().user?.role ?? '';
+  const role = useAuth().user?.role ?? 'PUBLIC';
   const key = moduleForPath(path);
   if (!key || (!!config.modules && moduleAllowed(config.modules, key, role))) return <>{children}</>;
   return (

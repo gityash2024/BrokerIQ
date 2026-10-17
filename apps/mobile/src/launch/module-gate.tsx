@@ -5,52 +5,75 @@ import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { BrokerScreen } from './screen';
 import { Txt, Button } from '@/ui';
-
-const essential = ['/', '/login', '/onboarding', '/handle-share', '/broker-settings', '/drafts', '/edit-profile', '/broker-onboarding', '/notifications'];
+const essential = [
+  '/',
+  '/login',
+  '/onboarding',
+  '/data-consent',
+  '/handle-share',
+  '/broker-settings',
+  '/drafts',
+  '/edit-profile',
+  '/broker-onboarding',
+  '/notifications',
+  '/privacy',
+  '/feedback',
+];
+const consumer =
+  /^\/(home|search|saved|messages|profile|property|locality|broker|post-property|my-listings|my-visits|enquiries|customer-requirements|customer-overview|chat)(\/|$)/;
+const guest = /^\/(home|search|profile|property|locality|broker)(\/|$)/;
 function keyFor(path: string) {
+  if (consumer.test(path))
+    return path.startsWith('/my-visits') ? 'slot_booking' : path.startsWith('/customer-requirements') ? 'tenant_requirements' : 'consumer';
   if (path.startsWith('/area-directory')) return 'directory';
-  if (/^\/(inventory(?:-edit)?)(\/|$)/.test(path)) return 'inventory';
+  if (/^\/(inventory(?:-edit)?|publish-rental)(\/|$)/.test(path)) return 'inventory';
   if (/^\/(lead|leads|add-lead|pipeline|follow-ups|visits|requirements|requirement-edit)(\/|$)/.test(path)) return 'leads';
-  if (/^\/(capture|import-review|wa|chat)(\/|$)/.test(path)) return 'inbox';
+  if (/^\/(capture|import-review|wa)(\/|$)/.test(path)) return 'inbox';
   if (/^\/(automations|connectors)(\/|$)/.test(path)) return 'automation';
-  return moduleForPath(path, 'web') ?? 'legacy';
+  return path === '/dashboard' ? 'today' : (moduleForPath(path, 'web') ?? 'legacy');
 }
 export function NativeModuleGate({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { user } = useAuth();
   const config = useConfig();
   if (essential.includes(path)) return <>{children}</>;
-  const key = path === '/dashboard' ? 'today' : keyFor(path);
-  const allowed = user?.role === 'BROKER_ADMIN' && !!user.organization?.id && config.loaded && moduleAllowed(config.modules, key, user.role);
+  const key = path === '/dashboard-records' ? (user?.role === 'BROKER_ADMIN' ? 'today' : 'consumer') : keyFor(path);
+  const role = user?.role ?? 'PUBLIC';
+  const allowed =
+    config.loaded &&
+    moduleAllowed(config.modules, key, role) &&
+    (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : user?.role === 'BROKER_ADMIN' && !!user.organization?.id);
   if (allowed) return <>{children}</>;
+  // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
+  const loading = !config.loaded && !config.error;
+  const login = !user && consumer.test(path) && !guest.test(path);
   return (
-    <View style={{ flex: 1 }}>
-      {children}
-      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 100 }}>
-        <BrokerScreen title={!user ? 'Sign in required' : !config.loaded ? 'Loading permissions…' : 'Feature unavailable'}>
-          <View style={{ padding: 24, gap: 16 }}>
-            <Txt color="muted">
-              {config.error
-                ? 'Could not load module permissions. Retry to continue.'
+    <BrokerScreen
+      title={loading ? 'Getting things ready…' : login ? 'Sign in to continue' : config.error ? 'Connection needs attention' : 'Feature unavailable'}
+    >
+      <View style={{ padding: 24, gap: 16 }}>
+        <Txt color="muted">
+          {loading
+            ? 'Loading your workspace permissions.'
+            : login
+              ? 'Save properties, send enquiries and plan visits with your customer account.'
+              : config.error
+                ? 'We could not load access settings. Your saved drafts remain on this device.'
                 : user?.role === 'SUPER_ADMIN'
-                  ? 'Use the web panel to manage the platform.'
-                  : 'This feature is not currently available for your account.'}
-            </Txt>
-            {config.storageError && <Txt color="danger">{config.storageError}</Txt>}
-            {user?.role === 'BROKER_ADMIN' &&
-              [
-                ['inventory', '/inventory', 'Inventory'],
-                ['leads', '/leads', 'Leads & Requirements'],
-                ['inbox', '/inbox', 'Inbox'],
-                ['automation', '/automations', 'Automation & Housing'],
-              ]
-                .filter(([module]) => moduleAllowed(config.modules, module, user.role))
-                .map(([, path, label]) => <Button key={path} title={label} variant="secondary" onPress={() => router.replace(path as any)} />)}
+                  ? 'Open the responsive web Admin Portal to manage the platform.'
+                  : 'This feature is not enabled for your account.'}
+        </Txt>
+        {config.storageError && <Txt color="danger">{config.storageError}</Txt>}
+        {!loading && (
+          <>
+            <Button
+              title={login ? 'Sign in' : 'Back to home'}
+              onPress={() => router.replace(login ? '/login' : user?.role === 'BROKER_ADMIN' ? '/(broker)/dashboard' : '/(user)/home')}
+            />
             <Button title="Retry" variant="secondary" onPress={() => config.refetch()} />
-            <Button title={user ? 'Profile & settings' : 'Sign in'} onPress={() => router.replace(user ? '/broker-settings' : '/login')} />
-          </View>
-        </BrokerScreen>
+          </>
+        )}
       </View>
-    </View>
+    </BrokerScreen>
   );
 }

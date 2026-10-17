@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { File, Directory, Paths } from 'expo-file-system';
 import { api, ApiError, authStore } from '@/lib/api';
 
-export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'CAPTURE' | 'IMPORT_REVIEW';
+export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'CAPTURE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
 export type DraftState = 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
 export interface LocalDraft {
   id: string;
@@ -194,6 +194,10 @@ export async function syncDrafts() {
           path = `/inventory/${body.id}`;
           method = 'PATCH';
           const { id: _id, ...rest } = body;
+          body = rest;
+        } else if (row.kind === 'PUBLIC_PUBLISH') {
+          path = `/inventory/${body.inventoryId}/publish`;
+          const { inventoryId: _inventoryId, ...rest } = body;
           body = rest;
         } else if (row.kind === 'IMPORT_REVIEW') {
           path = `/imports/entries/${body.entryId}`;

@@ -13,9 +13,7 @@ export async function SiteFooter() {
       <div className="container-x grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-2">
           <Logo name={app?.siteName} />
-          <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-            {app?.tagline}. Gurgaon के हर sector की verified properties, भरोसेमंद brokers और smart tools — एक जगह।
-          </p>
+          <p className="mt-3 max-w-sm text-sm leading-6 text-muted">{app?.tagline}. Gurugram में homes, PG और workspaces for rent — एक जगह।</p>
           <div className="mt-5 space-y-2 text-sm text-muted">
             {app?.supportPhone && (
               <a href={`tel:${app.supportPhone}`} className="flex items-center gap-2 hover:text-fg">
@@ -57,21 +55,20 @@ export async function SiteFooter() {
         <FooterCol
           title="Explore"
           links={[
-            ['/rent', 'Homes for rent'],
+            ['/user/search', 'Homes for rent'],
             ['/rent?furnishing=FULLY_FURNISHED', 'Furnished flats'],
             ['/rent?types=PG', 'PG & co-living'],
-            ['/commercial', 'Commercial for rent'],
+            ['/user/commercial', 'Commercial for rent'],
             ['/brokers', 'Find a broker'],
           ]}
         />
-        <FooterCol title="Popular localities" links={(locs ?? []).slice(0, 7).map((l: any) => [`/locality/${l.slug}`, l.name] as [string, string])} />
+        <FooterCol title="Popular localities" links={(locs ?? []).slice(0, 7).map((l: any) => [`/user/locality/${l.slug}`, l.name] as [string, string])} />
         <FooterCol
           title="BrokerIQ"
           links={[
-            ['/for-brokers', 'For brokers'],
+            ['/login?next=/broker', 'Broker Portal'],
             ['/post-property', 'Post property'],
-            ['/tools', 'Property tools'],
-            ['/blog', 'Guides & news'],
+
             ['/help', 'Help & FAQs'],
             ['/contact', 'Contact us'],
             ['/p/about', 'About'],

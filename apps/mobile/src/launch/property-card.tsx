@@ -1,3 +1,4 @@
+import { floorLabel } from '@brokeriq/shared';
 import { View, Pressable, Linking, Share } from 'react-native';
 import { router } from 'expo-router';
 import { Phone, Share2, ChevronRight } from 'lucide-react-native';
@@ -52,7 +53,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Txt v="caption">{item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms unknown'}</Txt>
           <Txt v="caption" color="muted">
-            {item.floor || 'Floor unknown'}
+            {floorLabel(item.floor)}
           </Txt>
           <Txt v="caption" color="muted">
             {item.purpose || 'Purpose unknown'}
@@ -82,7 +83,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', borderTopWidth: 1, borderTopColor: c.line, paddingTop: 10 }}>
         <Txt v="caption" color="muted" style={{ flex: 1 }}>
-          {item.sourceType}
+          {item.sourceType === 'PDF_REGISTER' ? 'Register' : item.sourceType?.replace(/_/g, ' ')}
           {item.pageNo ? ` · P.${item.pageNo}` : ''}
         </Txt>
         {phone && (

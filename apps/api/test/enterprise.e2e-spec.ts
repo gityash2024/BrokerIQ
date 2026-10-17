@@ -169,6 +169,13 @@ const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
       .send({ availability: 'UNKNOWN', expectedRevision: item.revision })
       .expect(200);
     expect((await db.listing.findUniqueOrThrow({ where: { id: listingId } })).status).toBe('ARCHIVED');
+    // Defense in depth: even a stale ACTIVE record cannot bypass the source availability.
+    await db.listing.update({ where: { id: listingId }, data: { status: 'ACTIVE' } });
+    await request(app.getHttpServer()).get(`/api/listings/${listingId}`).expect(404);
+    const publicResults = (await request(app.getHttpServer()).get('/api/listings').expect(200)).body;
+    expect(JSON.stringify(publicResults)).not.toContain(listingId);
+    await db.listing.update({ where: { id: listingId }, data: { status: 'ARCHIVED' } });
+
     await request(app.getHttpServer()).post(`/api/admin/moderation/listings/${listingId}`).set(headers(admin)).send({ action: 'approve' }).expect(400);
   });
   it('matches scoped dashboard totals and IST ranges without invented history', async () => {

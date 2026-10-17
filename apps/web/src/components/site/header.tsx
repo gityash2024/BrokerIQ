@@ -15,11 +15,10 @@ import { LanguagePicker } from '../i18n/language-picker';
 import { ThemeToggle } from '../ui/theme-toggle';
 
 const NAV = [
-  { href: '/rent', label: 'Rent' },
-  { href: '/commercial', label: 'Commercial' },
+  { href: '/user/search', label: 'Rent' },
+  { href: '/user/commercial', label: 'Commercial' },
   { href: '/localities', label: 'Localities' },
   { href: '/brokers', label: 'Brokers' },
-  { href: '/tools', label: 'Tools' },
 ];
 
 export function SiteHeader({ transparent }: { transparent?: boolean }) {
@@ -65,7 +64,7 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
           <button className={cn('rounded-xl p-2 xl:hidden', solid ? 'text-fg' : 'text-white')} onClick={() => setOpen(true)} aria-label="Menu">
             <Menu className="size-6" />
           </button>
-          <Link href="/" aria-label="Home">
+          <Link href="/user" aria-label="User Portal home">
             <Logo light={!solid} name={app.siteName} />
           </Link>
           <nav className="ml-6 hidden items-center gap-1 xl:flex">
@@ -90,7 +89,7 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
             <LanguagePicker light={!solid} />
             <ThemeToggle className={cn('hidden sm:grid', !solid && 'text-white hover:bg-white/10 hover:text-white')} />
             {!isBroker && !isAdmin && (
-              <Button href="/post-property" size="sm" variant={solid ? 'accent' : 'accent'} className="hidden sm:inline-flex">
+              <Button href="/user/post-property" size="sm" variant={solid ? 'accent' : 'accent'} className="hidden sm:inline-flex">
                 <Plus className="size-4" /> Post Property <span className="rounded-md bg-slate-950/10 px-1.5 text-[10px] font-bold">FREE</span>
               </Button>
             )}
@@ -124,18 +123,18 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
                     </MenuLink>
                     {!isAdmin && !isBroker && (
                       <>
-                        <MenuLink href="/account/saved" icon={<Heart className="size-4" />}>
+                        <MenuLink href="/user/account/saved" icon={<Heart className="size-4" />}>
                           Saved properties
                         </MenuLink>
-                        <MenuLink href="/account/messages" icon={<MessageSquare className="size-4" />}>
+                        <MenuLink href="/user/account/messages" icon={<MessageSquare className="size-4" />}>
                           Messages
                         </MenuLink>
                       </>
                     )}
-                    <MenuLink href={isBroker ? '/broker/notifications' : '/account/notifications'} icon={<Bell className="size-4" />}>
+                    <MenuLink href={isBroker ? '/broker/notifications' : '/user/account/notifications'} icon={<Bell className="size-4" />}>
                       Notifications
                     </MenuLink>
-                    <MenuLink href={isBroker ? '/broker/settings' : '/account/profile'} icon={<UserIcon className="size-4" />}>
+                    <MenuLink href={isBroker ? '/broker/settings' : '/user/account/profile'} icon={<UserIcon className="size-4" />}>
                       Profile
                     </MenuLink>
                     <DM.Separator className="my-1 h-px bg-line" />
@@ -159,11 +158,11 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
               {n.label}
             </Link>
           ))}
-          <Link href="/for-brokers" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 font-semibold text-brand-600 hover:bg-surface-2">
+          <Link href="/login?next=/broker" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 font-semibold text-brand-600 hover:bg-surface-2">
             For Brokers
           </Link>
           <div className="mt-4 px-2">
-            <Button href="/post-property" variant="accent" className="w-full">
+            <Button href="/user/post-property" variant="accent" className="w-full">
               <Plus className="size-4" /> Post Property FREE
             </Button>
           </div>

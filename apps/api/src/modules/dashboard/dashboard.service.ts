@@ -72,7 +72,11 @@ export class DashboardService {
         this.db.sourceEntry.groupBy({ by: ['reviewState'], _count: { _all: true } }),
         this.settings.platformOverview(),
       ]);
+      const brokerAccounts = await this.db.user.count({
+        where: { role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, organization: { status: 'ACTIVE' } },
+      });
       result.metrics = [
+        this.metric('brokers', 'Broker accounts', brokerAccounts, '/admin/users?role=BROKER_ADMIN', 'Current active broker administrators'),
         this.metric('firms', 'Active firms', firms, '/admin/brokers', 'Current active broker firms'),
         this.metric('customers', 'Customers', customers, '/admin/users', 'Current active customer accounts'),
         this.metric('inventory', 'Private inventory', inventory, '/admin/inventory', 'Non-archived private ledger records; never a count of public listings'),
@@ -108,7 +112,7 @@ export class DashboardService {
       const org = user.orgId;
       const policies = await this.modules.all();
       const on = (key: string) => policies[key]?.state === 'ACTIVE' && policies[key].roles.includes(user.role);
-      const [availability, sectors, requirements, leads, overdue, visits, sources, stages] = await Promise.all([
+      const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
         on('inventory')
           ? this.db.inventoryItem.groupBy({ by: ['availability'], where: { organizationId: org, deletedAt: null }, _count: { _all: true } })
           : null,
@@ -127,6 +131,7 @@ export class DashboardService {
         on('leads') ? this.db.siteVisit.count({ where: { organizationId: org, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } }) : null,
         on('leads') ? this.db.lead.groupBy({ by: ['source'], where: { organizationId: org, deletedAt: null, createdAt: d }, _count: { _all: true } }) : null,
         on('leads') ? this.db.lead.groupBy({ by: ['stage'], where: { organizationId: org, deletedAt: null }, _count: { _all: true } }) : null,
+        on('inbox') ? this.db.sourceEntry.count({ where: { batch: { organizationId: org }, reviewState: 'NEEDS_REVIEW' } }) : null,
       ]);
       const n = (key: string) => (availability ? (availability.find((r) => r.availability === key)?._count._all ?? 0) : null);
       result.metrics = [
@@ -149,6 +154,7 @@ export class DashboardService {
         this.metric('newLeads', 'New leads', leads, '/broker/leads', 'Leads created in the selected period'),
         this.metric('overdue', 'Overdue follow-ups', overdue, '/broker/follow-ups', 'Pending follow-ups due before now'),
         this.metric('visits', 'Planned visits', visits, '/broker/visits', 'Scheduled/confirmed visits within the selected period'),
+        this.metric('sourceReviews', 'Sources to review', pendingReview, '/broker/imports', 'Current source entries awaiting your review'),
       ];
       if (on('leads'))
         result.charts.push(

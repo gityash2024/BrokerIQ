@@ -33,7 +33,7 @@ export function LocalitiesExplorer({ locs }: { locs: any[] }) {
         </div>
         <div className="hidden lg:block">
           <div className="card sticky top-24 h-[640px] overflow-hidden">
-            <Map points={list.map((l) => ({ id: l.id, lat: l.latitude, lng: l.longitude, label: l.name, href: `/locality/${l.slug}`, dot: true }))} />
+            <Map points={list.map((l) => ({ id: l.id, lat: l.latitude, lng: l.longitude, label: l.name, href: `/user/locality/${l.slug}`, dot: true }))} />
           </div>
         </div>
       </div>

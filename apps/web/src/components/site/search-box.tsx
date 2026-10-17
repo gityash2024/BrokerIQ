@@ -10,10 +10,10 @@ import { cn } from '@/lib/utils';
 
 // Rental marketplace: every tab searches rent listings.
 const TABS = [
-  { key: 'RENT', label: 'Rent', path: '/rent' },
+  { key: 'RENT', label: 'Rent', path: '/user/search' },
   { key: 'FURNISHED', label: 'Furnished', path: '/rent?furnishing=FULLY_FURNISHED' },
   { key: 'PG', label: 'PG / Co-living', path: '/rent?types=PG' },
-  { key: 'COMMERCIAL', label: 'Commercial', path: '/commercial' },
+  { key: 'COMMERCIAL', label: 'Commercial', path: '/user/commercial' },
 ] as const;
 
 const RECENT_KEY = 'biq.recent-searches';
@@ -51,7 +51,7 @@ export function HeroSearch(_props: { tabs?: string[] }) {
 }
 
 export function SearchInput({
-  basePath = '/rent',
+  basePath = '/user/search',
   large,
   defaultValue = '',
   className,

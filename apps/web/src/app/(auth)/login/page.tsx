@@ -35,7 +35,16 @@ function LoginInner() {
   const done = (r: AuthResponse) => {
     setSession(r);
     toast.success(`Welcome ${r.user.name.split(' ')[0]} 👋`);
-    router.replace(next && next.startsWith('/') ? next : homeFor(r.user));
+    router.replace(
+      next &&
+        /^\/(?![\/\\])/.test(next) &&
+        !next.includes('\\') &&
+        (next.startsWith('/user') ||
+          (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
+          (r.user.role === 'BROKER_ADMIN' && next.startsWith('/broker')))
+        ? next
+        : homeFor(r.user),
+    );
   };
   const run = async (fn: () => Promise<void>) => {
     setLoading(true);
@@ -164,6 +173,12 @@ function LoginInner() {
         नया account?{' '}
         <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-brand-600">
           Sign up करें
+        </Link>
+      </p>
+      <p className="mt-6 text-center text-sm text-muted">
+        New here?{' '}
+        <Link href="/signup" className="font-semibold text-brand-600">
+          Create a customer account →
         </Link>
       </p>
     </AuthShell>

@@ -22,7 +22,7 @@ export function homeFor(user: AuthUser | null) {
   if (user.role === 'SUPER_ADMIN') return '/admin';
   if (user.role === 'BROKER_ADMIN' || user.role === 'BROKER_AGENT')
     return user.organization?.onboarded === false && user.role === 'BROKER_ADMIN' ? '/broker/onboarding' : '/broker';
-  return '/login';
+  return user.role === 'USER' ? '/user/account' : '/login';
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

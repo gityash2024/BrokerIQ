@@ -98,11 +98,18 @@ export class ListingsService {
       .catch(() => undefined);
   }
 
+  /** An inventory-backed listing can only be public while its source unit is available. */
+  private publicOriginWhere(): Prisma.ListingWhereInput {
+    return {
+      OR: [{ inventoryOrigin: { is: null } }, { inventoryOrigin: { is: { availability: 'AVAILABLE', status: 'ACTIVE', purpose: 'RENT', deletedAt: null } } }],
+    };
+  }
+
   // ------------------------------------------------------------------ search
   /** `rentalOnly` (default on): public results are rent listings unless Super Admin enabled sale listings. */
   buildWhere(f: Partial<ListingSearchInput>, opts: { publicOnly?: boolean; rentalOnly?: boolean } = { publicOnly: true }): Prisma.ListingWhereInput {
     const and: Prisma.ListingWhereInput[] = [{ deletedAt: null }];
-    if (opts.publicOnly) and.push({ status: 'ACTIVE' });
+    if (opts.publicOnly) and.push({ status: 'ACTIVE' }, this.publicOriginWhere());
     // Rental marketplace: public search only ever shows rent listings (legacy sale listings stay hidden).
     if (opts.publicOnly && (opts.rentalOnly ?? true)) and.push({ purpose: 'RENT' });
     else if (f.purpose) and.push({ purpose: f.purpose });
@@ -341,6 +348,8 @@ export class ListingsService {
     });
     if (!listing) throw new NotFoundException('Property नहीं मिली');
     const manage = this.canEdit(listing, user);
+    if (!manage && !(await this.prisma.listing.count({ where: { id: listing.id, ...this.publicOriginWhere() } })))
+      throw new NotFoundException('Property नहीं मिली');
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
     // Legacy sale listings stay visible to their owners/admins only.
     if (listing.purpose === 'SALE' && (await this.features.rentalOnly()) && !manage && user?.role !== 'SUPER_ADMIN')
@@ -385,6 +394,7 @@ export class ListingsService {
     if (!l) throw new NotFoundException();
     return this.prisma.listing.findMany({
       where: {
+        AND: [this.publicOriginWhere()],
         id: { not: l.id },
         status: 'ACTIVE',
         deletedAt: null,
@@ -403,7 +413,10 @@ export class ListingsService {
     if (user) await this.access.assertAllowed(user, 'enquire');
     const app = await this.settings.getAppConfig();
     if (!user) throw new ForbiddenException('Number देखने के लिए login करें');
-    const l = await this.prisma.listing.findFirst({ where: { id, status: 'ACTIVE', deletedAt: null }, include: { organization: true, postedBy: true } });
+    const l = await this.prisma.listing.findFirst({
+      where: { id, status: 'ACTIVE', deletedAt: null, ...this.publicOriginWhere() },
+      include: { organization: true, postedBy: true },
+    });
     if (!l) throw new NotFoundException();
     // Firms using Exotel show their tracked ExoPhone: calls are recorded as leads and routed to an agent.
     const exotel = l.organizationId ? await this.settings.resolve('exotel', l.organizationId).catch(() => null) : null;
@@ -560,6 +573,8 @@ export class ListingsService {
     let next: any = status;
     const data: any = {};
     if (status === 'ACTIVE') {
+      const origin = await this.prisma.inventoryItem.findUnique({ where: { publishedListingId: id }, select: { id: true } });
+      if (origin) throw new BadRequestException('Inventory listing को availability और public preview के साथ दोबारा review में भेजें');
       if (existing.organizationId && ['ARCHIVED', 'EXPIRED', 'SOLD', 'RENTED'].includes(existing.status)) {
         const active = await this.prisma.listing.count({
           where: { organizationId: existing.organizationId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null },

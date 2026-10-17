@@ -27,7 +27,7 @@ export default function Automations() {
   return (
     <BrokerScreen title="Automation & Housing" subtitle="Connections, rules and execution history.">
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 16, paddingBottom: 40 }}>
-        <Button title="Connections & Housing sync" onPress={() => router.push('/connectors')} />
+        <Button variant="secondary" title="Connections & Housing sync" onPress={() => router.push('/connectors')} />
         <Txt color="muted">Rules start disabled. Review each action before enabling outbound messages.</Txt>
         {error && <Txt color="danger">{error}</Txt>}
         {rules.error && <ErrorView error={rules.error} />}
@@ -35,7 +35,7 @@ export default function Automations() {
           <NativeCard key={rule.id}>
             <Txt v="h3">{rule.name}</Txt>
             <Txt color={rule.isActive ? 'success' : 'muted'}>
-              {rule.isActive ? 'Enabled' : 'Disabled'} · {rule.trigger}
+              {rule.isActive ? 'Enabled' : 'Disabled'} · {rule.trigger?.replace(/_/g, ' ').toLowerCase()}
             </Txt>
             {rule.actions?.map((action: any, index: number) => (
               <Txt key={index} v="small" color="muted">
@@ -54,12 +54,13 @@ export default function Automations() {
         ))}
         <Txt v="h3">Suggested workflows</Txt>
         {presets.data
-          ?.filter((p: any) => !p.actions?.some((a: any) => a.type === 'SEND_EMAIL' || a.type.startsWith('ASSIGN_')))
+          ?.filter((p: any) => !rules.data?.some((r) => r.name === p.name))
+          .filter((p: any) => !p.actions?.some((a: any) => a.type === 'SEND_EMAIL' || a.type.startsWith('ASSIGN_')))
           .map((preset: any, index: number) => (
             <NativeCard key={preset.name ?? index}>
               <Txt v="bodyStrong">{preset.name}</Txt>
               <Txt v="small" color="muted">
-                {preset.description || preset.trigger}
+                {preset.description || preset.trigger?.replace(/_/g, ' ').toLowerCase()}
               </Txt>
               <Button
                 title="Add disabled rule"

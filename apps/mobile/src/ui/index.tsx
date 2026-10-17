@@ -44,7 +44,7 @@ import { translateChildren, useT, useTextDir } from '../lib/i18n';
 type Variant = 'display' | 'h1' | 'h2' | 'h3' | 'title' | 'body' | 'bodyStrong' | 'small' | 'caption' | 'label';
 const V: Record<Variant, TextStyle> = {
   display: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38, letterSpacing: -0.6 },
-  h1: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, letterSpacing: -0.4 },
+  h1: { fontFamily: fonts.display, fontSize: 25, lineHeight: 32, letterSpacing: -0.4 },
   h2: { fontFamily: fonts.displayBold, fontSize: 21, lineHeight: 27, letterSpacing: -0.2 },
   h3: { fontFamily: fonts.displayBold, fontSize: 17, lineHeight: 23 },
   title: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 21 },
@@ -680,10 +680,7 @@ export function Sheet({
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       {/* Use the modal's actual available height; physical screen height can put
           footer buttons underneath Android's navigation bar. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
         {open && (
           <View

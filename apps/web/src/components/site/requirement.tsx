@@ -79,7 +79,7 @@ export function RequirementDialog({ open, onClose, prefill }: { open: boolean; o
         `ज़रूरत save हुई — अभी ${r.matches.length} matching properties${f.shareWithBrokers && r.requirement.sharedOrgIds.length ? `, ${r.requirement.sharedOrgIds.length} brokers को भेजी` : ''}`,
       );
       onClose();
-      router.push(`/account/requirements?id=${r.requirement.id}`);
+      router.push(`/user/account/requirements?id=${r.requirement.id}`);
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {

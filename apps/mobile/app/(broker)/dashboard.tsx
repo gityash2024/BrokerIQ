@@ -1,3 +1,4 @@
+import { NativeDashboard } from '@/launch/dashboard';
 import { ScrollView, View, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -18,36 +19,7 @@ export default function Today() {
         contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 18, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} tintColor={c.brand} />}
       >
-        <View style={{ paddingVertical: 4 }}>
-          <Txt v="h1">{user?.name?.split(' ')[0] || 'Broker'}</Txt>
-          <Txt color="muted" style={{ marginTop: 5 }}>
-            Your next action, in one place.
-          </Txt>
-        </View>
-        {q.error && (
-          <NativeCard>
-            <Txt color="danger">{errorMessage(q.error)}</Txt>
-            <Button title="Retry" variant="secondary" onPress={() => q.refetch()} />
-          </NativeCard>
-        )}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {[
-            { label: 'Available properties', value: d?.inventory?.available, icon: Building2, to: '/(broker)/inventory' },
-            { label: 'Open requirements', value: d?.requirements, icon: ClipboardList, to: '/requirements' },
-            { label: 'Needs source review', value: d?.pendingReview, icon: Inbox, to: '/(broker)/inbox' },
-            { label: 'Today’s visits', value: d?.visits?.length, icon: CalendarCheck, to: '/visits' },
-          ].map((item) => (
-            <View key={item.label} style={{ width: '48%', flexGrow: 1 }}>
-              <NativeCard onPress={() => router.push(item.to as any)}>
-                <item.icon size={20} color={c.brand} />
-                <Txt v="h1">{item.value == null ? '—' : String(item.value)}</Txt>
-                <Txt v="caption" color="muted">
-                  {item.label}
-                </Txt>
-              </NativeCard>
-            </View>
-          ))}
-        </View>
+        <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
             <Button title="Add property" onPress={() => router.push('/inventory-edit')} />

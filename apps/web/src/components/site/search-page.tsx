@@ -35,10 +35,10 @@ export type SearchMode = 'buy' | 'rent' | 'commercial' | 'plots';
 
 // Rental marketplace: every mode searches rent listings ('buy' / 'plots' routes redirect to /rent).
 const MODE: Record<SearchMode, { purpose?: 'SALE' | 'RENT'; category?: string; title: string; base: string }> = {
-  buy: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/rent' },
-  rent: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/rent' },
-  commercial: { purpose: 'RENT', category: 'COMMERCIAL', title: 'Commercial space for rent', base: '/commercial' },
-  plots: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/rent' },
+  buy: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/user/search' },
+  rent: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/user/search' },
+  commercial: { purpose: 'RENT', category: 'COMMERCIAL', title: 'Commercial space for rent', base: '/user/commercial' },
+  plots: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/user/search' },
 };
 
 const BEDS = ['1', '2', '3', '4', '5+'];
@@ -389,7 +389,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
         {view === 'map' && (
           <div className="sticky top-[136px] hidden h-[calc(100dvh-136px)] lg:block">
             <Map
-              points={(mapQ.data ?? []).map((p) => ({ id: p.id, lat: p.latitude, lng: p.longitude, price: p.price, href: `/property/${p.slug}` }))}
+              points={(mapQ.data ?? []).map((p) => ({ id: p.id, lat: p.latitude, lng: p.longitude, price: p.price, href: `/user/property/${p.slug}` }))}
               activeId={hovered}
               onBounds={(b) => setPendingBbox(b)}
               fit={!f.bbox}

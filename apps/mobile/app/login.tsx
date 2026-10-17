@@ -64,9 +64,7 @@ export default function Login() {
   const { app, integrations } = useConfig();
   const { setSession } = useAuth();
   const [mode, setMode] = useState<Mode>('password');
-  // Default to Broker for broker-only launch
-  // const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
-  const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('BROKER');
+  const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
   const [f, setF] = useState({ email: '', password: '', name: '', phone: '', firmName: '', code: '', inviteCode: '' });
   const inviteOnly = app.auth?.allowBrokerSignup === false;
   useEffect(() => {
@@ -132,7 +130,7 @@ export default function Login() {
     ...(app.auth?.allowPasswordLogin !== false
       ? [
           { value: 'password' as Mode, label: 'Password' },
-          { value: 'signup' as Mode, label: 'Join with invite' },
+          { value: 'signup' as Mode, label: 'Create account' },
         ]
       : []),
   ];
@@ -178,7 +176,6 @@ export default function Login() {
           }}
         >
           <Segmented value={mode} onChange={(m) => (setMode(m), setOtpSent(false))} options={modes} />
-          {/* Role selector hidden for broker-only launch (defaulted to BROKER)
           {(mode === 'signup' || (mode === 'otp' && otpSent)) && (
             <Animated.View entering={FadeIn} style={{ gap: 8 }}>
               <Txt v="caption" color="muted">
@@ -186,7 +183,7 @@ export default function Login() {
               </Txt>
               <Row>
                 <Chip
-                  label="Buyer / Owner"
+                  label="Tenant / Owner"
                   active={accountType === 'USER'}
                   onPress={() => setAccountType('USER')}
                   icon={<User size={14} color={accountType === 'USER' ? c.brand : c.muted} />}
@@ -200,7 +197,6 @@ export default function Login() {
               </Row>
             </Animated.View>
           )}
-          */}
           {mode === 'signup' && <Input label="पूरा नाम" value={f.name} onChangeText={set('name')} icon={<User size={18} color={c.subtle} />} />}
           <Input
             label="Email"

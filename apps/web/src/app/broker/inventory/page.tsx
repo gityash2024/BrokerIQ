@@ -1,6 +1,9 @@
 'use client';
+import { PublicPublish } from '@/components/broker/launch/public-publish';
+import { floorLabel } from '@brokeriq/shared';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Phone, MessageCircle } from 'lucide-react';
 import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, formatINR } from '@brokeriq/shared';
@@ -39,14 +42,37 @@ const initialFilters = {
   areaUnit: '',
 };
 export default function LedgerPage() {
+  return (
+    <Suspense>
+      <LedgerInner />
+    </Suspense>
+  );
+}
+function LedgerInner() {
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
-  const [filters, setFilters] = useState(initialFilters);
+  const params = useSearchParams();
+  const [filters, setFilters] = useState({
+    ...initialFilters,
+    ...Object.fromEntries(Object.keys(initialFilters).flatMap((key) => (params.get(key) ? [[key, params.get(key)!]] : []))),
+  });
+  const [publishing, setPublishing] = useState<LedgerItem | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [sort, setSort] = useState({ sortBy: 'createdAt', sortOrder: 'desc' });
   const [editing, setEditing] = useState<LedgerItem | null>(null);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    const guard = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [dirty]);
   const [adding, setAdding] = useState(false);
   const qc = useQueryClient();
   useEffect(() => {
@@ -60,7 +86,9 @@ export default function LedgerPage() {
   const stats = useQuery({ queryKey: ['ledger-stats'], queryFn: () => api<any>('/inventory/stats') });
   const sectors = useQuery({ queryKey: ['ledger-sectors'], queryFn: () => api<{ sector: string; count: number }[]>('/inventory/sectors') });
   async function refresh() {
-    await Promise.all(['ledger', 'ledger-stats', 'ledger-sectors', 'broker-dashboard'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(
+      ['ledger', 'ledger-stats', 'ledger-sectors', 'broker-dashboard', 'enterprise-dashboard'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+    );
   }
   async function bulk(data: Record<string, string>) {
     try {
@@ -218,7 +246,7 @@ export default function LedgerPage() {
                         {item.houseNo || 'House not recorded'}
                         {item.unitLabel && ` · ${item.unitLabel}`}
                       </button>
-                      <p className="mt-1 text-muted">{item.floor || 'Floor unknown'}</p>
+                      <p className="mt-1 text-muted">{floorLabel(item.floor)}</p>
                     </td>
                     <td className="p-3">
                       {item.sector || 'Locality unknown'}
@@ -244,6 +272,9 @@ export default function LedgerPage() {
                         {item.availability || 'UNKNOWN'}
                       </span>
                       <p className="mt-2 text-muted">{item.status}</p>
+                      <button className="mt-2 min-h-9 font-semibold text-brand-600" onClick={() => setPublishing(item)}>
+                        Publish / review ↗
+                      </button>
                     </td>
                     <td className="p-3">
                       {phone ? (
@@ -304,6 +335,19 @@ export default function LedgerPage() {
           </button>
         </div>
       </div>
+      <Dialog open={!!publishing} onOpenChange={(v) => !v && setPublishing(null)} title="Publish rental listing" size="lg">
+        {publishing && (
+          <PublicPublish
+            key={publishing.id}
+            item={publishing}
+            onDone={() => {
+              setPublishing(null);
+              refresh();
+              toast.success('Submitted for Admin review');
+            }}
+          />
+        )}
+      </Dialog>
       <Dialog open={filterOpen} onOpenChange={setFilterOpen} title="Filter inventory">
         <div className="grid gap-3 sm:grid-cols-2">
           {Object.entries(fields).map(([name, choices]) => (
@@ -345,6 +389,8 @@ export default function LedgerPage() {
         open={adding || !!editing}
         onOpenChange={(value) => {
           if (!value) {
+            if (dirty && !window.confirm('Discard unsaved property changes?')) return;
+            setDirty(false);
             setAdding(false);
             setEditing(null);
           }
@@ -364,8 +410,10 @@ export default function LedgerPage() {
           <PropertyForm
             key={editing?.id ?? 'new'}
             initial={editing ?? {}}
+            onDirty={() => setDirty(true)}
             onSave={async (input) => {
               await api(editing ? `/inventory/${editing.id}` : '/inventory', { method: editing ? 'PATCH' : 'POST', body: input });
+              setDirty(false);
               setAdding(false);
               setEditing(null);
               await refresh();

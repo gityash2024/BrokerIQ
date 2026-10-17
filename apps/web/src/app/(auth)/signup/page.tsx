@@ -1,9 +1,94 @@
 'use client';
 import { Suspense, useState } from 'react';
-import { useSearchParams,useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api,errorMessage } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { api, errorMessage } from '@/lib/api';
+import { homeFor, useAuth } from '@/lib/auth';
 import { AuthShell } from '@/components/site/auth-shell';
-export default function Signup(){return <Suspense><InvitationForm/></Suspense>;}
-function InvitationForm(){const sp=useSearchParams();const code=sp.get('invite');const {setSession}=useAuth();const router=useRouter();const [error,setError]=useState('');const [busy,setBusy]=useState(false);return <AuthShell title="Broker invitation" subtitle="Create your firm's broker account with an invitation from Super Admin.">{!code?<><p>Public signup is closed. Ask Super Admin for an invitation.</p><Link href="/login">Sign in →</Link></>:<form className="space-y-4" onSubmit={async(event)=>{event.preventDefault();setBusy(true);try{const fields=Object.fromEntries(new FormData(event.currentTarget));const session=await api<any>('/auth/register',{auth:false,body:{...fields,accountType:'BROKER',inviteCode:code}});setSession(session);router.replace('/broker/onboarding');}catch(e){setError(errorMessage(e));}finally{setBusy(false);}}}>{[['name','Your name'],['firmName','Firm name'],['email','Email'],['phone','Phone'],['password','Password']].map(([name,label])=><label key={name} className="block text-sm font-semibold">{label}<input required name={name} type={name==='password'?'password':name==='email'?'email':'text'} minLength={name==='password'?8:undefined} autoComplete={name==='password'?'new-password':name} className="mt-1 block w-full rounded-xl border border-line bg-surface p-3"/></label>)}{error&&<p role="alert" className="text-sm text-rose-600">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-brand-600 p-3 font-semibold text-white">{busy?'Creating account…':'Accept invitation'}</button></form>}</AuthShell>;}
+import { Button } from '@/components/ui/button';
+import { Field, Input } from '@/components/ui/field';
+import type { AuthResponse } from '@brokeriq/shared';
+export default function Signup() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
+  );
+}
+function SignupForm() {
+  const sp = useSearchParams();
+  const code = sp.get('invite');
+  const broker = !!code || sp.get('type') === 'broker';
+  const { setSession } = useAuth();
+  const router = useRouter();
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <AuthShell
+      title={broker ? 'Your broker invitation' : 'Find your next home'}
+      subtitle={broker ? 'Create your firm account with your invitation.' : 'Create your customer account to save, enquire and plan a visit.'}
+    >
+      {broker && !code ? (
+        <>
+          <p>Broker accounts require an invitation from Super Admin.</p>
+          <Link href="/signup">Create a customer account →</Link>
+        </>
+      ) : (
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const fields = Object.fromEntries(new FormData(event.currentTarget));
+            setBusy(true);
+            setError('');
+            try {
+              const session = await api<AuthResponse>('/auth/register', {
+                method: 'POST',
+                auth: false,
+                body: { ...fields, phone: fields.phone || undefined, accountType: broker ? 'BROKER' : 'USER', inviteCode: code || undefined },
+              });
+              setSession(session);
+              router.replace(homeFor(session.user));
+            } catch (e) {
+              setError(errorMessage(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {[
+            ['name', 'Your name'],
+            ...(broker ? [['firmName', 'Firm name']] : []),
+            ['email', 'Email'],
+            ['phone', 'Phone (optional)'],
+            ['password', 'Password'],
+          ].map(([name, label]) => (
+            <Field key={name} label={label}>
+              <Input
+                required={name !== 'phone'}
+                name={name}
+                type={name === 'password' ? 'password' : name === 'email' ? 'email' : name === 'phone' ? 'tel' : 'text'}
+                minLength={name === 'password' ? 8 : undefined}
+                autoComplete={name === 'password' ? 'new-password' : name}
+              />
+            </Field>
+          ))}
+          {error && (
+            <p role="alert" className="text-sm text-rose-600">
+              {error}
+            </p>
+          )}
+          <Button type="submit" loading={busy} className="w-full">
+            {broker ? 'Accept invitation' : 'Create account'}
+          </Button>
+        </form>
+      )}
+      <p className="mt-6 text-center text-sm text-muted">
+        Already have an account?{' '}
+        <Link className="font-semibold text-brand-600" href="/login">
+          Sign in →
+        </Link>
+      </p>
+    </AuthShell>
+  );
+}

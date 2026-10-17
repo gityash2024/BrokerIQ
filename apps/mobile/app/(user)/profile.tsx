@@ -37,7 +37,7 @@ import { useLightStatusBar } from '@/lib/hooks';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { Avatar, Badge, Card, PressableScale, Row, Txt, useStatusScrim } from '@/ui';
 import { LanguageSwitch } from '@/components/language';
-import { isStaff } from '@brokeriq/shared';
+import { moduleAllowed, isStaff } from '@brokeriq/shared';
 
 function Item({
   icon,
@@ -87,6 +87,7 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
 }
 
 export default function Profile() {
+  const config = useConfig();
   useLightStatusBar();
   const scrim = useStatusScrim();
   const { c } = useTheme();
@@ -165,6 +166,14 @@ export default function Profile() {
             </Card>
           )}
           <Group title="Property">
+            {user && (
+              <Item
+                icon={<Building2 size={20} color={c.brand} />}
+                label="My overview"
+                sub="Activity, saved homes and visits"
+                onPress={() => router.push('/customer-overview')}
+              />
+            )}
             <Item
               icon={<PlusCircle size={20} color={c.accent} />}
               tint={c.accent}
@@ -173,23 +182,23 @@ export default function Profile() {
               onPress={() => router.push(user ? '/post-property' : '/login')}
             />
             <Item icon={<Building2 size={20} color={c.brand} />} label="मेरी listings" onPress={() => router.push(user ? '/my-listings' : '/login')} />
-            {flags.tenant_requirements !== false && (
+            {moduleAllowed(config.modules, 'tenant_requirements', user?.role ?? 'USER') && (
               <Item
                 icon={<ClipboardList size={20} color={c.brand} />}
                 label="मेरी ज़रूरतें"
                 sub="मिलती property आते ही alert"
-                onPress={() => router.push(user ? '/requirements' : '/login')}
+                onPress={() => router.push(user ? '/customer-requirements' : '/login')}
               />
             )}
-            {(flags.slot_booking !== false || flags.visit_tokens !== false) && (
+            {moduleAllowed(config.modules, 'slot_booking', user?.role ?? 'USER') && (
               <Item
                 icon={<CalendarCheck size={20} color={c.info} />}
                 tint={c.info}
-                label="Visits & tokens"
+                label="My site visits"
                 onPress={() => router.push(user ? '/my-visits' : '/login')}
               />
             )}
-            {flags.rent_tracker !== false && (
+            {moduleAllowed(config.modules, 'rent_tracker', user?.role ?? 'USER') && (
               <Item
                 icon={<IndianRupee size={20} color={c.success} />}
                 tint={c.success}
@@ -198,7 +207,7 @@ export default function Profile() {
                 onPress={() => router.push(user ? '/my-rent' : '/login')}
               />
             )}
-            {user && flags.referrals !== false && (
+            {user && moduleAllowed(config.modules, 'referrals', user?.role ?? 'USER') && (
               <Item
                 icon={<Gift size={20} color={c.accent} />}
                 tint={c.accent}
@@ -207,7 +216,7 @@ export default function Profile() {
                 onPress={() => router.push('/invite')}
               />
             )}
-            {flags.flatmates !== false && (
+            {moduleAllowed(config.modules, 'flatmates', user?.role ?? 'USER') && (
               <Item
                 icon={<Users size={20} color={c.brand} />}
                 label="Flatmates"
@@ -215,7 +224,7 @@ export default function Profile() {
                 onPress={() => router.push(user ? '/flatmates' : '/login')}
               />
             )}
-            {flags.rent_agreement !== false && (
+            {moduleAllowed(config.modules, 'rent_agreement', user?.role ?? 'USER') && (
               <Item
                 icon={<FileSignature size={20} color={c.accent} />}
                 tint={c.accent}
@@ -223,7 +232,7 @@ export default function Profile() {
                 onPress={() => router.push(user ? '/agreements' : '/login')}
               />
             )}
-            {flags.move_in_services !== false && (
+            {moduleAllowed(config.modules, 'move_in_services', user?.role ?? 'USER') && (
               <Item icon={<Truck size={20} color={c.success} />} tint={c.success} label="Move-in services" onPress={() => router.push('/services')} />
             )}
             {isStaff(user?.role) && (
@@ -235,24 +244,28 @@ export default function Profile() {
                 onPress={() => router.push('/admin')}
               />
             )}
-            <Item
-              icon={<BadgeCheck size={20} color={c.success} />}
-              tint={c.success}
-              label="Verified tenant बनें"
-              sub="Office email से — brokers जल्दी जवाब देते हैं"
-              onPress={() => router.push(user ? '/verify-tenant' : '/login')}
-            />
+            {false && (
+              <Item
+                icon={<BadgeCheck size={20} color={c.success} />}
+                tint={c.success}
+                label="Verified tenant बनें"
+                sub="Office email से — brokers जल्दी जवाब देते हैं"
+                onPress={() => router.push(user ? '/verify-tenant' : '/login')}
+              />
+            )}
             <Item icon={<Send size={20} color={c.info} />} tint={c.info} label="मेरी enquiries" onPress={() => router.push(user ? '/enquiries' : '/login')} />
-            <Item
-              icon={<Calculator size={20} color={c.success} />}
-              tint={c.success}
-              label="Rent budget, move-in cost & split"
-              onPress={() => router.push('/tools')}
-            />
+            {false && (
+              <Item
+                icon={<Calculator size={20} color={c.success} />}
+                tint={c.success}
+                label="Rent budget, move-in cost & split"
+                onPress={() => router.push('/tools')}
+              />
+            )}
           </Group>
           <Group title="Account">
             {user && <Item icon={<Bell size={20} color={c.brand} />} label="Notifications" onPress={() => router.push('/notifications')} />}
-            {user && <Item icon={<UserCog size={20} color={c.brand} />} label="Profile, password & KYC" onPress={() => router.push('/edit-profile')} />}
+            {user && <Item icon={<UserCog size={20} color={c.brand} />} label="Profile & password" onPress={() => router.push('/edit-profile')} />}
             {user && (
               <Item
                 icon={<ShieldCheck size={20} color={c.success} />}

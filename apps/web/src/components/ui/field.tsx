@@ -1,8 +1,9 @@
 'use client';
-import { forwardRef } from 'react';
+import { createContext, useContext, useId, forwardRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const FieldContext = createContext<{ id: string; description?: string; invalid: boolean } | null>(null);
 const base =
   'w-full rounded-xl border border-line bg-surface px-3.5 text-sm text-fg placeholder:text-subtle transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60';
 
@@ -10,24 +11,48 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
   { className, icon, ...p },
   ref,
 ) {
+  const field = useContext(FieldContext);
+  const accessibility = {
+    id: p.id ?? field?.id,
+    'aria-describedby': p['aria-describedby'] ?? field?.description,
+    'aria-invalid': p['aria-invalid'] ?? field?.invalid,
+  };
   if (icon)
     return (
       <div className="relative">
         <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-subtle">{icon}</span>
-        <input ref={ref} className={cn(base, 'h-11 pl-10', className)} {...p} />
+        <input ref={ref} className={cn(base, 'h-11 pl-10', className)} {...p} {...accessibility} />
       </div>
     );
-  return <input ref={ref} className={cn(base, 'h-11', className)} {...p} />;
+  return <input ref={ref} className={cn(base, 'h-11', className)} {...p} {...accessibility} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...p }, ref) {
-  return <textarea ref={ref} className={cn(base, 'min-h-24 py-3 leading-6', className)} {...p} />;
+  const field = useContext(FieldContext);
+  return (
+    <textarea
+      ref={ref}
+      className={cn(base, 'min-h-24 py-3 leading-6', className)}
+      {...p}
+      id={p.id ?? field?.id}
+      aria-describedby={p['aria-describedby'] ?? field?.description}
+      aria-invalid={p['aria-invalid'] ?? field?.invalid}
+    />
+  );
 });
 
 export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, children, ...p }, ref) {
+  const field = useContext(FieldContext);
   return (
     <div className="relative">
-      <select ref={ref} className={cn(base, 'h-11 appearance-none pr-9', className)} {...p}>
+      <select
+        ref={ref}
+        className={cn(base, 'h-11 appearance-none pr-9', className)}
+        {...p}
+        id={p.id ?? field?.id}
+        aria-describedby={p['aria-describedby'] ?? field?.description}
+        aria-invalid={p['aria-invalid'] ?? field?.invalid}
+      >
         {children}
       </select>
       <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-subtle" />
@@ -59,12 +84,27 @@ export function Field({
   children: React.ReactNode;
   className?: string;
 }) {
+  const id = useId();
   return (
-    <div className={className}>
-      {label && <Label required={required}>{label}</Label>}
-      {children}
-      {error ? <p className="mt-1 text-xs text-rose-500">{error}</p> : hint ? <p className="mt-1 text-xs text-subtle">{hint}</p> : null}
-    </div>
+    <FieldContext.Provider value={{ id, description: error || hint ? id + '-description' : undefined, invalid: !!error }}>
+      <div className={className}>
+        {label && (
+          <Label htmlFor={id} required={required}>
+            {label}
+          </Label>
+        )}
+        {children}
+        {error ? (
+          <p id={id + '-description'} role="alert" className="mt-1 text-xs text-rose-500">
+            {error}
+          </p>
+        ) : hint ? (
+          <p id={id + '-description'} className="mt-1 text-xs text-subtle">
+            {hint}
+          </p>
+        ) : null}
+      </div>
+    </FieldContext.Provider>
   );
 }
 

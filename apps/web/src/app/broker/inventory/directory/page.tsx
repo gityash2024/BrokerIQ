@@ -47,11 +47,15 @@ export default function Directory() {
         <p>
           {query.data?.coverage.sourceRecords ?? '—'} public source records · {query.data?.coverage.mappedRecords ?? '—'} with location geometry
         </p>
-        <p className="mt-2">
-          Registrations and phases remain separate source records. © OpenStreetMap contributors (ODbL). GIS scope uses published MCG 2020 boundary; later city extensions may be missing. Registration is not a guarantee of current approval, possession or available inventory. Map
-          shows only source-backed coordinates; other entries remain in List.
-        </p>
-        <p className="mt-2">Last fetched: {query.data?.coverage.lastFetchedAt ? new Date(query.data.coverage.lastFetchedAt).toLocaleString() : '—'}</p>
+        <details className="mt-3">
+          <summary className="cursor-pointer font-semibold text-brand-600">About sources & coverage</summary>
+          <p className="mt-2">
+            Registrations and phases remain separate source records. © OpenStreetMap contributors (ODbL). GIS scope uses published MCG 2020 boundary; later city
+            extensions may be missing. Registration is not a guarantee of current approval, possession or available inventory. Map shows only source-backed
+            coordinates; other entries remain in List.
+          </p>
+          <p className="mt-2">Last fetched: {query.data?.coverage.lastFetchedAt ? new Date(query.data.coverage.lastFetchedAt).toLocaleString() : '—'}</p>
+        </details>
       </div>
       <div className="mb-4 flex flex-wrap gap-3">
         <input

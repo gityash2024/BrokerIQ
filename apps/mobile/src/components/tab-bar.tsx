@@ -6,7 +6,18 @@ import * as Haptics from 'expo-haptics';
 import { useConfig } from '@/lib/config';
 import { moduleAllowed } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
-const keys: Record<string, string> = { dashboard: 'today', inventory: 'inventory', leads: 'leads', inbox: 'inbox', automations: 'automation' };
+const keys: Record<string, string> = {
+  dashboard: 'today',
+  inventory: 'inventory',
+  leads: 'leads',
+  inbox: 'inbox',
+  automations: 'automation',
+  home: 'consumer',
+  search: 'consumer',
+  saved: 'consumer',
+  messages: 'consumer',
+  profile: 'consumer',
+};
 export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
@@ -25,7 +36,7 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
       }}
     >
       {state.routes
-        .filter((route: any) => keys[route.name] && moduleAllowed(modules, keys[route.name], user?.role ?? ''))
+        .filter((route: any) => keys[route.name] && moduleAllowed(modules, keys[route.name], user?.role ?? 'PUBLIC'))
         .map((route: any) => {
           const options = descriptors[route.key].options;
           const focused = state.routes[state.index]?.key === route.key;

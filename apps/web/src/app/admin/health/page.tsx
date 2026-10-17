@@ -55,7 +55,7 @@ export default function HealthPage() {
               {d.status === 'ok' ? <CheckCircle2 className="size-7" /> : <AlertTriangle className="size-7" />}
             </span>
             <div>
-              <p className="font-display text-2xl font-extrabold">{d.status === 'ok' ? 'All systems operational' : 'Degraded'}</p>
+              <p className="font-display text-2xl font-extrabold">{d.status === 'ok' ? 'Core platform operational' : 'Degraded'}</p>
               <p className="text-sm text-white/80">Checked {formatDateTime(d.time)}</p>
             </div>
           </motion.div>
@@ -201,6 +201,7 @@ function ErrorsCard() {
             <div key={e.id} className="py-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={SOURCE_TONE[e.source as keyof typeof SOURCE_TONE]}>{e.source}</Badge>
+                {e.classification === 'BROWSER_EXTENSION' && <Badge tone="warning">Browser extension · external origin</Badge>}
                 <button
                   className="min-w-0 flex-1 truncate text-left font-medium hover:text-brand-600"
                   onClick={() => setOpen(open === e.id ? null : e.id)}

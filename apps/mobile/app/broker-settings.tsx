@@ -22,6 +22,7 @@ export default function BrokerSettings() {
         </NativeCard>
         <LanguageSwitch render={(label, open) => <Button title={label} variant="secondary" onPress={open} />} />
         <Button title="Saved drafts & sync" variant="secondary" onPress={() => router.push('/drafts')} />
+        <Button title="Browse User Portal" variant="secondary" onPress={() => router.push('/(user)/home')} />
         <Button title="Firm profile" variant="secondary" onPress={() => router.push('/broker-onboarding')} />
         <Button title="Open web panel" variant="secondary" onPress={() => Linking.openURL('https://brokeriq.mymultimeds.com/login')} />
         <Txt v="h3">Upcoming features</Txt>

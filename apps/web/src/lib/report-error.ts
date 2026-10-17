@@ -2,7 +2,7 @@
 import { API_URL } from './utils';
 
 /** Web app version sent with error reports (matches apps/web/package.json). */
-const WEB_VERSION = '2.0.0';
+const WEB_VERSION = '2.1.0';
 const MAX_PER_PAGE = 10;
 const sent = new Set<string>();
 

@@ -46,7 +46,7 @@ export function CompareView() {
             <th className="w-32" />
             {q.data.map((l) => (
               <th key={l.id} className="align-top text-left font-normal">
-                <Link href={`/property/${l.slug}`} className="block">
+                <Link href={`/user/property/${l.slug}`} className="block">
                   <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-surface-2">
                     {l.coverUrl && <img src={img(l.coverUrl, 480)} alt="" className="h-full w-full object-cover" />}
                   </div>
@@ -75,7 +75,7 @@ export function CompareView() {
             <td />
             {q.data.map((l) => (
               <td key={l.id} className="pt-4">
-                <Button size="sm" href={`/property/${l.slug}`}>
+                <Button size="sm" href={`/user/property/${l.slug}`}>
                   देखें / visit book करें
                 </Button>
               </td>
