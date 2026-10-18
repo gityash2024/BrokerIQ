@@ -19,7 +19,7 @@
     "sharedTests": 28,
     "landingTypecheck": true,
     "serverProductionWebBuild": true,
-    "backendSuiteRerunForThisVisualPatch": false,
+    "backendSuiteRerunForThisVisualPatch": true,
     "native23-partial": {
       "build": 23,
       "upgradeWithoutUninstall": true,
@@ -102,13 +102,34 @@
       "reducedMotion": true,
       "noJavaScriptVisible": true,
       "anchorFocus": true
+    },
+    "apiFull": {
+      "passed": 125,
+      "conditionalSkipped": 18
+    },
+    "apiBrokerFirst": {
+      "passed": 22
+    },
+    "apiTypecheck": true,
+    "apiProductionBuild": true,
+    "postApiNativeSmoke": {
+      "build": 23,
+      "upgradeWithoutUninstall": true,
+      "serverSubmission": false,
+      "dashboardChartLabels": true,
+      "directoryMapAttribution": true,
+      "automationReadOnly": true,
+      "inbox": true,
+      "leads": true,
+      "existingDraftTimestampsPreserved": true,
+      "encryptedDraftDecoded": true
     }
   },
   "dataChanges": {
     "migrations": false,
     "businessMutations": false,
     "uninstallOrClearData": false,
-    "apiRestart": false
+    "apiRestart": "Only for the separately verified jobs fix; no restart for the web/native visual deployment"
   },
   "limitations": [
     "Physical Android hardware validation remains pending.",
@@ -133,6 +154,40 @@
     "apiRestarts": 21,
     "apiUnchanged": true,
     "distDir": ".next-finishing23-b9c7ad6",
-    "backup": "/opt/brokeriq/backups/20261017-native23-b9c7ad6"
+    "backup": "/opt/brokeriq/backups/20261017-native23-b9c7ad6",
+    "phase": "Web/native deployment before the separate jobs follow-up"
+  },
+  "jobsFollowUp": {
+    "commit": "279745a",
+    "cause": "PostgreSQL CASE text result assigned to JobStatus enum",
+    "fix": "explicit JobStatus cast",
+    "originalSqlRegressionFailed": true,
+    "fixedRegressionPassed": true,
+    "liveDatabase": {
+      "at": "2026-10-17T08:00:10.905Z",
+      "realPostgresRecoveryQueryPassed": true,
+      "transactionRolledBack": true,
+      "inventory": 895,
+      "jobs": [
+        {
+          "_count": {
+            "_all": 2
+          },
+          "status": "DONE"
+        }
+      ]
+    },
+    "apiPid": 1081461,
+    "apiRestarts": 22,
+    "webPidUnchanged": 1076861,
+    "rollback": "/opt/brokeriq/backups/jobs23-279745a/active-dist-before",
+    "migrations": false,
+    "unitTestRegression": "Real isolated PostgreSQL transaction; original query fails 42804, explicit enum cast passes",
+    "extendedLiveObservation": {
+      "uptimeSeconds": 75603,
+      "errorsSinceRestart": 0,
+      "apiPid": 1081461,
+      "checkedDuringNextWork": true
+    }
   }
 }

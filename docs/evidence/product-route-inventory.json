@@ -1,0 +1,1418 @@
+[
+  {
+    "surface": "web",
+    "route": "/forgot",
+    "file": "apps/web/src/app/(auth)/forgot/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/login",
+    "file": "apps/web/src/app/(auth)/login/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/signup",
+    "file": "apps/web/src/app/(auth)/signup/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account-deletion",
+    "file": "apps/web/src/app/(site)/account-deletion/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/blog/[slug]",
+    "file": "apps/web/src/app/(site)/blog/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/blog",
+    "file": "apps/web/src/app/(site)/blog/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/brokers/[slug]",
+    "file": "apps/web/src/app/(site)/brokers/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/brokers",
+    "file": "apps/web/src/app/(site)/brokers/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/buy",
+    "file": "apps/web/src/app/(site)/buy/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/commercial",
+    "file": "apps/web/src/app/(site)/commercial/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/compare",
+    "file": "apps/web/src/app/(site)/compare/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/contact",
+    "file": "apps/web/src/app/(site)/contact/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/feedback/[id]",
+    "file": "apps/web/src/app/(site)/feedback/[id]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/feedback",
+    "file": "apps/web/src/app/(site)/feedback/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/for-brokers",
+    "file": "apps/web/src/app/(site)/for-brokers/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/help",
+    "file": "apps/web/src/app/(site)/help/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/invite/[token]",
+    "file": "apps/web/src/app/(site)/invite/[token]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/localities",
+    "file": "apps/web/src/app/(site)/localities/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/locality/[slug]",
+    "file": "apps/web/src/app/(site)/locality/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/p/[slug]",
+    "file": "apps/web/src/app/(site)/p/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/",
+    "file": "apps/web/src/app/(site)/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/pay/[token]",
+    "file": "apps/web/src/app/(site)/pay/[token]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/plots",
+    "file": "apps/web/src/app/(site)/plots/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/post-property",
+    "file": "apps/web/src/app/(site)/post-property/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/projects/[slug]",
+    "file": "apps/web/src/app/(site)/projects/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/projects",
+    "file": "apps/web/src/app/(site)/projects/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/property/[slug]",
+    "file": "apps/web/src/app/(site)/property/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/rent/[slug]",
+    "file": "apps/web/src/app/(site)/rent/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/rent",
+    "file": "apps/web/src/app/(site)/rent/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/s/[code]",
+    "file": "apps/web/src/app/(site)/s/[code]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/shortlist/[token]",
+    "file": "apps/web/src/app/(site)/shortlist/[token]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/tools/fair-rent",
+    "file": "apps/web/src/app/(site)/tools/fair-rent/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/tools",
+    "file": "apps/web/src/app/(site)/tools/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/agreements",
+    "file": "apps/web/src/app/account/agreements/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/enquiries",
+    "file": "apps/web/src/app/account/enquiries/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/feedback",
+    "file": "apps/web/src/app/account/feedback/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/flatmates",
+    "file": "apps/web/src/app/account/flatmates/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/invite",
+    "file": "apps/web/src/app/account/invite/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/listings/[id]/edit",
+    "file": "apps/web/src/app/account/listings/[id]/edit/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/listings/new",
+    "file": "apps/web/src/app/account/listings/new/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/listings",
+    "file": "apps/web/src/app/account/listings/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/messages",
+    "file": "apps/web/src/app/account/messages/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/notifications",
+    "file": "apps/web/src/app/account/notifications/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account",
+    "file": "apps/web/src/app/account/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/privacy",
+    "file": "apps/web/src/app/account/privacy/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/profile",
+    "file": "apps/web/src/app/account/profile/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/rent",
+    "file": "apps/web/src/app/account/rent/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/requirements",
+    "file": "apps/web/src/app/account/requirements/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/saved",
+    "file": "apps/web/src/app/account/saved/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/searches",
+    "file": "apps/web/src/app/account/searches/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/account/visits",
+    "file": "apps/web/src/app/account/visits/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/activity",
+    "file": "apps/web/src/app/admin/activity/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/amenities",
+    "file": "apps/web/src/app/admin/amenities/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/audit",
+    "file": "apps/web/src/app/admin/audit/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/blocklist",
+    "file": "apps/web/src/app/admin/blocklist/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/blog",
+    "file": "apps/web/src/app/admin/blog/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/broadcasts",
+    "file": "apps/web/src/app/admin/broadcasts/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/broker-invites",
+    "file": "apps/web/src/app/admin/broker-invites/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/brokers",
+    "file": "apps/web/src/app/admin/brokers/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/builders",
+    "file": "apps/web/src/app/admin/builders/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/chat-reports",
+    "file": "apps/web/src/app/admin/chat-reports/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/content",
+    "file": "apps/web/src/app/admin/content/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/coupons",
+    "file": "apps/web/src/app/admin/coupons/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/enquiries",
+    "file": "apps/web/src/app/admin/enquiries/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/faqs",
+    "file": "apps/web/src/app/admin/faqs/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/feedback",
+    "file": "apps/web/src/app/admin/feedback/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/health",
+    "file": "apps/web/src/app/admin/health/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/homepage",
+    "file": "apps/web/src/app/admin/homepage/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/inventory",
+    "file": "apps/web/src/app/admin/inventory/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/kyc",
+    "file": "apps/web/src/app/admin/kyc/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/listings",
+    "file": "apps/web/src/app/admin/listings/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/localities",
+    "file": "apps/web/src/app/admin/localities/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/locality-reviews",
+    "file": "apps/web/src/app/admin/locality-reviews/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/moderation",
+    "file": "apps/web/src/app/admin/moderation/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/modules",
+    "file": "apps/web/src/app/admin/modules/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/notifications",
+    "file": "apps/web/src/app/admin/notifications/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin",
+    "file": "apps/web/src/app/admin/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/pages",
+    "file": "apps/web/src/app/admin/pages/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/payments",
+    "file": "apps/web/src/app/admin/payments/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/plans",
+    "file": "apps/web/src/app/admin/plans/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/projects",
+    "file": "apps/web/src/app/admin/projects/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/reports",
+    "file": "apps/web/src/app/admin/reports/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/services",
+    "file": "apps/web/src/app/admin/services/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/settings/app",
+    "file": "apps/web/src/app/admin/settings/app/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/settings/flags",
+    "file": "apps/web/src/app/admin/settings/flags/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/settings/integrations",
+    "file": "apps/web/src/app/admin/settings/integrations/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/subscriptions",
+    "file": "apps/web/src/app/admin/subscriptions/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/support",
+    "file": "apps/web/src/app/admin/support/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/system",
+    "file": "apps/web/src/app/admin/system/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/templates",
+    "file": "apps/web/src/app/admin/templates/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/user-data/[id]",
+    "file": "apps/web/src/app/admin/user-data/[id]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/user-data",
+    "file": "apps/web/src/app/admin/user-data/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/users",
+    "file": "apps/web/src/app/admin/users/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/admin/visit-verification",
+    "file": "apps/web/src/app/admin/visit-verification/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/activity",
+    "file": "apps/web/src/app/broker/activity/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/agreements",
+    "file": "apps/web/src/app/broker/agreements/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/analytics",
+    "file": "apps/web/src/app/broker/analytics/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/automations",
+    "file": "apps/web/src/app/broker/automations/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/billing",
+    "file": "apps/web/src/app/broker/billing/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/campaigns",
+    "file": "apps/web/src/app/broker/campaigns/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/connectors",
+    "file": "apps/web/src/app/broker/connectors/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/deals",
+    "file": "apps/web/src/app/broker/deals/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/feedback",
+    "file": "apps/web/src/app/broker/feedback/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/follow-ups",
+    "file": "apps/web/src/app/broker/follow-ups/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/imports/[id]",
+    "file": "apps/web/src/app/broker/imports/[id]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/imports",
+    "file": "apps/web/src/app/broker/imports/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/inbox",
+    "file": "apps/web/src/app/broker/inbox/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/inventory/directory",
+    "file": "apps/web/src/app/broker/inventory/directory/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/inventory",
+    "file": "apps/web/src/app/broker/inventory/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/invite-brokers",
+    "file": "apps/web/src/app/broker/invite-brokers/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/invoices",
+    "file": "apps/web/src/app/broker/invoices/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/leads/[id]",
+    "file": "apps/web/src/app/broker/leads/[id]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/leads",
+    "file": "apps/web/src/app/broker/leads/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/leads/requirements",
+    "file": "apps/web/src/app/broker/leads/requirements/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/listings/[id]/edit",
+    "file": "apps/web/src/app/broker/listings/[id]/edit/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/listings/new",
+    "file": "apps/web/src/app/broker/listings/new/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/listings",
+    "file": "apps/web/src/app/broker/listings/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/network",
+    "file": "apps/web/src/app/broker/network/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/notifications",
+    "file": "apps/web/src/app/broker/notifications/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/onboarding",
+    "file": "apps/web/src/app/broker/onboarding/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/owners",
+    "file": "apps/web/src/app/broker/owners/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker",
+    "file": "apps/web/src/app/broker/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/pipeline",
+    "file": "apps/web/src/app/broker/pipeline/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/privacy",
+    "file": "apps/web/src/app/broker/privacy/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/reports",
+    "file": "apps/web/src/app/broker/reports/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/reviews",
+    "file": "apps/web/src/app/broker/reviews/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/scanner",
+    "file": "apps/web/src/app/broker/scanner/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/settings",
+    "file": "apps/web/src/app/broker/settings/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/team",
+    "file": "apps/web/src/app/broker/team/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/tokens",
+    "file": "apps/web/src/app/broker/tokens/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/upcoming",
+    "file": "apps/web/src/app/broker/upcoming/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/broker/visits",
+    "file": "apps/web/src/app/broker/visits/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/card/[slug]",
+    "file": "apps/web/src/app/card/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/i/[token]",
+    "file": "apps/web/src/app/i/[token]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/o/[token]",
+    "file": "apps/web/src/app/o/[token]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/sign/[token]",
+    "file": "apps/web/src/app/sign/[token]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/activity",
+    "file": "apps/web/src/app/user/account/activity/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/enquiries",
+    "file": "apps/web/src/app/user/account/enquiries/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/feedback",
+    "file": "apps/web/src/app/user/account/feedback/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/listings/[id]/edit",
+    "file": "apps/web/src/app/user/account/listings/[id]/edit/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/listings/new",
+    "file": "apps/web/src/app/user/account/listings/new/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/listings",
+    "file": "apps/web/src/app/user/account/listings/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/messages",
+    "file": "apps/web/src/app/user/account/messages/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/notifications",
+    "file": "apps/web/src/app/user/account/notifications/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account",
+    "file": "apps/web/src/app/user/account/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/privacy",
+    "file": "apps/web/src/app/user/account/privacy/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/profile",
+    "file": "apps/web/src/app/user/account/profile/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/requirements",
+    "file": "apps/web/src/app/user/account/requirements/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/saved",
+    "file": "apps/web/src/app/user/account/saved/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/searches",
+    "file": "apps/web/src/app/user/account/searches/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/account/visits",
+    "file": "apps/web/src/app/user/account/visits/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/brokers/[slug]",
+    "file": "apps/web/src/app/user/brokers/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/brokers",
+    "file": "apps/web/src/app/user/brokers/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/commercial",
+    "file": "apps/web/src/app/user/commercial/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/localities",
+    "file": "apps/web/src/app/user/localities/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/locality/[slug]",
+    "file": "apps/web/src/app/user/locality/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user",
+    "file": "apps/web/src/app/user/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/post-property",
+    "file": "apps/web/src/app/user/post-property/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/property/[slug]",
+    "file": "apps/web/src/app/user/property/[slug]/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "web",
+    "route": "/user/search",
+    "file": "apps/web/src/app/user/search/page.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/automations",
+    "file": "apps/mobile/app/(broker)/automations.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/dashboard",
+    "file": "apps/mobile/app/(broker)/dashboard.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/inbox",
+    "file": "apps/mobile/app/(broker)/inbox.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/inventory",
+    "file": "apps/mobile/app/(broker)/inventory.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/leads",
+    "file": "apps/mobile/app/(broker)/leads.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/more",
+    "file": "apps/mobile/app/(broker)/more.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/home",
+    "file": "apps/mobile/app/(user)/home.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/messages",
+    "file": "apps/mobile/app/(user)/messages.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/profile",
+    "file": "apps/mobile/app/(user)/profile.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/saved",
+    "file": "apps/mobile/app/(user)/saved.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/search",
+    "file": "apps/mobile/app/(user)/search.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/add-lead",
+    "file": "apps/mobile/app/add-lead.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/admin",
+    "file": "apps/mobile/app/admin.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/agreements",
+    "file": "apps/mobile/app/agreements.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/analytics",
+    "file": "apps/mobile/app/analytics.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/area-directory",
+    "file": "apps/mobile/app/area-directory.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/billing",
+    "file": "apps/mobile/app/billing.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/boost",
+    "file": "apps/mobile/app/boost.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/broker/[slug]",
+    "file": "apps/mobile/app/broker/[slug].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/broker-onboarding",
+    "file": "apps/mobile/app/broker-onboarding.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/broker-settings",
+    "file": "apps/mobile/app/broker-settings.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/campaigns",
+    "file": "apps/mobile/app/campaigns.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/capture",
+    "file": "apps/mobile/app/capture.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/chat/[id]",
+    "file": "apps/mobile/app/chat/[id].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/compare",
+    "file": "apps/mobile/app/compare.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/connectors",
+    "file": "apps/mobile/app/connectors.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/customer-overview",
+    "file": "apps/mobile/app/customer-overview.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/customer-requirements",
+    "file": "apps/mobile/app/customer-requirements.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/dashboard-records",
+    "file": "apps/mobile/app/dashboard-records.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/data-consent",
+    "file": "apps/mobile/app/data-consent.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/deals",
+    "file": "apps/mobile/app/deals.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/drafts",
+    "file": "apps/mobile/app/drafts.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/edit-profile",
+    "file": "apps/mobile/app/edit-profile.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/enquiries",
+    "file": "apps/mobile/app/enquiries.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/feedback",
+    "file": "apps/mobile/app/feedback.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/field-verify",
+    "file": "apps/mobile/app/field-verify.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/flatmates",
+    "file": "apps/mobile/app/flatmates.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/follow-ups",
+    "file": "apps/mobile/app/follow-ups.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/handle-share",
+    "file": "apps/mobile/app/handle-share.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/import-review/[id]",
+    "file": "apps/mobile/app/import-review/[id].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/index",
+    "file": "apps/mobile/app/index.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/inspection/[tenancyId]",
+    "file": "apps/mobile/app/inspection/[tenancyId].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/inventory/[id]",
+    "file": "apps/mobile/app/inventory/[id].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/inventory-edit",
+    "file": "apps/mobile/app/inventory-edit.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/invite-brokers",
+    "file": "apps/mobile/app/invite-brokers.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/invite",
+    "file": "apps/mobile/app/invite.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/invoices",
+    "file": "apps/mobile/app/invoices.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/lead/[id]",
+    "file": "apps/mobile/app/lead/[id].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/locality/[slug]",
+    "file": "apps/mobile/app/locality/[slug].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/login",
+    "file": "apps/mobile/app/login.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/my-listings",
+    "file": "apps/mobile/app/my-listings.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/my-rent",
+    "file": "apps/mobile/app/my-rent.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/my-visits",
+    "file": "apps/mobile/app/my-visits.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/network",
+    "file": "apps/mobile/app/network.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/notifications",
+    "file": "apps/mobile/app/notifications.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/onboarding",
+    "file": "apps/mobile/app/onboarding.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/owners",
+    "file": "apps/mobile/app/owners.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/photo-branding",
+    "file": "apps/mobile/app/photo-branding.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/pipeline",
+    "file": "apps/mobile/app/pipeline.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/post-property",
+    "file": "apps/mobile/app/post-property.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/privacy",
+    "file": "apps/mobile/app/privacy.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/project/[slug]",
+    "file": "apps/mobile/app/project/[slug].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/property/[slug]",
+    "file": "apps/mobile/app/property/[slug].tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/publish-rental",
+    "file": "apps/mobile/app/publish-rental.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/reports",
+    "file": "apps/mobile/app/reports.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/requirement-edit",
+    "file": "apps/mobile/app/requirement-edit.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/requirements",
+    "file": "apps/mobile/app/requirements.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/scanner",
+    "file": "apps/mobile/app/scanner.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/services",
+    "file": "apps/mobile/app/services.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/team",
+    "file": "apps/mobile/app/team.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/tokens",
+    "file": "apps/mobile/app/tokens.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/tools",
+    "file": "apps/mobile/app/tools.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/verify-tenant",
+    "file": "apps/mobile/app/verify-tenant.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/visiting-card",
+    "file": "apps/mobile/app/visiting-card.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/visits",
+    "file": "apps/mobile/app/visits.tsx",
+    "review": "pending"
+  },
+  {
+    "surface": "native",
+    "route": "/wa/[id]",
+    "file": "apps/mobile/app/wa/[id].tsx",
+    "review": "pending"
+  }
+]

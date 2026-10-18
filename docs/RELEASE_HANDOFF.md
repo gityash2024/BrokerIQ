@@ -19,9 +19,15 @@ Footer के gradient glyph paint bounds सुधारे गए हैं; `
 
 Native finishing में shared headers/cards/buttons/tabs, dashboard hierarchy और donut legend, Directory map/list/filter, property overview, grouped inventory forms, Automation controls/history और Inbox capture states शामिल हैं। Inbox route की गलत module mapping ठीक हुई; USER को Broker Inbox access नहीं दिया गया।
 
-Build23 verification: mobile typecheck और 17 unit tests; shared 28 tests; landing typecheck और server production web build पास। Emulator पर पाँचों Broker tabs, Directory filters/map attribution, property details, execution history, User overview और Broker mode में वापसी जाँची। Existing encrypted draft और timestamp upgrade के बाद सुरक्षित रहे; airplane-mode restart में field fingerprint समान रहा। Hindi/dark/1.3 font scale और तीन cold starts जाँचे; OS/language preferences वापस कीं। Physical-device gate अभी खुला है। इस visual patch के लिए API suite दोबारा नहीं चलाई गई; नीचे full API results पिछले enterprise checkpoint के हैं।
+Build23 verification: mobile typecheck और 17 unit tests; shared 28 tests; landing typecheck और server production web build पास। Emulator पर पाँचों Broker tabs, Directory filters/map attribution, property details, execution history, User overview और Broker mode में वापसी जाँची। Existing encrypted draft और timestamp upgrade के बाद सुरक्षित रहे; airplane-mode restart में field fingerprint समान रहा। Hindi/dark/1.3 font scale और तीन cold starts जाँचे; OS/language preferences वापस कीं। Physical-device gate अभी खुला है। Native/landing visual patch के बाद अलग scheduler defect मिला; उसके fix के लिए full API और Broker-first suites दोबारा चलाई गईं, नीचे नई evidence है।
 
 Web code `b9c7ad6` पर है; केवल `brokeriq-web` reload हुआ। `brokeriq-api` का PID/restart count अपरिवर्तित रहा। Web rollback: `/opt/brokeriq/backups/20261017-native23-b9c7ad6/` में पिछली `.next` symlink target और private web environment सुरक्षित हैं। पुराने `.next-landing-7e63906` को फिर link करके पिछला web environment restore और केवल web reload किया जा सकता है। इस patch में DB migration नहीं है। Android build22 retained है; uninstall/data-clear की आवश्यकता नहीं है। [Build23 evidence](evidence/native-finishing-build23.json)।
+
+## Scheduler follow-up — `279745a`
+
+Final log review में पाँच मिनट वाली job housekeeping के `CASE` expression पर PostgreSQL `42804` मिला: text result `JobStatus` enum column में assign हो रहा था। Result को explicit enum cast दिया; error reporting/history सुरक्षित है। Real isolated PostgreSQL regression पुराने SQL पर fail और fixed SQL पर pass हुआ। Stale retry recovery, exhausted attempts, fresh locks, pending jobs और finished-job retention जाँचे गए; test transaction rollback होता है।
+
+Full API rerun: 125 passed / 18 conditional skips; अलग Broker-first/enterprise/recovery run: 22 passed। API typecheck और production compilation पास। Deployed database पर exact service query rollback transaction में सफल हुई; 895 active private inventory और 2 DONE jobs मिले। Fix के लिए केवल `brokeriq-api` reload किया; web process स्थिर रहा। नई API PID `1081461`, restart count22। कोई DB migration/reset या recipient send नहीं हुआ। पिछला compiled API `/opt/brokeriq/backups/jobs23-279745a/active-dist-before` में है; rollback के लिए उसे `apps/api/dist` पर restore करके केवल API reload करें।
 
 ## तैयार व्यवहार
 
