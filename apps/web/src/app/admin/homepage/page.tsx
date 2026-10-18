@@ -83,13 +83,13 @@ export default function HomepageBuilder() {
               key={s.id}
               value={s}
               onDragEnd={() => saveOrder(items)}
-              className={cn('card flex cursor-grab items-center gap-3 p-4 active:cursor-grabbing', !s.isActive && 'opacity-60')}
+              className={cn('card flex cursor-grab flex-wrap items-center gap-3 p-4 active:cursor-grabbing', !s.isActive && 'opacity-60')}
             >
               <GripVertical className="size-5 text-subtle" />
               <span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-sm font-bold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200">
                 {i + 1}
               </span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-32 flex-1">
                 <p className="font-semibold">{s.title || TYPES[s.type]?.label || s.type}</p>
                 <p className="line-clamp-1 text-xs text-muted">{s.subtitle || '—'}</p>
               </div>

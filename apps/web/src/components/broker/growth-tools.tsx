@@ -342,13 +342,23 @@ export function ComparisonDialog({
           {items.map((l: any) => (
             <button
               key={l.id}
+              role="checkbox"
+              aria-checked={picked.includes(l.id)}
               onClick={() => toggle(l.id)}
               className={cn(
                 'card flex gap-3 p-3 text-left transition',
                 picked.includes(l.id) ? 'border-brand-500 ring-2 ring-brand-500/30' : 'hover:border-brand-300',
               )}
             >
-              <input type="checkbox" readOnly checked={picked.includes(l.id)} className="mt-1 accent-brand-600" />
+              <span
+                aria-hidden
+                className={cn(
+                  'mt-1 grid size-4 shrink-0 place-items-center rounded border text-[10px]',
+                  picked.includes(l.id) ? 'border-brand-600 bg-brand-600 text-white' : 'border-line',
+                )}
+              >
+                {picked.includes(l.id) ? '✓' : ''}
+              </span>
               <div className="min-w-0 text-sm">
                 <p className="line-clamp-2 font-semibold" data-no-i18n>
                   {l.title}

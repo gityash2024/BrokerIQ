@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, KeyboardAvoidingView, Platform } from 'react-native';
-import { Image } from 'expo-image';
+import { SourceImage } from '@/launch/source-image';
+import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
@@ -28,8 +29,26 @@ export default function ImportReview() {
   return (
     <BrokerScreen title="Review capture" subtitle={q.data ? `${q.data.total} entries · ${q.data.pending} need review` : 'Source saved, loading…'} back>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 50 }}>
+        <WorkspaceHero
+          label="SOURCE REVIEW"
+          title="Check every fact before saving."
+          description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve the records."
+        />
+        {q.data?.metadata?.requestedTarget && q.data.metadata.requestedTarget !== 'AUTO' && (
+          <WorkspaceTag label={`Requested destination: ${q.data.metadata.requestedTarget === 'INVENTORY' ? 'Inventory' : 'Requirements'}`} />
+        )}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {[true, false].map((pending) => <Chip key={String(pending)} label={pending ? 'Pending only' : 'All entries'} active={pendingOnly === pending} onPress={() => { setPendingOnly(pending); setPage(1); }} />)}
+          {[true, false].map((pending) => (
+            <Chip
+              key={String(pending)}
+              label={pending ? 'Pending only' : 'All entries'}
+              active={pendingOnly === pending}
+              onPress={() => {
+                setPendingOnly(pending);
+                setPage(1);
+              }}
+            />
+          ))}
         </View>
         {q.data?.metadata?.pages?.length > 0 && (
           <ChoiceField
@@ -42,7 +61,7 @@ export default function ImportReview() {
             }}
           />
         )}
-        {q.error && <ErrorView error={q.error} />}
+        {q.error && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {error && <Txt color="danger">{error}</Txt>}
         {q.data?.lastError && (
           <NativeCard>
@@ -100,13 +119,14 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const draftId = useRef(Crypto.randomUUID());
+  const owner = useRef(authStore.get()?.user.id ?? 'UNASSIGNED');
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const row = await editableDraft('IMPORT_REVIEW', entry.id);
+        const row = await editableDraft('IMPORT_REVIEW', entry.id, owner.current);
         if (row) {
           const saved = decodeDraft(row);
           draftId.current = row.id;
@@ -129,7 +149,9 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
     setStatus('Saving draft…');
     writes.current = writes.current
       .catch(() => undefined)
-      .then(() => saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: version }, draftId.current))
+      .then(() =>
+        saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: version }, draftId.current, owner.current),
+      )
       .then(() => setStatus('Draft saved on this device'))
       .catch((e) => {
         setError(errorMessage(e));
@@ -149,14 +171,21 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
                 : e,
           );
       await writes.current;
-      await saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: version }, draftId.current);
+      await saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: version }, draftId.current, owner.current);
       const response = await api<any>(`/imports/entries/${entry.id}${approve ? '/approve' : ''}`, {
         method: approve ? 'POST' : 'PATCH',
+        ownerId: owner.current,
         body: { entities: next, ignore, expectedUpdatedAt: version },
       });
       if (response.updatedAt) {
         setVersion(response.updatedAt);
-        await saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: response.updatedAt }, draftId.current);
+        await saveDraft(
+          'IMPORT_REVIEW',
+          entry.id,
+          { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: response.updatedAt },
+          draftId.current,
+          owner.current,
+        );
       }
       if (approve || ignore) await completeReviewDraft(draftId.current, entry.id);
       setStatus(approve ? 'Reviewed and saved' : 'Review saved');
@@ -170,21 +199,16 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
   return (
     <View style={{ gap: 15 }}>
       {(image || entry.pageNo) && (
-        <Image
-          source={{
-            uri: `${API_URL}/imports/${batchId}/source${entry.pageNo ? `?pageNo=${entry.pageNo}&entryId=${entry.id}` : ''}`,
-            headers: { Authorization: `Bearer ${authStore.get()?.accessToken}` },
-          }}
-          contentFit="contain"
-          style={{ height: 260, width: '100%' }}
-          cachePolicy="none"
+        <SourceImage
+          uri={`${API_URL}/imports/${batchId}/source?${entry.pageNo ? `pageNo=${entry.pageNo}&` : ''}entryId=${entry.id}`}
+          token={authStore.get()?.accessToken}
         />
       )}
       {ready &&
         entities.map((e, index) => (
           <View key={index} style={{ gap: 12 }}>
             <Txt v="h3">
-              {e.kind} · {index + 1}
+              {e.kind === 'INVENTORY' ? 'Property / unit' : e.kind === 'REQUIREMENT' ? 'Client requirement' : 'Unclassified source'} · {index + 1}
             </Txt>
             {e.warnings?.map((warning: string, i: number) => (
               <Txt key={i} v="small" color="warning">

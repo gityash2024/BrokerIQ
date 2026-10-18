@@ -53,12 +53,12 @@ const db = () =>
     throw error;
   }));
 export const ownerId = () => authStore.get()?.user.id ?? 'UNASSIGNED';
-export async function editableDraft(kind: DraftKind, key: string) {
+export async function editableDraft(kind: DraftKind, key: string, owner = ownerId()) {
   const row = await (
     await db()
   ).getFirstAsync<LocalDraft>(
     "SELECT * FROM local_mutations WHERE owner_id=? AND kind=? AND draft_key=? AND state IN ('DRAFT','FAILED') ORDER BY updated_at DESC LIMIT 1",
-    ownerId(),
+    owner,
     kind,
     key,
   );
@@ -121,20 +121,20 @@ export async function localDrafts() {
     ownerId(),
   );
 }
-export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO') {
+export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO', owner = ownerId()) {
   const id = Crypto.randomUUID();
   if (text.length > 100_000) {
     const directory = new Directory(Paths.document, 'captures');
     directory.create({ idempotent: true, intermediates: true });
     const file = new File(directory, `${id}-message.txt`);
     file.write(text);
-    return captureFile(file.uri, 'text/plain', 'message.txt', groupName, target);
+    return captureFile(file.uri, 'text/plain', 'message.txt', groupName, target, owner);
   }
-  const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName, target }, id);
+  const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName, target }, id, owner);
   await (await db()).runAsync("UPDATE local_mutations SET state='QUEUED' WHERE id=?", saved);
   return saved;
 }
-export async function captureFile(uri: string, mime: string, name?: string, groupName?: string, target = 'AUTO') {
+export async function captureFile(uri: string, mime: string, name?: string, groupName?: string, target = 'AUTO', owner = ownerId()) {
   const id = Crypto.randomUUID();
   const directory = new Directory(Paths.document, 'captures');
   directory.create({ idempotent: true, intermediates: true });
@@ -144,7 +144,6 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
   // Do not acknowledge the share or queue a file before its private copy exists.
   await new File(uri).copy(destination);
   if (!destination.exists || destination.size === 0) throw new Error('Source copy failed. Shared content was not cleared.');
-  const owner = ownerId();
   const saved = await saveDraft(
     'CAPTURE',
     id,
@@ -204,9 +203,11 @@ export async function syncDrafts() {
           method = 'PATCH';
           const { entryId: _entryId, batchId: _batchId, ...rest } = body;
           body = rest;
-        } else {
+        } else if (row.kind === 'REQUIREMENT_CREATE') {
           path = '/broker-requirements';
           body = { ...body, clientMutationId: row.id };
+        } else {
+          throw new Error('This local draft must be opened and reviewed before sync. Its data was preserved.');
         }
         const result = await api<any>(path, { method, body, ownerId: session.user.id });
         await database.runAsync(

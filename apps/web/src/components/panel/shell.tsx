@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import * as DM from '@radix-ui/react-dropdown-menu';
-import { Bell, ExternalLink, LogOut, Menu, type LucideIcon } from 'lucide-react';
+import { Bell, ExternalLink, LogOut, Menu, Building2, SlidersHorizontal, Compass, ChevronRight, type LucideIcon } from 'lucide-react';
 import { timeAgo, type NotificationsResponse } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -240,13 +240,21 @@ export function PanelShell({
 }
 
 export function PageHeader({ title, subtitle, actions }: { title: React.ReactNode; subtitle?: React.ReactNode; actions?: React.ReactNode }) {
+  const path = usePathname();
+  const section = path.startsWith('/admin') ? 'Platform administration' : path.startsWith('/broker') ? 'Broker workspace' : 'Your property journey';
+  const Icon = path.startsWith('/admin') ? SlidersHorizontal : path.startsWith('/broker') ? Building2 : Compass;
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="font-display text-2xl font-extrabold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+    <div className="workspace-page-header mb-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-brand-700 dark:text-brand-300">
+          <Icon className="size-3.5" aria-hidden />
+          {section}
+          <ChevronRight className="size-3" aria-hidden />
+        </p>
+        <h1 className="break-words font-display text-2xl font-extrabold tracking-tight sm:text-[28px]">{title}</h1>
+        {subtitle && <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2 sm:max-w-[50%]">{actions}</div>}
     </div>
   );
 }

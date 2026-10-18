@@ -3,7 +3,7 @@ import { createContext, useContext, useId, forwardRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const FieldContext = createContext<{ id: string; description?: string; invalid: boolean } | null>(null);
+const FieldContext = createContext<{ id: string; description?: string; invalid: boolean; required?: boolean } | null>(null);
 const base =
   'w-full rounded-xl border border-line bg-surface px-3.5 text-sm text-fg placeholder:text-subtle transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60';
 
@@ -16,6 +16,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
     id: p.id ?? field?.id,
     'aria-describedby': p['aria-describedby'] ?? field?.description,
     'aria-invalid': p['aria-invalid'] ?? field?.invalid,
+    required: p.required ?? field?.required,
   };
   if (icon)
     return (
@@ -37,6 +38,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
       id={p.id ?? field?.id}
       aria-describedby={p['aria-describedby'] ?? field?.description}
       aria-invalid={p['aria-invalid'] ?? field?.invalid}
+      required={p.required ?? field?.required}
     />
   );
 });
@@ -52,6 +54,7 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
         id={p.id ?? field?.id}
         aria-describedby={p['aria-describedby'] ?? field?.description}
         aria-invalid={p['aria-invalid'] ?? field?.invalid}
+        required={p.required ?? field?.required}
       >
         {children}
       </select>
@@ -64,7 +67,11 @@ export function Label({ children, className, required, ...p }: React.LabelHTMLAt
   return (
     <label className={cn('mb-1.5 block text-[13px] font-semibold text-fg', className)} {...p}>
       {children}
-      {required && <span className="ml-0.5 text-rose-500">*</span>}
+      {required && (
+        <span aria-hidden="true" className="ml-0.5 text-rose-500">
+          *
+        </span>
+      )}
     </label>
   );
 }
@@ -86,7 +93,7 @@ export function Field({
 }) {
   const id = useId();
   return (
-    <FieldContext.Provider value={{ id, description: error || hint ? id + '-description' : undefined, invalid: !!error }}>
+    <FieldContext.Provider value={{ id, description: error || hint ? id + '-description' : undefined, invalid: !!error, required }}>
       <div className={className}>
         {label && (
           <Label htmlFor={id} required={required}>

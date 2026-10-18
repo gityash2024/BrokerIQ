@@ -57,6 +57,12 @@ def parse_form(html,url):
    if key not in facts and re.search(re.escape(pattern),label,re.I) and len(row)>=2:
     value=row[-1]
     if value and value!=label and len(value)<600:facts[key]=value
+ facilities=[]
+ for row in allrows:
+  if 2 <= len(row) <= 5 and re.search(r'water supply|sewage|solid waste|renewable|rain.?water|fire fight|power backup|security system|car parking',row[0],re.I):
+   bounded=[value[:1000] for value in row]
+   if bounded not in facilities:facilities.append(bounded)
+ if facilities:tables.append({'key':'facilities','rows':facilities[:100]})
  return {'version':1,'sourceUrl':url,'fetchedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'sourceHash':hashlib.sha256(html.encode()).hexdigest(),'facts':facts,'tables':tables,'photos':[]}
 def fetch(url,path):
  if path.exists():return path.read_text()
@@ -87,6 +93,7 @@ def main():
    try:
     if '--cached-only' in sys.argv and not (cache/(identity+'.html')).exists():raise ValueError('Source not cached; fetch required')
     html=fetch(url,cache/(identity+'.html'));enriched=parse_form(html,url)
+    enriched['fetchedAt']=datetime.datetime.fromtimestamp((cache/(identity+'.html')).stat().st_mtime,datetime.timezone.utc).isoformat()
     # Match the existing identity from the linked official project form; never fuzzy-merge projects.
     if not enriched['facts'] and not enriched['tables']:raise ValueError('No supported project facts in public form')
     updates.append({'provider':'HARERA','externalId':record['externalId'],'sourceUrl':record['sourceUrl'],'enrichment':enriched})

@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { createBrokerFixture } from './fixtures';
+let brokerEmail = '';
+test.beforeAll(async ({ request }) => {
+  brokerEmail = (await createBrokerFixture(request)).email;
+});
 const API = 'http://localhost:3099/api';
-async function login(page: any, email = 'broker.web@e2e.test', password = 'FixtureBroker123') {
+async function login(page: any, email = brokerEmail, password = 'FixtureBroker123') {
   await page.goto('/login');
   const tab = page.getByRole('button', { name: /Password/ }).first();
   if (await tab.isVisible()) await tab.click();
@@ -52,10 +57,10 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   page.once('dialog', (dialog) => dialog.accept());
   await page.keyboard.press('Escape');
   await page.goto('/broker/deals');
-  await expect(page.getByRole('heading', { name: 'यह सुविधा अभी उपलब्ध नहीं है' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Deals & invoices' })).toBeVisible();
 });
 test('admin module toggle blocks direct route and restores navigation', async ({ page, request }) => {
-  await login(page, 'admin.web@e2e.test', 'FixtureAdmin123');
+  await login(page, 'admin.web@e2e.test', process.env.SUPER_ADMIN_PASSWORD || 'Admin@12345');
   await expect(page.getByRole('heading', { name: 'A clearer view of BrokerIQ.' })).toBeVisible();
   const auth = await page.evaluate(() => JSON.parse(localStorage.getItem('biq.auth')!));
   const headers = { Authorization: `Bearer ${auth.accessToken}` };
@@ -63,7 +68,7 @@ test('admin module toggle blocks direct route and restores navigation', async ({
     expect(
       (await request.patch(`${API}/admin/modules/inventory`, { headers, data: { state: 'COMING_SOON', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] } })).ok(),
     ).toBeTruthy();
-    const broker = await request.post(`${API}/auth/login`, { data: { email: 'broker.web@e2e.test', password: 'FixtureBroker123' } });
+    const broker = await request.post(`${API}/auth/login`, { data: { email: brokerEmail, password: 'FixtureBroker123' } });
     expect((await request.get(`${API}/inventory`, { headers: { Authorization: `Bearer ${(await broker.json()).accessToken}` } })).status()).toBe(403);
   } finally {
     await request.patch(`${API}/admin/modules/inventory`, { headers, data: { state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] } });
@@ -85,7 +90,7 @@ test('Area Directory lists source-backed projects and opens the map without inve
     .getByRole('button', { name: /102 EDEN ESTATE/ })
     .first()
     .click();
-  await expect(page.getByRole('link', { name: 'Open official source ↗' })).toHaveAttribute('href', /haryanarera.gov.in/);
+  await expect(page.getByRole('link', { name: 'Official record ↗' })).toHaveAttribute('href', /haryanarera.gov.in/);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search directory' }).fill('');
   await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());

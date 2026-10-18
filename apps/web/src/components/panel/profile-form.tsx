@@ -51,7 +51,7 @@ export function ProfileForm() {
   };
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="card p-6">
+      <div className="card min-w-0 p-6">
         <h2 className="font-display text-lg font-bold">Profile</h2>
         <div className="mt-5 flex items-center gap-4">
           <label className="group relative cursor-pointer">
@@ -61,8 +61,8 @@ export function ProfileForm() {
             </span>
             <input type="file" accept="image/*" hidden onChange={(e) => avatar(e.target.files?.[0])} />
           </label>
-          <div>
-            <p className="font-semibold">{user?.email}</p>
+          <div className="min-w-0">
+            <p className="break-all text-sm font-semibold">{user?.email}</p>
             {user?.emailVerified ? (
               <Badge tone="success">
                 <BadgeCheck className="size-3" /> Email verified
@@ -137,7 +137,7 @@ export function KycCard({ broker }: { broker?: boolean }) {
       </h2>
       <p className="mt-1 text-sm text-muted">
         {broker
-          ? 'RERA / GST document upload करें — verified badge से 3x ज़्यादा trust और leads।'
+          ? 'RERA / GST document upload करें — platform review के बाद verification status दिखेगा।'
           : 'Ownership proof से आपकी listings पर “Verified” badge लगेगा।'}
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">

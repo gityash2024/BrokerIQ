@@ -6,8 +6,9 @@ import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
 import { RequirementForm } from '@/components/broker/launch/requirement-form';
-import { formatINR } from '@brokeriq/shared';
+import { formatINR, readableValue } from '@brokeriq/shared';
 export default function RequirementsPage() {
+  const [dirty, setDirty] = useState(false);
   const [adding, setAdding] = useState(false);
   const [match, setMatch] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -30,7 +31,7 @@ export default function RequirementsPage() {
           </>
         }
       />
-      <div className="mb-5 flex gap-5 text-sm">
+      <div className="mb-5 flex flex-wrap gap-5 text-sm">
         <Link href="/broker/leads">Contacts & leads</Link>
         <Link href="/broker/pipeline">Pipeline</Link>
         <Link href="/broker/follow-ups">Follow-ups</Link>
@@ -54,12 +55,37 @@ export default function RequirementsPage() {
                 {item.minBudget != null ? formatINR(item.minBudget) : 'No minimum'} — {item.maxBudget != null ? formatINR(item.maxBudget) : 'No maximum'}
               </p>
               <p className="mt-2 line-clamp-3 text-xs text-muted">{item.notes}</p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4 text-xs">
+                {[
+                  ['Phone', item.contactPhone],
+                  ['Property types', item.propertyTypes?.map(readableValue).join(' · ')],
+                  ['Furnishing', item.furnishing && readableValue(item.furnishing)],
+                  [
+                    'Area preference',
+                    item.minArea != null || item.maxArea != null
+                      ? `${item.minArea ?? 'Any'} – ${item.maxArea ?? 'Any'} ${item.areaUnit ? readableValue(item.areaUnit) : ''}`
+                      : null,
+                  ],
+                ]
+                  .filter(([, value]) => value)
+                  .map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="text-muted">{label}</dt>
+                      <dd className="mt-1 font-medium">{value}</dd>
+                    </div>
+                  ))}
+              </dl>
               <button onClick={() => setMatch(item.id)} className="mt-4 text-sm font-semibold text-brand-600">
                 Find matching properties →
               </button>
             </article>
           ))}
         </div>
+      )}
+      {query.isPending && (
+        <p role="status" className="card p-10 text-center text-sm text-muted">
+          Loading requirements…
+        </p>
       )}
       {query.data?.total === 0 && (
         <p className="rounded-xl border border-line p-8 text-center text-muted">Add a requirement or approve one from Inbox imports.</p>
@@ -72,11 +98,22 @@ export default function RequirementsPage() {
           Next
         </button>
       </div>
-      <Dialog open={adding} onOpenChange={setAdding} title="New requirement">
+      <Dialog
+        open={adding}
+        onOpenChange={(open) => {
+          if (!open && dirty && !window.confirm('Discard unsaved requirement changes?')) return;
+          setAdding(open);
+          if (!open) setDirty(false);
+        }}
+        title="New requirement"
+        size="lg"
+      >
         <RequirementForm
+          onDirty={() => setDirty(true)}
           onSave={async (body) => {
             await api('/broker-requirements', { body });
             setAdding(false);
+            setDirty(false);
             await qc.invalidateQueries({ queryKey: ['broker-requirements'] });
           }}
         />
@@ -94,7 +131,11 @@ export default function RequirementsPage() {
           <div key={group} className="mb-5">
             <h2 className="mb-3 font-bold">{group === 'available' ? 'Confirmed available' : 'Availability needs confirmation'}</h2>
             {matches.data?.[group].map((m: any) => (
-              <Link key={m.item.id} href="/broker/inventory" className="mb-2 block rounded-xl border border-line p-3">
+              <Link
+                key={m.item.id}
+                href={`/broker/inventory?search=${encodeURIComponent(m.item.houseNo || m.item.sector || '')}`}
+                className="mb-2 block rounded-xl border border-line p-3"
+              >
                 <p className="font-semibold">
                   {m.item.houseNo || 'House not recorded'} · {m.item.sector}
                 </p>

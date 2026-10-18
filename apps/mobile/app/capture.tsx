@@ -10,7 +10,7 @@ import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { captureText, captureFile, editableDraft, decodeDraft, saveDraft, syncDrafts } from '@/launch/drafts';
 import { Input, Txt, Button, Segmented, Row } from '@/ui';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, authStore } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 
 type Source = { uri: string; mime: string; name: string };
@@ -25,12 +25,13 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('');
   const [sources, setSources] = useState<string[]>([]);
+  const owner = useRef(authStore.get()?.user.id ?? 'UNASSIGNED');
   const draftId = useRef<string | undefined>(undefined);
   const writes = useRef(Promise.resolve());
   const pendingFiles = useRef<Source[]>([]);
   useEffect(() => {
     let live = true;
-    void editableDraft('CAPTURE_COMPOSE', 'message-composer')
+    void editableDraft('CAPTURE_COMPOSE', 'message-composer', owner.current)
       .then((row) => {
         if (!live) return;
         if (row) {
@@ -49,11 +50,17 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     };
   }, []);
   useEffect(() => {
-    if (!ready || (!text && !group)) return;
+    if (!ready || (!text && !group && !draftId.current)) return;
     writes.current = writes.current
       .catch(() => undefined)
       .then(async () => {
-        draftId.current = await saveDraft('CAPTURE_COMPOSE', 'message-composer', { text, group, target, entryTarget: requested }, draftId.current);
+        draftId.current = await saveDraft(
+          'CAPTURE_COMPOSE',
+          'message-composer',
+          { text, group, target, entryTarget: requested },
+          draftId.current,
+          owner.current,
+        );
         setStatus('Draft saved on this device');
       })
       .catch((e) => setError(errorMessage(e)));
@@ -61,7 +68,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   async function preserve(files: Source[]) {
     pendingFiles.current = files;
     for (const file of files) {
-      await captureFile(file.uri, file.mime, file.name, group || undefined, target);
+      await captureFile(file.uri, file.mime, file.name, group || undefined, target, owner.current);
       pendingFiles.current = pendingFiles.current.filter((p) => p !== file);
       setSources((current) => [...current, file.name]);
     }

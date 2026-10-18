@@ -1,6 +1,7 @@
 import { usePathname, router } from 'expo-router';
+import { Fragment } from 'react';
 import { View } from 'react-native';
-import { moduleAllowed } from '@brokeriq/shared';
+import { moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { BrokerScreen } from './screen';
@@ -31,20 +32,34 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const path = explicitPath ?? currentPath;
   const { user } = useAuth();
   const config = useConfig();
-  if (essential.includes(path)) return <>{children}</>;
+  if (essential.includes(path)) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
   const key = path === '/dashboard-records' ? (user?.role === 'BROKER_ADMIN' ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const allowed =
     config.loaded &&
     moduleAllowed(config.modules, key, role) &&
     (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : user?.role === 'BROKER_ADMIN' && !!user.organization?.id);
-  if (allowed) return <>{children}</>;
+  if (allowed) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;
   const login = !user && consumer.test(path) && !guest.test(path);
+  const policy = config.modules?.[key] ?? defaultModulePolicies()[key];
+  const upcoming = policy?.state === 'COMING_SOON';
   return (
     <BrokerScreen
-      title={loading ? 'Getting things ready…' : login ? 'Sign in to continue' : config.error ? 'Connection needs attention' : 'Feature unavailable'}
+      title={
+        loading
+          ? 'Getting things ready…'
+          : login
+            ? 'Sign in to continue'
+            : config.error
+              ? 'Connection needs attention'
+              : upcoming
+                ? 'Coming soon · Disabled'
+                : policy?.state === 'HIDDEN'
+                  ? 'Module disabled'
+                  : 'Access restricted'
+      }
     >
       <View style={{ padding: 24, gap: 16 }}>
         <Txt color="muted">
@@ -56,7 +71,9 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
                 ? 'We could not load access settings. Your saved drafts remain on this device.'
                 : user?.role === 'SUPER_ADMIN'
                   ? 'Open the responsive web Admin Portal to manage the platform.'
-                  : 'This feature is not enabled for your account.'}
+                  : upcoming
+                    ? 'This workflow is on the product roadmap. Existing records remain safe while it is disabled.'
+                    : 'This feature is not enabled for your account. Your records and offline drafts remain safe.'}
         </Txt>
         {config.storageError && <Txt color="danger">{config.storageError}</Txt>}
         {!loading && (

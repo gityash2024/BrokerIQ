@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -123,7 +123,17 @@ export function TagsInput({ value, onChange, placeholder }: { value: string[]; o
   );
 }
 
-export function FieldInput({ f, value, onChange }: { f: CrudField; value: any; onChange: (v: any) => void }) {
+export function FieldInput({
+  f,
+  value,
+  onChange,
+  onValidityChange,
+}: {
+  f: CrudField;
+  value: any;
+  onChange: (v: any) => void;
+  onValidityChange?: (valid: boolean) => void;
+}) {
   switch (f.type ?? 'text') {
     case 'textarea':
       return <Textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={f.placeholder} />;
@@ -181,7 +191,7 @@ export function FieldInput({ f, value, onChange }: { f: CrudField; value: any; o
         </div>
       );
     case 'json':
-      return <JsonInput value={value} onChange={onChange} />;
+      return <JsonInput value={value} onChange={onChange} onValidityChange={onValidityChange} />;
     case 'images':
       return <PhotoUploader value={(value ?? []).map((url: string) => ({ url }))} onChange={(v) => onChange(v.map((p) => p.url))} kind="cms" />;
     default:
@@ -189,7 +199,7 @@ export function FieldInput({ f, value, onChange }: { f: CrudField; value: any; o
   }
 }
 
-function JsonInput({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+function JsonInput({ value, onChange, onValidityChange }: { value: any; onChange: (v: any) => void; onValidityChange?: (valid: boolean) => void }) {
   const [text, setText] = useState(() => JSON.stringify(value ?? {}, null, 2));
   const [err, setErr] = useState<string | null>(null);
   return (
@@ -201,8 +211,10 @@ function JsonInput({ value, onChange }: { value: any; onChange: (v: any) => void
           try {
             onChange(JSON.parse(e.target.value || '{}'));
             setErr(null);
+            onValidityChange?.(true);
           } catch (x) {
             setErr((x as Error).message);
+            onValidityChange?.(false);
           }
         }}
         className={cn('min-h-40 font-mono text-xs', err && 'border-rose-400')}
@@ -274,9 +286,23 @@ export function AdminCrud({
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!dirty || !editing) return;
+    const prevent = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', prevent);
+    return () => window.removeEventListener('beforeunload', prevent);
+  }, [dirty, editing]);
   const isNew = editing && !editing.id;
 
   const open = async (item: any | null) => {
+    setDirty(false);
+    setInvalidFields({});
+    setForm({});
     if (!item) {
       setForm({ ...defaults });
       setEditing({});
@@ -289,6 +315,7 @@ export function AdminCrud({
         setForm(fromItem(await loadItem(item.id)));
       } catch (e) {
         toast.error(errorMessage(e));
+        setEditing(null);
       } finally {
         setLoading(false);
       }
@@ -298,10 +325,18 @@ export function AdminCrud({
   const save = useApiMutation(() => (isNew ? post(endpoint, toBody(form, true)) : patch(`${endpoint}/${editing.id}`, toBody(form, false))), {
     success: 'Saved',
     invalidate: [[key]],
-    onSuccess: () => setEditing(null),
+    onSuccess: () => {
+      setDirty(false);
+      setEditing(null);
+    },
   });
   const remove = useApiMutation((id: string) => del(`${endpoint}/${id}`), { success: 'Deleted', invalidate: [[key]] });
   const missing = fields.filter((f) => f.required && (form[f.key] === '' || form[f.key] == null)).map((f) => f.label);
+  const close = () => {
+    if (save.isPending || (dirty && !window.confirm('Discard unsaved changes?'))) return;
+    setDirty(false);
+    setEditing(null);
+  };
 
   return (
     <>
@@ -319,8 +354,17 @@ export function AdminCrud({
           </>
         }
       />
-      <div className="mb-4 max-w-sm">
-        <Input icon={<Search className="size-4" />} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="h-10" />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
+        <div className="w-full sm:max-w-sm">
+          <Input
+            aria-label={`Search ${title}`}
+            icon={<Search className="size-4" />}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={`Search ${title.toLowerCase()}…`}
+          />
+        </div>
+        <p className="text-xs text-muted">{list.data ? `${filtered.length.toLocaleString('en-IN')} records shown` : 'Loading records…'}</p>
       </div>
       {list.isError ? (
         <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
@@ -329,63 +373,99 @@ export function AdminCrud({
       ) : !filtered.length ? (
         <Empty title="कुछ नहीं मिला" text={canCreate ? 'ऊपर "नया जोड़ें" से शुरू करें।' : undefined} />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
-              <tr>
-                {columns.map((c) => (
-                  <th key={c.key} className={cn('px-4 py-3', c.className)}>
-                    {c.label}
-                  </th>
-                ))}
-                <th className="w-24 px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r, i) => (
-                <motion.tr
-                  key={r.id ?? i}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: Math.min(i, 20) * 0.015 }}
-                  className="border-b border-line last:border-0 hover:bg-surface-2/40"
-                >
-                  {columns.map((c) => (
-                    <td key={c.key} className={cn('px-4 py-3', c.className)}>
-                      {c.render ? c.render(r) : String(get(r, c.key) ?? '—')}
-                    </td>
-                  ))}
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <Button size="icon-sm" variant="ghost" onClick={() => open(r)} aria-label="Edit">
+        <>
+          <div className="space-y-3 md:hidden">
+            {filtered.map((row, index) => (
+              <article key={row.id ?? index} className="card p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <h2 className="font-display text-base font-bold">{itemTitle(row) || title}</h2>
+                  <div className="flex gap-1">
+                    <Button size="icon-sm" variant="secondary" onClick={() => open(row)} aria-label={`Edit ${itemTitle(row) || title}`}>
                       <Pencil className="size-4" />
                     </Button>
                     {canDelete && (
                       <Button
                         size="icon-sm"
                         variant="ghost"
-                        onClick={() => confirm(`"${itemTitle(r)}" ${deleteLabel.toLowerCase()} करें?`) && remove.mutate(r.id)}
+                        onClick={() => confirm(`Delete ${itemTitle(row)}?`) && remove.mutate(row.id)}
                         aria-label={deleteLabel}
                       >
                         <Trash2 className="size-4" />
                       </Button>
                     )}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <Sheet open={!!editing} onOpenChange={(v) => !v && setEditing(null)} className="max-w-2xl">
-        <div className="flex h-full flex-col">
-          <div className="border-b border-line p-5">
-            <p className="font-display text-lg font-bold">{isNew ? `नया — ${title}` : itemTitle(editing) || 'Edit'}</p>
+                  </div>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
+                  {columns.map((column) => (
+                    <div key={column.key} className="min-w-0 break-words">
+                      <dt className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">{column.label || 'Details'}</dt>
+                      <dd className="text-xs leading-5">{column.render ? column.render(row) : String(get(row, column.key) ?? '—')}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </article>
+            ))}
           </div>
+          <div className="card hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
+                <tr>
+                  {columns.map((c) => (
+                    <th key={c.key} className={cn('px-4 py-3', c.className)}>
+                      {c.label}
+                    </th>
+                  ))}
+                  <th className="w-24 px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <motion.tr
+                    key={r.id ?? i}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: Math.min(i, 20) * 0.015 }}
+                    className="border-b border-line last:border-0 hover:bg-surface-2/40"
+                  >
+                    {columns.map((c) => (
+                      <td key={c.key} className={cn('px-4 py-3', c.className)}>
+                        {c.render ? c.render(r) : String(get(r, c.key) ?? '—')}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <Button size="icon-sm" variant="ghost" onClick={() => open(r)} aria-label="Edit">
+                        <Pencil className="size-4" />
+                      </Button>
+                      {canDelete && (
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => confirm(`"${itemTitle(r)}" ${deleteLabel.toLowerCase()} करें?`) && remove.mutate(r.id)}
+                          aria-label={deleteLabel}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      <Sheet
+        open={!!editing}
+        onOpenChange={(v) => !v && close()}
+        title={isNew ? `New ${title}` : (editing ? itemTitle(editing) : '') || `Edit ${title}`}
+        className="max-w-2xl"
+      >
+        <div className="flex h-full flex-col">
           <div className="flex-1 overflow-y-auto p-5">
             {loading ? (
               <Skeleton className="h-96" />
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
                 {fields
                   .filter((f) => !f.createOnly || isNew)
                   .map((f) => (
@@ -396,20 +476,29 @@ export function AdminCrud({
                       hint={f.hint}
                       className={cn((f.wide || ['textarea', 'richtext', 'image', 'images', 'tags', 'json'].includes(f.type ?? '')) && 'sm:col-span-2')}
                     >
-                      <FieldInput f={f} value={get(form, f.key)} onChange={(v) => setForm((x: any) => set(x, f.key, v))} />
+                      <FieldInput
+                        f={f}
+                        value={get(form, f.key)}
+                        onValidityChange={(valid) => setInvalidFields((previous) => ({ ...previous, [f.key]: !valid }))}
+                        onChange={(v) => {
+                          setDirty(true);
+                          setForm((x: any) => set(x, f.key, v));
+                        }}
+                      />
                     </Field>
                   ))}
-              </div>
+              </fieldset>
             )}
           </div>
-          <div className="flex justify-end gap-2 border-t border-line p-4">
-            <Button variant="secondary" onClick={() => setEditing(null)}>
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-line bg-surface p-4">
+            {dirty && <span className="mr-auto text-xs text-amber-700 dark:text-amber-300">Unsaved changes</span>}
+            <Button variant="secondary" disabled={save.isPending} onClick={close}>
               Cancel
             </Button>
             <Button
               onClick={() => save.mutate(undefined)}
               loading={save.isPending}
-              disabled={missing.length > 0 || loading}
+              disabled={missing.length > 0 || loading || Object.values(invalidFields).some(Boolean)}
               title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}
             >
               Save

@@ -15,7 +15,7 @@ const copy = async (text: string) => {
 
 export default function Page() {
   const { app } = useConfig();
-  const plans = useQuery({ queryKey: ['plans-public'], queryFn: () => api<any[]>('/billing/plans', { auth: false }) });
+  const plans = useQuery({ queryKey: ['admin-plans'], queryFn: () => api<any[]>('/admin/plans') });
   const planOptions = [{ value: '', label: 'Default (free plan)' }, ...(plans.data ?? []).map((p: any) => ({ value: p.code, label: `${p.name} (${p.code})` }))];
   return (
     <AdminCrud

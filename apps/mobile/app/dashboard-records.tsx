@@ -15,7 +15,11 @@ export default function Records() {
   const q = useQuery({
     queryKey: ['native-records', user?.id, params, page],
     queryFn: () =>
-      api<any>((role === 'broker' ? '/broker/dashboard/records' : '/me/dashboard/records') + '?' + new URLSearchParams({ ...params, page: String(page) })),
+      api<any>(
+        (role === 'broker' ? '/broker/dashboard/records' : '/me/dashboard/records') +
+          '?' +
+          new URLSearchParams({ ...params, chart: params.chart || (role === 'broker' ? 'leads' : 'enquiries'), page: String(page) }),
+      ),
   });
   return (
     <Screen edges={['top', 'bottom']}>

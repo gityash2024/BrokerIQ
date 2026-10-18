@@ -48,26 +48,24 @@ function RequirementsInner() {
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           <div className="space-y-3">
             {list.data.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => setSel(r.id)}
-                className={`card w-full p-4 text-left transition ${active === r.id ? 'border-brand-500 ring-2 ring-brand-500/20' : 'hover:border-brand-300'}`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold">
-                    {r.bedrooms.length ? `${r.bedrooms.join('/')} BHK` : 'कोई भी BHK'}
-                    {r.maxBudget ? ` · ${formatINR(r.maxBudget)} तक` : ''}
+              <article key={r.id} className={`card p-4 transition ${active === r.id ? 'border-brand-500 ring-2 ring-brand-500/20' : 'hover:border-brand-300'}`}>
+                <button type="button" onClick={() => setSel(r.id)} aria-pressed={active === r.id} className="w-full text-left">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">
+                      {r.bedrooms.length ? `${r.bedrooms.join('/')} BHK` : 'कोई भी BHK'}
+                      {r.maxBudget ? ` · ${formatINR(r.maxBudget)} तक` : ''}
+                    </p>
+                    <Badge tone={r.status === 'ACTIVE' ? 'success' : 'neutral'}>{r.status === 'ACTIVE' ? 'Alerts ON' : r.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    {r.localityIds.length ? `${r.localityIds.length} इलाके` : 'पूरा Gurgaon'}
+                    {r.furnishing ? ` · ${FURNISHING_LABELS[r.furnishing as keyof typeof FURNISHING_LABELS]}` : ''} · {formatDate(r.createdAt)}
                   </p>
-                  <Badge tone={r.status === 'ACTIVE' ? 'success' : 'neutral'}>{r.status === 'ACTIVE' ? 'Alerts ON' : r.status}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted">
-                  {r.localityIds.length ? `${r.localityIds.length} इलाके` : 'पूरा Gurgaon'}
-                  {r.furnishing ? ` · ${FURNISHING_LABELS[r.furnishing as keyof typeof FURNISHING_LABELS]}` : ''} · {formatDate(r.createdAt)}
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                  {r.matchCount} alerts भेजे{r.sharedOrgIds.length ? ` · ${r.sharedOrgIds.length} brokers को भेजी` : ''}
-                </p>
-                <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <p className="mt-1 text-xs text-muted">
+                    {r.matchCount} alerts भेजे{r.sharedOrgIds.length ? ` · ${r.sharedOrgIds.length} brokers को भेजी` : ''}
+                  </p>
+                </button>
+                <div className="mt-3 flex flex-wrap gap-2">
                   {r.status === 'ACTIVE' ? (
                     <Button size="xs" variant="secondary" onClick={() => setStatus.mutate({ id: r.id, status: 'PAUSED' })}>
                       <Pause className="size-3.5" /> Alerts रोकें
@@ -81,7 +79,7 @@ function RequirementsInner() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
-              </button>
+              </article>
             ))}
           </div>
           <div>

@@ -33,6 +33,10 @@ test('consumer access is explicit and does not reopen private or future modules'
   assert.equal(moduleAllowed(p, 'flatmates', 'USER'), false);
   assert.equal(moduleAllowed(p, 'inventory', 'USER'), false);
   assert.equal(moduleForPath('/listings/123/book-visit', 'api'), 'slot_booking');
+  assert.equal(moduleForPath('/requirements/mine', 'api'), 'tenant_requirements');
+  assert.equal(moduleForPath('/requirements', 'api'), 'tenant_requirements');
+  assert.equal(moduleAllowed(p, 'tenant_requirements', 'USER'), true);
+  assert.equal(moduleAllowed(p, 'marketplace', 'USER'), false);
   p.consumer.state = 'HIDDEN';
   assert.equal(moduleAllowed(p, 'consumer', 'PUBLIC'), false);
 });

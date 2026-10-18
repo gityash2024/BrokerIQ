@@ -261,6 +261,8 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
   if (surface === 'api' && (clean === '/me/visits' || clean.startsWith('/me/visits/') || /^\/listings\/[^/]+\/(slots|book-visit)$/.test(clean)))
     return 'slot_booking';
   if (surface === 'api' && (clean === '/chat' || clean.startsWith('/chat/'))) return 'consumer';
+  // Core customer requirements must precede the legacy marketplace catch-all.
+  if (surface === 'api' && (clean === '/requirements' || clean.startsWith('/requirements/'))) return 'tenant_requirements';
   if (surface === 'api' && clean.startsWith('/listings/ai/')) return 'assistant';
   if (surface === 'api' && (clean === '/listings' || clean.startsWith('/listings/'))) return 'consumer';
   if (surface === 'web' && (clean === '/user' || clean.startsWith('/user/'))) return 'consumer';

@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { createBrokerFixture } from './fixtures';
+let brokerEmail = '';
+test.beforeAll(async ({ request }) => {
+  brokerEmail = (await createBrokerFixture(request)).email;
+});
 const API = 'http://localhost:3099/api';
 const evidence = '/Users/yashjangid/Library/Caches/BrokerIQ/';
 test('consumer discovery, canonical links and signup run without first-party exceptions', async ({ page }) => {
@@ -35,7 +40,7 @@ test('dashboards render charts and drilldowns at desktop and narrow widths', asy
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/login');
-  await page.locator('input[type=email]').fill('broker.web@e2e.test');
+  await page.locator('input[type=email]').fill(brokerEmail);
   await page.locator('input[type=password]').fill('FixtureBroker123');
   await page.locator('input[type=password]').press('Enter');
   await expect(page).toHaveURL(/\/broker$/);

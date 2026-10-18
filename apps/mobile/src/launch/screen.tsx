@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { ChevronLeft, UserRound } from 'lucide-react-native';
 import { Card, IconBtn, Txt } from '@/ui';
 import { useTheme } from '@/lib/theme';
+import { useAuth } from '@/lib/auth';
 export function BrokerScreen({
   title,
   subtitle,
@@ -19,11 +20,29 @@ export function BrokerScreen({
   action?: React.ReactNode;
 }) {
   const { c } = useTheme();
+  const broker = useAuth().user?.role === 'BROKER_ADMIN';
   return (
     <SafeAreaView edges={back ? ['top', 'bottom'] : ['top']} style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.line }}>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 10,
+          paddingBottom: 16,
+          marginBottom: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          backgroundColor: c.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: c.line,
+        }}
+      >
         {back && (
-          <IconBtn accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(broker)/dashboard')} style={{ backgroundColor: c.surface2 }}>
+          <IconBtn
+            accessibilityLabel="Back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace(broker ? '/(broker)/dashboard' : '/(user)/home'))}
+            style={{ backgroundColor: c.surface2 }}
+          >
             <ChevronLeft size={22} color={c.fg} />
           </IconBtn>
         )}
@@ -34,7 +53,9 @@ export function BrokerScreen({
               BROKERIQ
             </Txt>
           </View>
-          <Txt v="h2" style={{ fontSize: 22, lineHeight: 29 }}>{title}</Txt>
+          <Txt v="h2" style={{ fontSize: 22, lineHeight: 29 }}>
+            {title}
+          </Txt>
           {subtitle && (
             <Txt v="caption" color="muted" style={{ marginTop: 3 }}>
               {subtitle}
@@ -44,7 +65,7 @@ export function BrokerScreen({
         {action ?? (
           <Pressable
             accessibilityLabel="Profile & settings"
-            onPress={() => router.push('/broker-settings')}
+            onPress={() => router.push(broker ? '/broker-settings' : '/(user)/profile')}
             style={{
               width: 44,
               height: 44,
@@ -65,5 +86,9 @@ export function BrokerScreen({
   );
 }
 export function NativeCard({ children, style, onPress }: { children: React.ReactNode; style?: ViewStyle; onPress?: () => void }) {
-  return <Card onPress={onPress} style={[{ padding: 16, gap: 10, borderRadius: 22 }, style]}>{children}</Card>;
+  return (
+    <Card onPress={onPress} style={[{ padding: 16, gap: 10, borderRadius: 22 }, style]}>
+      {children}
+    </Card>
+  );
 }

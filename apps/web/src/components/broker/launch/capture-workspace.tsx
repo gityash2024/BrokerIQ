@@ -12,9 +12,10 @@ import { Button } from '@/components/ui/button';
 
 type Target = 'AUTO' | 'INVENTORY' | 'REQUIREMENT';
 export function CaptureWorkspace({ scanner = false }: { scanner?: boolean }) {
+  const account = useAuth().user?.id ?? 'guest';
   return (
     <Suspense>
-      <Workspace scanner={scanner} />
+      <Workspace key={account} scanner={scanner} />
     </Suspense>
   );
 }
@@ -74,7 +75,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
       .catch((e) => setError(errorMessage(e)));
   }, [text, group, target, ready, owner]);
   async function capture(body: Record<string, unknown>, name: string) {
-    const result = await api<{ id: string }>('/imports', { body: { ...body, groupName: group || undefined, target } });
+    const result = await api<{ id: string }>('/imports', { ownerId: owner, body: { ...body, groupName: group || undefined, target } });
     setCompleted((rows) => [...rows, { id: result.id, name }]);
     await qc.invalidateQueries({ queryKey: ['imports'] });
     return result.id;

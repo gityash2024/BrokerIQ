@@ -62,10 +62,11 @@ async function refresh(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: cur.refreshToken }),
       });
       if (!res.ok) {
-        authStore.set(null);
+        if (authStore.get()?.user.id === cur.user.id) authStore.set(null);
         return false;
       }
       const data: AuthResponse = await res.json();
+      if (authStore.get()?.user.id !== cur.user.id) return false;
       authStore.set({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
       return true;
     } catch {
@@ -77,11 +78,13 @@ async function refresh(): Promise<boolean> {
   return refreshing;
 }
 
-type Opts = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean; raw?: boolean };
+type Opts = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean; raw?: boolean; ownerId?: string };
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
-  const { body, auth = true, raw, headers, ...rest } = opts;
+  const { body, auth = true, raw, headers, ownerId, ...rest } = opts;
+  const owner = auth ? (ownerId ?? authStore.get()?.user.id) : undefined;
   const send = async () => {
+    if (auth && authStore.get()?.user.id !== owner) throw new Error('Account changed. This operation stays with its original account.');
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}/api${path}`, {
       ...rest,

@@ -309,235 +309,235 @@
     "surface": "web",
     "route": "/admin/activity",
     "file": "apps/web/src/app/admin/activity/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/amenities",
     "file": "apps/web/src/app/admin/amenities/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/audit",
     "file": "apps/web/src/app/admin/audit/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/blocklist",
     "file": "apps/web/src/app/admin/blocklist/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/blog",
     "file": "apps/web/src/app/admin/blog/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/broadcasts",
     "file": "apps/web/src/app/admin/broadcasts/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/broker-invites",
     "file": "apps/web/src/app/admin/broker-invites/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/brokers",
     "file": "apps/web/src/app/admin/brokers/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/builders",
     "file": "apps/web/src/app/admin/builders/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/chat-reports",
     "file": "apps/web/src/app/admin/chat-reports/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/content",
     "file": "apps/web/src/app/admin/content/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/coupons",
     "file": "apps/web/src/app/admin/coupons/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/enquiries",
     "file": "apps/web/src/app/admin/enquiries/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/faqs",
     "file": "apps/web/src/app/admin/faqs/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/feedback",
     "file": "apps/web/src/app/admin/feedback/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/health",
     "file": "apps/web/src/app/admin/health/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/homepage",
     "file": "apps/web/src/app/admin/homepage/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/inventory",
     "file": "apps/web/src/app/admin/inventory/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/kyc",
     "file": "apps/web/src/app/admin/kyc/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/listings",
     "file": "apps/web/src/app/admin/listings/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/localities",
     "file": "apps/web/src/app/admin/localities/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/locality-reviews",
     "file": "apps/web/src/app/admin/locality-reviews/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/moderation",
     "file": "apps/web/src/app/admin/moderation/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/modules",
     "file": "apps/web/src/app/admin/modules/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/notifications",
     "file": "apps/web/src/app/admin/notifications/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin",
     "file": "apps/web/src/app/admin/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/pages",
     "file": "apps/web/src/app/admin/pages/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/payments",
     "file": "apps/web/src/app/admin/payments/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/plans",
     "file": "apps/web/src/app/admin/plans/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/projects",
     "file": "apps/web/src/app/admin/projects/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/reports",
     "file": "apps/web/src/app/admin/reports/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/services",
     "file": "apps/web/src/app/admin/services/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/settings/app",
     "file": "apps/web/src/app/admin/settings/app/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/settings/flags",
     "file": "apps/web/src/app/admin/settings/flags/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/settings/integrations",
     "file": "apps/web/src/app/admin/settings/integrations/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/subscriptions",
     "file": "apps/web/src/app/admin/subscriptions/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/support",
     "file": "apps/web/src/app/admin/support/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/system",
     "file": "apps/web/src/app/admin/system/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/templates",
     "file": "apps/web/src/app/admin/templates/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
@@ -549,79 +549,79 @@
     "surface": "web",
     "route": "/admin/user-data",
     "file": "apps/web/src/app/admin/user-data/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/users",
     "file": "apps/web/src/app/admin/users/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/admin/visit-verification",
     "file": "apps/web/src/app/admin/visit-verification/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/activity",
     "file": "apps/web/src/app/broker/activity/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/agreements",
     "file": "apps/web/src/app/broker/agreements/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/analytics",
     "file": "apps/web/src/app/broker/analytics/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/automations",
     "file": "apps/web/src/app/broker/automations/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/billing",
     "file": "apps/web/src/app/broker/billing/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/campaigns",
     "file": "apps/web/src/app/broker/campaigns/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/connectors",
     "file": "apps/web/src/app/broker/connectors/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/deals",
     "file": "apps/web/src/app/broker/deals/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/feedback",
     "file": "apps/web/src/app/broker/feedback/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/follow-ups",
     "file": "apps/web/src/app/broker/follow-ups/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
@@ -633,37 +633,37 @@
     "surface": "web",
     "route": "/broker/imports",
     "file": "apps/web/src/app/broker/imports/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/inbox",
     "file": "apps/web/src/app/broker/inbox/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/inventory/directory",
     "file": "apps/web/src/app/broker/inventory/directory/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/inventory",
     "file": "apps/web/src/app/broker/inventory/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/invite-brokers",
     "file": "apps/web/src/app/broker/invite-brokers/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/invoices",
     "file": "apps/web/src/app/broker/invoices/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
@@ -675,13 +675,13 @@
     "surface": "web",
     "route": "/broker/leads",
     "file": "apps/web/src/app/broker/leads/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/leads/requirements",
     "file": "apps/web/src/app/broker/leads/requirements/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
@@ -693,103 +693,103 @@
     "surface": "web",
     "route": "/broker/listings/new",
     "file": "apps/web/src/app/broker/listings/new/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/listings",
     "file": "apps/web/src/app/broker/listings/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/network",
     "file": "apps/web/src/app/broker/network/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/notifications",
     "file": "apps/web/src/app/broker/notifications/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/onboarding",
     "file": "apps/web/src/app/broker/onboarding/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/owners",
     "file": "apps/web/src/app/broker/owners/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker",
     "file": "apps/web/src/app/broker/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/pipeline",
     "file": "apps/web/src/app/broker/pipeline/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/privacy",
     "file": "apps/web/src/app/broker/privacy/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/reports",
     "file": "apps/web/src/app/broker/reports/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/reviews",
     "file": "apps/web/src/app/broker/reviews/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/scanner",
     "file": "apps/web/src/app/broker/scanner/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/settings",
     "file": "apps/web/src/app/broker/settings/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/team",
     "file": "apps/web/src/app/broker/team/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/tokens",
     "file": "apps/web/src/app/broker/tokens/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/upcoming",
     "file": "apps/web/src/app/broker/upcoming/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/broker/visits",
     "file": "apps/web/src/app/broker/visits/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
@@ -819,19 +819,19 @@
     "surface": "web",
     "route": "/user/account/activity",
     "file": "apps/web/src/app/user/account/activity/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/enquiries",
     "file": "apps/web/src/app/user/account/enquiries/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/feedback",
     "file": "apps/web/src/app/user/account/feedback/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
@@ -843,67 +843,67 @@
     "surface": "web",
     "route": "/user/account/listings/new",
     "file": "apps/web/src/app/user/account/listings/new/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/listings",
     "file": "apps/web/src/app/user/account/listings/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/messages",
     "file": "apps/web/src/app/user/account/messages/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/notifications",
     "file": "apps/web/src/app/user/account/notifications/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account",
     "file": "apps/web/src/app/user/account/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/privacy",
     "file": "apps/web/src/app/user/account/privacy/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/profile",
     "file": "apps/web/src/app/user/account/profile/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/requirements",
     "file": "apps/web/src/app/user/account/requirements/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/saved",
     "file": "apps/web/src/app/user/account/saved/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/searches",
     "file": "apps/web/src/app/user/account/searches/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",
     "route": "/user/account/visits",
     "file": "apps/web/src/app/user/account/visits/page.tsx",
-    "review": "pending"
+    "review": "phone route runtime checked; populated journeys separately verified"
   },
   {
     "surface": "web",

@@ -70,6 +70,7 @@ const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
     await request(app.getHttpServer()).get('/api/broker/dashboard/metrics').set(headers(customer)).expect(403);
     await request(app.getHttpServer()).get('/api/me/dashboard').expect(401);
     await request(app.getHttpServer()).get('/api/billing/plans').set(headers(customer)).expect(403);
+    await request(app.getHttpServer()).get('/api/requirements/mine').set(headers(customer)).expect(200);
     await request(app.getHttpServer()).post('/api/enquiries').send({}).expect(401);
   });
   it('requires confirmed availability and explicit public preview; excludes source/private contacts', async () => {

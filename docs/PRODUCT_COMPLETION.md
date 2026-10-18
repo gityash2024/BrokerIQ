@@ -18,7 +18,7 @@ User scope: retain every existing capability; restore scanner discovery on web/n
 - [x] Scanner and bulk WhatsApp import workspace, durable native capture and source-review target selection (code and isolated browser/API verification; signed-device verification remains in release gate).
 - [x] Role-aware product catalog, all configured upcoming modules visible and disabled (code/shared permissions verified; full runtime matrix remains in release gate).
 - [x] Rich private inventory cards/details, all recorded fields and contextual actions (shared contracts and desktop/390px browser verified; signed-device gate pending).
-- [ ] Directory detail presentation, bounded enrichment, real source-linked photos where available.
+- [x] Directory detail presentation and bounded enrichment prepared; exact-identity enrichment applied to isolated master data (1,122 records, one attributed real project photo; production application pending).
 - [ ] Shared enterprise layout/components and route-by-route web/native refinement.
 - [ ] Runtime visual/function/accessibility checks, regression suites, fresh signed APK, screenshot refresh and deployed all-portal checks.
 
@@ -33,3 +33,9 @@ Native `/scanner` authorization mapping restored. Inventory/Requirements expose 
 ## Inventory / Directory presentation checkpoint
 
 Web Inventory now has table/card views and read-only detail hierarchy before editing. Both native and web expose recorded configuration, pricing/terms, amenities, contacts, notes, media and private source audit. Zero/false facts remain visible. Directory detail panels show exact-source project facts, expandable unit/approval/specification tables and map/provenance, with absent photos explicitly identified. The metadata-only importer dry-runs by default, matches exact identities, creates an exclusive durable private backup before writes, and atomically rejects mismatched/unknown sources. No inventory rows or original geometry/source timestamps are changed. Real PostgreSQL rollback/preservation tests passed (2/2); shared tests 31/31; browser scanner/catalog and rich detail checks 2/2. Full source enrichment and production application remain release work.
+
+## Workspace audit checkpoint
+
+91 static signed-in routes were exercised at 390px through real APIs: 42 Admin, 35 Broker, 14 User, including 13 disabled future routes. Final audit captured no page/hydration exception, unexpected API failure or page overflow. Shared headers, 44px controls, mobile Admin record cards, complete System tool discovery, role controls, validated forms and sticky guarded saves were refined. Route checks found and fixed activity pages without a chart default, invitation plans querying a disabled billing endpoint, long profile email overflow, homepage-editor overflow, and a customer-requirements module-registry collision. Customer requirement actions are now sibling controls rather than nested buttons. Capture/import drafts remain bound to their original account during async writes/account changes. These checks cover route rendering, not every possible populated-data interaction.
+
+Regression checkpoint: shared 31 tests; API full run 127 passed / 18 conditional skips; separate Broker-first suites 18 passed; native 17 tests; all 12 Playwright journeys passed in four isolated server groups to preserve the real login rate limit. Web/API/native typechecks passed. APK24 signed with the existing certificate; emulator upgrade and production promotion are in progress.

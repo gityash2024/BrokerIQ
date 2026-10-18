@@ -11,7 +11,7 @@ const variants = {
   ghost: 'text-muted hover:bg-surface-2 hover:text-fg',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 active:scale-[0.98]',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]',
-  whatsapp: 'bg-[#25D366] text-white hover:bg-[#1fb857] active:scale-[0.98]',
+  whatsapp: 'bg-[#25D366] text-slate-950 hover:bg-[#1fb857] active:scale-[0.98]',
   link: 'text-brand-600 hover:underline px-0 h-auto',
 } as const;
 const sizes = {
@@ -36,7 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref,
 ) {
   const cls = cn(
-    'inline-flex items-center justify-center font-semibold whitespace-nowrap transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 select-none',
+    'inline-flex min-h-11 min-w-11 items-center justify-center font-semibold whitespace-nowrap transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 select-none',
     variants[variant],
     sizes[size],
     className,
@@ -47,13 +47,22 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {children}
     </>
   );
-  if (href)
+  const linkProps = {
+    id: rest.id,
+    title: rest.title,
+    'aria-label': rest['aria-label'],
+    'aria-describedby': rest['aria-describedby'],
+    'aria-current': rest['aria-current'],
+    tabIndex: rest.tabIndex,
+    onClick: rest.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement> | undefined,
+  };
+  if (href && !disabled && !loading)
     return external ? (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls} {...linkProps}>
         {content}
       </a>
     ) : (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} {...linkProps}>
         {content}
       </Link>
     );

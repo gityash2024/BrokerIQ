@@ -1,0 +1,915 @@
+{
+  "results": [
+    {
+      "route": "/admin/activity",
+      "finalUrl": "http://localhost:3311/admin/activity",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Activity details"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/amenities",
+      "finalUrl": "http://localhost:3311/admin/amenities",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Amenities"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/audit",
+      "finalUrl": "http://localhost:3311/admin/audit",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Audit log"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/blocklist",
+      "finalUrl": "http://localhost:3311/admin/blocklist",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Blocklist"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/blog",
+      "finalUrl": "http://localhost:3311/admin/blog",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Blog"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/broadcasts",
+      "finalUrl": "http://localhost:3311/admin/broadcasts",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Broadcasts"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/broker-invites",
+      "finalUrl": "http://localhost:3311/admin/broker-invites",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Broker invites"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/brokers",
+      "finalUrl": "http://localhost:3311/admin/brokers",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Broker firms"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/builders",
+      "finalUrl": "http://localhost:3311/admin/builders",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Builders"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/chat-reports",
+      "finalUrl": "http://localhost:3311/admin/chat-reports",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Reported chats"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/content",
+      "finalUrl": "http://localhost:3311/admin/content",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Content moderation"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/coupons",
+      "finalUrl": "http://localhost:3311/admin/coupons",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Coupons"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/enquiries",
+      "finalUrl": "http://localhost:3311/admin/enquiries",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Customer enquiries"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/faqs",
+      "finalUrl": "http://localhost:3311/admin/faqs",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "FAQs"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/feedback",
+      "finalUrl": "http://localhost:3311/admin/feedback",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Feedback & roadmap"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/health",
+      "finalUrl": "http://localhost:3311/admin/health",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "System health"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/homepage",
+      "finalUrl": "http://localhost:3311/admin/homepage",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Homepage builder"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/inventory",
+      "finalUrl": "http://localhost:3311/admin/inventory",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Broker Inventories & Property Ledgers"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/kyc",
+      "finalUrl": "http://localhost:3311/admin/kyc",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "KYC & verification"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/listings",
+      "finalUrl": "http://localhost:3311/admin/listings",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "All listings"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/localities",
+      "finalUrl": "http://localhost:3311/admin/localities",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Localities"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/locality-reviews",
+      "finalUrl": "http://localhost:3311/admin/locality-reviews",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Locality & society reviews"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/moderation",
+      "finalUrl": "http://localhost:3311/admin/moderation",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Moderation queue"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/modules",
+      "finalUrl": "http://localhost:3311/admin/modules",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Modules & permissions"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/notifications",
+      "finalUrl": "http://localhost:3311/admin/notifications",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Notifications"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin",
+      "finalUrl": "http://localhost:3311/admin",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "A clearer view of BrokerIQ."
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/pages",
+      "finalUrl": "http://localhost:3311/admin/pages",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Pages"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/payments",
+      "finalUrl": "http://localhost:3311/admin/payments",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Payments"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/plans",
+      "finalUrl": "http://localhost:3311/admin/plans",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Plans & pricing"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/projects",
+      "finalUrl": "http://localhost:3311/admin/projects",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Projects"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/reports",
+      "finalUrl": "http://localhost:3311/admin/reports",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Reported listings"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/services",
+      "finalUrl": "http://localhost:3311/admin/services",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Move-in services"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/settings/app",
+      "finalUrl": "http://localhost:3311/admin/settings/app",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "App config"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/settings/flags",
+      "finalUrl": "http://localhost:3311/admin/settings/flags",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Feature flags"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/settings/integrations",
+      "finalUrl": "http://localhost:3311/admin/settings/integrations",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Credentials center"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/subscriptions",
+      "finalUrl": "http://localhost:3311/admin/subscriptions",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Subscriptions"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/support",
+      "finalUrl": "http://localhost:3311/admin/support",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Support inbox"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/system",
+      "finalUrl": "http://localhost:3311/admin/system",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "System workspace"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/templates",
+      "finalUrl": "http://localhost:3311/admin/templates",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Message templates"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/user-data",
+      "finalUrl": "http://localhost:3311/admin/user-data",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "User data (consented)"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/users",
+      "finalUrl": "http://localhost:3311/admin/users",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Users"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/admin/visit-verification",
+      "finalUrl": "http://localhost:3311/admin/visit-verification",
+      "role": "SUPER_ADMIN",
+      "headings": [
+        "Visit verification"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/activity",
+      "finalUrl": "http://localhost:3311/broker/activity",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Activity details"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/agreements",
+      "finalUrl": "http://localhost:3311/broker/agreements",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Rent agreement"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/analytics",
+      "finalUrl": "http://localhost:3311/broker/analytics",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Analytics & reports"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/automations",
+      "finalUrl": "http://localhost:3311/broker/automations",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Automations"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/billing",
+      "finalUrl": "http://localhost:3311/broker/billing",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Billing & subscriptions"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/campaigns",
+      "finalUrl": "http://localhost:3311/broker/campaigns",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Campaigns"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/connectors",
+      "finalUrl": "http://localhost:3311/broker/connectors",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Lead connectors"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/deals",
+      "finalUrl": "http://localhost:3311/broker/deals",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Deals & invoices"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/feedback",
+      "finalUrl": "http://localhost:3311/broker/feedback",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Feedback & feature requests"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/follow-ups",
+      "finalUrl": "http://localhost:3311/broker/follow-ups",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Follow-ups"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/imports",
+      "finalUrl": "http://localhost:3311/broker/imports",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Capture workspace"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/inbox",
+      "finalUrl": "http://localhost:3311/broker/inbox",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Inbox"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/inventory/directory",
+      "finalUrl": "http://localhost:3311/broker/inventory/directory",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Area Directory"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/inventory",
+      "finalUrl": "http://localhost:3311/broker/inventory",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Inventory"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/invite-brokers",
+      "finalUrl": "http://localhost:3311/broker/invite-brokers",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Team & agents"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/invoices",
+      "finalUrl": "http://localhost:3311/broker/invoices",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Deals & invoices"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/leads",
+      "finalUrl": "http://localhost:3311/broker/leads",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Lead inbox"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/leads/requirements",
+      "finalUrl": "http://localhost:3311/broker/leads/requirements",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Requirements"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/listings/new",
+      "finalUrl": "http://localhost:3311/broker/listings/new",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "\u0928\u0908 listing"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/listings",
+      "finalUrl": "http://localhost:3311/broker/listings",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Inventory"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/network",
+      "finalUrl": "http://localhost:3311/broker/network",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Co-broking network"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/notifications",
+      "finalUrl": "http://localhost:3311/broker/notifications",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Notifications"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/onboarding",
+      "finalUrl": "http://localhost:3311/broker/onboarding",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "\u0905\u092a\u0928\u0940 firm set up \u0915\u0930\u0947\u0902"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/owners",
+      "finalUrl": "http://localhost:3311/broker/owners",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Owners & leases"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker",
+      "finalUrl": "http://localhost:3311/broker",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Good to see you, Workspace."
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/pipeline",
+      "finalUrl": "http://localhost:3311/broker/pipeline",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Pipeline"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/privacy",
+      "finalUrl": "http://localhost:3311/broker/privacy",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Privacy & data sharing"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/reports",
+      "finalUrl": "http://localhost:3311/broker/reports",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Analytics & reports"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/reviews",
+      "finalUrl": "http://localhost:3311/broker/reviews",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Other future workflows"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/scanner",
+      "finalUrl": "http://localhost:3311/broker/scanner",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Scanner & import"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/settings",
+      "finalUrl": "http://localhost:3311/broker/settings",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Settings"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/team",
+      "finalUrl": "http://localhost:3311/broker/team",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Team & agents"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/tokens",
+      "finalUrl": "http://localhost:3311/broker/tokens",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Token record"
+      ],
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "route": "/broker/upcoming",
+      "finalUrl": "http://localhost:3311/broker/upcoming",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Upcoming features \u2022 \u0906\u0928\u0947 \u0935\u093e\u0932\u0940 \u0938\u0941\u0935\u093f\u0927\u093e\u090f\u0901"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/broker/visits",
+      "finalUrl": "http://localhost:3311/broker/visits",
+      "role": "BROKER_ADMIN",
+      "headings": [
+        "Site visits"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/activity",
+      "finalUrl": "http://localhost:3311/user/account/activity",
+      "role": "USER",
+      "headings": [
+        "Activity details"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/enquiries",
+      "finalUrl": "http://localhost:3311/user/account/enquiries",
+      "role": "USER",
+      "headings": [
+        "Enquiries"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/feedback",
+      "finalUrl": "http://localhost:3311/user/account/feedback",
+      "role": "USER",
+      "headings": [
+        "Feedback & feature requests"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/listings/new",
+      "finalUrl": "http://localhost:3311/user/account/listings/new",
+      "role": "USER",
+      "headings": [
+        "Post property"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/listings",
+      "finalUrl": "http://localhost:3311/user/account/listings",
+      "role": "USER",
+      "headings": [
+        "My listings"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/messages",
+      "finalUrl": "http://localhost:3311/user/account/messages",
+      "role": "USER",
+      "headings": [
+        "Messages"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/notifications",
+      "finalUrl": "http://localhost:3311/user/account/notifications",
+      "role": "USER",
+      "headings": [
+        "Notifications"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account",
+      "finalUrl": "http://localhost:3311/user/account",
+      "role": "USER",
+      "headings": [
+        "Good to see you, Workspace."
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/privacy",
+      "finalUrl": "http://localhost:3311/user/account/privacy",
+      "role": "USER",
+      "headings": [
+        "Privacy & data sharing"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/profile",
+      "finalUrl": "http://localhost:3311/user/account/profile",
+      "role": "USER",
+      "headings": [
+        "My profile"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/requirements",
+      "finalUrl": "http://localhost:3311/user/account/requirements",
+      "role": "USER",
+      "headings": [
+        "\u092e\u0947\u0930\u0940 \u091c\u093c\u0930\u0942\u0930\u0924\u0947\u0902"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/saved",
+      "finalUrl": "http://localhost:3311/user/account/saved",
+      "role": "USER",
+      "headings": [
+        "Saved properties"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/searches",
+      "finalUrl": "http://localhost:3311/user/account/searches",
+      "role": "USER",
+      "headings": [
+        "Saved searches & alerts"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "route": "/user/account/visits",
+      "finalUrl": "http://localhost:3311/user/account/visits",
+      "role": "USER",
+      "headings": [
+        "My site visits"
+      ],
+      "expectedDisabled": false,
+      "overflow": false
+    }
+  ],
+  "errors": []
+}

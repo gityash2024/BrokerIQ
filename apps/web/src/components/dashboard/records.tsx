@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 function Records({ role }: { role: 'admin' | 'broker' | 'user' }) {
   const sp = useSearchParams();
   const router = useRouter();
-  const params = sp.toString();
+  const selection = new URLSearchParams(sp.toString());
+  if (!selection.get('chart')) selection.set('chart', role === 'admin' ? 'signups' : role === 'broker' ? 'leads' : 'enquiries');
+  const params = selection.toString();
   const path = role === 'admin' ? '/admin/dashboard/records' : role === 'broker' ? '/broker/dashboard/records' : '/me/dashboard/records';
   const q = useQuery({
     queryKey: ['dashboard-records', role, params],
@@ -20,7 +22,11 @@ function Records({ role }: { role: 'admin' | 'broker' | 'user' }) {
     <>
       <PageHeader
         title="Activity details"
-        subtitle={`${sp.get('value') ?? ''} · ${sp.get('from') ?? ''} — ${sp.get('to') ?? ''}`}
+        subtitle={
+          sp.get('from') && sp.get('to')
+            ? `${sp.get('value') ?? ''} · ${sp.get('from')} — ${sp.get('to')} · IST`
+            : 'Recorded activity in the last 30 days · IST'
+        }
         actions={
           <Button size="sm" variant="secondary" onClick={() => router.back()}>
             ← Back
