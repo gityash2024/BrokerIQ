@@ -93,12 +93,19 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
       if (result.status === 'cancel') return;
       uris = result.scannedImages ?? [];
     } catch {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) throw new Error('Camera permission is required to scan. Gallery and file import remain available.');
-      const result = await ImagePicker.launchCameraAsync({ quality: 1 });
-      if (!result.canceled) uris = result.assets.map((a) => a.uri);
+      await camera();
+      return;
     }
     await preserve(uris.map((uri, i) => ({ uri, mime: 'image/jpeg', name: `scan-${Date.now()}-${i + 1}.jpg` })));
+  }
+  async function camera() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) throw new Error('Camera permission is required to scan. Gallery and file import remain available.');
+    const result = await ImagePicker.launchCameraAsync({ quality: 1 });
+    if (!result.canceled)
+      await preserve(
+        result.assets.map((asset, index) => ({ uri: asset.uri, mime: asset.mimeType ?? 'image/jpeg', name: `camera-${Date.now()}-${index + 1}.jpg` })),
+      );
   }
   async function gallery() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 20, quality: 1 });
@@ -147,6 +154,13 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
               <Txt v="h3">Scan & upload</Txt>
             </Row>
             <Button title="Scan pages" icon={<Camera size={18} color="white" />} loading={busy} disabled={!ready} onPress={() => perform(scan)} />
+            <Button
+              title="Camera photo · Alternative scan"
+              variant="secondary"
+              icon={<Camera size={18} color={c.brand} />}
+              disabled={busy || !ready}
+              onPress={() => perform(camera)}
+            />
             <Button
               title="Gallery · Multiple images"
               variant="secondary"
