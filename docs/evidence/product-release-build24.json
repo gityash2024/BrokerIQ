@@ -269,5 +269,53 @@
   "nativeOfflineUpgrade": {
     "offlineRestartDraftPreserved": true,
     "visibleFieldsCompared": 5
-  }
+  },
+  "landingLinks": [
+    {
+      "url": "https://brokeriq.mymultimeds.com/",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/user",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/login?next=/broker",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build24.apk",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/login?next=/admin",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/help",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/contact",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/p/privacy",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    },
+    {
+      "url": "https://brokeriq.mymultimeds.com/p/terms",
+      "status": 200,
+      "verification": "curl HTTP HEAD"
+    }
+  ],
+  "postDeploymentHealth": "2026-10-18T06:19:10Z\n/opt/brokeriq/logs/api.err-10.log 0\n/opt/brokeriq/logs/web.err-11.log 0\n{\"status\":\"ok\",\"db\":\"ok\",\"dbLatencyMs\":1,\"uptimeSec\":903,\"time\":\"2026-10-18T06:19:10.500Z\"}"
 }
