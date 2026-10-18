@@ -12,6 +12,11 @@ export default async function Home() {
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={process.env.ANDROID_RELEASE_URL}
       checksum={process.env.ANDROID_RELEASE_SHA256}
+      releaseUpdates={{
+        user: '2026-10-18T06:15:40Z',
+        broker: '2026-10-18T06:15:40Z',
+        android: '2026-10-18T06:11:44Z',
+      }}
       screenshots={[
         {
           src: '/product/android-inventory-build24.png',

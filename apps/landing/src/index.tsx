@@ -7,15 +7,25 @@ const workflows = [
   ['03', 'Capture now. Review with confidence.', 'Turn shared messages, images and registers into records you can check before using.'],
   ['04', 'A clearer view of your business.', 'Real activity, useful trends and visible connection status across web and Android.'],
 ];
+function ReleaseTimestamp({ updatedAt }: { updatedAt?: string }) {
+  if (!updatedAt) return null;
+  const formatted = new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+  }).format(new Date(updatedAt));
+  return <time className="biq-release-updated" dateTime={updatedAt}>Updated · {formatted} IST</time>;
+}
 export function BrokerIQLanding({
   apkUrl,
   contact,
   screenshots = [],
+  releaseUpdates,
 }: {
   apkUrl?: string;
   contact?: { email?: string; phone?: string; address?: string };
   checksum?: string;
   screenshots?: { src: string; label: string; caption?: string }[];
+  releaseUpdates?: { user: string; broker: string; android: string };
 }) {
   return (
     <div className="biq-landing" style={{ '--biq-brand': BRAND.primary, '--biq-accent': BRAND.accent } as React.CSSProperties}>
@@ -78,6 +88,7 @@ export function BrokerIQLanding({
               <small>FOR YOUR NEXT HOME</small>
               <h2>User Portal</h2>
               <p>Discover, shortlist and enquire.</p>
+              <ReleaseTimestamp updatedAt={releaseUpdates?.user} />
             </div>
             <span aria-hidden>↗</span>
           </a>
@@ -87,6 +98,7 @@ export function BrokerIQLanding({
               <small>FOR YOUR WORKING DAY</small>
               <h2>Broker Portal</h2>
               <p>Your inventory and conversations.</p>
+              <ReleaseTimestamp updatedAt={releaseUpdates?.broker} />
             </div>
             <span aria-hidden>↗</span>
           </a>
@@ -96,6 +108,7 @@ export function BrokerIQLanding({
               <small>WHEREVER WORK TAKES YOU</small>
               <h2>Android App</h2>
               <p>One app. User and Broker modes.</p>
+              <ReleaseTimestamp updatedAt={releaseUpdates?.android} />
             </div>
             <span aria-hidden>↗</span>
           </a>
@@ -257,6 +270,7 @@ const styles = `
 .biq-portals small{font-size:8px;letter-spacing:1px;color:var(--muted,#475569)}
 .biq-portals h2{font-size:17px;margin:6px 0}
 .biq-portals p{font-size:11px;color:var(--muted,#475569);margin:0}
+.biq-release-updated{display:block;margin-top:10px;font-size:10px;line-height:1.6;color:var(--muted,#475569)}
 .biq-section{padding-block:96px}
 .biq-section-heading{display:flex;justify-content:space-between;align-items:end;gap:40px;margin-bottom:36px}
 .biq-section h2{font-size:clamp(30px,3.5vw,46px);letter-spacing:-1.8px;margin:16px 0}
