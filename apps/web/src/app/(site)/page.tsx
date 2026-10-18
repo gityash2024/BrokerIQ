@@ -13,11 +13,15 @@ export default async function Home() {
       apkUrl={process.env.ANDROID_RELEASE_URL}
       checksum={process.env.ANDROID_RELEASE_SHA256}
       screenshots={[
-        { src: '/product/android-workspace-build23.png', label: 'Actual Android build 23 · Broker dashboard with real inventory totals and availability distribution.', caption: 'Broker workspace · Build 23' },
         {
-          src: '/product/android-directory-build23.png',
-          label: 'Actual Android build 23 · Gurugram Area Directory with clustered source locations. Colony points are approximate.',
-          caption: 'Area Directory · Build 23',
+          src: '/product/android-inventory-build24.png',
+          label: 'Actual Android build 24 · Broker inventory with configuration, floor, pricing, availability and private source context.',
+          caption: 'Inventory workspace · Build 24',
+        },
+        {
+          src: '/product/android-capture-build24.png',
+          label: 'Actual Android build 24 · Scanner and import workspace for camera, multi-page scans, images and WhatsApp TXT or ZIP exports into inventory or requirement review.',
+          caption: 'Scanner & WhatsApp import · Build 24',
         },
       ]}
     />
