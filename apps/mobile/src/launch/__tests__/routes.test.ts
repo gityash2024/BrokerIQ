@@ -3,13 +3,18 @@ import { nativeModuleKey } from '../routes';
 
 describe('native module routes', () => {
   it.each([
-    ['/dashboard', 'today'], ['/inventory', 'inventory'], ['/leads', 'leads'], ['/inbox', 'inbox'], ['/automations', 'automation'],
+    ['/dashboard', 'today'],
+    ['/inventory', 'inventory'],
+    ['/leads', 'leads'],
+    ['/inbox', 'inbox'],
+    ['/automations', 'automation'],
   ])('maps the visible broker tab %s to %s', (path, key) => {
     expect(nativeModuleKey(path)).toBe(key);
     expect(moduleAllowed(defaultModulePolicies(), nativeModuleKey(path), 'BROKER_ADMIN')).toBe(true);
   });
   it('keeps private detail routes in their parent module', () => {
     expect(nativeModuleKey('/inventory/[id]')).toBe('inventory');
+    expect(nativeModuleKey('/scanner')).toBe('inventory');
     expect(nativeModuleKey('/import-review/[id]')).toBe('inbox');
     expect(nativeModuleKey('/wa/[id]')).toBe('inbox');
   });

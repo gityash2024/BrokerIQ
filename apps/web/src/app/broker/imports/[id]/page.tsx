@@ -40,13 +40,23 @@ export default function ReviewPage() {
           </Link>
         }
       />
+      {query.data?.metadata?.requestedTarget && (
+        <p className="mb-4 rounded-xl bg-brand-500/10 p-3 text-sm">
+          Requested review destination:{' '}
+          <strong>{query.data.metadata.requestedTarget === 'AUTO' ? 'Auto detect · Inventory & Requirements' : query.data.metadata.requestedTarget}</strong>.
+          Confirm each extracted entry before approval.
+        </p>
+      )}
       <div className="mb-5 flex gap-2" role="group" aria-label="Review status">
         {[true, false].map((pending) => (
           <button
             key={String(pending)}
             aria-pressed={pendingOnly === pending}
             className={`rounded-full border px-4 py-2 text-sm ${pendingOnly === pending ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line'}`}
-            onClick={() => { setPendingOnly(pending); setPage(1); }}
+            onClick={() => {
+              setPendingOnly(pending);
+              setPage(1);
+            }}
           >
             {pending ? 'Pending only' : 'All entries'}
           </button>
@@ -89,7 +99,9 @@ export default function ReviewPage() {
         </div>
       )}
       {['PENDING', 'PROCESSING'].includes(query.data?.status) && <p className="rounded-xl bg-surface-2 p-5">Source saved. Extraction is processing…</p>}
-      {query.data && !['PENDING', 'PROCESSING'].includes(query.data.status) && query.data.total === 0 && <p className="mb-5 text-sm text-muted">No entries match this view.</p>}
+      {query.data && !['PENDING', 'PROCESSING'].includes(query.data.status) && query.data.total === 0 && (
+        <p className="mb-5 text-sm text-muted">No entries match this view.</p>
+      )}
       <div className="space-y-5">
         {query.data?.entries.map((entry: any) => (
           <Entry

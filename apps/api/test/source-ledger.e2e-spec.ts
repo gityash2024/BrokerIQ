@@ -43,10 +43,11 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     await app.close();
   });
   it('captures first, requires review, preserves multiple units and idempotency', async () => {
-    const source = { sourceType: 'TEXT', rawText: 'House 99, Sector 45, 2 BHK for rent, Rent 20k. Contact 9899980802' };
+    const source = { sourceType: 'TEXT', target: 'INVENTORY', rawText: 'House 99, Sector 45, 2 BHK for rent, Rent 20k. Contact 9899980802' };
     const first = await api().post('/api/imports').set(header(a)).send(source).expect(201);
     await app.get(ImportsService).extract(first.body.id);
     const batch = (await api().get(`/api/imports/${first.body.id}`).set(header(a)).expect(200)).body;
+    expect(batch.metadata.requestedTarget).toBe('INVENTORY');
     expect(await prisma.inventoryItem.count({ where: { organizationId: orgA } })).toBe(0);
     const entry = batch.entries[0];
     const entity = entry.extracted[0];
@@ -180,7 +181,11 @@ import { ImportsService } from '../src/modules/imports/imports.service';
     expect(updated.body.ratePerSqft).toBe(40000);
     expect(updated.body.details.purchaseType).toBe('RESALE');
     expect(updated.body.details.additionalRooms).toBe(1);
-    const excluded = await api().get('/api/inventory').set(header(a)).query({ detailFilters: JSON.stringify({ additionalRooms: { min: 2 } }) }).expect(200);
+    const excluded = await api()
+      .get('/api/inventory')
+      .set(header(a))
+      .query({ detailFilters: JSON.stringify({ additionalRooms: { min: 2 } }) })
+      .expect(200);
     expect(excluded.body.items.map((r: any) => r.id)).not.toContain(one.body.id);
   });
   it('requires webhook signature configuration and deduplicates durable events', async () => {

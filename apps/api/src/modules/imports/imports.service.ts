@@ -31,6 +31,7 @@ export const captureInputSchema = z
     senderName: z.string().max(100).optional(),
     senderPhone: z.string().max(25).optional(),
     groupName: z.string().max(150).optional(),
+    target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT']).optional(),
   })
   .refine((s) => !!s.rawText?.trim() || !!s.fileDataUrl, 'Text or a file is required');
 export const reviewSchema = z.object({
@@ -136,7 +137,7 @@ export class ImportsService {
             senderName: input.senderName,
             senderPhone: input.senderPhone,
             groupName: input.groupName,
-            metadata: { contentType: contentType ?? 'text/plain' },
+            metadata: { contentType: contentType ?? 'text/plain', requestedTarget: input.target ?? 'AUTO' },
           },
         });
       } catch (error) {

@@ -100,6 +100,16 @@ export default function Inventory() {
       }
     >
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />
+          <Button
+            title="Paste / chat export"
+            size="sm"
+            variant="secondary"
+            style={{ flex: 1 }}
+            onPress={() => router.push('/capture?target=INVENTORY' as any)}
+          />
+        </View>
         <Button title="Area Directory · Map / List" size="sm" variant="secondary" onPress={() => router.push('/area-directory' as any)} />
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Input

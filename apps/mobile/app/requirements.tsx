@@ -24,6 +24,7 @@ export default function Requirements() {
   return (
     <BrokerScreen title="Requirements" subtitle="Separate needs, clear matching reasons." back>
       <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <Button title="Scan / paste / WhatsApp export" variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
         <Button title="Add requirement" onPress={() => router.push({ pathname: '/requirement-edit', params: leadId ? { leadId } : {} } as any)} />
       </View>
       <FlatList

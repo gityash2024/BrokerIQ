@@ -28,6 +28,7 @@ export default function Drafts() {
       else if (row.kind === 'PUBLIC_PUBLISH') router.push({ pathname: '/publish-rental', params: { id: row.draft_key } } as any);
       else if (row.kind === 'REQUIREMENT_CREATE') router.push({ pathname: '/requirement-edit', params: { draft: id } } as any);
       else if (row.kind === 'IMPORT_REVIEW') router.push({ pathname: '/import-review/[id]', params: { id: body.batchId } } as any);
+      else if (row.kind === 'CAPTURE_COMPOSE') router.push('/capture');
       else setError('Original capture is preserved. Retry sync after correcting configuration.');
     } catch (e) {
       setError(errorMessage(e));

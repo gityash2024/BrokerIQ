@@ -14,6 +14,7 @@ const essential = [
   '/handle-share',
   '/broker-settings',
   '/drafts',
+  '/product-tools',
   '/edit-profile',
   '/broker-onboarding',
   '/notifications',

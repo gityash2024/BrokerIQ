@@ -123,8 +123,8 @@ function LedgerInner() {
             <Link href="/broker/inventory/directory" className="text-sm font-semibold text-brand-600">
               Area Directory
             </Link>
-            <Link href="/broker/imports" className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
-              Import / scanner
+            <Link href="/broker/scanner?target=INVENTORY" className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
+              Scan / import
             </Link>
             <button onClick={() => setAdding(true)} className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white">
               <Plus size={16} />

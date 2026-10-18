@@ -274,3 +274,13 @@ export function moduleAllowed(policies: ModulePolicies | undefined, key: string,
     !!policy && policy.state === 'ACTIVE' && policy.roles.includes((role === 'PUBLIC' && key === 'consumer' ? 'USER' : role) as ModulePolicy['roles'][number])
   );
 }
+
+/** Presentation only: upcoming roadmap items are visible to every role, never authorized by this list. */
+export function catalogModules(policies: ModulePolicies | undefined, role: string) {
+  const defaults = defaultModulePolicies();
+  return PLATFORM_MODULES.filter((module) => module.key !== 'legacy').flatMap<PlatformModule & { state: 'COMING_SOON' | 'ACTIVE' }>((module) => {
+    const policy = policies?.[module.key] ?? defaults[module.key];
+    if (policy.state === 'COMING_SOON') return [{ ...module, state: 'COMING_SOON' as const }];
+    return moduleAllowed(policies, module.key, role) ? [{ ...module, state: 'ACTIVE' as const }] : [];
+  });
+}

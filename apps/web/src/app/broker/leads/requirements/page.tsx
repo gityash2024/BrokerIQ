@@ -20,9 +20,14 @@ export default function RequirementsPage() {
         title="Requirements"
         subtitle="एक contact की अलग-अलग जरूरतें सुरक्षित रहती हैं"
         actions={
-          <button onClick={() => setAdding(true)} className="rounded-xl bg-brand-600 px-4 py-2 font-semibold text-white">
-            + Requirement
-          </button>
+          <>
+            <Link href="/broker/imports?target=REQUIREMENT" className="rounded-xl border border-line px-4 py-2 font-semibold">
+              Scan / paste / chat export
+            </Link>
+            <button onClick={() => setAdding(true)} className="rounded-xl bg-brand-600 px-4 py-2 font-semibold text-white">
+              + Requirement
+            </button>
+          </>
         }
       />
       <div className="mb-5 flex gap-5 text-sm">

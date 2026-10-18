@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { defaultModulePolicies, moduleAllowed, moduleForPath } from '../modules';
+import { defaultModulePolicies, moduleAllowed, moduleForPath, catalogModules } from '../modules';
 
 test('nested routes and workers resolve to the same core module', () => {
   assert.equal(moduleForPath('/broker/inventory/123'), 'inventory');
@@ -35,4 +35,14 @@ test('consumer access is explicit and does not reopen private or future modules'
   assert.equal(moduleForPath('/listings/123/book-visit', 'api'), 'slot_booking');
   p.consumer.state = 'HIDDEN';
   assert.equal(moduleAllowed(p, 'consumer', 'PUBLIC'), false);
+});
+
+test('roadmap visibility never grants customer access to private modules', () => {
+  const policies = defaultModulePolicies();
+  const roadmap = catalogModules(policies, 'USER');
+  assert.ok(roadmap.some((m) => m.key === 'deals' && m.state === 'COMING_SOON'));
+  assert.ok(!roadmap.some((m) => m.key === 'inventory'));
+  assert.equal(moduleAllowed(policies, 'deals', 'USER'), false);
+  policies.deals.state = 'HIDDEN';
+  assert.ok(!catalogModules(policies, 'USER').some((m) => m.key === 'deals'));
 });

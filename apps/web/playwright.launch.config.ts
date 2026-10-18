@@ -3,7 +3,7 @@ const database = process.env.DATABASE_URL ?? '';
 if (!/^brokeriq_release_test/.test(new URL(database).pathname.slice(1))) throw new Error('Launch UI tests require an isolated brokeriq_release_test database');
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['launch.spec.ts', 'enterprise.spec.ts'],
+  testMatch: ['launch.spec.ts', 'enterprise.spec.ts', 'product-completion.spec.ts'],
   workers: 1,
   timeout: 60000,
   reporter: [['list']],

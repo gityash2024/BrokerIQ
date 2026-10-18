@@ -17,6 +17,7 @@ import { Sheet } from '../ui/dialog';
 import { ThemeToggle } from '../ui/theme-toggle';
 import { LanguagePicker } from '../i18n/language-picker';
 import { ModuleAccess } from './module-access';
+import { ProductCatalog } from './product-catalog';
 import { moduleAllowed, moduleForPath } from '@brokeriq/shared';
 
 export interface NavItem {
@@ -172,7 +173,7 @@ export function PanelShell({
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2 px-5">
-        <Link href={title === 'Super Admin' ? '/admin' : '/broker'}>
+        <Link href={user?.role === 'SUPER_ADMIN' ? '/admin' : user?.role === 'USER' ? '/user/account' : '/broker'}>
           <Logo name={app.siteName} className="text-lg" />
         </Link>
         <Badge tone={accent === 'dark' ? 'danger' : 'brand'} className="ml-auto text-[10px]">
@@ -198,7 +199,7 @@ export function PanelShell({
     </div>
   );
   return (
-    <div className="min-h-dvh">
+    <div className="workspace-shell min-h-dvh">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-line bg-surface lg:block">{sidebar}</aside>
       <Sheet open={open} onOpenChange={setOpen} side="left" className="max-w-[280px]">
         {sidebar}
@@ -217,22 +218,20 @@ export function PanelShell({
             Website
           </Link>
           <div className="ml-auto flex items-center gap-3">
-            {title !== 'Super Admin' && (
-              <>
-                <Link href="/broker/upcoming" className="text-xs text-muted">
-                  Upcoming
-                </Link>
-                <Link href="/broker/settings" className="text-sm font-semibold">
-                  Settings
-                </Link>
-              </>
-            )}
+            {headerExtra}
+            <ProductCatalog />
+            <Link
+              href={user?.role === 'SUPER_ADMIN' ? '/admin/settings/app' : user?.role === 'USER' ? '/user/account/profile' : '/broker/settings'}
+              className="hidden text-sm font-semibold sm:inline"
+            >
+              Settings
+            </Link>
           </div>
           <LanguagePicker />
           <ThemeToggle />
           <NotificationsBell href={notificationsHref} />
         </header>
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
+        <main className="workspace-content mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
           <ModuleAccess>{children}</ModuleAccess>
         </main>
       </div>

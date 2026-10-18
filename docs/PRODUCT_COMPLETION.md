@@ -14,9 +14,9 @@ User scope: retain every existing capability; restore scanner discovery on web/n
 
 ## Work packages
 
-- [ ] Feature and route inventory across native, public, User, Broker and Super Admin.
-- [ ] Scanner and bulk WhatsApp import workspace, durable native capture and source-review target selection.
-- [ ] Role-aware product catalog, all configured upcoming modules visible and disabled.
+- [x] Feature and route inventory across native, public, User, Broker and Super Admin.
+- [x] Scanner and bulk WhatsApp import workspace, durable native capture and source-review target selection (code and isolated browser/API verification; signed-device verification remains in release gate).
+- [x] Role-aware product catalog, all configured upcoming modules visible and disabled (code/shared permissions verified; full runtime matrix remains in release gate).
 - [ ] Rich private inventory cards/details, all recorded fields and contextual actions.
 - [ ] Directory detail presentation, bounded enrichment, real source-linked photos where available.
 - [ ] Shared enterprise layout/components and route-by-route web/native refinement.
@@ -25,3 +25,7 @@ User scope: retain every existing capability; restore scanner discovery on web/n
 ## Route audit
 
 See generated `docs/evidence/product-route-inventory.json`. Each route records its module mapping and source component, so unavailable paths and legacy aliases can be reviewed without deleting code.
+
+## Capture/catalog checkpoint
+
+Native `/scanner` authorization mapping restored. Inventory/Requirements expose direct scanner/import/paste actions. Capture preserves originals, multi-page camera/gallery sources and TXT/ZIP exports; named destination is stored as review guidance only. Existing public-listing scanner remains reachable through its explicit rental-draft route, including page preview/rotation. Native composer uses SQLCipher; web composer uses account-scoped IndexedDB AES-GCM with non-extractable keys and cross-tab key creation serialization. Bulk file input snapshots FileList before async draft persistence and resets, preventing empty uploads. Shared roadmap presentation does not grant API access.

@@ -21,6 +21,7 @@ export default function BrokerSettings() {
           <Button title="Edit profile" variant="secondary" onPress={() => router.push('/edit-profile')} />
         </NativeCard>
         <LanguageSwitch render={(label, open) => <Button title={label} variant="secondary" onPress={open} />} />
+        <Button title="Product features & upcoming" variant="secondary" onPress={() => router.push('/product-tools' as any)} />
         <Button title="Saved drafts & sync" variant="secondary" onPress={() => router.push('/drafts')} />
         <Button title="Browse User Portal" variant="secondary" onPress={() => router.push('/(user)/home')} />
         <Button title="Firm profile" variant="secondary" onPress={() => router.push('/broker-onboarding')} />

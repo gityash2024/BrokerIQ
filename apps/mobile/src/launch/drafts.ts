@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { File, Directory, Paths } from 'expo-file-system';
 import { api, ApiError, authStore } from '@/lib/api';
 
-export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'CAPTURE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
+export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
 export type DraftState = 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
 export interface LocalDraft {
   id: string;
@@ -121,20 +121,20 @@ export async function localDrafts() {
     ownerId(),
   );
 }
-export async function captureText(text: string, sourceType = 'TEXT', groupName?: string) {
+export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO') {
   const id = Crypto.randomUUID();
   if (text.length > 100_000) {
     const directory = new Directory(Paths.document, 'captures');
     directory.create({ idempotent: true, intermediates: true });
     const file = new File(directory, `${id}-message.txt`);
     file.write(text);
-    return captureFile(file.uri, 'text/plain', 'message.txt', groupName);
+    return captureFile(file.uri, 'text/plain', 'message.txt', groupName, target);
   }
-  const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName }, id);
+  const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName, target }, id);
   await (await db()).runAsync("UPDATE local_mutations SET state='QUEUED' WHERE id=?", saved);
   return saved;
 }
-export async function captureFile(uri: string, mime: string, name?: string, groupName?: string) {
+export async function captureFile(uri: string, mime: string, name?: string, groupName?: string, target = 'AUTO') {
   const id = Crypto.randomUUID();
   const directory = new Directory(Paths.document, 'captures');
   directory.create({ idempotent: true, intermediates: true });
@@ -148,7 +148,7 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
   const saved = await saveDraft(
     'CAPTURE',
     id,
-    { sourceType: mime.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT', fileName: name ?? safe, groupName },
+    { sourceType: mime.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT', fileName: name ?? safe, groupName, target },
     id,
     owner,
     {

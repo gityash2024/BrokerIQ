@@ -165,6 +165,14 @@ export default function Profile() {
               <ChevronRight size={18} color={c.brand} />
             </Card>
           )}
+          <Group title="Workspace">
+            <Item
+              icon={<ClipboardList size={20} color={c.brand} />}
+              label="Product features & upcoming"
+              sub="All tools and disabled upcoming modules"
+              onPress={() => router.push('/product-tools' as any)}
+            />
+          </Group>
           <Group title="Property">
             {user && (
               <Item
