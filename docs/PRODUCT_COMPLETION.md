@@ -17,7 +17,7 @@ User scope: retain every existing capability; restore scanner discovery on web/n
 - [x] Feature and route inventory across native, public, User, Broker and Super Admin.
 - [x] Scanner and bulk WhatsApp import workspace, durable native capture and source-review target selection (code and isolated browser/API verification; signed-device verification remains in release gate).
 - [x] Role-aware product catalog, all configured upcoming modules visible and disabled (code/shared permissions verified; full runtime matrix remains in release gate).
-- [ ] Rich private inventory cards/details, all recorded fields and contextual actions.
+- [x] Rich private inventory cards/details, all recorded fields and contextual actions (shared contracts and desktop/390px browser verified; signed-device gate pending).
 - [ ] Directory detail presentation, bounded enrichment, real source-linked photos where available.
 - [ ] Shared enterprise layout/components and route-by-route web/native refinement.
 - [ ] Runtime visual/function/accessibility checks, regression suites, fresh signed APK, screenshot refresh and deployed all-portal checks.
@@ -29,3 +29,7 @@ See generated `docs/evidence/product-route-inventory.json`. Each route records i
 ## Capture/catalog checkpoint
 
 Native `/scanner` authorization mapping restored. Inventory/Requirements expose direct scanner/import/paste actions. Capture preserves originals, multi-page camera/gallery sources and TXT/ZIP exports; named destination is stored as review guidance only. Existing public-listing scanner remains reachable through its explicit rental-draft route, including page preview/rotation. Native composer uses SQLCipher; web composer uses account-scoped IndexedDB AES-GCM with non-extractable keys and cross-tab key creation serialization. Bulk file input snapshots FileList before async draft persistence and resets, preventing empty uploads. Shared roadmap presentation does not grant API access.
+
+## Inventory / Directory presentation checkpoint
+
+Web Inventory now has table/card views and read-only detail hierarchy before editing. Both native and web expose recorded configuration, pricing/terms, amenities, contacts, notes, media and private source audit. Zero/false facts remain visible. Directory detail panels show exact-source project facts, expandable unit/approval/specification tables and map/provenance, with absent photos explicitly identified. The metadata-only importer dry-runs by default, matches exact identities, creates an exclusive durable private backup before writes, and atomically rejects mismatched/unknown sources. No inventory rows or original geometry/source timestamps are changed. Real PostgreSQL rollback/preservation tests passed (2/2); shared tests 31/31; browser scanner/catalog and rich detail checks 2/2. Full source enrichment and production application remain release work.

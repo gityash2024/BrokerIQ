@@ -1,14 +1,14 @@
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { SourceImage } from '@/launch/source-image';
-import { floorLabel } from '@brokeriq/shared';
-import { ScrollView, View, Linking, Share } from 'react-native';
+import { floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, readableValue } from '@brokeriq/shared';
+import { ScrollView, View, Linking, Share, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { type LedgerItem, formatINR, PROPERTY_FIELDS } from '@brokeriq/shared';
+import { type LedgerItem } from '@brokeriq/shared';
 import { api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
-import { Txt, Button } from '@/ui';
+import { Txt, Button, ErrorView } from '@/ui';
 import { toast } from '@/lib/toast';
 import { propertyShare } from '@/launch/property-card';
 export default function PropertyDetail() {
@@ -17,22 +17,25 @@ export default function PropertyDetail() {
   const q = useQuery({ queryKey: ['ledger-item', id], queryFn: () => api<LedgerItem>(`/inventory/${id}`) });
   const item = q.data;
   return (
-    <BrokerScreen title={item?.houseNo ? `House ${item.houseNo}` : 'Property details'} subtitle={item?.sector ?? undefined} back>
+    <BrokerScreen title={item ? inventoryTitle(item) : 'Property details'} subtitle={item?.sector ?? undefined} back>
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 16, paddingBottom: 30 }}>
-        {q.error && <Txt color="danger">{errorMessage(q.error)}</Txt>}
+        {q.error && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
+        {q.isPending && <ActivityIndicator style={{ padding: 40 }} />}
         {item && (
           <>
             <WorkspaceHero
               label="PROPERTY OVERVIEW"
-              title={item.monthlyRent != null && item.purpose === 'RENT' ? `${formatINR(item.monthlyRent)}/month` : item.totalSalePrice != null ? formatINR(item.totalSalePrice) : item.ratePerArea != null ? `${formatINR(item.ratePerArea)}/${item.rateAreaUnit}` : 'Price not recorded'}
+              title={inventoryPrice(item)}
               description={`${item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms unknown'} · ${floorLabel(item.floor)}`}
             />
             <NativeCard>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 <WorkspaceTag label={item.furnishing?.replace(/_/g, ' ') || 'Furnishing unknown'} />
-                <WorkspaceTag tone="muted" label={item.area ? `${item.area} ${item.areaUnit}` : 'Area not recorded'} />
+                <WorkspaceTag tone="muted" label={item.area != null ? `${item.area} ${item.areaUnit ?? ''}` : 'Area not recorded'} />
               </View>
-              <Txt v="small" color="muted">{item.availability === 'UNKNOWN' ? 'Availability needs confirmation' : (item.availability ?? 'UNKNOWN')}</Txt>
+              <Txt v="small" color="muted">
+                {item.availability === 'UNKNOWN' ? 'Availability needs confirmation' : (item.availability ?? 'UNKNOWN')}
+              </Txt>
               {item.availability === 'UNKNOWN' && (
                 <Button
                   title="Confirm available"
@@ -51,44 +54,87 @@ export default function PropertyDetail() {
             </NativeCard>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Button title="Edit property" variant="secondary" style={{ flex: 1 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
-              <Button title="Share property" style={{ flex: 1 }} onPress={() => Share.share({ message: propertyShare(item) })} />
+              <Button
+                title="Share property"
+                style={{ flex: 1 }}
+                onPress={() => Share.share({ message: propertyShare(item) }).catch((error) => toast.error(errorMessage(error)))}
+              />
             </View>
             <Button title="Publish / review rental" variant="secondary" onPress={() => router.push(`/publish-rental?id=${id}` as any)} />
-            <NativeCard>
-              <Txt v="h3">Property details</Txt>
-              {PROPERTY_FIELDS.filter((field) => item.details?.[field.key] != null).map((field) => (
-                <View key={field.key} style={{ gap: 3 }}>
-                  <Txt v="caption" color="muted">
-                    {field.label}
-                  </Txt>
-                  <Txt>{String(item.details![field.key]).replace(/_/g, ' ')}</Txt>
+            {inventoryFactGroups(item).map((group) => (
+              <NativeCard key={group.title}>
+                <Txt v="h3">{group.title}</Txt>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
+                  {group.facts.map((fact) => (
+                    <View key={fact.label} style={{ flexGrow: 1, flexBasis: '44%', gap: 5, paddingVertical: 8 }}>
+                      <Txt v="caption" color="muted">
+                        {fact.label}
+                      </Txt>
+                      <Txt v="small">{fact.value}</Txt>
+                    </View>
+                  ))}
                 </View>
-              ))}
-              {!!item.amenities?.length && <Txt v="small">{item.amenities.join(' · ').replace(/_/g, ' ')}</Txt>}
+              </NativeCard>
+            ))}
+            {!!item.amenities?.length && (
+              <NativeCard>
+                <Txt v="h3">Amenities</Txt>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {item.amenities.map((value) => (
+                    <WorkspaceTag key={value} label={readableValue(value)} />
+                  ))}
+                </View>
+              </NativeCard>
+            )}
+            <NativeCard>
+              <Txt v="title">Record & verification</Txt>
+              <WorkspaceTag
+                tone={item.availability === 'AVAILABLE' ? 'success' : 'warning'}
+                label={item.availability === 'UNKNOWN' ? 'Availability needs confirmation' : readableValue(item.availability ?? 'UNKNOWN')}
+              />
+              <Txt v="caption" color="muted">{`Source: ${readableValue(item.sourceType)} · Revision ${item.revision}`}</Txt>
+              <Txt v="caption" color="muted">{`Last updated: ${new Date(item.updatedAt).toLocaleString('en-IN')}`}</Txt>
             </NativeCard>
             {(item.photoUrls ?? []).map((uri) => (
               <Image key={uri} source={{ uri }} contentFit="contain" style={{ width: '100%', height: 220 }} />
             ))}
             {(item.videoUrls ?? []).map((uri) => (
-              <Button key={uri} title="Open property video" variant="secondary" onPress={() => Linking.openURL(uri)} />
+              <Button
+                key={uri}
+                title="Open property video"
+                variant="secondary"
+                onPress={() => Linking.openURL(uri).catch((error) => toast.error(errorMessage(error)))}
+              />
             ))}
             <Txt v="h3">Contacts</Txt>
             {item.contacts.map((contact, index) => (
               <NativeCard key={index}>
                 <Txt v="title">{contact.name || 'Name not recorded'}</Txt>
                 <Txt v="caption" color="muted">
-                  {contact.role}
+                  {readableValue(contact.role)}
                 </Txt>
+                {!!contact.note && (
+                  <Txt v="small" color="muted">
+                    {contact.note}
+                  </Txt>
+                )}
                 {contact.phone && (
                   <>
                     <Txt>{contact.phone}</Txt>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <Button title="Call" variant="secondary" style={{ flex: 1 }} onPress={() => Linking.openURL(`tel:${contact.phone}`)} />
+                      <Button
+                        title="Call"
+                        variant="secondary"
+                        style={{ flex: 1 }}
+                        onPress={() => Linking.openURL(`tel:${contact.phone}`).catch((error) => toast.error(errorMessage(error)))}
+                      />
                       <Button
                         title="WhatsApp"
                         variant="secondary"
                         style={{ flex: 1 }}
-                        onPress={() => Linking.openURL(`https://wa.me/91${contact.phone!.replace(/\D/g, '').slice(-10)}`)}
+                        onPress={() =>
+                          Linking.openURL(`https://wa.me/91${contact.phone!.replace(/\D/g, '').slice(-10)}`).catch((error) => toast.error(errorMessage(error)))
+                        }
                       />
                     </View>
                   </>
@@ -104,9 +150,9 @@ export default function PropertyDetail() {
             {item.sourceEntry && (
               <>
                 <Txt v="h3">Source</Txt>
-                {item.pageNo && (
+                {item.sourceEntry.batch?.id && (item.pageNo || item.sourceEntry.batch.sourceType === 'IMAGE') && (
                   <SourceImage
-                    uri={`${API_URL}/imports/${item.sourceEntry.batch?.id}/source?pageNo=${item.pageNo}&entryId=${item.sourceEntry.id}`}
+                    uri={`${API_URL}/imports/${item.sourceEntry.batch?.id}/source?${item.pageNo ? `pageNo=${item.pageNo}&` : ''}entryId=${item.sourceEntry.id}`}
                     token={authStore.get()?.accessToken}
                   />
                 )}

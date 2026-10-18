@@ -25,3 +25,6 @@ export * from './directory-map';
 export * from './design';
 export * from './publishing';
 export * from './dashboard';
+
+export * from './inventory-presentation';
+export * from './directory-profile';

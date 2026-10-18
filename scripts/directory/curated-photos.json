@@ -1,0 +1,15 @@
+[
+  {
+    "provider": "OSM",
+    "externalId": "relation/3580971",
+    "expectedName": "Essel Towers",
+    "photo": {
+      "url": "https://brokeriq.mymultimeds.com/directory/essel-towers-commons.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Apartmentingurgaon.JPG",
+      "caption": "Historical photograph of Essel Towers, Gurugram. Source dates differ (2005/2006); this is not a current unit-availability photograph. Original file displayed without edits.",
+      "author": "User:Deepak; source contrast revision by Dpcoka",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    }
+  }
+]

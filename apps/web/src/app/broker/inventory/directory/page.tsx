@@ -1,13 +1,20 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { directoryMapHtml } from '@brokeriq/shared';
+import { DirectoryDetails } from '@/components/broker/launch/directory-details';
+import { directoryMapHtml, readableValue } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
 import Link from 'next/link';
+import { Building2, MapPin, ArrowUpRight, Search } from 'lucide-react';
+import { ApiErrorState } from '@/components/ui/api-error';
+import { Button } from '@/components/ui/button';
+import { usePathname } from 'next/navigation';
 export default function Directory() {
+  const pathname = usePathname();
+  const admin = pathname.startsWith('/admin');
   const [search, setSearch] = useState('');
   const [sector, setSector] = useState('');
   const [category, setCategory] = useState('');
@@ -38,7 +45,7 @@ export default function Directory() {
         title="Area Directory"
         subtitle="Gurugram city · Societies, apartments, commercial projects and licensed colonies."
         actions={
-          <Link href="/broker/inventory" className="text-sm text-brand-600">
+          <Link href={admin ? '/admin/inventory' : '/broker/inventory'} className="text-sm text-brand-600">
             Back to Inventory
           </Link>
         }
@@ -98,11 +105,11 @@ export default function Directory() {
           {view === 'LIST' ? 'Show map' : 'Show list'}
         </button>
       </div>
-      {query.error && <p role="alert">{errorMessage(query.error)}</p>}
+      {query.error && <ApiErrorState error={query.error} onRetry={() => query.refetch()} />}
       {view === 'MAP' ? (
         <>
           {map.error ? (
-            <p role="alert">{errorMessage(map.error)}</p>
+            <ApiErrorState error={map.error} onRetry={() => map.refetch()} />
           ) : (
             map.data && (
               <iframe
@@ -115,21 +122,43 @@ export default function Directory() {
             )
           )}
           <p className="mt-2 text-xs text-muted">
-            {map.data?.total ?? 0} source locations. Colony points indicate the recorded colony boundary, not a building entrance.
+            {map.data?.total ?? '—'} source locations. Colony points indicate the recorded colony boundary, not a building entrance.
           </p>
         </>
       ) : (
         <>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {query.isPending && Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton h-52 rounded-2xl" aria-label="Loading project" />)}
             {query.data?.items.map((item: any) => (
-              <button key={item.id} onClick={() => setSelected(item.id)} className="rounded-xl border border-line bg-surface p-5 text-left">
-                <p className="text-base font-semibold">{item.name}</p>
-                <p className="mt-1 text-sm text-muted">{item.builderName}</p>
-                <p className="mt-2 text-xs text-muted">{item.sector || item.address || 'Address not in source'}</p>
-                <p className="mt-3 text-xs">
-                  {item.provider} · {item.category} · {item.registrationStatus}
+              <button
+                key={item.id}
+                onClick={() => setSelected(item.id)}
+                className="group flex flex-col rounded-2xl border border-line bg-surface p-5 text-left shadow-[var(--shadow-card)] transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-[var(--shadow-lift)] focus-visible:outline-2 focus-visible:outline-brand-500"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="grid size-11 place-items-center rounded-xl bg-brand-500/10 text-brand-600">
+                    <Building2 className="size-5" />
+                  </span>
+                  <span className="rounded-md bg-surface-2 px-2 py-1 text-[10px] font-bold tracking-wide text-muted">{item.provider}</span>
+                </div>
+                <p className="font-display text-base font-bold leading-6">{item.name.trim()}</p>
+                <p className="mt-2 text-xs leading-5 text-muted">{item.builderName || 'Developer not in source'}</p>
+                <p className="mt-3 flex items-start gap-1.5 text-xs text-muted">
+                  <MapPin className="size-3.5 shrink-0" />
+                  {item.sector ? (/^\d/.test(item.sector.trim()) ? `Sector ${item.sector.trim()}` : item.sector) : item.address || 'Address not in source'}
                 </p>
-                <p className="mt-1 text-xs text-muted">{item.latitude == null ? 'Coordinates unavailable' : 'Source location available'}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-[10px]">
+                  <span className="rounded-md bg-surface-2 px-2 py-1">{readableValue(item.category)}</span>
+                  {item.registrationNumber && <span className="rounded-md bg-surface-2 px-2 py-1">{item.registrationNumber}</span>}
+                </div>
+                <div className="mt-auto pt-4">
+                  <div className="flex items-center justify-between gap-2 border-t border-line pt-3 text-xs">
+                    <span className="text-muted">{item.latitude == null ? 'List only · Location not recorded' : 'Source location available'}</span>
+                    <span className="flex items-center gap-1 font-semibold text-brand-600">
+                      Project details <ArrowUpRight className="size-3.5" />
+                    </span>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
@@ -139,7 +168,7 @@ export default function Directory() {
               Previous
             </button>
             <span>
-              {query.data?.total ?? 0} records · Page {page}
+              {query.data?.total ?? '—'} records · Page {page}
             </span>
             <button disabled={!query.data || page >= query.data.totalPages} onClick={() => setPage(page + 1)}>
               Next
@@ -153,29 +182,14 @@ export default function Directory() {
           if (!open) setSelected(null);
         }}
         title={detail.data?.name ?? 'Source details'}
-        size="lg"
+        size="xl"
       >
         {detail.error ? (
-          <p role="alert">{errorMessage(detail.error)}</p>
+          <ApiErrorState error={detail.error} onRetry={() => detail.refetch()} />
+        ) : detail.data ? (
+          <DirectoryDetails record={detail.data} />
         ) : (
-          detail.data && (
-            <div className="space-y-3 text-sm">
-              <p>{detail.data.builderName}</p>
-              <p>{detail.data.address || detail.data.sector}</p>
-              <p>{detail.data.registrationNumber}</p>
-              <p>
-                Source status: {detail.data.registrationStatus} · Registration up to: {detail.data.registrationUntil || 'Not recorded'}
-              </p>
-              <p className="text-xs text-muted">{detail.data.metadata?.classificationNote || detail.data.metadata?.mapPointMeaning}</p>
-              <a href={detail.data.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold text-brand-600">
-                Open official source ↗
-              </a>
-              <p className="text-xs text-muted">
-                Retrieved {new Date(detail.data.sourceFetchedAt).toLocaleString()} · {detail.data.provider} · {detail.data.externalId}
-              </p>
-              <p className="text-xs text-muted">This record is a directory fact. It does not add a property to your firm's inventory.</p>
-            </div>
-          )
+          <div className="skeleton h-72" aria-label="Loading source details" />
         )}
       </Dialog>
     </>

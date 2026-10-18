@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-18",
+  "scope": "Local isolated verification only; not deployed",
+  "sharedTests": {
+    "passed": 31
+  },
+  "postgresEnrichmentTests": {
+    "passed": 2
+  },
+  "browserTests": {
+    "passed": 2,
+    "widths": [
+      390,
+      1440
+    ],
+    "pageErrors": 0
+  },
+  "typescript": [
+    "shared",
+    "api",
+    "web",
+    "mobile"
+  ],
+  "privateMasterDataCheck": {
+    "directoryRecords": 2102,
+    "mapped": 1237,
+    "enrichedCheckpoint": 500,
+    "productionApplied": false
+  },
+  "photo": {
+    "file": "apps/web/public/directory/essel-towers-commons.jpg",
+    "sha256": "252b7d2838206ec4b84266bd61475f66e2e26400ebfbe85731efae9d5156a7fb",
+    "source": "https://commons.wikimedia.org/wiki/File:Apartmentingurgaon.JPG",
+    "license": "CC BY-SA 3.0",
+    "identity": "OSM relation/3580971"
+  }
+}

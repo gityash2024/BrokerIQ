@@ -1,6 +1,7 @@
 'use client';
+import { InventoryDetails } from '@/components/broker/launch/inventory-details';
 import { PublicPublish } from '@/components/broker/launch/public-publish';
-import { floorLabel } from '@brokeriq/shared';
+import { inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useState, useEffect } from 'react';
@@ -61,6 +62,8 @@ function LedgerInner() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [sort, setSort] = useState({ sortBy: 'createdAt', sortOrder: 'desc' });
+  const [viewing, setViewing] = useState<LedgerItem | null>(null);
+  const [layout, setLayout] = useState<'TABLE' | 'CARDS'>('TABLE');
   const [editing, setEditing] = useState<LedgerItem | null>(null);
   const [dirty, setDirty] = useState(false);
   useEffect(() => {
@@ -190,10 +193,72 @@ function LedgerInner() {
           <button onClick={() => setSelected([])}>Clear</button>
         </div>
       )}
+      <div className="mb-4 flex justify-end gap-2" role="group" aria-label="Inventory layout">
+        {(['TABLE', 'CARDS'] as const).map((value) => (
+          <button
+            key={value}
+            aria-pressed={layout === value}
+            onClick={() => setLayout(value)}
+            className={`min-h-11 rounded-xl border px-4 text-xs font-semibold ${layout === value ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface'}`}
+          >
+            {value === 'TABLE' ? 'Table view' : 'Card view'}
+          </button>
+        ))}
+      </div>
       {query.error ? (
         <p role="alert" className="p-6 text-rose-600">
           {errorMessage(query.error)} <button onClick={() => query.refetch()}>Retry</button>
         </p>
+      ) : layout === 'CARDS' ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {query.data?.items.map((item) => (
+            <article key={item.id} className="card overflow-hidden">
+              <button onClick={() => setViewing(item)} className="block w-full p-5 text-left">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">{item.purpose || 'Private inventory'}</p>
+                    <h2 className="mt-2 font-display text-xl font-bold">{inventoryTitle(item)}</h2>
+                    <p className="mt-1 text-sm text-muted">{item.sector || 'Locality not recorded'}</p>
+                  </div>
+                  <span className="rounded-lg bg-surface-2 px-2 py-1 text-[10px]">{readableValue(item.availability ?? 'UNKNOWN')}</span>
+                </div>
+                {!!item.photoUrls?.[0] && (
+                  <img src={item.photoUrls[0]} alt="Property photograph" className="mt-4 aspect-[16/9] w-full rounded-xl object-cover" loading="lazy" />
+                )}
+                <div className="my-4 flex flex-wrap gap-2">
+                  {[
+                    item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms not recorded',
+                    floorLabel(item.floor),
+                    item.area != null ? `${item.area} ${item.areaUnit}` : null,
+                    item.furnishing && readableValue(item.furnishing),
+                  ]
+                    .filter(Boolean)
+                    .map((value, i) => (
+                      <span key={i} className="rounded-lg bg-surface-2 px-2 py-1.5 text-xs text-muted">
+                        {value}
+                      </span>
+                    ))}
+                </div>
+                <p className="font-display text-xl font-bold">{inventoryPrice(item)}</p>
+              </button>
+              <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/50 px-5 py-3">
+                <label className="flex min-h-11 items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select property ${item.houseNo ?? item.id}`}
+                    checked={selected.includes(item.id)}
+                    onChange={() => setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id])}
+                  />
+                  {item.sourceType === 'PDF_REGISTER' ? 'Register' : readableValue(item.sourceType)}
+                  {item.pageNo ? ` · P.${item.pageNo}` : ''}
+                </label>
+                <button onClick={() => setViewing(item)} className="min-h-11 text-xs font-bold text-brand-600">
+                  View details →
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full min-w-[950px] text-left text-xs">
@@ -242,7 +307,7 @@ function LedgerInner() {
                       />
                     </td>
                     <td className="p-3">
-                      <button onClick={() => setEditing(item)} className="text-left font-semibold text-brand-600">
+                      <button onClick={() => setViewing(item)} className="text-left font-semibold text-brand-600">
                         {item.houseNo || 'House not recorded'}
                         {item.unitLabel && ` · ${item.unitLabel}`}
                       </button>
@@ -335,6 +400,21 @@ function LedgerInner() {
           </button>
         </div>
       </div>
+      <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)} title={viewing ? inventoryTitle(viewing) : 'Property details'} size="xl">
+        {viewing && (
+          <InventoryDetails
+            item={viewing}
+            onEdit={() => {
+              setEditing(viewing);
+              setViewing(null);
+            }}
+            onPublish={() => {
+              setPublishing(viewing);
+              setViewing(null);
+            }}
+          />
+        )}
+      </Dialog>
       <Dialog open={!!publishing} onOpenChange={(v) => !v && setPublishing(null)} title="Publish rental listing" size="lg">
         {publishing && (
           <PublicPublish
