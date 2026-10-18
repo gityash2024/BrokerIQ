@@ -57,6 +57,11 @@ test('scanner and chat exports are discoverable, private drafts survive reload a
     buffer: Buffer.from('[18/10/2026, 10:00:00] Fixture: Need 1 BHK in Sector 45, budget 15k, contact 9899980802'),
   });
   await expect(page.getByRole('link', { name: 'chat-export.txt', exact: true })).toBeVisible();
+  // A populated source history must fit a phone, including timestamp + review badge.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('heading', { name: 'Source history & review', exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole('button', { name: 'Product features & upcoming' }).click();
   await expect(page.getByRole('heading', { name: 'Your product workspace' })).toBeVisible();
   await expect(page.locator('article[aria-disabled=true]').filter({ hasText: 'Deals & invoices' })).toBeVisible();

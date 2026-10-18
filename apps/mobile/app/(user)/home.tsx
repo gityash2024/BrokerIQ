@@ -127,6 +127,8 @@ function Hero({ s }: { s: any }) {
             style={{
               marginTop: 16,
               alignSelf: 'flex-start',
+              maxWidth: '100%',
+              minHeight: 44,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
@@ -139,7 +141,7 @@ function Hero({ s }: { s: any }) {
             }}
           >
             <ClipboardList size={16} color="#fff" />
-            <Txt v="small" color="white">
+            <Txt v="small" color="white" style={{ flexShrink: 1 }}>
               अपनी ज़रूरत बताएँ — मिलती property पर alert
             </Txt>
           </PressableScale>

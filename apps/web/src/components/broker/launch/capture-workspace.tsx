@@ -331,16 +331,16 @@ function Workspace({ scanner }: { scanner: boolean }) {
       ) : query.isPending ? (
         <div className="skeleton h-24" role="status" aria-label="Loading sources" />
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
           {query.data?.items.map((item: any) => (
             <Link
               key={item.id}
               href={`/broker/imports/${item.id}`}
-              className="card flex items-center justify-between gap-4 p-5 transition hover:border-brand-400"
+              className="card flex min-w-0 flex-col items-start justify-between gap-4 p-5 transition hover:border-brand-400 sm:flex-row sm:items-center"
             >
-              <div className="min-w-0">
+              <div className="w-full min-w-0 sm:flex-1">
                 <p className="truncate font-semibold">{item.fileName || item.groupName || `${item.sourceType} capture`}</p>
-                <p className="mt-2 text-xs text-muted">
+                <p className="mt-2 break-words text-xs leading-5 text-muted">
                   {new Date(item.createdAt).toLocaleString('en-IN')} · {item._count?.entries ?? 0} source entries
                 </p>
               </div>
