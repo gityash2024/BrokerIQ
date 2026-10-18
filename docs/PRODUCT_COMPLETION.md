@@ -18,9 +18,9 @@ User scope: retain every existing capability; restore scanner discovery on web/n
 - [x] Scanner and bulk WhatsApp import workspace, durable native capture and source-review target selection (code and isolated browser/API verification; signed-device verification remains in release gate).
 - [x] Role-aware product catalog, all configured upcoming modules visible and disabled (code/shared permissions verified; full runtime matrix remains in release gate).
 - [x] Rich private inventory cards/details, all recorded fields and contextual actions (shared contracts and desktop/390px browser verified; signed-device gate pending).
-- [x] Directory detail presentation and bounded enrichment prepared; exact-identity enrichment applied to isolated master data (1,122 records, one attributed real project photo; production application pending).
-- [ ] Shared enterprise layout/components and route-by-route web/native refinement.
-- [ ] Runtime visual/function/accessibility checks, regression suites, fresh signed APK, screenshot refresh and deployed all-portal checks.
+- [x] Directory detail presentation and bounded enrichment prepared; exact-identity enrichment applied to isolated master data (1,122 records, one attributed real project photo; production applied and exact counts verified).
+- [x] Shared enterprise layout/components and route-by-route web/native refinement; 91 static web routes audited, selected native journeys checked.
+- [x] Regression suites, signed APK24, actual screenshot refresh and deployed web/API checks; physical-device and credential-dependent provider acceptance remain external gates.
 
 ## Route audit
 
@@ -39,3 +39,7 @@ Web Inventory now has table/card views and read-only detail hierarchy before edi
 91 static signed-in routes were exercised at 390px through real APIs: 42 Admin, 35 Broker, 14 User, including 13 disabled future routes. Final audit captured no page/hydration exception, unexpected API failure or page overflow. Shared headers, 44px controls, mobile Admin record cards, complete System tool discovery, role controls, validated forms and sticky guarded saves were refined. Route checks found and fixed activity pages without a chart default, invitation plans querying a disabled billing endpoint, long profile email overflow, homepage-editor overflow, and a customer-requirements module-registry collision. Customer requirement actions are now sibling controls rather than nested buttons. Capture/import drafts remain bound to their original account during async writes/account changes. These checks cover route rendering, not every possible populated-data interaction.
 
 Regression checkpoint: shared 31 tests; API full run 127 passed / 18 conditional skips; separate Broker-first suites 18 passed; native 17 tests; all 12 Playwright journeys passed in four isolated server groups to preserve the real login rate limit. Web/API/native typechecks passed. APK24 signed with the existing certificate; emulator upgrade and production promotion are in progress.
+
+## Final build24 release
+
+Production code includes final populated capture-history mobile wrapping and User-home native CTA wrapping. Related browser journeys passed again (2/2). Final APK checksum is `45e193323429d2c2471b6567c8f68ed171d1a5546579c20742e6a643f9cd98cf`; existing signing identity retained. Live/staged details and explicit remaining external gates are in `RELEASE_HANDOFF.md`. Every-screen rendering evidence does not certify every populated interaction.

@@ -1,0 +1,273 @@
+{
+  "release": "2.1.0-build24",
+  "verifiedAt": "2026-10-18T06:18:26.484237+00:00",
+  "apkSha256": "45e193323429d2c2471b6567c8f68ed171d1a5546579c20742e6a643f9cd98cf",
+  "signingCertificateSha256": "d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce",
+  "tests": {
+    "sharedPassed": 31,
+    "apiFullPassed": 127,
+    "apiFullConditionalSkipped": 18,
+    "brokerFirstPassed": 18,
+    "nativePassed": 17,
+    "browserJourneysPassedAcrossFourServerGroups": 12,
+    "finalPopulatedCaptureAndDetailJourneysPassed": 2
+  },
+  "externalGates": [
+    "Physical Android device upgrade, capture, sharing and reconnect verification",
+    "Google multi-page scanner physical-device capture; emulator Play-services scanner returned Try again later; direct camera fallback launch passed",
+    "Housing/WhatsApp credentials and explicitly authorized test recipient for live delivery/sync",
+    "SMTP and optional provider verification when configured"
+  ],
+  "scopeLimits": [
+    "91-route audit covers static route rendering and selected populated journeys, not every possible interaction",
+    "Source enrichment is bounded to exact HARERA/OSM identities, not exhaustive internet coverage",
+    "Directory availability/approval remains source-backed historical information requiring confirmation"
+  ],
+  "production": {
+    "commit": "1f2b96c571273f00d0e73657147a0ef392a3c82c",
+    "processes": [
+      {
+        "name": "brokeriq-api",
+        "pid": 1847068,
+        "restarts": 23,
+        "status": "online"
+      },
+      {
+        "name": "brokeriq-web",
+        "pid": 1854654,
+        "restarts": 24,
+        "status": "online"
+      }
+    ]
+  },
+  "liveBrowser": {
+    "at": "2026-10-18T06:16:41.170Z",
+    "base": "https://brokeriq.mymultimeds.com",
+    "results": [
+      {
+        "width": 1440,
+        "landing": {
+          "overflow": false,
+          "centerOffset": 0.0078125,
+          "glyphPadding": 24.96,
+          "animation": "biq-shine",
+          "revealed": true,
+          "oldScreens": 0,
+          "newScreens": 2,
+          "download": "https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build24.apk"
+        }
+      },
+      {
+        "width": 390,
+        "landing": {
+          "overflow": false,
+          "centerOffset": 0.0078125,
+          "glyphPadding": 7.488,
+          "animation": "biq-shine",
+          "revealed": true,
+          "oldScreens": 0,
+          "newScreens": 2,
+          "download": "https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build24.apk"
+        }
+      },
+      {
+        "role": "admin",
+        "path": "/admin",
+        "heading": "A clearer view of BrokerIQ.",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/admin"
+      },
+      {
+        "role": "admin",
+        "path": "/admin/system",
+        "heading": "System workspace",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/admin/system"
+      },
+      {
+        "role": "admin",
+        "path": "/admin/modules",
+        "heading": "Modules & permissions",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/admin/modules"
+      },
+      {
+        "role": "admin",
+        "path": "/admin/inventory/directory",
+        "heading": "Area Directory",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/admin/inventory/directory"
+      },
+      {
+        "role": "broker",
+        "path": "/broker",
+        "heading": "Good to see you, Rahul.",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker"
+      },
+      {
+        "role": "broker",
+        "path": "/broker/inventory",
+        "heading": "Inventory",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker/inventory"
+      },
+      {
+        "role": "broker",
+        "path": "/broker/scanner",
+        "heading": "Scanner & import",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker/scanner"
+      },
+      {
+        "role": "broker",
+        "path": "/broker/imports",
+        "heading": "Capture workspace",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker/imports"
+      },
+      {
+        "role": "broker",
+        "path": "/broker/leads/requirements",
+        "heading": "Requirements",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker/leads/requirements"
+      },
+      {
+        "role": "broker",
+        "path": "/broker/inbox",
+        "heading": "Inbox",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker/inbox"
+      },
+      {
+        "role": "broker",
+        "path": "/broker/automations",
+        "heading": "Automations",
+        "overflow": false,
+        "url": "https://brokeriq.mymultimeds.com/broker/automations"
+      },
+      {
+        "path": "/user/search",
+        "heading": [
+          "Homes for rent in Gurgaon"
+        ]
+      }
+    ],
+    "errors": []
+  },
+  "liveApi": {
+    "at": "2026-10-18T06:04:31.392Z",
+    "base": "https://brokeriqapi.mymultimeds.com/api",
+    "results": [
+      {
+        "role": "admin",
+        "path": "/admin/dashboard/metrics",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "admin",
+        "path": "/admin/modules",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "admin",
+        "path": "/admin/dashboard/records?chart=signups",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "broker",
+        "path": "/broker/dashboard/metrics",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "broker",
+        "path": "/me/dashboard",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "broker",
+        "path": "/inventory?pageSize=1",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "inventoryTotal": 895
+      },
+      {
+        "role": "broker",
+        "path": "/broker-requirements",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "broker",
+        "path": "/area-directory?pageSize=1",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "role": "broker",
+        "path": "/admin/modules",
+        "status": 403,
+        "expected": 403
+      }
+    ]
+  },
+  "directoryDatabase": {
+    "total": 2102,
+    "enriched": 1122,
+    "photoRecords": [
+      {
+        "id": "cmv9u5yrl01gsj66bgi4g3zhm",
+        "provider": "OSM"
+      }
+    ],
+    "inventory": 895,
+    "page84": [
+      {
+        "_count": 23,
+        "reviewState": "IGNORED"
+      }
+    ]
+  },
+  "directoryHttp": {
+    "at": "2026-10-18T06:15:59.457Z",
+    "projectFacts": 7,
+    "sectionCount": 3,
+    "photoCount": 1,
+    "photoHTTP": 200,
+    "source": "https://haryanarera.gov.in/view_project/project_preview_open/1444",
+    "privateKeysPresent": false
+  },
+  "nativeRuntime": {
+    "coldStarts": [
+      {
+        "start": 1,
+        "dashboardVisible": true,
+        "splashOnly": false
+      },
+      {
+        "start": 2,
+        "dashboardVisible": true,
+        "splashOnly": false
+      },
+      {
+        "start": 3,
+        "dashboardVisible": true,
+        "splashOnly": false
+      }
+    ],
+    "reactNativeOrRuntimeErrors": 0,
+    "fontScale": "1.0"
+  },
+  "nativeOfflineUpgrade": {
+    "offlineRestartDraftPreserved": true,
+    "visibleFieldsCompared": 5
+  }
+}

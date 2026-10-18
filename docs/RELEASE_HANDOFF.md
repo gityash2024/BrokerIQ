@@ -1,6 +1,6 @@
-# BrokerIQ — Enterprise release handoff, 17 अक्टूबर 2026
+# BrokerIQ — Enterprise release handoff, 18 अक्टूबर 2026
 
-नया consumer portal, unified branding और Admin/Broker/User dashboards staging पर उपलब्ध हैं। Production acceptance अभी बंद नहीं है: physical Android device, live provider delivery/sync और unresolved register entries की जाँच बाकी है।
+Landing, User/Broker/Super Admin portals और signed Android build24 production पर उपलब्ध हैं। Source, isolated regression, emulator और live web evidence नीचे अलग हैं। Physical Android device और credential-dependent live provider delivery/sync acceptance अभी बाकी है।
 
 | उपयोग | लिंक |
 |---|---|
@@ -8,10 +8,30 @@
 | User Portal | https://brokeriq.mymultimeds.com/user |
 | Broker Portal | https://brokeriq.mymultimeds.com/broker |
 | Super Admin | https://brokeriq.mymultimeds.com/admin |
-| Signed Android v2.1.0 build23 | https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build23.apk |
+| Signed Android v2.1.0 build24 | https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.0-build24.apk |
 | API health | https://brokeriqapi.mymultimeds.com/api/health |
 
 `yash@brokeriq.com` Super Admin और `rahul@brokeriq.com` Olive State Broker Admin हैं। Existing passwords बदले नहीं गए हैं; वे Git में नहीं रखे गए। Customer signup खुला है; Broker onboarding invitation से है।
+
+## Build24 — scanner, complete tool discovery और workspace refinement
+
+- Web/native Broker Inventory और Requirements से Scanner/import, WhatsApp bulk TXT/ZIP/images और paste फिर सीधे उपलब्ध हैं। Multi-page document scanner, direct camera fallback, gallery, original-source review और पुराना public rental draft scanner सुरक्षित हैं। Destination review guidance है; extraction से अपने-आप inventory/public listing नहीं बनती।
+- सभी signed-in roles में configured Coming soon catalog disabled रूप में दिखता है; presentation से permissions नहीं बदलतीं। Admin के पाँच primary sections के साथ System में 42 supporting tools खोजे जा सकते हैं।
+- Shared headers, 44px controls, guarded sticky-save forms, complete mobile Admin record cards, role controls और permission/config/session states सुधरे हैं। Inventory में table/cards, readable floor/pricing/terms और सभी recorded source/media/contact facts के detail sections हैं।
+- Directory के 1,122 exact source identities पर additional metadata लागू है: 860 HARERA detailed forms, 262 OSM records; 603 unit-mix tables और 860 approval/specification/facility tables जहाँ source ने दिया। एक verified Essel Towers photo, author/license/source credit और historical date caveat के साथ है। Missing facts/photos बनाए नहीं गए। 2,102 original identities और 1,237 mapped locations कायम हैं।
+- Footer का Q पूरा, wordmark horizontally centered, scroll reveal/shimmer active और reduced motion पर animation बंद है। Landing screenshots इसी signed build24 के Inventory और Scanner workspace से हैं। Populated source-history mobile overflow और native requirement CTA wrapping का अंतिम regression fix भी शामिल है।
+
+APK SHA256: `45e193323429d2c2471b6567c8f68ed171d1a5546579c20742e6a643f9cd98cf`। Package `com.brokeriq.app`, version2.1.0/code24; signing certificate पिछले builds वाला ही है। Existing credentials/passwords नहीं बदले; public landing/Git में passwords नहीं हैं।
+
+Verification: shared31, full API127 passed/18 conditional skips; अलग Broker-first suites18 passed; native17; 12 browser journeys चार server groups में passed। अंतिम populated-source layout regression के बाद संबंधित दोनों browser journeys दोबारा passed। Web/API/native typechecks, API compile, production Next build और signed Android build passed। 91 static signed-in web routes (42 Admin/35 Broker/14 User, 13 future-disabled routes सहित) 390px पर audited हैं। यह हर possible populated interaction या physical-device certification का दावा नहीं है।
+
+Emulator: build23→24 upgrade बिना uninstall/data-clear, old draft timestamp और पाँच visible fields सुरक्षित; final24 offline restart में भी वही fields। पाँच Broker tabs, rich property details, User browsing/overview, roadmap, camera/photo/file picker entry, Hindi/dark/130% font scale और तीन cold starts checked। Google document scanner component ने emulator पर “Try again later” दिया; direct camera fallback उपलब्ध और launch verified है। Real multi-page document capture की physical-device जाँच बाकी है।
+
+Production: reviewed source `1f2b96c`; API `dist-product24-b22955d`, web `.next-product24-1f2b96c`। केवल `brokeriq-api` और `brokeriq-web` reload हुए। Public HTTPS API role checks, counts, source details/photo, new screenshots/download, 390/1440px footer/workspaces और reduced motion checked। Sanitized results: [Build24 evidence](evidence/product-release-build24.json)।
+
+Data safety: `/opt/brokeriq/backups/checkpoints/20261018-055142-broker-first` में pre-release encrypted checkpoint है; scratch restore में counts/media hashes verified हैं। Metadata application से पहले exclusive fsynced snapshot `/opt/brokeriq/backups/product24/directory-before.json` बना। Inventory895 और page84 की 23 IGNORED entries सुरक्षित हैं। इस release में schema migration/reset/seed नहीं चला।
+
+Rollback: `/opt/brokeriq/backups/product24/api-before.txt` और `web-before.txt` के previous dist targets restore करें; `web.env.before` restore करके केवल संबंधित BrokerIQ process reload करें। Original compiled builds और APK23 retained हैं। Code rollback के लिए DB restore की जरूरत नहीं है। Enrichment rollback चाहिए तो metadata snapshot और current row changes reconcile करें; whole database restore करके नई user writes न मिटाएँ।
 
 ## Build23 finishing — 17 अक्टूबर 2026
 
@@ -46,7 +66,7 @@ Dashboards वास्तविक counts/charts, 7/30/90/custom dates, IST bou
 - Native cold-start regression में navigator को permission gate से बार-बार unmount करने वाला loop reproduce हुआ। Gate अब screen content पर है; navigator mounted रहता है। Build22 पर repeated cold starts, tabs और offline draft recovery दोबारा जाँचे गए। Account switching पर in-memory queries साफ़ होती हैं; disk drafts सुरक्षित रहते हैं।
 - एक full rerun में आए transport failures के बाद test listeners स्थिर किए गए। Shutdown race में pending notifications से पहले DB बंद हो रहा था; handler draining और delayed Prisma disconnect के बाद final full suite में वह error नहीं आया।
 
-Current build23 APK SHA256:
+Historical build23 APK SHA256:
 
 ```text
 54275ed9b073bcf04de8a7100b758c3c74bc43873135118eb106f195c5b2d3a5
