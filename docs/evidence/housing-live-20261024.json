@@ -1,0 +1,225 @@
+{
+  "verifiedAt": "2026-10-24T06:52:25.691828+00:00",
+  "environment": "User-confirmed staging at brokeriq.mymultimeds.com",
+  "organization": "Olive State",
+  "provider": "Housing broker CRM API",
+  "providerDocument": "User-supplied Broker CRM Integration Document-080523-115427.pdf and PHP/Ruby snippets",
+  "change": "Replaced organization-scoped encrypted Housing credentials through authenticated connector settings API; no application-code change, rebuild, migration, cursor reset or process reload",
+  "before": {
+    "status": "ERROR",
+    "lastErrorHTTP": 401,
+    "lastSuccessfulSync": null,
+    "leads": 0
+  },
+  "providerProbe": {
+    "verifiedAt": "2026-10-24T06:44:01.951Z",
+    "results": [
+      {
+        "accountType": "broker",
+        "status": 200,
+        "durationMs": 225,
+        "providerDate": "Sat, 24 Oct 2026 06:44:01 GMT",
+        "clockSkewSeconds": 1,
+        "dataArray": true,
+        "leadCount": 1,
+        "apiErrors": null,
+        "topLevelKeys": [
+          "data"
+        ]
+      }
+    ]
+  },
+  "settings": {
+    "encryptedAtRest": true,
+    "newCredentialsResolved": true,
+    "responseSecretMasked": true,
+    "lastTest": {
+      "ok": true,
+      "at": "2026-10-24T06:48:34.270Z",
+      "message": "Housing connected — पिछले 48 घंटे में 5 leads"
+    }
+  },
+  "initialConnectionAndSync": {
+    "startedAt": "2026-10-24T06:44:53.729Z",
+    "save": {
+      "configured": true,
+      "source": "database"
+    },
+    "storedEncrypted": true,
+    "test": {
+      "ok": true,
+      "message": "Housing connected — पिछले 48 घंटे में 5 leads"
+    },
+    "firstSync": {
+      "imported": 23,
+      "fetched": 23,
+      "skipped": 0
+    },
+    "repeatSync": {
+      "imported": 0,
+      "fetched": 0,
+      "skipped": 0
+    },
+    "completedAt": "2026-10-24T06:44:55.841Z"
+  },
+  "recordReconciliation": {
+    "leads": 20,
+    "refs": 23,
+    "orphanRefs": 0,
+    "replayedProviderEnquiries": 23,
+    "replayDuplicates": 23,
+    "repeatEnquiries": 3,
+    "followUps": 20,
+    "leadsWithRequirement": 20,
+    "leadPayloadMatches": true,
+    "sameFirm": true,
+    "noDuplicatePhones": true,
+    "stages": {
+      "NEW": 20
+    },
+    "serviceTypes": {
+      "rent": 20
+    }
+  },
+  "automationRuns": [
+    {
+      "_count": 20,
+      "status": "SUCCESS"
+    }
+  ],
+  "activities": [
+    {
+      "_count": 23,
+      "type": "ENQUIRY"
+    }
+  ],
+  "scheduledPoll": {
+    "status": "ACTIVE",
+    "lastError": null,
+    "lastSyncAt": "2026-10-24T06:50:01.941Z",
+    "totalImportedEnquiries": 23,
+    "job": {
+      "type": "connector.housing.poll",
+      "status": "DONE",
+      "attempts": 1,
+      "lastError": null,
+      "createdAt": "2026-10-18T07:31:51.129Z",
+      "updatedAt": "2026-10-24T06:50:01.946Z"
+    },
+    "advancedWithoutManualSyncAfter": "2026-10-24T06:48:43.308Z"
+  },
+  "dashboard": {
+    "http": 200,
+    "keys": [
+      "role",
+      "generatedAt",
+      "period",
+      "metrics",
+      "charts"
+    ],
+    "newLeads": {
+      "key": "newLeads",
+      "label": "New leads",
+      "value": 20,
+      "href": "/broker/leads",
+      "definition": "Leads created in the selected period"
+    },
+    "leadSourceChart": {
+      "key": "sources",
+      "title": "Lead sources",
+      "kind": "bar",
+      "scope": "period",
+      "points": [
+        {
+          "key": "0",
+          "label": "HOUSING",
+          "value": 20,
+          "href": "/broker/activity?chart=sources&value=HOUSING&from=2026-09-25&to=2026-10-24"
+        }
+      ]
+    }
+  },
+  "web": {
+    "verifiedAt": "2026-10-24T06:46:55.521Z",
+    "checks": [
+      {
+        "page": "connectors",
+        "housingPresent": true,
+        "connectedMessage": true,
+        "no401": true
+      },
+      {
+        "page": "leads",
+        "http": 200,
+        "total": 20,
+        "listed": 20,
+        "allHousing": true
+      },
+      {
+        "page": "leadDetail",
+        "loaded": 1,
+        "sourceVisible": true
+      },
+      {
+        "page": "/broker",
+        "width": 390,
+        "overflow": false
+      },
+      {
+        "page": "/broker/connectors?key=housing_api",
+        "width": 390,
+        "overflow": false
+      },
+      {
+        "page": "/broker/leads?source=HOUSING",
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  "webControls": {
+    "verifiedAt": "2026-10-24T06:47:52.807Z",
+    "test": {
+      "http": 201,
+      "body": {
+        "ok": true,
+        "message": "Housing connected — पिछले 48 घंटे में 5 leads"
+      }
+    },
+    "manualSync": {
+      "http": 201,
+      "body": {
+        "imported": 0,
+        "fetched": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "native": {
+    "leadDetailOpened": true,
+    "followupControlVisible": true,
+    "sourceBadgeVisible": true,
+    "environment": "Existing signed build24 on Android emulator; existing session and persisted app data retained",
+    "connectorVisible": true,
+    "testAndSyncButtonsExercised": true,
+    "contactsShown": 20,
+    "runtimeErrorLogBytes": 0
+  },
+  "unitTests": {
+    "command": "Explicit isolated test database; existing housing.client.spec.ts",
+    "passed": 7
+  },
+  "dataPreservation": {
+    "privateInventory": 895,
+    "ignoredPage84Entries": 23,
+    "existingEncryptedSettingsBackup": "/opt/brokeriq/backups/housing-20261024/before-encrypted.json",
+    "oldFailureHistoryRetained": true
+  },
+  "boundaries": [
+    "No WhatsApp, email or call sent to a lead; existing call-follow-up automation ran normally.",
+    "Provider response values, lead names/phones, encryption key, signed request hashes and bearer tokens omitted from this evidence.",
+    "Physical Android device was not available; Android interaction checks used emulator.",
+    "Initial import is the existing seven-day first-sync window; older provider history was not backfilled."
+  ]
+}
