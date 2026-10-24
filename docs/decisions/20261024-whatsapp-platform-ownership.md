@@ -1,8 +1,16 @@
 # ADR: Yarvix-owned WhatsApp onboarding for BrokerIQ
 
-**Status:** Accepted ownership and safety constraints; Meta assets and implementation pending
+**Status:** Platform setup deferred by owner; Rahul-only connection is the current priority
 **Date:** 2026-10-24 (Asia/Kolkata)
 **Decider:** Product owner, in this chat
+
+## Current execution scope (owner update, 2026-10-24)
+
+The owner has stopped the new Yarvix/Facebook signup and deferred multi-broker provider onboarding. First connect only Rahul's existing WhatsApp Business app to his own BrokerIQ organization using his existing Meta/Olive Estate assets, if Meta provides a supported coexistence route. Do not create another personal account or turn the customer's app into BrokerIQ's shared provider app. Revisit platform automation separately for future brokers.
+
+This narrows the implementation order; it does not waive the existing-app preservation or free-only constraints below. Ordinary number registration previously returned error 2655122 and is not a safe substitute for coexistence. A provider/eligibility prerequisite that remains required by Meta must be reported rather than bypassed. Rahul's Meta login is required again because it was logged out during the now-cancelled owner signup.
+
+Bulk export and edit-form fixes follow the WhatsApp connection work. No successful connection or end-to-end WhatsApp verification has been recorded yet.
 
 ## Context
 
@@ -47,6 +55,8 @@ One-time provider setup and applicable Meta verification/review are platform res
 Coexistence preserves ordinary app usage and groups but changes certain app features. The inspected official documentation lists broadcast-list restrictions, changes to disappearing/view-once/live-location messaging and companion-device relinking. These limitations must be shown before connection; never promise identical behavior for every Business app feature.
 
 ## Action items
+
+The Yarvix/platform items below are deferred. Current next steps are Rahul's existing login, supported coexistence eligibility/configuration, organization-scoped credentials/webhooks, and a customer-initiated test conversation with the authorized test recipient.
 
 - [ ] Owner's Facebook login and confirmed app contact email.
 - [ ] Yarvix portfolio identity/ownership verified; business details supplied where required.
