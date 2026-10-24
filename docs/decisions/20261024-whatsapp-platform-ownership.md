@@ -1,6 +1,6 @@
 # ADR: Yarvix-owned WhatsApp onboarding for BrokerIQ
 
-**Status:** Platform setup deferred by owner; Rahul-only connection is the current priority
+**Status:** Rahul-only onboarding started with owner approval; business verification and connection pending
 **Date:** 2026-10-24 (Asia/Kolkata)
 **Decider:** Product owner, in this chat
 
@@ -8,13 +8,19 @@
 
 The owner has stopped the new Yarvix/Facebook signup and deferred multi-broker provider onboarding. First connect only Rahul's existing WhatsApp Business app to his own BrokerIQ organization using his existing Meta/Olive Estate assets, if Meta provides a supported coexistence route. Do not create another personal account or turn the customer's app into BrokerIQ's shared provider app. Revisit platform automation separately for future brokers.
 
-This narrows the implementation order; it does not waive the existing-app preservation or free-only constraints below. Ordinary number registration previously returned error 2655122 and is not a safe substitute for coexistence. A provider/eligibility prerequisite that remains required by Meta must be reported rather than bypassed. Rahul's Meta login is required again because it was logged out during the now-cancelled owner signup.
+This narrows the implementation order; it does not waive the existing-app preservation or free-only constraints below. Ordinary number registration previously returned error 2655122 and is not a safe substitute for coexistence. A provider/eligibility prerequisite that remains required by Meta must be reported rather than bypassed. Rahul has logged back into his existing Meta account.
+
+After reviewing the exact Meta dialog, the owner explicitly approved accepting Tech Provider Terms and starting independent Tech Provider onboarding on the existing Olive Estate app, solely to pursue Rahul's connection. This is an exception to the earlier deferred-provider execution order, not authorization to make this app BrokerIQ's shared multi-broker provider. No new personal account or Yarvix portfolio was created. Meta now exposes Embedded Signup Builder and reports **0 of 2 steps complete**: Business Verification and App Review remain required. The verification form currently requires the real legal business type; the owner has been asked for Rahul's legal name, address, email and website rather than guessing or substituting Yarvix details. No verification application or App Review submission has been completed.
+
+Live inspection also distinguishes two states: Rahul's real number is listed as Connected in the existing business-app messaging account, while the developer app's separate API setup entry is Unverified and has webhooks disabled. These are different assets; neither the business-app Connected badge nor the Meta test number proves BrokerIQ Cloud API access. No number verification OTP, migration, disconnection or registration was performed during this inspection.
+
+The owner subsequently confirmed Rahul does not have the requested legal business documentation; Yarvix has the developer-company documentation. The unsubmitted Olive Estate verification form has been closed without selecting a legal business type or submitting business details. Do not use Yarvix documents to verify Olive Estate, and do not treat a broker customer as the software provider merely to bypass provider verification. The safe architecture remains a verified software provider (Yarvix, if that deferred setup is resumed, or an explicitly approved existing provider) onboarding Rahul as a client. Client eligibility and any Meta-requested business checks must still be respected; no promise of document-free approval is made. The Olive Estate Tech Provider enrollment was started with explicit consent, but it is not approved and no WhatsApp data migration was performed.
 
 Bulk export and edit-form fixes follow the WhatsApp connection work. No successful connection or end-to-end WhatsApp verification has been recorded yet.
 
 ## Context
 
-BrokerIQ is a product of Yarvix Technologies Private Limited. The currently inspected Meta app, Olive Estate, belongs to a broker customer and must not become BrokerIQ's platform-provider app. Its current registered API asset is a Meta test number, not proof that the customer's Business app number is connected.
+BrokerIQ is a product of Yarvix Technologies Private Limited. The currently inspected Meta app, Olive Estate, belongs to a broker customer and must not become BrokerIQ's shared platform-provider app. Its registered API test number does not establish access to the customer's Business app number; see the live asset distinction above.
 
 The ordinary Add phone number flow rejected the customer's existing Business app number with Meta error 2655122. No migration, disconnection, account deletion, or successful number registration was performed. The customer's existing groups, chats, data and business account must remain intact.
 
