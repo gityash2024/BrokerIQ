@@ -15,7 +15,7 @@ export default async function Home() {
       releaseUpdates={{
         user: '2026-10-18T06:15:40Z',
         broker: '2026-10-18T06:15:40Z',
-        android: '2026-10-18T06:11:44Z',
+        android: '2026-10-25T21:57:40Z',
       }}
       screenshots={[
         {
