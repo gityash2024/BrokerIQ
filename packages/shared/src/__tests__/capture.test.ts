@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { extractCapture, chatExportMessages } from '../capture';
-import { ledgerMatch, inventoryInputSchema } from '../inventory';
+import { ledgerMatch, inventoryInputSchema, prepareInventoryEditorInput } from '../inventory';
 
 test('requirements retain compound sectors and budget range', () => {
   const entry = extractCapture('Requirement\n2bhk\nSector 27&28&43&42\nBudget 45k to 55k rent\nFully furnished luxury')[0];
@@ -24,6 +24,11 @@ test('sale total and per-acre rates are not mixed', () => {
   assert.equal(entry.inventory?.totalSalePrice, null);
   assert.equal(entry.inventory?.areaUnit, 'ACRE');
   assert.equal(inventoryInputSchema.safeParse({ purpose: 'SALE', monthlyRent: 90000000 }).success, false);
+  // Source-register rows commonly have no source capture date. Editors omit
+  // that legacy null before using the strict outbound API contract.
+  assert.equal(inventoryInputSchema.safeParse(prepareInventoryEditorInput({ date: null })).success, true);
+  assert.equal(inventoryInputSchema.safeParse(prepareInventoryEditorInput({ contacts: [{ name: null, phone: null, role: null }] })).success, true);
+  assert.equal(inventoryInputSchema.safeParse({ date: 'not-a-date' }).success, false);
 });
 test('exports keep sender and timestamp and retain multi-line content', () => {
   const messages = chatExportMessages('09/10/2026, 15:01 - Rahul: Requirement\n2 BHK\n09/10/2026, 15:02 - Broker: For rent\nSector 45');

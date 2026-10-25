@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, type InventoryInput, type LedgerItem } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, prepareInventoryEditorInput, type InventoryInput, type LedgerItem } from '@brokeriq/shared';
 import { errorMessage } from '@/lib/api';
 
 import { PropertyExtras, readPropertyExtras } from './property-extras';
@@ -42,7 +42,10 @@ export function PropertyForm({
   onDirty?: () => void;
 }) {
   const mutationId = useRef(initial.clientMutationId ?? (typeof crypto !== 'undefined' ? crypto.randomUUID() : undefined));
-  const [contacts, setContacts] = useState(initial.contacts?.length ? initial.contacts : [{ name: '', phone: '', role: 'UNKNOWN' as const }]);
+  const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>(() => {
+    const normalized = prepareInventoryEditorInput({ contacts: initial.contacts ?? [] }).contacts as NonNullable<InventoryInput['contacts']>;
+    return normalized.length ? normalized : [{ name: '', phone: '', role: 'UNKNOWN' }];
+  });
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -56,6 +59,7 @@ export function PropertyForm({
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
     Object.assign(values, readPropertyExtras(event.currentTarget));
     values.contacts = contacts.filter((c) => c.name || c.phone);
+    Object.assign(values, prepareInventoryEditorInput(values));
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
     try {

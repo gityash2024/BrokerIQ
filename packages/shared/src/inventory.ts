@@ -233,3 +233,14 @@ export function inventoryDerived(input: Record<string, any>) {
         : null;
   return { price: price == null ? null : Number(price), ratePerSqft: rate };
 }
+
+/**
+ * Legacy source-ledger rows can hold database nulls in optional write fields.
+ * Editors omit them before strict validation; this does not broaden the API.
+ */
+export function prepareInventoryEditorInput(value: Record<string, any>) {
+  const result = { ...value };
+  if (result.date == null) delete result.date;
+  if (Array.isArray(result.contacts)) result.contacts = result.contacts.map((contact) => ({ ...contact, role: contact?.role ?? 'UNKNOWN' }));
+  return result;
+}

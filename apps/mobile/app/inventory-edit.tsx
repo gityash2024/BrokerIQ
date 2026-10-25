@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, preparePropertyDetails } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, prepareInventoryEditorInput, preparePropertyDetails } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
@@ -76,7 +76,7 @@ export default function InventoryEditor() {
     setError('');
     Keyboard.dismiss();
     try {
-      const input: any = { ...form };
+      const input: any = prepareInventoryEditorInput(form);
       for (const field of numeric) input[field] = input[field] === '' || input[field] == null ? null : Number(input[field]);
       input.details = preparePropertyDetails(input.details);
       const checked = inventoryInputSchema.safeParse(input);
@@ -222,7 +222,7 @@ export default function InventoryEditor() {
           <Button
             title="Add contact"
             variant="secondary"
-            onPress={() => change('contacts', [...(form.contacts ?? []), { name: null, phone: null, role: 'UNKNOWN' }])}
+            onPress={() => change('contacts', [...(form.contacts ?? []), { name: '', phone: '', role: 'UNKNOWN' }])}
           />
           </NativeCard>
           <NativePropertyExtras
