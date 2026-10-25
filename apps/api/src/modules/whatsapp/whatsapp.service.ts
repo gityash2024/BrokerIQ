@@ -197,7 +197,10 @@ export class WhatsAppService {
 
   // ------------------------------------------------------------------ webhook
   verifySignature(appSecret: string | undefined, rawBody: Buffer | undefined, header: string | undefined) {
-    if (!appSecret) return !env().BROKER_FIRST;
+    // Never accept a provider callback without a configured secret. A missing
+    // integration credential is a setup error, not a reason to bypass Meta's
+    // HMAC verification in a different launch mode.
+    if (!appSecret) return false;
     if (!rawBody || !header?.startsWith('sha256=')) return false;
     const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
     const a = Buffer.from(expected);
