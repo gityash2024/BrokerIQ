@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { IMPORT_MAX_BYTES, uploadImport } from '@brokeriq/shared';
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -96,24 +97,51 @@ function Workspace({ scanner }: { scanner: boolean }) {
     }
   }
   async function upload(selected: File[]) {
-    if (selected.length > 20) throw new Error('Select up to 20 files at a time. No files were discarded.');
+    if (!owner) throw new Error('Sign in again before uploading a private source.');
     remaining.current = selected;
     for (const file of selected) {
-      if (file.size > 12 * 1024 * 1024) throw new Error(`${file.name}: maximum 12MB per source. Earlier successful sources remain saved.`);
-      if (/\.txt$/i.test(file.name)) await capture({ sourceType: 'CHAT_EXPORT', rawText: await file.text(), fileName: file.name }, file.name);
-      else {
-        const bytes = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error('File could not be read'));
-          reader.readAsDataURL(file);
-        });
-        const zip = /\.zip$/i.test(file.name);
-        await capture(
-          { sourceType: zip ? 'CHAT_EXPORT' : 'IMAGE', fileDataUrl: zip ? bytes.replace(/^data:[^;]+;/, 'data:application/zip;') : bytes, fileName: file.name },
-          file.name,
-        );
+      if (!file.size || file.size > IMPORT_MAX_BYTES) throw new Error(`${file.name}: maximum 300 MB per source. Earlier successful sources remain saved.`);
+      const zip = /\.zip$/i.test(file.name);
+      const text = /\.txt$/i.test(file.name);
+      const contentType = zip ? 'application/zip' : text ? 'text/plain' : file.type;
+      if (!['application/zip', 'text/plain', 'image/jpeg', 'image/png', 'image/webp'].includes(contentType))
+        throw new Error(`${file.name}: unsupported source type`);
+      const fingerprintBytes = await file.slice(0, Math.min(file.size, 1024 * 1024)).arrayBuffer();
+      const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', fingerprintBytes)), (byte) =>
+        byte.toString(16).padStart(2, '0'),
+      ).join('');
+      const identity = `${file.name}:${file.size}:${file.lastModified}:${fingerprint}:${group}:${target}`;
+      const identityHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity))), (byte) =>
+        byte.toString(16).padStart(2, '0'),
+      ).join('');
+      const draftName = `capture-upload:${identityHash}`;
+      let upload = await readPrivateDraft<{ clientKey: string }>(owner, draftName);
+      if (!upload) {
+        upload = { clientKey: crypto.randomUUID() };
+        await writePrivateDraft(owner, draftName, upload);
       }
+      const result = await uploadImport(
+        (path, body) => api(path, { ownerId: owner, body }),
+        {
+          clientKey: upload.clientKey,
+          fileName: file.name,
+          totalBytes: file.size,
+          contentType,
+          sourceType: text || zip ? 'CHAT_EXPORT' : 'IMAGE',
+          groupName: group || undefined,
+          target,
+        },
+        (offset, length) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).split(',')[1]);
+            reader.onerror = () => reject(new Error('File could not be read. Reselect the original to resume.'));
+            reader.readAsDataURL(file.slice(offset, offset + length));
+          }),
+        (received, total) => setStatus(`${file.name} · ${Math.floor((received / total) * 100)}% uploaded · encrypted chunks`),
+      );
+      setCompleted((rows) => [...rows, { id: result.id, name: file.name }]);
+      await qc.invalidateQueries({ queryKey: ['imports'] });
       remaining.current = remaining.current.filter((f) => f !== file);
     }
   }
@@ -224,11 +252,12 @@ function Workspace({ scanner }: { scanner: boolean }) {
               }}
             />
             <p className="mt-4 text-xs leading-5 text-muted">
-              Up to 20 files, 12MB each. Full TXT/ZIP exports retain separate messages, senders and timestamps. Use the{' '}
+              Up to 300 MB per source; no selection-count limit. Resumable encrypted uploads. Full TXT/ZIP exports retain separate messages, senders and
+              timestamps. Use the{' '}
               <Link href="/broker/scanner/listing-drafts" className="font-semibold text-brand-600 underline">
                 public rental draft scanner
               </Link>{' '}
-              for the existing rotate / page-preview / listing-draft workflow.
+              for the existing rotate / page-preview / listing-draft workflow. ZIP media stays in the private original; import images separately for OCR.
             </p>
           </section>
           <section className="card p-5 sm:p-6">

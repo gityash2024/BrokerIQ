@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
-import { unzipSync, strFromU8 } from 'fflate';
+import { Readable } from 'node:stream';
 import {
   inventoryDerived,
   capturedEntitySchema,
@@ -10,6 +10,7 @@ import {
   inventoryInputSchema,
   brokerRequirementSchema,
   type CapturedEntity,
+  type CapturedMessage,
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
@@ -21,6 +22,7 @@ import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
 import sharp from 'sharp';
 import { ModulesService } from '../../core/features/modules.service';
+import { openCaptureSource, textMessages, zipMessages, type ArchiveSummary } from './capture-stream';
 
 export const captureInputSchema = z
   .object({
@@ -170,8 +172,12 @@ export class ImportsService {
     const pages = (batch.metadata as { pages?: { pageNo: number; mediaRef: string }[] } | null)?.pages;
     const key = pageNo ? pages?.find((p) => p.pageNo === pageNo)?.mediaRef : batch.mediaRef;
     if (!key) throw new NotFoundException('Source file not available');
-    const file = await this.storage.read(key);
-    if (entryId && file.contentType.startsWith('image/')) {
+    const source = await openCaptureSource(this.storage, key);
+    if (!source.contentType.startsWith('image/')) return { contentType: source.contentType, body: Readable.from(source.bytes) };
+    const buffers: Buffer[] = [];
+    for await (const part of source.bytes) buffers.push(part);
+    const file = { contentType: source.contentType, body: Buffer.concat(buffers) };
+    if (entryId) {
       const entry = await this.prisma.sourceEntry.findFirst({ where: { id: entryId, batchId: id, pageNo } });
       if (!entry) throw new NotFoundException('Entry not found');
       const box = entry.bbox as { x: number; y: number; width: number; height: number } | null;
@@ -195,9 +201,14 @@ export class ImportsService {
     try {
       let text = batch.rawText ?? '';
       let entities: CapturedEntity[] | null = null;
+      let streamed: AsyncIterable<CapturedMessage & { sourceFile?: string }> | undefined;
+      const archiveSummary: ArchiveSummary = { textFiles: 0, attachmentFiles: 0, expandedTextBytes: 0 };
       if (batch.mediaRef) {
-        const file = await this.storage.read(batch.mediaRef);
-        if (file.contentType.startsWith('image/')) {
+        const source = await openCaptureSource(this.storage, batch.mediaRef);
+        if (source.contentType.startsWith('image/')) {
+          const buffers: Buffer[] = [];
+          for await (const part of source.bytes) buffers.push(part);
+          const file = { contentType: source.contentType, body: Buffer.concat(buffers) };
           const recognized = await this.ocr.recognize(file.body);
           text = recognized.text;
           // AI is an optional free-only assistant. Validation and explicit review remain mandatory.
@@ -215,27 +226,13 @@ export class ImportsService {
               entities = null;
             }
           }
-        } else if (file.contentType === 'application/zip') {
-          let files = 0,
-            totalBytes = 0;
-          const archive = unzipSync(file.body, {
-            filter: (entry) => {
-              if (!/\.txt$/i.test(entry.name)) return false;
-              files++;
-              totalBytes += entry.originalSize;
-              if (files > 20 || entry.originalSize > 12 * 1024 * 1024 || totalBytes > 16 * 1024 * 1024) throw new Error('Export exceeds safe text limit');
-              return true;
-            },
-          });
-          const documents = Object.values(archive);
-          if (documents.reduce((s, b) => s + b.length, 0) > 16 * 1024 * 1024 || documents.length > 20) throw new Error('Export exceeds safe text limit');
-          text = documents.map((document) => strFromU8(document)).join('\n');
-          if (!text.trim()) throw new Error('ZIP export contains no chat text');
-        } else text = file.body.toString('utf8');
+        } else if (source.contentType === 'application/zip') streamed = zipMessages(source.bytes, archiveSummary);
+        else streamed = textMessages(source.bytes);
       }
-      const messages = batch.sourceType === 'CHAT_EXPORT' ? chatExportMessages(text) : [{ text }];
-      for (let i = 0; i < messages.length; i++) {
-        const message = messages[i];
+      const messages: AsyncIterable<CapturedMessage & { sourceFile?: string }> | Iterable<CapturedMessage & { sourceFile?: string }> =
+        streamed ?? (batch.sourceType === 'CHAT_EXPORT' ? chatExportMessages(text) : [{ text }]);
+      let i = 0;
+      for await (const message of messages) {
         const extracted = entities ?? extractCapture(message.text);
         const entryKey = `${i}:${sha(`${message.sender ?? ''}\0${message.timestamp ?? ''}\0${message.text}`)}`;
         const messageIdentity =
@@ -248,7 +245,7 @@ export class ImportsService {
           rowNo: i + 1,
           rawText: message.text,
           extracted: extracted as Prisma.InputJsonValue,
-          ocr: { sender: message.sender ?? null, timestamp: message.timestamp ?? null },
+          ocr: { sender: message.sender ?? null, timestamp: message.timestamp ?? null, sourceFile: message.sourceFile ?? null },
           organizationId: batch.organizationId,
           messageIdentity,
         };
@@ -271,10 +268,25 @@ export class ImportsService {
             update: {},
           });
         }
+        i++;
+        if (i % 250 === 0) await this.prisma.job.updateMany({ where: { key: `import:${batchId}`, status: 'RUNNING' }, data: { lockedAt: new Date() } });
       }
       await this.prisma.importBatch.update({
         where: { id: batchId },
-        data: { status: (await this.prisma.sourceEntry.count({ where: { batchId, reviewState: 'NEEDS_REVIEW' } })) ? 'NEEDS_REVIEW' : 'COMPLETE' },
+        data: {
+          status: (await this.prisma.sourceEntry.count({ where: { batchId, reviewState: 'NEEDS_REVIEW' } })) ? 'NEEDS_REVIEW' : 'COMPLETE',
+          metadata: {
+            ...((batch.metadata as Record<string, Prisma.InputJsonValue>) ?? {}),
+            processedMessages: i,
+            archive: archiveSummary as unknown as Prisma.InputJsonValue,
+            ...(archiveSummary.attachmentFiles
+              ? {
+                  attachmentNote:
+                    'ZIP attachments are retained in the private original download. Chat TXT messages are extracted; embedded media is not automatically OCR processed. Import images separately for OCR.',
+                }
+              : {}),
+          },
+        },
       });
     } catch (error) {
       await this.prisma.importBatch.update({ where: { id: batchId }, data: { status: 'FAILED', lastError: (error as Error).message.slice(0, 500) } });

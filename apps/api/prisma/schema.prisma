@@ -2523,6 +2523,27 @@ model SourceEntry {
   @@index([batchId, reviewState])
 }
 
+/// Durable, account-scoped capture upload. Chunks are individually encrypted before storage.
+model ImportUpload {
+  id             String @id @default(cuid())
+  organizationId String
+  createdById    String
+  clientKey      String
+  fileName       String
+  contentType    String
+  sourceType     String
+  groupName      String?
+  target         String
+  totalBytes     Int
+  receivedBytes  Int @default(0)
+  chunks         Json @default("[]")
+  batchId        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, createdById, clientKey])
+  @@index([organizationId, createdById, updatedAt])
+}
+
 model InventoryContact {
   id          String @id @default(cuid())
   inventoryId String

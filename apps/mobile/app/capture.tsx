@@ -108,7 +108,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
       );
   }
   async function gallery() {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 20, quality: 1 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 0, quality: 1 });
     if (!result.canceled)
       await preserve(result.assets.map((a, i) => ({ uri: a.uri, mime: a.mimeType ?? 'image/jpeg', name: a.fileName ?? `image-${i + 1}.jpg` })));
   }
@@ -119,9 +119,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
       copyToCacheDirectory: true,
     });
     if (!result.canceled)
-      await preserve(
-        result.assets.slice(0, 20).map((a) => ({ uri: a.uri, mime: a.mimeType ?? (/\.zip$/i.test(a.name) ? 'application/zip' : 'text/plain'), name: a.name })),
-      );
+      await preserve(result.assets.map((a) => ({ uri: a.uri, mime: a.mimeType ?? (/\.zip$/i.test(a.name) ? 'application/zip' : 'text/plain'), name: a.name })));
   }
   return (
     <BrokerScreen title={scanner ? 'Scanner & import' : 'Capture workspace'} subtitle="Inventory, requirements and original sources." back>
@@ -176,7 +174,8 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
               onPress={() => perform(files)}
             />
             <Txt v="caption" color="muted">
-              Up to 20 files per selection, 12MB each. Scanner supports multi-page crop and page cleanup. Originals stay private.
+              Up to 300 MB per source, uploaded in resumable encrypted chunks. No file-selection count limit. Scanner supports multi-page crop and page cleanup.
+              Originals stay private.
             </Txt>
             {!!sources.length && <WorkspaceTag tone="success" label={`${sources.length} sources saved on this device`} />}
             {sources.map((name, index) => (

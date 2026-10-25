@@ -18,6 +18,7 @@ export * from './features';
 export * from './modules';
 export * from './inventory';
 export * from './capture';
+export * from './import-upload';
 
 export * from './property-fields';
 

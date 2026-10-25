@@ -1,3 +1,4 @@
+import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport } from '@brokeriq/shared';
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -166,71 +167,95 @@ export async function syncDrafts() {
   try {
     const database = await db();
     await database.runAsync("UPDATE local_mutations SET owner_id=? WHERE owner_id='UNASSIGNED' AND kind='CAPTURE'", session.user.id);
-    const rows = await database.getAllAsync<LocalDraft>(
-      "SELECT * FROM local_mutations WHERE owner_id=? AND state='QUEUED' AND next_at<=? ORDER BY updated_at ASC LIMIT 10",
-      session.user.id,
-      Date.now(),
-    );
-    for (const row of rows) {
-      if (authStore.get()?.user.id !== session.user.id) break;
-      await database.runAsync("UPDATE local_mutations SET state='SYNCING',updated_at=? WHERE id=? AND owner_id=?", Date.now(), row.id, session.user.id);
-      try {
-        let body = decodeDraft(row);
-        let path = '';
-        let method = 'POST';
-        if (row.kind === 'CAPTURE') {
-          path = '/imports';
-          if (row.file_uri) {
-            const source = new File(row.file_uri);
-            if (!source.exists) throw new Error('Saved source file is missing. The draft record was preserved.');
-            if (source.size > 12 * 1024 * 1024) throw new Error('Source exceeds 12MB. Keep it and use the controlled register import.');
-            body = { ...body, fileDataUrl: `data:${row.mime};base64,${await source.base64()}` };
+    while (authStore.get()?.user.id === session.user.id) {
+      const rows = await database.getAllAsync<LocalDraft>(
+        "SELECT * FROM local_mutations WHERE owner_id=? AND state='QUEUED' AND next_at<=? ORDER BY updated_at ASC LIMIT 10",
+        session.user.id,
+        Date.now(),
+      );
+      if (!rows.length) break;
+      for (const row of rows) {
+        if (authStore.get()?.user.id !== session.user.id) break;
+        await database.runAsync("UPDATE local_mutations SET state='SYNCING',updated_at=? WHERE id=? AND owner_id=?", Date.now(), row.id, session.user.id);
+        try {
+          let body = decodeDraft(row);
+          let path = '';
+          let method = 'POST';
+          let uploaded: { id: string } | undefined;
+          if (row.kind === 'CAPTURE') {
+            path = '/imports';
+            if (row.file_uri) {
+              const source = new File(row.file_uri);
+              if (!source.exists) throw new Error('Saved source file is missing. The draft record was preserved.');
+              if (source.size > IMPORT_MAX_BYTES) throw new Error('Source exceeds 300 MB. Its private original is preserved. Split it into smaller exports.');
+              const handle = source.open();
+              try {
+                uploaded = await uploadImport(
+                  (uploadPath, uploadBody) => api(uploadPath, { body: uploadBody, ownerId: session.user.id }),
+                  {
+                    clientKey: row.id,
+                    fileName: body.fileName ?? 'source',
+                    contentType: row.mime!,
+                    totalBytes: source.size,
+                    sourceType: body.sourceType,
+                    groupName: body.groupName,
+                    target: body.target,
+                  },
+                  async (offset, length) => {
+                    handle.offset = offset;
+                    return bytesToBase64(handle.readBytes(length));
+                  },
+                );
+              } finally {
+                handle.close();
+              }
+            }
+          } else if (row.kind === 'PROPERTY_CREATE') {
+            path = '/inventory';
+            body = { ...body, clientMutationId: row.id };
+          } else if (row.kind === 'PROPERTY_EDIT') {
+            path = `/inventory/${body.id}`;
+            method = 'PATCH';
+            const { id: _id, ...rest } = body;
+            body = rest;
+          } else if (row.kind === 'PUBLIC_PUBLISH') {
+            path = `/inventory/${body.inventoryId}/publish`;
+            const { inventoryId: _inventoryId, ...rest } = body;
+            body = rest;
+          } else if (row.kind === 'IMPORT_REVIEW') {
+            path = `/imports/entries/${body.entryId}`;
+            method = 'PATCH';
+            const { entryId: _entryId, batchId: _batchId, ...rest } = body;
+            body = rest;
+          } else if (row.kind === 'REQUIREMENT_CREATE') {
+            path = '/broker-requirements';
+            body = { ...body, clientMutationId: row.id };
+          } else {
+            throw new Error('This local draft must be opened and reviewed before sync. Its data was preserved.');
           }
-        } else if (row.kind === 'PROPERTY_CREATE') {
-          path = '/inventory';
-          body = { ...body, clientMutationId: row.id };
-        } else if (row.kind === 'PROPERTY_EDIT') {
-          path = `/inventory/${body.id}`;
-          method = 'PATCH';
-          const { id: _id, ...rest } = body;
-          body = rest;
-        } else if (row.kind === 'PUBLIC_PUBLISH') {
-          path = `/inventory/${body.inventoryId}/publish`;
-          const { inventoryId: _inventoryId, ...rest } = body;
-          body = rest;
-        } else if (row.kind === 'IMPORT_REVIEW') {
-          path = `/imports/entries/${body.entryId}`;
-          method = 'PATCH';
-          const { entryId: _entryId, batchId: _batchId, ...rest } = body;
-          body = rest;
-        } else if (row.kind === 'REQUIREMENT_CREATE') {
-          path = '/broker-requirements';
-          body = { ...body, clientMutationId: row.id };
-        } else {
-          throw new Error('This local draft must be opened and reviewed before sync. Its data was preserved.');
+          const result = uploaded ?? (await api<any>(path, { method, body, ownerId: session.user.id }));
+          await database.runAsync(
+            "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=?",
+            result.id ?? body.id ?? null,
+            Date.now(),
+            row.id,
+            session.user.id,
+          );
+        } catch (error) {
+          const retry = error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500);
+          const attempts = row.attempts + 1;
+          const delay = Math.min(15 * 60_000, 15_000 * 2 ** Math.min(attempts, 6));
+          await database.runAsync(
+            'UPDATE local_mutations SET state=?,error=?,attempts=?,next_at=?,updated_at=? WHERE id=? AND owner_id=?',
+            retry ? 'QUEUED' : 'FAILED',
+            (error as Error).message.slice(0, 500),
+            attempts,
+            Date.now() + delay,
+            Date.now(),
+            row.id,
+            session.user.id,
+          );
         }
-        const result = await api<any>(path, { method, body, ownerId: session.user.id });
-        await database.runAsync(
-          "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=?",
-          result.id ?? body.id ?? null,
-          Date.now(),
-          row.id,
-          session.user.id,
-        );
-      } catch (error) {
-        const retry = error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500);
-        const attempts = row.attempts + 1;
-        const delay = Math.min(15 * 60_000, 15_000 * 2 ** Math.min(attempts, 6));
-        await database.runAsync(
-          'UPDATE local_mutations SET state=?,error=?,attempts=?,next_at=?,updated_at=? WHERE id=? AND owner_id=?',
-          retry ? 'QUEUED' : 'FAILED',
-          (error as Error).message.slice(0, 500),
-          attempts,
-          Date.now() + delay,
-          Date.now(),
-          row.id,
-          session.user.id,
-        );
       }
     }
   } finally {
