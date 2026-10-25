@@ -1,6 +1,6 @@
 # ADR: Yarvix-owned WhatsApp onboarding for BrokerIQ
 
-**Status:** Yarvix provider identity and business verification submitted to Meta; Rahul client connection pending Meta approval
+**Status:** Yarvix business verification approved; BrokerIQ WhatsApp advanced-permission App Review in progress; Rahul client connection not yet started
 **Date:** 2026-10-24 (Asia/Kolkata)
 **Decider:** Product owner, in this chat
 
@@ -16,7 +16,7 @@ Live inspection also distinguishes two states: Rahul's real number is listed as 
 
 The owner subsequently confirmed Rahul does not have the requested legal business documentation; Yarvix has the developer-company documentation. The unsubmitted Olive Estate verification form was closed without selecting a legal business type or submitting business details. Do not use Yarvix documents to verify Olive Estate, and do not treat a broker customer as the software provider merely to bypass provider verification.
 
-On 2026-10-25, the owner created the BrokerIQ Meta app in the **Yarvix Technologies Private Limited** portfolio and explicitly approved the WhatsApp Platform and Independent Tech Provider terms. Yarvix identity verification and business verification were submitted from the owner-controlled Meta account. Meta currently shows both as **In review**; the UI states that identity confirmation is usually reviewed within 48 hours. Until Meta enables the next step, App Review, Embedded Signup configuration, client onboarding, token creation, webhook subscription, and Rahul number verification remain unavailable. No Rahul number, WABA, access token, group, chat, message history, business profile, payment method, or billing setting has been altered.
+On 2026-10-25, the owner created the BrokerIQ Meta app in the **Yarvix Technologies Private Limited** portfolio and explicitly approved the WhatsApp Platform and Independent Tech Provider terms. Yarvix business verification is now shown as **Approved** in Meta Business Suite. Meta Developer currently shows the separate App Review for advanced `whatsapp_business_messaging` and `whatsapp_business_management` permissions as **In review**. Until that review completes, do not start Rahul's embedded-signup/coexistence flow, create a permanent token, subscribe a webhook, or verify Rahul's number. No Rahul number, WABA, access token, group, chat, message history, business profile, payment method, or billing setting has been altered.
 
 The safe architecture remains a verified software provider (Yarvix) onboarding Rahul as a client. Client eligibility and any Meta-requested business checks must still be respected; no promise of document-free approval is made.
 
@@ -68,10 +68,10 @@ Coexistence preserves ordinary app usage and groups but changes certain app feat
 
 The Yarvix/platform items below are deferred. Current next steps are Rahul's existing login, supported coexistence eligibility/configuration, organization-scoped credentials/webhooks, and a customer-initiated test conversation with the authorized test recipient.
 
-- [ ] Owner's Facebook login and confirmed app contact email.
-- [ ] Yarvix portfolio identity/ownership verified; business details supplied where required.
-- [ ] BrokerIQ app created under that portfolio with owner-approved Meta terms.
-- [ ] Tech Provider/access requirements and any business verification/App Review completed.
+- [x] Owner's Facebook login and confirmed app contact email.
+- [x] Yarvix portfolio identity/ownership verified; business details supplied where required.
+- [x] BrokerIQ app created under that portfolio with owner-approved Meta terms.
+- [ ] Meta App Review for `whatsapp_business_messaging` and `whatsapp_business_management` approved.
 - [ ] Current supported Embedded Signup configuration, allowed domains and callbacks configured.
 - [ ] Guided broker onboarding, server-side asset validation, encrypted credential persistence and webhook routing implemented/tested.
 - [ ] Customer reconnects using the existing Business app coexistence choice and confirms on their phone.
@@ -79,7 +79,7 @@ The Yarvix/platform items below are deferred. Current next steps are Rahul's exi
 
 ## Evidence and sources
 
-Inspected live Meta developer UI and official documentation on 2026-10-24. No provider app was created and no payment method was added at this checkpoint.
+Inspected live Meta developer UI and official documentation on 2026-10-24 and 2026-10-25. BrokerIQ is now a Yarvix-owned Meta app; no payment method was added at this checkpoint.
 
 - [Meta coexistence requirements and feature comparison](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users)
 - [WhatsApp Business Platform pricing](https://whatsappbusiness.com/products/platform-pricing/)
