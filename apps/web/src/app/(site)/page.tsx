@@ -13,20 +13,20 @@ export default async function Home() {
       apkUrl={process.env.ANDROID_RELEASE_URL}
       checksum={process.env.ANDROID_RELEASE_SHA256}
       releaseUpdates={{
-        user: '2026-10-18T06:15:40Z',
-        broker: '2026-10-25T16:45:25Z',
-        android: '2026-10-25T16:45:25Z',
+        user: '2026-10-26T17:27:38Z',
+        broker: '2026-10-26T17:27:38Z',
+        android: '2026-10-26T17:27:38Z',
       }}
       screenshots={[
         {
-          src: '/product/android-inventory-build24.png',
-          label: 'Actual Android build 24 · Broker inventory with configuration, floor, pricing, availability and private source context.',
-          caption: 'Inventory workspace · Build 24',
+          src: '/product/android-inventory-build26.png',
+          label: 'Actual Android build 26 · Broker inventory with configuration, floor, pricing, availability and private source context.',
+          caption: 'Inventory workspace · Build 26',
         },
         {
-          src: '/product/android-capture-build24.png',
-          label: 'Actual Android build 24 · Scanner and import workspace for camera, multi-page scans, images and WhatsApp TXT or ZIP exports into inventory or requirement review.',
-          caption: 'Scanner & WhatsApp import · Build 24',
+          src: '/product/android-capture-build26.png',
+          label: 'Actual Android build 26 · Scanner and import workspace for camera, multi-page scans, images and WhatsApp TXT or ZIP exports into inventory or requirement review.',
+          caption: 'Scanner & WhatsApp import · Build 26',
         },
       ]}
     />
