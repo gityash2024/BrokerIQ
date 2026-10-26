@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, prepareInventoryEditorInput, preparePropertyDetails } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, prepareInventoryEditorInput, inventoryEditorPatch } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
@@ -27,6 +27,7 @@ export default function InventoryEditor() {
   const draftId = useRef(Crypto.randomUUID());
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const owner = useRef(user?.id ?? 'UNASSIGNED');
+  const baseline = useRef<Record<string, any> | null>(null);
   const kind = id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
   const key = id ?? 'new-property';
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function InventoryEditor() {
           draftId.current = draft.id;
         } else initial = id ? await api<any>(`/inventory/${id}`) : { availability: 'UNKNOWN', status: 'DRAFT', contacts: [] };
         if (active) {
+          baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
           setForm({ ...initial, ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}) });
           setReady(true);
           setDraftStatus(draft ? 'Draft restored' : '');
@@ -58,7 +60,7 @@ export default function InventoryEditor() {
     setDraftStatus('Saving draft…');
     writes.current = writes.current
       .catch(() => undefined)
-      .then(() => saveDraft(kind, key, next, draftId.current, owner.current))
+      .then(() => saveDraft(kind, key, { ...next, ...(baseline.current ? { _editorBaseline: baseline.current } : {}) }, draftId.current, owner.current))
       .then(() => setDraftStatus('Draft saved on this device'))
       .catch((e) => {
         setError(errorMessage(e));
@@ -76,17 +78,20 @@ export default function InventoryEditor() {
     setError('');
     Keyboard.dismiss();
     try {
-      const input: any = prepareInventoryEditorInput(form);
-      for (const field of numeric) input[field] = input[field] === '' || input[field] == null ? null : Number(input[field]);
-      input.details = preparePropertyDetails(input.details);
+      const input = id && baseline.current ? inventoryEditorPatch(form, baseline.current) : prepareInventoryEditorInput(form);
       const checked = inventoryInputSchema.safeParse(input);
-      if (!checked.success) throw new Error(checked.error.issues[0].message);
-      if (!checked.data.sector && !checked.data.address) throw new Error('Sector/locality or address required');
+      if (!checked.success) {
+        const issue = checked.error.issues[0];
+        throw new Error(`${issue.path.join('.') || 'Property'}: ${issue.message}`);
+      }
+      if (!id && !checked.data.sector && !checked.data.address) throw new Error('Sector/locality or address required');
       await writes.current.catch(() => undefined);
       await saveDraft(kind, key, { ...checked.data, ...(id ? { id } : {}) }, draftId.current, owner.current);
       await queueDraft(draftId.current);
-      toast.success('Saved locally. Sync status is shown in Saved drafts.');
       await syncDrafts();
+      const saved = await getLocalDraft(draftId.current);
+      if (saved?.state === 'FAILED') throw new Error(saved.error ?? 'Save failed. Your changes remain in Saved drafts.');
+      toast.success(saved?.state === 'SYNCED' ? 'Property saved' : 'Saved on this device. Sync will resume when connected.');
       await Promise.all(['ledger', 'ledger-stats', 'local-drafts'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
       router.back();
     } catch (e) {

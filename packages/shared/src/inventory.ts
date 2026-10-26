@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { INVENTORY_PROPERTY_TYPES, propertyDetailsSchema } from './property-fields';
+import { INVENTORY_PROPERTY_TYPES, propertyDetailsSchema, preparePropertyDetails } from './property-fields';
 import { normalizeIndianPhone } from './utils';
 
 const text = z.string().trim().max(200).nullable().optional();
@@ -239,8 +239,51 @@ export function inventoryDerived(input: Record<string, any>) {
  * Editors omit them before strict validation; this does not broaden the API.
  */
 export function prepareInventoryEditorInput(value: Record<string, any>) {
-  const result = { ...value };
-  if (result.date == null) delete result.date;
-  if (Array.isArray(result.contacts)) result.contacts = result.contacts.map((contact) => ({ ...contact, role: contact?.role ?? 'UNKNOWN' }));
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(inventoryInputSchema.shape)) {
+    if (value[key] !== undefined) result[key] = value[key];
+  }
+  // Database identity metadata is not a user-editable value. Imported rows have
+  // clientMutationId=null; copying that null into a write caused every save to fail.
+  for (const key of ['clientMutationId', 'date', 'organizationId', 'expectedRevision', 'status', 'availability', 'verificationStatus'])
+    if (result[key] == null) delete result[key];
+  for (const key of ['bhk', 'area', 'monthlyRent', 'rent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'])
+    if (key in result) result[key] = result[key] === '' || result[key] == null ? null : Number(result[key]);
+  if ('monthlyRent' in result) delete result.rent; // monthlyRent is the canonical editor field.
+  if (result.details != null) result.details = preparePropertyDetails(result.details);
+  else delete result.details;
+  if (Array.isArray(result.contacts)) result.contacts = result.contacts.map((contact) => ({
+    name: contact?.name ?? null,
+    phone: contact?.phone ?? null,
+    role: contact?.role ?? 'UNKNOWN',
+    note: contact?.note ?? null,
+  }));
   return result;
+}
+
+/** Build a sparse update: omitted values are untouched; explicit null/[] clears. */
+export function inventoryEditorPatch(value: Record<string, any>, initial: Record<string, any>) {
+  const next = prepareInventoryEditorInput(value);
+  const previous = prepareInventoryEditorInput(initial);
+  const equal = (a: any, b: any): boolean => {
+    if (a == null && b == null) return true;
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+    const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])];
+    return keys.every((key) => equal(a[key], b[key]));
+  };
+  const patch: Record<string, any> = {};
+  for (const [key, current] of Object.entries(next)) {
+    if (['clientMutationId', 'expectedRevision', 'organizationId'].includes(key)) continue;
+    if (key === 'details') {
+      const changed = Object.fromEntries(Object.entries(current).filter(([field, entry]) => !equal(entry, previous.details?.[field])));
+      if (Object.keys(changed).length) patch.details = changed;
+    } else if (!equal(current, previous[key])) patch[key] = current;
+  }
+  const revision = initial.expectedRevision ?? initial.revision;
+  // The shared contract validates coupled area fields together.
+  if (patch.area != null && !('areaUnit' in patch)) patch.areaUnit = next.areaUnit ?? previous.areaUnit;
+  if (patch.ratePerArea != null && !('rateAreaUnit' in patch)) patch.rateAreaUnit = next.rateAreaUnit ?? previous.rateAreaUnit;
+  if (revision != null) patch.expectedRevision = revision;
+  return patch;
 }

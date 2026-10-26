@@ -192,7 +192,7 @@ export class InventoryService {
     const monthly = input.monthlyRent !== undefined ? input.monthlyRent : input.rent;
     const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
     if (input.ownerPhone && !primaryPhone) throw new BadRequestException('Invalid Indian phone number');
-    const effective = { ...previous, ...data, ...(monthly !== undefined ? { monthlyRent: monthly } : {}) };
+    const effective = { ...previous, ...data, ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}) };
     const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
     const price = effective.purpose === 'RENT' ? (effective.monthlyRent ?? effective.rent) : effective.purpose === 'SALE' ? effective.totalSalePrice : null;
     const size = effective.area != null && effective.areaUnit ? areaSqft(Number(effective.area), effective.areaUnit) : null;

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, prepareInventoryEditorInput, type InventoryInput, type LedgerItem } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, prepareInventoryEditorInput, inventoryEditorPatch, type InventoryInput, type LedgerItem } from '@brokeriq/shared';
 import { errorMessage } from '@/lib/api';
 
 import { PropertyExtras, readPropertyExtras } from './property-extras';
@@ -58,12 +58,12 @@ export function PropertyForm({
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
     Object.assign(values, readPropertyExtras(event.currentTarget));
-    values.contacts = contacts.filter((c) => c.name || c.phone);
+    values.contacts = contacts.filter((c) => c.name || c.phone || c.note || c.role !== 'UNKNOWN');
     Object.assign(values, prepareInventoryEditorInput(values));
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
     try {
-      await onSave(values as InventoryInput);
+      await onSave(('revision' in initial ? inventoryEditorPatch(values, initial) : values) as InventoryInput);
     } catch (e) {
       setError(errorMessage(e));
     } finally {

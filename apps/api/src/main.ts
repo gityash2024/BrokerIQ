@@ -3,7 +3,6 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
 import { env } from './config/env';
@@ -11,8 +10,6 @@ import { env } from './config/env';
 async function bootstrap() {
   const e = env();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true, bodyParser: false });
-  app.use(json({ limit: '20mb', verify: (req: any, _res, buf) => (req.rawBody = buf) }));
-  app.use(urlencoded({ extended: true, limit: '2mb' }));
   configureApp(app);
 
   // The full API map is not published in production (enable with SWAGGER_ENABLED=true when needed).

@@ -146,7 +146,8 @@ export function visiblePropertyFields(category?: string | null) {
 export function preparePropertyDetails(value: Record<string, any> = {}) {
   const result = { ...value };
   for (const f of PROPERTY_FIELDS) {
-    if (result[f.key] === '' || result[f.key] === undefined) delete result[f.key];
+    if (result[f.key] === undefined) delete result[f.key];
+    else if (result[f.key] === '') result[f.key] = null;
     else if (f.kind === 'number' && result[f.key] != null) result[f.key] = Number(result[f.key]);
   }
   return result;
