@@ -16,7 +16,7 @@ class DashboardController {
   @Roles('SUPER_ADMIN') @Get('admin/dashboard/records') adminRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
     return this.records('admin', q, u);
   }
-  @Roles('BROKER_ADMIN') @Get('broker/dashboard/records') brokerRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT') @Get('broker/dashboard/records') brokerRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
     return this.records('broker', q, u);
   }
   @Roles('USER', 'BROKER_ADMIN') @Get('me/dashboard/records') userRecords(@Query() q: Record<string, string>, @CurrentUser() u: RequestUser) {
@@ -26,7 +26,7 @@ class DashboardController {
   @Roles('SUPER_ADMIN') @Get('admin/dashboard/metrics') admin(@Query(new ZodPipe(dashboardQuerySchema)) q: DashboardQuery, @CurrentUser() user: RequestUser) {
     return this.dashboard.metrics('admin', q, user);
   }
-  @Roles('BROKER_ADMIN') @Get('broker/dashboard/metrics') broker(
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT') @Get('broker/dashboard/metrics') broker(
     @Query(new ZodPipe(dashboardQuerySchema)) q: DashboardQuery,
     @CurrentUser() user: RequestUser,
   ) {

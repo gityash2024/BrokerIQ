@@ -81,7 +81,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async issue(user: UserWithOrg, meta: ClientMeta = {}): Promise<AuthResponse> {
-    if (env().BROKER_FIRST && (!['SUPER_ADMIN', 'BROKER_ADMIN', 'USER'].includes(user.role) || (user.role === 'BROKER_ADMIN' && !user.organizationId)))
+    if (env().BROKER_FIRST && (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role) || (['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.organizationId)))
       throw new ForbiddenException('यह account अभी broker launch के लिए सक्षम नहीं है।');
     if (user.status !== 'ACTIVE') throw new ForbiddenException('यह account suspend है। Support से संपर्क करें।');
     if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN')
@@ -361,7 +361,11 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async revokeAll(userId: string) {
-    await this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } }),
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+    this.realtime.disconnectUser(userId);
   }
 
   async resetPassword(email: string, code: string, password: string) {

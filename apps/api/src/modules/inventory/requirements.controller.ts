@@ -13,7 +13,7 @@ const paging = z.object({
   leadId: z.string().max(100).optional(),
   organizationId: z.string().optional(),
 });
-@Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+@Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('broker-requirements')
 export class BrokerRequirementsController {
   constructor(

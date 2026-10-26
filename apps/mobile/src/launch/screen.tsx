@@ -20,7 +20,7 @@ export function BrokerScreen({
   action?: React.ReactNode;
 }) {
   const { c } = useTheme();
-  const broker = useAuth().user?.role === 'BROKER_ADMIN';
+  const broker = useAuth().isBroker;
   return (
     <SafeAreaView edges={back ? ['top', 'bottom'] : ['top']} style={{ flex: 1, backgroundColor: c.bg }}>
       <View

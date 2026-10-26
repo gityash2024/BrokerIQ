@@ -35,7 +35,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
         { href: '/broker/leads', label: 'Leads & Requirements', icon: Inbox, badge: k?.newToday || null },
         { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
-        { href: '/broker/automations', label: 'Automation & Housing', icon: Workflow },
+        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation & Housing', icon: Workflow }] : []),
       ],
     },
   ];
@@ -61,7 +61,7 @@ function Inner({ children }: { children: React.ReactNode }) {
 
 export default function BrokerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RequireAuth roles={['BROKER_ADMIN']}>
+    <RequireAuth roles={['BROKER_ADMIN', 'BROKER_AGENT']}>
       <Inner>{children}</Inner>
     </RequireAuth>
   );

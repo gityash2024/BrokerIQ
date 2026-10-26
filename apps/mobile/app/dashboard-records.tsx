@@ -11,7 +11,7 @@ export default function Records() {
   const { user } = useAuth();
   const { c } = useTheme();
   const [page, setPage] = useState(1);
-  const role = params.view !== 'user' && user?.role === 'BROKER_ADMIN' ? 'broker' : 'user';
+  const role = params.view !== 'user' && user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) ? 'broker' : 'user';
   const q = useQuery({
     queryKey: ['native-records', user?.id, params, page],
     queryFn: () =>

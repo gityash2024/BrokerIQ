@@ -18,6 +18,8 @@ export default function Signup() {
 function SignupForm() {
   const sp = useSearchParams();
   const code = sp.get('invite');
+  const next = sp.get('next');
+  const returnTo = next && /^\/(?![\/\\])/.test(next) && !next.includes('\\') && next.startsWith('/invite/') ? next : null;
   const broker = !!code || sp.get('type') === 'broker';
   const { setSession } = useAuth();
   const router = useRouter();
@@ -48,7 +50,7 @@ function SignupForm() {
                 body: { ...fields, phone: fields.phone || undefined, accountType: broker ? 'BROKER' : 'USER', inviteCode: code || undefined },
               });
               setSession(session);
-              router.replace(homeFor(session.user));
+              router.replace(returnTo ?? homeFor(session.user));
             } catch (e) {
               setError(errorMessage(e));
             } finally {
@@ -85,7 +87,7 @@ function SignupForm() {
       )}
       <p className="mt-6 text-center text-sm text-muted">
         Already have an account?{' '}
-        <Link className="font-semibold text-brand-600" href="/login">
+        <Link className="font-semibold text-brand-600" href={returnTo ? `/login?next=${encodeURIComponent(returnTo)}` : '/login'}>
           Sign in →
         </Link>
       </p>

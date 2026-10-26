@@ -15,8 +15,8 @@ export class ModuleGuard implements CanActivate {
     if (context.getType() !== 'http' || !env().BROKER_FIRST) return true;
     const req = context.switchToHttp().getRequest();
     const user = req.user;
-    if (user && !['SUPER_ADMIN', 'BROKER_ADMIN', 'USER'].includes(user.role)) throw new ForbiddenException('यह role अभी launch में उपलब्ध नहीं है।');
-    if (user?.role === 'BROKER_ADMIN' && !user.orgId) throw new ForbiddenException('Firm membership required');
+    if (user && !['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role)) throw new ForbiddenException('यह role अभी launch में उपलब्ध नहीं है।');
+    if (user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.orgId) throw new ForbiddenException('Firm membership required');
     const path = (req.path || req.url).replace(/^\/api(?=\/|$)/, '');
     const key = moduleForPath(path, 'api');
     if (!user && key === 'consumer' && !this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]))

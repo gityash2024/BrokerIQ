@@ -8,7 +8,7 @@ import { InventoryService } from './inventory.service';
 import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemDto } from './inventory.dto';
 
 @ApiTags('inventory')
-@Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+@Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}

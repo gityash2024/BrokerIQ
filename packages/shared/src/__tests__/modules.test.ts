@@ -24,6 +24,14 @@ test('coming soon, hidden and disallowed roles cannot enter active modules', () 
   assert.equal(moduleAllowed(policies, 'inventory', 'BROKER_ADMIN'), false);
 });
 
+test('sub-agents have active firm workspaces without team-admin or integration privileges', () => {
+  const p = defaultModulePolicies();
+  assert.equal(p.team.state, 'ACTIVE');
+  for (const key of ['team', 'today', 'inventory', 'leads', 'inbox']) assert.equal(moduleAllowed(p, key, 'BROKER_AGENT'), true);
+  for (const key of ['automation', 'billing', 'deals']) assert.equal(moduleAllowed(p, key, 'BROKER_AGENT'), false);
+  assert.equal(moduleAllowed(p, 'team', 'USER'), false);
+});
+
 test('consumer access is explicit and does not reopen private or future modules', () => {
   const p = defaultModulePolicies();
   assert.equal(moduleForPath('/user/search'), 'consumer');

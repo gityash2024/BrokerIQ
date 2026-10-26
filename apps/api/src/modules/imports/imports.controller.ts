@@ -13,7 +13,7 @@ const paging = z.object({
   sourcePage: z.coerce.number().int().min(1).max(10000).optional(),
   reviewState: z.enum(['NEEDS_REVIEW', 'APPROVED', 'IGNORED', 'DUPLICATE']).optional(),
 });
-@Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+@Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('imports')
 export class ImportsController {
   constructor(

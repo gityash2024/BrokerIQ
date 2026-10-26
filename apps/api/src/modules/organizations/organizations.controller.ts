@@ -238,14 +238,22 @@ export class OrganizationsController {
 
   @Post('invites/:token/accept')
   async acceptInvite(@CurrentUser() user: RequestUser, @Param('token') token: string, @Req() req: any) {
-    const inv = await this.prisma.invite.findUnique({ where: { tokenHash: sha256(token) } });
-    if (!inv || inv.acceptedAt || inv.expiresAt < new Date()) throw new NotFoundException('Invite expire हो गया है');
-    if (inv.email.toLowerCase() !== user.email.toLowerCase()) throw new ForbiddenException(`यह invite ${inv.email} के लिए है — उसी email से login करें`);
-    if (user.orgId && user.orgId !== inv.organizationId) throw new BadRequestException('आप पहले से किसी दूसरी team में हैं');
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: user.id }, data: { organizationId: inv.organizationId, role: inv.role, emailVerified: true } }),
-      this.prisma.invite.update({ where: { id: inv.id }, data: { acceptedAt: new Date() } }),
-    ]);
+    const inv = await this.prisma.$transaction(async (tx) => {
+      const tokenHash = sha256(token);
+      await tx.$queryRaw`SELECT id FROM "Invite" WHERE "tokenHash" = ${tokenHash} FOR UPDATE`;
+      const invitation = await tx.invite.findUnique({ where: { tokenHash } });
+      if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) throw new NotFoundException('Invite expire हो गया है');
+      const member = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
+      if (invitation.email.toLowerCase() !== member.email.toLowerCase()) throw new ForbiddenException('Log in with the invited email address');
+      if (!['USER', 'BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new ForbiddenException('Platform staff cannot join a broker firm');
+      if (member.organizationId && member.organizationId !== invitation.organizationId) throw new BadRequestException('आप पहले से किसी दूसरी team में हैं');
+      const firm = await tx.organization.findUniqueOrThrow({ where: { id: invitation.organizationId } });
+      if (firm.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
+      await tx.user.update({ where: { id: user.id }, data: { organizationId: invitation.organizationId, role: invitation.role, emailVerified: true } });
+      await tx.invite.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
+      return invitation;
+    });
+    await this.auth.revokeAll(user.id);
     await this.notifications.notifyOrg(
       inv.organizationId,
       { kind: 'SYSTEM', title: `${inv.name} team में शामिल हुए`, link: '/broker/team' },

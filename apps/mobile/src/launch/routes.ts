@@ -4,6 +4,7 @@ export const nativeConsumerPath =
   /^\/(home|search|saved|messages|profile|property|locality|broker|post-property|my-listings|my-visits|enquiries|customer-requirements|customer-overview|chat)(\/|$)/;
 export const nativeGuestPath = /^\/(home|search|profile|property|locality|broker)(\/|$)/;
 export function nativeModuleKey(path: string) {
+  if (path === '/team') return 'team';
   if (nativeConsumerPath.test(path))
     return path.startsWith('/my-visits') ? 'slot_booking' : path.startsWith('/customer-requirements') ? 'tenant_requirements' : 'consumer';
   if (path.startsWith('/area-directory')) return 'directory';

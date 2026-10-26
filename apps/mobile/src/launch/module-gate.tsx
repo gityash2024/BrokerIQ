@@ -31,14 +31,15 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const currentPath = usePathname();
   const path = explicitPath ?? currentPath;
   const { user } = useAuth();
+  const broker = !!user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
   if (essential.includes(path)) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
-  const key = path === '/dashboard-records' ? (user?.role === 'BROKER_ADMIN' ? 'today' : 'consumer') : nativeModuleKey(path);
+  const key = path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const allowed =
     config.loaded &&
     moduleAllowed(config.modules, key, role) &&
-    (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : user?.role === 'BROKER_ADMIN' && !!user.organization?.id);
+    (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : broker && !!user?.organization?.id);
   if (allowed) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;
@@ -80,7 +81,7 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
           <>
             <Button
               title={login ? 'Sign in' : 'Back to home'}
-              onPress={() => router.replace(login ? '/login' : user?.role === 'BROKER_ADMIN' ? '/(broker)/dashboard' : '/(user)/home')}
+              onPress={() => router.replace(login ? '/login' : broker ? '/(broker)/dashboard' : '/(user)/home')}
             />
             <Button title="Retry" variant="secondary" onPress={() => config.refetch()} />
           </>

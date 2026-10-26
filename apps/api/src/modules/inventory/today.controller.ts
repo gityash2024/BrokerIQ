@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from './inventory.service';
 import { ModulesService } from '../../core/features/modules.service';
 
-@Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+@Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('broker/today')
 export class TodayController {
   constructor(
@@ -14,6 +14,7 @@ export class TodayController {
   ) {}
   @Get() async today(@CurrentUser() user: RequestUser) {
     const organizationId = this.inventory.orgId(user)!;
+    const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
     const [leadsOn, inventoryOn, inboxOn] = await Promise.all(['leads', 'inventory', 'inbox'].map((key) => this.modules.enabled(key)));
     const now = new Date();
     // Gurgaon workday boundaries are computed explicitly, independently of the host timezone.
@@ -25,7 +26,7 @@ export class TodayController {
     const [followUps, visits, newLeads, requirements, inventory, pendingReview, unread] = await Promise.all([
       leadsOn
         ? this.prisma.followUp.findMany({
-            where: { organizationId, status: 'PENDING', dueAt: { lt: end } },
+            where: { organizationId, ...assigned, status: 'PENDING', dueAt: { lt: end } },
             orderBy: { dueAt: 'asc' },
             take: 20,
             include: { lead: { select: { id: true, name: true, phone: true } } },
@@ -33,13 +34,13 @@ export class TodayController {
         : [],
       leadsOn
         ? this.prisma.siteVisit.findMany({
-            where: { organizationId, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: { gte: start, lt: end } },
+            where: { organizationId, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: { gte: start, lt: end } },
             orderBy: { scheduledAt: 'asc' },
             take: 20,
             include: { lead: { select: { id: true, name: true, phone: true } } },
           })
         : [],
-      leadsOn ? this.prisma.lead.count({ where: { organizationId, deletedAt: null, createdAt: { gte: start, lt: end } } }) : null,
+      leadsOn ? this.prisma.lead.count({ where: { organizationId, ...assigned, deletedAt: null, createdAt: { gte: start, lt: end } } }) : null,
       leadsOn ? this.prisma.brokerRequirement.count({ where: { organizationId, deletedAt: null, status: 'OPEN' } }) : null,
       inventoryOn ? this.inventory.getStats(user) : null,
       inboxOn ? this.prisma.sourceEntry.count({ where: { batch: { organizationId }, reviewState: 'NEEDS_REVIEW' } }) : null,

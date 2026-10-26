@@ -17,7 +17,7 @@ export default function ProductTools() {
   const role = user?.role ?? 'PUBLIC';
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
   const routes: Record<string, string> =
-    role === 'BROKER_ADMIN'
+    ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)
       ? {
           consumer: '/home',
           today: '/dashboard',
@@ -26,6 +26,7 @@ export default function ProductTools() {
           leads: '/leads',
           inbox: '/inbox',
           automation: '/automations',
+          team: '/team',
           tenant_requirements: '/requirements',
           slot_booking: '/visits',
         }
@@ -39,7 +40,7 @@ export default function ProductTools() {
           description="Available tools open your workspace. Upcoming modules are visible, disabled and preserve your access settings."
         />
         <Input accessibilityLabel="Search product features" placeholder="Find a feature…" value={search} onChangeText={setSearch} />
-        {role === 'BROKER_ADMIN' && items.some((item) => ['inventory', 'inbox'].includes(item.key) && item.state === 'ACTIVE') && (
+        {['BROKER_ADMIN', 'BROKER_AGENT'].includes(role) && items.some((item) => ['inventory', 'inbox'].includes(item.key) && item.state === 'ACTIVE') && (
           <NativeCard>
             <Row>
               <Blocks size={20} color={c.brand} />

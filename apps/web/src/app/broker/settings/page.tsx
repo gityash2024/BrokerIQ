@@ -22,8 +22,8 @@ import type { LocalityListItem } from '@brokeriq/shared';
 const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me'>('firm');
   const { user } = useAuth();
+  const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me'>(user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
   const cardOn = useFlag('visiting_card');
   const q = useQuery({ queryKey: ['broker-profile'], queryFn: () => api<any>('/broker/profile') });
   if (q.isLoading) return <PageLoader />;
@@ -36,15 +36,15 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Firm profile, microsite, business hours और verification"
         actions={
-          <Button size="sm" variant="secondary" href={`/brokers/${org.slug}`} external>
+          <><Button size="sm" variant="secondary" href="/broker/team">Team & sub-agents</Button><Button size="sm" variant="secondary" href={`/brokers/${org.slug}`} external>
             Microsite देखें <ExternalLink className="size-3.5" />
-          </Button>
+          </Button></>
         }
       />
       <Segmented
         className="mb-6"
         value={tab}
-        onChange={setTab}
+        onChange={(value) => setTab(value as typeof tab)}
         options={[
           { value: 'firm', label: 'Firm profile' },
           { value: 'hours', label: 'Business hours' },
@@ -52,7 +52,7 @@ export default function SettingsPage() {
           ...(cardOn ? [{ value: 'card' as const, label: 'Visiting card' }] : []),
           { value: 'verify', label: 'Verification' },
           { value: 'me', label: 'मेरा account' },
-        ]}
+        ].filter((option) => user?.role !== 'BROKER_AGENT' || option.value === 'me')}
       />
       {tab === 'firm' && <FirmForm org={org} microsite={microsite} onSaved={() => q.refetch()} />}
       {tab === 'hours' && <Hours org={org} />}

@@ -9,7 +9,7 @@ export function DraftPump() {
   const lastError = useRef('');
   const qc = useQueryClient();
   useEffect(() => {
-    if (user?.role !== 'BROKER_ADMIN') return;
+    if (!user || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role)) return;
     let active = true;
     const pump = async () => {
       try {

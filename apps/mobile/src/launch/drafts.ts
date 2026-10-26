@@ -1,4 +1,4 @@
-import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport } from '@brokeriq/shared';
+import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport, prepareInventoryEditorInput } from '@brokeriq/shared';
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -162,7 +162,7 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
 let syncing = false;
 export async function syncDrafts() {
   const session = authStore.get();
-  if (!session || session.user.role !== 'BROKER_ADMIN' || syncing) return;
+  if (!session || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(session.user.role) || syncing) return;
   syncing = true;
   try {
     const database = await db();
@@ -212,12 +212,12 @@ export async function syncDrafts() {
             }
           } else if (row.kind === 'PROPERTY_CREATE') {
             path = '/inventory';
-            body = { ...body, clientMutationId: row.id };
+            body = { ...prepareInventoryEditorInput(body), clientMutationId: row.id };
           } else if (row.kind === 'PROPERTY_EDIT') {
             path = `/inventory/${body.id}`;
             method = 'PATCH';
             const { id: _id, ...rest } = body;
-            body = rest;
+            body = prepareInventoryEditorInput(rest);
           } else if (row.kind === 'PUBLIC_PUBLISH') {
             path = `/inventory/${body.inventoryId}/publish`;
             const { inventoryId: _inventoryId, ...rest } = body;

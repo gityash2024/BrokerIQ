@@ -146,7 +146,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     ['/broker/deals', '/broker/invoices', '/invoices'],
     ['/deals', '/invoices', '/broker/invoices', '/broker/payment-settings', '/public/invoices'],
   ),
-  future('team', 'Team & agents', ['/broker/team', '/broker/invite-brokers'], ['/broker/team']),
+  core('team', 'Team & agents', 'Invite sub-agents, manage firm members and assigned leads', '/broker/team', ['/broker/team'], ['/broker/team']),
+  future('broker_referrals', 'Invite other broker firms', ['/broker/invite-brokers'], ['/broker-invites']),
   future('billing', 'Billing & subscriptions', ['/broker/billing', '/boost'], ['/billing', '/subscriptions', '/payments', '/boosts']),
   future(
     'reports',
@@ -200,6 +201,7 @@ export const defaultModulePolicies = (): ModulePolicies =>
         roles: [
           'SUPER_ADMIN',
           'BROKER_ADMIN',
+          ...(['consumer', 'today', 'directory', 'inventory', 'leads', 'inbox', 'team', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
           ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
         ] as ModulePolicy['roles'],
       },

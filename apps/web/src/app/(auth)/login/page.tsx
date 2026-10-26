@@ -39,9 +39,9 @@ function LoginInner() {
       next &&
         /^\/(?![\/\\])/.test(next) &&
         !next.includes('\\') &&
-        (next.startsWith('/user') ||
+        (next.startsWith('/user') || next.startsWith('/invite/') ||
           (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
-          (r.user.role === 'BROKER_ADMIN' && next.startsWith('/broker')))
+          (['BROKER_ADMIN', 'BROKER_AGENT'].includes(r.user.role) && next.startsWith('/broker')))
         ? next
         : homeFor(r.user),
     );
@@ -177,7 +177,7 @@ function LoginInner() {
       </p>
       <p className="mt-6 text-center text-sm text-muted">
         New here?{' '}
-        <Link href="/signup" className="font-semibold text-brand-600">
+        <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-brand-600">
           Create a customer account →
         </Link>
       </p>

@@ -2,7 +2,7 @@ import { ScrollView, View, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
-import { PLATFORM_MODULES, defaultModulePolicies } from '@brokeriq/shared';
+import { PLATFORM_MODULES, defaultModulePolicies, moduleAllowed } from '@brokeriq/shared';
 import { Txt, Button } from '@/ui';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { LanguageSwitch } from '@/components/language';
@@ -22,9 +22,10 @@ export default function BrokerSettings() {
         </NativeCard>
         <LanguageSwitch render={(label, open) => <Button title={label} variant="secondary" onPress={open} />} />
         <Button title="Product features & upcoming" variant="secondary" onPress={() => router.push('/product-tools' as any)} />
+        {moduleAllowed(modules, 'team', user?.role ?? 'PUBLIC') && <Button title="Team & sub-agents" variant="secondary" onPress={() => router.push('/team')} />}
         <Button title="Saved drafts & sync" variant="secondary" onPress={() => router.push('/drafts')} />
         <Button title="Browse User Portal" variant="secondary" onPress={() => router.push('/(user)/home')} />
-        <Button title="Firm profile" variant="secondary" onPress={() => router.push('/broker-onboarding')} />
+        {user?.role === 'BROKER_ADMIN' && <Button title="Firm profile" variant="secondary" onPress={() => router.push('/broker-onboarding')} />}
         <Button title="Open web panel" variant="secondary" onPress={() => Linking.openURL('https://brokeriq.mymultimeds.com/login')} />
         <Txt v="h3">Upcoming features</Txt>
         {PLATFORM_MODULES.filter((m) => modules[m.key]?.state === 'COMING_SOON' && m.key !== 'legacy').map((m) => (

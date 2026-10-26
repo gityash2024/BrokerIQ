@@ -285,6 +285,8 @@ export class LeadsService {
   // ------------------------------------------------------------------ mutations
   async create(input: LeadInput, user: RequestUser) {
     const orgId = requireOrg(user);
+    if (user.role === 'BROKER_AGENT' && input.assignedToId && input.assignedToId !== user.id)
+      throw new ForbiddenException('Only firm admins can assign leads to other members');
     if (input.assignedToId) await this.assertMember(orgId, input.assignedToId);
     const { lead } = await this.ingest({
       orgId,

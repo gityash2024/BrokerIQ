@@ -58,6 +58,8 @@ export function PropertyForm({
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
     Object.assign(values, readPropertyExtras(event.currentTarget));
+    // Keep source amenities which have no checkbox in the current taxonomy.
+    values.amenities = [...new Set([...(initial.amenities ?? []).filter((a) => !event.currentTarget.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)), ...values.amenities])];
     values.contacts = contacts.filter((c) => c.name || c.phone || c.note || c.role !== 'UNKNOWN');
     Object.assign(values, prepareInventoryEditorInput(values));
     if ('revision' in initial) values.expectedRevision = initial.revision;

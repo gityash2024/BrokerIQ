@@ -110,6 +110,7 @@ export class DashboardService {
     } else if (role === 'broker') {
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
       const org = user.orgId;
+      const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
       const policies = await this.modules.all();
       const on = (key: string) => policies[key]?.state === 'ACTIVE' && policies[key].roles.includes(user.role);
       const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
@@ -126,11 +127,11 @@ export class DashboardService {
             })
           : null,
         on('leads') ? this.db.brokerRequirement.count({ where: { organizationId: org, deletedAt: null, status: 'OPEN' } }) : null,
-        on('leads') ? this.db.lead.count({ where: { organizationId: org, deletedAt: null, createdAt: d } }) : null,
-        on('leads') ? this.db.followUp.count({ where: { organizationId: org, status: 'PENDING', dueAt: { lt: new Date() } } }) : null,
-        on('leads') ? this.db.siteVisit.count({ where: { organizationId: org, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } }) : null,
-        on('leads') ? this.db.lead.groupBy({ by: ['source'], where: { organizationId: org, deletedAt: null, createdAt: d }, _count: { _all: true } }) : null,
-        on('leads') ? this.db.lead.groupBy({ by: ['stage'], where: { organizationId: org, deletedAt: null }, _count: { _all: true } }) : null,
+        on('leads') ? this.db.lead.count({ where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d } }) : null,
+        on('leads') ? this.db.followUp.count({ where: { organizationId: org, ...assigned, status: 'PENDING', dueAt: { lt: new Date() } } }) : null,
+        on('leads') ? this.db.siteVisit.count({ where: { organizationId: org, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } }) : null,
+        on('leads') ? this.db.lead.groupBy({ by: ['source'], where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d }, _count: { _all: true } }) : null,
+        on('leads') ? this.db.lead.groupBy({ by: ['stage'], where: { organizationId: org, ...assigned, deletedAt: null }, _count: { _all: true } }) : null,
         on('inbox') ? this.db.sourceEntry.count({ where: { batch: { organizationId: org }, reviewState: 'NEEDS_REVIEW' } }) : null,
       ]);
       const n = (key: string) => (availability ? (availability.find((r) => r.availability === key)?._count._all ?? 0) : null);
@@ -158,9 +159,9 @@ export class DashboardService {
       ];
       if (on('leads'))
         result.charts.push(
-          await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL`, '/broker/leads', 'New leads', 'leads'),
+          await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL ${user.role === 'BROKER_AGENT' ? Prisma.sql`AND "assignedToId"=${user.id}` : Prisma.empty}`, '/broker/leads', 'New leads', 'leads'),
         );
-      if (on('consumer'))
+      if (on('consumer') && user.role !== 'BROKER_AGENT')
         result.charts.push(await series('Enquiry', 'createdAt', Prisma.sql`"organizationId"=${org}`, '/broker/leads', 'Rental enquiries', 'enquiries'));
       if (availability)
         result.charts.push(
@@ -295,6 +296,7 @@ export class DashboardService {
         await this.modules.assertPath('/leads', user.role);
         const where: Prisma.LeadWhereInput = {
           organizationId: user.orgId,
+          ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
           deletedAt: null,
           ...(chart !== 'pipeline' ? { createdAt: date } : {}),
           ...(chart === 'sources' ? { source: group as any } : {}),
@@ -369,6 +371,7 @@ export class DashboardService {
       };
     }
     if (chart === 'enquiries') {
+      if (role === 'broker' && user.role === 'BROKER_AGENT') throw new ForbiddenException('Use your assigned leads');
       const where: Prisma.EnquiryWhereInput = {
         createdAt: date,
         ...(role === 'broker' ? { organizationId: user.orgId! } : role === 'user' ? { userId: user.id } : {}),
