@@ -114,7 +114,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   }
   async function files() {
     const result = await DocumentPicker.getDocumentAsync({
-      type: ['image/png', 'image/jpeg', 'image/webp', 'text/plain', 'application/zip'],
+      type: ['image/png', 'image/jpeg', 'image/webp', 'text/plain', 'application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
       multiple: true,
       copyToCacheDirectory: true,
     });

@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bytesToBase64, uploadImport, IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES } from '../import-upload';
+import { bytesToBase64, uploadImport, IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES, captureContentType } from '../import-upload';
+
+test('Android ZIP aliases and shared files without an extension resolve to the canonical upload type', () => {
+  assert.equal(captureContentType('group.ZIP', 'application/octet-stream'), 'application/zip');
+  assert.equal(captureContentType('source', 'application/x-zip-compressed'), 'application/zip');
+  assert.equal(captureContentType('provider-file', 'application/octet-stream', new Uint8Array([0x50, 0x4b, 3, 4])), 'application/zip');
+  assert.equal(captureContentType('register.jpg', 'image/jpg'), 'image/jpeg');
+  assert.equal(captureContentType('unsupported.pdf', 'application/pdf'), null);
+});
 
 test('base64 preserves binary tails and multiple encoding blocks', () => {
   for (const size of [0, 1, 2, 3, 12287, 12288, 12289, IMPORT_CHUNK_BYTES]) {

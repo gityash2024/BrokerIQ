@@ -1,4 +1,4 @@
-import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport, prepareInventoryEditorInput } from '@brokeriq/shared';
+import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport, prepareInventoryEditorInput, captureContentType } from '@brokeriq/shared';
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -145,6 +145,15 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
   // Do not acknowledge the share or queue a file before its private copy exists.
   await new File(uri).copy(destination);
   if (!destination.exists || destination.size === 0) throw new Error('Source copy failed. Shared content was not cleared.');
+  if (destination.size > IMPORT_MAX_BYTES) throw new Error('Maximum 300 MB per source. The private original is preserved.');
+  const signatureHandle = destination.open();
+  try {
+    const normalized = captureContentType(name ?? safe, mime, signatureHandle.readBytes(Math.min(12, destination.size)));
+    if (!normalized) throw new Error('Unsupported source. Use a WhatsApp ZIP/TXT export or JPG, PNG or WebP image. The original is preserved.');
+    mime = normalized;
+  } finally {
+    signatureHandle.close();
+  }
   const saved = await saveDraft(
     'CAPTURE',
     id,
@@ -190,14 +199,16 @@ export async function syncDrafts() {
               if (source.size > IMPORT_MAX_BYTES) throw new Error('Source exceeds 300 MB. Its private original is preserved. Split it into smaller exports.');
               const handle = source.open();
               try {
+                const contentType = captureContentType(body.fileName ?? '', row.mime ?? '', handle.readBytes(Math.min(12, source.size)));
+                if (!contentType) throw new Error('Unsupported saved source type. Its original is preserved.');
                 uploaded = await uploadImport(
                   (uploadPath, uploadBody) => api(uploadPath, { body: uploadBody, ownerId: session.user.id }),
                   {
                     clientKey: row.id,
                     fileName: body.fileName ?? 'source',
-                    contentType: row.mime!,
+                    contentType,
                     totalBytes: source.size,
-                    sourceType: body.sourceType,
+                    sourceType: contentType.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT',
                     groupName: body.groupName,
                     target: body.target,
                   },

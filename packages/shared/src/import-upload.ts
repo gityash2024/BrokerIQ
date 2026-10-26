@@ -2,6 +2,17 @@
 export const IMPORT_MAX_BYTES = 300 * 1024 * 1024;
 export const IMPORT_CHUNK_BYTES = 1024 * 1024;
 
+/** Android document providers and WhatsApp shares use several MIME aliases. */
+export function captureContentType(fileName: string, mime = '', signature = new Uint8Array()): string | null {
+  if (/\.zip$/i.test(fileName) || ['application/zip', 'application/x-zip-compressed', 'application/x-zip'].includes(mime) ||
+      (signature[0] === 0x50 && signature[1] === 0x4b && [3, 5, 7].includes(signature[2]))) return 'application/zip';
+  if (/\.txt$/i.test(fileName) || mime === 'text/plain') return 'text/plain';
+  if (/\.jpe?g$/i.test(fileName) || ['image/jpeg', 'image/jpg'].includes(mime) || (signature[0] === 0xff && signature[1] === 0xd8)) return 'image/jpeg';
+  if (/\.png$/i.test(fileName) || mime === 'image/png' || (signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47)) return 'image/png';
+  if (/\.webp$/i.test(fileName) || mime === 'image/webp') return 'image/webp';
+  return null;
+}
+
 export interface ImportUploadState {
   id: string;
   nextIndex: number;
