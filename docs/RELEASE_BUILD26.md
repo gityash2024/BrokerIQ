@@ -33,7 +33,7 @@ Agents can use their firm inventory/capture workspace and assigned leads/follow-
 - APK SHA256: `a23276f349f8225302ce3f828025ea31eccf3f6b0978081bd8ad7608beaa3d78`.
 - Signing certificate SHA256: `d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce` (unchanged).
 - Download: `https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.2-build26.apk`.
-- Landing timestamp: `2026-10-26T17:27:38Z` (26 Oct, 10:57 PM IST).
+- Landing publication timestamp: `2026-10-27T01:40:51Z` (27 Oct, 7:10 AM IST), reflecting the completed staging release. The APK itself was built on 26 October; publication metadata does not imply a new binary rebuild.
 - Final signed APK installed successfully over the existing emulator app without uninstalling. Public HTTPS download checksum matches the artifact above.
 
 ## External/physical acceptance

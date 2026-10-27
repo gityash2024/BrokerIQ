@@ -13,9 +13,9 @@ export default async function Home() {
       apkUrl={process.env.ANDROID_RELEASE_URL}
       checksum={process.env.ANDROID_RELEASE_SHA256}
       releaseUpdates={{
-        user: '2026-10-26T17:27:38Z',
-        broker: '2026-10-26T17:27:38Z',
-        android: '2026-10-26T17:27:38Z',
+        user: '2026-10-27T01:40:51Z',
+        broker: '2026-10-27T01:40:51Z',
+        android: '2026-10-27T01:40:51Z',
       }}
       screenshots={[
         {
