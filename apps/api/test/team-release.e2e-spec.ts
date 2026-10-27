@@ -79,6 +79,29 @@ import { PrismaService } from '../src/prisma/prisma.service';
     await api().delete(`/api/broker/team/invites/${cancel.id}`).set(h(owner)).expect(200);
     await api().get(`/api/invites/${cancel.link.split('/').pop()}`).expect(404);
   });
+  it('keeps agent list filters and task assignments inside their access scope', async () => {
+    const ownerId = (await db.user.findFirstOrThrow({ where: { organizationId: org, role: 'BROKER_ADMIN' } })).id;
+    const otherId = (await db.user.findFirstOrThrow({ where: { organizationId: { not: org }, email: `other.${uid}@e2e.test` } })).id;
+    const mine = (await api().post('/api/leads').set(h(owner)).send({ name: 'Scoped task fixture', phone: '9999999903', assignedToId: agentId }).expect(201)).body;
+    const theirs = (await api().post('/api/leads').set(h(owner)).send({ name: 'Admin task fixture', phone: '9999999904', assignedToId: ownerId }).expect(201)).body;
+    const at = new Date(Date.now() + 86400_000).toISOString();
+    const ownFollowUp = (await api().post('/api/follow-ups').set(h(agent)).send({ leadId: mine.id, dueAt: at }).expect(201)).body;
+    const otherFollowUp = (await api().post('/api/follow-ups').set(h(owner)).send({ leadId: theirs.id, dueAt: at }).expect(201)).body;
+    const ownVisit = (await api().post('/api/visits').set(h(agent)).send({ leadId: mine.id, scheduledAt: at }).expect(201)).body;
+    const otherVisit = (await api().post('/api/visits').set(h(owner)).send({ leadId: theirs.id, scheduledAt: at }).expect(201)).body;
+    expect((await api().get(`/api/leads?assignedToId=${ownerId}`).set(h(agent)).expect(200)).body.items).toEqual([]);
+    const columns = (await api().get(`/api/leads/kanban?assignedToId=${ownerId}`).set(h(agent)).expect(200)).body;
+    expect(columns.flatMap((column: any) => column.items)).toEqual([]);
+    expect((await api().get(`/api/follow-ups?assignedToId=${ownerId}`).set(h(agent)).expect(200)).body).toEqual([]);
+    const followUps = (await api().get('/api/follow-ups').set(h(agent)).expect(200)).body.map((item: any) => item.id);
+    expect(followUps).toContain(ownFollowUp.id); expect(followUps).not.toContain(otherFollowUp.id);
+    const visits = (await api().get(`/api/visits?assignedToId=${ownerId}`).set(h(agent)).expect(200)).body.map((item: any) => item.id);
+    expect(visits).toContain(ownVisit.id); expect(visits).not.toContain(otherVisit.id);
+    for (const [path, timing] of [['follow-ups', { dueAt: at }], ['visits', { scheduledAt: at }]] as const) {
+      await api().post(`/api/${path}`).set(h(agent)).send({ leadId: mine.id, ...timing, assignedToId: ownerId }).expect(403);
+      await api().post(`/api/${path}`).set(h(owner)).send({ leadId: mine.id, ...timing, assignedToId: otherId }).expect(400);
+    }
+  });
   it('suspends, reactivates and removes a member while revoking old sessions', async () => {
     await api().patch(`/api/broker/team/${agentId}`).set(h(owner)).send({ status: 'SUSPENDED' }).expect(200);
     await api().get('/api/leads').set(h(agent)).expect(401);

@@ -25,7 +25,9 @@ import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput
     const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    // Keep one loopback listener for the 300 sequential upload requests instead
+    // of opening/closing an ephemeral Supertest server for each chunk.
+    await app.listen(0, '127.0.0.1');
     prisma = app.get(PrismaService);
     await prisma.systemSetting.deleteMany({ where: { key: 'platform.modules' } });
     admin = (await api().post('/api/auth/login').send({ email: process.env.SUPER_ADMIN_EMAIL, password: process.env.SUPER_ADMIN_PASSWORD }).expect(200)).body

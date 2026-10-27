@@ -245,9 +245,8 @@ export class LeadsService {
 
   async kanban(user: RequestUser, q: { source?: string; assignedToId?: string; q?: string }) {
     const base: Prisma.LeadWhereInput = {
-      ...this.scope(user),
+      AND: [this.scope(user), ...(q.assignedToId ? [{ assignedToId: q.assignedToId }] : [])],
       ...(q.source ? { source: { in: q.source.split(',') as LeadSource[] } } : {}),
-      ...(q.assignedToId ? { assignedToId: q.assignedToId } : {}),
       ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] } : {}),
     };
     const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION', 'WON', 'LOST'];

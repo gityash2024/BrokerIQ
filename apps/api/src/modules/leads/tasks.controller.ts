@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -37,14 +37,21 @@ export class TasksController {
     return user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
   }
 
+  private async taskAssignee(user: RequestUser, organizationId: string, requested: string | null | undefined, fallback: string | null) {
+    const assignedToId = requested ?? fallback ?? user.id;
+    if (user.role === 'BROKER_AGENT' && assignedToId !== user.id)
+      throw new ForbiddenException('सिर्फ admin दूसरे सदस्य को काम assign कर सकते हैं');
+    await this.leads.assertMember(organizationId, assignedToId);
+    return assignedToId;
+  }
+
   // ------------------------------------------------------------------ follow-ups
   @Get('follow-ups')
   async followUps(@CurrentUser() user: RequestUser, @Query() q: { status?: string; from?: string; to?: string; assignedToId?: string; view?: string }) {
     const orgId = requireOrg(user);
     const where: Prisma.FollowUpWhereInput = {
       organizationId: orgId,
-      ...this.mineFilter(user),
-      ...(q.assignedToId ? { assignedToId: q.assignedToId } : {}),
+      AND: [this.mineFilter(user), ...(q.assignedToId ? [{ assignedToId: q.assignedToId }] : [])],
       ...(q.status ? { status: q.status as any } : {}),
       ...(range(q) ? { dueAt: range(q) } : {}),
       ...(q.view === 'overdue' ? { status: 'PENDING', dueAt: { lt: new Date() } } : {}),
@@ -62,6 +69,7 @@ export class TasksController {
   @Post('follow-ups')
   async createFollowUp(@CurrentUser() user: RequestUser, @Body(new ZodPipe(followUpInputSchema)) body: z.infer<typeof followUpInputSchema>) {
     const lead = await this.leads.getScoped(body.leadId, user);
+    const assignedToId = await this.taskAssignee(user, lead.organizationId, body.assignedToId, lead.assignedToId);
     const fu = await this.prisma.followUp.create({
       data: {
         organizationId: lead.organizationId,
@@ -69,7 +77,7 @@ export class TasksController {
         type: body.type,
         dueAt: new Date(body.dueAt),
         note: body.note,
-        assignedToId: body.assignedToId ?? lead.assignedToId ?? user.id,
+        assignedToId,
         createdById: user.id,
       },
     });
@@ -149,6 +157,7 @@ export class TasksController {
   @Post('visits')
   async createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: z.infer<typeof visitInputSchema>) {
     const lead = await this.leads.getScoped(body.leadId, user);
+    const assignedToId = await this.taskAssignee(user, lead.organizationId, body.assignedToId, lead.assignedToId);
     const video = body.mode === 'VIDEO';
     if (video) await this.features.assertEnabled('video_visits');
     const visit = await this.prisma.siteVisit.create({
@@ -159,7 +168,7 @@ export class TasksController {
         scheduledAt: new Date(body.scheduledAt),
         address: body.address,
         note: body.note,
-        assignedToId: body.assignedToId ?? lead.assignedToId ?? user.id,
+        assignedToId,
         mode: video ? 'VIDEO' : 'IN_PERSON',
         meetingUrl: video ? videoRoomUrl(randomToken(12)) : null,
       },
