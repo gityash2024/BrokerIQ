@@ -172,9 +172,9 @@ export default function TeamPage() {
       {admin && (q.data?.invites ?? []).length > 0 && (
         <div className="mt-6">
           <p className="mb-3 text-sm font-bold">Pending invites</p>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {(q.data?.invites ?? []).map((i) => (
-              <div key={i.id} className="card flex items-center gap-3 p-4">
+              <div key={i.id} className="card flex min-w-0 items-center gap-3 p-4">
                 <div className="grid size-10 place-items-center rounded-xl bg-surface-2 text-muted">
                   <Mail className="size-4" />
                 </div>
@@ -184,7 +184,7 @@ export default function TeamPage() {
                     {i.email} · {i.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'} · expires {formatDate(i.expiresAt, { day: 'numeric', month: 'short' })}
                   </p>
                 </div>
-                <Button size="xs" variant="ghost" onClick={() => cancel.mutate(i.id)}>
+                <Button size="xs" variant="ghost" className="shrink-0" onClick={() => cancel.mutate(i.id)}>
                   Cancel
                 </Button>
               </div>

@@ -16,6 +16,7 @@ Validation before deployment:
 - Shared tests: 42 passed, including rejection of the exact incomplete assignee shape that caused the crash.
 - API/web production builds and web/mobile typechecks passed.
 - Local browser: logged in to an isolated fixture, opened Leads then Team, rendered member metrics, created an invitation, saw the share link and pending invitation. No fixture was inserted in staging. A repeatable Playwright journey was added; the interactive browser journey was the executed UI verification.
+- Narrow-width inspection also found the pending-invitation grid expanding beyond the viewport. An explicit single-column minmax grid and non-shrinking cancel action keep the card inside the page, while the member table retains its internal horizontal scroll.
 - Local Chrome emitted hydration warnings identifying injected `chrome-extension://.../executors/200.js` attributes. These were kept separate from first-party Team exceptions; no error reporting was suppressed.
 
 Staging code/compiled/env/process backup: `/opt/brokeriq/backups/team-contract-20261027`. Deployment is limited to BrokerIQ API/shared/web. APK build 26 remains byte-identical, with its existing download link and signing identity.

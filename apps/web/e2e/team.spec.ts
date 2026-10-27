@@ -31,5 +31,6 @@ test('team renders real stats after assignee screens, creates and lists an invit
   await expect(page.getByText(invitedEmail, { exact: false })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('heading', { name: 'Team', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(errors).toEqual([]);
 });
