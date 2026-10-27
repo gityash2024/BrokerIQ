@@ -28,7 +28,7 @@ import { api } from '@/lib/api';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
-import { useTeam } from '@/components/broker/bits';
+import { useAssignees } from '@/components/broker/bits';
 import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton, Switch } from '@/components/ui/misc';
@@ -246,7 +246,7 @@ export default function AutomationsPage() {
 }
 
 function Builder({ rule, onClose }: { rule: any; onClose: () => void }) {
-  const team = useTeam();
+  const team = useAssignees();
   const tpls = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: !!rule });
   const [r, setR] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);

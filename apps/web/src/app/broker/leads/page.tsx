@@ -13,7 +13,7 @@ import { useRealtime } from '@/lib/realtime';
 import { cn, qs } from '@/lib/utils';
 import type { LeadRow, Paged } from '@/lib/types';
 import { PageHeader } from '@/components/panel/shell';
-import { SourceBadge, StageBadge, TempBadge, useTeam } from '@/components/broker/bits';
+import { SourceBadge, StageBadge, TempBadge, useAssignees } from '@/components/broker/bits';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/field';
@@ -28,7 +28,7 @@ function LeadsInner() {
   const pathname = usePathname();
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
-  const team = useTeam();
+  const team = useAssignees();
   const f = useMemo(() => Object.fromEntries(sp.entries()) as Record<string, string>, [sp]);
   const setF = (patch: Record<string, string | null>) => {
     const n = new URLSearchParams(sp.toString());

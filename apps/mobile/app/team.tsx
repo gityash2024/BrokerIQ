@@ -25,7 +25,7 @@ export default function Team() {
       setF({ name: '', email: '', role: 'BROKER_AGENT' });
     },
   });
-  const members = [...(q.data?.members ?? [])].sort((a: any, b: any) => b.stats.won30d - a.stats.won30d);
+  const members = [...(q.data?.members ?? [])].sort((a, b) => b.stats.won30d - a.stats.won30d);
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
       <Header
@@ -52,7 +52,7 @@ export default function Team() {
                 <Txt v="label" color="subtle">
                   Pending invites
                 </Txt>
-                {q.data.invites.map((i: any) => (
+                {(q.data?.invites ?? []).map((i) => (
                   <Card key={i.id} style={{ padding: 12 }}>
                     <Txt v="bodyStrong">{i.name}</Txt>
                     <Txt v="caption" color="muted">

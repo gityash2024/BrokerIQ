@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
-import { StageBadge, useTeam } from '@/components/broker/bits';
+import { StageBadge, useAssignees } from '@/components/broker/bits';
 import { LeadPicker } from '@/components/broker/lead-picker';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ function dayKey(d: Date) {
 export default function FollowUpsPage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
-  const team = useTeam();
+  const team = useAssignees();
   const [view, setView] = useState<View>('today');
   const [agent, setAgent] = useState('');
   const [done, setDone] = useState<any>(null);

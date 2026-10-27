@@ -28,7 +28,7 @@ export default function TeamPage() {
   const cancel = useApiMutation((id: string) => del(`/broker/team/invites/${id}`), { success: 'Invite cancel', invalidate: inv });
 
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
-  const members = (q.data?.members ?? []) as any[];
+  const members = q.data?.members ?? [];
   const ranked = [...members]
     .filter((m) => m.status === 'ACTIVE')
     .sort((a, b) => b.stats.won30d - a.stats.won30d || b.stats.activities30d - a.stats.activities30d);
@@ -173,7 +173,7 @@ export default function TeamPage() {
         <div className="mt-6">
           <p className="mb-3 text-sm font-bold">Pending invites</p>
           <div className="grid gap-3 md:grid-cols-2">
-            {q.data.invites.map((i: any) => (
+            {(q.data?.invites ?? []).map((i) => (
               <div key={i.id} className="card flex items-center gap-3 p-4">
                 <div className="grid size-10 place-items-center rounded-xl bg-surface-2 text-muted">
                   <Mail className="size-4" />

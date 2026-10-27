@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Chip, Field, Input, Select, Textarea } from '../ui/field';
-import { useTeam } from './bits';
+import { useAssignees } from './bits';
 
 const MANUAL_SOURCES = ['MANUAL', 'CALL', 'WALK_IN', 'REFERRAL', 'HOUSING', 'ACRES99', 'MAGICBRICKS', 'NOBROKER', 'FACEBOOK', 'INSTAGRAM', 'WHATSAPP'] as const;
 
@@ -17,7 +17,7 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const router = useRouter();
   const requirementMutationId = useRef<string | null>(null);
   const { user } = useAuth();
-  const team = useTeam();
+  const team = useAssignees();
   const { data: locs } = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),

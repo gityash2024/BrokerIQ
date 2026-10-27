@@ -12,7 +12,7 @@ import { patch, useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { cn, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
-import { SourceBadge, TempBadge, useTeam } from '@/components/broker/bits';
+import { SourceBadge, TempBadge, useAssignees } from '@/components/broker/bits';
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { Avatar, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
@@ -29,7 +29,7 @@ interface Column {
 export default function PipelinePage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
-  const team = useTeam();
+  const team = useAssignees();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [source, setSource] = useState('');

@@ -29,3 +29,4 @@ export * from './dashboard';
 
 export * from './inventory-presentation';
 export * from './directory-profile';
+export * from './team';

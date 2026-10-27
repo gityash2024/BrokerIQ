@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { brokerTeamResponseSchema } from '@brokeriq/shared';
 
 (process.env.BROKER_FIRST === 'true' ? describe : describe.skip)('Broker team release', () => {
   let app: INestApplication;
@@ -35,6 +36,12 @@ import { PrismaService } from '../src/prisma/prisma.service';
     const cfg = (await api().get('/api/public/config').expect(200)).body;
     expect(cfg.modules.team.state).toBe('ACTIVE');
     const invitation = (await api().post('/api/broker/team/invite').set(h(owner)).send({ name: 'Sub-agent', email, role: 'BROKER_AGENT' }).expect(201)).body;
+    for (const path of ['/api/broker/team', '/api/leads/assignees']) {
+      const team = (await api().get(path).set(h(owner)).expect(200)).body;
+      expect(brokerTeamResponseSchema.safeParse(team).success).toBe(true);
+      expect(team.invites.some((i: any) => i.id === invitation.id)).toBe(true);
+      expect(team.invites.every((i: any) => !('tokenHash' in i) && !('token' in i))).toBe(true);
+    }
     const token = invitation.link.split('/').pop();
     const preview = (await api().get(`/api/invites/${token}`).expect(200)).body;
     expect(preview.email).toBe(email);
@@ -45,7 +52,10 @@ import { PrismaService } from '../src/prisma/prisma.service';
     await api().post(`/api/invites/${token}/accept`).set(h(agent)).send({}).expect(404);
     const login = (await api().post('/api/auth/login').send({ email, password }).expect(200)).body;
     agent = login.accessToken;
-    await api().get('/api/broker/team').set(h(agent)).expect(200);
+    const team = (await api().get('/api/broker/team').set(h(agent)).expect(200)).body;
+    expect(brokerTeamResponseSchema.safeParse(team).success).toBe(true);
+    expect(team.invites).toEqual([]);
+    expect((await api().get('/api/leads/assignees').set(h(agent)).expect(200)).body.invites).toEqual([]);
     await api().get('/api/broker/dashboard/metrics').set(h(agent)).expect(200);
     await api().get('/api/inventory').set(h(agent)).expect(200);
     await api().get('/api/imports').set(h(agent)).expect(200);
@@ -68,6 +78,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
     await api().patch(`/api/broker/team/${agentId}`).set(h(other)).send({ status: 'SUSPENDED' }).expect(404);
     const assignees = (await api().get('/api/leads/assignees').set(h(owner)).expect(200)).body;
     expect(assignees.members.some((m: any) => m.id === agentId)).toBe(true);
+    expect(assignees.members.find((m: any) => m.id === agentId).stats.openLeads).toBe(1);
   });
   it('rejects wrong-email, expired and cancelled invitations', async () => {
     const invite = (await api().post('/api/broker/team/invite').set(h(owner)).send({ name: 'Next agent', email: `next.${uid}@e2e.test` }).expect(201)).body;
@@ -104,6 +115,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
   });
   it('suspends, reactivates and removes a member while revoking old sessions', async () => {
     await api().patch(`/api/broker/team/${agentId}`).set(h(owner)).send({ status: 'SUSPENDED' }).expect(200);
+    const all = (await api().get('/api/broker/team').set(h(owner)).expect(200)).body;
+    expect(all.members.find((m: any) => m.id === agentId).status).toBe('SUSPENDED');
+    expect((await api().get('/api/leads/assignees').set(h(owner)).expect(200)).body.members.some((m: any) => m.id === agentId)).toBe(false);
     await api().get('/api/leads').set(h(agent)).expect(401);
     await api().post('/api/auth/login').send({ email, password }).expect(403);
     await api().patch(`/api/broker/team/${agentId}`).set(h(owner)).send({ status: 'ACTIVE' }).expect(200);

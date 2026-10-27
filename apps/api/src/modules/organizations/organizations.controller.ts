@@ -16,6 +16,7 @@ import { LISTING_CARD_SELECT } from '../listings/listings.service';
 import { env } from '../../config/env';
 import { FeaturesService } from '../../core/features/features.service';
 import { AccessService } from '../../core/access/access.service';
+import { readBrokerTeam } from './team-query';
 
 const PUBLIC_ORG_SELECT = {
   id: true,
@@ -128,29 +129,7 @@ export class OrganizationsController {
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('broker/team')
   async team(@CurrentUser() user: RequestUser) {
-    const orgId = requireOrg(user);
-    const since = new Date(Date.now() - 30 * 86400_000);
-    const [members, invites] = await Promise.all([
-      this.prisma.user.findMany({
-        where: { organizationId: orgId, status: { not: 'DELETED' } },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true, name: true, email: true, phone: true, avatarUrl: true, role: true, status: true, lastLoginAt: true, createdAt: true },
-      }),
-      user.role === 'BROKER_ADMIN'
-        ? this.prisma.invite.findMany({ where: { organizationId: orgId, acceptedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } })
-        : [],
-    ]);
-    const stats = await Promise.all(
-      members.map(async (m) => {
-        const [open, won, activities] = await Promise.all([
-          this.prisma.lead.count({ where: { organizationId: orgId, assignedToId: m.id, deletedAt: null, stage: { notIn: ['WON', 'LOST'] } } }),
-          this.prisma.lead.count({ where: { organizationId: orgId, assignedToId: m.id, stage: 'WON', stageChangedAt: { gte: since } } }),
-          this.prisma.activity.count({ where: { organizationId: orgId, userId: m.id, createdAt: { gte: since } } }),
-        ]);
-        return { ...m, stats: { openLeads: open, won30d: won, activities30d: activities } };
-      }),
-    );
-    return { members: stats, invites: invites.map(({ tokenHash, ...i }) => (void tokenHash, i)) };
+    return readBrokerTeam(this.prisma, user);
   }
 
   @Roles('BROKER_ADMIN')

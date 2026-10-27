@@ -6,7 +6,7 @@ import { LEAD_SOURCE_LABELS } from '@brokeriq/shared';
 import { post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
-import { useTeam } from '@/components/crm';
+import { useAssignees } from '@/components/crm';
 import { Button, Chip, Header, Input, Row, Screen, Txt } from '@/ui';
 
 const SOURCES = ['WALK_IN', 'CALL', 'REFERRAL', 'WHATSAPP', 'HOUSING', 'ACRES99', 'MAGICBRICKS', 'NOBROKER', 'FACEBOOK', 'INSTAGRAM', 'MANUAL'] as const;
@@ -14,7 +14,7 @@ const SOURCES = ['WALK_IN', 'CALL', 'REFERRAL', 'WHATSAPP', 'HOUSING', 'ACRES99'
 export default function AddLead() {
   const qc = useQueryClient();
   const { isBrokerAdmin } = useAuth();
-  const team = useTeam();
+  const team = useAssignees();
   const [f, setF] = useState({
     name: '',
     phone: '',

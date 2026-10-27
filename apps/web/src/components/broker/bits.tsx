@@ -1,7 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Snowflake, Sun } from 'lucide-react';
-import { LEAD_SOURCE_COLORS, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, type LeadSource, type LeadStage } from '@brokeriq/shared';
+import { brokerTeamResponseSchema, type BrokerTeamResponse, LEAD_SOURCE_COLORS, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, type LeadSource, type LeadStage } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -46,5 +46,9 @@ export function TempBadge({ t }: { t?: string | null }) {
 }
 
 export function useTeam() {
-  return useQuery({ queryKey: ['team'], queryFn: () => api<any>('/leads/assignees'), staleTime: 60_000 });
+  return useQuery({ queryKey: ['team', 'overview'], queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>('/broker/team')), staleTime: 60_000 });
+}
+
+export function useAssignees() {
+  return useQuery({ queryKey: ['team', 'assignees'], queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'), staleTime: 60_000 });
 }

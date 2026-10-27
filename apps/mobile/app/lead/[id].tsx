@@ -27,7 +27,7 @@ import { scheduleReminder } from '@/lib/push';
 import { timePresets } from '@/lib/time';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { SourceBadge, StageBadge, TempBadge, useTeam } from '@/components/crm';
+import { SourceBadge, StageBadge, TempBadge, useAssignees } from '@/components/crm';
 import { ListingRow } from '@/components/listing';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, Segmented, Sheet, Txt } from '@/ui';
 import { useFlag, useConfig } from '@/lib/config';
@@ -49,7 +49,7 @@ export default function LeadDetail() {
   const assistantOn = moduleAllowed(config.modules, 'assistant', user?.role ?? '');
   const dealsOn = moduleAllowed(config.modules, 'deals', user?.role ?? '');
   const qc = useQueryClient();
-  const team = useTeam();
+  const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
   const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'deal' | 'wa'>(null);

@@ -45,7 +45,7 @@ import { api, ApiError, authStore, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { API_URL, cn, formatDateTime, img, toLocalInput } from '@/lib/utils';
-import { SourceBadge, TempBadge, useTeam } from '@/components/broker/bits';
+import { SourceBadge, TempBadge, useAssignees } from '@/components/broker/bits';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
@@ -80,7 +80,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const qc = useQueryClient();
   const admin = user?.role === 'BROKER_ADMIN';
-  const team = useTeam();
+  const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>('timeline');
   const [lostOpen, setLostOpen] = useState(false);

@@ -11,6 +11,7 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { env } from '../../config/env';
 import { AccessService } from '../../core/access/access.service';
+import { readBrokerTeam } from '../organizations/team-query';
 
 const bulkSchema = z.object({
   ids: z.array(z.string()).min(1).max(500),
@@ -38,8 +39,7 @@ export class LeadsController {
   @Get('assignees')
   async assignees(@CurrentUser() user: RequestUser) {
     if (!user.orgId) throw new ForbiddenException('A broker firm is required');
-    const members=await this.prisma.user.findMany({where:{organizationId:user.orgId,status:'ACTIVE',deletedAt:null,role:{in:['BROKER_ADMIN','BROKER_AGENT']}},select:{id:true,name:true,role:true,status:true}});
-    return {members};
+    return readBrokerTeam(this.prisma, user, true);
   }
 
   @Get('kanban')
