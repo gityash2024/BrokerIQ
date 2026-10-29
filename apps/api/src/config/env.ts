@@ -19,8 +19,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_ACCESS_SECRET: devDefault(z.string().min(32), 'dev_access_secret_change_me_0123456789abcdef'),
   JWT_REFRESH_SECRET: devDefault(z.string().min(32), 'dev_refresh_secret_change_me_0123456789abcdef'),
-  JWT_ACCESS_TTL: z.string().default('15m'),
-  REFRESH_TTL_DAYS: z.coerce.number().default(30),
+  JWT_ACCESS_TTL: z.string().default('7d'),
+  REFRESH_TTL_DAYS: z.coerce.number().default(365),
   ENCRYPTION_MASTER_KEY: devDefault(
     z.string().regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_MASTER_KEY must be 64 hex chars (openssl rand -hex 32)'),
     '0000000000000000000000000000000000000000000000000000000000000000',

@@ -86,6 +86,19 @@ export class AuthService implements OnApplicationBootstrap {
     if (user.status !== 'ACTIVE') throw new ForbiddenException('यह account suspend है। Support से संपर्क करें।');
     if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN')
       throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
+    const active = await this.prisma.refreshToken.findMany({
+      where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (active.length >= 5) {
+      const toRevoke = active.slice(4);
+      if (toRevoke.length > 0) {
+        await this.prisma.refreshToken.updateMany({
+          where: { id: { in: toRevoke.map((r) => r.id) } },
+          data: { revokedAt: new Date() },
+        });
+      }
+    }
     const accessToken = this.jwt.sign({ sub: user.id, role: user.role, orgId: user.organizationId, email: user.email, sessionVersion: user.sessionVersion });
     const refreshToken = randomToken(48);
     await this.prisma.refreshToken.create({
@@ -298,8 +311,6 @@ export class AuthService implements OnApplicationBootstrap {
     const row = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) } });
     if (!row) throw new UnauthorizedException('Session expired');
     if (row.revokedAt) {
-      // Token reuse — likely theft. Revoke every session of this user.
-      await this.prisma.refreshToken.updateMany({ where: { userId: row.userId, revokedAt: null }, data: { revokedAt: new Date() } });
       throw new UnauthorizedException('Session expired');
     }
     if (row.expiresAt < new Date()) throw new UnauthorizedException('Session expired');
@@ -311,6 +322,23 @@ export class AuthService implements OnApplicationBootstrap {
     });
     if (claimed.count !== 1) throw new UnauthorizedException('Session expired');
     return this.issue(user, meta);
+  }
+
+  async listSessions(userId: string) {
+    return this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { id: true, ip: true, userAgent: true, createdAt: true, expiresAt: true },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { ok: true };
   }
 
   async logout(refreshToken?: string) {

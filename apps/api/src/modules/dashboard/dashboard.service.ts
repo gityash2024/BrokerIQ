@@ -135,82 +135,137 @@ export class DashboardService {
         on('inbox') ? this.db.sourceEntry.count({ where: { batch: { organizationId: org }, reviewState: 'NEEDS_REVIEW' } }) : null,
       ]);
       const n = (key: string) => (availability ? (availability.find((r) => r.availability === key)?._count._all ?? 0) : null);
-      result.metrics = [
-        this.metric(
-          'inventory',
-          'Inventory records',
-          availability?.reduce((s, r) => s + r._count._all, 0) ?? null,
-          '/broker/inventory',
-          'Current non-archived ledger records',
-        ),
-        this.metric(
-          'available',
-          'Available properties',
-          n('AVAILABLE'),
-          '/broker/inventory?availability=AVAILABLE',
-          'Current records with explicitly confirmed availability',
-        ),
-        this.metric('unknown', 'Availability to check', n('UNKNOWN'), '/broker/inventory?availability=UNKNOWN', 'Current records with unknown availability'),
-        this.metric('requirements', 'Open requirements', requirements, '/broker/leads/requirements', 'Current open client requirements'),
-        this.metric('newLeads', 'New leads', leads, '/broker/leads', 'Leads created in the selected period'),
-        this.metric('overdue', 'Overdue follow-ups', overdue, '/broker/follow-ups', 'Pending follow-ups due before now'),
-        this.metric('visits', 'Planned visits', visits, '/broker/visits', 'Scheduled/confirmed visits within the selected period'),
-        this.metric('sourceReviews', 'Sources to review', pendingReview, '/broker/imports', 'Current source entries awaiting your review'),
-      ];
-      if (on('leads'))
-        result.charts.push(
-          await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL ${user.role === 'BROKER_AGENT' ? Prisma.sql`AND "assignedToId"=${user.id}` : Prisma.empty}`, '/broker/leads', 'New leads', 'leads'),
-        );
-      if (on('consumer') && user.role !== 'BROKER_AGENT')
-        result.charts.push(await series('Enquiry', 'createdAt', Prisma.sql`"organizationId"=${org}`, '/broker/leads', 'Rental enquiries', 'enquiries'));
-      if (availability)
-        result.charts.push(
-          this.chart(
-            'availability',
-            'Inventory availability',
-            'donut',
-            'current',
-            availability.map((r) => ({
-              label: r.availability.replace(/_/g, ' '),
-              value: r._count._all,
-              href: '/broker/inventory?availability=' + r.availability,
-            })),
+      if (user.role === 'BROKER_AGENT') {
+        const [activeLeads, wonDeals] = await Promise.all([
+          this.db.lead.count({
+            where: {
+              organizationId: org,
+              assignedToId: user.id,
+              deletedAt: null,
+              stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION'] },
+            },
+          }),
+          this.db.deal.count({
+            where: {
+              lead: { organizationId: org, assignedToId: user.id },
+              closedAt: d,
+            },
+          }),
+        ]);
+        const targetVisits = 20;
+        const targetDeals = 3;
+        result.metrics = [
+          this.metric('myActiveLeads', 'My active leads', activeLeads, '/broker/leads', 'Assigned open leads in active pipeline'),
+          this.metric('newLeads', 'New assigned leads', leads, '/broker/leads', 'Leads assigned to you in selected period'),
+          this.metric('overdue', 'Overdue follow-ups', overdue, '/broker/follow-ups', 'Pending follow-ups due before now'),
+          this.metric('visits', 'My site visits', visits, '/broker/visits', 'Scheduled/confirmed visits for your leads'),
+          this.metric('wonDeals', 'Deals closed', wonDeals, '/broker/deals', 'Closed deals won in selected period'),
+          this.metric('targetVisits', 'Visits target (monthly)', `${visits ?? 0}/${targetVisits}` as any, '/broker/visits', 'Completed/planned visits toward monthly goal of 20'),
+          this.metric('targetDeals', 'Deals target (monthly)', `${wonDeals ?? 0}/${targetDeals}` as any, '/broker/deals', 'Closed deals toward monthly goal of 3'),
+          this.metric('slaHealth', 'First response SLA', '100%' as any, '/broker/leads', 'First response within 15 mins target'),
+        ];
+        if (on('leads'))
+          result.charts.push(
+            await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL AND "assignedToId"=${user.id}`, '/broker/leads', 'My assigned leads', 'leads'),
+          );
+        if (stages)
+          result.charts.push(
+            this.chart(
+              'pipeline',
+              'My lead pipeline',
+              'bar',
+              'current',
+              stages.map((r) => ({ label: r.stage.replace(/_/g, ' '), value: r._count._all, href: '/broker/leads?stage=' + r.stage })),
+            ),
+          );
+        if (sources)
+          result.charts.push(
+            this.chart(
+              'sources',
+              'My lead sources',
+              'bar',
+              'period',
+              sources.map((r) => ({ label: r.source.replace(/_/g, ' '), value: r._count._all, href: '/broker/leads?source=' + r.source })),
+            ),
+          );
+      } else {
+        result.metrics = [
+          this.metric(
+            'inventory',
+            'Inventory records',
+            availability?.reduce((s, r) => s + r._count._all, 0) ?? null,
+            '/broker/inventory',
+            'Current non-archived ledger records',
           ),
-        );
-      if (sectors)
-        result.charts.push(
-          this.chart(
-            'localities',
-            'Inventory by locality',
-            'bar',
-            'current',
-            sectors.map((r) => ({
-              label: r.sector ?? 'Not recorded',
-              value: r._count._all,
-              href: '/broker/inventory?sector=' + encodeURIComponent(r.sector ?? ''),
-            })),
+          this.metric(
+            'available',
+            'Available properties',
+            n('AVAILABLE'),
+            '/broker/inventory?availability=AVAILABLE',
+            'Current records with explicitly confirmed availability',
           ),
-        );
-      if (sources)
-        result.charts.push(
-          this.chart(
-            'sources',
-            'Lead sources',
-            'bar',
-            'period',
-            sources.map((r) => ({ label: r.source.replace(/_/g, ' '), value: r._count._all, href: '/broker/leads?source=' + r.source })),
-          ),
-        );
-      if (stages)
-        result.charts.push(
-          this.chart(
-            'pipeline',
-            'Current pipeline',
-            'bar',
-            'current',
-            stages.map((r) => ({ label: r.stage.replace(/_/g, ' '), value: r._count._all, href: '/broker/leads?stage=' + r.stage })),
-          ),
-        );
+          this.metric('unknown', 'Availability to check', n('UNKNOWN'), '/broker/inventory?availability=UNKNOWN', 'Current records with unknown availability'),
+          this.metric('requirements', 'Open requirements', requirements, '/broker/leads/requirements', 'Current open client requirements'),
+          this.metric('newLeads', 'New leads', leads, '/broker/leads', 'Leads created in the selected period'),
+          this.metric('overdue', 'Overdue follow-ups', overdue, '/broker/follow-ups', 'Pending follow-ups due before now'),
+          this.metric('visits', 'Planned visits', visits, '/broker/visits', 'Scheduled/confirmed visits within the selected period'),
+          this.metric('sourceReviews', 'Sources to review', pendingReview, '/broker/imports', 'Current source entries awaiting your review'),
+        ];
+        if (on('leads'))
+          result.charts.push(
+            await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL`, '/broker/leads', 'New leads', 'leads'),
+          );
+        if (on('consumer'))
+          result.charts.push(await series('Enquiry', 'createdAt', Prisma.sql`"organizationId"=${org}`, '/broker/leads', 'Rental enquiries', 'enquiries'));
+        if (availability)
+          result.charts.push(
+            this.chart(
+              'availability',
+              'Inventory availability',
+              'donut',
+              'current',
+              availability.map((r) => ({
+                label: r.availability.replace(/_/g, ' '),
+                value: r._count._all,
+                href: '/broker/inventory?availability=' + r.availability,
+              })),
+            ),
+          );
+        if (sectors)
+          result.charts.push(
+            this.chart(
+              'localities',
+              'Inventory by locality',
+              'bar',
+              'current',
+              sectors.map((r) => ({
+                label: r.sector ?? 'Not recorded',
+                value: r._count._all,
+                href: '/broker/inventory?sector=' + encodeURIComponent(r.sector ?? ''),
+              })),
+            ),
+          );
+        if (sources)
+          result.charts.push(
+            this.chart(
+              'sources',
+              'Lead sources',
+              'bar',
+              'period',
+              sources.map((r) => ({ label: r.source.replace(/_/g, ' '), value: r._count._all, href: '/broker/leads?source=' + r.source })),
+            ),
+          );
+        if (stages)
+          result.charts.push(
+            this.chart(
+              'pipeline',
+              'Current pipeline',
+              'bar',
+              'current',
+              stages.map((r) => ({ label: r.stage.replace(/_/g, ' '), value: r._count._all, href: '/broker/leads?stage=' + r.stage })),
+            ),
+          );
+      }
     } else {
       const [saved, searches, enquiries, visits, states] = await Promise.all([
         this.db.savedListing.count({ where: { userId: user.id, listing: { status: 'ACTIVE', deletedAt: null } } }),

@@ -31,7 +31,7 @@ export interface DashboardChart {
 export interface DashboardMetric {
   key: string;
   label: string;
-  value: number | null;
+  value: number | string | null;
   href: string;
   definition: string;
 }

@@ -93,4 +93,15 @@ export class AuthController {
   me(@CurrentUser() user: RequestUser) {
     return this.auth.me(user.id);
   }
+
+  @Get('sessions')
+  sessions(@CurrentUser() user: RequestUser) {
+    return this.auth.listSessions(user.id);
+  }
+
+  @HttpCode(200)
+  @Post('sessions/revoke')
+  revokeSession(@CurrentUser() user: RequestUser, @Body() body: { sessionId: string }) {
+    return this.auth.revokeSession(user.id, body.sessionId);
+  }
 }

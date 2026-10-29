@@ -100,6 +100,7 @@ export class LeadsService {
           name: existing.name === 'Unknown' ? name : undefined,
           email: existing.email ?? (input.email || null),
           listingId: input.listingId ?? existing.listingId,
+          assignedToId: existing.assignedToId ? undefined : (input.assignedToId ?? undefined),
           lastActivityAt: new Date(),
         },
       });
@@ -287,6 +288,15 @@ export class LeadsService {
     if (user.role === 'BROKER_AGENT' && input.assignedToId && input.assignedToId !== user.id)
       throw new ForbiddenException('Only firm admins can assign leads to other members');
     if (input.assignedToId) await this.assertMember(orgId, input.assignedToId);
+
+    const normalizedPhone = normalizeIndianPhone(input.phone) ?? input.phone;
+    const existing = await this.prisma.lead.findFirst({ where: { organizationId: orgId, phone: normalizedPhone, deletedAt: null } });
+    if (existing && user.role === 'BROKER_AGENT' && existing.assignedToId && existing.assignedToId !== user.id) {
+      const assigned = await this.prisma.user.findUnique({ where: { id: existing.assignedToId }, select: { name: true } });
+      throw new BadRequestException(`यह Lead पहले से ${assigned?.name || 'अन्य एजेंट'} को असाइन है`);
+    }
+
+    const effectiveAssignee = user.role === 'BROKER_AGENT' ? user.id : (input.assignedToId ?? null);
     const { lead } = await this.ingest({
       orgId,
       name: input.name,
@@ -296,7 +306,7 @@ export class LeadsService {
       listingId: input.listingId,
       message: input.notes,
       requirement: input.requirement,
-      assignedToId: input.assignedToId ?? (user.role === 'BROKER_AGENT' ? user.id : null),
+      assignedToId: effectiveAssignee,
       actorId: user.id,
     });
     const data: Prisma.LeadUpdateInput = {};
@@ -304,6 +314,7 @@ export class LeadsService {
     if (input.temperature) Object.assign(data, { temperature: input.temperature, temperatureManual: true });
     if (input.tags?.length) data.tags = input.tags;
     if (input.alternatePhone) data.alternatePhone = normalizeIndianPhone(input.alternatePhone) ?? input.alternatePhone;
+    if (effectiveAssignee && !lead.assignedToId) data.assignedTo = { connect: { id: effectiveAssignee } };
     if (Object.keys(data).length) await this.prisma.lead.update({ where: { id: lead.id }, data });
     return this.detail(lead.id, user);
   }
@@ -333,12 +344,13 @@ export class LeadsService {
   async changeStage(id: string, stage: LeadStage, user: RequestUser, lostReason?: string | null) {
     const lead = await this.getScoped(id, user);
     if (lead.stage === stage) return lead;
+    const isClosedReasonStage = stage === 'LOST' || stage === 'NOT_INTERESTED';
     const updated = await this.prisma.lead.update({
       where: { id },
       data: {
         stage,
         stageChangedAt: new Date(),
-        lostReason: stage === 'LOST' ? (lostReason ?? null) : null,
+        lostReason: isClosedReasonStage ? (lostReason ?? null) : null,
         lastActivityAt: new Date(),
         firstResponseAt: lead.firstResponseAt ?? (stage !== 'NEW' ? new Date() : null),
         activities: {
@@ -346,13 +358,13 @@ export class LeadsService {
             organizationId: lead.organizationId,
             userId: user.id,
             type: 'STAGE_CHANGE',
-            content: `${LEAD_STAGE_LABELS[lead.stage]} → ${LEAD_STAGE_LABELS[stage]}${stage === 'LOST' && lostReason ? ` (${lostReason})` : ''}`,
+            content: `${LEAD_STAGE_LABELS[lead.stage]} → ${LEAD_STAGE_LABELS[stage]}${isClosedReasonStage && lostReason ? ` (${lostReason})` : ''}`,
             meta: { from: lead.stage, to: stage } as Prisma.InputJsonValue,
           },
         },
       },
     });
-    if (['WON', 'LOST'].includes(stage)) {
+    if (['WON', 'LOST', 'NOT_INTERESTED'].includes(stage)) {
       await this.prisma.followUp.updateMany({ where: { leadId: id, status: 'PENDING' }, data: { status: 'CANCELLED' } });
       await this.refreshNextFollowUp(id);
     }

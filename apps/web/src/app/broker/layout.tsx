@@ -26,13 +26,27 @@ function Inner({ children }: { children: React.ReactNode }) {
     if (user?.role === 'BROKER_ADMIN' && user.organization && !user.organization.onboarded && pathname !== '/broker/onboarding')
       router.replace('/broker/onboarding');
   }, [user, pathname, router]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+      }
+      if (e.key === 'PrintScreen') {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (pathname === '/broker/onboarding') return <>{children}</>;
   const k = dash.data?.kpis;
   const groups: NavGroup[] = [
     {
       items: [
         { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, exact: true },
-        { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
+        ...(user?.role !== 'BROKER_AGENT' ? [{ href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet }] : []),
         { href: '/broker/leads', label: 'Leads & Requirements', icon: Inbox, badge: k?.newToday || null },
         { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation & Housing', icon: Workflow }] : []),
@@ -53,7 +67,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         </div>
       }
     >
-      {children}
+      <div className="protected-view">{children}</div>
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
     </PanelShell>
   );

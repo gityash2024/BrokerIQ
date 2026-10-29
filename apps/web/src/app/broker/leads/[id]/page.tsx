@@ -85,6 +85,8 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>('timeline');
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
+  const [notInterestedOpen, setNotInterestedOpen] = useState(false);
+  const [notInterestedReason, setNotInterestedReason] = useState('');
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['lead', id] });
     qc.invalidateQueries({ queryKey: ['leads'] });
@@ -162,11 +164,15 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div className="flex overflow-x-auto border-t border-line scrollbar-none">
           {LEAD_STAGES.map((s, i) => {
             const active = s === l.stage;
-            const past = i < stageIdx && l.stage !== 'LOST';
+            const past = i < stageIdx && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
               <button
                 key={s}
-                onClick={() => (s === 'LOST' ? setLostOpen(true) : stage.mutate({ stage: s }))}
+                onClick={() => {
+                  if (s === 'LOST') setLostOpen(true);
+                  else if (s === 'NOT_INTERESTED') setNotInterestedOpen(true);
+                  else stage.mutate({ stage: s });
+                }}
                 className={cn(
                   'relative flex min-w-28 flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-bold transition',
                   active ? 'text-white' : past ? 'text-fg' : 'text-subtle hover:bg-surface-2',
@@ -255,6 +261,31 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           ))}
         </div>
         <Input className="mt-3" placeholder="या अपना कारण लिखें" value={lostReason} onChange={(e) => setLostReason(e.target.value)} />
+      </Dialog>
+
+      <Dialog
+        open={notInterestedOpen}
+        onOpenChange={setNotInterestedOpen}
+        title="Lead 'Not interested' mark करें"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => (stage.mutate({ stage: 'NOT_INTERESTED' }), setNotInterestedOpen(false))}>
+              Skip reason
+            </Button>
+            <Button variant="secondary" onClick={() => (stage.mutate({ stage: 'NOT_INTERESTED', lostReason: notInterestedReason }), setNotInterestedOpen(false))}>
+              Confirm
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-wrap gap-2">
+          {['Budget mismatch', 'Location mismatch', 'Plan postponed', 'Exploring later', 'Looking for different BHK', 'Not looking anymore'].map((r) => (
+            <Chip key={r} active={notInterestedReason === r} onClick={() => setNotInterestedReason(r)}>
+              {r}
+            </Chip>
+          ))}
+        </div>
+        <Input className="mt-3" placeholder="या कोई अन्य कारण लिखें" value={notInterestedReason} onChange={(e) => setNotInterestedReason(e.target.value)} />
       </Dialog>
     </div>
   );

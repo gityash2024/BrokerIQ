@@ -52,7 +52,7 @@ export default function LeadDetail() {
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
-  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'deal' | 'wa'>(null);
+  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'not_interested' | 'deal' | 'wa'>(null);
   const callPending = useRef(false);
   const refresh = () => {
     q.refetch();
@@ -174,7 +174,7 @@ export default function LeadDetail() {
               return (
                 <PressableScale
                   key={s}
-                  onPress={() => (s === 'LOST' ? setSheet('lost') : stage.mutate({ stage: s }))}
+                  onPress={() => (s === 'LOST' ? setSheet('lost') : s === 'NOT_INTERESTED' ? setSheet('not_interested') : stage.mutate({ stage: s }))}
                   style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
                 >
                   <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
@@ -284,6 +284,11 @@ export default function LeadDetail() {
         onClose={() => setSheet(null)}
         onSave={(reason) => (stage.mutate({ stage: 'LOST', lostReason: reason }), setSheet(null))}
       />
+      <NotInterestedSheet
+        open={sheet === 'not_interested'}
+        onClose={() => setSheet(null)}
+        onSave={(reason) => (stage.mutate({ stage: 'NOT_INTERESTED', lostReason: reason || undefined }), setSheet(null))}
+      />
       {dealsOn && <DealSheet open={sheet === 'deal'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />}
       <WaSheet open={sheet === 'wa'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
     </SafeAreaView>
@@ -371,10 +376,38 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
 }
 
 function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () => void; lead: any; onDone: () => void }) {
+  const { c } = useTheme();
   const [at, setAt] = useState<Date | null>(null);
+  const [isCustomDate, setIsCustomDate] = useState(false);
+  const [customDateStr, setCustomDateStr] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 2, 0, 0, 0);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [customTimeHour, setCustomTimeHour] = useState('11');
+  const [customTimeMinute, setCustomTimeMinute] = useState('00');
+  const [customTimePeriod, setCustomTimePeriod] = useState<'AM' | 'PM'>('AM');
+  const [searchProperty, setSearchProperty] = useState('');
   const [listingId, setListingId] = useState<string | null>(lead.listing?.id ?? null);
   const [address, setAddress] = useState('');
-  const mine = useQuery({ queryKey: ['my-listings-pick'], queryFn: () => api<any>('/inventory?pageSize=50'), enabled: open });
+
+  const mine = useQuery({ queryKey: ['my-listings-pick'], queryFn: () => api<any>('/inventory?pageSize=100'), enabled: open });
+
+  const applyCustomDateTime = (dateStr: string, hourStr: string, minuteStr: string, period: 'AM' | 'PM') => {
+    try {
+      const parts = dateStr.split('-');
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      const day = Number(parts[2]);
+      let h = parseInt(hourStr, 10) || 10;
+      if (period === 'PM' && h < 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      const m = parseInt(minuteStr, 10) || 0;
+      const d = new Date(year, (month || 1) - 1, day || 1, h, m);
+      if (!isNaN(d.getTime())) setAt(d);
+    } catch {}
+  };
+
   const save = useApiMutation(() => post('/visits', { leadId: lead.id, scheduledAt: at!.toISOString(), address: address || null }), {
     success: 'Site visit scheduled 🗓',
     onSuccess: () => {
@@ -383,31 +416,213 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
       onDone();
     },
   });
+
+  const allProperties = (mine.data?.items ?? []).filter((item: any, idx: number, self: any[]) => {
+    return self.findIndex((o: any) => o.id === item.id || (o.houseNo && o.sector && o.houseNo === item.houseNo && o.sector === item.sector)) === idx;
+  });
+
+  const filteredProperties = allProperties.filter((x: any) => {
+    if (!searchProperty.trim()) return true;
+    const q = searchProperty.toLowerCase();
+    const str = `${x.houseNo || ''} ${x.unitLabel || ''} ${x.sector || ''} ${x.bedrooms || ''} BHK ${x.furnishing || ''} ${x.rent || ''}`.toLowerCase();
+    return str.includes(q);
+  });
+
   return (
-    <Sheet open={open} onClose={onClose} title="Site visit">
-      <Row wrap>
-        {timePresets().map((p) => (
-          <Chip key={p.label} label={p.label} active={at?.getTime() === p.at.getTime()} onPress={() => setAt(p.at)} />
-        ))}
-      </Row>
+    <Sheet open={open} onClose={onClose} title="Site visit schedule करें">
       <Txt v="label" color="subtle">
-        Property
+        कब (Date & Time)
       </Txt>
-      <Row wrap>
-        {(mine.data?.items ?? []).slice(0, 12).map((x: any) => (
-          <Chip
-            key={x.id}
-            label={[x.houseNo, x.unitLabel, x.sector].filter(Boolean).join(' ').slice(0, 32)}
-            active={listingId === x.id}
-            onPress={() => {
-              setListingId(x.id);
-              setAddress([x.houseNo, x.unitLabel, x.sector, x.address].filter(Boolean).join(', '));
-            }}
-          />
+      <Row wrap gap={6} style={{ marginTop: 4, marginBottom: 8 }}>
+        {timePresets().map((p) => {
+          const active = !isCustomDate && at?.getTime() === p.at.getTime();
+          return (
+            <Chip
+              key={p.label}
+              label={p.label}
+              active={active}
+              onPress={() => {
+                setIsCustomDate(false);
+                setAt(p.at);
+              }}
+            />
+          );
+        })}
+        <Chip
+          label="📅 Custom Date / Time"
+          active={isCustomDate}
+          onPress={() => {
+            setIsCustomDate(true);
+            applyCustomDateTime(customDateStr, customTimeHour, customTimeMinute, customTimePeriod);
+          }}
+        />
+      </Row>
+
+      {isCustomDate && (
+        <Card style={{ padding: 12, gap: 10, backgroundColor: `${c.brand}0c`, borderColor: `${c.brand}30`, marginBottom: 12 }}>
+          <Txt v="small" color="brand" style={{ fontWeight: '700' }}>
+            अपने हिसाब से तारीख और समय चुनें:
+          </Txt>
+          <Row gap={8} style={{ alignItems: 'center' }}>
+            <View style={{ flex: 2 }}>
+              <Txt v="caption" color="muted">तारीख (YYYY-MM-DD)</Txt>
+              <Input
+                value={customDateStr}
+                onChangeText={(v) => {
+                  setCustomDateStr(v);
+                  applyCustomDateTime(v, customTimeHour, customTimeMinute, customTimePeriod);
+                }}
+                placeholder="2026-10-30"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt v="caption" color="muted">घंटे (1-12)</Txt>
+              <Input
+                value={customTimeHour}
+                onChangeText={(v) => {
+                  setCustomTimeHour(v);
+                  applyCustomDateTime(customDateStr, v, customTimeMinute, customTimePeriod);
+                }}
+                keyboardType="numeric"
+                placeholder="11"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt v="caption" color="muted">मिनट</Txt>
+              <Input
+                value={customTimeMinute}
+                onChangeText={(v) => {
+                  setCustomTimeMinute(v);
+                  applyCustomDateTime(customDateStr, customTimeHour, v, customTimePeriod);
+                }}
+                keyboardType="numeric"
+                placeholder="30"
+              />
+            </View>
+            <View style={{ flex: 1.2, alignSelf: 'flex-end', paddingBottom: 2 }}>
+              <Row gap={4}>
+                <Chip
+                  label="AM"
+                  active={customTimePeriod === 'AM'}
+                  onPress={() => {
+                    setCustomTimePeriod('AM');
+                    applyCustomDateTime(customDateStr, customTimeHour, customTimeMinute, 'AM');
+                  }}
+                />
+                <Chip
+                  label="PM"
+                  active={customTimePeriod === 'PM'}
+                  onPress={() => {
+                    setCustomTimePeriod('PM');
+                    applyCustomDateTime(customDateStr, customTimeHour, customTimeMinute, 'PM');
+                  }}
+                />
+              </Row>
+            </View>
+          </Row>
+        </Card>
+      )}
+
+      {at && (
+        <Row gap={6} style={{ alignItems: 'center', marginBottom: 10 }}>
+          <CalendarPlus size={16} color={c.brand} />
+          <Txt v="small" color="brand" style={{ fontWeight: '600' }}>
+            Scheduled for: {at.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+          </Txt>
+        </Row>
+      )}
+
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 4 }}>
+        <Txt v="label" color="subtle">
+          Property (कोई भी चुनें या सर्च करें)
+        </Txt>
+        {filteredProperties.length > 0 && (
+          <Txt v="caption" color="muted">{filteredProperties.length} उपलब्ध</Txt>
+        )}
+      </Row>
+
+      <Input
+        value={searchProperty}
+        onChangeText={setSearchProperty}
+        placeholder="🔍 Sector / House / BHK से फ़िल्टर करें..."
+        containerStyle={{ marginBottom: 8 }}
+      />
+
+      <ScrollView horizontal={false} style={{ maxHeight: 180, marginBottom: 10 }} showsVerticalScrollIndicator={false}>
+        <Row wrap gap={6}>
+          {filteredProperties.slice(0, 30).map((x: any) => {
+            const active = listingId === x.id;
+            const title = [x.houseNo, x.unitLabel, x.sector].filter(Boolean).join(' ') || 'Property';
+            const detail = [x.bedrooms ? `${x.bedrooms} BHK` : null, x.rent ? `₹${(x.rent / 1000).toFixed(0)}k` : null, x.furnishing ? x.furnishing.slice(0, 4) : null].filter(Boolean).join(' · ');
+            return (
+              <PressableScale
+                key={x.id}
+                onPress={() => {
+                  setListingId(x.id);
+                  setAddress([x.houseNo, x.unitLabel, x.sector, x.address].filter(Boolean).join(', '));
+                }}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  borderColor: active ? c.brand : c.line,
+                  backgroundColor: active ? `${c.brand}14` : c.surface,
+                  marginBottom: 4,
+                }}
+              >
+                <Txt v="bodyStrong" color={active ? 'brand' : 'default'} style={{ fontSize: 13 }}>
+                  {title}
+                </Txt>
+                {detail ? (
+                  <Txt v="caption" color={active ? 'brand' : 'muted'} style={{ fontSize: 11, marginTop: 2 }}>
+                    {detail}
+                  </Txt>
+                ) : null}
+              </PressableScale>
+            );
+          })}
+        </Row>
+      </ScrollView>
+
+      <Txt v="label" color="subtle" style={{ marginBottom: 4 }}>
+        Meeting Point / Custom Address
+      </Txt>
+      <Input
+        value={address}
+        onChangeText={setAddress}
+        placeholder="Gate No., Land mark, या कोई भी नया address लिखें…"
+      />
+
+      <Button
+        title="Schedule visit"
+        loading={save.isPending}
+        disabled={!at}
+        style={{ marginTop: 14 }}
+        onPress={() => save.mutate(undefined)}
+      />
+    </Sheet>
+  );
+}
+
+function NotInterestedSheet({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (r: string) => void }) {
+  const [r, setR] = useState('');
+  return (
+    <Sheet open={open} onClose={onClose} title="Lead इच्छुक क्यों नहीं है?">
+      <Txt v="caption" color="muted" style={{ marginBottom: 8 }}>
+        कारण चुनें (वैकल्पिक):
+      </Txt>
+      <Row wrap gap={6} style={{ marginBottom: 12 }}>
+        {['Budget mismatch', 'Location mismatch', 'Plan postponed', 'Looking for different BHK', 'Rented elsewhere', 'Fake / wrong number'].map((x) => (
+          <Chip key={x} label={x} active={r === x} onPress={() => setR(r === x ? '' : x)} />
         ))}
       </Row>
-      <Input value={address} onChangeText={setAddress} placeholder="Meeting point (optional)" />
-      <Button title="Schedule visit" loading={save.isPending} disabled={!at} onPress={() => save.mutate(undefined)} />
+      <Input value={r} onChangeText={setR} placeholder="कोई अन्य कारण (optional)..." />
+      <Row gap={10} style={{ marginTop: 14 }}>
+        <View style={{ flex: 1 }}>
+          <Button title="Mark Not Interested" variant="secondary" onPress={() => onSave(r)} />
+        </View>
+      </Row>
     </Sheet>
   );
 }

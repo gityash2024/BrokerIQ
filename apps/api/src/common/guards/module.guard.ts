@@ -19,6 +19,8 @@ export class ModuleGuard implements CanActivate {
     if (user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.orgId) throw new ForbiddenException('Firm membership required');
     const path = (req.path || req.url).replace(/^\/api(?=\/|$)/, '');
     const key = moduleForPath(path, 'api');
+    if (!user && path.startsWith('/webhooks/') && this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]))
+      return true;
     if (!user && key === 'consumer' && !this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]))
       throw new ForbiddenException('Login required');
     const publicSlots =

@@ -2,13 +2,14 @@
 import { InventoryDetails } from '@/components/broker/launch/inventory-details';
 import { PublicPublish } from '@/components/broker/launch/public-publish';
 import { inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Phone, MessageCircle } from 'lucide-react';
 import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, formatINR } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
@@ -50,6 +51,17 @@ export default function LedgerPage() {
   );
 }
 function LedgerInner() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role === 'BROKER_AGENT') {
+      router.replace('/broker/leads');
+    }
+  }, [user, router]);
+
+  if (user?.role === 'BROKER_AGENT') return null;
+
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
   const params = useSearchParams();

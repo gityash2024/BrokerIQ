@@ -42,7 +42,9 @@ export default function AddLead() {
       onSuccess: (r: any) => {
         qc.invalidateQueries({ queryKey: ['leads'] });
         qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
-        router.replace(`/lead/${r.lead?.id ?? r.id}`);
+        const targetId = r?.id || r?.lead?.id;
+        if (targetId) router.replace(`/lead/${targetId}`);
+        else router.back();
       },
     },
   );

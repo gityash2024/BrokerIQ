@@ -44,7 +44,7 @@ export const authStore = {
     if (authStore.get()?.user.id !== v?.user.id) cacheResets.forEach((reset) => reset());
     if (v) localStorage.setItem(KEY, JSON.stringify(v));
     else localStorage.removeItem(KEY);
-    document.cookie = v ? `biq_role=${v.user.role}; path=/; max-age=2592000; samesite=lax` : 'biq_role=; path=/; max-age=0';
+    document.cookie = v ? `biq_role=${v.user.role}; path=/; max-age=31536000; samesite=lax` : 'biq_role=; path=/; max-age=0';
     window.dispatchEvent(new Event('biq-auth'));
   },
 };
@@ -62,7 +62,7 @@ async function refresh(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: cur.refreshToken }),
       });
       if (!res.ok) {
-        if (authStore.get()?.user.id === cur.user.id) authStore.set(null);
+        if (res.status === 401 && authStore.get()?.user.id === cur.user.id) authStore.set(null);
         return false;
       }
       const data: AuthResponse = await res.json();

@@ -13,6 +13,7 @@ export default function Today() {
   const { c } = useTheme();
   const q = useQuery({ queryKey: ['broker-today'], queryFn: () => api<any>('/broker/today'), refetchInterval: 60000 });
   const d = q.data;
+  const isAgent = user?.role === 'BROKER_AGENT';
   return (
     <BrokerScreen title="Today" subtitle={user?.organization?.name ?? 'BrokerIQ'}>
       <ScrollView
@@ -21,9 +22,11 @@ export default function Today() {
       >
         <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <Button title="Add property" onPress={() => router.push('/inventory-edit')} />
-          </View>
+          {!isAgent && (
+            <View style={{ flex: 1 }}>
+              <Button title="Add property" onPress={() => router.push('/inventory-edit')} />
+            </View>
+          )}
           <View style={{ flex: 1 }}>
             <Button title="Capture message" variant="secondary" onPress={() => router.push('/capture')} />
           </View>
@@ -64,7 +67,7 @@ export default function Today() {
             <Txt color="muted">No visits scheduled today.</Txt>
           </NativeCard>
         )}
-        {d?.inventory?.unknown > 0 && (
+        {!isAgent && d?.inventory?.unknown > 0 && (
           <NativeCard onPress={() => router.push('/(broker)/inventory')}>
             <Txt v="title">Confirm property availability</Txt>
             <Txt color="muted">{`${d.inventory.unknown} properties have unknown availability.`}</Txt>

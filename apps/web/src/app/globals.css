@@ -288,3 +288,18 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
     scroll-behavior: auto !important;
   }
 }
+
+/* Anti-capture & Print security protection */
+@media print {
+  html, body {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
+.protected-view {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
