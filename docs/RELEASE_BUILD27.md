@@ -61,7 +61,7 @@ Scope: 6 Core Product Improvements, Release v2.1.3-build27, and Security Hardeni
 - **Version:** `2.1.3`
 - **VersionCode:** `27`
 - **Signing Keystore:** `brokeriq-upload.keystore` (Homebrew JDK 17, SHA256: `d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce`)
-- **APK SHA256:** `bcedc7f3695e659e335d772942a96937840868ed796ea035ce5863a1842a9170`
+- **APK SHA256:** `5b2a07882ba10b728dcb28d1538ed641b46c8ffab5a4bc3f9d134319f3cc56a3`
 - **APK Download:** `https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.1.3-build27.apk`
 - **Landing Page Updated:** `https://brokeriq.mymultimeds.com` reflects build 27 APK link, checksum, and timestamps.
 - **Production Server:** DigitalOcean `165.232.182.189`

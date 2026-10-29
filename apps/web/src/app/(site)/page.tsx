@@ -11,7 +11,7 @@ export default async function Home() {
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={process.env.ANDROID_RELEASE_URL || '/downloads/BrokerIQ-v2.1.3-build27.apk'}
-      checksum={process.env.ANDROID_RELEASE_SHA256 || 'bcedc7f3695e659e335d772942a96937840868ed796ea035ce5863a1842a9170'}
+      checksum={process.env.ANDROID_RELEASE_SHA256 || '5b2a07882ba10b728dcb28d1538ed641b46c8ffab5a4bc3f9d134319f3cc56a3'}
       releaseUpdates={{
         user: '2026-10-29T17:15:00Z',
         broker: '2026-10-29T17:15:00Z',
