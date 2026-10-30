@@ -8,22 +8,22 @@ export const metadata: Metadata = {
 export default async function Home() {
   const config = await getConfig();
   const releaseApkUrl =
-    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36') && !process.env.ANDROID_RELEASE_URL.includes('build37') && !process.env.ANDROID_RELEASE_URL.includes('build38')
+    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36') && !process.env.ANDROID_RELEASE_URL.includes('build37') && !process.env.ANDROID_RELEASE_URL.includes('build38') && !process.env.ANDROID_RELEASE_URL.includes('build39')
       ? process.env.ANDROID_RELEASE_URL
-      : '/downloads/BrokerIQ-v2.2.3-build39.apk';
+      : '/downloads/BrokerIQ-v2.2.4-build40.apk';
   const releaseChecksum =
-    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37') && !process.env.ANDROID_RELEASE_URL?.includes('build38')
+    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37') && !process.env.ANDROID_RELEASE_URL?.includes('build38') && !process.env.ANDROID_RELEASE_URL?.includes('build39')
       ? process.env.ANDROID_RELEASE_SHA256
-      : '5c494fc8f0a4818a47ce2042be67ce016da6a072f031003f93b5229a96ca7d0a';
+      : 'db10b604fc12406b9b94e341e2a2732e9ef5b5bab09ccf5e4be0040dba3bde30';
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={releaseApkUrl}
       checksum={releaseChecksum}
       releaseUpdates={{
-        user: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:33:00Z',
-        broker: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:33:00Z',
-        android: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:33:00Z',
+        user: process.env.RELEASE_UPDATED_AT || '2026-10-30T20:12:00Z',
+        broker: process.env.RELEASE_UPDATED_AT || '2026-10-30T20:12:00Z',
+        android: process.env.RELEASE_UPDATED_AT || '2026-10-30T20:12:00Z',
       }}
       screenshots={[
         {

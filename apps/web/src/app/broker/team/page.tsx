@@ -1,23 +1,34 @@
 'use client';
+
 import { useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   CheckCircle2,
   Clock,
+  Compass,
   CreditCard,
   Crown,
   ExternalLink,
   FileText,
   Link2,
   Mail,
+  MapPin,
   MoreHorizontal,
+  Navigation,
+  Percent,
+  Phone,
+  Save,
   Send,
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Target,
+  TrendingUp,
   Trophy,
+  User,
   UserMinus,
   UserPlus,
   Users,
@@ -40,13 +51,22 @@ import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function TeamPage() {
   const { user } = useAuth();
-  const admin = user?.role === 'BROKER_ADMIN';
+  const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const q = useTeam();
   const [invite, setInvite] = useState(false);
   const inv = [['team']];
-  const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), { success: 'Updated', invalidate: inv });
-  const remove = useApiMutation((id: string) => del(`/broker/team/${id}`), { success: 'Member हटाया — उनकी leads unassigned हो गईं', invalidate: inv });
-  const cancel = useApiMutation((id: string) => del(`/broker/team/invites/${id}`), { success: 'Invite cancel', invalidate: inv });
+  const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
+    success: 'अपडेट हो गया ✅',
+    invalidate: inv,
+  });
+  const remove = useApiMutation((id: string) => del(`/broker/team/${id}`), {
+    success: 'सदस्य को टीम से हटा दिया गया',
+    invalidate: inv,
+  });
+  const cancel = useApiMutation((id: string) => del(`/broker/team/invites/${id}`), {
+    success: 'Invite रद्द कर दिया गया',
+    invalidate: inv,
+  });
 
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
 
@@ -59,8 +79,8 @@ export default function TeamPage() {
   return (
     <>
       <PageHeader
-        title="Team"
-        subtitle="Agents invite करें, roles दें, KYC verify करें, performance देखें"
+        title="Team & Agents"
+        subtitle="एजेंट्स को इनवाइट करें, रोल्स दें, टारगेट्स सेट करें व लाइव लोकेशन ट्रैक करें"
         actions={
           admin && (
             <Button size="sm" onClick={() => setInvite(true)}>
@@ -110,22 +130,26 @@ export default function TeamPage() {
         <Skeleton className="h-64 rounded-2xl" />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[850px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
               <tr>
                 <th className="px-4 py-3">Member</th>
                 <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Live Location</th>
+                <th className="px-4 py-3">Target & Fulfillment</th>
                 <th className="px-4 py-3">KYC Status</th>
                 <th className="px-4 py-3 text-center">Open leads</th>
                 <th className="px-4 py-3 text-center">Won (30d)</th>
-                <th className="px-4 py-3 text-center">Activities (30d)</th>
-                <th className="px-4 py-3">Last login</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {members.map((m: any) => {
                 const kycStatus = m.kycStatus || 'UNVERIFIED';
+                const loc = m.lastLocation;
+                const dealsTarget = m.targets?.monthlyDeals || 5;
+                const dealsWon = m.fulfillment?.dealsWonMonth ?? m.stats.won30d ?? 0;
+                const dealsPct = m.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
 
                 return (
                   <tr
@@ -136,21 +160,24 @@ export default function TeamPage() {
                       m.status !== 'ACTIVE' && 'opacity-60',
                     )}
                   >
+                    {/* Member */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar name={m.name} src={m.avatarUrl} size={36} />
+                        <Avatar name={m.name} src={m.avatarUrl} size={38} />
                         <div className="min-w-0">
-                          <p className="font-semibold">
+                          <p className="font-semibold flex items-center gap-1.5">
                             {m.name} {m.id === user?.id && <span className="text-xs font-normal text-muted">(आप)</span>}
                           </p>
                           <p className="truncate text-xs text-muted">{m.email ?? m.phone}</p>
                         </div>
                       </div>
                     </td>
+
+                    {/* Role */}
                     <td className="px-4 py-3">
                       {m.role === 'BROKER_ADMIN' ? (
                         <Badge tone="brand">
-                          <Crown className="size-3" /> Admin
+                          <Crown className="size-3 mr-1" /> Admin
                         </Badge>
                       ) : (
                         <Badge>Agent</Badge>
@@ -161,6 +188,54 @@ export default function TeamPage() {
                         </Badge>
                       )}
                     </td>
+
+                    {/* Live Location */}
+                    <td className="px-4 py-3" onClick={(e) => loc && e.stopPropagation()}>
+                      {loc ? (
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          <a
+                            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                            title={`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)} (${timeAgo(loc.capturedAt)})`}
+                          >
+                            <MapPin className="size-3" />
+                            <span>{timeAgo(loc.capturedAt)}</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted flex items-center gap-1">
+                          <span className="size-2 rounded-full bg-slate-300 dark:bg-slate-600" />
+                          Offline
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Target & Fulfillment */}
+                    <td className="px-4 py-3 min-w-[140px]">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                          <span className="text-muted">डील्स:</span>
+                          <span>{dealsWon} / {dealsTarget} ({dealsPct}%)</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
+                          <div
+                            className={cn(
+                              'h-full rounded-full transition-all',
+                              dealsPct >= 100 ? 'bg-emerald-500' : dealsPct >= 50 ? 'bg-amber-500' : 'bg-brand',
+                            )}
+                            style={{ width: `${dealsPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* KYC Status */}
                     <td className="px-4 py-3">
                       {kycStatus === 'VERIFIED' ? (
                         <Badge tone="success" className="font-bold">
@@ -168,22 +243,23 @@ export default function TeamPage() {
                         </Badge>
                       ) : kycStatus === 'PENDING' ? (
                         <Badge tone="warning" className="font-bold animate-pulse">
-                          Pending Review
+                          Pending
                         </Badge>
                       ) : kycStatus === 'REJECTED' ? (
                         <Badge tone="danger">Rejected</Badge>
                       ) : (
-                        <Badge tone="neutral">Not submitted</Badge>
+                        <Badge tone="neutral">Required</Badge>
                       )}
                     </td>
+
                     <td className="px-4 py-3 text-center font-semibold">{m.stats.openLeads}</td>
                     <td className="px-4 py-3 text-center font-semibold text-emerald-600">{m.stats.won30d}</td>
-                    <td className="px-4 py-3 text-center">{m.stats.activities30d}</td>
-                    <td className="px-4 py-3 text-xs text-muted">{m.lastLoginAt ? timeAgo(m.lastLoginAt) : 'कभी नहीं'}</td>
+
+                    {/* Actions */}
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <Button size="xs" variant="ghost" onClick={() => setSelectedAgent(m)}>
-                          Details & KYC
+                          Details & Target
                         </Button>
                         {admin && m.id !== user?.id && (
                           <DM.Root>
@@ -191,21 +267,26 @@ export default function TeamPage() {
                               <MoreHorizontal className="size-4" />
                             </DM.Trigger>
                             <DM.Portal>
-                              <DM.Content align="end" className="z-50 min-w-48 rounded-xl border border-line bg-surface p-1 shadow-xl">
+                              <DM.Content align="end" className="z-50 min-w-52 rounded-xl border border-line bg-surface p-1 shadow-xl">
                                 <DM.Item
-                                  onSelect={() => update.mutate({ id: m.id, role: m.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN' })}
+                                  onSelect={() =>
+                                    update.mutate({
+                                      id: m.id,
+                                      role: m.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN',
+                                    })
+                                  }
                                   className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
                                 >
-                                  <ShieldCheck className="size-4" /> {m.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
+                                  <Crown className="size-4 text-brand" /> {m.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
                                 </DM.Item>
                                 <DM.Item
                                   onSelect={() => update.mutate({ id: m.id, status: m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })}
                                   className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
                                 >
-                                  <X className="size-4" /> {m.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
+                                  <X className="size-4 text-amber-500" /> {m.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate करें'}
                                 </DM.Item>
                                 <DM.Item
-                                  onSelect={() => confirm(`${m.name} को team से हटाएँ? उनकी leads unassigned हो जाएँगी।`) && remove.mutate(m.id)}
+                                  onSelect={() => confirm(`${m.name} को टीम से हटाएँ? उनकी सभी leads unassigned हो जाएँगी।`) && remove.mutate(m.id)}
                                   className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:hover:bg-rose-500/10"
                                 >
                                   <UserMinus className="size-4" /> Team से हटाएँ
@@ -226,9 +307,9 @@ export default function TeamPage() {
 
       {admin && (q.data?.invites ?? []).length > 0 && (
         <div className="mt-6">
-          <p className="mb-3 text-sm font-bold">Pending invites</p>
+          <p className="mb-3 text-sm font-bold">लंबित इनवाइट्स (Pending invites)</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {(q.data?.invites ?? []).map((i) => (
+            {(q.data?.invites ?? []).map((i: any) => (
               <div key={i.id} className="card flex min-w-0 items-center gap-3 p-4">
                 <div className="grid size-10 place-items-center rounded-xl bg-surface-2 text-muted">
                   <Mail className="size-4" />
@@ -240,31 +321,288 @@ export default function TeamPage() {
                   </p>
                 </div>
                 <Button size="xs" variant="ghost" className="shrink-0" onClick={() => cancel.mutate(i.id)}>
-                  Cancel
+                  रद्द करें
                 </Button>
               </div>
             ))}
           </div>
         </div>
       )}
-      {q.data && members.length === 1 && !(q.data.invites ?? []).length && (
-        <Empty
-          className="mt-6"
-          icon={<Users className="size-7" />}
-          title="अकेले काम कर रहे हैं?"
-          text="Agents जोड़ें — leads round-robin से बँटेंगी और हर agent का performance यहाँ दिखेगा।"
-          action={
-            admin && (
-              <Button onClick={() => setInvite(true)}>
-                <UserPlus className="size-4" /> पहला agent invite करें
-              </Button>
-            )
-          }
-        />
-      )}
+
       <InviteDialog open={invite} onOpenChange={setInvite} />
-      <AgentKycModal agent={selectedAgent} open={!!selectedAgent} onOpenChange={(v) => !v && setSelectedAgent(null)} />
+      <AgentDetailsAndTargetModal
+        agent={selectedAgent}
+        open={!!selectedAgent}
+        onOpenChange={(v) => !v && setSelectedAgent(null)}
+      />
     </>
+  );
+}
+
+/* ========================================================================= */
+/* AGENT DETAILS, EDITABLE PROFILE, TARGETS & LIVE LOCATION MODAL            */
+/* ========================================================================= */
+
+function AgentDetailsAndTargetModal({
+  agent,
+  open,
+  onOpenChange,
+}: {
+  agent: any | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
+
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState<'BROKER_ADMIN' | 'BROKER_AGENT'>('BROKER_AGENT');
+  const [dealsTarget, setDealsTarget] = useState<number>(5);
+  const [revenueTarget, setRevenueTarget] = useState<number>(500000);
+  const [leadsTarget, setLeadsTarget] = useState<number>(30);
+  const [commissionPct, setCommissionPct] = useState<number>(10);
+
+  // Sync state when agent selected
+  useState(() => {
+    if (agent) {
+      setEditName(agent.name || '');
+      setEditPhone(agent.phone || '');
+      setEditRole(agent.role || 'BROKER_AGENT');
+      setDealsTarget(agent.targets?.monthlyDeals ?? 5);
+      setRevenueTarget(agent.targets?.monthlyRevenue ?? 500000);
+      setLeadsTarget(agent.targets?.monthlyLeads ?? 30);
+      setCommissionPct(agent.targets?.commissionPct ?? 10);
+    }
+  });
+
+  const saveMutation = useApiMutation(
+    (body: any) => patch(`/broker/team/${agent?.id}`, body),
+    {
+      success: 'Agent प्रोफाइल और टारगेट्स अपडेट हो गए ✅',
+      invalidate: [['team']],
+      onSuccess: () => {
+        onOpenChange(false);
+      },
+    },
+  );
+
+  if (!agent) return null;
+
+  const loc = agent.lastLocation;
+  const wonThisMonth = agent.fulfillment?.dealsWonMonth ?? agent.stats?.won30d ?? 0;
+  const dealsPct = dealsTarget > 0 ? Math.min(100, Math.round((wonThisMonth / dealsTarget) * 100)) : 0;
+  const openLeads = agent.stats?.openLeads ?? 0;
+  const leadsPct = leadsTarget > 0 ? Math.min(100, Math.round((openLeads / leadsTarget) * 100)) : 0;
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      name: editName.trim(),
+      phone: editPhone.trim() || null,
+      role: editRole,
+      targets: {
+        monthlyDeals: Number(dealsTarget) || 0,
+        monthlyRevenue: Number(revenueTarget) || 0,
+        monthlyLeads: Number(leadsTarget) || 0,
+        commissionPct: Number(commissionPct) || 0,
+      },
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`${agent.name} • एजेंट विवरण व लक्ष्य`}
+      description="प्रोफाइल, रोल्स, मासिक टारगेट्स एवं एजेंट की लाइव लोकेशन प्रबंधित करें"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <Link
+            href="/broker/kyc"
+            className="text-xs text-brand font-semibold hover:underline flex items-center gap-1"
+          >
+            <ShieldCheck className="size-4" /> KYC मॉड्यूल में देखें
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              बंद करें
+            </Button>
+            {isAdmin && (
+              <Button loading={saveMutation.isPending} onClick={handleSave} className="bg-brand text-white font-bold">
+                <Save className="size-4" /> बदलाव सेव करें
+              </Button>
+            )}
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Profile Card */}
+        <div className="flex items-center justify-between rounded-2xl bg-surface-2 p-4 border border-line">
+          <div className="flex items-center gap-3">
+            <Avatar name={agent.name} src={agent.avatarUrl} size={48} />
+            <div>
+              <p className="font-bold text-base">{agent.name}</p>
+              <p className="text-xs text-muted">{agent.email} {agent.phone ? `· ${agent.phone}` : ''}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge tone={agent.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>
+              {agent.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}
+            </Badge>
+            <Badge tone={agent.kycStatus === 'VERIFIED' ? 'success' : agent.kycStatus === 'PENDING' ? 'warning' : 'neutral'}>
+              {agent.kycStatus || 'UNVERIFIED'}
+            </Badge>
+          </div>
+        </div>
+
+        {/* 1. Live Location Tracker Section */}
+        <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <Compass className="size-4 text-emerald-500 animate-spin" />
+              <span>लाइव लोकेशन ट्रैकर (Live Location)</span>
+            </div>
+            {loc ? (
+              <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="size-2 rounded-full bg-emerald-500 animate-ping" />
+                एक्टिव ({timeAgo(loc.capturedAt)})
+              </span>
+            ) : (
+              <span className="text-xs text-muted">लोकेशन उपलब्ध नहीं</span>
+            )}
+          </div>
+
+          {loc ? (
+            <div className="rounded-xl bg-surface-2/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <p className="font-mono font-bold text-fg">
+                  Lat: {loc.latitude.toFixed(6)}, Lng: {loc.longitude.toFixed(6)}
+                </p>
+                <p className="text-muted mt-0.5">
+                  Accuracy: {loc.accuracy ? `±${Math.round(loc.accuracy)}m` : 'GPS'} · स्रोत: {loc.source || 'App'}
+                </p>
+              </div>
+              <a
+                href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 font-bold shrink-0 transition-colors"
+              >
+                <Navigation className="size-3.5" /> Google Maps पर देखें
+              </a>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-surface-2/30 p-3 text-xs text-muted">
+              एजेंट ने अभी तक मोबाइल ऐप या वेब पोर्टल से लोकेशन शेयर नहीं की है। जब एजेंट ऐप खोलेगा, लोकेशन अपने-आप यहाँ अपडेट हो जाएगी।
+            </div>
+          )}
+        </div>
+
+        {/* 2. Agent Targets & Fulfillment */}
+        <div className="rounded-2xl border border-line bg-surface p-4 space-y-4">
+          <div className="flex items-center justify-between border-b border-line pb-2">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <Target className="size-4 text-saffron-500" />
+              <span>मासिक लक्ष्य व पूर्ति (Targets & Fulfillment)</span>
+            </div>
+            <span className="text-xs text-muted">इस माह की प्रगति</span>
+          </div>
+
+          {/* Fulfillment Progress bars */}
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span>Deals Won: {wonThisMonth} / {dealsTarget}</span>
+                <span className={dealsPct >= 100 ? 'text-emerald-600' : 'text-fg'}>{dealsPct}% पूर्ण</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all',
+                    dealsPct >= 100 ? 'bg-emerald-500' : 'bg-saffron-500',
+                  )}
+                  style={{ width: `${dealsPct}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span>Leads Handled: {openLeads} / {leadsTarget}</span>
+                <span>{leadsPct}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+                <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${leadsPct}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Target inputs */}
+          {isAdmin && (
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Field label="Monthly Deals Target">
+                <Input
+                  type="number"
+                  min="0"
+                  value={dealsTarget}
+                  onChange={(e) => setDealsTarget(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </Field>
+              <Field label="Monthly Leads Target">
+                <Input
+                  type="number"
+                  min="0"
+                  value={leadsTarget}
+                  onChange={(e) => setLeadsTarget(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </Field>
+              <Field label="Revenue Target (₹)">
+                <Input
+                  type="number"
+                  min="0"
+                  step="10000"
+                  value={revenueTarget}
+                  onChange={(e) => setRevenueTarget(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </Field>
+              <Field label="Commission %">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={commissionPct}
+                  onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Editable Profile Fields */}
+        {isAdmin && (
+          <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
+            <h4 className="font-bold text-sm text-fg">एजेंट प्रोफाइल विवरण (Edit Profile)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="नाम">
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </Field>
+              <Field label="फ़ोन नंबर">
+                <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="10 अंक" />
+              </Field>
+            </div>
+            {agent.id !== user?.id && (
+              <Field label="रोल (Role)">
+                <Select value={editRole} onChange={(e) => setEditRole(e.target.value as any)}>
+                  <option value="BROKER_AGENT">Agent</option>
+                  <option value="BROKER_ADMIN">Admin</option>
+                </Select>
+              </Field>
+            )}
+          </div>
+        )}
+      </div>
+    </Dialog>
   );
 }
 
@@ -330,270 +668,6 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
           </Field>
         </div>
       )}
-    </Dialog>
-  );
-}
-
-function AgentKycModal({
-  agent,
-  open,
-  onOpenChange,
-}: {
-  agent: any | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const [rejectNote, setRejectNote] = useState('');
-  const [showRejectInput, setShowRejectInput] = useState(false);
-
-  const kycDetailsQuery = useQuery({
-    queryKey: ['agent-kyc-details', agent?.id],
-    queryFn: () => api<any>(`/broker/team/agents/${agent.id}/kyc`),
-    enabled: !!agent?.id && open,
-  });
-
-  const reviewMutation = useApiMutation(
-    (b: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) =>
-      patch(`/broker/team/agents/${agent.id}/kyc`, b),
-    {
-      success: (res: any) =>
-        res.status === 'VERIFIED'
-          ? 'Agent KYC स्वीकृत व वेरिफाइड हो गया ✅'
-          : 'Agent KYC अस्वीकृत कर दिया गया',
-      invalidate: [['team'], ['agent-kyc-details', agent?.id]],
-      onSuccess: () => {
-        setShowRejectInput(false);
-        setRejectNote('');
-      },
-    },
-  );
-
-  if (!agent) return null;
-  const kyc = kycDetailsQuery.data;
-  const status = kyc?.status || agent.kycStatus || 'UNVERIFIED';
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={`${agent.name} • Member Details & KYC`}
-      description={`${agent.email ?? agent.phone ?? ''} · Role: ${agent.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}`}
-    >
-      <div className="space-y-5">
-        {/* Agent Profile & Performance summary */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface-2/60 p-4">
-          <div className="flex items-center gap-3">
-            <Avatar name={agent.name} src={agent.avatarUrl} size={44} />
-            <div>
-              <p className="font-bold">{agent.name}</p>
-              <p className="text-xs text-muted">{agent.phone || agent.email}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {status === 'VERIFIED' ? (
-              <Badge tone="success" className="font-bold">
-                <ShieldCheck className="size-3.5 mr-1" /> KYC Verified
-              </Badge>
-            ) : status === 'PENDING' ? (
-              <Badge tone="warning" className="font-bold animate-pulse">
-                <Clock className="size-3.5 mr-1" /> Pending Review
-              </Badge>
-            ) : status === 'REJECTED' ? (
-              <Badge tone="danger">
-                <ShieldAlert className="size-3.5 mr-1" /> Rejected
-              </Badge>
-            ) : (
-              <Badge tone="neutral">
-                <Shield className="size-3.5 mr-1" /> Not Submitted
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl border border-line bg-surface p-2.5">
-            <p className="text-xs text-muted">Open Leads</p>
-            <p className="text-base font-bold">{agent.stats?.openLeads ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-line bg-surface p-2.5">
-            <p className="text-xs text-muted">Won (30d)</p>
-            <p className="text-base font-bold text-emerald-600">{agent.stats?.won30d ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-line bg-surface p-2.5">
-            <p className="text-xs text-muted">Activities (30d)</p>
-            <p className="text-base font-bold">{agent.stats?.activities30d ?? 0}</p>
-          </div>
-        </div>
-
-        {/* KYC Documents Section */}
-        <div className="space-y-3">
-          <h4 className="font-bold text-sm text-subtle uppercase tracking-wider">
-            KYC Identity Documents • पहचान दस्तावेज़
-          </h4>
-
-          {kycDetailsQuery.isLoading ? (
-            <Skeleton className="h-40 rounded-xl" />
-          ) : !kyc?.aadhaarNumber && !kyc?.panNumber && !kyc?.livelinessStraightUrl ? (
-            <div className="rounded-xl border border-line bg-surface-2/40 p-6 text-center text-muted text-xs">
-              इस agent ने अभी तक KYC विवरण और दस्तावेज़ सबमिट नहीं किए हैं।
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Aadhaar & PAN Cards */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="size-4 text-saffron-500" />
-                    <span className="font-semibold text-xs">Aadhaar Card</span>
-                  </div>
-                  <p className="font-mono text-sm font-bold tracking-wider">
-                    {kyc.aadhaarNumber ? kyc.aadhaarNumber.replace(/(\d{4})(?=\d)/g, '$1 ') : 'Not provided'}
-                  </p>
-                  {kyc.aadhaarPhotoUrl ? (
-                    <a
-                      href={kyc.aadhaarPhotoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group relative block h-28 overflow-hidden rounded-lg border border-line bg-surface-2"
-                    >
-                      <img src={kyc.aadhaarPhotoUrl} alt="Aadhaar" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                      <span className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
-                        <ExternalLink className="size-2.5" /> View
-                      </span>
-                    </a>
-                  ) : (
-                    <p className="text-xs text-muted">No document photo uploaded</p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="size-4 text-indigo-500" />
-                    <span className="font-semibold text-xs">PAN Card</span>
-                  </div>
-                  <p className="font-mono text-sm font-bold tracking-wider uppercase">
-                    {kyc.panNumber || 'Not provided'}
-                  </p>
-                  {kyc.panPhotoUrl ? (
-                    <a
-                      href={kyc.panPhotoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group relative block h-28 overflow-hidden rounded-lg border border-line bg-surface-2"
-                    >
-                      <img src={kyc.panPhotoUrl} alt="PAN" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                      <span className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
-                        <ExternalLink className="size-2.5" /> View
-                      </span>
-                    </a>
-                  ) : (
-                    <p className="text-xs text-muted">No document photo uploaded</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Face Liveliness Check 3-pose Gallery */}
-              <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-emerald-500" />
-                    <span className="font-semibold text-xs">Face Liveliness Check (3 Poses)</span>
-                  </div>
-                  <span className="text-[11px] text-muted">Straight, Left, Right</span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: 'Straight', url: kyc.livelinessStraightUrl },
-                    { label: 'Left Pose', url: kyc.livelinessLeftUrl },
-                    { label: 'Right Pose', url: kyc.livelinessRightUrl },
-                  ].map((p, i) => (
-                    <div key={i} className="flex flex-col items-center rounded-lg border border-line bg-surface-2 p-1.5 text-center">
-                      <div className="relative aspect-square w-full overflow-hidden rounded bg-black/20">
-                        {p.url ? (
-                          <a href={p.url} target="_blank" rel="noreferrer">
-                            <img src={p.url} alt={p.label} className="h-full w-full object-cover" />
-                          </a>
-                        ) : (
-                          <div className="grid h-full place-items-center text-muted text-[10px]">No photo</div>
-                        )}
-                      </div>
-                      <span className="mt-1 text-[11px] font-semibold">{p.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Review Note display if any */}
-              {kyc.reviewNote && (
-                <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-800 dark:text-rose-200">
-                  <span className="font-bold">Rejection Note: </span> {kyc.reviewNote}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Rejection input box */}
-        {showRejectInput && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3.5 space-y-2">
-            <Field label="Rejection Note • अस्वीकृति का कारण" required hint="एजेंट को यह कारण दिखेगा ताकि वे सही दस्तावेज़ अपलोड कर सकें">
-              <Input
-                value={rejectNote}
-                placeholder="उदा: आधार कार्ड की फ़ोटो स्पष्ट नहीं है"
-                onChange={(e) => setRejectNote(e.target.value)}
-              />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button size="xs" variant="ghost" onClick={() => setShowRejectInput(false)}>
-                Cancel
-              </Button>
-              <Button
-                size="xs"
-                variant="danger"
-                disabled={!rejectNote.trim() || reviewMutation.isPending}
-                onClick={() => reviewMutation.mutate({ status: 'REJECTED', reviewNote: rejectNote })}
-              >
-                Confirm Reject
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Verification Action Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-
-          <div className="flex items-center gap-2">
-            {!showRejectInput && status !== 'REJECTED' && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950"
-                onClick={() => setShowRejectInput(true)}
-              >
-                <X className="size-4 mr-1" /> Reject KYC
-              </Button>
-            )}
-
-            {status !== 'VERIFIED' && (
-              <Button
-                type="button"
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
-                disabled={reviewMutation.isPending}
-                onClick={() => reviewMutation.mutate({ status: 'VERIFIED' })}
-              >
-                <ShieldCheck className="size-4 mr-1" /> Approve & Verify KYC
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
     </Dialog>
   );
 }

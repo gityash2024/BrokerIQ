@@ -94,6 +94,7 @@ export default function AgentKycScreen() {
 
   // Pick/Capture Document (Aadhaar / PAN)
   const pickDocument = async (type: 'aadhaar' | 'pan') => {
+    if (isVerified) return;
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -121,6 +122,7 @@ export default function AgentKycScreen() {
 
   // Capture Liveliness Selfie with front camera
   const capturePose = async (pose: 'STRAIGHT' | 'LEFT' | 'RIGHT') => {
+    if (isVerified) return;
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {

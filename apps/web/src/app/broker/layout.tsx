@@ -10,6 +10,7 @@ import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
 import { AddLeadDialog } from '@/components/broker/add-lead';
+import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
 function Inner({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -54,16 +55,16 @@ function Inner({ children }: { children: React.ReactNode }) {
       items: [
         { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, exact: true },
         { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
-        { href: '/broker/leads', label: 'Leads & Requirements', icon: Inbox, badge: k?.newToday || null },
+        { href: '/broker/leads', label: 'Leads', icon: Inbox, badge: k?.newToday || null },
         { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
         {
           href: '/broker/kyc',
-          label: 'KYC Verification',
+          label: 'KYC',
           icon: ShieldCheck,
           badge: kycStatus === 'VERIFIED' ? 'Verified' : kycStatus === 'PENDING' ? 'Under Review' : kycStatus === 'REJECTED' ? 'Rejected' : 'Required',
         },
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/team', label: 'Team & Agents', icon: Users }] : []),
-        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation & Housing', icon: Workflow }] : []),
+        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation', icon: Workflow }] : []),
       ],
     },
   ];
@@ -81,6 +82,7 @@ function Inner({ children }: { children: React.ReactNode }) {
         </div>
       }
     >
+      <AgentLocationTracker />
       <div className="protected-view">{children}</div>
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
     </PanelShell>

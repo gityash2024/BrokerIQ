@@ -146,8 +146,37 @@ export function Header({ title, subtitle, right, back = true }: { title?: string
   );
 }
 
-export function Row({ children, gap = 8, style, wrap }: { children: React.ReactNode; gap?: number; style?: StyleProp<ViewStyle>; wrap?: boolean }) {
-  return <View style={[{ flexDirection: 'row', alignItems: 'center', gap, flexWrap: wrap ? 'wrap' : 'nowrap' }, style]}>{children}</View>;
+export function Row({
+  children,
+  gap = 8,
+  style,
+  wrap,
+  justify,
+  align = 'center',
+}: {
+  children: React.ReactNode;
+  gap?: number;
+  style?: StyleProp<ViewStyle>;
+  wrap?: boolean;
+  justify?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around';
+  align?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
+}) {
+  return (
+    <View
+      style={[
+        {
+          flexDirection: 'row',
+          alignItems: align,
+          justifyContent: justify,
+          gap,
+          flexWrap: wrap ? 'wrap' : 'nowrap',
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function SectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {

@@ -126,10 +126,39 @@ export class OrganizationsController {
   }
 
   // ------------------------------------------------------------------ team
-  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
   @Get('broker/team')
-  async team(@CurrentUser() user: RequestUser) {
-    return readBrokerTeam(this.prisma, user);
+  async team(@CurrentUser() user: RequestUser, @Query('orgId') orgId?: string) {
+    return readBrokerTeam(this.prisma, user, false, orgId);
+  }
+
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
+  @Post('broker/team/agent-location')
+  async reportLocation(
+    @CurrentUser() user: RequestUser,
+    @Body(
+      new ZodPipe(
+        z.object({
+          latitude: z.number().min(-90).max(90),
+          longitude: z.number().min(-180).max(180),
+          accuracy: z.number().optional().nullable(),
+          source: z.string().max(50).optional(),
+        }),
+      ),
+    )
+    body: { latitude: number; longitude: number; accuracy?: number | null; source?: string },
+  ) {
+    const loc = await this.prisma.userLocation.create({
+      data: {
+        userId: user.id,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        accuracy: body.accuracy ?? null,
+        source: body.source || 'APP',
+        capturedAt: new Date(),
+      },
+    });
+    return { ok: true, locationId: loc.id, capturedAt: loc.capturedAt };
   }
 
   @Roles('BROKER_ADMIN')
@@ -170,33 +199,102 @@ export class OrganizationsController {
     return { ok: true };
   }
 
-  @Roles('BROKER_ADMIN')
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
   @Patch('broker/team/:userId')
   async updateMember(
     @CurrentUser() user: RequestUser,
     @Param('userId') userId: string,
-    @Body(new ZodPipe(z.object({ role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(), status: z.enum(['ACTIVE', 'SUSPENDED']).optional() }))) body: any,
+    @Body(
+      new ZodPipe(
+        z.object({
+          name: z.string().min(2).max(100).optional(),
+          phone: z.string().optional().nullable(),
+          role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(),
+          status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+          targets: z
+            .object({
+              monthlyDeals: z.number().nonnegative().optional(),
+              monthlyRevenue: z.number().nonnegative().optional(),
+              monthlyLeads: z.number().nonnegative().optional(),
+              commissionPct: z.number().min(0).max(100).optional(),
+            })
+            .optional(),
+        }),
+      ),
+    )
+    body: {
+      name?: string;
+      phone?: string | null;
+      role?: 'BROKER_ADMIN' | 'BROKER_AGENT';
+      status?: 'ACTIVE' | 'SUSPENDED';
+      targets?: {
+        monthlyDeals?: number;
+        monthlyRevenue?: number;
+        monthlyLeads?: number;
+        commissionPct?: number;
+      };
+    },
   ) {
-    const orgId = requireOrg(user);
-    if (userId === user.id) throw new BadRequestException('अपना role/status खुद नहीं बदल सकते');
-    const member = await this.prisma.user.findFirst({ where: { id: userId, organizationId: orgId } });
-    if (!member) throw new NotFoundException();
-    const updated = await this.prisma.user.update({ where: { id: userId }, data: body });
-    if (body.status === 'SUSPENDED' || body.role) await this.auth.revokeAll(userId);
+    const isSuper = user.role === 'SUPER_ADMIN';
+    const member = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!member) throw new NotFoundException('Member not found');
+    if (!isSuper && member.organizationId !== user.orgId) throw new ForbiddenException();
+
+    if ((body.role || body.status) && userId === user.id) {
+      throw new BadRequestException('अपना role/status खुद नहीं बदल सकते');
+    }
+
+    const orgId = member.organizationId || user.orgId;
+
+    if (body.targets && orgId) {
+      const setting = await this.prisma.orgSetting.findUnique({
+        where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } },
+      });
+      const current = (setting?.value as Record<string, any>) || {};
+      current[userId] = {
+        ...(current[userId] || {}),
+        ...body.targets,
+      };
+      await this.prisma.orgSetting.upsert({
+        where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } },
+        create: { organizationId: orgId, key: 'agent_targets', value: current },
+        update: { value: current },
+      });
+    }
+
+    const userUpdateData: Prisma.UserUpdateInput = {};
+    if (body.name !== undefined) userUpdateData.name = body.name.trim();
+    if (body.phone !== undefined) userUpdateData.phone = body.phone ? normalizeIndianPhone(body.phone) : null;
+    if (body.role !== undefined) userUpdateData.role = body.role;
+    if (body.status !== undefined) userUpdateData.status = body.status;
+
+    let updated = member;
+    if (Object.keys(userUpdateData).length > 0) {
+      updated = await this.prisma.user.update({ where: { id: userId }, data: userUpdateData });
+      if (body.status === 'SUSPENDED' || body.role) await this.auth.revokeAll(userId);
+    }
+
     await this.audit.log(user, 'team.update', 'User', userId, body);
-    return { id: updated.id, role: updated.role, status: updated.status };
+    return { id: updated.id, name: updated.name, phone: updated.phone, role: updated.role, status: updated.status, targets: body.targets };
   }
 
-  @Roles('BROKER_ADMIN')
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
   @Delete('broker/team/:userId')
   async removeMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
-    const orgId = requireOrg(user);
-    if (userId === user.id) throw new BadRequestException('खुद को remove नहीं कर सकते');
-    const member = await this.prisma.user.findFirst({ where: { id: userId, organizationId: orgId } });
+    const isSuper = user.role === 'SUPER_ADMIN';
+    const member = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!member) throw new NotFoundException();
+    if (!isSuper && member.organizationId !== user.orgId) throw new ForbiddenException();
+    if (userId === user.id) throw new BadRequestException('खुद को remove नहीं कर सकते');
+
+    const orgId = member.organizationId || user.orgId;
     await this.prisma.$transaction([
-      this.prisma.lead.updateMany({ where: { organizationId: orgId, assignedToId: userId }, data: { assignedToId: null } }),
-      this.prisma.followUp.updateMany({ where: { organizationId: orgId, assignedToId: userId, status: 'PENDING' }, data: { assignedToId: null } }),
+      ...(orgId
+        ? [
+            this.prisma.lead.updateMany({ where: { organizationId: orgId, assignedToId: userId }, data: { assignedToId: null } }),
+            this.prisma.followUp.updateMany({ where: { organizationId: orgId, assignedToId: userId, status: 'PENDING' }, data: { assignedToId: null } }),
+          ]
+        : []),
       this.prisma.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER' } }),
     ]);
     await this.auth.revokeAll(userId);
