@@ -27,8 +27,8 @@ test('coming soon, hidden and disallowed roles cannot enter active modules', () 
 test('sub-agents have active firm workspaces without team-admin or integration privileges', () => {
   const p = defaultModulePolicies();
   assert.equal(p.team.state, 'ACTIVE');
-  for (const key of ['today', 'leads', 'inbox']) assert.equal(moduleAllowed(p, key, 'BROKER_AGENT'), true);
-  for (const key of ['inventory', 'automation', 'billing', 'deals']) assert.equal(moduleAllowed(p, key, 'BROKER_AGENT'), false);
+  for (const key of ['today', 'inventory', 'leads', 'inbox', 'kyc']) assert.equal(moduleAllowed(p, key, 'BROKER_AGENT'), true);
+  for (const key of ['automation', 'billing', 'deals']) assert.equal(moduleAllowed(p, key, 'BROKER_AGENT'), false);
   assert.equal(moduleAllowed(p, 'team', 'USER'), false);
 });
 

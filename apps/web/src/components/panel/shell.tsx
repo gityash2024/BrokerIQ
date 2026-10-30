@@ -53,7 +53,7 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
           items: g.items.filter(
             (it) =>
               isGateOpen(config, it.flag) &&
-              (!moduleForPath(it.href) || moduleAllowed(config.modules, moduleForPath(it.href)!, role ?? '')) &&
+              (it.href === '/broker/kyc' || it.href.startsWith('/broker/kyc') || !moduleForPath(it.href) || moduleAllowed(config.modules, moduleForPath(it.href)!, role ?? '')) &&
               (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role))),
           ),
         }))

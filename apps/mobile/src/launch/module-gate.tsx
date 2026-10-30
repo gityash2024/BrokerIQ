@@ -14,6 +14,8 @@ const essential = [
   '/data-consent',
   '/handle-share',
   '/broker-settings',
+  '/agent-kyc',
+  '/kyc',
   '/drafts',
   '/product-tools',
   '/edit-profile',

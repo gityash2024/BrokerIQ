@@ -13,6 +13,7 @@ const keys: Record<string, string> = {
   leads: 'leads',
   inbox: 'inbox',
   automations: 'automation',
+  kyc: 'kyc',
   home: 'consumer',
   search: 'consumer',
   saved: 'consumer',

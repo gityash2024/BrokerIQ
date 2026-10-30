@@ -147,6 +147,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     ['/deals', '/invoices', '/broker/invoices', '/broker/payment-settings', '/public/invoices'],
   ),
   core('team', 'Team & agents', 'Invite sub-agents, manage firm members and assigned leads', '/broker/team', ['/broker/team'], ['/broker/team']),
+  core('kyc', 'KYC Verification', 'Identity and document verification for agents', '/broker/kyc', ['/broker/kyc', '/agent-kyc'], ['/broker/team/agent-kyc', '/broker/team/agent-kyc/mine']),
   future('broker_referrals', 'Invite other broker firms', ['/broker/invite-brokers'], ['/broker-invites']),
   future('billing', 'Billing & subscriptions', ['/broker/billing', '/boost'], ['/billing', '/subscriptions', '/payments', '/boosts']),
   future(
@@ -201,7 +202,7 @@ export const defaultModulePolicies = (): ModulePolicies =>
         roles: [
           'SUPER_ADMIN',
           'BROKER_ADMIN',
-          ...(['consumer', 'today', 'leads', 'inbox', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
+          ...(['consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
           ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
         ] as ModulePolicy['roles'],
       },
@@ -213,6 +214,7 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
   if (surface === 'web' && /^\/user\/account\/(flatmates|rent|agreements|invite)(\/|$)/.test(clean))
     return ({ flatmates: 'flatmates', rent: 'rent_tracker', agreements: 'rent_agreement', invite: 'referrals' } as Record<string, string>)[clean.split('/')[3]];
   if (surface === 'web' && clean === '/broker') return 'today';
+  if (surface === 'web' && (clean === '/broker/kyc' || prefixMatches(clean, '/broker/kyc') || clean === '/agent-kyc' || clean === '/kyc')) return 'kyc';
   if (
     surface === 'web' &&
     [

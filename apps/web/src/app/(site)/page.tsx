@@ -8,22 +8,22 @@ export const metadata: Metadata = {
 export default async function Home() {
   const config = await getConfig();
   const releaseApkUrl =
-    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36') && !process.env.ANDROID_RELEASE_URL.includes('build37')
+    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36') && !process.env.ANDROID_RELEASE_URL.includes('build37') && !process.env.ANDROID_RELEASE_URL.includes('build38')
       ? process.env.ANDROID_RELEASE_URL
-      : '/downloads/BrokerIQ-v2.2.2-build38.apk';
+      : '/downloads/BrokerIQ-v2.2.3-build39.apk';
   const releaseChecksum =
-    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37')
+    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37') && !process.env.ANDROID_RELEASE_URL?.includes('build38')
       ? process.env.ANDROID_RELEASE_SHA256
-      : '15350184e62728059dce51f17e2d0c4402412c01dd6fa1499f846d3a2e3b0c2f';
+      : '5c494fc8f0a4818a47ce2042be67ce016da6a072f031003f93b5229a96ca7d0a';
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={releaseApkUrl}
       checksum={releaseChecksum}
       releaseUpdates={{
-        user: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:15:00Z',
-        broker: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:15:00Z',
-        android: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:15:00Z',
+        user: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:33:00Z',
+        broker: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:33:00Z',
+        android: process.env.RELEASE_UPDATED_AT || '2026-10-30T19:33:00Z',
       }}
       screenshots={[
         {

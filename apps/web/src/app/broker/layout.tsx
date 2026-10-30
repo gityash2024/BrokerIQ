@@ -40,8 +40,15 @@ function Inner({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const kyc = useQuery({
+    queryKey: ['agent-kyc-mine-status'],
+    queryFn: () => api<any>('/broker/team/agent-kyc/mine'),
+    refetchInterval: 60_000,
+  });
+
   if (pathname === '/broker/onboarding') return <>{children}</>;
   const k = dash.data?.kpis;
+  const kycStatus = kyc.data?.status;
   const groups: NavGroup[] = [
     {
       items: [
@@ -49,7 +56,12 @@ function Inner({ children }: { children: React.ReactNode }) {
         { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
         { href: '/broker/leads', label: 'Leads & Requirements', icon: Inbox, badge: k?.newToday || null },
         { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
-        ...(user?.role === 'BROKER_AGENT' ? [{ href: '/broker/kyc', label: 'KYC Verification', icon: ShieldCheck }] : []),
+        {
+          href: '/broker/kyc',
+          label: 'KYC Verification',
+          icon: ShieldCheck,
+          badge: kycStatus === 'VERIFIED' ? 'Verified' : kycStatus === 'PENDING' ? 'Under Review' : kycStatus === 'REJECTED' ? 'Rejected' : 'Required',
+        },
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/team', label: 'Team & Agents', icon: Users }] : []),
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation & Housing', icon: Workflow }] : []),
       ],
