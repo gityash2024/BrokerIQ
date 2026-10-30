@@ -7,15 +7,23 @@ export const metadata: Metadata = {
 };
 export default async function Home() {
   const config = await getConfig();
+  const releaseApkUrl =
+    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26')
+      ? process.env.ANDROID_RELEASE_URL
+      : '/downloads/BrokerIQ-v2.2.0-build36.apk';
+  const releaseChecksum =
+    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26')
+      ? process.env.ANDROID_RELEASE_SHA256
+      : '0ee39297959f753b4b737d4adee483f89c1cb3fad2f9f50c7cacc62a1d811389';
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
-      apkUrl={process.env.ANDROID_RELEASE_URL || '/downloads/BrokerIQ-v2.1.9-build35.apk'}
-      checksum={process.env.ANDROID_RELEASE_SHA256 || '28f99cc16684fd904bffcc57aaea52bf72485fc2a8e174583a9c932d3814b1a5'}
+      apkUrl={releaseApkUrl}
+      checksum={releaseChecksum}
       releaseUpdates={{
-        user: '2026-10-30T14:36:00Z',
-        broker: '2026-10-30T14:36:00Z',
-        android: '2026-10-30T14:36:00Z',
+        user: '2026-10-30T16:56:00Z',
+        broker: '2026-10-30T16:56:00Z',
+        android: '2026-10-30T16:56:00Z',
       }}
       screenshots={[
         {
