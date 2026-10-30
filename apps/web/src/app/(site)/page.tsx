@@ -10,12 +10,12 @@ export default async function Home() {
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
-      apkUrl={process.env.ANDROID_RELEASE_URL || '/downloads/BrokerIQ-v2.1.3-build28.apk'}
-      checksum={process.env.ANDROID_RELEASE_SHA256 || '32a76e321e3ace7ad97e3ec9424f791547ef184217dec5e7ca30021e8b4d05e4'}
+      apkUrl={process.env.ANDROID_RELEASE_URL || '/downloads/BrokerIQ-v2.1.4-build29.apk'}
+      checksum={process.env.ANDROID_RELEASE_SHA256 || '1ecb0fe47b0e7dff0417755d5f882fb29de992ea62eb7672887ca0aceda80ec4'}
       releaseUpdates={{
-        user: '2026-10-30T06:47:41Z',
-        broker: '2026-10-30T06:47:41Z',
-        android: '2026-10-30T06:47:41Z',
+        user: '2026-10-30T07:05:00Z',
+        broker: '2026-10-30T07:05:00Z',
+        android: '2026-10-30T07:05:00Z',
       }}
       screenshots={[
         {

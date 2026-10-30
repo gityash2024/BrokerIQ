@@ -11,10 +11,20 @@ import Link from 'next/link';
 import { Building2, MapPin, ArrowUpRight, Search } from 'lucide-react';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
 export default function Directory() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user } = useAuth();
   const admin = pathname.startsWith('/admin');
+
+  useEffect(() => {
+    if (!admin && user?.role === 'BROKER_AGENT') {
+      router.replace('/broker/leads');
+    }
+  }, [admin, user, router]);
+
   const [search, setSearch] = useState('');
   const [sector, setSector] = useState('');
   const [category, setCategory] = useState('');

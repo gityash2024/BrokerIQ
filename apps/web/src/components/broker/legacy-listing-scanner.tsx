@@ -1,6 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -96,6 +98,15 @@ const blank = (): Row => ({
 });
 
 export default function ScannerPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role === 'BROKER_AGENT') {
+      router.replace('/broker/leads');
+    }
+  }, [user, router]);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
   const [pages, setPages] = useState<Page[]>([]);

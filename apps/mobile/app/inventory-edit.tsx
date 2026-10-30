@@ -30,6 +30,13 @@ export default function InventoryEditor() {
   const baseline = useRef<Record<string, any> | null>(null);
   const kind = id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
   const key = id ?? 'new-property';
+
+  useEffect(() => {
+    if (user?.role === 'BROKER_AGENT') {
+      router.replace('/(broker)/leads');
+    }
+  }, [user]);
+
   useEffect(() => {
     let active = true;
     (async () => {

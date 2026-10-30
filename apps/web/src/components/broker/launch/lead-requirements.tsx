@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { RequirementForm } from './requirement-form';
+import { useAuth } from '@/lib/auth';
 
 /** Contact-specific requirements use the same inventory matcher as Inbox imports. */
 export function LeadRequirements({ lead }: { lead: { id: string; name: string; phone: string } }) {
+  const { user } = useAuth();
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -91,9 +93,11 @@ export function LeadRequirements({ lead }: { lead: { id: string; name: string; p
             {matches.data?.[group].length === 0 && <p className="text-sm text-muted">No matches in this group</p>}
           </section>
         ))}
-        <Link href="/broker/inventory" className="font-semibold text-brand-600">
-          Open inventory →
-        </Link>
+        {user?.role !== 'BROKER_AGENT' && (
+          <Link href="/broker/inventory" className="font-semibold text-brand-600">
+            Open inventory →
+          </Link>
+        )}
       </Dialog>
     </div>
   );

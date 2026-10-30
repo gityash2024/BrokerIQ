@@ -7,7 +7,9 @@ import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
 import { RequirementForm } from '@/components/broker/launch/requirement-form';
 import { formatINR, readableValue } from '@brokeriq/shared';
+import { useAuth } from '@/lib/auth';
 export default function RequirementsPage() {
+  const { user } = useAuth();
   const [dirty, setDirty] = useState(false);
   const [adding, setAdding] = useState(false);
   const [match, setMatch] = useState<string | null>(null);
@@ -130,18 +132,29 @@ export default function RequirementsPage() {
         {['available', 'unknown'].map((group) => (
           <div key={group} className="mb-5">
             <h2 className="mb-3 font-bold">{group === 'available' ? 'Confirmed available' : 'Availability needs confirmation'}</h2>
-            {matches.data?.[group].map((m: any) => (
-              <Link
-                key={m.item.id}
-                href={`/broker/inventory?search=${encodeURIComponent(m.item.houseNo || m.item.sector || '')}`}
-                className="mb-2 block rounded-xl border border-line p-3"
-              >
-                <p className="font-semibold">
-                  {m.item.houseNo || 'House not recorded'} · {m.item.sector}
-                </p>
-                <p className="mt-1 text-xs text-muted">{m.reasons.join(' · ')}</p>
-              </Link>
-            ))}
+            {matches.data?.[group].map((m: any) => {
+              const inner = (
+                <>
+                  <p className="font-semibold">
+                    {m.item.houseNo || 'House not recorded'} · {m.item.sector}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">{m.reasons.join(' · ')}</p>
+                </>
+              );
+              return user?.role === 'BROKER_AGENT' ? (
+                <div key={m.item.id} className="mb-2 block rounded-xl border border-line p-3">
+                  {inner}
+                </div>
+              ) : (
+                <Link
+                  key={m.item.id}
+                  href={`/broker/inventory?search=${encodeURIComponent(m.item.houseNo || m.item.sector || '')}`}
+                  className="mb-2 block rounded-xl border border-line p-3"
+                >
+                  {inner}
+                </Link>
+              );
+            })}
             {matches.data?.[group].length === 0 && <p className="text-sm text-muted">No matches in this group</p>}
           </div>
         ))}

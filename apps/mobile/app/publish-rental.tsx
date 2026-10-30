@@ -33,6 +33,13 @@ export default function PublishRental() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [localitySearch, setLocalitySearch] = useState('');
+
+  useEffect(() => {
+    if (user?.role === 'BROKER_AGENT') {
+      router.replace('/(broker)/leads');
+    }
+  }, [user]);
+
   useEffect(() => {
     let active = true;
     editableDraft('PUBLIC_PUBLISH', id)

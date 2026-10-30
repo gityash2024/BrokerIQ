@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { IMPORT_MAX_BYTES, uploadImport } from '@brokeriq/shared';
 import { useEffect, useRef, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, ClipboardPaste, FileArchive, FileImage, ScanLine, ShieldCheck, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 import { api, errorMessage } from '@/lib/api';
@@ -21,11 +21,26 @@ export function CaptureWorkspace({ scanner = false }: { scanner?: boolean }) {
   );
 }
 function Workspace({ scanner }: { scanner: boolean }) {
-  const params = useSearchParams(),
-    owner = useAuth().user?.id;
+  const params = useSearchParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const owner = user?.id;
+
+  useEffect(() => {
+    if (scanner && user?.role === 'BROKER_AGENT') {
+      router.replace('/broker/leads');
+    }
+  }, [scanner, user, router]);
+
   const [text, setText] = useState(''),
     [group, setGroup] = useState('');
-  const [target, setTarget] = useState<Target>(['INVENTORY', 'REQUIREMENT'].includes(params.get('target') ?? '') ? (params.get('target') as Target) : 'AUTO');
+  const [target, setTarget] = useState<Target>(
+    user?.role === 'BROKER_AGENT'
+      ? 'REQUIREMENT'
+      : ['INVENTORY', 'REQUIREMENT'].includes(params.get('target') ?? '')
+        ? (params.get('target') as Target)
+        : 'AUTO',
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [ready, setReady] = useState(false),
@@ -175,7 +190,9 @@ function Workspace({ scanner }: { scanner: boolean }) {
           <section className="card p-5 sm:p-6">
             <h2 className="font-display text-lg font-bold">What are you adding?</h2>
             <div className="my-4 flex flex-wrap gap-2" role="group" aria-label="Review destination">
-              {(['AUTO', 'INVENTORY', 'REQUIREMENT'] as const).map((value) => (
+              {(['AUTO', 'INVENTORY', 'REQUIREMENT'] as const)
+                .filter((v) => user?.role !== 'BROKER_AGENT' || v === 'REQUIREMENT')
+                .map((value) => (
                 <button
                   key={value}
                   aria-pressed={value === target}
