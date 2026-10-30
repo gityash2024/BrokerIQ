@@ -15,6 +15,7 @@
 - When a required integration is missing, throw `IntegrationNotConfiguredException`; clients render the `INTEGRATION_NOT_CONFIGURED` error with a link to the settings page.
 - Commit and push after completing each module.
 - **Zero-Cache Build Policy**: Every time an APK or release build is made, ALWAYS purge all build caches first (`rm -rf apps/mobile/.expo apps/mobile/android/.gradle apps/mobile/android/app/build && rm -rf "$TMPDIR"/metro-* 2>/dev/null || true`), bump version/build number, run `./gradlew clean --no-daemon && ./gradlew assembleRelease --no-daemon --no-build-cache`, compute the SHA-256 hash, update the landing page and server environment, upload to production, and verify HTTP 200.
+- **Role & Module Policy**: When adding or updating modules, ensure permissions are explicitly added to `PLATFORM_MODULES`, `defaultModulePolicies()`, and route resolution in `packages/shared/src/modules.ts`. Never assume agent access works without adding `BROKER_AGENT` to the module policy. Double-check visibility in Web sidebar, Web dashboard, Mobile bottom tabs, Mobile dashboard, and Mobile settings across all user roles (`BROKER_ADMIN`, `BROKER_AGENT`, `SUPER_ADMIN`).
 
 ## Commands
 - `pnpm install` · `pnpm -r typecheck` · `pnpm --filter @brokeriq/api test:e2e` (needs `DATABASE_URL`)
