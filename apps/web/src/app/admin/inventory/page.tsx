@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -17,6 +17,7 @@ import {
   Rocket,
   Search,
   Trash2,
+  User,
   X,
 } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
@@ -76,6 +77,7 @@ export default function AdminInventoryPage() {
   const [filters, setFilters] = useState({
     search: '',
     organizationId: '',
+    assignedToId: '',
     sector: '',
     houseNo: '',
     bhk: '',
@@ -97,6 +99,31 @@ export default function AdminInventoryPage() {
     queryFn: () => api<{ items: { id: string; name: string }[] }>('/admin/organizations?pageSize=100'),
     staleTime: 60_000,
   });
+
+  // Hierarchy auto-selection: default to 0th Broker Firm
+  useEffect(() => {
+    if (orgsQuery.data?.items?.length && !filters.organizationId) {
+      setFilters((f) => ({ ...f, organizationId: orgsQuery.data.items[0].id, page: 1 }));
+    }
+  }, [orgsQuery.data?.items]);
+
+  // Fetch Agents under the selected organization
+  const agentsQuery = useQuery({
+    queryKey: ['admin-inventory-agents', filters.organizationId],
+    queryFn: () =>
+      api<{ items: { id: string; name: string; role: string; avatarUrl?: string }[] }>(
+        `/admin/users?organizationId=${filters.organizationId}&pageSize=100`,
+      ),
+    enabled: !!filters.organizationId,
+    staleTime: 60_000,
+  });
+
+  // Hierarchy auto-selection: default to 0th Agent under the selected organization
+  useEffect(() => {
+    if (agentsQuery.data?.items?.length && !filters.assignedToId) {
+      setFilters((f) => ({ ...f, assignedToId: agentsQuery.data.items[0].id, page: 1 }));
+    }
+  }, [agentsQuery.data?.items]);
 
   // Fetch Sectors for dropdown
   const sectorsQuery = useQuery({
@@ -222,6 +249,7 @@ export default function AdminInventoryPage() {
     setFilters({
       search: '',
       organizationId: '',
+      assignedToId: '',
       sector: '',
       houseNo: '',
       bhk: '',
@@ -328,17 +356,34 @@ export default function AdminInventoryPage() {
             )}
           </div>
 
-          {/* Broker Org Dropdown */}
-          <div className="w-full sm:w-64">
+          {/* Hierarchy: 1. Broker Firm (Admin) Dropdown */}
+          <div className="w-full sm:w-56">
             <Select
               className="h-10 text-xs font-medium"
               value={filters.organizationId}
-              onChange={(e) => setFilters((f) => ({ ...f, organizationId: e.target.value, sector: '', page: 1 }))}
+              onChange={(e) => setFilters((f) => ({ ...f, organizationId: e.target.value, assignedToId: '', sector: '', page: 1 }))}
             >
               <option value="">All Broker Firms</option>
               {orgsQuery.data?.items?.map((org) => (
                 <option key={org.id} value={org.id}>
                   {org.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Hierarchy: 2. Broker Agent Dropdown */}
+          <div className="w-full sm:w-56">
+            <Select
+              className="h-10 text-xs font-medium"
+              disabled={!filters.organizationId}
+              value={filters.assignedToId}
+              onChange={(e) => setFilters((f) => ({ ...f, assignedToId: e.target.value, page: 1 }))}
+            >
+              <option value="">All Agents under firm</option>
+              {agentsQuery.data?.items?.map((ag: any) => (
+                <option key={ag.id} value={ag.id}>
+                  {ag.name} ({ag.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
                 </option>
               ))}
             </Select>
@@ -508,6 +553,7 @@ export default function AdminInventoryPage() {
                 <tr>
                   <th className="px-3 py-3 w-12"># / P.</th>
                   <th className="px-3 py-3 w-32">Broker Firm</th>
+                  <th className="px-3 py-3 w-32">Broker Agent</th>
                   <th className="px-3 py-3 w-28">Date</th>
                   <th className="px-3 py-3 w-32">Sector</th>
                   <th className="px-3 py-3 w-28 font-bold">House No</th>
@@ -544,6 +590,14 @@ export default function AdminInventoryPage() {
                         <span className="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-[11px]">
                           <Building2 className="size-3 text-muted" />
                           {row.organization?.name || '—'}
+                        </span>
+                      </td>
+
+                      {/* Broker Agent */}
+                      <td className="px-3 py-2.5 font-medium text-fg whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-[11px]">
+                          <User className="size-3 text-brand-500" />
+                          {(row as any).assignedTo?.name || 'Unassigned'}
                         </span>
                       </td>
 

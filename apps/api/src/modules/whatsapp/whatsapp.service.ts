@@ -242,6 +242,20 @@ export class WhatsAppService {
     } catch(error) {await this.prisma.webhookEvent.update({where:{id:eventId},data:{status:'FAILED',error:(error as Error).message.slice(0,500)}});throw error;}
   }
 
+  isHousingLeadMessage(text: string): boolean {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    return (
+      lower.includes('housing.com') ||
+      lower.includes('proptiger.com') ||
+      lower.includes('housing') ||
+      lower.includes('pahal.housing') ||
+      /housing\s*lead/i.test(lower) ||
+      /housing\s*rent/i.test(lower) ||
+      /housing\s*buy/i.test(lower)
+    );
+  }
+
   private async onInbound(orgId: string | null, m: any, profileName?: string, businessPhone?: string) {
     if (!m.id || typeof m.id!=='string' || !/^[0-9]{10,15}$/.test(String(m.from))) throw new BadRequestException('Malformed WhatsApp message');
     if (await this.prisma.message.findUnique({ where: { externalId: m.id } })) return;
@@ -313,19 +327,26 @@ export class WhatsAppService {
       const existing = await this.prisma.lead.findUnique({
         where: { organizationId_phone: { organizationId: orgId, phone: normalizeIndianPhone(phone) ?? phone } },
       });
-      if (existing) leadId = existing.id;
-      else {
+      if (existing) {
+        if (existing.source === 'HOUSING') {
+          leadId = existing.id;
+        } else if (this.isHousingLeadMessage(text)) {
+          leadId = existing.id;
+          await this.prisma.lead.update({ where: { id: existing.id }, data: { source: 'HOUSING' } });
+        }
+      } else if (this.isHousingLeadMessage(text)) {
         const { lead } = await this.leads.ingest({
           orgId,
           name: profileName ?? null,
           phone,
-          source: 'WHATSAPP',
+          source: 'HOUSING',
           sourceRef: m.id,
-          sourceDetail: 'Incoming WhatsApp message',
+          sourceDetail: 'Housing.com WhatsApp Lead',
           message: text,
         });
         leadId = lead.id;
       }
+      // Personal chats without Housing context will not create leads (leadId remains null)
     }
     const conv = await this.conversationFor(orgId, phone, { name: profileName, leadId });
     if(mediaUrl&&orgId)mediaUrl=await this.retrieveMedia(mediaUrl.slice('wa-media:'.length),orgId);

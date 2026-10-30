@@ -146,6 +146,45 @@ export default function BrokerSettings() {
           </View>
         </View>
 
+        {/* Agent KYC Verification Card */}
+        <TouchableOpacity
+          onPress={() => router.push('/agent-kyc')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            borderRadius: 20,
+            backgroundColor: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)',
+            borderWidth: 1,
+            borderColor: 'rgba(16,185,129,0.3)',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: '#10B981',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ShieldCheck size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ gap: 2 }}>
+              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>
+                Agent KYC Verification
+              </Txt>
+              <Txt v="caption" color="muted">
+                आधार, पैन व 3-स्टेप चेहरा सत्यापन
+              </Txt>
+            </View>
+          </View>
+          <ChevronRight size={18} color={c.muted} />
+        </TouchableOpacity>
+
         {/* Section 1: Firm & Team */}
         <View style={{ gap: 8 }}>
           <Txt v="caption" color="muted" style={{ fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', paddingHorizontal: 4 }}>

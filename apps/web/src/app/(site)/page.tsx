@@ -8,13 +8,13 @@ export const metadata: Metadata = {
 export default async function Home() {
   const config = await getConfig();
   const releaseApkUrl =
-    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36')
+    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36') && !process.env.ANDROID_RELEASE_URL.includes('build37')
       ? process.env.ANDROID_RELEASE_URL
-      : '/downloads/BrokerIQ-v2.2.1-build37.apk';
+      : '/downloads/BrokerIQ-v2.2.2-build38.apk';
   const releaseChecksum =
-    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36')
+    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37')
       ? process.env.ANDROID_RELEASE_SHA256
-      : 'b7ed739b8528e1e1e25b9f185a5169c439c4470074212d0f439e4d703b51d518';
+      : '15350184e62728059dce51f17e2d0c4402412c01dd6fa1499f846d3a2e3b0c2f';
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}

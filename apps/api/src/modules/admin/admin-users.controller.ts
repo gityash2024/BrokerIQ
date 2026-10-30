@@ -67,10 +67,11 @@ export class AdminUsersController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('users')
-  async users(@Query() q: { q?: string; role?: string; status?: string; page?: string }) {
+  async users(@Query() q: { q?: string; role?: string; status?: string; page?: string; organizationId?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
     const where: Prisma.UserWhereInput = {
       deletedAt: null,
+      ...(q.organizationId ? { organizationId: q.organizationId } : {}),
       ...(q.role ? { role: q.role as any } : {}),
       ...(q.status ? { status: q.status as any } : {}),
       ...(q.q

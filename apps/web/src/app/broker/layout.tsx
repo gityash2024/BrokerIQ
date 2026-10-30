@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Inbox, LayoutDashboard, MessagesSquare, Plus, Workflow, FileSpreadsheet } from 'lucide-react';
+import { Inbox, LayoutDashboard, MessagesSquare, Plus, Workflow, FileSpreadsheet, ShieldCheck, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
@@ -46,9 +46,11 @@ function Inner({ children }: { children: React.ReactNode }) {
     {
       items: [
         { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, exact: true },
-        ...(user?.role !== 'BROKER_AGENT' ? [{ href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet }] : []),
+        { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
         { href: '/broker/leads', label: 'Leads & Requirements', icon: Inbox, badge: k?.newToday || null },
         { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
+        ...(user?.role === 'BROKER_AGENT' ? [{ href: '/broker/kyc', label: 'KYC Verification', icon: ShieldCheck }] : []),
+        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/team', label: 'Team & Agents', icon: Users }] : []),
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation & Housing', icon: Workflow }] : []),
       ],
     },

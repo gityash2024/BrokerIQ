@@ -37,18 +37,32 @@ export class WhatsAppController {
   @Get('whatsapp/conversations')
   async conversations(@CurrentUser() user: RequestUser, @Query() q: { q?: string; unread?: string; channel?: string }) {
     const orgId = requireOrg(user);
+    const channel = (q.channel as any) || 'WHATSAPP';
+    const isWhatsApp = channel === 'WHATSAPP';
+
     return this.prisma.conversation.findMany({
       where: {
         organizationId: orgId,
-        channel: (q.channel as any) || 'WHATSAPP',
-        ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+        channel,
+        ...(isWhatsApp
+          ? {
+              lead: {
+                is: {
+                  source: 'HOUSING',
+                  ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
+                },
+              },
+            }
+          : {
+              ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+            }),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
         ...(q.q ? { OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] } : {}),
       },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
       take: 200,
       include: {
-        lead: { select: { id: true, name: true, stage: true, assignedTo: { select: { id: true, name: true } } } },
+        lead: { select: { id: true, name: true, stage: true, source: true, assignedTo: { select: { id: true, name: true } } } },
         user: { select: { id: true, name: true, avatarUrl: true } },
       },
     });
