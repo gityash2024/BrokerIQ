@@ -14,6 +14,7 @@
 - Credentials never go in code: they live in Super Admin → Settings (encrypted `SystemSetting`) or broker-level `OrgSetting`, resolved via `ConfigResolver` (org → platform → env).
 - When a required integration is missing, throw `IntegrationNotConfiguredException`; clients render the `INTEGRATION_NOT_CONFIGURED` error with a link to the settings page.
 - Commit and push after completing each module.
+- **Zero-Cache Build Policy**: Every time an APK or release build is made, ALWAYS purge all build caches first (`rm -rf apps/mobile/.expo apps/mobile/android/.gradle apps/mobile/android/app/build && rm -rf "$TMPDIR"/metro-* 2>/dev/null || true`), bump version/build number, run `./gradlew clean --no-daemon && ./gradlew assembleRelease --no-daemon --no-build-cache`, compute the SHA-256 hash, update the landing page and server environment, upload to production, and verify HTTP 200.
 
 ## Commands
 - `pnpm install` · `pnpm -r typecheck` · `pnpm --filter @brokeriq/api test:e2e` (needs `DATABASE_URL`)
