@@ -53,6 +53,7 @@ pnpm-debug.log*
 .vscode/
 *.swp
 *.swo
+*-service-account.json
 
 # Test coverage
 coverage/

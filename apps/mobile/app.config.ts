@@ -26,7 +26,8 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 30,
+    versionCode: 31,
+    googleServicesFile: process.env.GOOGLE_SERVICES_FILE ?? './google-services.json',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
     blockedPermissions: [
