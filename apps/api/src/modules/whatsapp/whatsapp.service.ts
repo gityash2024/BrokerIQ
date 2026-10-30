@@ -402,12 +402,55 @@ export class WhatsAppService {
     return `${env().PUBLIC_API_URL.replace(/\/$/,'')}/api/media/f/${key}`;
   }
 
-  private async onStatus(s: any,orgId:string|null) {
+  private async onStatus(s: any, orgId: string | null) {
     const map: Record<string, any> = { sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED' };
     const status = map[s.status];
     if (!status || !s.id) return;
     const msg = await this.prisma.message.findUnique({ where: { externalId: s.id }, include: { conversation: true } });
-    if (!msg || msg.conversation.organizationId!==orgId) return;
+    if (!msg) {
+      if (!s.recipient_id) return;
+      const recipientPhone = `+${String(s.recipient_id).replace(/^\+/, '')}`;
+      let targetOrgId = orgId;
+      if (!targetOrgId) {
+        const existingConv = await this.prisma.conversation.findFirst({
+          where: { contactPhone: recipientPhone, channel: 'WHATSAPP' },
+        });
+        targetOrgId = existingConv?.organizationId ?? null;
+      }
+      if (!targetOrgId) {
+        const anyOrg = await this.prisma.organization.findFirst({ where: { status: 'ACTIVE' } });
+        targetOrgId = anyOrg?.id ?? null;
+      }
+      if (!targetOrgId) return;
+      const conv = await this.conversationFor(targetOrgId, recipientPhone, {});
+      const msgDate = s.timestamp ? new Date(Number(s.timestamp) * 1000) : new Date();
+      const bodyText = s.text?.body || 'WhatsApp message';
+      const created = await this.prisma.message.upsert({
+        where: { externalId: s.id },
+        create: {
+          conversationId: conv.id,
+          direction: 'OUTBOUND',
+          type: 'TEXT',
+          body: bodyText,
+          status,
+          externalId: s.id,
+          createdAt: msgDate,
+          meta: { raw: s, source: 'coexistence' } as Prisma.InputJsonValue,
+        },
+        update: {
+          status,
+        },
+      }).catch((err) => {
+        this.logger.warn(`Failed to upsert coexistence outbound message: ${err?.message}`);
+        return null;
+      });
+      if (created) {
+        await this.touchConversation(conv.id, created.body ?? 'WhatsApp message', false);
+        this.emit(conv.organizationId, 'wa:message', { conversationId: conv.id, message: created });
+      }
+      return;
+    }
+    if (msg.conversation.organizationId && orgId && msg.conversation.organizationId !== orgId) return;
     const order = ['QUEUED', 'SENT', 'DELIVERED', 'READ'];
     if (status !== 'FAILED' && order.indexOf(status) <= order.indexOf(msg.status)) return;
     const updated = await this.prisma.message.update({

@@ -59,7 +59,7 @@ function ReportSheet({ id, open, onClose }: { id: string; open: boolean; onClose
 export default function ChatScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const { c } = useTheme();
-  const { isBroker } = useAuth();
+  const { isBroker, user } = useAuth();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<ChatThreadResponse>(`/chat/threads/${id}`) });
   const [text, setText] = useState('');
@@ -70,7 +70,7 @@ export default function ChatScreen() {
   useEffect(() => {
     setTimeout(() => list.current?.scrollToEnd({ animated: true }), 100);
   }, [q.data?.items?.length]);
-  const mine = (m: any) => (isBroker ? m.direction === 'OUTBOUND' : m.direction === 'INBOUND');
+  const mine = (m: any) => (m.senderUserId ? m.senderUserId === user?.id : (isBroker ? m.direction === 'OUTBOUND' : m.direction === 'INBOUND'));
   const send = async () => {
     const t = text.trim();
     if (!t) return;
