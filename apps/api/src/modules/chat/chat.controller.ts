@@ -132,13 +132,13 @@ export class ChatController {
     if (isUser && c.organizationId) {
       const lead = c.leadId ? await this.prisma.lead.findUnique({ where: { id: c.leadId } }) : null;
       const input = { kind: 'NEW_MESSAGE', title: `💬 ${c.contactName ?? 'User'}: ${text.slice(0, 60)}`, link: `/broker/inbox?channel=CHAT&c=${id}` };
-      if (lead?.assignedToId) await this.notifications.notify(lead.assignedToId, input);
-      else await this.notifications.notifyOrg(c.organizationId, input, { adminsOnly: true });
+      if (lead?.assignedToId && lead.assignedToId !== user.id) await this.notifications.notify(lead.assignedToId, input);
+      else await this.notifications.notifyOrg(c.organizationId, input, { adminsOnly: true, excludeUserId: user.id });
       if (lead)
         await this.prisma.activity.create({
           data: { organizationId: c.organizationId, leadId: lead.id, type: 'NOTE', content: `💬 Chat: ${text.slice(0, 300)}` },
         });
-    } else if (!isUser && c.userId) {
+    } else if (!isUser && c.userId && c.userId !== user.id) {
       await this.notifications.notify(c.userId, {
         kind: 'NEW_MESSAGE',
         title: `💬 ${c.organization?.name}: ${text.slice(0, 60)}`,

@@ -232,8 +232,9 @@ export class WhatsAppService {
     for (const entry of body?.entry ?? []) {
       for (const change of entry?.changes ?? []) {
         const value = change?.value ?? {};
+        const businessPhone = value.metadata?.display_phone_number;
         const contacts: any[] = value.contacts ?? [];
-        for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name);
+        for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone);
         for (const s of value.statuses ?? []) await this.onStatus(s,target.orgId);
       }
     }
@@ -241,9 +242,35 @@ export class WhatsAppService {
     } catch(error) {await this.prisma.webhookEvent.update({where:{id:eventId},data:{status:'FAILED',error:(error as Error).message.slice(0,500)}});throw error;}
   }
 
-  private async onInbound(orgId: string | null, m: any, profileName?: string) {
+  private async onInbound(orgId: string | null, m: any, profileName?: string, businessPhone?: string) {
     if (!m.id || typeof m.id!=='string' || !/^[0-9]{10,15}$/.test(String(m.from))) throw new BadRequestException('Malformed WhatsApp message');
     if (await this.prisma.message.findUnique({ where: { externalId: m.id } })) return;
+    const fromPhone = String(m.from).replace(/^\+/, '');
+    const cleanBiz = businessPhone ? String(businessPhone).replace(/^\+/, '') : '';
+
+    // If sent from the business number itself (coexistence outbound from phone), do NOT treat as inbound client message
+    if (cleanBiz && fromPhone === cleanBiz) {
+      const recipient = m.recipient_id || m.to;
+      if (recipient && orgId) {
+        const recipientPhone = `+${String(recipient).replace(/^\+/, '')}`;
+        const conv = await this.conversationFor(orgId, recipientPhone, {});
+        const bodyText = m.text?.body ?? `[${m.type ?? 'message'}]`;
+        await this.prisma.message.create({
+          data: {
+            conversationId: conv.id,
+            direction: 'OUTBOUND',
+            type: m.type === 'text' ? 'TEXT' : 'DOCUMENT',
+            body: bodyText,
+            status: 'SENT',
+            externalId: m.id,
+            meta: { raw: m, source: 'coexistence' } as Prisma.InputJsonValue,
+          },
+        }).catch(() => undefined);
+        await this.touchConversation(conv.id, bodyText, false);
+        this.emit(orgId, 'wa:message', { conversationId: conv.id });
+      }
+      return;
+    }
     const phone = `+${m.from}`;
     let text = '';
     let type: MessageType = 'TEXT';
@@ -320,8 +347,15 @@ export class WhatsAppService {
       await this.prisma.activity.create({ data: { organizationId: orgId, leadId, type: 'WHATSAPP', content: `📥 ${text.slice(0, 500)}` } });
       const lead = await this.prisma.lead.update({ where: { id: leadId }, data: { lastActivityAt: new Date() } });
       const title = `💬 ${profileName ?? lead.name}: ${text.slice(0, 60)}`;
-      if (lead.assignedToId) await this.notifications.notify(lead.assignedToId, { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` });
-      else await this.notifications.notifyOrg(orgId, { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` }, { adminsOnly: true });
+      const senderUser = await this.prisma.user.findFirst({
+        where: { organizationId: orgId, phone: { in: [phone, normalizeIndianPhone(phone) ?? phone] } },
+        select: { id: true },
+      });
+      if (lead.assignedToId && lead.assignedToId !== senderUser?.id) {
+        await this.notifications.notify(lead.assignedToId, { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` });
+      } else {
+        await this.notifications.notifyOrg(orgId, { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` }, { adminsOnly: true, excludeUserId: senderUser?.id });
+      }
     }
     this.emit(orgId, 'wa:message', { conversationId: conv.id, message: saved });
     this.events.emit('message.inbound', { conversationId: conv.id, orgId, leadId });

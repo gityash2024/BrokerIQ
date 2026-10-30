@@ -107,17 +107,8 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, []);
-  useRealtime<any>('notification', (n) => {
-    if (!n) return;
-    Notifications.scheduleNotificationAsync({
-      content: {
-        title: n.title || 'BrokerIQ',
-        body: n.body || '',
-        data: n,
-        sound: 'default',
-      },
-      trigger: null,
-    }).catch(() => undefined);
+  useRealtime<any>('notification', () => {
+    qc.invalidateQueries({ queryKey: ['notifications'] });
   });
   if (!fontsLoaded || !ready) return null;
   return (
