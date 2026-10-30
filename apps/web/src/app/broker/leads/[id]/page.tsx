@@ -164,7 +164,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div className="flex overflow-x-auto border-t border-line scrollbar-none">
           {LEAD_STAGES.map((s, i) => {
             const active = s === l.stage;
-            const past = i < stageIdx && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
+            const past = i < stageIdx && s !== 'NOT_INTERESTED' && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
               <button
                 key={s}

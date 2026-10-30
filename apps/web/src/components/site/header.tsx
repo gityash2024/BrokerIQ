@@ -10,7 +10,7 @@ import { useConfig } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { Avatar, Logo } from '../ui/misc';
 import { Button } from '../ui/button';
-import { Sheet } from '../ui/dialog';
+import { Dialog, Sheet } from '../ui/dialog';
 import { LanguagePicker } from '../i18n/language-picker';
 import { ThemeToggle } from '../ui/theme-toggle';
 
@@ -27,6 +27,7 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 12);
     on();
@@ -139,7 +140,7 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
                     </MenuLink>
                     <DM.Separator className="my-1 h-px bg-line" />
                     <DM.Item
-                      onSelect={() => logout()}
+                      onSelect={() => setConfirmLogout(true)}
                       className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:hover:bg-rose-500/10"
                     >
                       <LogOut className="size-4" /> Logout
@@ -172,6 +173,31 @@ export function SiteHeader({ transparent }: { transparent?: boolean }) {
           </div>
         </div>
       </Sheet>
+      <Dialog
+        open={confirmLogout}
+        onOpenChange={setConfirmLogout}
+        title="Log out of BrokerIQ?"
+        description="Are you sure you want to log out of your account?"
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => setConfirmLogout(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmLogout(false);
+                logout();
+              }}
+            >
+              Log out
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted">You will need to sign in again to access your account.</p>
+      </Dialog>
       <AnimatePresence />
     </>
   );

@@ -21,7 +21,7 @@ export default function Pipeline() {
   const [move, setMove] = useState<any>(null);
   const doMove = async (lead: any, to: LeadStage) => {
     setMove(null);
-    if (to === 'LOST' || to === 'WON') return router.push(`/lead/${lead.id}`);
+    if (to === 'LOST' || to === 'WON' || to === 'NOT_INTERESTED') return router.push(`/lead/${lead.id}`);
     try {
       await patch(`/leads/${lead.id}/stage`, { stage: to });
       toast.success(`${lead.name} → ${LEAD_STAGE_LABELS[to]}`);

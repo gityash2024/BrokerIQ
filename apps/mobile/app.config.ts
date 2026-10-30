@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   name: process.env.APP_NAME ?? 'BrokerIQ',
   slug: 'brokeriq',
   scheme: 'brokeriq',
-  version: '2.1.3',
+  version: '2.1.5',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -26,7 +26,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 28,
+    versionCode: 30,
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
     blockedPermissions: [
@@ -81,9 +81,9 @@ const config: ExpoConfig = {
   experiments: { typedRoutes: false },
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL,
-    eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined,
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08' },
   },
-  updates: process.env.EAS_PROJECT_ID ? { url: `https://u.expo.dev/${process.env.EAS_PROJECT_ID}` } : undefined,
+  updates: { url: `https://u.expo.dev/${process.env.EAS_PROJECT_ID ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08'}` },
   runtimeVersion: { policy: 'appVersion' },
 };
 

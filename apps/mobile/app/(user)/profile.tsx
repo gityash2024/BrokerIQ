@@ -1,5 +1,6 @@
-import { Linking, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { router } from 'expo-router';
+import { tr } from '@/lib/i18n';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -96,6 +97,16 @@ export default function Profile() {
   const mode = useThemeMode((s) => s.mode);
   const setMode = useThemeMode((s) => s.setMode);
   const nextMode = mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
+  const handleLogout = () => {
+    Alert.alert(
+      tr('Log out of BrokerIQ?'),
+      tr('Are you sure you want to log out of your account?'),
+      [
+        { text: tr('Cancel'), style: 'cancel' },
+        { text: tr('Log out'), style: 'destructive', onPress: logout },
+      ]
+    );
+  };
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Animated.ScrollView
@@ -326,7 +337,7 @@ export default function Profile() {
                 onPress={() => Linking.openURL(app.supportWhatsApp ? `https://wa.me/${app.supportWhatsApp.replace(/\D/g, '')}` : `tel:${app.supportPhone}`)}
               />
             )}
-            {user && <Item icon={<LogOut size={20} color={c.danger} />} tint={c.danger} label="Logout" onPress={logout} right={<View />} />}
+            {user && <Item icon={<LogOut size={20} color={c.danger} />} tint={c.danger} label="Logout" onPress={handleLogout} right={<View />} />}
           </Group>
           <Txt v="caption" color="subtle" style={{ textAlign: 'center', marginTop: 20 }}>
             {app.siteName} v{Constants.expoConfig?.version}

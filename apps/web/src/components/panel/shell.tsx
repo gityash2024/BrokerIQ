@@ -13,7 +13,8 @@ import { isGateOpen, useConfig } from '@/lib/config';
 import { useRealtime } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
 import { Avatar, Badge, Logo } from '../ui/misc';
-import { Sheet } from '../ui/dialog';
+import { Dialog, Sheet } from '../ui/dialog';
+import { Button } from '../ui/button';
 import { ThemeToggle } from '../ui/theme-toggle';
 import { LanguagePicker } from '../i18n/language-picker';
 import { ModuleAccess } from './module-access';
@@ -168,6 +169,7 @@ export function PanelShell({
   const { user, logout } = useAuth();
   const { app } = useConfig();
   const [open, setOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const pathname = usePathname();
   useEffect(() => {
     setOpen(false);
@@ -193,7 +195,7 @@ export function PanelShell({
             <p className="truncate text-sm font-semibold">{user?.name}</p>
             <p className="truncate text-xs text-muted">{user?.organization?.name ?? user?.email}</p>
           </div>
-          <button onClick={logout} className="rounded-lg p-2 text-subtle hover:bg-surface-2 hover:text-rose-600" aria-label="Logout">
+          <button onClick={() => setConfirmLogout(true)} className="rounded-lg p-2 text-subtle hover:bg-surface-2 hover:text-rose-600" aria-label="Logout">
             <LogOut className="size-4" />
           </button>
         </div>
@@ -237,6 +239,31 @@ export function PanelShell({
           <ModuleAccess>{children}</ModuleAccess>
         </main>
       </div>
+      <Dialog
+        open={confirmLogout}
+        onOpenChange={setConfirmLogout}
+        title="Log out of BrokerIQ?"
+        description="Are you sure you want to log out of your account?"
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => setConfirmLogout(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmLogout(false);
+                logout();
+              }}
+            >
+              Log out
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted">You will need to sign in again to access your workspace, leads and inventory.</p>
+      </Dialog>
     </div>
   );
 }

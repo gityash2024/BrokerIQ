@@ -1,5 +1,6 @@
-import { ScrollView, View, Linking } from 'react-native';
+import { Alert, ScrollView, View, Linking } from 'react-native';
 import { router } from 'expo-router';
+import { tr } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { PLATFORM_MODULES, defaultModulePolicies, moduleAllowed } from '@brokeriq/shared';
@@ -9,6 +10,16 @@ import { LanguageSwitch } from '@/components/language';
 export default function BrokerSettings() {
   const { user, logout } = useAuth();
   const { modules = defaultModulePolicies() } = useConfig();
+  const handleLogout = () => {
+    Alert.alert(
+      tr('Log out of BrokerIQ?'),
+      tr('Are you sure you want to log out of your account?'),
+      [
+        { text: tr('Cancel'), style: 'cancel' },
+        { text: tr('Log out'), style: 'destructive', onPress: logout },
+      ]
+    );
+  };
   return (
     <BrokerScreen title="Profile & settings" back>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 30 }}>
@@ -38,7 +49,7 @@ export default function BrokerSettings() {
             </NativeCard>
           </View>
         ))}
-        <Button title="Log out" variant="secondary" onPress={logout} />
+        <Button title="Log out" variant="secondary" onPress={handleLogout} />
       </ScrollView>
     </BrokerScreen>
   );

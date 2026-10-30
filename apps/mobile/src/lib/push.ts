@@ -14,18 +14,25 @@ Notifications.setNotificationHandler({
 export async function registerPush() {
   if (!Device.isDevice) return null;
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', { name: 'Default', importance: Notifications.AndroidImportance.HIGH, lightColor: '#4F46E5' });
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Default',
+      importance: Notifications.AndroidImportance.HIGH,
+      lightColor: '#4F46E5',
+      sound: 'default',
+      vibrationPattern: [0, 250, 250, 250],
+    });
   }
   const { status: existing } = await Notifications.getPermissionsAsync();
   const status = existing === 'granted' ? existing : (await Notifications.requestPermissionsAsync()).status;
   if (status !== 'granted') return null;
-  const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId ?? (Constants as any).easConfig?.projectId;
+  const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId ?? (Constants as any).easConfig?.projectId ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08';
   try {
-    const { data } = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     lastToken = data;
     await api('/me/push-tokens', { method: 'POST', body: { token: data, platform: Platform.OS } });
     return data;
-  } catch {
+  } catch (err) {
+    console.warn('Push registration error:', (err as Error)?.message);
     return null;
   }
 }

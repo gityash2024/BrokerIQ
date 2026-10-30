@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Linking, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -20,6 +21,7 @@ import { Download, Wrench } from 'lucide-react-native';
 import { authStore, useSession } from '@/lib/api';
 import { cmpVersion, useConfig } from '@/lib/config';
 import { registerPush } from '@/lib/push';
+import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { Button, Toaster, Txt } from '@/ui';
 import { DraftPump } from '@/launch/draft-pump';
@@ -95,6 +97,28 @@ export default function RootLayout() {
   useEffect(() => {
     if (loggedIn) registerPush().catch(() => undefined);
   }, [loggedIn]);
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as any;
+      const link = data?.link;
+      if (typeof link === 'string' && link.startsWith('/')) {
+        router.push(link as any);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+  useRealtime<any>('notification', (n) => {
+    if (!n) return;
+    Notifications.scheduleNotificationAsync({
+      content: {
+        title: n.title || 'BrokerIQ',
+        body: n.body || '',
+        data: n,
+        sound: 'default',
+      },
+      trigger: null,
+    }).catch(() => undefined);
+  });
   if (!fontsLoaded || !ready) return null;
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

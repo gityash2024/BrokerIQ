@@ -250,10 +250,10 @@ export class LeadsService {
       ...(q.source ? { source: { in: q.source.split(',') as LeadSource[] } } : {}),
       ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] } : {}),
     };
-    const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION', 'WON', 'LOST'];
+    const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'NOT_INTERESTED', 'SITE_VISIT', 'NEGOTIATION', 'WON', 'LOST'];
     const columns = await Promise.all(
       stages.map(async (stage) => {
-        const where = { ...base, stage, ...(stage === 'WON' || stage === 'LOST' ? { stageChangedAt: { gte: new Date(Date.now() - 30 * 86400_000) } } : {}) };
+        const where = { ...base, stage, ...(stage === 'WON' || stage === 'LOST' || stage === 'NOT_INTERESTED' ? { stageChangedAt: { gte: new Date(Date.now() - 30 * 86400_000) } } : {}) };
         const [items, count] = await Promise.all([
           this.prisma.lead.findMany({ where, orderBy: [{ stageChangedAt: 'desc' }], take: 50, include: LEAD_LIST_INCLUDE }),
           this.prisma.lead.count({ where }),

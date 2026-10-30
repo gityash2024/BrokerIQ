@@ -1,5 +1,6 @@
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { router } from 'expo-router';
+import { tr } from '@/lib/i18n';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -40,6 +41,16 @@ export default function More() {
   const { user, isBrokerAdmin, logout } = useAuth();
   const { flags } = useConfig();
   const freeMode = useFreeMode();
+  const handleLogout = () => {
+    Alert.alert(
+      tr('Log out of BrokerIQ?'),
+      tr('Are you sure you want to log out of your account?'),
+      [
+        { text: tr('Cancel'), style: 'cancel' },
+        { text: tr('Log out'), style: 'destructive', onPress: logout },
+      ]
+    );
+  };
   const tiles = [
     { label: 'Follow-ups', icon: AlarmClock, to: '/follow-ups', tint: c.danger },
     { label: 'Site visits', icon: CalendarCheck, to: '/visits', tint: c.accent },
@@ -139,7 +150,7 @@ export default function More() {
               </PressableScale>
             )}
           />
-          <PressableScale onPress={logout} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
+          <PressableScale onPress={handleLogout} style={{ padding: 16, borderTopWidth: 1, borderColor: c.line }}>
             <Txt v="bodyStrong" color="danger">
               Logout
             </Txt>

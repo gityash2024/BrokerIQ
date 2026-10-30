@@ -171,7 +171,14 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
             {role === 'admin' ? 'PLATFORM INTELLIGENCE' : role === 'broker' ? 'YOUR BUSINESS, IN FOCUS' : 'YOUR PROPERTY JOURNEY'}
           </p>
           <h1 className="mt-3 font-display text-2xl font-bold tracking-tight sm:text-3xl">
-            {role === 'admin' ? 'A clearer view of BrokerIQ.' : `Good to see you${name ? ', ' + name : ''}.`}
+            {role === 'admin' ? (
+              'A clearer view of BrokerIQ.'
+            ) : (
+              <>
+                <span>Good to see you</span>
+                {name ? `, ${name}` : ''}.
+              </>
+            )}
           </h1>
           <p className="mt-2 max-w-lg text-sm text-muted">
             {role === 'admin'
