@@ -20,7 +20,7 @@ export default function InventoryEditor() {
   const { c } = useTheme();
   const qc = useQueryClient();
   const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any[]>('/broker/team') });
-  const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [] });
+  const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [], assignedToId: user?.id });
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -43,7 +43,7 @@ export default function InventoryEditor() {
         if (draft) {
           initial = decodeDraft(draft);
           draftId.current = draft.id;
-        } else initial = id ? await api<any>(`/inventory/${id}`) : { availability: 'UNKNOWN', status: 'DRAFT', contacts: [] };
+        } else initial = id ? await api<any>(`/inventory/${id}`) : { availability: 'UNKNOWN', status: 'DRAFT', contacts: [], assignedToId: user?.id };
         if (active) {
           baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
           setForm({ ...initial, ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}) });
@@ -57,7 +57,7 @@ export default function InventoryEditor() {
     return () => {
       active = false;
     };
-  }, [id, kind, key, requestedDraft]);
+  }, [id, kind, key, requestedDraft, user?.id]);
   function persist(next: Record<string, any>) {
     setDraftStatus('Saving draft…');
     writes.current = writes.current
@@ -143,21 +143,37 @@ export default function InventoryEditor() {
             choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
             onChange={(v) => change('furnishing', v)}
           />
-          {team.data && team.data.length > 0 && (
-            <ChoiceField
-              label="Assignee"
-              emptyLabel="Current User (Default)"
-              value={form.assignedToId || form.assignedTo?.id || null}
-              choices={team.data.map((m: any) => m.id)}
-              labels={Object.fromEntries(
-                team.data.map((m: any) => [
-                  m.id,
-                  `${m.name || m.email || m.phone} (${m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})`,
-                ]),
-              )}
-              onChange={(v) => change('assignedToId', v ?? null)}
-            />
-          )}
+          {(() => {
+            const isAdmin = user?.role === 'BROKER_ADMIN';
+            const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
+            if (!isAdmin) {
+              return (
+                <View style={{ gap: 4 }}>
+                  <Txt v="caption" color="muted">Assignee</Txt>
+                  <View style={{ padding: 12, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.line }}>
+                    <Txt v="bodyStrong">{user?.name || 'You (Agent)'} (Assigned)</Txt>
+                    <Txt v="caption" color="muted">Only Broker Admin can re-assign property</Txt>
+                  </View>
+                </View>
+              );
+            }
+            if (teamMembers.length === 0) return null;
+            return (
+              <ChoiceField
+                label="Assignee"
+                emptyLabel="Unassigned / Current User"
+                value={form.assignedToId || form.assignedTo?.id || null}
+                choices={teamMembers.map((m: any) => m.id)}
+                labels={Object.fromEntries(
+                  teamMembers.map((m: any) => [
+                    m.id,
+                    `${m.name || m.email || m.phone || 'Member'} (${m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})`,
+                  ]),
+                )}
+                onChange={(v) => change('assignedToId', v ?? null)}
+              />
+            );
+          })()}
           </NativeCard>
           <NativeCard style={{ gap: 14 }}>
           <Txt v="h3">Price & area</Txt>

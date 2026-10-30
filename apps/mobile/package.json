@@ -1,6 +1,6 @@
 {
   "name": "@brokeriq/mobile",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "main": "expo-router/entry",
   "private": true,
   "description": "BrokerIQ rentals and broker workspace",

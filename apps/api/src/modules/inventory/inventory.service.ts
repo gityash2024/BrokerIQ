@@ -299,9 +299,10 @@ export class InventoryService {
       if (existing) return ledgerJson(existing);
     }
     if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
-    if (input.assignedToId) {
+    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : (input.assignedToId || user.id);
+    if (assignedToId) {
       const assignee = await this.prisma.user.findFirst({
-        where: { id: input.assignedToId, organizationId },
+        where: { id: assignedToId, organizationId },
       });
       if (!assignee) throw new BadRequestException('Assigned user not found in organization');
     }
@@ -310,7 +311,7 @@ export class InventoryService {
         ...this.fields(input),
         organizationId,
         createdById: user.id,
-        assignedToId: input.assignedToId || user.id,
+        assignedToId,
         verificationStatus: input.verificationStatus ?? 'VERIFIED',
         contacts: { create: this.contacts(input) },
       },
@@ -329,6 +330,9 @@ export class InventoryService {
   }
   async update(id: string, input: InventoryInput, user: RequestUser) {
     if (input.assignedToId) {
+      if (user.role === 'BROKER_AGENT' && input.assignedToId !== user.id) {
+        throw new ForbiddenException('Only Broker Admins can re-assign properties');
+      }
       const organizationId = this.orgId(user, input.organizationId, false);
       const assignee = await this.prisma.user.findFirst({
         where: { id: input.assignedToId, ...(organizationId ? { organizationId } : {}) },
