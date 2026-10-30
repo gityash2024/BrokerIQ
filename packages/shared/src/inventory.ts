@@ -78,6 +78,7 @@ export const inventoryInputSchema = z
     date: z.string().datetime().optional(),
     pageNo: z.number().int().min(1).max(10000).nullable().optional(),
     organizationId: z.string().max(100).optional(),
+    assignedToId: z.string().max(100).nullable().optional(),
     expectedRevision: z.number().int().positive().optional(),
   })
   .superRefine((data, ctx) => {
@@ -115,6 +116,8 @@ export const inventoryFilterSchema = z.object({
   roomKind: z.string().max(20).optional(),
   availability: availabilitySchema.optional(),
   sourceType: sourceTypeSchema.optional(),
+  assignedToId: z.string().max(100).optional(),
+  onlyMine: z.enum(['true', 'false']).optional(),
   minBudget: z.coerce.number().nonnegative().optional(),
   maxBudget: z.coerce.number().nonnegative().optional(),
   minArea: z.coerce.number().nonnegative().optional(),
@@ -161,6 +164,21 @@ export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
   isPublished?: boolean;
   id: string;
   organizationId: string;
+  createdById?: string | null;
+  assignedToId?: string | null;
+  assignedTo?: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    role: string;
+    avatarUrl?: string | null;
+  } | null;
+  createdBy?: {
+    id: string;
+    name: string;
+  } | null;
+  matchingLeadsCount?: number;
   revision: number;
   sourceType: string;
   createdAt: string;

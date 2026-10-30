@@ -9,15 +9,18 @@ export function ChoiceField({
   choices,
   onChange,
   emptyLabel = 'Not recorded',
+  labels,
 }: {
   label: string;
   value?: string | null;
   choices: string[];
   onChange: (v: string | null) => void;
   emptyLabel?: string;
+  labels?: Record<string, string>;
 }) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
+  const display = (option: string | null) => (option ? (labels?.[option] ?? option.replace(/_/g, ' ')) : emptyLabel);
   return (
     <View style={{ gap: 6 }}>
       <Txt v="caption" color="muted">
@@ -38,7 +41,7 @@ export function ChoiceField({
         }}
       >
         <Txt style={{ flex: 1 }} color={value ? 'fg' : 'muted'}>
-          {value?.replace(/_/g, ' ') || emptyLabel}
+          {display(value ?? null)}
         </Txt>
         <ChevronDown size={16} color={c.muted} />
       </Pressable>
@@ -52,7 +55,7 @@ export function ChoiceField({
             }}
             style={{ padding: 15, minHeight: 48, flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: c.line }}
           >
-            <Txt>{option?.replace(/_/g, ' ') || emptyLabel}</Txt>
+            <Txt>{display(option)}</Txt>
             {value === option && <Check size={19} color={c.brand} />}
           </Pressable>
         ))}

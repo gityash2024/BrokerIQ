@@ -12,13 +12,14 @@ import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { NativePropertyExtras } from '@/launch/property-extras';
 import { ChoiceField } from '@/launch/form';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
 export default function InventoryEditor() {
   const { id, draft: requestedDraft } = useLocalSearchParams<{ id?: string; draft?: string }>();
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
+  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any[]>('/broker/team') });
   const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [] });
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -30,12 +31,6 @@ export default function InventoryEditor() {
   const baseline = useRef<Record<string, any> | null>(null);
   const kind = id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
   const key = id ?? 'new-property';
-
-  useEffect(() => {
-    if (user?.role === 'BROKER_AGENT') {
-      router.replace('/(broker)/leads');
-    }
-  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -148,6 +143,21 @@ export default function InventoryEditor() {
             choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
             onChange={(v) => change('furnishing', v)}
           />
+          {team.data && team.data.length > 0 && (
+            <ChoiceField
+              label="Assignee"
+              emptyLabel="Current User (Default)"
+              value={form.assignedToId || form.assignedTo?.id || null}
+              choices={team.data.map((m: any) => m.id)}
+              labels={Object.fromEntries(
+                team.data.map((m: any) => [
+                  m.id,
+                  `${m.name || m.email || m.phone} (${m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})`,
+                ]),
+              )}
+              onChange={(v) => change('assignedToId', v ?? null)}
+            />
+          )}
           </NativeCard>
           <NativeCard style={{ gap: 14 }}>
           <Txt v="h3">Price & area</Txt>

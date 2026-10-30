@@ -32,6 +32,12 @@ export default function PropertyDetail() {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 <WorkspaceTag label={item.furnishing?.replace(/_/g, ' ') || 'Furnishing unknown'} />
                 <WorkspaceTag tone="muted" label={item.area != null ? `${item.area} ${item.areaUnit ?? ''}` : 'Area not recorded'} />
+                {item.assignedTo && (
+                  <WorkspaceTag tone="brand" label={`👤 ${item.assignedTo.name} (${item.assignedTo.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})`} />
+                )}
+                {item.matchingLeadsCount != null && item.matchingLeadsCount > 0 && (
+                  <WorkspaceTag tone="brand" label={`🔥 ${item.matchingLeadsCount} Leads Match`} />
+                )}
               </View>
               <Txt v="small" color="muted">
                 {item.availability === 'UNKNOWN' ? 'Availability needs confirmation' : (item.availability ?? 'UNKNOWN')}

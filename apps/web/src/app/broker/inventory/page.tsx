@@ -42,6 +42,8 @@ const initialFilters = {
   minArea: '',
   maxArea: '',
   areaUnit: '',
+  onlyMine: '',
+  assignedToId: '',
 };
 export default function LedgerPage() {
   return (
@@ -53,15 +55,6 @@ export default function LedgerPage() {
 function LedgerInner() {
   const { user } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (user?.role === 'BROKER_AGENT') {
-      router.replace('/broker/leads');
-    }
-  }, [user, router]);
-
-  if (user?.role === 'BROKER_AGENT') return null;
-
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
   const params = useSearchParams();
@@ -100,6 +93,7 @@ function LedgerInner() {
   });
   const stats = useQuery({ queryKey: ['ledger-stats'], queryFn: () => api<any>('/inventory/stats') });
   const sectors = useQuery({ queryKey: ['ledger-sectors'], queryFn: () => api<{ sector: string; count: number }[]>('/inventory/sectors') });
+  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any[]>('/broker/team') });
   async function refresh() {
     await Promise.all(
       ['ledger', 'ledger-stats', 'ledger-sectors', 'broker-dashboard', 'enterprise-dashboard'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
@@ -160,8 +154,8 @@ function LedgerInner() {
           </div>
         ))}
       </div>
-      <div className="mb-3 flex gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3">
           <Search size={17} className="text-muted" />
           <input
             aria-label="Search inventory"
@@ -171,7 +165,32 @@ function LedgerInner() {
             className="h-11 w-full bg-transparent text-sm outline-none"
           />
         </div>
-        <button onClick={() => setFilterOpen(true)} className="flex items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold">
+        <button
+          onClick={() => setFilters({ ...filters, onlyMine: filters.onlyMine === 'true' ? '' : 'true' })}
+          className={`flex h-11 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
+            filters.onlyMine === 'true'
+              ? 'border-brand-600 bg-brand-50 text-brand-700'
+              : 'border-line bg-surface text-muted hover:text-fg'
+          }`}
+        >
+          👤 My Properties
+        </button>
+        {user?.role !== 'BROKER_AGENT' && team.data && team.data.length > 0 && (
+          <select
+            aria-label="Filter by assignee"
+            value={filters.assignedToId || ''}
+            onChange={(e) => setFilters({ ...filters, assignedToId: e.target.value })}
+            className="h-11 rounded-xl border border-line bg-surface px-3 text-xs font-medium text-fg outline-none"
+          >
+            <option value="">All Assignees</option>
+            {team.data.map((m: any) => (
+              <option key={m.id} value={m.id}>
+                {m.name || m.email || m.phone}
+              </option>
+            ))}
+          </select>
+        )}
+        <button onClick={() => setFilterOpen(true)} className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold">
           <SlidersHorizontal size={16} />
           Filters {count > 0 && `(${count})`}
         </button>
@@ -274,9 +293,9 @@ function LedgerInner() {
       ) : (
         <div className="overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full min-w-[950px] text-left text-xs">
-            <thead className="border-b border-line bg-surface-2">
+            <thead className="border-b border-line bg-surface-2 text-muted">
               <tr>
-                <th className="p-3">
+                <th className="py-2.5 px-3 w-8">
                   <input
                     aria-label="Select this page"
                     type="checkbox"
@@ -287,13 +306,14 @@ function LedgerInner() {
                 {[
                   ['Property', 'houseNo'],
                   ['Locality', 'sector'],
-                  ['Configuration', ''],
+                  ['Config', ''],
                   ['Price', 'monthlyRent'],
+                  ['Assignee', ''],
                   ['Availability', 'availability'],
                   ['Contact', ''],
-                  ['Source', ''],
+                  ['Actions', ''],
                 ].map(([label, key]) => (
-                  <th key={label} className="p-3">
+                  <th key={label} className="py-2.5 px-3 font-semibold text-xs whitespace-nowrap">
                     <button
                       disabled={!key}
                       onClick={() => setSort({ sortBy: key, sortOrder: sort.sortBy === key && sort.sortOrder === 'asc' ? 'desc' : 'asc' })}
@@ -309,8 +329,8 @@ function LedgerInner() {
               {query.data?.items.map((item) => {
                 const phone = item.contacts?.find((c) => c.phone)?.phone ?? item.ownerPhone;
                 return (
-                  <tr key={item.id} className="hover:bg-surface-2/50">
-                    <td className="p-3">
+                  <tr key={item.id} className="hover:bg-surface-2/40 transition-colors">
+                    <td className="py-2.5 px-3">
                       <input
                         aria-label={`Select property ${item.houseNo ?? item.id}`}
                         type="checkbox"
@@ -318,60 +338,98 @@ function LedgerInner() {
                         onChange={(e) => setSelected(e.target.checked ? [...selected, item.id] : selected.filter((id) => id !== item.id))}
                       />
                     </td>
-                    <td className="p-3">
-                      <button onClick={() => setViewing(item)} className="text-left font-semibold text-brand-600">
-                        {item.houseNo || 'House not recorded'}
-                        {item.unitLabel && ` · ${item.unitLabel}`}
-                      </button>
-                      <p className="mt-1 text-muted">{floorLabel(item.floor)}</p>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setViewing(item)} className="font-semibold text-brand-600 hover:underline">
+                          {item.houseNo || '—'}
+                          {item.unitLabel && ` · ${item.unitLabel}`}
+                        </button>
+                        {item.floor && <span className="text-[11px] text-muted">({floorLabel(item.floor)})</span>}
+                      </div>
                     </td>
-                    <td className="p-3">
-                      {item.sector || 'Locality unknown'}
-                      <p className="mt-1 text-muted">{item.purpose ?? 'Purpose unknown'}</p>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-foreground">{item.sector || '—'}</span>
+                        {item.purpose && (
+                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-700">
+                            {item.purpose}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-3">
-                      {item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : 'Rooms unknown'}
-                      <p className="mt-1 text-muted">{item.furnishing?.replace(/_/g, ' ') || 'Furnishing unknown'}</p>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <span>{item.bhk ? `${item.bhk} BHK` : '—'}</span>
+                      {item.furnishing && (
+                        <span className="ml-1 text-[11px] text-muted">· {item.furnishing.replace(/_/g, ' ').toLowerCase()}</span>
+                      )}
                     </td>
-                    <td className="p-3 font-semibold">
+                    <td className="py-2.5 px-3 whitespace-nowrap font-semibold">
                       {item.purpose === 'RENT' && item.monthlyRent != null
                         ? `${formatINR(item.monthlyRent)}/mo`
                         : item.totalSalePrice != null
                           ? formatINR(item.totalSalePrice)
                           : item.ratePerArea != null
                             ? `${formatINR(item.ratePerArea)}/${item.rateAreaUnit}`
-                            : 'Price not recorded'}
+                            : '—'}
                     </td>
-                    <td className="p-3">
-                      <span
-                        className={`rounded-full px-2 py-1 ${item.availability === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}
-                      >
-                        {item.availability || 'UNKNOWN'}
-                      </span>
-                      <p className="mt-2 text-muted">{item.status}</p>
-                      <button className="mt-2 min-h-9 font-semibold text-brand-600" onClick={() => setPublishing(item)}>
-                        Publish / review ↗
-                      </button>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">
+                          {(item.assignedTo?.name || item.createdBy?.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate max-w-[110px] text-xs font-medium" title={item.assignedTo?.name || item.createdBy?.name || 'Unassigned'}>
+                          {item.assignedTo?.name || (item.createdById === user?.id ? 'You' : item.createdBy?.name || 'Unassigned')}
+                        </span>
+                      </div>
                     </td>
-                    <td className="p-3">
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            item.availability === 'AVAILABLE'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : item.availability === 'RENTED' || item.availability === 'SOLD'
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-amber-50 text-amber-800'
+                          }`}
+                        >
+                          {item.availability || 'UNKNOWN'}
+                        </span>
+                        {item.matchingLeadsCount != null && item.matchingLeadsCount > 0 && (
+                          <span
+                            className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-orange-700"
+                            title={`${item.matchingLeadsCount} leads match`}
+                          >
+                            🔥 {item.matchingLeadsCount}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
                       {phone ? (
                         <div className="flex items-center gap-2">
-                          <a href={`tel:${phone}`} aria-label={`Call ${phone}`}>
-                            <Phone size={14} />
+                          <a href={`tel:${phone}`} aria-label={`Call ${phone}`} className="text-muted hover:text-brand-600">
+                            <Phone size={13} />
                           </a>
-                          <span>{phone}</span>
-                          <a href={`https://wa.me/91${phone.replace(/\D/g, '').slice(-10)}`} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${phone}`}>
-                            <MessageCircle size={14} />
+                          <span className="text-xs">{phone}</span>
+                          <a
+                            href={`https://wa.me/91${phone.replace(/\D/g, '').slice(-10)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`WhatsApp ${phone}`}
+                            className="text-emerald-600 hover:text-emerald-700"
+                          >
+                            <MessageCircle size={13} />
                           </a>
                         </div>
                       ) : (
-                        'Not recorded'
+                        <span className="text-muted text-xs">—</span>
                       )}
-                      {item.contacts?.length > 1 && <p className="mt-1 text-muted">{item.contacts.length} contacts</p>}
                     </td>
-                    <td className="p-3">
-                      {item.sourceType}
-                      {item.pageNo && <p className="mt-1 text-muted">Page {item.pageNo}</p>}
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <button className="font-semibold text-brand-600 hover:underline" onClick={() => setPublishing(item)}>
+                        Publish ↗
+                      </button>
                     </td>
                   </tr>
                 );

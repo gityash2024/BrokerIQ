@@ -28,6 +28,12 @@ export function InventoryDetails({ item, onEdit, onPublish }: { item: LedgerItem
           {readableValue(item.sourceType)}
           {item.pageNo ? ` · Page ${item.pageNo}` : ''}
         </span>
+        {item.assignedTo && (
+          <span className="flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-800">
+            <span className="text-brand-600">Assignee:</span>
+            <span className="font-semibold">{item.assignedTo.name}</span>
+          </span>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Button onClick={onEdit}>Edit property</Button>

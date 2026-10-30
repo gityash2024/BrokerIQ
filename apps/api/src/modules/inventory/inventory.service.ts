@@ -22,6 +22,8 @@ import type { InventoryFilterQuery } from './inventory.dto';
 const include = {
   contacts: true,
   sourceEntry: { select: { id: true, rawText: true, pageNo: true, bbox: true, batch: { select: { id: true, sourceType: true, fileName: true } } } },
+  assignedTo: { select: { id: true, name: true, phone: true, email: true, role: true, avatarUrl: true } },
+  createdBy: { select: { id: true, name: true } },
 } as const;
 export function ledgerJson<T extends Record<string, any>>(item: T) {
   const result: Record<string, any> = { ...item };
@@ -43,19 +45,38 @@ export class InventoryService {
     return id || undefined;
   }
   private scope(user: RequestUser, requested?: string): Prisma.InventoryItemWhereInput {
-    return { organizationId: this.orgId(user, requested, false), deletedAt: null };
+    const base: Prisma.InventoryItemWhereInput = { organizationId: this.orgId(user, requested, false), deletedAt: null };
+    if (user.role === 'BROKER_AGENT') {
+      base.OR = [{ createdById: user.id }, { assignedToId: user.id }];
+    }
+    return base;
   }
   async findAll(q: InventoryFilterQuery, user: RequestUser) {
-    const where = this.scope(user, q.organizationId);
+    const where: Prisma.InventoryItemWhereInput = {
+      organizationId: this.orgId(user, q.organizationId, false),
+      deletedAt: null,
+    };
+    const and: Prisma.InventoryItemWhereInput[] = [];
+    if (user.role === 'BROKER_AGENT') {
+      and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }] });
+    } else {
+      if (q.onlyMine === 'true') {
+        and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }] });
+      }
+      if (q.assignedToId) {
+        and.push({ assignedToId: q.assignedToId });
+      }
+    }
     if (q.sector) where.sector = { equals: q.sector, mode: 'insensitive' };
     if (q.houseNo) where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
     for (const key of ['bhk', 'status', 'purpose', 'propertyType', 'category', 'furnishing', 'roomKind', 'availability', 'sourceType'] as const)
       if (q[key] != null) (where as any)[key] = q[key];
     if (q.search)
-      where.OR = ['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
-        [key]: { contains: q.search, mode: 'insensitive' },
-      }));
-    const and: Prisma.InventoryItemWhereInput[] = [];
+      and.push({
+        OR: ['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
+          [key]: { contains: q.search, mode: 'insensitive' },
+        })),
+      });
     const csv = (value: string) =>
       value
         .split(',')
@@ -148,7 +169,54 @@ export class InventoryService {
       }),
       this.prisma.inventoryItem.count({ where }),
     ]);
-    return { items: items.map(ledgerJson), total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
+
+    // Fast lead matching calculation for items
+    let requirements: { purpose: string | null; bedrooms: number[]; minBudget: number | null; maxBudget: number | null }[] = [];
+    const orgIdForLeads = (where.organizationId as string) || (items[0]?.organizationId as string | undefined);
+    if (orgIdForLeads && items.length > 0) {
+      try {
+        requirements = await this.prisma.leadRequirement.findMany({
+          where: {
+            lead: {
+              organizationId: orgIdForLeads,
+              stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION'] },
+              deletedAt: null,
+            },
+          },
+          select: {
+            purpose: true,
+            bedrooms: true,
+            minBudget: true,
+            maxBudget: true,
+          },
+        });
+      } catch {
+        requirements = [];
+      }
+    }
+
+    const itemsWithMatches = items.map((r) => {
+      const item = ledgerJson(r);
+      if (requirements.length > 0) {
+        const itemPrice = item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : item.totalSalePrice;
+        let matchCount = 0;
+        for (const req of requirements) {
+          if (req.purpose && item.purpose && req.purpose !== item.purpose) continue;
+          if (req.bedrooms && req.bedrooms.length > 0 && item.bhk && !req.bedrooms.includes(item.bhk)) continue;
+          if (itemPrice != null) {
+            if (req.minBudget != null && itemPrice < req.minBudget) continue;
+            if (req.maxBudget != null && itemPrice > req.maxBudget) continue;
+          }
+          matchCount++;
+        }
+        item.matchingLeadsCount = matchCount;
+      } else {
+        item.matchingLeadsCount = 0;
+      }
+      return item;
+    });
+
+    return { items: itemsWithMatches, total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
   }
   async get(id: string, user: RequestUser) {
     const item = await this.prisma.inventoryItem.findFirst({ where: { ...this.scope(user), id }, include });
@@ -231,11 +299,18 @@ export class InventoryService {
       if (existing) return ledgerJson(existing);
     }
     if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
+    if (input.assignedToId) {
+      const assignee = await this.prisma.user.findFirst({
+        where: { id: input.assignedToId, organizationId },
+      });
+      if (!assignee) throw new BadRequestException('Assigned user not found in organization');
+    }
     const creation = {
       data: {
         ...this.fields(input),
         organizationId,
         createdById: user.id,
+        assignedToId: input.assignedToId || user.id,
         verificationStatus: input.verificationStatus ?? 'VERIFIED',
         contacts: { create: this.contacts(input) },
       },
@@ -253,6 +328,13 @@ export class InventoryService {
     return ledgerJson(item);
   }
   async update(id: string, input: InventoryInput, user: RequestUser) {
+    if (input.assignedToId) {
+      const organizationId = this.orgId(user, input.organizationId, false);
+      const assignee = await this.prisma.user.findFirst({
+        where: { id: input.assignedToId, ...(organizationId ? { organizationId } : {}) },
+      });
+      if (!assignee) throw new BadRequestException('Assigned user not found in organization');
+    }
     const item = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });

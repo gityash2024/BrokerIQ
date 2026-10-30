@@ -473,6 +473,7 @@ model User {
   locations      UserLocation[]
   contacts       UserContact[]
   inventoryCreated InventoryItem[] @relation("InventoryCreatedBy")
+  inventoryAssigned InventoryItem[] @relation("InventoryAssignedTo")
 
   @@index([organizationId])
   @@index([role])
@@ -2409,6 +2410,7 @@ model InventoryItem {
   id                 String    @id @default(cuid())
   organizationId     String
   createdById        String?
+  assignedToId       String?
   date               DateTime  @default(now())
   sector             String?
   localityId         String?
@@ -2459,12 +2461,14 @@ model InventoryItem {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedTo   User?        @relation("InventoryAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   publishedListing Listing? @relation("InventoryPublicListing", fields:[publishedListingId], references:[id], onDelete:SetNull)
   contacts InventoryContact[]
   sourceEntry SourceEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: Restrict)
   @@unique([sourceEntryId, sourceUnitKey])
   @@unique([organizationId, clientMutationId])
+  @@index([organizationId, assignedToId])
   @@index([organizationId, availability])
   @@index([organizationId, sourceType])
   @@index([organizationId, status])
