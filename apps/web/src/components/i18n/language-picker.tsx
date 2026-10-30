@@ -38,7 +38,7 @@ export function LanguagePicker({ className, light }: { className?: string; light
             {!lang && <Check className="size-4 text-brand-600" />}
           </DM.Item>
           <DM.Separator className="my-1 h-px bg-line" />
-          {LANGUAGES.filter((l)=>l.code==='en'||l.code==='hi').map((l) => (
+          {LANGUAGES.map((l) => (
             <DM.Item
               key={l.code}
               onSelect={() => setLang(l.code)}

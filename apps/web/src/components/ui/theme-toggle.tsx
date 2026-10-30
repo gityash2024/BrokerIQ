@@ -5,7 +5,9 @@ import { cn } from '@/lib/utils';
 
 export function ThemeToggle({ className }: { className?: string }) {
   const [dark, setDark] = useState(false);
-  useEffect(() => setDark(document.documentElement.classList.contains('dark')), []);
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains('dark'));
+  }, []);
   const toggle = () => {
     const next = !dark;
     setDark(next);

@@ -201,7 +201,7 @@ export const defaultModulePolicies = (): ModulePolicies =>
         roles: [
           'SUPER_ADMIN',
           'BROKER_ADMIN',
-          ...(['consumer', 'today', 'directory', 'inventory', 'leads', 'inbox', 'team', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
+          ...(['consumer', 'today', 'leads', 'inbox', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
           ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
         ] as ModulePolicy['roles'],
       },

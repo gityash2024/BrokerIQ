@@ -44,6 +44,8 @@ export const del = <T = any>(path: string) => api<T>(path, { method: 'DELETE' })
 
 export function useMounted() {
   const [m, setM] = useState(false);
-  useEffect(() => setM(true), []);
+  useEffect(() => {
+    setM(true);
+  }, []);
   return m;
 }

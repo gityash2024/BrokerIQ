@@ -13,6 +13,7 @@ const sent = new Set<string>();
 export function reportClientError(error: unknown, extra?: { digest?: string }) {
   if (typeof window === 'undefined') return;
   const e = error instanceof Error ? error : new Error(typeof error === 'string' ? error : 'Unknown error');
+  if (e.stack?.includes('chrome-extension://') || e.stack?.includes('moz-extension://')) return;
   const message = `${e.message || 'Unknown error'}${extra?.digest ? ` (digest ${extra.digest})` : ''}`.slice(0, 1000);
   const key = `${message}|${location.pathname}`;
   if (sent.has(key) || sent.size >= MAX_PER_PAGE) return;

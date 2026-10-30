@@ -27,7 +27,9 @@ export default function Directory() {
   const query = useQuery({ queryKey: ['area-directory', filters, page], queryFn: () => api<any>(`/area-directory${qs({ ...filters, page })}`) });
   const map = useQuery({ queryKey: ['area-directory-map', filters], queryFn: () => api<any>(`/area-directory/map${qs(filters)}`), enabled: view === 'MAP' });
   const detail = useQuery({ queryKey: ['directory-detail', selected], queryFn: () => api<any>(`/area-directory/${selected}`), enabled: !!selected });
-  useEffect(() => setPage(1), [search, sector, category, provider]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, sector, category, provider]);
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow) return;

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
@@ -62,6 +62,10 @@ function InboxInner() {
   useRealtime('wa:message', () => convs.refetch());
   useRealtime('chat:message', () => convs.refetch());
   const current = convs.data?.find((c) => c.id === active);
+
+  const handleRead = useCallback(() => {
+    convs.refetch();
+  }, [convs]);
 
   return (
     <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8">
@@ -199,7 +203,7 @@ function InboxInner() {
                 <ChatThread id={active} side="broker" />
               </div>
             ) : (
-              <WaThread id={active} connected={!!status.data?.connected} onRead={() => convs.refetch()} />
+              <WaThread id={active} connected={!!status.data?.connected} onRead={handleRead} />
             )}
           </>
         )}
@@ -225,12 +229,23 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   const [shareOpen, setShareOpen] = useState(false);
   const [notConfigured, setNotConfigured] = useState<ApiError | null>(null);
   const end = useRef<HTMLDivElement>(null);
-  useRealtime<any>('wa:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
-  useRealtime<any>('wa:status', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
+
+  useRealtime<any>('wa:message', (d) => d?.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
+  useRealtime<any>('wa:status', (d) => d?.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
+
   useEffect(() => {
-    if (q.data?.conversation?.unreadCount) api(`/whatsapp/conversations/${id}/read`, { method: 'POST', body: {} }).then(onRead);
-  }, [q.data?.conversation?.unreadCount, id, onRead]);
-  useEffect(() => end.current?.scrollIntoView({ behavior: 'smooth' }), [q.data?.items.length]);
+    if (q.data?.conversation?.unreadCount) {
+      api(`/whatsapp/conversations/${id}/read`, { method: 'POST', body: {} })
+        .then(() => onReadRef.current())
+        .catch(() => undefined);
+    }
+  }, [q.data?.conversation?.unreadCount, id]);
+
+  useEffect(() => {
+    end.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [q.data?.items?.length]);
 
   const send = async (body: Record<string, unknown>) => {
     setSending(true);
@@ -260,6 +275,18 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   }, [q.data]);
 
   if (q.isLoading) return <PageLoader />;
+  if (q.isError) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+        <AlertTriangle className="mb-2 size-8 text-amber-500" />
+        <p className="text-sm font-semibold">Conversation लोड नहीं हो सकी</p>
+        <p className="mt-1 text-xs text-muted">{errorMessage(q.error)}</p>
+        <Button size="sm" variant="secondary" className="mt-4" onClick={() => q.refetch()}>
+          दोबारा कोशिश करें
+        </Button>
+      </div>
+    );
+  }
   const windowOpen = q.data?.windowOpen;
   return (
     <>
@@ -401,7 +428,9 @@ function TemplateDialog({
   const [sel, setSel] = useState<any>(null);
   const [params, setParams] = useState<string[]>([]);
   const count = sel?.body ? new Set(sel.body.match(/\{\{\d+\}\}/g) ?? []).size : 0;
-  useEffect(() => setParams(Array.from({ length: count }, (_, i) => (i === 0 && name ? name : ''))), [sel, count, name]);
+  useEffect(() => {
+    setParams(Array.from({ length: count }, (_, i) => (i === 0 && name ? name : '')));
+  }, [sel, count, name]);
   const sync = async () => {
     try {
       const r = await post<any>('/whatsapp/templates/sync');

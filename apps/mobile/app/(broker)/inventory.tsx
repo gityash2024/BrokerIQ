@@ -5,6 +5,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Plus, SlidersHorizontal, Search, X } from 'lucide-react-native';
 import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger } from '@brokeriq/shared';
 import { api, qs, errorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
@@ -39,6 +40,15 @@ const initial = {
   areaUnit: '',
 };
 export default function Inventory() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (user?.role === 'BROKER_AGENT') {
+      router.replace('/(broker)/leads');
+    }
+  }, [user]);
+
+  if (user?.role === 'BROKER_AGENT') return null;
+
   const { c } = useTheme();
   const [search, setSearch] = useState('');
   const term = useDebounced(search);

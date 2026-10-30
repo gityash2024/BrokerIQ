@@ -64,7 +64,10 @@ export function AssistantWidget() {
 
   // restore this user's conversation for the tab session
   useEffect(() => {
-    if (!user) return setMsgs([]);
+    if (!user) {
+      setMsgs([]);
+      return;
+    }
     try {
       setMsgs(JSON.parse(sessionStorage.getItem(storeKey(user.id)) || '[]'));
     } catch {

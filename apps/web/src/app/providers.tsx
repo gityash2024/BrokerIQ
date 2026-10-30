@@ -26,7 +26,10 @@ export function Providers({ children, config }: { children: React.ReactNode; con
         },
       }),
   );
-  useEffect(() => (installGlobalErrorHandlers(), captureReferral()), []);
+  useEffect(() => {
+    installGlobalErrorHandlers();
+    captureReferral();
+  }, []);
   useEffect(() => {
     const reset = () => qc.clear();
     const unregister = registerAuthCacheReset(reset);

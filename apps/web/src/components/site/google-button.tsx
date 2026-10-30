@@ -36,7 +36,10 @@ export function GoogleButton({
         width: ref.current.offsetWidth || 320,
       });
     };
-    if (window.google) return render();
+    if (window.google) {
+      render();
+      return;
+    }
     const s = document.createElement('script');
     s.src = 'https://user/accounts.google.com/gsi/client';
     s.async = true;

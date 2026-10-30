@@ -79,7 +79,9 @@ export function ChatThread({ id, side }: { id: string; side: 'user' | 'broker' }
   const [sending, setSending] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   useRealtime<any>('chat:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['chat', id] }));
-  useEffect(() => end.current?.scrollIntoView({ behavior: 'smooth' }), [q.data?.items.length]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [q.data?.items?.length]);
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;

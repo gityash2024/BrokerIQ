@@ -177,7 +177,9 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
             {role === 'admin'
               ? 'People, properties and the work that needs your attention.'
               : role === 'broker'
-                ? 'Your inventory, relationships and next actions, connected.'
+                ? user?.role === 'BROKER_AGENT'
+                  ? 'Your assigned leads, follow-ups and performance targets.'
+                  : 'Your inventory, relationships and next actions, connected.'
                 : 'Your favourites, conversations and next visit, together.'}
           </p>
         </div>
@@ -185,8 +187,19 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
           <Button variant="secondary" size="sm" onClick={() => q.refetch()} aria-label="Refresh dashboard">
             <RefreshCw className={`size-4 ${q.isFetching ? 'animate-spin' : ''}`} />
           </Button>
-          <Button size="sm" href={role === 'admin' ? '/admin/moderation' : role === 'broker' ? '/broker/inventory' : '/user/search'}>
-            {role === 'admin' ? 'Review listings' : role === 'broker' ? 'Open inventory' : 'Explore rentals'}
+          <Button
+            size="sm"
+            href={
+              role === 'admin'
+                ? '/admin/moderation'
+                : role === 'broker'
+                  ? user?.role === 'BROKER_AGENT'
+                    ? '/broker/leads'
+                    : '/broker/inventory'
+                  : '/user/search'
+            }
+          >
+            {role === 'admin' ? 'Review listings' : role === 'broker' ? (user?.role === 'BROKER_AGENT' ? 'Open leads' : 'Open inventory') : 'Explore rentals'}
             <ArrowUpRight className="size-4" />
           </Button>
         </div>

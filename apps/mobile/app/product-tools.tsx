@@ -17,7 +17,7 @@ export default function ProductTools() {
   const role = user?.role ?? 'PUBLIC';
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
   const routes: Record<string, string> =
-    ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)
+    role === 'BROKER_ADMIN'
       ? {
           consumer: '/home',
           today: '/dashboard',
@@ -30,7 +30,16 @@ export default function ProductTools() {
           tenant_requirements: '/requirements',
           slot_booking: '/visits',
         }
-      : { consumer: '/home', tenant_requirements: '/customer-requirements', slot_booking: '/my-visits' };
+      : role === 'BROKER_AGENT'
+        ? {
+            consumer: '/home',
+            today: '/dashboard',
+            leads: '/leads',
+            inbox: '/inbox',
+            tenant_requirements: '/requirements',
+            slot_booking: '/visits',
+          }
+        : { consumer: '/home', tenant_requirements: '/customer-requirements', slot_booking: '/my-visits' };
   return (
     <BrokerScreen title="Product features" subtitle="Available tools and the complete upcoming roadmap." back>
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 14, paddingBottom: 40 }}>
@@ -40,7 +49,7 @@ export default function ProductTools() {
           description="Available tools open your workspace. Upcoming modules are visible, disabled and preserve your access settings."
         />
         <Input accessibilityLabel="Search product features" placeholder="Find a feature…" value={search} onChangeText={setSearch} />
-        {['BROKER_ADMIN', 'BROKER_AGENT'].includes(role) && items.some((item) => ['inventory', 'inbox'].includes(item.key) && item.state === 'ACTIVE') && (
+        {role === 'BROKER_ADMIN' && items.some((item) => ['inventory', 'inbox'].includes(item.key) && item.state === 'ACTIVE') && (
           <NativeCard>
             <Row>
               <Blocks size={20} color={c.brand} />
