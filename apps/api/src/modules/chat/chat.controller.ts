@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -87,8 +87,23 @@ export class ChatController {
       take: 300,
       include: { sender: { select: { id: true, name: true } } },
     });
-    if (!isUser) await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
+    if (!isUser) {
+      await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
+      if (c.organizationId) {
+        this.realtime.toOrg(c.organizationId, 'chat:read', { conversationId: id, userId: user.id });
+      }
+    }
     return { conversation: c, items };
+  }
+
+  @Delete('threads/:id')
+  async deleteThread(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const { c } = await this.access(id, user);
+    await this.prisma.conversation.delete({ where: { id } });
+    if (c.organizationId) {
+      this.realtime.toOrg(c.organizationId, 'chat:conversation_deleted', { conversationId: id, leadId: c.leadId });
+    }
+    return { ok: true, deletedConversationId: id };
   }
 
   @Post('threads/:id')

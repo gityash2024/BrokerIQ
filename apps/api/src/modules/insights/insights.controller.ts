@@ -70,7 +70,21 @@ export class InsightsController {
           _count: true,
         }),
         this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null } }),
-        this.prisma.conversation.aggregate({ where: { organizationId: orgId, unreadCount: { gt: 0 } }, _sum: { unreadCount: true } }),
+        this.prisma.conversation.aggregate({
+          where: {
+            organizationId: orgId,
+            unreadCount: { gt: 0 },
+            ...(mine
+              ? {
+                  OR: [
+                    { lead: { is: { assignedToId: user.id } } },
+                    { channel: 'CHAT', leadId: null },
+                  ],
+                }
+              : {}),
+          },
+          _sum: { unreadCount: true },
+        }),
         this.prisma.inventoryItem.count({ where: { organizationId: orgId } }),
         this.prisma.inventoryItem.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
         this.prisma.inventoryItem.groupBy({

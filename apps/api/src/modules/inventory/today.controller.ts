@@ -44,7 +44,23 @@ export class TodayController {
       leadsOn ? this.prisma.brokerRequirement.count({ where: { organizationId, deletedAt: null, status: 'OPEN' } }) : null,
       inventoryOn ? this.inventory.getStats(user) : null,
       inboxOn ? this.prisma.sourceEntry.count({ where: { batch: { organizationId }, reviewState: 'NEEDS_REVIEW' } }) : null,
-      inboxOn ? this.prisma.conversation.aggregate({ where: { organizationId }, _sum: { unreadCount: true } }) : null,
+      inboxOn
+        ? this.prisma.conversation.aggregate({
+            where: {
+              organizationId,
+              unreadCount: { gt: 0 },
+              ...(user.role === 'BROKER_AGENT'
+                ? {
+                    OR: [
+                      { lead: { is: { assignedToId: user.id } } },
+                      { channel: 'CHAT', leadId: null },
+                    ],
+                  }
+                : {}),
+            },
+            _sum: { unreadCount: true },
+          })
+        : null,
     ]);
     return {
       date: start.toISOString(),

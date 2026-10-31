@@ -72,13 +72,22 @@ function ReportChat({ id }: { id: string }) {
 }
 
 /** In-app chat thread (user ↔ broker). `side` decides bubble alignment. */
-export function ChatThread({ id, side }: { id: string; side: 'user' | 'broker' }) {
+export function ChatThread({ id, side, onRead }: { id: string; side: 'user' | 'broker'; onRead?: () => void }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['chat', id], queryFn: () => api<ChatThreadResponse>(`/chat/threads/${id}`) });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
+
   useRealtime<any>('chat:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['chat', id] }));
+
+  useEffect(() => {
+    if (side === 'broker' && onReadRef.current) {
+      onReadRef.current();
+    }
+  }, [id, side]);
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth' });
   }, [q.data?.items?.length]);

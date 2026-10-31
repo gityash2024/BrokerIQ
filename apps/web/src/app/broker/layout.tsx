@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck2, Building2, Target, MessageSquareText, ShieldCheck, Users, Workflow, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useRealtime } from '@/lib/realtime';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,12 @@ function Inner({ children }: { children: React.ReactNode }) {
     refetchInterval: 60_000,
     enabled: pathname !== '/broker/onboarding',
   });
+
+  useRealtime('wa:message', () => dash.refetch());
+  useRealtime('chat:message', () => dash.refetch());
+  useRealtime('wa:read', () => dash.refetch());
+  useRealtime('chat:read', () => dash.refetch());
+  useRealtime('wa:conversation_deleted', () => dash.refetch());
   useEffect(() => {
     if (user?.role === 'BROKER_ADMIN' && user.organization && !user.organization.onboarded && pathname !== '/broker/onboarding')
       router.replace('/broker/onboarding');

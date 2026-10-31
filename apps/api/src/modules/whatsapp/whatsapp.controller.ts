@@ -1,9 +1,11 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { whatsappSendSchema, renderTemplate, formatPriceShort } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
+import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
@@ -16,6 +18,7 @@ export class WhatsAppController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wa: WhatsAppService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
@@ -90,12 +93,88 @@ export class WhatsAppController {
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Get('whatsapp/unread-stats')
+  async unreadStats(@CurrentUser() user: RequestUser) {
+    const orgId = requireOrg(user);
+    const mine = user.role === 'BROKER_AGENT';
+    const waWhere: Prisma.ConversationWhereInput = {
+      organizationId: orgId,
+      channel: 'WHATSAPP',
+      unreadCount: { gt: 0 },
+      ...(mine
+        ? {
+            lead: {
+              is: {
+                source: 'HOUSING',
+                assignedToId: user.id,
+              },
+            },
+          }
+        : {}),
+    };
+    const chatWhere: Prisma.ConversationWhereInput = {
+      organizationId: orgId,
+      channel: 'CHAT',
+      unreadCount: { gt: 0 },
+      ...(mine
+        ? {
+            OR: [{ lead: { assignedToId: user.id } }, { leadId: null }],
+          }
+        : {}),
+    };
+
+    const [waAgg, chatAgg, waUnreadConvs, chatUnreadConvs] = await Promise.all([
+      this.prisma.conversation.aggregate({ where: waWhere, _sum: { unreadCount: true } }),
+      this.prisma.conversation.aggregate({ where: chatWhere, _sum: { unreadCount: true } }),
+      this.prisma.conversation.count({ where: waWhere }),
+      this.prisma.conversation.count({ where: chatWhere }),
+    ]);
+
+    const waUnreadMessages = waAgg._sum.unreadCount ?? 0;
+    const chatUnreadMessages = chatAgg._sum.unreadCount ?? 0;
+    return {
+      whatsapp: {
+        unreadConversations: waUnreadConvs,
+        unreadMessages: waUnreadMessages,
+      },
+      chat: {
+        unreadConversations: chatUnreadConvs,
+        unreadMessages: chatUnreadMessages,
+      },
+      total: {
+        unreadConversations: waUnreadConvs + chatUnreadConvs,
+        unreadMessages: waUnreadMessages + chatUnreadMessages,
+      },
+    };
+  }
+
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @HttpCode(200)
   @Post('whatsapp/conversations/:id/read')
   async read(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    await this.conv(id, user);
+    const c = await this.conv(id, user);
     await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
+    if (c.organizationId) {
+      this.realtime.toOrg(c.organizationId, 'wa:read', { conversationId: id, userId: user.id });
+    }
     return { ok: true };
+  }
+
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @HttpCode(200)
+  @Delete('whatsapp/conversations/:id')
+  async deleteConversation(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const c = await this.conv(id, user);
+    if (user.role === 'BROKER_AGENT' && c.lead && c.lead.assignedToId !== user.id) {
+      throw new ForbiddenException('आप इस बातचीत को नहीं हटा सकते');
+    }
+    // Delete conversation safely: cascading deletes messages,
+    // but LEAVES LEAD 100% UNTOUCHED (as foreign key is SetNull).
+    await this.prisma.conversation.delete({ where: { id } });
+    if (c.organizationId) {
+      this.realtime.toOrg(c.organizationId, 'wa:conversation_deleted', { conversationId: id, leadId: c.leadId });
+    }
+    return { ok: true, deletedConversationId: id };
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
