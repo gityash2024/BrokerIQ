@@ -1,9 +1,29 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, RefreshCw, Upload, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Check, X } from 'lucide-react';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  Camera,
+  CheckCircle2,
+  RefreshCw,
+  Upload,
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  Check,
+  X,
+  Sparkles,
+  Lock,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { uploadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import {
+  getFaceLandmarker,
+  inspectFaceFrame,
+  resetSmoothedYaw,
+  FaceInspectionResult,
+} from '@/lib/face-liveliness-detector';
 import { toast } from 'sonner';
 
 export type LivelinessStep = 'STRAIGHT' | 'LEFT' | 'RIGHT';
@@ -21,9 +41,24 @@ interface AgentKycPipelineProps {
 }
 
 const STEPS: { key: LivelinessStep; label: string; sub: string; hint: string }[] = [
-  { key: 'STRAIGHT', label: '1. सामने देखें (Look Straight)', sub: 'कैमरे के बिल्कुल सामने चेहरा रखें', hint: 'Keep head straight centered in the circle' },
-  { key: 'LEFT', label: '2. बाईं तरफ देखें (Look Left)', sub: 'चेहरा धीरे से बाईं ओर घुमाएँ', hint: 'Turn your head slightly to the left' },
-  { key: 'RIGHT', label: '3. दाईं तरफ देखें (Look Right)', sub: 'चेहरा धीरे से दाईं ओर घुमाएँ', hint: 'Turn your head slightly to the right' },
+  {
+    key: 'STRAIGHT',
+    label: '1. सामने देखें (Look Straight)',
+    sub: 'कैमरे के बिल्कुल सामने चेहरा रखें',
+    hint: 'Keep head straight centered in the circle',
+  },
+  {
+    key: 'LEFT',
+    label: '2. बाईं तरफ देखें (Look Left)',
+    sub: 'चेहरा धीरे से बाईं ओर घुमाएँ',
+    hint: 'Turn your head slightly to the left',
+  },
+  {
+    key: 'RIGHT',
+    label: '3. दाईं तरफ देखें (Look Right)',
+    sub: 'चेहरा धीरे से दाईं ओर घुमाएँ',
+    hint: 'Turn your head slightly to the right',
+  },
 ];
 
 export function AgentKycPipeline({ initialValues, disabled = false, onChange }: AgentKycPipelineProps) {
@@ -37,7 +72,12 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Face Detection & Pose Lock State
+  const [detectorReady, setDetectorReady] = useState(false);
+  const [detection, setDetection] = useState<FaceInspectionResult | null>(null);
+  const [holdProgress, setHoldProgress] = useState(0); // 0 to 100
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   // Pending approval state for review step
   const [pendingCapture, setPendingCapture] = useState<{
@@ -49,6 +89,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const landmarkerRef = useRef<any>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const holdStartRef = useRef<number | null>(null);
+  const autoCaptureTriggeredRef = useRef(false);
 
   const allComplete = !!captures.straightUrl && !!captures.leftUrl && !!captures.rightUrl;
 
@@ -63,7 +107,32 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     }
   }, [initialValues?.straightUrl, initialValues?.leftUrl, initialValues?.rightUrl]);
 
-  const stopCamera = () => {
+  // Load MediaPipe Landmarker
+  useEffect(() => {
+    let cancelled = false;
+    getFaceLandmarker()
+      .then((landmarker) => {
+        if (!cancelled && landmarker) {
+          landmarkerRef.current = landmarker;
+          setDetectorReady(true);
+        }
+      })
+      .catch((err) => {
+        console.warn('Face landmarker could not load, using manual fallback:', err);
+        if (!cancelled) {
+          setFallbackMode(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => {
         try {
@@ -76,19 +145,32 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
       videoRef.current.srcObject = null;
     }
     setCameraActive(false);
-  };
+    setDetection(null);
+    setHoldProgress(0);
+    holdStartRef.current = null;
+    autoCaptureTriggeredRef.current = false;
+    resetSmoothedYaw();
+  }, []);
 
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     if (disabled) return;
     try {
       setCameraError(null);
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } },
+        video: {
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 640 },
+        },
         audio: false,
       });
       streamRef.current = stream;
       setCameraActive(true);
+      holdStartRef.current = null;
+      autoCaptureTriggeredRef.current = false;
+      resetSmoothedYaw();
+
       // Wait for next render cycle so video element is in DOM
       setTimeout(() => {
         if (videoRef.current && streamRef.current) {
@@ -101,7 +183,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
       setCameraActive(false);
       setCameraError('कैमरा शुरू नहीं हो पाया। कृपया कैमरा परमिशन दें या फ़ोटो चुनें विकल्प का उपयोग करें।');
     }
-  };
+  }, [disabled, stopCamera]);
 
   useEffect(() => {
     if (disabled || (allComplete && !isRetaking)) {
@@ -112,10 +194,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     return () => {
       stopCamera();
     };
-  }, [disabled, allComplete, isRetaking]);
+  }, [disabled, allComplete, isRetaking, startCamera, stopCamera]);
 
   // Capture frame to preview and approve
-  const captureFrame = async () => {
+  const captureFrame = useCallback(async () => {
     if (!videoRef.current || uploading) return;
     try {
       const video = videoRef.current;
@@ -139,11 +221,67 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         dataUrl,
         blob,
       });
-      toast.info('फ़ोटो ले ली गई है — कृपया फ़ोटो की समीक्षा करके "स्वीकारें" पर क्लिक करें');
+      toast.info('पोज़ कैप्चर हो गया! कृपया फ़ोटो की समीक्षा करके "स्वीकारें" पर क्लिक करें');
     } catch (err: any) {
       toast.error('फ़ोटो कैप्चर में समस्या: ' + (err?.message || 'Error'));
     }
-  };
+  }, [activeStep, uploading]);
+
+  // Real-time Face Pose Tracking Animation Frame Loop
+  useEffect(() => {
+    if (!cameraActive || pendingCapture || uploading || (allComplete && !isRetaking)) {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      return;
+    }
+
+    let isRunning = true;
+
+    const loop = () => {
+      if (!isRunning) return;
+
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
+
+      if (video && video.readyState >= 2 && landmarker) {
+        const result = inspectFaceFrame(landmarker, video, activeStep);
+        setDetection(result);
+
+        // Auto-capture on pose lock: User holds pose for 1000ms
+        if (result.isMatchingPose) {
+          if (!holdStartRef.current) {
+            holdStartRef.current = performance.now();
+          }
+          const elapsed = performance.now() - holdStartRef.current;
+          const progress = Math.min(100, Math.round((elapsed / 1000) * 100));
+          setHoldProgress(progress);
+
+          if (elapsed >= 1000 && !autoCaptureTriggeredRef.current) {
+            autoCaptureTriggeredRef.current = true;
+            captureFrame();
+          }
+        } else {
+          holdStartRef.current = null;
+          setHoldProgress(0);
+          autoCaptureTriggeredRef.current = false;
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+
+    animFrameRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      isRunning = false;
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    };
+  }, [cameraActive, pendingCapture, uploading, activeStep, allComplete, isRetaking, captureFrame]);
 
   // Agent approves capture -> Upload & Advance
   const approveCapture = async () => {
@@ -169,6 +307,12 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         stopCamera();
         toast.success('सभी 3 फेस पोज़ सफलतापूर्वक कैप्चर हो गए! कैमरा बंद कर दिया गया है।');
       } else {
+        // Reset hold state for next pose
+        holdStartRef.current = null;
+        setHoldProgress(0);
+        autoCaptureTriggeredRef.current = false;
+        resetSmoothedYaw();
+
         // Advance to next incomplete pose
         if (pendingCapture.step === 'STRAIGHT' && !nextCaptures.leftUrl) setActiveStep('LEFT');
         else if (pendingCapture.step === 'LEFT' && !nextCaptures.rightUrl) setActiveStep('RIGHT');
@@ -186,21 +330,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   // Agent discards capture and wants to retake
   const retakeCapture = () => {
     setPendingCapture(null);
-  };
-
-  // Trigger countdown then capture
-  const handleCountdownCapture = () => {
-    setCountdown(3);
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          clearInterval(interval);
-          captureFrame();
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 800);
+    holdStartRef.current = null;
+    setHoldProgress(0);
+    autoCaptureTriggeredRef.current = false;
+    resetSmoothedYaw();
   };
 
   // Manual file upload fallback
@@ -237,11 +370,16 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   const handleRetakePose = (pose: LivelinessStep) => {
     setActiveStep(pose);
     setPendingCapture(null);
+    holdStartRef.current = null;
+    setHoldProgress(0);
+    autoCaptureTriggeredRef.current = false;
+    resetSmoothedYaw();
     setIsRetaking(true);
     startCamera();
   };
 
   const currentStepConfig = STEPS.find((s) => s.key === activeStep) || STEPS[0];
+  const isPoseUnlocked = fallbackMode || (detection && detection.isMatchingPose);
 
   return (
     <div className="space-y-4 rounded-2xl border border-line bg-surface-2/40 p-4 sm:p-5">
@@ -252,7 +390,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
             Face Liveliness Check • चेहरा सत्यापन (3 Poses)
           </h4>
           <p className="text-xs text-muted">
-            प्रमाणिकता हेतु 3 अलग-अलग कोणों से चेहरा सत्यापित करें (Straight, Left, Right)
+            AI फेस डिटेक्शन द्वारा 3 पोज़ सत्यापित करें (सामने, बाईं ओर, दाईं ओर)
           </p>
         </div>
         {allComplete && (
@@ -279,6 +417,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               onClick={() => {
                 setActiveStep(s.key);
                 setPendingCapture(null);
+                holdStartRef.current = null;
+                setHoldProgress(0);
+                autoCaptureTriggeredRef.current = false;
+                resetSmoothedYaw();
                 if (allComplete) {
                   setIsRetaking(true);
                 }
@@ -316,7 +458,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               </div>
               <h5 className="font-bold text-base text-fg">3/3 फेस लाइवलीनेस सत्यापन पूर्ण</h5>
               <p className="text-xs text-muted mt-1 max-w-xs">
-                तीनों तस्वीरें सफलतापूर्वक ले ली गई हैं। कैमरा सुरक्षित रूप से बंद कर दिया गया है।
+                तीनों कोणों से चेहरे की तस्वीरें ले ली गई हैं। कैमरा सुरक्षित रूप से बंद कर दिया गया है।
               </p>
               <div className="mt-4 flex items-center gap-2">
                 <Button
@@ -386,39 +528,84 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <div
                       className={cn(
-                        'relative h-64 w-48 rounded-[50%] border-2 border-dashed transition-all duration-300',
-                        activeStep === 'STRAIGHT' && 'border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]',
-                        activeStep === 'LEFT' && 'border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] -rotate-6',
-                        activeStep === 'RIGHT' && 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] rotate-6',
+                        'relative h-64 w-48 rounded-[50%] border-2 transition-all duration-200',
+                        detection?.isMatchingPose
+                          ? 'border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.6)] scale-[1.03]'
+                          : 'border-dashed border-white/60 shadow-[0_0_15px_rgba(0,0,0,0.5)]',
                       )}
                     >
-                      {/* Directional cue arrow */}
+                      {/* Directional cue arrow & instruction badge */}
                       {activeStep === 'LEFT' && (
-                        <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-1 text-[11px] font-bold text-black animate-pulse">
-                          <ArrowLeft className="size-4" /> Left
+                        <div
+                          className={cn(
+                            'absolute -left-12 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-extrabold shadow-lg transition-all',
+                            detection?.isMatchingPose
+                              ? 'bg-emerald-500 text-white shadow-emerald-500/50'
+                              : 'bg-amber-400 text-black shadow-amber-400/50 animate-pulse',
+                          )}
+                        >
+                          <ArrowLeft className="size-4" /> Left (बाएँ)
                         </div>
                       )}
                       {activeStep === 'RIGHT' && (
-                        <div className="absolute -right-10 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-sky-500/90 px-2 py-1 text-[11px] font-bold text-black animate-pulse">
-                          Right <ArrowRight className="size-4" />
+                        <div
+                          className={cn(
+                            'absolute -right-12 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-extrabold shadow-lg transition-all',
+                            detection?.isMatchingPose
+                              ? 'bg-emerald-500 text-white shadow-emerald-500/50'
+                              : 'bg-sky-400 text-black shadow-sky-400/50 animate-pulse',
+                          )}
+                        >
+                          Right (दाएँ) <ArrowRight className="size-4" />
+                        </div>
+                      )}
+
+                      {/* Pose Matching Status Inside Ring */}
+                      {detection?.isMatchingPose && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-500/10 rounded-[50%] backdrop-blur-[1px]">
+                          <div className="rounded-full bg-emerald-500 p-2 text-white shadow-lg animate-bounce">
+                            <Check className="size-6 stroke-[3]" />
+                          </div>
+                          <span className="mt-2 rounded-full bg-black/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
+                            पोज़ लॉक हो रहा है ({holdProgress}%)
+                          </span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Countdown badge */}
-                  {countdown !== null && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
-                      <span className="text-6xl font-black text-white animate-ping">{countdown}</span>
-                    </div>
-                  )}
-
-                  {/* Step Instruction pill */}
+                  {/* Top Header: Real-time pose feedback pill */}
                   <div className="absolute top-3 inset-x-3 text-center">
-                    <span className="inline-block rounded-full bg-black/70 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-white border border-white/10">
-                      {currentStepConfig.label}: {currentStepConfig.sub}
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold border backdrop-blur-md transition-all shadow-md',
+                        detection?.isMatchingPose
+                          ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
+                          : detection?.faceCount === 0
+                            ? 'bg-rose-950/80 text-rose-300 border-rose-500/50'
+                            : 'bg-black/75 text-white border-white/20',
+                      )}
+                    >
+                      {detection?.isMatchingPose ? (
+                        <>
+                          <Sparkles className="size-3.5 text-emerald-400 animate-spin" />
+                          पोज़ लॉक: 1 सेकंड स्थिर रखें... ({holdProgress}%)
+                        </>
+                      ) : (
+                        detection?.guideMessage || `${currentStepConfig.label}: ${currentStepConfig.sub}`
+                      )}
                     </span>
                   </div>
+
+                  {/* Hold Progress Bar */}
+                  {holdProgress > 0 && (
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-black/40">
+                      <div
+                        className="h-full bg-emerald-400 transition-all duration-100 ease-out"
+                        style={{ width: `${holdProgress}%` }}
+                      />
+                    </div>
+                  )}
 
                   {/* Action dock */}
                   <div className="absolute bottom-3 inset-x-3 flex items-center justify-center gap-2 sm:gap-3">
@@ -449,15 +636,36 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                     >
                       <RefreshCw className="size-3.5" />
                     </Button>
+
+                    {/* Shutter Button: Unlocked only when pose matches (or fallback) */}
                     <Button
                       type="button"
-                      onClick={handleCountdownCapture}
-                      disabled={uploading || countdown !== null}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 sm:px-6 shadow-lg shadow-emerald-900/40"
+                      onClick={captureFrame}
+                      disabled={uploading || !isPoseUnlocked}
+                      className={cn(
+                        'font-bold px-5 sm:px-6 shadow-lg transition-all',
+                        isPoseUnlocked
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40 ring-2 ring-emerald-400'
+                          : 'bg-slate-800 text-slate-400 cursor-not-allowed opacity-75',
+                      )}
                     >
-                      <Camera className="size-4 mr-1.5" />
-                      {uploading ? 'सेव हो रहा है...' : 'फ़ोटो लें (Capture)'}
+                      {isPoseUnlocked ? (
+                        <>
+                          <Camera className="size-4 mr-1.5" />
+                          फ़ोटो लें (Capture) {holdProgress > 0 && `(${holdProgress}%)`}
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="size-4 mr-1.5 text-amber-400" />
+                          {activeStep === 'LEFT'
+                            ? 'बाईं ओर घुमाएँ'
+                            : activeStep === 'RIGHT'
+                              ? 'दाईं ओर घुमाएँ'
+                              : 'सामने देखें'}
+                        </>
+                      )}
                     </Button>
+
                     <Button
                       type="button"
                       variant="secondary"
@@ -465,7 +673,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                       className="bg-black/60 text-white border-white/20 hover:bg-black/80"
-                      title="Upload from device"
+                      title="फ़ोटो फ़ाइल चुनें (Upload fallback)"
                     >
                       <Upload className="size-3.5" />
                     </Button>

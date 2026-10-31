@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -40,6 +41,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate } from '@/lib/utils';
+import { useReverseGeocode } from '@/lib/reverse-geocode';
 import { PageHeader } from '@/components/panel/shell';
 import { useTeam } from '@/components/broker/bits';
 import { CopyField } from '@/components/panel/integration-card';
@@ -50,6 +52,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function TeamPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const q = useTeam();
@@ -154,7 +157,7 @@ export default function TeamPage() {
                 return (
                   <tr
                     key={m.id}
-                    onClick={() => setSelectedAgent(m)}
+                    onClick={() => router.push(`/broker/team/${m.id}`)}
                     className={cn(
                       'border-b border-line last:border-0 cursor-pointer hover:bg-surface-2/50 transition-colors',
                       m.status !== 'ACTIVE' && 'opacity-60',
@@ -191,29 +194,7 @@ export default function TeamPage() {
 
                     {/* Live Location */}
                     <td className="px-4 py-3" onClick={(e) => loc && e.stopPropagation()}>
-                      {loc ? (
-                        <div className="flex items-center gap-2">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                          </span>
-                          <a
-                            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-                            title={`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)} (${timeAgo(loc.capturedAt)})`}
-                          >
-                            <MapPin className="size-3" />
-                            <span>{timeAgo(loc.capturedAt)}</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted flex items-center gap-1">
-                          <span className="size-2 rounded-full bg-slate-300 dark:bg-slate-600" />
-                          Offline
-                        </span>
-                      )}
+                      <TeamLiveLocationCell loc={loc} />
                     </td>
 
                     {/* Target & Fulfillment */}
@@ -258,7 +239,7 @@ export default function TeamPage() {
                     {/* Actions */}
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="xs" variant="ghost" onClick={() => setSelectedAgent(m)}>
+                        <Button size="xs" variant="ghost" onClick={() => router.push(`/broker/team/${m.id}`)}>
                           Details & Target
                         </Button>
                         {admin && m.id !== user?.id && (
@@ -669,5 +650,63 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
         </div>
       )}
     </Dialog>
+  );
+}
+
+function TeamLiveLocationCell({ loc }: { loc: any }) {
+  const { location: geoLoc, loading } = useReverseGeocode(loc?.latitude, loc?.longitude);
+
+  if (!loc) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <span className="size-2 rounded-full bg-slate-300 dark:bg-slate-700" />
+        <span>Offline</span>
+      </div>
+    );
+  }
+
+  const isRecent = loc.recordedAt && Date.now() - new Date(loc.recordedAt).getTime() < 15 * 60 * 1000;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="relative flex h-2 w-2">
+          {isRecent ? (
+            <>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </>
+          ) : (
+            <span className="inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+          )}
+        </span>
+        <span className={cn('font-semibold', isRecent ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted')}>
+          {timeAgo(loc.recordedAt)}
+        </span>
+        <a
+          href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted hover:text-brand transition-colors p-0.5"
+          title="Google Maps पर देखें"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink className="size-3" />
+        </a>
+      </div>
+      <div
+        className="text-[11px] text-muted flex items-center gap-1 truncate max-w-[200px]"
+        title={geoLoc?.fullAddress || `${loc.latitude}, ${loc.longitude}`}
+      >
+        <MapPin className="size-3 text-muted shrink-0" />
+        <span className="truncate">
+          {loading
+            ? 'पता लोड हो रहा है...'
+            : geoLoc?.locality
+              ? `${geoLoc.locality}${geoLoc.city ? `, ${geoLoc.city}` : ''}`
+              : `${Number(loc.latitude).toFixed(4)}, ${Number(loc.longitude).toFixed(4)}`}
+        </span>
+      </div>
+    </div>
   );
 }
