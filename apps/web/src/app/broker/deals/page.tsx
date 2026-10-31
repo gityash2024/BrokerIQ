@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { BadgeIndianRupee, Handshake, IndianRupee, Pencil, Plus, TrendingUp, Wallet } from 'lucide-react';
@@ -18,6 +18,7 @@ import { Avatar, Badge, Empty, Skeleton, Stat } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { CountUp } from '@/components/motion/reveal';
+import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 
 const commissionOf = (d: any) => d.commissionAmount ?? (d.commissionPct ? (d.dealValue * d.commissionPct) / 100 : 0);
 
@@ -26,6 +27,7 @@ export default function DealsPage() {
   const admin = user?.role === 'BROKER_ADMIN';
   const [status, setStatus] = useState<'' | 'OPEN' | 'CLOSED' | 'CANCELLED'>('');
   const [edit, setEdit] = useState<any>(null);
+  const { sortColumn, sortDirection, handleSort } = useSortableTable<'title' | 'value' | 'commission' | 'collected' | 'agent' | 'status'>();
   const q = useQuery({ queryKey: ['deals', status], queryFn: () => api<any[]>(`/deals${qs({ status })}`) });
   const all = useQuery({ queryKey: ['deals', 'all'], queryFn: () => api<any[]>('/deals') });
   const d = all.data ?? [];
@@ -33,6 +35,21 @@ export default function DealsPage() {
   const closed = d.filter((x) => x.status === 'CLOSED');
   const earned = closed.reduce((s, x) => s + commissionOf(x), 0);
   const received = closed.reduce((s, x) => s + (x.commissionReceived ?? 0), 0);
+
+  const sortedDeals = useMemo(() => {
+    const list = [...(q.data ?? [])];
+    if (!sortColumn || !sortDirection) return list;
+    return list.sort((a, b) => {
+      let diff = 0;
+      if (sortColumn === 'title') diff = (a.title || '').localeCompare(b.title || '');
+      else if (sortColumn === 'value') diff = (a.dealValue || 0) - (b.dealValue || 0);
+      else if (sortColumn === 'commission') diff = commissionOf(a) - commissionOf(b);
+      else if (sortColumn === 'collected') diff = (a.commissionReceived || 0) - (b.commissionReceived || 0);
+      else if (sortColumn === 'agent') diff = (a.agent?.name || '').localeCompare(b.agent?.name || '');
+      else if (sortColumn === 'status') diff = (a.status || '').localeCompare(b.status || '');
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [q.data, sortColumn, sortDirection]);
 
   return (
     <>
@@ -104,17 +121,17 @@ export default function DealsPage() {
           <table className="w-full min-w-[820px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
               <tr>
-                <th className="px-4 py-3">Deal</th>
-                <th className="px-4 py-3">Value</th>
-                <th className="px-4 py-3">Commission</th>
-                <th className="px-4 py-3">Collected</th>
-                {admin && <th className="px-4 py-3">Agent</th>}
-                <th className="px-4 py-3">Status</th>
+                <SortableTh column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Deal</SortableTh>
+                <SortableTh column="value" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Value</SortableTh>
+                <SortableTh column="commission" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Commission</SortableTh>
+                <SortableTh column="collected" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Collected</SortableTh>
+                {admin && <SortableTh column="agent" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Agent</SortableTh>}
+                <SortableTh column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Status</SortableTh>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {q.data.map((x, i) => {
+              {sortedDeals.map((x, i) => {
                 const c = commissionOf(x);
                 const pct = c ? Math.min(100, ((x.commissionReceived ?? 0) / c) * 100) : 0;
                 return (

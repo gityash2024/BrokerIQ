@@ -17,6 +17,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { AdvancedFilters } from '@/components/broker/launch/advanced-filters';
 import { PropertyForm } from '@/components/broker/launch/property-form';
 import { toast } from 'sonner';
+import { SortableTh } from '@/components/ui/sortable-header';
 
 const initialFilters = {
   detailFilters: '',
@@ -372,26 +373,46 @@ function LedgerInner() {
                     onChange={(e) => setSelected(e.target.checked ? query.data!.items.map((i) => i.id) : [])}
                   />
                 </th>
-                {[
-                  ['Property', 'houseNo'],
-                  ['Locality', 'sector'],
-                  ['Config', ''],
-                  ['Price', 'monthlyRent'],
-                  ['Assignee', ''],
-                  ['Availability', 'availability'],
-                  ['Contact', ''],
-                  ['Actions', ''],
-                ].map(([label, key]) => (
-                  <th key={label} className="py-2.5 px-3 font-semibold text-xs whitespace-nowrap">
-                    <button
-                      disabled={!key}
-                      onClick={() => setSort({ sortBy: key, sortOrder: sort.sortBy === key && sort.sortOrder === 'asc' ? 'desc' : 'asc' })}
-                    >
-                      {label}
-                      {key === sort.sortBy ? (sort.sortOrder === 'asc' ? ' ↑' : ' ↓') : ''}
-                    </button>
-                  </th>
-                ))}
+                <SortableTh
+                  column="houseNo"
+                  sortColumn={sort.sortBy}
+                  sortDirection={sort.sortBy === 'houseNo' ? (sort.sortOrder as any) : null}
+                  onSort={(col) => setSort({ sortBy: col, sortOrder: sort.sortBy === col && sort.sortOrder === 'asc' ? 'desc' : 'asc' })}
+                  className="py-2.5 px-3 text-xs whitespace-nowrap"
+                >
+                  Property
+                </SortableTh>
+                <SortableTh
+                  column="sector"
+                  sortColumn={sort.sortBy}
+                  sortDirection={sort.sortBy === 'sector' ? (sort.sortOrder as any) : null}
+                  onSort={(col) => setSort({ sortBy: col, sortOrder: sort.sortBy === col && sort.sortOrder === 'asc' ? 'desc' : 'asc' })}
+                  className="py-2.5 px-3 text-xs whitespace-nowrap"
+                >
+                  Locality
+                </SortableTh>
+                <th className="py-2.5 px-3 font-semibold text-xs whitespace-nowrap">Config</th>
+                <SortableTh
+                  column="monthlyRent"
+                  sortColumn={sort.sortBy}
+                  sortDirection={sort.sortBy === 'monthlyRent' ? (sort.sortOrder as any) : null}
+                  onSort={(col) => setSort({ sortBy: col, sortOrder: sort.sortBy === col && sort.sortOrder === 'asc' ? 'desc' : 'asc' })}
+                  className="py-2.5 px-3 text-xs whitespace-nowrap"
+                >
+                  Price
+                </SortableTh>
+                <th className="py-2.5 px-3 font-semibold text-xs whitespace-nowrap">Assignee</th>
+                <SortableTh
+                  column="availability"
+                  sortColumn={sort.sortBy}
+                  sortDirection={sort.sortBy === 'availability' ? (sort.sortOrder as any) : null}
+                  onSort={(col) => setSort({ sortBy: col, sortOrder: sort.sortBy === col && sort.sortOrder === 'asc' ? 'desc' : 'asc' })}
+                  className="py-2.5 px-3 text-xs whitespace-nowrap"
+                >
+                  Availability
+                </SortableTh>
+                <th className="py-2.5 px-3 font-semibold text-xs whitespace-nowrap">Contact</th>
+                <th className="py-2.5 px-3 font-semibold text-xs whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">

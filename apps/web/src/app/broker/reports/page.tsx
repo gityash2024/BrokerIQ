@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FileDown, FileSpreadsheet, IndianRupee, Receipt, Users } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { Skeleton, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 
 const istToday = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
 const fyStart = () => {
@@ -24,6 +25,18 @@ export default function ReportsPage() {
   const qs = `from=${from}&to=${to}`;
   const q = useQuery({ queryKey: ['broker-reports', from, to], queryFn: () => api<any>(`/broker/reports?${qs}`) });
   const [busy, setBusy] = useState<string | null>(null);
+  const { sortColumn, sortDirection, handleSort } = useSortableTable<'month' | 'deals' | 'dealValue' | 'commission' | 'received' | 'invoiced' | 'gst'>();
+
+  const sortedMonths = useMemo(() => {
+    const list = [...(q.data?.months ?? [])];
+    if (!sortColumn || !sortDirection) return list;
+    return list.sort((a: any, b: any) => {
+      let diff = 0;
+      if (sortColumn === 'month') diff = (a.month || '').localeCompare(b.month || '');
+      else diff = (a[sortColumn] || 0) - (b[sortColumn] || 0);
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [q.data?.months, sortColumn, sortDirection]);
 
   // Files need the auth header, so fetch them (with token refresh) and save the blob.
   const download = async (path: string, name: string) => {
@@ -93,18 +106,20 @@ export default function ReportsPage() {
           </div>
           <div className="card overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-surface-2 text-left text-xs text-muted">
+              <thead className="border-b border-line bg-surface-2 text-left text-xs font-bold text-subtle uppercase">
                 <tr>
-                  {['Month', 'Deals', 'Deal value', 'Commission', 'Received', 'Invoiced', 'GST'].map((h) => (
-                    <th key={h} className="px-4 py-3 font-semibold">
-                      {h}
-                    </th>
-                  ))}
+                  <SortableTh column="month" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Month</SortableTh>
+                  <SortableTh column="deals" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Deals</SortableTh>
+                  <SortableTh column="dealValue" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Deal value</SortableTh>
+                  <SortableTh column="commission" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Commission</SortableTh>
+                  <SortableTh column="received" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Received</SortableTh>
+                  <SortableTh column="invoiced" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Invoiced</SortableTh>
+                  <SortableTh column="gst" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>GST</SortableTh>
                 </tr>
               </thead>
               <tbody>
-                {q.data.months.length ? (
-                  q.data.months.map((m: any) => (
+                {sortedMonths.length ? (
+                  sortedMonths.map((m: any) => (
                     <tr key={m.month} className="border-t border-line">
                       <td className="px-4 py-2.5 font-semibold">
                         {new Date(`${m.month}-01`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}

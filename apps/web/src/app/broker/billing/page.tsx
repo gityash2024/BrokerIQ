@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/field';
 import { Badge, Empty, PageLoader } from '@/components/ui/misc';
 import { useFreeMode } from '@/lib/config';
 import { ApiErrorState, IntegrationBanner } from '@/components/ui/api-error';
+import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 
 const METERS: { key: string; label: string }[] = [
   { key: 'leadsPerMonth', label: 'Leads इस महीने' },
@@ -47,6 +48,8 @@ export default function BillingPage() {
 
 function PaidBilling() {
   const qc = useQueryClient();
+  const { sortColumn, sortDirection, handleSort } = useSortableTable<'date' | 'purpose' | 'amount' | 'status'>();
+
   const q = useQuery({ queryKey: ['billing'], queryFn: () => api<any>('/broker/billing') });
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => api<any[]>('/billing/plans', { auth: false }) });
   const [cycle, setCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
@@ -90,9 +93,22 @@ function PaidBilling() {
     }
   };
 
+  const d = q.data;
+  const sortedPayments = useMemo(() => {
+    const list = [...(d?.payments ?? [])];
+    if (!sortColumn || !sortDirection) return list;
+    return list.sort((a: any, b: any) => {
+      let diff = 0;
+      if (sortColumn === 'date') diff = new Date(a.paidAt ?? a.createdAt).getTime() - new Date(b.paidAt ?? b.createdAt).getTime();
+      else if (sortColumn === 'purpose') diff = (a.purpose || '').localeCompare(b.purpose || '');
+      else if (sortColumn === 'amount') diff = (a.amount || 0) - (b.amount || 0);
+      else if (sortColumn === 'status') diff = (a.status || '').localeCompare(b.status || '');
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [d?.payments, sortColumn, sortDirection]);
+
   if (q.isLoading) return <PageLoader />;
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
-  const d = q.data;
   const sub = d.subscription;
   const current = sub?.plan?.code ?? d.limits.plan;
 
@@ -251,15 +267,15 @@ function PaidBilling() {
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold text-subtle uppercase">
               <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">For</th>
-                <th className="px-4 py-3">Amount</th>
-                <th className="px-4 py-3">Status</th>
+                <SortableTh column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Date</SortableTh>
+                <SortableTh column="purpose" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>For</SortableTh>
+                <SortableTh column="amount" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Amount</SortableTh>
+                <SortableTh column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Status</SortableTh>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {d.payments.map((p: any) => (
+              {sortedPayments.map((p: any) => (
                 <tr key={p.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3">{formatDate(p.paidAt ?? p.createdAt)}</td>
                   <td className="px-4 py-3">

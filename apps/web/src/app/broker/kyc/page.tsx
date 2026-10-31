@@ -421,16 +421,39 @@ function AdminKycManagementView({ user }: { user: any }) {
                               {aadhaar?.docNumber ? aadhaar.docNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3') : 'नंबर दर्ज नहीं'}
                             </p>
                           </div>
+
+                          {/* Embedded Photo Thumbnail */}
+                          {aadhaar?.fileUrl ? (
+                            <div
+                              onClick={() => setPreviewPhoto({ title: `${member.name} - आधार कार्ड`, url: aadhaar.fileUrl })}
+                              className="my-2 relative aspect-[4/3] rounded-lg overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
+                            >
+                              <img
+                                src={aadhaar.fileUrl}
+                                alt="Aadhaar Document"
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[11px] font-bold gap-1">
+                                <Eye className="size-3" /> फ़ोटो देखें
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="my-2 aspect-[4/3] rounded-lg border border-dashed border-line bg-surface-2/40 flex flex-col items-center justify-center p-2 text-center text-muted">
+                              <FileText className="size-5 opacity-40 mb-1" />
+                              <span className="text-[10px]">दस्तावेज़ फ़ोटो नहीं</span>
+                            </div>
+                          )}
+
                           {aadhaar?.fileUrl ? (
                             <button
                               type="button"
                               onClick={() => setPreviewPhoto({ title: `${member.name} - आधार कार्ड`, url: aadhaar.fileUrl })}
-                              className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2 py-1.5 text-xs font-semibold hover:border-brand transition-colors"
+                              className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2 py-1.5 text-xs font-semibold hover:border-brand transition-colors"
                             >
                               <Eye className="size-3.5" /> फ़ोटो देखें
                             </button>
                           ) : (
-                            <p className="mt-2 text-[11px] text-muted italic">फ़ोटो अपलोड नहीं</p>
+                            <p className="mt-1 text-[11px] text-muted italic text-center">फ़ोटो अपलोड नहीं</p>
                           )}
                         </div>
 
@@ -449,16 +472,39 @@ function AdminKycManagementView({ user }: { user: any }) {
                               {pan?.docNumber || 'नंबर दर्ज नहीं'}
                             </p>
                           </div>
+
+                          {/* Embedded Photo Thumbnail */}
+                          {pan?.fileUrl ? (
+                            <div
+                              onClick={() => setPreviewPhoto({ title: `${member.name} - पैन कार्ड`, url: pan.fileUrl })}
+                              className="my-2 relative aspect-[4/3] rounded-lg overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
+                            >
+                              <img
+                                src={pan.fileUrl}
+                                alt="PAN Document"
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[11px] font-bold gap-1">
+                                <Eye className="size-3" /> फ़ोटो देखें
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="my-2 aspect-[4/3] rounded-lg border border-dashed border-line bg-surface-2/40 flex flex-col items-center justify-center p-2 text-center text-muted">
+                              <FileText className="size-5 opacity-40 mb-1" />
+                              <span className="text-[10px]">दस्तावेज़ फ़ोटो नहीं</span>
+                            </div>
+                          )}
+
                           {pan?.fileUrl ? (
                             <button
                               type="button"
                               onClick={() => setPreviewPhoto({ title: `${member.name} - पैन कार्ड`, url: pan.fileUrl })}
-                              className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2 py-1.5 text-xs font-semibold hover:border-brand transition-colors"
+                              className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2 py-1.5 text-xs font-semibold hover:border-brand transition-colors"
                             >
                               <Eye className="size-3.5" /> फ़ोटो देखें
                             </button>
                           ) : (
-                            <p className="mt-2 text-[11px] text-muted italic">फ़ोटो अपलोड नहीं</p>
+                            <p className="mt-1 text-[11px] text-muted italic text-center">फ़ोटो अपलोड नहीं</p>
                           )}
                         </div>
 

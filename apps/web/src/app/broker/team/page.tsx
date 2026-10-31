@@ -52,6 +52,8 @@ import { Field, Input, Select } from '@/components/ui/field';
 import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
+import { TeamLeaderboardView, TeamLeaderboardModal } from '@/components/broker/team/team-leaderboard';
 
 export default function TeamPage() {
   const router = useRouter();
@@ -59,6 +61,7 @@ export default function TeamPage() {
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const q = useTeam();
   const [invite, setInvite] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const inv = [['team']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
     success: 'अपडेट हो गया ✅',
@@ -81,6 +84,9 @@ export default function TeamPage() {
   const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
   const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
   const [sortBy, setSortBy] = useState<'PERFORMANCE' | 'LEADS' | 'NAME'>('PERFORMANCE');
+
+  // Enterprise Table Header Sorting State (3-State Sort)
+  const { sortColumn, sortDirection, handleSort } = useSortableTable<'name' | 'role' | 'location' | 'target' | 'kyc' | 'leads' | 'won'>();
 
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   const members = q.data?.members ?? [];
@@ -117,6 +123,32 @@ export default function TeamPage() {
       return true;
     })
     .sort((a: any, b: any) => {
+      // Enterprise 3-state sort takes precedence if a column header was clicked
+      if (sortColumn && sortDirection) {
+        let diff = 0;
+        if (sortColumn === 'name') diff = (a.name || '').localeCompare(b.name || '');
+        else if (sortColumn === 'role') diff = (a.role || '').localeCompare(b.role || '');
+        else if (sortColumn === 'location') {
+          const aLive = a.lastLocation && (Date.now() - new Date(a.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
+          const bLive = b.lastLocation && (Date.now() - new Date(b.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
+          diff = aLive - bLive;
+        } else if (sortColumn === 'target') {
+          const aTarget = Number(a.targets?.monthlyDeals) || 5;
+          const bTarget = Number(b.targets?.monthlyDeals) || 5;
+          const aPct = aTarget > 0 ? ((a.fulfillment?.dealsWonMonth ?? a.stats?.won30d ?? 0) / aTarget) : 0;
+          const bPct = bTarget > 0 ? ((b.fulfillment?.dealsWonMonth ?? b.stats?.won30d ?? 0) / bTarget) : 0;
+          diff = aPct - bPct;
+        } else if (sortColumn === 'kyc') {
+          diff = (a.kycStatus || 'UNVERIFIED').localeCompare(b.kycStatus || 'UNVERIFIED');
+        } else if (sortColumn === 'leads') {
+          diff = (a.stats?.openLeads ?? a.stats?.leadsHandled ?? 0) - (b.stats?.openLeads ?? b.stats?.leadsHandled ?? 0);
+        } else if (sortColumn === 'won') {
+          diff = (a.fulfillment?.dealsWonMonth ?? a.stats?.won30d ?? 0) - (b.fulfillment?.dealsWonMonth ?? b.stats?.won30d ?? 0);
+        }
+        return sortDirection === 'asc' ? diff : -diff;
+      }
+
+      // Default dropdown sort
       if (sortBy === 'PERFORMANCE') {
         const aWon = a.fulfillment?.dealsWonMonth ?? a.stats?.won30d ?? 0;
         const bWon = b.fulfillment?.dealsWonMonth ?? b.stats?.won30d ?? 0;
@@ -132,7 +164,22 @@ export default function TeamPage() {
       return 0;
     });
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || roleFilter !== 'ALL' || locationFilter !== 'ALL' || kycFilter !== 'ALL' || sortBy !== 'PERFORMANCE';
+  const hasActiveFilters = searchQuery.trim().length > 0 || roleFilter !== 'ALL' || locationFilter !== 'ALL' || kycFilter !== 'ALL' || sortBy !== 'PERFORMANCE' || sortColumn !== null;
+
+  // Dedicated View for Agents: show ONLY Team Leaderboard (no admin controls, no tracking links)
+  if (!admin) {
+    return (
+      <>
+        <PageHeader
+          title="Team Leaderboard"
+          subtitle="अपनी टीम की रैंकिंग, क्लोज़ हुई डील्स व प्रदर्शन बोर्ड"
+        />
+        <div className="mt-4">
+          <TeamLeaderboardView members={members} currentUserId={user?.id} />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -140,11 +187,19 @@ export default function TeamPage() {
         title="Team & Agents"
         subtitle="एजेंट्स को इनवाइट करें, रोल्स दें, टारगेट्स सेट करें व लाइव लोकेशन ट्रैक करें"
         actions={
-          admin && (
-            <Button size="sm" onClick={() => setInvite(true)}>
-              <UserPlus className="size-4" /> Member invite करें
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowLeaderboard(true)}
+              className="border-amber-300/40 hover:border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold"
+            >
+              <Trophy className="size-4 mr-1.5 text-amber-500" /> Leaderboard
             </Button>
-          )
+            <Button size="sm" onClick={() => setInvite(true)}>
+              <UserPlus className="size-4 mr-1.5" /> Member invite करें
+            </Button>
+          </div>
         }
       />
 
@@ -301,13 +356,13 @@ export default function TeamPage() {
           <table className="w-full min-w-[850px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
               <tr>
-                <th className="px-4 py-3">Member</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Live Location</th>
-                <th className="px-4 py-3">Target & Fulfillment</th>
-                <th className="px-4 py-3">KYC Status</th>
-                <th className="px-4 py-3 text-center">Open leads</th>
-                <th className="px-4 py-3 text-center">Won (30d)</th>
+                <SortableTh column="name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Member</SortableTh>
+                <SortableTh column="role" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Role</SortableTh>
+                <SortableTh column="location" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Live Location</SortableTh>
+                <SortableTh column="target" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Target & Fulfillment</SortableTh>
+                <SortableTh column="kyc" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>KYC Status</SortableTh>
+                <SortableTh column="leads" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center">Open leads</SortableTh>
+                <SortableTh column="won" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center">Won (30d)</SortableTh>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -476,6 +531,12 @@ export default function TeamPage() {
       )}
 
       <InviteDialog open={invite} onOpenChange={setInvite} />
+      <TeamLeaderboardModal
+        open={showLeaderboard}
+        onOpenChange={setShowLeaderboard}
+        members={members}
+        currentUserId={user?.id}
+      />
       <AgentDetailsAndTargetModal
         agent={selectedAgent}
         open={!!selectedAgent}

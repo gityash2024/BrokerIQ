@@ -12,6 +12,7 @@ import {
   Crown,
   ExternalLink,
   Eye,
+  FileText,
   MapPin,
   MoreHorizontal,
   Navigation,
@@ -408,17 +409,40 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                         {aadhaar?.docNumber ? aadhaar.docNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3') : 'नंबर दर्ज नहीं'}
                       </p>
                     </div>
+
+                    {/* Embedded Photo Thumbnail */}
+                    {aadhaar?.fileUrl ? (
+                      <div
+                        onClick={() => setPreviewPhoto({ title: `${member.name} - आधार कार्ड`, url: aadhaar.fileUrl })}
+                        className="my-3 relative aspect-[4/3] max-h-48 rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
+                      >
+                        <img
+                          src={aadhaar.fileUrl}
+                          alt="Aadhaar Document"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1.5">
+                          <Eye className="size-4" /> फ़ोटो देखें
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="my-3 aspect-[4/3] max-h-48 rounded-xl border border-dashed border-line bg-surface-2/40 flex flex-col items-center justify-center p-3 text-center text-muted">
+                        <FileText className="size-6 opacity-40 mb-1" />
+                        <span className="text-xs">दस्तावेज़ फ़ोटो अपलोड नहीं</span>
+                      </div>
+                    )}
+
                     {aadhaar?.fileUrl ? (
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => setPreviewPhoto({ title: `${member.name} - आधार कार्ड`, url: aadhaar.fileUrl })}
-                        className="mt-4 w-full"
+                        className="mt-2 w-full"
                       >
                         <Eye className="size-3.5 mr-1.5" /> आधार फ़ोटो देखें
                       </Button>
                     ) : (
-                      <p className="mt-4 text-xs text-muted italic">फ़ोटो अपलोड नहीं</p>
+                      <p className="mt-2 text-xs text-muted italic text-center">फ़ोटो अपलोड नहीं</p>
                     )}
                   </div>
 
@@ -437,17 +461,40 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                         {pan?.docNumber || 'नंबर दर्ज नहीं'}
                       </p>
                     </div>
+
+                    {/* Embedded Photo Thumbnail */}
+                    {pan?.fileUrl ? (
+                      <div
+                        onClick={() => setPreviewPhoto({ title: `${member.name} - पैन कार्ड`, url: pan.fileUrl })}
+                        className="my-3 relative aspect-[4/3] max-h-48 rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
+                      >
+                        <img
+                          src={pan.fileUrl}
+                          alt="PAN Document"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1.5">
+                          <Eye className="size-4" /> फ़ोटो देखें
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="my-3 aspect-[4/3] max-h-48 rounded-xl border border-dashed border-line bg-surface-2/40 flex flex-col items-center justify-center p-3 text-center text-muted">
+                        <FileText className="size-6 opacity-40 mb-1" />
+                        <span className="text-xs">दस्तावेज़ फ़ोटो अपलोड नहीं</span>
+                      </div>
+                    )}
+
                     {pan?.fileUrl ? (
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => setPreviewPhoto({ title: `${member.name} - पैन कार्ड`, url: pan.fileUrl })}
-                        className="mt-4 w-full"
+                        className="mt-2 w-full"
                       >
                         <Eye className="size-3.5 mr-1.5" /> पैन फ़ोटो देखें
                       </Button>
                     ) : (
-                      <p className="mt-4 text-xs text-muted italic">फ़ोटो अपलोड नहीं</p>
+                      <p className="mt-2 text-xs text-muted italic text-center">फ़ोटो अपलोड नहीं</p>
                     )}
                   </div>
                 </div>
