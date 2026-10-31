@@ -155,6 +155,14 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     ['/broker/kyc', '/agent-kyc'],
     ['/broker/team/agent-kyc', '/broker/team/agent-kyc/mine', '/broker/firm-kyc'],
   ),
+  core(
+    'time_logging',
+    'Time Logging • समय ट्रैकिंग',
+    'Agent punch in/out, shift intervals and GPS location tracking',
+    '/broker/team/time-logging',
+    ['/broker/team/time-logging'],
+    ['/time-logging'],
+  ),
   future('broker_referrals', 'Invite other broker firms', ['/broker/invite-brokers'], ['/broker-invites']),
   future('billing', 'Billing & subscriptions', ['/broker/billing', '/boost'], ['/billing', '/subscriptions', '/payments', '/boosts']),
   future(
@@ -209,7 +217,7 @@ export const defaultModulePolicies = (): ModulePolicies =>
         roles: [
           'SUPER_ADMIN',
           'BROKER_ADMIN',
-          ...(['consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
+          ...(['consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking', 'time_logging'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
           ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
         ] as ModulePolicy['roles'],
       },

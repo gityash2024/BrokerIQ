@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, KeyRound, LayoutDashboard, SlidersHorizontal, ToggleRight } from 'lucide-react';
+import { Building2, KeyRound, LayoutDashboard, SlidersHorizontal, ToggleRight, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
@@ -27,6 +27,24 @@ function Inner({ children }: { children: React.ReactNode }) {
           icon: Building2,
           iconGradient: 'from-emerald-600 to-teal-700',
           iconShadow: 'shadow-emerald-500/25',
+        },
+        {
+          href: '/broker/team',
+          label: 'Team & Agents',
+          icon: Users,
+          iconGradient: 'from-sky-600 to-indigo-600',
+          iconShadow: 'shadow-sky-500/25',
+          children: [
+            {
+              href: '/broker/team',
+              label: 'Team Members',
+              exact: true,
+            },
+            {
+              href: '/broker/team/time-logging',
+              label: 'Time Logging',
+            },
+          ],
         },
         {
           href: '/admin/modules',

@@ -333,3 +333,12 @@ export const HomepageSectionType = {
   CTA_BANNER: 'CTA_BANNER',
 } as const;
 export type HomepageSectionType = (typeof HomepageSectionType)[keyof typeof HomepageSectionType];
+
+export const ShiftStatus = {
+  ACTIVE: 'ACTIVE',
+  PAUSED: 'PAUSED',
+  COMPLETED: 'COMPLETED',
+} as const;
+export type ShiftStatus = (typeof ShiftStatus)[keyof typeof ShiftStatus];
+export const SHIFT_STATUSES = values(ShiftStatus);
+

@@ -52,3 +52,6 @@ export function verifySignedId(purpose: string, token: string): string | null {
   const expected = Buffer.from(signature(purpose, id));
   return given.length === expected.length && timingSafeEqual(given, expected) ? id : null;
 }
+
+export * from './dates';
+

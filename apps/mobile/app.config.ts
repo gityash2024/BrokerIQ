@@ -19,7 +19,10 @@ const config: ExpoConfig = {
     infoPlist: {
       NSCameraUsageDescription: 'Property photos और listing-book scan करने के लिए camera चाहिए।',
       NSPhotoLibraryUsageDescription: 'Property photos चुनने के लिए gallery access चाहिए।',
-      NSLocationWhenInUseUsageDescription: 'आस-पास की properties और site-visit check-in के लिए location चाहिए।',
+      NSLocationWhenInUseUsageDescription: 'Punch-in verification, site visits aur properties check-in ke liye location chahiye.',
+      NSLocationAlwaysAndWhenInUseUsageDescription: 'Active shift ke dauran 15-minute periodic location record karne ke liye location access chahiye.',
+      NSLocationAlwaysUsageDescription: 'Shift tracking ke liye background location access chahiye.',
+      UIBackgroundModes: ['location', 'fetch'],
       NSMicrophoneUsageDescription: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।',
       NSContactsUsageDescription: 'आपकी अनुमति से BrokerIQ admin आपके contacts तक rental services पहुँचा सके — कोई broker या user इन्हें नहीं देख सकता।',
     },
@@ -29,7 +32,15 @@ const config: ExpoConfig = {
     versionCode: 40,
     googleServicesFile: process.env.GOOGLE_SERVICES_FILE ?? './google-services.json',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
-    permissions: ['CAMERA', 'POST_NOTIFICATIONS', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'],
+    permissions: [
+      'CAMERA',
+      'POST_NOTIFICATIONS',
+      'ACCESS_FINE_LOCATION',
+      'ACCESS_COARSE_LOCATION',
+      'ACCESS_BACKGROUND_LOCATION',
+      'FOREGROUND_SERVICE',
+      'FOREGROUND_SERVICE_LOCATION',
+    ],
     blockedPermissions: [
       'android.permission.SYSTEM_ALERT_WINDOW',
       'android.permission.READ_CONTACTS',
@@ -63,7 +74,15 @@ const config: ExpoConfig = {
       'expo-image-picker',
       { photosPermission: 'Property photos चुनने के लिए gallery access चाहिए।', cameraPermission: 'Photos और listing-book scan के लिए camera चाहिए।' },
     ],
-    ['expo-location', { locationWhenInUsePermission: 'आस-पास की properties और site-visit check-in के लिए location चाहिए।' }],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission: 'Punch-in verification aur site visits ke liye location chahiye.',
+        locationAlwaysAndWhenInUsePermission: 'Shift ke dauran 15-minute periodic location record karne ke liye location permission chahiye.',
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+      },
+    ],
     // Only after the in-app disclosure + opt-in (Profile → Privacy). Visible to BrokerIQ admin only.
     [
       'expo-contacts',

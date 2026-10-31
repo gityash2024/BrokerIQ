@@ -40,6 +40,8 @@ import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { AgentKycPipeline } from '@/components/broker/agent-kyc-pipeline';
+import { DateRangeFilter, type DateRangeValue, isDateInRange } from '@/components/broker/date-range-filter';
+import { ExportToolbar } from '@/components/broker/export-toolbar';
 import { cn, formatDate } from '@/lib/utils';
 
 export default function BrokerKycPage() {
@@ -61,8 +63,11 @@ function AdminKycManagementView({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState<'team' | 'firm'>('team');
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('ALL');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_AGENT' | 'BROKER_ADMIN'>('ALL');
+  const [agentFilter, setAgentFilter] = useState<string>('ALL');
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: 'ALL' });
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'PENDING_FIRST' | 'RECENT' | 'NAME_ASC'>('PENDING_FIRST');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
   const [rejectingMember, setRejectingMember] = useState<any | null>(null);
@@ -103,6 +108,9 @@ function AdminKycManagementView({ user }: { user: any }) {
       // Role filter
       if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
 
+      // Agent dropdown filter
+      if (agentFilter !== 'ALL' && m.id !== agentFilter) return false;
+
       // Search query (name, email, phone)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -111,6 +119,13 @@ function AdminKycManagementView({ user }: { user: any }) {
         const phoneMatch = m.phone?.includes(q);
         if (!nameMatch && !emailMatch && !phoneMatch) return false;
       }
+
+      // Date Range filter (evaluating KYC document or member creation date in IST)
+      if (dateRange.preset !== 'ALL') {
+        const kycDate = m.kycDocuments?.[0]?.createdAt || m.createdAt;
+        if (!isDateInRange(kycDate, dateRange)) return false;
+      }
+
       return true;
     })
     .sort((a: any, b: any) => {
@@ -130,6 +145,30 @@ function AdminKycManagementView({ user }: { user: any }) {
       return 0;
     });
 
+  // Row selection helpers
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (filteredMembers.length > 0 && selectedIds.size === filteredMembers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredMembers.map((m: any) => m.id)));
+    }
+  };
+
+  // Map selected team member IDs to their submitted KYC document IDs for /admin/kyc/export
+  const selectedDocIds = members
+    .filter((m: any) => selectedIds.has(m.id))
+    .flatMap((m: any) => (m.kycDocuments || []).map((d: any) => d.id))
+    .filter(Boolean);
+
   const pendingCount = members.filter((m: any) => m.kycStatus === 'PENDING').length;
   const verifiedCount = members.filter((m: any) => m.kycStatus === 'VERIFIED').length;
   const rejectedCount = members.filter((m: any) => m.kycStatus === 'REJECTED').length;
@@ -137,7 +176,24 @@ function AdminKycManagementView({ user }: { user: any }) {
 
   const firmVerification = firmKycQuery.data?.organization?.verification || user?.organization?.verification;
   const isFirmVerified = firmVerification === 'VERIFIED';
-  const hasActiveFilters = filter !== 'ALL' || roleFilter !== 'ALL' || searchQuery.trim().length > 0 || sortBy !== 'PENDING_FIRST';
+  const hasActiveFilters =
+    filter !== 'ALL' ||
+    roleFilter !== 'ALL' ||
+    agentFilter !== 'ALL' ||
+    searchQuery.trim().length > 0 ||
+    dateRange.preset !== 'ALL' ||
+    sortBy !== 'PENDING_FIRST' ||
+    selectedIds.size > 0;
+
+  const handleResetFilters = () => {
+    setFilter('ALL');
+    setRoleFilter('ALL');
+    setAgentFilter('ALL');
+    setSearchQuery('');
+    setDateRange({ preset: 'ALL' });
+    setSortBy('PENDING_FIRST');
+    setSelectedIds(new Set());
+  };
 
   return (
     <>
@@ -224,74 +280,168 @@ function AdminKycManagementView({ user }: { user: any }) {
           </div>
 
           {/* KYC Smart Filters Toolbar */}
-          <div className="card p-3 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
-              {/* Search bar */}
-              <div className="relative flex-1 min-w-[180px] max-w-sm">
-                <Search className="size-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="खोजें — नाम, फ़ोन या ईमेल..."
-                  className="pl-9 pr-7 h-9 text-xs"
-                />
-                {searchQuery && (
+          <div className="card p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+                {/* Search bar */}
+                <div className="relative flex-1 min-w-[180px] max-w-xs">
+                  <Search className="size-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="खोजें — नाम, फ़ोन या ईमेल..."
+                    className="pl-9 pr-7 h-9 text-xs"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Status filter dropdown */}
+                <div className="w-36">
+                  <Select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value as any)}
+                    className="h-9 text-xs"
+                  >
+                    <option value="ALL">सभी स्टेटस (All)</option>
+                    <option value="PENDING">लंबित (Pending)</option>
+                    <option value="VERIFIED">प्रमाणित (Verified)</option>
+                    <option value="REJECTED">अस्वीकृत (Rejected)</option>
+                    <option value="NOT_SUBMITTED">जमा नहीं (Not Submitted)</option>
+                  </Select>
+                </div>
+
+                {/* Role filter */}
+                <div className="w-36">
+                  <Select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value as any)}
+                    className="h-9 text-xs"
+                  >
+                    <option value="ALL">सभी रोल्स (All Roles)</option>
+                    <option value="BROKER_AGENT">केवल एजेंट्स (Agents)</option>
+                    <option value="BROKER_ADMIN">केवल एडमिन्स (Admins)</option>
+                  </Select>
+                </div>
+
+                {/* Agent dropdown filter */}
+                <div className="w-44">
+                  <Select
+                    value={agentFilter}
+                    onChange={(e) => setAgentFilter(e.target.value)}
+                    className="h-9 text-xs"
+                  >
+                    <option value="ALL">सभी एजेंट्स (All Agents)</option>
+                    {members.map((m: any) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                {/* Date Range filter */}
+                <DateRangeFilter value={dateRange} onChange={setDateRange} size="sm" />
+
+                {/* Sort by */}
+                <div className="w-36">
+                  <Select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="h-9 text-xs"
+                  >
+                    <option value="PENDING_FIRST">समीक्षा लंबित पहले</option>
+                    <option value="RECENT">हालिया सबमिशन पहले</option>
+                    <option value="NAME_ASC">नाम (A से Z)</option>
+                  </Select>
+                </div>
+
+                {/* Reset filter */}
+                {hasActiveFilters && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleResetFilters}
+                    className="h-9 text-xs text-muted hover:text-fg"
+                  >
+                    <RotateCcw className="size-3.5 mr-1" /> रीसेट (Clear)
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Selection and Export Sub-Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line text-xs">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none font-semibold text-fg">
+                  <input
+                    type="checkbox"
+                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                    ref={(el) => {
+                      if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredMembers.length;
+                    }}
+                    onChange={handleSelectAll}
+                    className="size-4 rounded border-line accent-brand-600 cursor-pointer"
+                  />
+                  <span>सब चुनें (Select All)</span>
+                </label>
+
+                {selectedIds.size > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-bold text-brand-600 dark:text-brand-400">
+                    <span>{selectedIds.size} चयनित (Selected)</span>
+                    {selectedDocIds.length === 0 ? (
+                      <span className="font-normal text-amber-600 dark:text-amber-400 text-[11px] ml-1">
+                        (0 दस्तावेज़ / No Docs)
+                      </span>
+                    ) : selectedDocIds.length !== selectedIds.size ? (
+                      <span className="font-normal text-muted text-[11px] ml-1">
+                        ({selectedDocIds.length} दस्तावेज़)
+                      </span>
+                    ) : null}
+                  </span>
+                )}
+
+                {selectedIds.size > 0 && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="text-xs text-muted hover:text-fg underline"
                   >
-                    <X className="size-3.5" />
+                    चयन हटाएं
                   </button>
                 )}
               </div>
 
-              {/* Role filter */}
-              <div className="w-36">
-                <Select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as any)}
-                  className="h-9 text-xs"
-                >
-                  <option value="ALL">सभी रोल्स (All Roles)</option>
-                  <option value="BROKER_AGENT">केवल एजेंट्स (Agents)</option>
-                  <option value="BROKER_ADMIN">केवल एडमिन्स (Admins)</option>
-                </Select>
-              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="font-semibold text-muted">
+                  दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} मेंबर्स
+                </span>
 
-              {/* Sort by */}
-              <div className="w-40">
-                <Select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="h-9 text-xs"
-                >
-                  <option value="PENDING_FIRST">समीक्षा लंबित पहले</option>
-                  <option value="RECENT">हालिया सबमिशन पहले</option>
-                  <option value="NAME_ASC">नाम (A से Z)</option>
-                </Select>
-              </div>
-
-              {/* Reset filter */}
-              {hasActiveFilters && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setFilter('ALL');
-                    setRoleFilter('ALL');
-                    setSearchQuery('');
-                    setSortBy('PENDING_FIRST');
+                <ExportToolbar
+                  endpoint="/admin/kyc/export"
+                  baseFilename="kyc-verification-report"
+                  selectedIds={selectedIds.size > 0 ? (selectedDocIds.length > 0 ? selectedDocIds : ['__NONE__']) : undefined}
+                  disabled={selectedIds.size > 0 && selectedDocIds.length === 0}
+                  totalCount={members.length}
+                  filteredCount={filteredMembers.length}
+                  filters={{
+                    status: filter !== 'ALL' ? filter : undefined,
+                    role: roleFilter !== 'ALL' ? roleFilter : undefined,
+                    agentId: agentFilter !== 'ALL' ? agentFilter : undefined,
+                    search: searchQuery.trim() || undefined,
+                    datePreset: dateRange.preset !== 'ALL' ? dateRange.preset.toLowerCase() : undefined,
+                    from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
+                    to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
                   }}
-                  className="h-9 text-xs text-muted hover:text-fg"
-                >
-                  <RotateCcw className="size-3.5 mr-1" /> रीसेट
-                </Button>
-              )}
-            </div>
-
-            <div className="text-xs font-semibold text-muted shrink-0">
-              दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} मेंबर्स
+                />
+              </div>
             </div>
           </div>
 
@@ -322,13 +472,21 @@ function AdminKycManagementView({ user }: { user: any }) {
                     key={member.id}
                     className={cn(
                       'card p-5 transition-all',
-                      member.kycStatus === 'PENDING' && 'border-amber-300 dark:border-amber-500/40 bg-amber-500/5',
-                      member.kycStatus === 'VERIFIED' && 'border-emerald-200 dark:border-emerald-500/20',
+                      selectedIds.has(member.id) && 'border-brand-500 ring-2 ring-brand-500/20 bg-brand-500/5',
+                      member.kycStatus === 'PENDING' && !selectedIds.has(member.id) && 'border-amber-300 dark:border-amber-500/40 bg-amber-500/5',
+                      member.kycStatus === 'VERIFIED' && !selectedIds.has(member.id) && 'border-emerald-200 dark:border-emerald-500/20',
                     )}
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       {/* Member Info */}
                       <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(member.id)}
+                          onChange={() => handleToggleSelect(member.id)}
+                          className="mt-1 size-4 rounded border-line accent-brand-600 cursor-pointer shrink-0"
+                          aria-label={`Select ${member.name}`}
+                        />
                         <Avatar name={member.name} src={member.avatarUrl} size={48} />
                         <div>
                           <div className="flex flex-wrap items-center gap-2">

@@ -1,29 +1,116 @@
+import { Prisma } from '@prisma/client';
 import type { RequestUser } from '../../common/decorators';
 import { requireOrg } from '../../common/utils';
 import type { PrismaService } from '../../prisma/prisma.service';
+import { resolveDateRange } from '../../common/utils/dates';
+
+export interface BrokerTeamQueryFilters {
+  role?: string;
+  status?: string;
+  search?: string;
+  agentId?: string;
+  datePreset?: string;
+  from?: string;
+  to?: string;
+  ids?: string;
+}
 
 /** Full team payload, with targets, fulfillment, KYC, and live location. */
-export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, activeOnly = false, overrideOrgId?: string) {
-  let organizationId: string | null | undefined = overrideOrgId || user.orgId;
-  if (!organizationId && user.role === 'SUPER_ADMIN') {
-    const firstOrg = await prisma.organization.findFirst({ where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' }, select: { id: true } });
-    organizationId = firstOrg?.id ?? null;
-  }
-  if (!organizationId) {
+export async function readBrokerTeam(
+  prisma: PrismaService,
+  user: RequestUser,
+  activeOnly = false,
+  overrideOrgId?: string,
+  filters?: BrokerTeamQueryFilters,
+) {
+  let organizationId: string;
+  if (user.role === 'SUPER_ADMIN') {
+    if (overrideOrgId) {
+      organizationId = overrideOrgId;
+    } else if (user.orgId) {
+      organizationId = user.orgId;
+    } else {
+      const firstOrg = await prisma.organization.findFirst({
+        where: { status: 'ACTIVE' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      organizationId = firstOrg?.id ?? '';
+    }
+    if (!organizationId) {
+      organizationId = requireOrg(user);
+    }
+  } else {
     organizationId = requireOrg(user);
   }
 
   const since = new Date(Date.now() - 30 * 86400_000);
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
+  const userWhere: Prisma.UserWhereInput = {
+    organizationId,
+    deletedAt: null,
+    role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+    status: activeOnly ? 'ACTIVE' : { not: 'DELETED' },
+  };
+
+  if (filters?.ids) {
+    const idList = filters.ids.split(',').map((s) => s.trim()).filter(Boolean);
+    if (idList.length > 0) userWhere.id = { in: idList };
+  } else {
+    if (filters?.agentId) userWhere.id = filters.agentId;
+    if (filters?.role && filters.role !== 'ALL') userWhere.role = filters.role as any;
+    if (filters?.status && filters.status !== 'ALL') userWhere.status = filters.status as any;
+
+    const { startDate, endDate } = resolveDateRange(filters?.datePreset, filters?.from, filters?.to);
+    if (startDate || endDate) {
+      userWhere.createdAt = {
+        ...(startDate ? { gte: startDate } : {}),
+        ...(endDate ? { lte: endDate } : {}),
+      };
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const term = filters.search.trim();
+      userWhere.AND = [
+        ...(userWhere.AND ? (Array.isArray(userWhere.AND) ? userWhere.AND : [userWhere.AND]) : []),
+        {
+          OR: [
+            { name: { contains: term, mode: 'insensitive' } },
+            { email: { contains: term, mode: 'insensitive' } },
+            { phone: { contains: term, mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+  }
+
+  const shouldFetchInvites =
+    (user.role === 'BROKER_ADMIN' || user.role === 'SUPER_ADMIN') &&
+    !filters?.agentId &&
+    !filters?.ids &&
+    (!filters?.status || filters.status === 'ALL' || filters.status === 'PENDING');
+
+  const inviteWhere: Prisma.InviteWhereInput = {
+    organizationId,
+    acceptedAt: null,
+    expiresAt: { gt: new Date() },
+  };
+
+  if (shouldFetchInvites) {
+    if (filters?.role && filters.role !== 'ALL') inviteWhere.role = filters.role as any;
+    if (filters?.search && filters.search.trim()) {
+      const term = filters.search.trim();
+      inviteWhere.OR = [
+        { name: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+  }
+
   const [members, invites, targetsSetting] = await Promise.all([
     prisma.user.findMany({
-      where: {
-        organizationId,
-        deletedAt: null,
-        role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
-        status: activeOnly ? 'ACTIVE' : { not: 'DELETED' },
-      },
+      where: userWhere,
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -37,13 +124,13 @@ export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, a
         createdAt: true,
       },
     }),
-    user.role === 'BROKER_ADMIN' || user.role === 'SUPER_ADMIN'
+    shouldFetchInvites
       ? prisma.invite.findMany({
-          where: { organizationId, acceptedAt: null, expiresAt: { gt: new Date() } },
+          where: inviteWhere,
           orderBy: { createdAt: 'desc' },
           select: { id: true, name: true, email: true, role: true, expiresAt: true },
         })
-      : [],
+      : Promise.resolve([]),
     prisma.orgSetting.findUnique({
       where: { organizationId_key: { organizationId, key: 'agent_targets' } },
     }),

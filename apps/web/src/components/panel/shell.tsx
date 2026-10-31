@@ -34,6 +34,8 @@ export interface NavItem {
   flag?: string;
   /** Only these roles see the item (Super Admin always does). */
   roles?: string[];
+  /** Sub-navigation items for collapsible dropdown */
+  children?: NavItem[];
 }
 export interface NavGroup {
   title?: string;
@@ -42,6 +44,176 @@ export interface NavGroup {
 
 function isActive(pathname: string, item: NavItem) {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + '/');
+}
+
+function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
+  if (item.iconGradient && item.icon) {
+    return (
+      <div
+        className={cn(
+          'relative size-7 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 group-hover:scale-110 shadow-sm',
+          `bg-gradient-to-br ${item.iconGradient} text-white ${item.iconShadow || ''}`,
+          active
+            ? 'ring-2 ring-brand-500/40 shadow-md scale-105'
+            : 'opacity-90 group-hover:opacity-100',
+        )}
+      >
+        <item.icon className="size-4 text-white stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
+      </div>
+    );
+  }
+  if (item.iconImage) {
+    return (
+      <div
+        className={cn(
+          'relative size-6 shrink-0 flex items-center justify-center rounded-lg overflow-hidden transition-all duration-200 group-hover:scale-110 shadow-sm border border-black/5 dark:border-white/10',
+          active
+            ? 'ring-2 ring-brand-500/30 shadow-[0_2px_10px_rgba(37,99,235,0.25)]'
+            : 'opacity-90 group-hover:opacity-100',
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.iconImage}
+          alt=""
+          className={cn(
+            'size-full object-cover select-none transition-transform duration-200',
+            active ? 'scale-105' : 'group-hover:scale-105',
+          )}
+        />
+      </div>
+    );
+  }
+  if (item.icon) {
+    return (
+      <item.icon
+        className={cn(
+          'relative size-[18px]',
+          active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg',
+        )}
+      />
+    );
+  }
+  return null;
+}
+
+function NavEntry({
+  item,
+  pathname,
+  onNavigate,
+  config,
+  role,
+}: {
+  item: NavItem;
+  pathname: string;
+  onNavigate?: () => void;
+  config: any;
+  role?: string;
+}) {
+  const allowedChildren = (item.children ?? []).filter(
+    (child) =>
+      isGateOpen(config, child.flag) &&
+      (child.href === '/broker/kyc' || child.href.startsWith('/broker/kyc') || !moduleForPath(child.href) || moduleAllowed(config.modules, moduleForPath(child.href)!, role ?? '')) &&
+      (!child.roles || role === 'SUPER_ADMIN' || (!!role && child.roles.includes(role)))
+  );
+
+  const hasChildren = allowedChildren.length > 0;
+  const hasActiveChild = allowedChildren.some((child) => isActive(pathname, child));
+  const isSelfActive = isActive(pathname, item);
+  const isItemActive = isSelfActive || hasActiveChild;
+
+  // Automatically open/expand if current pathname matches any child's href
+  const [isOpen, setIsOpen] = useState(hasActiveChild);
+
+  useEffect(() => {
+    if (hasActiveChild) {
+      setIsOpen(true);
+    }
+  }, [hasActiveChild, pathname]);
+
+  if (!hasChildren) {
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        className={cn(
+          'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
+          isSelfActive ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg',
+        )}
+      >
+        {isSelfActive && (
+          <motion.span
+            layoutId="panel-nav"
+            className="absolute inset-0 rounded-xl bg-brand-50 dark:bg-brand-500/15"
+            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+          />
+        )}
+        <NavIcon item={item} active={isSelfActive} />
+        <span className="relative flex-1">{item.label}</span>
+        {item.badge ? <span className="relative rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">{item.badge}</span> : null}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className={cn(
+          'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition text-left select-none',
+          isItemActive ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg',
+        )}
+      >
+        {isItemActive && !hasActiveChild && (
+          <motion.span
+            layoutId="panel-nav"
+            className="absolute inset-0 rounded-xl bg-brand-50 dark:bg-brand-500/15"
+            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+          />
+        )}
+        <NavIcon item={item} active={isItemActive} />
+        <span className="relative flex-1">{item.label}</span>
+        {item.badge ? <span className="relative rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">{item.badge}</span> : null}
+        <ChevronRight
+          className={cn(
+            'relative size-4 shrink-0 text-subtle transition-transform duration-200 group-hover:text-fg',
+            isOpen && 'rotate-90 text-fg',
+          )}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="ml-5 space-y-0.5 border-l-2 border-line/70 pl-3">
+          {allowedChildren.map((child) => {
+            const childActive = isActive(pathname, child);
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={onNavigate}
+                className={cn(
+                  'group relative flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition',
+                  childActive
+                    ? 'bg-brand-50 text-brand-700 font-bold dark:bg-brand-500/15 dark:text-brand-300'
+                    : 'text-muted hover:bg-surface-2 hover:text-fg',
+                )}
+              >
+                <span>{child.label}</span>
+                {child.badge ? (
+                  <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    {child.badge}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
@@ -65,64 +237,16 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
           <div key={gi}>
             {g.title && <p className="mb-2 px-3 text-[11px] font-bold tracking-wider text-subtle uppercase">{g.title}</p>}
             <div className="space-y-0.5">
-              {g.items.map((it) => {
-                const active = isActive(pathname, it);
-                return (
-                  <Link
-                    key={it.href}
-                    href={it.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
-                      active ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg',
-                    )}
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="panel-nav"
-                        className="absolute inset-0 rounded-xl bg-brand-50 dark:bg-brand-500/15"
-                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                      />
-                    )}
-                    {it.iconGradient && it.icon ? (
-                      <div
-                        className={cn(
-                          'relative size-7 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 group-hover:scale-110 shadow-sm',
-                          `bg-gradient-to-br ${it.iconGradient} text-white ${it.iconShadow || ''}`,
-                          active
-                            ? 'ring-2 ring-brand-500/40 shadow-md scale-105'
-                            : 'opacity-90 group-hover:opacity-100',
-                        )}
-                      >
-                        <it.icon className="size-4 text-white stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
-                      </div>
-                    ) : it.iconImage ? (
-                      <div
-                        className={cn(
-                          'relative size-6 shrink-0 flex items-center justify-center rounded-lg overflow-hidden transition-all duration-200 group-hover:scale-110 shadow-sm border border-black/5 dark:border-white/10',
-                          active
-                            ? 'ring-2 ring-brand-500/30 shadow-[0_2px_10px_rgba(37,99,235,0.25)]'
-                            : 'opacity-90 group-hover:opacity-100',
-                        )}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={it.iconImage}
-                          alt=""
-                          className={cn(
-                            'size-full object-cover select-none transition-transform duration-200',
-                            active ? 'scale-105' : 'group-hover:scale-105',
-                          )}
-                        />
-                      </div>
-                    ) : it.icon ? (
-                      <it.icon className={cn('relative size-[18px]', active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg')} />
-                    ) : null}
-                    <span className="relative flex-1">{it.label}</span>
-                    {it.badge ? <span className="relative rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span> : null}
-                  </Link>
-                );
-              })}
+              {g.items.map((it) => (
+                <NavEntry
+                  key={it.href}
+                  item={it}
+                  pathname={pathname}
+                  onNavigate={onNavigate}
+                  config={config}
+                  role={role}
+                />
+              ))}
             </div>
           </div>
         ))}

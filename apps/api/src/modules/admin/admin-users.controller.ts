@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { ApiTags } from '@nestjs/swagger';
@@ -11,6 +11,10 @@ import { AuthService } from '../auth/auth.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { paged } from '../../common/utils';
+import { resolveDateRange } from '../../common/utils/dates';
+import { createExcelReport } from '../../common/excel';
+import { renderPdf, pdfText, pdfTable } from '../../common/pdf';
+import { generateCsv } from '../../common/csv';
 
 /** Staff views of users, broker firms and KYC documents. */
 @ApiTags('admin')
@@ -229,17 +233,245 @@ export class AdminUsersController {
   }
 
   // ------------------------------------------------------------------ KYC
+  private buildKycWhereClause(filters: {
+    status?: string;
+    role?: string;
+    search?: string;
+    brokerId?: string;
+    agentId?: string;
+    datePreset?: string;
+    from?: string;
+    to?: string;
+    ids?: string;
+  }): Prisma.KycDocumentWhereInput {
+    const where: Prisma.KycDocumentWhereInput = {};
+
+    if (filters.brokerId) {
+      where.OR = [
+        { organizationId: filters.brokerId },
+        { user: { organizationId: filters.brokerId } },
+      ];
+    }
+
+    if (filters.ids) {
+      const idList = filters.ids.split(',').map((s) => s.trim()).filter(Boolean);
+      if (idList.length > 0) {
+        where.id = { in: idList };
+      }
+    }
+
+    if (filters.status && filters.status !== 'ALL') {
+      where.status = filters.status as any;
+    }
+
+    if (filters.agentId) {
+      where.userId = filters.agentId;
+    }
+
+    if (filters.role && filters.role !== 'ALL') {
+      where.user = { role: filters.role as any };
+    }
+
+    const { startDate, endDate } = resolveDateRange(filters.datePreset, filters.from, filters.to);
+    if (startDate || endDate) {
+      where.createdAt = {
+        ...(startDate ? { gte: startDate } : {}),
+        ...(endDate ? { lte: endDate } : {}),
+      };
+    }
+
+    if (filters.search && filters.search.trim()) {
+      const term = filters.search.trim();
+      where.AND = [
+        ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+        {
+          OR: [
+            { docNumber: { contains: term, mode: 'insensitive' } },
+            { user: { name: { contains: term, mode: 'insensitive' } } },
+            { user: { email: { contains: term, mode: 'insensitive' } } },
+            { user: { phone: { contains: term, mode: 'insensitive' } } },
+            { organization: { name: { contains: term, mode: 'insensitive' } } },
+            { organization: { reraNumber: { contains: term, mode: 'insensitive' } } },
+          ],
+        },
+      ];
+    }
+
+    return where;
+  }
+
   @Get('kyc')
-  kyc(@Query('status') status = 'PENDING') {
+  kyc(
+    @Query('status') status = 'PENDING',
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+    @Query('brokerId') brokerId?: string,
+    @Query('agentId') agentId?: string,
+    @Query('datePreset') datePreset?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const where = this.buildKycWhereClause({ status, role, search, brokerId, agentId, datePreset, from, to });
     return this.prisma.kycDocument.findMany({
-      where: { status: status as any },
-      orderBy: { createdAt: 'asc' },
+      where,
+      orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, phone: true, role: true } },
         organization: { select: { id: true, name: true, reraNumber: true, verification: true } },
       },
     });
   }
+
+  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+  @Get('kyc/export')
+  async exportKyc(
+    @Query('format') format = 'csv',
+    @Query('status') status?: string,
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+    @Query('brokerId') brokerId?: string,
+    @Query('agentId') agentId?: string,
+    @Query('datePreset') datePreset?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('ids') ids?: string,
+    @Res() res?: any,
+    @CurrentUser() user?: RequestUser,
+  ) {
+    let effectiveBrokerId = brokerId;
+    if (user && user.role !== 'SUPER_ADMIN') {
+      if (!user.orgId) {
+        throw new ForbiddenException('Organization context missing for broker export');
+      }
+      effectiveBrokerId = user.orgId;
+    }
+    const where = this.buildKycWhereClause({
+      status: status ?? 'ALL',
+      role,
+      search,
+      brokerId: effectiveBrokerId,
+      agentId,
+      datePreset,
+      from,
+      to,
+      ids,
+    });
+
+    const docs = await this.prisma.kycDocument.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true, role: true } },
+        organization: { select: { id: true, name: true, reraNumber: true, verification: true } },
+      },
+    });
+
+    const filename = `kyc-export-${new Date().toISOString().slice(0, 10)}`;
+    const normalized = (format || 'csv').toLowerCase();
+
+    if (normalized === 'xlsx') {
+      const buffer = await createExcelReport({
+        sheetName: 'KYC Documents',
+        title: 'BrokerIQ — KYC Verification Report',
+        metadata: { Status: status || 'ALL', Role: role || 'ALL', Date: datePreset || 'ALL' },
+        columns: [
+          { header: 'ID', key: 'id', width: 26 },
+          { header: 'Name / Entity', key: 'name', width: 22 },
+          { header: 'Email', key: 'email', width: 26 },
+          { header: 'Phone', key: 'phone', width: 16 },
+          { header: 'Role / Type', key: 'role', width: 16 },
+          { header: 'Organization', key: 'orgName', width: 22 },
+          { header: 'RERA Number', key: 'reraNumber', width: 18 },
+          { header: 'Document Type', key: 'docType', width: 18 },
+          { header: 'Document Number', key: 'docNumber', width: 20 },
+          { header: 'Status', key: 'status', width: 14 },
+          { header: 'Submitted At', key: 'createdAt', width: 20, type: 'date' },
+          { header: 'Reviewed Note', key: 'reviewNote', width: 28 },
+        ],
+        data: docs.map((d) => ({
+          id: d.id,
+          name: d.user?.name ?? d.organization?.name ?? '—',
+          email: d.user?.email ?? '—',
+          phone: d.user?.phone ?? '—',
+          role: d.user?.role ?? (d.organization ? 'BROKER_FIRM' : '—'),
+          orgName: d.organization?.name ?? '—',
+          reraNumber: d.organization?.reraNumber ?? '—',
+          docType: d.docType?.replace(/_/g, ' ') ?? '—',
+          docNumber: d.docNumber ?? '—',
+          status: d.status,
+          createdAt: d.createdAt,
+          reviewNote: d.reviewNote ?? '—',
+        })),
+      });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+      return res.send(buffer);
+    }
+
+    if (normalized === 'pdf') {
+      const buffer = await renderPdf(
+        (doc) => {
+          doc.font('B').fontSize(16).fillColor('#0f172a').text('BrokerIQ — KYC Verification Report');
+          doc.moveDown(0.3);
+          doc.font('R').fontSize(9).fillColor('#64748b');
+          const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+          doc.text(`Generated: ${istTime} (IST)   |   Status: ${status || 'ALL'}   |   Total Records: ${docs.length}`);
+          doc.moveDown(0.8);
+
+          const headers = ['#', 'Name / Entity', 'Role', 'Document Type', 'Doc Number', 'Status', 'Submitted Date'];
+          const weights = [0.8, 3.5, 2.5, 3, 2.8, 2.2, 2.8];
+          const rows = docs.map((d, i) => [
+            String(i + 1),
+            pdfText(d.user?.name ?? d.organization?.name ?? '—'),
+            pdfText(d.user?.role ?? (d.organization ? 'BROKER_FIRM' : '—')),
+            pdfText(d.docType?.replace(/_/g, ' ') ?? '—'),
+            pdfText(d.docNumber ?? '—'),
+            pdfText(d.status ?? '—'),
+            d.createdAt ? new Date(d.createdAt).toISOString().slice(0, 10) : '—',
+          ]);
+
+          pdfTable(doc, headers, rows, weights);
+
+          const verified = docs.filter((d) => d.status === 'VERIFIED').length;
+          const pending = docs.filter((d) => d.status === 'PENDING').length;
+          const rejected = docs.filter((d) => d.status === 'REJECTED').length;
+          doc.moveDown(0.5);
+          doc.font('B').fontSize(9).fillColor('#1e293b');
+          doc.text(`Summary: Verified: ${verified}   |   Pending: ${pending}   |   Rejected: ${rejected}   |   Total: ${docs.length}`);
+        },
+        { layout: 'landscape', size: 'A4', margin: 36 },
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+      return res.send(buffer);
+    }
+
+    // Default CSV
+    const csvContent = generateCsv(
+      ['ID', 'Name', 'Email', 'Phone', 'Role', 'Organization', 'RERA', 'Doc Type', 'Doc Number', 'Status', 'Submitted At', 'Review Note'],
+      docs.map((d) => [
+        d.id,
+        d.user?.name ?? d.organization?.name ?? '',
+        d.user?.email ?? '',
+        d.user?.phone ?? '',
+        d.user?.role ?? (d.organization ? 'BROKER_FIRM' : ''),
+        d.organization?.name ?? '',
+        d.organization?.reraNumber ?? '',
+        d.docType,
+        d.docNumber ?? '',
+        d.status,
+        d.createdAt ? new Date(d.createdAt).toISOString() : '',
+        (d.reviewNote ?? '').replace(/\s+/g, ' '),
+      ]),
+    );
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+    return res.send(csvContent);
+  }
+
 
   @Patch('kyc/:id')
   async reviewKyc(

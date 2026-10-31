@@ -472,6 +472,8 @@ model User {
   consents       UserConsent[]
   locations      UserLocation[]
   contacts       UserContact[]
+  shifts         AgentShift[]    @relation("UserShifts")
+  shiftLocations ShiftLocation[]
   inventoryCreated InventoryItem[] @relation("InventoryCreatedBy")
   inventoryAssigned InventoryItem[] @relation("InventoryAssignedTo")
 
@@ -659,6 +661,7 @@ model Organization {
   socialPosts          SocialPost[]
   comparisons          Comparison[]
   inventoryItems       InventoryItem[]
+  agentShifts          AgentShift[]       @relation("OrgShifts")
 
   @@index([status])
 }
@@ -697,6 +700,77 @@ model KycDocument {
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([status])
+}
+
+// ============================================================ Time Logging & Shifts
+
+enum ShiftStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model AgentShift {
+  id               String          @id @default(cuid())
+  userId           String
+  organizationId   String
+  punchInAt        DateTime        @default(now())
+  punchOutAt       DateTime?
+  status           ShiftStatus     @default(ACTIVE)
+  pauseReason      String?
+  pausedAt         DateTime?
+  totalMinutes     Int             @default(0)
+  punchInLat       Float?
+  punchInLng       Float?
+  punchInAccuracy  Float?
+  punchInAddress   String?
+  punchOutLat      Float?
+  punchOutLng      Float?
+  punchOutAccuracy Float?
+  punchOutAddress  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  user             User            @relation("UserShifts", fields: [userId], references: [id], onDelete: Cascade)
+  organization     Organization    @relation("OrgShifts", fields: [organizationId], references: [id], onDelete: Cascade)
+  locations        ShiftLocation[]
+  intervals        ShiftInterval[]
+
+  @@index([userId, punchInAt])
+  @@index([organizationId, punchInAt])
+  @@index([status])
+  @@index([userId, status])
+}
+
+model ShiftLocation {
+  id         String     @id @default(cuid())
+  shiftId    String
+  userId     String
+  latitude   Float
+  longitude  Float
+  accuracy   Float?
+  address    String?
+  source     String     @default("MOBILE")
+  capturedAt DateTime   @default(now())
+
+  shift      AgentShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId, capturedAt])
+  @@index([userId, capturedAt])
+}
+
+model ShiftInterval {
+  id        String     @id @default(cuid())
+  shiftId   String
+  startTime DateTime   @default(now())
+  endTime   DateTime?
+  status    String     @default("ACTIVE") // ACTIVE | PAUSED
+  reason    String?
+
+  shift     AgentShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId, startTime])
 }
 
 // ============================================================ Master data

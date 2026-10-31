@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo } from 'react';
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents, Circle, Tooltip } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents, Circle, Tooltip, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { formatPriceShort } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
@@ -13,6 +13,8 @@ export interface MapPoint {
   lng: number;
   price?: number;
   label?: string;
+  sublabel?: string;
+  address?: string;
   href?: string;
   /** Render as a small dot with hover tooltip instead of a price pill */
   dot?: boolean;
@@ -87,6 +89,8 @@ export default function MapView({
   scrollWheelZoom = true,
   onPick,
   recenter,
+  polyline,
+  polylineOptions,
 }: {
   points: MapPoint[];
   center?: [number, number];
@@ -100,6 +104,8 @@ export default function MapView({
   scrollWheelZoom?: boolean;
   onPick?: (lat: number, lng: number) => void;
   recenter?: boolean;
+  polyline?: [number, number][];
+  polylineOptions?: any;
 }) {
   const icons = useMemo(() => {
     const m = new Map<string, L.DivIcon>();
@@ -125,6 +131,17 @@ export default function MapView({
       {onPick && <Picker onPick={onPick} />}
       {recenter && <Recenter center={center} />}
       {radius && <Circle center={center} radius={radius} pathOptions={{ color: '#4f46e5', fillColor: '#6366f1', fillOpacity: 0.12, weight: 2 }} />}
+      {polyline && polyline.length > 1 && (
+        <Polyline
+          positions={polyline}
+          pathOptions={{
+            color: '#4f46e5',
+            weight: 3.5,
+            opacity: 0.85,
+            ...polylineOptions,
+          }}
+        />
+      )}
       {points.map((p) => (
         <Marker
           key={p.id}
@@ -136,6 +153,15 @@ export default function MapView({
           {p.dot && p.label ? (
             <Tooltip direction="top" offset={[0, -6]}>
               {p.label}
+            </Tooltip>
+          ) : (p.label || p.sublabel || p.address) ? (
+            <Tooltip direction="top" offset={[0, -10]}>
+              <div className="text-xs font-sans">
+                <div className="font-bold">
+                  {p.label ? `Point #${p.label}` : ''} {p.sublabel ? `• ${p.sublabel}` : ''}
+                </div>
+                {p.address && <div className="text-[11px] text-muted max-w-[220px] truncate">{p.address}</div>}
+              </div>
             </Tooltip>
           ) : null}
         </Marker>

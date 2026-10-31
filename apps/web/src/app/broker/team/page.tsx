@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  Calendar,
   CheckCircle2,
   Clock,
   Compass,
   CreditCard,
   Crown,
+  Download,
   ExternalLink,
   FileText,
   Link2,
@@ -54,6 +56,44 @@ import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 import { TeamLeaderboardView } from '@/components/broker/team/team-leaderboard';
+import { DateRangeFilter, type DateRangeValue, isDateInRange } from '@/components/broker/date-range-filter';
+import { ExportToolbar } from '@/components/broker/export-toolbar';
+
+function IndeterminateCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  className,
+  ...rest
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  [key: string]: any;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = !!indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      type="checkbox"
+      ref={ref}
+      checked={checked}
+      onChange={onChange}
+      className={cn(
+        'size-4 rounded border-line bg-surface text-brand focus:ring-2 focus:ring-brand-500/20 cursor-pointer accent-brand-600',
+        className,
+      )}
+      {...rest}
+    />
+  );
+}
 
 export default function TeamPage() {
   const router = useRouter();
@@ -80,9 +120,15 @@ export default function TeamPage() {
   // Teams & Agents Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
   const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
+  const [agentFilter, setAgentFilter] = useState<string>('ALL');
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: 'ALL' });
   const [sortBy, setSortBy] = useState<'PERFORMANCE' | 'LEADS' | 'NAME'>('PERFORMANCE');
+
+  // Table Row Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Enterprise Table Header Sorting State (3-State Sort)
   const { sortColumn, sortDirection, handleSort } = useSortableTable<'name' | 'role' | 'location' | 'target' | 'kyc' | 'leads' | 'won'>();
@@ -96,22 +142,31 @@ export default function TeamPage() {
   // Filter & Sort members
   const filteredMembers = members
     .filter((m: any) => {
-      // Role filter
+      // 1. Role filter
       if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
 
-      // Live location filter (active within 30 min)
+      // 2. Account Status filter (ACTIVE, SUSPENDED)
+      if (statusFilter !== 'ALL' && m.status !== statusFilter) return false;
+
+      // 3. Live location filter (active within 30 min)
       const loc = m.lastLocation;
-      const isLive = loc && (Date.now() - new Date(loc.updatedAt).getTime() <= 30 * 60 * 1000);
+      const isLive = loc && (Date.now() - new Date(loc.updatedAt || loc.capturedAt).getTime() <= 30 * 60 * 1000);
       if (locationFilter === 'LIVE' && !isLive) return false;
       if (locationFilter === 'OFFLINE' && isLive) return false;
 
-      // KYC filter
+      // 4. KYC Status filter
       const kyc = m.kycStatus || 'UNVERIFIED';
       if (kycFilter === 'VERIFIED' && kyc !== 'VERIFIED') return false;
       if (kycFilter === 'PENDING' && kyc !== 'PENDING') return false;
       if (kycFilter === 'REQUIRED' && (kyc === 'VERIFIED' || kyc === 'PENDING')) return false;
 
-      // Search (name, email, phone)
+      // 5. Individual Agent selector filter
+      if (agentFilter !== 'ALL' && m.id !== agentFilter) return false;
+
+      // 6. Date Range filter (Today, Yesterday, Last 7 Days, This Month, Custom)
+      if (!isDateInRange(m.createdAt, dateRange)) return false;
+
+      // 7. Search (name, email, phone)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const nameMatch = m.name?.toLowerCase().includes(query);
@@ -119,6 +174,7 @@ export default function TeamPage() {
         const phoneMatch = m.phone?.includes(query);
         if (!nameMatch && !emailMatch && !phoneMatch) return false;
       }
+
       return true;
     })
     .sort((a: any, b: any) => {
@@ -128,8 +184,8 @@ export default function TeamPage() {
         if (sortColumn === 'name') diff = (a.name || '').localeCompare(b.name || '');
         else if (sortColumn === 'role') diff = (a.role || '').localeCompare(b.role || '');
         else if (sortColumn === 'location') {
-          const aLive = a.lastLocation && (Date.now() - new Date(a.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
-          const bLive = b.lastLocation && (Date.now() - new Date(b.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
+          const aLive = a.lastLocation && (Date.now() - new Date(a.lastLocation.updatedAt || a.lastLocation.capturedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
+          const bLive = b.lastLocation && (Date.now() - new Date(b.lastLocation.updatedAt || b.lastLocation.capturedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
           diff = aLive - bLive;
         } else if (sortColumn === 'target') {
           const aTarget = Number(a.targets?.monthlyDeals) || 5;
@@ -163,7 +219,58 @@ export default function TeamPage() {
       return 0;
     });
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || roleFilter !== 'ALL' || locationFilter !== 'ALL' || kycFilter !== 'ALL' || sortBy !== 'PERFORMANCE' || sortColumn !== null;
+  // Selection helpers
+  const isAllFilteredSelected =
+    filteredMembers.length > 0 && filteredMembers.every((m: any) => selectedIds.has(m.id));
+  const isSomeFilteredSelected =
+    filteredMembers.some((m: any) => selectedIds.has(m.id)) && !isAllFilteredSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllFilteredSelected) {
+      const next = new Set(selectedIds);
+      filteredMembers.forEach((m: any) => next.delete(m.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      filteredMembers.forEach((m: any) => next.add(m.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setRoleFilter('ALL');
+    setStatusFilter('ALL');
+    setLocationFilter('ALL');
+    setKycFilter('ALL');
+    setAgentFilter('ALL');
+    setDateRange({ preset: 'ALL' });
+    setSortBy('PERFORMANCE');
+    setSelectedIds(new Set());
+  };
+
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    roleFilter !== 'ALL' ||
+    statusFilter !== 'ALL' ||
+    locationFilter !== 'ALL' ||
+    kycFilter !== 'ALL' ||
+    agentFilter !== 'ALL' ||
+    dateRange.preset !== 'ALL' ||
+    sortBy !== 'PERFORMANCE' ||
+    sortColumn !== null ||
+    selectedIds.size > 0;
 
   // Dedicated View for Agents: show ONLY Team Leaderboard (no admin controls, no tracking links)
   if (!admin) {
@@ -239,103 +346,173 @@ export default function TeamPage() {
       )}
 
       {/* Filter Toolbar for Teams & Agents */}
-      <div className="card mb-3.5 p-3 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
-          {/* Instant Search */}
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search className="size-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="मेंबर खोजें — नाम, ईमेल, फ़ोन..."
-              className="pl-9 pr-7 h-9 text-xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+      <div className="card mb-3.5 p-3 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+            {/* Instant Search */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="size-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="मेंबर खोजें — नाम, ईमेल, फ़ोन..."
+                className="pl-9 pr-7 h-9 text-xs"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Role Filter */}
+            <div className="w-32">
+              <Select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value as any)}
+                className="h-9 text-xs"
               >
-                <X className="size-3.5" />
-              </button>
+                <option value="ALL">सभी रोल्स (Role)</option>
+                <option value="BROKER_ADMIN">Admin</option>
+                <option value="BROKER_AGENT">Agent</option>
+              </Select>
+            </div>
+
+            {/* Account Status Filter */}
+            <div className="w-32">
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="h-9 text-xs"
+              >
+                <option value="ALL">सभी स्थिति (Status)</option>
+                <option value="ACTIVE">सक्रिय (Active)</option>
+                <option value="SUSPENDED">निलंबित (Suspended)</option>
+              </Select>
+            </div>
+
+            {/* Live Location Filter */}
+            <div className="w-36">
+              <Select
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value as any)}
+                className="h-9 text-xs"
+              >
+                <option value="ALL">सभी लोकेशन (Location)</option>
+                <option value="LIVE">🟢 लाइव (Active Now)</option>
+                <option value="OFFLINE">ऑफलाइन (Offline)</option>
+              </Select>
+            </div>
+
+            {/* KYC Status Filter */}
+            <div className="w-36">
+              <Select
+                value={kycFilter}
+                onChange={(e) => setKycFilter(e.target.value as any)}
+                className="h-9 text-xs"
+              >
+                <option value="ALL">सभी KYC स्थिति</option>
+                <option value="VERIFIED">✅ प्रमाणित (Verified)</option>
+                <option value="PENDING">⏳ समीक्षाधीन (Pending)</option>
+                <option value="REQUIRED">⚠️ अप्रमाणित (Required)</option>
+              </Select>
+            </div>
+
+            {/* Agent Selector Dropdown */}
+            <div className="w-40">
+              <Select
+                value={agentFilter}
+                onChange={(e) => setAgentFilter(e.target.value)}
+                className="h-9 text-xs"
+              >
+                <option value="ALL">सभी सदस्य (All Agents)</option>
+                {members.map((m: any) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {/* Date Range Preset Filter */}
+            <DateRangeFilter
+              value={dateRange}
+              onChange={setDateRange}
+              size="xs"
+              className="min-w-[190px]"
+            />
+
+            {/* Sort By */}
+            <div className="w-36">
+              <Select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="h-9 text-xs"
+              >
+                <option value="PERFORMANCE">डील्स परफ़ॉर्मेंस</option>
+                <option value="LEADS">ओपन लीड्स</option>
+                <option value="NAME">नाम (A से Z)</option>
+              </Select>
+            </div>
+
+            {/* Clear Filter button */}
+            {hasActiveFilters && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleResetFilters}
+                className="h-9 text-xs text-muted hover:text-fg"
+              >
+                <RotateCcw className="size-3.5 mr-1" /> रीसेट
+              </Button>
             )}
           </div>
 
-          {/* Role Filter */}
-          <div className="w-32">
-            <Select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as any)}
-              className="h-9 text-xs"
-            >
-              <option value="ALL">सभी रोल्स (Role)</option>
-              <option value="BROKER_ADMIN">Admin</option>
-              <option value="BROKER_AGENT">Agent</option>
-            </Select>
-          </div>
-
-          {/* Live Location Filter */}
-          <div className="w-36">
-            <Select
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value as any)}
-              className="h-9 text-xs"
-            >
-              <option value="ALL">सभी लोकेशन (Location)</option>
-              <option value="LIVE">🟢 लाइव (Active Now)</option>
-              <option value="OFFLINE">ऑफलाइन (Offline)</option>
-            </Select>
-          </div>
-
-          {/* KYC Status Filter */}
-          <div className="w-36">
-            <Select
-              value={kycFilter}
-              onChange={(e) => setKycFilter(e.target.value as any)}
-              className="h-9 text-xs"
-            >
-              <option value="ALL">सभी KYC स्थिति</option>
-              <option value="VERIFIED">✅ प्रमाणित (Verified)</option>
-              <option value="PENDING">⏳ समीक्षाधीन (Pending)</option>
-              <option value="REQUIRED">⚠️ अप्रमाणित (Required)</option>
-            </Select>
-          </div>
-
-          {/* Sort By */}
-          <div className="w-36">
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="h-9 text-xs"
-            >
-              <option value="PERFORMANCE">डील्स परफ़ॉर्मेंस</option>
-              <option value="LEADS">ओपन लीड्स</option>
-              <option value="NAME">नाम (A से Z)</option>
-            </Select>
-          </div>
-
-          {/* Clear Filter button */}
-          {hasActiveFilters && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setSearchQuery('');
-                setRoleFilter('ALL');
-                setLocationFilter('ALL');
-                setKycFilter('ALL');
-                setSortBy('PERFORMANCE');
+          {/* Right Action: Export Toolbar & Roster Count */}
+          <div className="flex items-center gap-2 shrink-0">
+            <ExportToolbar
+              endpoint="/broker/team/export"
+              selectedIds={selectedIds.size > 0 ? Array.from(selectedIds) : undefined}
+              filters={{
+                role: roleFilter !== 'ALL' ? roleFilter : undefined,
+                status: statusFilter !== 'ALL' ? statusFilter : undefined,
+                search: searchQuery.trim() || undefined,
+                agentId: agentFilter !== 'ALL' ? agentFilter : undefined,
+                datePreset: dateRange.preset !== 'ALL' ? dateRange.preset : undefined,
+                from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
+                to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
               }}
-              className="h-9 text-xs text-muted hover:text-fg"
-            >
-              <RotateCcw className="size-3.5 mr-1" /> रीसेट
-            </Button>
-          )}
+              filenamePrefix="team-roster"
+              totalCount={members.length}
+              filteredCount={filteredMembers.length}
+            />
+
+            <div className="text-xs font-semibold text-muted">
+              दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} सदस्य
+            </div>
+          </div>
         </div>
 
-        <div className="text-xs font-semibold text-muted shrink-0">
-          दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} सदस्य
-        </div>
+        {/* Selected Rows Banner (when selection active) */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between rounded-xl bg-brand/10 border border-brand/20 px-3 py-2 text-xs text-brand font-semibold animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-2 rounded-full bg-brand animate-pulse" />
+              <span>{selectedIds.size} सदस्य चयनित (Selected for Export)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs font-bold text-brand hover:underline"
+            >
+              चयन हटाएं (Clear Selection)
+            </button>
+          </div>
+        )}
       </div>
 
       {!q.data ? (
@@ -352,9 +529,18 @@ export default function TeamPage() {
         />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[850px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
               <tr>
+                {/* Header Checkbox (Select All / Indeterminate) */}
+                <th className="w-10 px-3 py-3 text-center">
+                  <IndeterminateCheckbox
+                    checked={isAllFilteredSelected}
+                    indeterminate={isSomeFilteredSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="सभी सदस्य चुनें (Select all)"
+                  />
+                </th>
                 <SortableTh column="name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Member</SortableTh>
                 <SortableTh column="role" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Role</SortableTh>
                 <SortableTh column="location" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Live Location</SortableTh>
@@ -372,6 +558,7 @@ export default function TeamPage() {
                 const dealsTarget = m.targets?.monthlyDeals || 5;
                 const dealsWon = m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0;
                 const dealsPct = m.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
+                const isSelected = selectedIds.has(m.id);
 
                 return (
                   <tr
@@ -379,9 +566,21 @@ export default function TeamPage() {
                     onClick={() => router.push(`/broker/team/${m.id}`)}
                     className={cn(
                       'border-b border-line last:border-0 cursor-pointer hover:bg-surface-2/50 transition-colors',
+                      isSelected && 'bg-brand/5 dark:bg-brand/10',
                       m.status !== 'ACTIVE' && 'opacity-60',
                     )}
                   >
+                    {/* Row Selection Checkbox */}
+                    <td className="w-10 px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => toggleSelectRow(m.id, e as any)}
+                        aria-label={`Select ${m.name}`}
+                        className="size-4 rounded border-line bg-surface text-brand focus:ring-2 focus:ring-brand-500/20 cursor-pointer accent-brand-600"
+                      />
+                    </td>
+
                     {/* Member */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">

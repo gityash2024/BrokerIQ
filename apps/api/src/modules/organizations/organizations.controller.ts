@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -17,6 +17,9 @@ import { env } from '../../config/env';
 import { FeaturesService } from '../../core/features/features.service';
 import { AccessService } from '../../core/access/access.service';
 import { readBrokerTeam } from './team-query';
+import { createExcelReport } from '../../common/excel';
+import { renderPdf, pdfText, pdfTable } from '../../common/pdf';
+import { generateCsv } from '../../common/csv';
 
 const PUBLIC_ORG_SELECT = {
   id: true,
@@ -128,8 +131,175 @@ export class OrganizationsController {
   // ------------------------------------------------------------------ team
   @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
   @Get('broker/team')
-  async team(@CurrentUser() user: RequestUser, @Query('orgId') orgId?: string) {
-    return readBrokerTeam(this.prisma, user, false, orgId);
+  async team(
+    @CurrentUser() user: RequestUser,
+    @Query('orgId') orgId?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('agentId') agentId?: string,
+    @Query('datePreset') datePreset?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const effectiveOrgId = user.role === 'SUPER_ADMIN' ? orgId : undefined;
+    return readBrokerTeam(this.prisma, user, false, effectiveOrgId, {
+      role,
+      status,
+      search,
+      agentId,
+      datePreset,
+      from,
+      to,
+    });
+  }
+
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
+  @Get('broker/team/export')
+  async exportTeam(
+    @CurrentUser() user: RequestUser,
+    @Query('format') format = 'csv',
+    @Query('orgId') orgId?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('agentId') agentId?: string,
+    @Query('datePreset') datePreset?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('ids') ids?: string,
+    @Res() res?: any,
+  ) {
+    const effectiveOrgId = user.role === 'SUPER_ADMIN' ? orgId : undefined;
+    const teamData = await readBrokerTeam(this.prisma, user, false, effectiveOrgId, {
+      role,
+      status,
+      search,
+      agentId,
+      datePreset,
+      from,
+      to,
+      ids,
+    });
+
+    const filename = `team-export-${new Date().toISOString().slice(0, 10)}`;
+    const normalized = (format || 'csv').toLowerCase();
+
+    if (normalized === 'xlsx') {
+      const buffer = await createExcelReport({
+        sheetName: 'Team Members',
+        title: 'BrokerIQ — Team Roster & Performance Report',
+        metadata: { Role: role || 'ALL', Status: status || 'ALL', Date: datePreset || 'ALL' },
+        columns: [
+          { header: 'Agent ID', key: 'id', width: 26 },
+          { header: 'Name', key: 'name', width: 22 },
+          { header: 'Email', key: 'email', width: 26 },
+          { header: 'Phone', key: 'phone', width: 16 },
+          { header: 'Role', key: 'role', width: 16 },
+          { header: 'Status', key: 'status', width: 14 },
+          { header: 'KYC Status', key: 'kycStatus', width: 14 },
+          { header: 'Deals Target', key: 'targetDeals', width: 14, type: 'number' },
+          { header: 'Deals Won', key: 'dealsWon', width: 14, type: 'number' },
+          { header: 'Fulfillment %', key: 'fulfillmentPct', width: 14, type: 'percentage' },
+          { header: 'Open Leads', key: 'openLeads', width: 14, type: 'number' },
+          { header: 'Won (30d)', key: 'won30d', width: 14, type: 'number' },
+          { header: 'Joined Date', key: 'createdAt', width: 20, type: 'date' },
+        ],
+        data: teamData.members.map((m) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email ?? '—',
+          phone: m.phone ?? '—',
+          role: m.role,
+          status: m.status,
+          kycStatus: m.kycStatus,
+          targetDeals: m.targets?.monthlyDeals ?? 5,
+          dealsWon: m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0,
+          fulfillmentPct: m.fulfillment?.dealsPercent ?? 0,
+          openLeads: m.stats?.openLeads ?? 0,
+          won30d: m.stats?.won30d ?? 0,
+          createdAt: m.createdAt,
+        })),
+        totals: {
+          name: 'Total / Averages',
+          dealsWon: teamData.members.reduce((s, m) => s + (m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0), 0),
+          openLeads: teamData.members.reduce((s, m) => s + (m.stats?.openLeads ?? 0), 0),
+        },
+      });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+      return res.send(buffer);
+    }
+
+    if (normalized === 'pdf') {
+      const buffer = await renderPdf(
+        (doc) => {
+          doc.font('B').fontSize(16).fillColor('#0f172a').text('BrokerIQ — Team Roster & Performance Report');
+          doc.moveDown(0.3);
+          doc.font('R').fontSize(9).fillColor('#64748b');
+          const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+          doc.text(`Generated: ${istTime} (IST)   |   Role: ${role || 'ALL'}   |   Total Agents: ${teamData.members.length}`);
+          doc.moveDown(0.8);
+
+          const headers = ['#', 'Agent Name', 'Email / Phone', 'Role', 'Status', 'KYC', 'Target / Won', 'Open Leads', 'Joined'];
+          const weights = [0.7, 3.2, 3.5, 2.2, 1.8, 1.8, 2.5, 1.8, 2.2];
+          const rows = teamData.members.map((m, i) => [
+            String(i + 1),
+            pdfText(m.name),
+            pdfText(`${m.email || '—'}\n${m.phone || '—'}`),
+            pdfText(m.role),
+            pdfText(m.status),
+            pdfText(m.kycStatus),
+            `${m.targets?.monthlyDeals ?? 5} / ${m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0}`,
+            String(m.stats?.openLeads ?? 0),
+            m.createdAt ? new Date(m.createdAt).toISOString().slice(0, 10) : '—',
+          ]);
+
+          pdfTable(doc, headers, rows, weights);
+
+          const active = teamData.members.filter((m) => m.status === 'ACTIVE').length;
+          const verifiedKyc = teamData.members.filter((m) => m.kycStatus === 'VERIFIED').length;
+          const totalDeals = teamData.members.reduce((sum, m) => sum + (m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0), 0);
+          const totalOpenLeads = teamData.members.reduce((sum, m) => sum + (m.stats?.openLeads ?? 0), 0);
+
+          doc.moveDown(0.5);
+          doc.font('B').fontSize(9).fillColor('#1e293b');
+          doc.text(
+            `Summary: Active Agents: ${active} / ${teamData.members.length}   |   KYC Verified: ${verifiedKyc}   |   Total Won Deals: ${totalDeals}   |   Total Open Leads: ${totalOpenLeads}`,
+          );
+        },
+        { layout: 'landscape', size: 'A4', margin: 36 },
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+      return res.send(buffer);
+    }
+
+    // Default CSV
+    const csvContent = generateCsv(
+      ['ID', 'Name', 'Email', 'Phone', 'Role', 'Status', 'KYC Status', 'Deals Target', 'Deals Won', 'Fulfillment %', 'Open Leads', 'Won 30d', 'Joined Date'],
+      teamData.members.map((m) => [
+        m.id,
+        m.name,
+        m.email ?? '',
+        m.phone ?? '',
+        m.role,
+        m.status,
+        m.kycStatus,
+        m.targets?.monthlyDeals ?? 5,
+        m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0,
+        m.fulfillment?.dealsPercent ?? 0,
+        m.stats?.openLeads ?? 0,
+        m.stats?.won30d ?? 0,
+        m.createdAt ? new Date(m.createdAt).toISOString() : '',
+      ]),
+    );
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+    return res.send(csvContent);
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')

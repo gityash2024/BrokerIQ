@@ -107,6 +107,17 @@ function Inner({ children }: { children: React.ReactNode }) {
                 icon: Users,
                 iconGradient: 'from-sky-600 to-indigo-600',
                 iconShadow: 'shadow-sky-500/25',
+                children: [
+                  {
+                    href: '/broker/team',
+                    label: 'Team Members',
+                    exact: true,
+                  },
+                  {
+                    href: '/broker/team/time-logging',
+                    label: 'Time Logging',
+                  },
+                ],
               },
             ]
           : []),

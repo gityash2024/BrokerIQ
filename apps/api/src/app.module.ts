@@ -46,6 +46,7 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
 import { DirectoryModule } from './modules/directory/directory.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { TimeLoggingModule } from './modules/time-logging/time-logging.module';
 import { isInternalCall } from './common/internal';
 
 @Module({
@@ -92,6 +93,7 @@ import { isInternalCall } from './common/internal';
     InventoryModule,
     ImportsModule,
     DirectoryModule,
+    TimeLoggingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

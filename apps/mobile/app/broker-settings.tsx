@@ -8,6 +8,7 @@ import { PLATFORM_MODULES, defaultModulePolicies, moduleAllowed, languageOf } fr
 import { Txt, Button } from '@/ui';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { LanguageSheet } from '@/components/language';
+import { TimeLoggingCard } from '@/components/time-logging-card';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { useLang } from '@/lib/lang';
 import {
@@ -145,6 +146,9 @@ export default function BrokerSettings() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Shift Attendance & Time Logging */}
+        <TimeLoggingCard />
 
         {/* Agent KYC Verification Card */}
         <TouchableOpacity
