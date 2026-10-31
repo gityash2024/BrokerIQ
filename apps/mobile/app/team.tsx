@@ -137,33 +137,16 @@ export default function Team() {
           placeholder="खोजें — नाम, ईमेल, फ़ोन..."
           value={search}
           onChangeText={setSearch}
-          left={<Search size={16} color={c.textMuted} />}
-          right={
-            search ? (
-              <TouchableOpacity onPress={() => setSearch('')}>
-                <X size={16} color={c.textMuted} />
-              </TouchableOpacity>
-            ) : undefined
-          }
-          style={{ height: 38 }}
+          icon={<Search size={16} color={c.muted} />}
+          style={{ minHeight: 40 }}
         />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-          <Chip active={roleFilter === 'ALL' && statusFilter === 'ALL'} onPress={() => { setRoleFilter('ALL'); setStatusFilter('ALL'); }}>
-            सभी ({members.length})
-          </Chip>
-          <Chip active={roleFilter === 'BROKER_ADMIN'} onPress={() => setRoleFilter(roleFilter === 'BROKER_ADMIN' ? 'ALL' : 'BROKER_ADMIN')}>
-            👑 Admin
-          </Chip>
-          <Chip active={roleFilter === 'BROKER_AGENT'} onPress={() => setRoleFilter(roleFilter === 'BROKER_AGENT' ? 'ALL' : 'BROKER_AGENT')}>
-            👤 Agent
-          </Chip>
-          <Chip active={statusFilter === 'LIVE'} onPress={() => setStatusFilter(statusFilter === 'LIVE' ? 'ALL' : 'LIVE')}>
-            🟢 Live Now
-          </Chip>
-          <Chip active={statusFilter === 'VERIFIED'} onPress={() => setStatusFilter(statusFilter === 'VERIFIED' ? 'ALL' : 'VERIFIED')}>
-            ✅ KYC Verified
-          </Chip>
+          <Chip label={`सभी (${members.length})`} active={roleFilter === 'ALL' && statusFilter === 'ALL'} onPress={() => { setRoleFilter('ALL'); setStatusFilter('ALL'); }} />
+          <Chip label="👑 Admin" active={roleFilter === 'BROKER_ADMIN'} onPress={() => setRoleFilter(roleFilter === 'BROKER_ADMIN' ? 'ALL' : 'BROKER_ADMIN')} />
+          <Chip label="👤 Agent" active={roleFilter === 'BROKER_AGENT'} onPress={() => setRoleFilter(roleFilter === 'BROKER_AGENT' ? 'ALL' : 'BROKER_AGENT')} />
+          <Chip label="🟢 Live Now" active={statusFilter === 'LIVE'} onPress={() => setStatusFilter(statusFilter === 'LIVE' ? 'ALL' : 'LIVE')} />
+          <Chip label="✅ KYC Verified" active={statusFilter === 'VERIFIED'} onPress={() => setStatusFilter(statusFilter === 'VERIFIED' ? 'ALL' : 'VERIFIED')} />
         </ScrollView>
       </View>
 

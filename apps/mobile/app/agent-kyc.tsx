@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -10,9 +11,11 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  Building2,
   CheckCircle2,
   Clock,
   CreditCard,
+  Eye,
   FileText,
   Camera,
   ShieldCheck,
@@ -20,10 +23,13 @@ import {
   Shield,
   RotateCcw,
   Upload,
+  UserCheck,
+  X,
 } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
-import { Txt, Button } from '@/ui';
+import { Txt, Button, Card, Badge, Row } from '@/ui';
 import { useTheme } from '@/lib/theme';
+import { useAuth } from '@/lib/auth';
 import { api, post, uploadUri } from '@/lib/api';
 
 interface KycResponse {
@@ -41,11 +47,20 @@ interface KycResponse {
 
 export default function AgentKycScreen() {
   const { c, isDark } = useTheme();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<'my' | 'firm'>('my');
+  const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
 
   const kycQuery = useQuery({
     queryKey: ['agent-kyc-mine-mobile'],
     queryFn: () => api<KycResponse>('/broker/team/agent-kyc/mine'),
+  });
+
+  const firmQuery = useQuery({
+    queryKey: ['firm-kyc-agent-mobile'],
+    queryFn: () => api<any>('/broker/firm-kyc'),
   });
 
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -201,8 +216,160 @@ export default function AgentKycScreen() {
   const currentPanDoc = panPhotoUrl || kyc?.panPhotoUrl || '';
 
   return (
-    <BrokerScreen title="Agent KYC Verification" subtitle="आधार, पैन व फ़ेस लाइवलीनेस सत्यापन" back>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 50 }}>
+    <BrokerScreen title="KYC" subtitle={activeTab === 'my' ? 'आधार, पैन व फ़ेस लाइवलीनेस सत्यापन' : 'फर्म का सत्यापन व RERA लाइसेंस'}>
+      {/* Tab Switch Pills */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 }}>
+        <Row gap={8}>
+          <TouchableOpacity
+            onPress={() => setActiveTab('my')}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingVertical: 10,
+              borderRadius: 14,
+              backgroundColor: activeTab === 'my' ? c.brand : isDark ? '#1C2138' : '#F1F5F9',
+            }}
+          >
+            <UserCheck size={16} color={activeTab === 'my' ? '#fff' : c.muted} />
+            <Txt v="small" style={{ fontWeight: '800', color: activeTab === 'my' ? '#fff' : c.fg }}>
+              My KYC
+            </Txt>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab('firm')}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingVertical: 10,
+              borderRadius: 14,
+              backgroundColor: activeTab === 'firm' ? c.brand : isDark ? '#1C2138' : '#F1F5F9',
+            }}
+          >
+            <Building2 size={16} color={activeTab === 'firm' ? '#fff' : c.muted} />
+            <Txt v="small" style={{ fontWeight: '800', color: activeTab === 'firm' ? '#fff' : c.fg }}>
+              Firm KYC
+            </Txt>
+          </TouchableOpacity>
+        </Row>
+      </View>
+
+      {activeTab === 'firm' ? (
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 50 }}>
+          {(() => {
+            const firm = firmQuery.data?.organization || user?.organization;
+            const reraDoc = firmQuery.data?.reraDocument;
+            const gstDoc = firmQuery.data?.gstDocument;
+            const panDoc = firmQuery.data?.panDocument;
+            const isVerified = firm?.verification === 'VERIFIED';
+            const isPending = firm?.verification === 'PENDING';
+
+            return (
+              <Card style={{ padding: 18, gap: 14 }}>
+                <Row gap={12} align="center">
+                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Building2 size={24} color={c.brand} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Txt v="bodyStrong" style={{ fontSize: 16 }}>फर्म सत्यापन (Firm KYC)</Txt>
+                    <Txt v="caption" color="muted">SuperAdmin द्वारा प्रमाणित</Txt>
+                  </View>
+                </Row>
+
+                <View style={{ gap: 10, padding: 14, borderRadius: 12, backgroundColor: isDark ? '#13172C' : '#F8FAFC' }}>
+                  <Row justify="space-between">
+                    <Txt v="caption" color="muted">फर्म का नाम:</Txt>
+                    <Txt v="small" style={{ fontWeight: '700' }}>{firm?.name || 'BrokerIQ Firm'}</Txt>
+                  </Row>
+                  <Row justify="space-between">
+                    <Txt v="caption" color="muted">सत्यापन स्थिति:</Txt>
+                    <Badge
+                      label={isVerified ? 'Verified by SuperAdmin' : isPending ? 'Under Review' : 'Unverified'}
+                      color={isVerified ? '#10B981' : isPending ? '#F59E0B' : '#EF4444'}
+                    />
+                  </Row>
+                </View>
+
+                {/* Documents section */}
+                <View style={{ gap: 8 }}>
+                  <Txt v="caption" color="muted" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
+                    फर्म दस्तावेज़ व अनुमतियाँ
+                  </Txt>
+
+                  {/* RERA */}
+                  <Card style={{ padding: 12, gap: 6, backgroundColor: isDark ? '#111528' : '#FFFFFF' }}>
+                    <Row justify="space-between" align="center">
+                      <Row gap={8} align="center">
+                        <ShieldCheck size={16} color={c.brand} />
+                        <Txt v="small" style={{ fontWeight: '700' }}>RERA Registration</Txt>
+                      </Row>
+                      {reraDoc?.fileUrl && (
+                        <TouchableOpacity
+                          onPress={() => setPreviewPhoto({ title: 'RERA Certificate', url: reraDoc.fileUrl })}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        >
+                          <Eye size={13} color={c.brand} />
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                        </TouchableOpacity>
+                      )}
+                    </Row>
+                    <Txt v="caption" color="muted">नंबर: {firm?.reraNumber || reraDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                  </Card>
+
+                  {/* GST */}
+                  <Card style={{ padding: 12, gap: 6, backgroundColor: isDark ? '#111528' : '#FFFFFF' }}>
+                    <Row justify="space-between" align="center">
+                      <Row gap={8} align="center">
+                        <FileText size={16} color="#10B981" />
+                        <Txt v="small" style={{ fontWeight: '700' }}>GSTIN / Trade Tax</Txt>
+                      </Row>
+                      {gstDoc?.fileUrl && (
+                        <TouchableOpacity
+                          onPress={() => setPreviewPhoto({ title: 'GST Certificate', url: gstDoc.fileUrl })}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        >
+                          <Eye size={13} color={c.brand} />
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                        </TouchableOpacity>
+                      )}
+                    </Row>
+                    <Txt v="caption" color="muted">नंबर: {firm?.gstNumber || gstDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                  </Card>
+
+                  {/* PAN */}
+                  {panDoc && (
+                    <Card style={{ padding: 12, gap: 6, backgroundColor: isDark ? '#111528' : '#FFFFFF' }}>
+                      <Row justify="space-between" align="center">
+                        <Row gap={8} align="center">
+                          <CreditCard size={16} color="#3B82F6" />
+                          <Txt v="small" style={{ fontWeight: '700' }}>Company PAN</Txt>
+                        </Row>
+                        {panDoc.fileUrl && (
+                          <TouchableOpacity
+                            onPress={() => setPreviewPhoto({ title: 'Company PAN', url: panDoc.fileUrl })}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                          >
+                            <Eye size={13} color={c.brand} />
+                            <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>दस्तावेज़ देखें</Txt>
+                          </TouchableOpacity>
+                        )}
+                      </Row>
+                      <Txt v="caption" color="muted">नंबर: {panDoc.docNumber || 'दर्ज नहीं'}</Txt>
+                    </Card>
+                  )}
+                </View>
+              </Card>
+            );
+          })()}
+        </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 50 }}>
         {/* Status Card */}
         {isVerified ? (
           <View
@@ -582,6 +749,25 @@ export default function AgentKycScreen() {
           />
         )}
       </ScrollView>
+      )}
+
+      {/* Photo Preview Modal */}
+      <Modal visible={!!previewPhoto} transparent animationType="fade" onRequestClose={() => setPreviewPhoto(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <TouchableOpacity
+            onPress={() => setPreviewPhoto(null)}
+            style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' }}
+          >
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+          {previewPhoto && (
+            <View style={{ width: '100%', alignItems: 'center', gap: 12 }}>
+              <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{previewPhoto.title}</Txt>
+              <Image source={{ uri: previewPhoto.url }} style={{ width: '100%', height: 380, borderRadius: 14 }} resizeMode="contain" />
+            </View>
+          )}
+        </View>
+      </Modal>
     </BrokerScreen>
   );
 }

@@ -56,6 +56,11 @@ function BrokerAdminKycManagement() {
     queryFn: () => api<any>('/broker/team'),
   });
 
+  const firmQuery = useQuery({
+    queryKey: ['firm-mobile-kyc'],
+    queryFn: () => api<any>('/broker/firm-kyc'),
+  });
+
   const reviewMutation = useMutation({
     mutationFn: ({ agentId, status, reviewNote }: { agentId: string; status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) =>
       patch(`/broker/team/agents/${agentId}/kyc`, { status, reviewNote }),
@@ -391,35 +396,111 @@ function BrokerAdminKycManagement() {
       ) : (
         /* Firm KYC view */
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
-          <Card style={{ padding: 18, gap: 12 }}>
-            <Row gap={12} align="center">
-              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                <Building2 size={24} color={c.brand} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Txt v="bodyStrong" style={{ fontSize: 16 }}>फर्म सत्यापन (Firm KYC)</Txt>
-                <Txt v="caption" color="muted">SuperAdmin द्वारा जाँचा जाता है</Txt>
-              </View>
-            </Row>
+          {(() => {
+            const firm = firmQuery.data?.organization || user?.organization;
+            const reraDoc = firmQuery.data?.reraDocument;
+            const gstDoc = firmQuery.data?.gstDocument;
+            const panDoc = firmQuery.data?.panDocument;
+            const isVerified = firm?.verification === 'VERIFIED';
+            const isPending = firm?.verification === 'PENDING';
 
-            <View style={{ gap: 8, padding: 12, borderRadius: 12, backgroundColor: isDark ? '#13172C' : '#F8FAFC' }}>
-              <Row justify="space-between">
-                <Txt v="caption" color="muted">फर्म का नाम:</Txt>
-                <Txt v="small" style={{ fontWeight: '700' }}>{user?.organization?.name || 'BrokerIQ Firm'}</Txt>
-              </Row>
-              <Row justify="space-between">
-                <Txt v="caption" color="muted">RERA नंबर:</Txt>
-                <Txt v="small" style={{ fontWeight: '700' }}>{(user?.organization as any)?.reraNumber || 'उपलब्ध नहीं'}</Txt>
-              </Row>
-              <Row justify="space-between">
-                <Txt v="caption" color="muted">सत्यापन स्थिति:</Txt>
-                <Badge
-                  label={(user?.organization as any)?.verification === 'VERIFIED' ? 'Verified by SuperAdmin' : 'Under Review'}
-                  color={(user?.organization as any)?.verification === 'VERIFIED' ? '#10B981' : '#F59E0B'}
-                />
-              </Row>
-            </View>
-          </Card>
+            return (
+              <Card style={{ padding: 18, gap: 14 }}>
+                <Row gap={12} align="center">
+                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Building2 size={24} color={c.brand} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Txt v="bodyStrong" style={{ fontSize: 16 }}>फर्म सत्यापन (Firm KYC)</Txt>
+                    <Txt v="caption" color="muted">SuperAdmin द्वारा जाँचा और प्रमाणित किया जाता है</Txt>
+                  </View>
+                </Row>
+
+                <View style={{ gap: 10, padding: 14, borderRadius: 12, backgroundColor: isDark ? '#13172C' : '#F8FAFC' }}>
+                  <Row justify="space-between">
+                    <Txt v="caption" color="muted">फर्म का नाम:</Txt>
+                    <Txt v="small" style={{ fontWeight: '700' }}>{firm?.name || 'BrokerIQ Firm'}</Txt>
+                  </Row>
+                  <Row justify="space-between">
+                    <Txt v="caption" color="muted">सत्यापन स्थिति:</Txt>
+                    <Badge
+                      label={isVerified ? 'Verified by SuperAdmin' : isPending ? 'Under Review' : 'Unverified'}
+                      color={isVerified ? '#10B981' : isPending ? '#F59E0B' : '#EF4444'}
+                    />
+                  </Row>
+                </View>
+
+                {/* Documents section */}
+                <View style={{ gap: 8 }}>
+                  <Txt v="caption" color="muted" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
+                    फर्म दस्तावेज़ व अनुमतियाँ
+                  </Txt>
+
+                  {/* RERA */}
+                  <Card style={{ padding: 12, gap: 6, backgroundColor: isDark ? '#111528' : '#FFFFFF' }}>
+                    <Row justify="space-between" align="center">
+                      <Row gap={8} align="center">
+                        <ShieldCheck size={16} color={c.brand} />
+                        <Txt v="small" style={{ fontWeight: '700' }}>RERA Registration</Txt>
+                      </Row>
+                      {reraDoc?.fileUrl && (
+                        <TouchableOpacity
+                          onPress={() => setPreviewPhoto({ title: 'RERA Certificate', url: reraDoc.fileUrl })}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        >
+                          <Eye size={13} color={c.brand} />
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                        </TouchableOpacity>
+                      )}
+                    </Row>
+                    <Txt v="caption" color="muted">नंबर: {firm?.reraNumber || reraDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                  </Card>
+
+                  {/* GST */}
+                  <Card style={{ padding: 12, gap: 6, backgroundColor: isDark ? '#111528' : '#FFFFFF' }}>
+                    <Row justify="space-between" align="center">
+                      <Row gap={8} align="center">
+                        <FileText size={16} color="#10B981" />
+                        <Txt v="small" style={{ fontWeight: '700' }}>GSTIN / Trade Tax</Txt>
+                      </Row>
+                      {gstDoc?.fileUrl && (
+                        <TouchableOpacity
+                          onPress={() => setPreviewPhoto({ title: 'GST Certificate', url: gstDoc.fileUrl })}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        >
+                          <Eye size={13} color={c.brand} />
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                        </TouchableOpacity>
+                      )}
+                    </Row>
+                    <Txt v="caption" color="muted">नंबर: {firm?.gstNumber || gstDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                  </Card>
+
+                  {/* PAN */}
+                  {panDoc && (
+                    <Card style={{ padding: 12, gap: 6, backgroundColor: isDark ? '#111528' : '#FFFFFF' }}>
+                      <Row justify="space-between" align="center">
+                        <Row gap={8} align="center">
+                          <CreditCard size={16} color="#3B82F6" />
+                          <Txt v="small" style={{ fontWeight: '700' }}>Company PAN</Txt>
+                        </Row>
+                        {panDoc.fileUrl && (
+                          <TouchableOpacity
+                            onPress={() => setPreviewPhoto({ title: 'Company PAN', url: panDoc.fileUrl })}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                          >
+                            <Eye size={13} color={c.brand} />
+                            <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>दस्तावेज़ देखें</Txt>
+                          </TouchableOpacity>
+                        )}
+                      </Row>
+                      <Txt v="caption" color="muted">नंबर: {panDoc.docNumber || 'दर्ज नहीं'}</Txt>
+                    </Card>
+                  )}
+                </View>
+              </Card>
+            );
+          })()}
         </ScrollView>
       )}
 
