@@ -11,6 +11,7 @@ test('nested routes and workers resolve to the same core module', () => {
   assert.equal(moduleForPath('connector.housing.poll', 'job'), 'automation');
   assert.equal(moduleForPath('/public/config', 'api'), null);
   assert.equal(moduleForPath('/public/listings', 'api'), 'marketplace');
+  assert.equal(moduleForPath('/broker/firm-kyc', 'api'), 'kyc');
   assert.equal(moduleForPath('/unknown', 'api'), 'legacy');
 });
 test('coming soon, hidden and disallowed roles cannot enter active modules', () => {
