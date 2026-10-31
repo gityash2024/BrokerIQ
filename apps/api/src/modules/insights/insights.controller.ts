@@ -74,14 +74,21 @@ export class InsightsController {
           where: {
             organizationId: orgId,
             unreadCount: { gt: 0 },
-            ...(mine
-              ? {
-                  OR: [
-                    { lead: { assignedToId: user.id } },
-                    { leadId: null },
-                  ],
-                }
-              : {}),
+            OR: [
+              {
+                channel: 'WHATSAPP',
+                lead: {
+                  is: {
+                    source: 'HOUSING',
+                    ...(mine ? { assignedToId: user.id } : {}),
+                  },
+                },
+              },
+              {
+                channel: 'CHAT',
+                ...(mine ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+              },
+            ],
           },
         }),
         this.prisma.inventoryItem.count({ where: { organizationId: orgId } }),

@@ -38,7 +38,7 @@ import { ListingPicker } from '@/components/broker/lead-picker';
 import { ChatThread } from '@/components/site/chat-view';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/field';
-import { Avatar, Empty, PageLoader, Skeleton } from '@/components/ui/misc';
+import { Empty, PageLoader, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { IntegrationBanner } from '@/components/ui/api-error';
 
@@ -169,14 +169,14 @@ function InboxInner() {
   const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : chatUnreadCount;
 
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8 bg-white dark:bg-slate-950 overflow-hidden">
+    <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8 bg-surface overflow-hidden">
       {/* Left Conversations Sidebar */}
-      <aside className={cn('flex w-full flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 md:w-[360px] lg:w-[380px] md:shrink-0', active && 'hidden md:flex')}>
+      <aside className={cn('flex w-full flex-col border-r border-line bg-surface md:w-[360px] lg:w-[380px] md:shrink-0', active && 'hidden md:flex')}>
         {/* Header Block */}
-        <div className="space-y-3.5 border-b border-slate-200 dark:border-slate-800 p-4">
+        <div className="space-y-3.5 border-b border-line p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Inbox</h1>
+              <h1 className="font-display text-xl font-extrabold tracking-tight text-fg">Inbox</h1>
               {totalUnreadCount > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 text-xs font-bold">
                   {totalUnreadCount} unread
@@ -187,7 +187,7 @@ function InboxInner() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="size-8 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                className="size-8 text-muted hover:text-fg"
                 onClick={refreshAll}
                 title="रिफ्रेश करें"
               >
@@ -210,15 +210,15 @@ function InboxInner() {
           </div>
 
           {/* Channel Selector with Beautiful Tabs & Live Badges */}
-          <div className="grid grid-cols-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 p-1 border border-slate-200/60 dark:border-slate-700/60">
+          <div className="grid grid-cols-2 rounded-xl bg-surface-2 p-1 border border-line">
             <button
               type="button"
               onClick={() => setParam({ channel: 'WHATSAPP', c: null })}
               className={cn(
                 'flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all',
                 channel === 'WHATSAPP'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                  ? 'bg-surface text-fg shadow-xs border border-line/40'
+                  : 'text-muted hover:text-fg',
               )}
             >
               <MessageSquare className="size-3.5 text-emerald-600" />
@@ -235,8 +235,8 @@ function InboxInner() {
               className={cn(
                 'flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all',
                 channel === 'CHAT'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                  ? 'bg-surface text-fg shadow-xs border border-line/40'
+                  : 'text-muted hover:text-fg',
               )}
             >
               <Globe className="size-3.5 text-indigo-600" />
@@ -253,8 +253,8 @@ function InboxInner() {
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Input
-                icon={<Search className="size-4 text-slate-400" />}
-                className="h-9 pr-7 rounded-xl bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 text-xs focus-within:bg-white dark:focus-within:bg-slate-900"
+                icon={<Search className="size-4 text-subtle" />}
+                className="h-9 pr-7 rounded-xl bg-surface-2 border-line text-xs focus-within:bg-surface"
                 placeholder="नाम / नंबर खोजें..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -263,7 +263,7 @@ function InboxInner() {
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle hover:text-fg"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -275,7 +275,7 @@ function InboxInner() {
                 'shrink-0 flex items-center gap-1.5 rounded-xl border px-3 h-9 text-xs font-semibold transition shadow-2xs',
                 unreadOnly
                   ? 'border-emerald-600 bg-emerald-600 text-white'
-                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
+                  : 'border-line bg-surface-2 text-muted hover:text-fg hover:bg-surface',
               )}
             >
               <span>Unread</span>
@@ -289,7 +289,7 @@ function InboxInner() {
         </div>
 
         {channel === 'WHATSAPP' && status.data && !status.data.connected && (
-          <div className="border-b border-slate-200 dark:border-slate-800 p-3">
+          <div className="border-b border-line p-3">
             <IntegrationBanner
               compact
               name="WhatsApp"
@@ -304,12 +304,12 @@ function InboxInner() {
         )}
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+        <div className="flex-1 overflow-y-auto divide-y divide-line/60">
           {!convs.data && [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="m-3 h-16 rounded-xl" />)}
           {convs.data && !convs.data.length && (
             <Empty
               className="mt-12"
-              icon={<MessagesSquare className="size-8 text-slate-400" />}
+              icon={<MessagesSquare className="size-8 text-subtle" />}
               title="कोई बातचीत नहीं मिली"
               text={
                 search || unreadOnly
@@ -321,7 +321,7 @@ function InboxInner() {
             />
           )}
           {convs.data?.map((c) => {
-            const displayName = c.contactName || c.contactPhone || 'Unknown Client';
+            const displayName = c.contactName || c.lead?.name || c.contactPhone || 'Housing Client';
             const gradient = getAvatarGradient(displayName);
             const isSelected = c.id === active;
             return (
@@ -332,7 +332,7 @@ function InboxInner() {
                   'group relative flex w-full cursor-pointer items-start gap-3 p-3.5 text-left transition-all',
                   isSelected
                     ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-l-[3.5px] border-emerald-600 shadow-2xs'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50',
+                    : 'hover:bg-surface-2',
                 )}
               >
                 <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', gradient)}>
@@ -340,13 +340,13 @@ function InboxInner() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={cn('truncate text-sm text-slate-900 dark:text-slate-100', c.unreadCount ? 'font-bold' : 'font-semibold')}>
+                    <p className={cn('truncate text-sm text-fg', c.unreadCount ? 'font-bold' : 'font-semibold')}>
                       {displayName}
                     </p>
-                    <span className="shrink-0 text-[11px] text-slate-400 font-medium">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ''}</span>
+                    <span className="shrink-0 text-[11px] text-subtle font-medium">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ''}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400')}>
+                    <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-fg' : 'text-muted')}>
                       {c.lastPreview ?? '—'}
                     </p>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -361,7 +361,7 @@ function InboxInner() {
                           e.stopPropagation();
                           setDeleteTarget(c);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15"
+                        className="opacity-0 group-hover:opacity-100 transition rounded-lg p-1 text-subtle hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15"
                         title="चैट हटाएं (Delete Chat)"
                       >
                         <Trash2 className="size-3.5" />
@@ -369,9 +369,9 @@ function InboxInner() {
                     </div>
                   </div>
                   {c.lead && (
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-subtle">
                       <span className="truncate">Lead · {c.lead.assignedTo?.name ?? 'Unassigned'}</span>
-                      <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                      <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[10px] font-medium text-fg">
                         {c.lead.stage}
                       </span>
                     </div>
@@ -384,15 +384,15 @@ function InboxInner() {
       </aside>
 
       {/* Right Active Chat Window */}
-      <section className={cn('flex min-w-0 flex-1 flex-col bg-[#f8fafc] dark:bg-[#0b141a]', !active && 'hidden md:flex')}>
+      <section className={cn('flex min-w-0 flex-1 flex-col bg-bg/40', !active && 'hidden md:flex')}>
         {!active ? (
-          <div className="grid flex-1 place-items-center p-8 text-center bg-white dark:bg-slate-950">
+          <div className="grid flex-1 place-items-center p-8 text-center bg-surface">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
               <div className="mx-auto grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/25">
                 <MessageCircle className="size-10" />
               </div>
-              <p className="mt-4 font-display text-xl font-bold text-slate-900 dark:text-white">Team Messaging Hub</p>
-              <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+              <p className="mt-4 font-display text-xl font-bold text-fg">Team Messaging Hub</p>
+              <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
                 WhatsApp और website chat — सभी ग्राहक संवाद एक जगह। किसी भी चैट पर क्लिक करके वार्तालाप शुरू करें।
               </p>
             </motion.div>
@@ -400,9 +400,9 @@ function InboxInner() {
         ) : (
           <>
             {/* Active Chat Header */}
-            <header className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-3 shadow-2xs z-10">
+            <header className="flex items-center gap-3 border-b border-line bg-surface px-5 py-3 shadow-2xs z-10">
               <button
-                className="md:hidden rounded-lg p-1.5 -ml-1 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="md:hidden rounded-lg p-1.5 -ml-1 text-muted hover:text-fg hover:bg-surface-2"
                 onClick={() => setParam({ c: null })}
                 aria-label="Back"
               >
@@ -410,14 +410,14 @@ function InboxInner() {
               </button>
 
               {/* Contact Avatar & Info */}
-              <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', getAvatarGradient(current?.contactName || current?.contactPhone || 'Contact'))}>
-                {(current?.contactName || current?.contactPhone || 'C').charAt(0).toUpperCase()}
+              <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', getAvatarGradient(current?.contactName || current?.lead?.name || current?.contactPhone || 'Contact'))}>
+                {(current?.contactName || current?.lead?.name || current?.contactPhone || 'C').charAt(0).toUpperCase()}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate font-bold text-base text-slate-900 dark:text-white">
-                    {current?.contactName || current?.contactPhone || 'Customer'}
+                  <p className="truncate font-bold text-base text-fg">
+                    {current?.contactName || current?.lead?.name || current?.contactPhone || 'Customer'}
                   </p>
                   {channel === 'WHATSAPP' ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
@@ -429,7 +429,7 @@ function InboxInner() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <div className="flex items-center gap-3 text-xs text-muted mt-0.5">
                   {current?.contactPhone && (
                     <a href={`tel:${current.contactPhone}`} className="flex items-center gap-1 hover:text-emerald-600 hover:underline">
                       <Phone className="size-3" />
@@ -437,7 +437,7 @@ function InboxInner() {
                     </a>
                   )}
                   {current?.lastMessageAt && (
-                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400">
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-subtle">
                       <Clock className="size-3" /> {timeAgo(current.lastMessageAt)}
                     </span>
                   )}
@@ -449,9 +449,9 @@ function InboxInner() {
                 {current?.lead && (
                   <Link
                     href={`/broker/leads/${current.lead.id}`}
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-2xs"
+                    className="flex items-center gap-1.5 rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:bg-surface transition shadow-2xs"
                   >
-                    <span className="text-slate-500">Lead:</span>
+                    <span className="text-muted">Lead:</span>
                     <StageBadge stage={current.lead.stage} />
                   </Link>
                 )}
@@ -459,7 +459,7 @@ function InboxInner() {
                   size="sm"
                   variant="ghost"
                   onClick={() => setDeleteTarget(current)}
-                  className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15 transition flex items-center gap-1.5 rounded-xl border border-transparent hover:border-rose-200"
+                  className="text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15 transition flex items-center gap-1.5 rounded-xl border border-transparent hover:border-rose-200"
                   title="Delete chat (चैट हटाएं - Lead सुरक्षित रहेगी)"
                 >
                   <Trash2 className="size-4" />
@@ -508,7 +508,7 @@ function InboxInner() {
                 : 'यह क्रिया इस बातचीत और इसके सभी संदेशों को हटा देगी।'}
             </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-muted">
             डिलीट करने के बाद आप इस कॉन्टैक्ट के साथ कभी भी नया मैसेज भेजकर नई बातचीत शुरू कर सकते हैं।
           </p>
         </div>
@@ -591,11 +591,11 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   return (
     <>
       {/* Message List Canvas */}
-      <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+      <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5 bg-bg/50">
         {grouped.map((g) => (
           <div key={g.day} className="space-y-3">
             <div className="flex justify-center sticky top-0 z-10 my-2">
-              <span className="rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-4 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-xs border border-slate-200/80 dark:border-slate-700/80">
+              <span className="rounded-full bg-surface/90 backdrop-blur-md px-4 py-1 text-[11px] font-semibold text-muted shadow-xs border border-line">
                 {g.day}
               </span>
             </div>
@@ -614,21 +614,21 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                         'max-w-[78%] sm:max-w-[65%] rounded-2xl px-4 py-2.5 text-sm shadow-xs transition',
                         out
                           ? 'rounded-tr-xs bg-gradient-to-br from-[#005c4b] via-[#006a57] to-[#008069] text-white'
-                          : 'rounded-tl-xs bg-white dark:bg-[#202c33] border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 shadow-2xs',
+                          : 'rounded-tl-xs bg-surface border border-line text-fg shadow-2xs',
                       )}
                     >
                       {m.mediaUrl && m.type === 'IMAGE' && (
                         <img src={m.mediaUrl} alt="Media" className="mb-2 max-h-72 rounded-xl object-cover shadow-2xs" />
                       )}
                       {m.templateName && (
-                        <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', out ? 'text-emerald-100/90' : 'text-slate-500')}>
+                        <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', out ? 'text-emerald-100/90' : 'text-subtle')}>
                           <FileText className="size-3" /> {m.templateName}
                         </p>
                       )}
                       <p className="break-words whitespace-pre-line leading-relaxed text-[13.5px]">
                         {m.body ?? (m.type !== 'TEXT' ? `[${m.type.toLowerCase()}]` : '')}
                       </p>
-                      <p className={cn('mt-1 flex items-center justify-end gap-1 text-[10px]', out ? 'text-emerald-100/80' : 'text-slate-400 font-medium')}>
+                      <p className={cn('mt-1 flex items-center justify-end gap-1 text-[10px]', out ? 'text-emerald-100/80' : 'text-subtle font-medium')}>
                         {out && m.sender?.name && <span className="mr-1">{m.sender.name} ·</span>}
                         {formatDate(m.createdAt, { timeStyle: 'short' })}
                         {out && TICKS[m.status]}
@@ -641,12 +641,12 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             </AnimatePresence>
           </div>
         ))}
-        {!q.data?.items.length && <p className="py-12 text-center text-sm text-slate-400">अभी कोई संदेश नहीं है</p>}
+        {!q.data?.items.length && <p className="py-12 text-center text-sm text-subtle">अभी कोई संदेश नहीं है</p>}
         <div ref={end} />
       </div>
 
       {/* Modern Composer Dock */}
-      <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-2.5 shadow-2xs">
+      <div className="border-t border-line bg-surface p-3 sm:p-4 space-y-2.5 shadow-2xs">
         {notConfigured?.body.integration && (
           <div className="mb-2">
             <IntegrationBanner compact name={notConfigured.body.integration.name} message={notConfigured.body.message} />
@@ -667,7 +667,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
         {/* Canned Quick Replies with Beautiful Horizontal Scroll */}
         {windowOpen && connected && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 shrink-0 mr-1">
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-subtle shrink-0 mr-1">
               <Sparkles className="size-3 text-emerald-600" />
               त्वरित उत्तर:
             </span>
@@ -676,7 +676,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                 key={idx}
                 type="button"
                 onClick={() => setText((prev) => (prev ? `${prev} ${cr}` : cr))}
-                className="shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-1 text-xs text-slate-700 dark:text-slate-300 transition hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 shadow-2xs"
+                className="shrink-0 rounded-full border border-line bg-surface-2 px-3.5 py-1 text-xs text-muted transition hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 shadow-2xs"
               >
                 {cr}
               </button>
@@ -690,7 +690,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             e.preventDefault();
             if (text.trim()) send({ text });
           }}
-          className="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition shadow-inner"
+          className="flex items-end gap-2 bg-surface-2 border border-line rounded-2xl p-1.5 focus-within:bg-surface focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition shadow-inner"
         >
           <div className="flex items-center gap-0.5 pb-1 pl-1">
             <Button
@@ -700,7 +700,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               onClick={() => setShareOpen(true)}
               aria-label="Share property"
               title="प्रॉपर्टी शेयर करें"
-              className="size-8 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+              className="size-8 rounded-xl text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
             >
               <Building2 className="size-4" />
             </Button>
@@ -711,7 +711,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               onClick={() => setTplOpen(true)}
               aria-label="Templates"
               title="WhatsApp Templates"
-              className="size-8 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+              className="size-8 rounded-xl text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
             >
               <FileText className="size-4" />
             </Button>
@@ -728,7 +728,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               }
             }}
             placeholder={!connected ? 'WhatsApp connect नहीं है' : windowOpen ? 'संदेश लिखें… (Enter = भेजें, Shift+Enter = नई पंक्ति)' : 'Window बंद — template भेजें'}
-            className="border-0 bg-transparent py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal flex-1"
+            className="border-0 bg-transparent py-2 text-sm text-fg placeholder:text-muted focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal flex-1"
           />
           <Button
             type="submit"
@@ -747,7 +747,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       <TemplateDialog
         open={tplOpen}
         onOpenChange={setTplOpen}
-        name={q.data?.conversation?.contactName}
+        name={q.data?.conversation?.contactName || q.data?.conversation?.lead?.name}
         onSend={async (b) => (await send(b)) && setTplOpen(false)}
       />
       <Dialog

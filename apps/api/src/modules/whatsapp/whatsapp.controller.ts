@@ -47,7 +47,18 @@ export class WhatsAppController {
       where: {
         organizationId: orgId,
         channel,
-        ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+        ...(isWhatsApp
+          ? {
+              lead: {
+                is: {
+                  source: 'HOUSING',
+                  ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
+                },
+              },
+            }
+          : {
+              ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+            }),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
         ...(q.q ? { OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] } : {}),
       },
@@ -93,19 +104,23 @@ export class WhatsAppController {
   async unreadStats(@CurrentUser() user: RequestUser) {
     const orgId = requireOrg(user);
     const mine = user.role === 'BROKER_AGENT';
-    const userFilter = mine ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {};
 
     const waWhere: Prisma.ConversationWhereInput = {
       organizationId: orgId,
       channel: 'WHATSAPP',
       unreadCount: { gt: 0 },
-      ...userFilter,
+      lead: {
+        is: {
+          source: 'HOUSING',
+          ...(mine ? { assignedToId: user.id } : {}),
+        },
+      },
     };
     const chatWhere: Prisma.ConversationWhereInput = {
       organizationId: orgId,
       channel: 'CHAT',
       unreadCount: { gt: 0 },
-      ...userFilter,
+      ...(mine ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
     };
 
     const [waUnreadConvs, chatUnreadConvs] = await Promise.all([

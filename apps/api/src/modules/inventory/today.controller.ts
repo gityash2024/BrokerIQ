@@ -49,14 +49,21 @@ export class TodayController {
             where: {
               organizationId,
               unreadCount: { gt: 0 },
-              ...(user.role === 'BROKER_AGENT'
-                ? {
-                    OR: [
-                      { lead: { assignedToId: user.id } },
-                      { leadId: null },
-                    ],
-                  }
-                : {}),
+              OR: [
+                {
+                  channel: 'WHATSAPP',
+                  lead: {
+                    is: {
+                      source: 'HOUSING',
+                      ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
+                    },
+                  },
+                },
+                {
+                  channel: 'CHAT',
+                  ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+                },
+              ],
             },
           })
         : null,
