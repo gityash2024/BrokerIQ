@@ -47,18 +47,7 @@ export class WhatsAppController {
       where: {
         organizationId: orgId,
         channel,
-        ...(isWhatsApp
-          ? {
-              lead: {
-                is: {
-                  source: 'HOUSING',
-                  ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
-                },
-              },
-            }
-          : {
-              ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
-            }),
+        ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
         ...(q.q ? { OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] } : {}),
       },
@@ -82,6 +71,13 @@ export class WhatsAppController {
   @Get('whatsapp/conversations/:id/messages')
   async messages(@CurrentUser() user: RequestUser, @Param('id') id: string, @Query('before') before?: string) {
     const c = await this.conv(id, user);
+    if (c.unreadCount > 0) {
+      await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
+      c.unreadCount = 0;
+      if (c.organizationId) {
+        this.realtime.toOrg(c.organizationId, 'wa:read', { conversationId: id, userId: user.id });
+      }
+    }
     const items = await this.prisma.message.findMany({
       where: { conversationId: id, ...(before ? { createdAt: { lt: new Date(before) } } : {}) },
       orderBy: { createdAt: 'desc' },
@@ -97,53 +93,35 @@ export class WhatsAppController {
   async unreadStats(@CurrentUser() user: RequestUser) {
     const orgId = requireOrg(user);
     const mine = user.role === 'BROKER_AGENT';
+    const userFilter = mine ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {};
+
     const waWhere: Prisma.ConversationWhereInput = {
       organizationId: orgId,
       channel: 'WHATSAPP',
       unreadCount: { gt: 0 },
-      ...(mine
-        ? {
-            lead: {
-              is: {
-                source: 'HOUSING',
-                assignedToId: user.id,
-              },
-            },
-          }
-        : {}),
+      ...userFilter,
     };
     const chatWhere: Prisma.ConversationWhereInput = {
       organizationId: orgId,
       channel: 'CHAT',
       unreadCount: { gt: 0 },
-      ...(mine
-        ? {
-            OR: [{ lead: { assignedToId: user.id } }, { leadId: null }],
-          }
-        : {}),
+      ...userFilter,
     };
 
-    const [waAgg, chatAgg, waUnreadConvs, chatUnreadConvs] = await Promise.all([
-      this.prisma.conversation.aggregate({ where: waWhere, _sum: { unreadCount: true } }),
-      this.prisma.conversation.aggregate({ where: chatWhere, _sum: { unreadCount: true } }),
+    const [waUnreadConvs, chatUnreadConvs] = await Promise.all([
       this.prisma.conversation.count({ where: waWhere }),
       this.prisma.conversation.count({ where: chatWhere }),
     ]);
 
-    const waUnreadMessages = waAgg._sum.unreadCount ?? 0;
-    const chatUnreadMessages = chatAgg._sum.unreadCount ?? 0;
     return {
       whatsapp: {
         unreadConversations: waUnreadConvs,
-        unreadMessages: waUnreadMessages,
       },
       chat: {
         unreadConversations: chatUnreadConvs,
-        unreadMessages: chatUnreadMessages,
       },
       total: {
         unreadConversations: waUnreadConvs + chatUnreadConvs,
-        unreadMessages: waUnreadMessages + chatUnreadMessages,
       },
     };
   }

@@ -70,20 +70,19 @@ export class InsightsController {
           _count: true,
         }),
         this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null } }),
-        this.prisma.conversation.aggregate({
+        this.prisma.conversation.count({
           where: {
             organizationId: orgId,
             unreadCount: { gt: 0 },
             ...(mine
               ? {
                   OR: [
-                    { lead: { is: { assignedToId: user.id } } },
-                    { channel: 'CHAT', leadId: null },
+                    { lead: { assignedToId: user.id } },
+                    { leadId: null },
                   ],
                 }
               : {}),
           },
-          _sum: { unreadCount: true },
         }),
         this.prisma.inventoryItem.count({ where: { organizationId: orgId } }),
         this.prisma.inventoryItem.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
@@ -108,7 +107,7 @@ export class InsightsController {
         activeListings,
         totalInventory,
         activeInventory,
-        unreadMessages: unread._sum.unreadCount ?? 0,
+        unreadMessages: unread,
         wonThisMonth: wonMonth._count,
         commissionThisMonth: wonMonth._sum.commissionAmount ?? 0,
         dealValueThisMonth: wonMonth._sum.dealValue ?? 0,

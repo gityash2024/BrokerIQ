@@ -45,20 +45,19 @@ export class TodayController {
       inventoryOn ? this.inventory.getStats(user) : null,
       inboxOn ? this.prisma.sourceEntry.count({ where: { batch: { organizationId }, reviewState: 'NEEDS_REVIEW' } }) : null,
       inboxOn
-        ? this.prisma.conversation.aggregate({
+        ? this.prisma.conversation.count({
             where: {
               organizationId,
               unreadCount: { gt: 0 },
               ...(user.role === 'BROKER_AGENT'
                 ? {
                     OR: [
-                      { lead: { is: { assignedToId: user.id } } },
-                      { channel: 'CHAT', leadId: null },
+                      { lead: { assignedToId: user.id } },
+                      { leadId: null },
                     ],
                   }
                 : {}),
             },
-            _sum: { unreadCount: true },
           })
         : null,
     ]);
@@ -70,7 +69,7 @@ export class TodayController {
       requirements,
       inventory,
       pendingReview,
-      unreadMessages: unread ? (unread._sum.unreadCount ?? 0) : null,
+      unreadMessages: unread ?? null,
     };
   }
 }

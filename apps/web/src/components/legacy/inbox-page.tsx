@@ -13,11 +13,14 @@ import {
   CheckCheck,
   Clock,
   FileText,
+  Globe,
   Image as ImageIcon,
   MessageCircle,
   MessagesSquare,
+  MessageSquare,
   Phone,
   Plug,
+  RefreshCw,
   Search,
   Send,
   Sparkles,
@@ -33,7 +36,6 @@ import { cn, formatDate, qs } from '@/lib/utils';
 import { StageBadge } from '@/components/broker/bits';
 import { ListingPicker } from '@/components/broker/lead-picker';
 import { ChatThread } from '@/components/site/chat-view';
-import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/field';
 import { Avatar, Empty, PageLoader, Skeleton } from '@/components/ui/misc';
@@ -43,12 +45,29 @@ import { IntegrationBanner } from '@/components/ui/api-error';
 type Channel = 'WHATSAPP' | 'CHAT';
 
 const CANNED_REPLIES = [
-  'नमस्ते! मैं आपकी किस प्रकार सहायता कर सकता हूँ?',
-  'क्या आप आज साइट विजिट के लिए उपलब्ध हैं?',
-  'प्रॉपर्टी ब्रोशर और कीमत डिटेल्स भेज रहा हूँ।',
-  'लोकेशन मैप व दिशा-निर्देश भेज रहा हूँ।',
-  'क्या आपकी BHK व बजट आवश्यकता यही है?',
+  '👋 नमस्ते! मैं आपकी किस प्रकार सहायता कर सकता हूँ?',
+  '📅 क्या आप आज साइट विजिट के लिए उपलब्ध हैं?',
+  '🏡 प्रॉपर्टी ब्रोशर और कीमत डिटेल्स भेज रहा हूँ।',
+  '📍 लोकेशन मैप व दिशा-निर्देश भेज रहा हूँ।',
+  '💰 क्या आपकी BHK व बजट आवश्यकता यही है?',
 ];
+
+const AVATAR_GRADIENTS = [
+  'from-emerald-500 to-teal-600',
+  'from-blue-600 to-indigo-600',
+  'from-violet-600 to-purple-600',
+  'from-rose-500 to-pink-600',
+  'from-amber-500 to-orange-600',
+  'from-cyan-500 to-blue-600',
+];
+
+function getAvatarGradient(key: string) {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+  }
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
 
 function InboxInner() {
   const sp = useSearchParams();
@@ -72,16 +91,17 @@ function InboxInner() {
 
   const dq = useDebounced(search);
   const status = useQuery({ queryKey: ['wa-status'], queryFn: () => api<any>('/whatsapp/status'), staleTime: 60_000 });
+  
   const unreadStats = useQuery({
     queryKey: ['wa-unread-stats'],
     queryFn: () => api<any>('/whatsapp/unread-stats'),
-    refetchInterval: 15_000,
+    refetchInterval: 10_000,
   });
 
   const convs = useQuery({
     queryKey: ['conversations', channel, dq, unreadOnly],
     queryFn: () => api<any[]>(`/whatsapp/conversations${qs({ channel, q: dq, unread: unreadOnly ? 'true' : '' })}`),
-    refetchInterval: 30_000,
+    refetchInterval: 20_000,
   });
 
   const refreshAll = useCallback(() => {
@@ -96,13 +116,34 @@ function InboxInner() {
   useRealtime('chat:read', refreshAll);
   useRealtime('wa:conversation_deleted', refreshAll);
 
-  const current = convs.data?.find((c) => c.id === active);
+  // Optimistic read handler
+  const handleSelectChat = (c: any) => {
+    setParam({ c: c.id });
+    if (c.unreadCount > 0) {
+      qc.setQueryData(['conversations', channel, dq, unreadOnly], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((item) => (item.id === c.id ? { ...item, unreadCount: 0 } : item));
+      });
+      api(`/whatsapp/conversations/${c.id}/read`, { method: 'POST', body: {} })
+        .then(() => refreshAll())
+        .catch(() => undefined);
+    }
+  };
 
-  const handleRead = useCallback(() => {
-    convs.refetch();
-    unreadStats.refetch();
-    qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
-  }, [convs, unreadStats, qc]);
+  const activeThreadQuery = useQuery({
+    queryKey: ['wa-thread', active],
+    queryFn: () => api<any>(`/whatsapp/conversations/${active}/messages`),
+    enabled: !!active && channel === 'WHATSAPP',
+  });
+
+  // Current conversation resolution (searches list first, fallbacks to thread query data)
+  const current = useMemo(() => {
+    if (!active) return null;
+    const found = convs.data?.find((c) => c.id === active);
+    if (found) return found;
+    if (activeThreadQuery.data?.conversation) return activeThreadQuery.data.conversation;
+    return null;
+  }, [active, convs.data, activeThreadQuery.data]);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -124,55 +165,96 @@ function InboxInner() {
 
   const waUnreadCount = unreadStats.data?.whatsapp?.unreadConversations ?? 0;
   const chatUnreadCount = unreadStats.data?.chat?.unreadConversations ?? 0;
-  const currentUnreadCount = channel === 'WHATSAPP' ? waUnreadCount : chatUnreadCount;
+  const totalUnreadCount = unreadStats.data?.total?.unreadConversations ?? (waUnreadCount + chatUnreadCount);
+  const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : chatUnreadCount;
 
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8">
-      {/* conversation list */}
-      <aside className={cn('flex w-full flex-col border-r border-line bg-surface md:w-[360px] md:shrink-0', active && 'hidden md:flex')}>
-        <div className="space-y-3 border-b border-line p-4">
+    <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8 bg-white dark:bg-slate-950 overflow-hidden">
+      {/* Left Conversations Sidebar */}
+      <aside className={cn('flex w-full flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 md:w-[360px] lg:w-[380px] md:shrink-0', active && 'hidden md:flex')}>
+        {/* Header Block */}
+        <div className="space-y-3.5 border-b border-slate-200 dark:border-slate-800 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-xl font-extrabold text-fg">Inbox</h1>
-              {unreadStats.data?.total?.unreadConversations > 0 && (
-                <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-xs">
-                  {unreadStats.data.total.unreadConversations} unread
+              <h1 className="font-display text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Inbox</h1>
+              {totalUnreadCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 text-xs font-bold">
+                  {totalUnreadCount} unread
                 </span>
               )}
             </div>
-            {channel === 'WHATSAPP' && status.data && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-xs',
-                  status.data.connected
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                    : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
-                )}
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-8 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                onClick={refreshAll}
+                title="रिफ्रेश करें"
               >
-                <span className={cn('size-1.5 rounded-full', status.data.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500')} />
-                {status.data.connected ? (status.data.displayPhone ?? 'Connected') : 'Not connected'}
-              </span>
-            )}
+                <RefreshCw className="size-3.5" />
+              </Button>
+              {channel === 'WHATSAPP' && status.data && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border shadow-2xs',
+                    status.data.connected
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+                      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40',
+                  )}
+                >
+                  <span className={cn('size-1.5 rounded-full', status.data.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500')} />
+                  {status.data.connected ? (status.data.displayPhone ?? 'Connected') : 'Not connected'}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Channel Selector with Dynamic Badges */}
-          <Segmented
-            size="sm"
-            value={channel}
-            onChange={(v) => setParam({ channel: v, c: null })}
-            options={[
-              { value: 'WHATSAPP', label: 'WhatsApp', count: waUnreadCount > 0 ? waUnreadCount : undefined },
-              { value: 'CHAT', label: 'Website chat', count: chatUnreadCount > 0 ? chatUnreadCount : undefined },
-            ]}
-            className="w-full"
-          />
+          {/* Channel Selector with Beautiful Tabs & Live Badges */}
+          <div className="grid grid-cols-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 p-1 border border-slate-200/60 dark:border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => setParam({ channel: 'WHATSAPP', c: null })}
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all',
+                channel === 'WHATSAPP'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+              )}
+            >
+              <MessageSquare className="size-3.5 text-emerald-600" />
+              <span>WhatsApp</span>
+              {waUnreadCount > 0 && (
+                <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white shadow-2xs">
+                  {waUnreadCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setParam({ channel: 'CHAT', c: null })}
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all',
+                channel === 'CHAT'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+              )}
+            >
+              <Globe className="size-3.5 text-indigo-600" />
+              <span>Website chat</span>
+              {chatUnreadCount > 0 && (
+                <span className="grid min-w-5 place-items-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-bold text-white shadow-2xs">
+                  {chatUnreadCount}
+                </span>
+              )}
+            </button>
+          </div>
 
           {/* Search & Filter Bar */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Input
-                icon={<Search className="size-4" />}
-                className="h-9 pr-7"
+                icon={<Search className="size-4 text-slate-400" />}
+                className="h-9 pr-7 rounded-xl bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 text-xs focus-within:bg-white dark:focus-within:bg-slate-900"
                 placeholder="नाम / नंबर खोजें..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -181,7 +263,7 @@ function InboxInner() {
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -190,16 +272,16 @@ function InboxInner() {
             <button
               onClick={() => setUnreadOnly(!unreadOnly)}
               className={cn(
-                'shrink-0 flex items-center gap-1.5 rounded-xl border px-3 h-9 text-xs font-semibold transition',
+                'shrink-0 flex items-center gap-1.5 rounded-xl border px-3 h-9 text-xs font-semibold transition shadow-2xs',
                 unreadOnly
-                  ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 shadow-xs'
-                  : 'border-line text-muted hover:text-fg hover:bg-surface-2',
+                  ? 'border-emerald-600 bg-emerald-600 text-white'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
               )}
             >
-              Unread
-              {currentUnreadCount > 0 && (
-                <span className="rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">
-                  {currentUnreadCount}
+              <span>Unread</span>
+              {currentChannelUnread > 0 && (
+                <span className={cn('rounded-full px-1.5 text-[10px] font-bold', unreadOnly ? 'bg-white/20 text-white' : 'bg-emerald-600 text-white')}>
+                  {currentChannelUnread}
                 </span>
               )}
             </button>
@@ -207,7 +289,7 @@ function InboxInner() {
         </div>
 
         {channel === 'WHATSAPP' && status.data && !status.data.connected && (
-          <div className="border-b border-line p-3">
+          <div className="border-b border-slate-200 dark:border-slate-800 p-3">
             <IntegrationBanner
               compact
               name="WhatsApp"
@@ -222,12 +304,12 @@ function InboxInner() {
         )}
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-line/60">
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
           {!convs.data && [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="m-3 h-16 rounded-xl" />)}
           {convs.data && !convs.data.length && (
             <Empty
               className="mt-12"
-              icon={<MessagesSquare className="size-8 text-muted" />}
+              icon={<MessagesSquare className="size-8 text-slate-400" />}
               title="कोई बातचीत नहीं मिली"
               text={
                 search || unreadOnly
@@ -238,122 +320,138 @@ function InboxInner() {
               }
             />
           )}
-          {convs.data?.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => setParam({ c: c.id })}
-              className={cn(
-                'group relative flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-2',
-                c.id === active && 'bg-brand-50/80 dark:bg-brand-500/10',
-              )}
-            >
-              {c.id === active && <motion.span layoutId="inbox-active" className="absolute inset-y-0 left-0 w-1 bg-brand-600 rounded-r" />}
-              <Avatar name={c.contactName || c.contactPhone} src={c.user?.avatarUrl} size={42} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className={cn('truncate text-sm', c.unreadCount ? 'font-bold text-fg' : 'font-semibold text-fg')}>
-                    {c.contactName || c.contactPhone || 'Unknown'}
-                  </p>
-                  <span className="shrink-0 text-[11px] text-subtle font-medium">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ''}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-fg' : 'text-muted')}>
-                    {c.lastPreview ?? '—'}
-                  </p>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {c.unreadCount > 0 && (
-                      <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white shadow-xs">
-                        {c.unreadCount}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(c);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition rounded-lg p-1 text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15"
-                      title="चैट हटाएं (Delete Chat)"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </div>
-                {c.lead && (
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-subtle">
-                    <span className="truncate">Lead · {c.lead.assignedTo?.name ?? 'Unassigned'}</span>
-                    <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[10px] font-medium text-brand-600 dark:text-brand-300">
-                      {c.lead.stage}
-                    </span>
-                  </div>
+          {convs.data?.map((c) => {
+            const displayName = c.contactName || c.contactPhone || 'Unknown Client';
+            const gradient = getAvatarGradient(displayName);
+            const isSelected = c.id === active;
+            return (
+              <div
+                key={c.id}
+                onClick={() => handleSelectChat(c)}
+                className={cn(
+                  'group relative flex w-full cursor-pointer items-start gap-3 p-3.5 text-left transition-all',
+                  isSelected
+                    ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-l-[3.5px] border-emerald-600 shadow-2xs'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50',
                 )}
+              >
+                <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', gradient)}>
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={cn('truncate text-sm text-slate-900 dark:text-slate-100', c.unreadCount ? 'font-bold' : 'font-semibold')}>
+                      {displayName}
+                    </p>
+                    <span className="shrink-0 text-[11px] text-slate-400 font-medium">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ''}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400')}>
+                      {c.lastPreview ?? '—'}
+                    </p>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {c.unreadCount > 0 && (
+                        <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white shadow-2xs">
+                          {c.unreadCount}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(c);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15"
+                        title="चैट हटाएं (Delete Chat)"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {c.lead && (
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                      <span className="truncate">Lead · {c.lead.assignedTo?.name ?? 'Unassigned'}</span>
+                      <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                        {c.lead.stage}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </aside>
 
-      {/* active thread view */}
-      <section className={cn('flex min-w-0 flex-1 flex-col bg-surface-2/30', !active && 'hidden md:flex')}>
+      {/* Right Active Chat Window */}
+      <section className={cn('flex min-w-0 flex-1 flex-col bg-[#f8fafc] dark:bg-[#0b141a]', !active && 'hidden md:flex')}>
         {!active ? (
-          <div className="grid flex-1 place-items-center p-8 text-center">
+          <div className="grid flex-1 place-items-center p-8 text-center bg-white dark:bg-slate-950">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
               <div className="mx-auto grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/25">
                 <MessageCircle className="size-10" />
               </div>
-              <p className="mt-4 font-display text-xl font-bold text-fg">Team Messaging Hub</p>
-              <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
+              <p className="mt-4 font-display text-xl font-bold text-slate-900 dark:text-white">Team Messaging Hub</p>
+              <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500 dark:text-slate-400">
                 WhatsApp और website chat — सभी ग्राहक संवाद एक जगह। किसी भी चैट पर क्लिक करके वार्तालाप शुरू करें।
               </p>
             </motion.div>
           </div>
         ) : (
           <>
-            <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 shadow-xs">
+            {/* Active Chat Header */}
+            <header className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-3 shadow-2xs z-10">
               <button
-                className="md:hidden rounded-lg p-1.5 -ml-1 text-muted hover:text-fg hover:bg-surface-2"
+                className="md:hidden rounded-lg p-1.5 -ml-1 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                 onClick={() => setParam({ c: null })}
                 aria-label="Back"
               >
                 <ArrowLeft className="size-5" />
               </button>
-              <Avatar name={current?.contactName || current?.contactPhone} size={40} />
+
+              {/* Contact Avatar & Info */}
+              <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', getAvatarGradient(current?.contactName || current?.contactPhone || 'Contact'))}>
+                {(current?.contactName || current?.contactPhone || 'C').charAt(0).toUpperCase()}
+              </div>
+
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate font-bold text-sm sm:text-base text-fg">
-                    {current?.contactName || current?.contactPhone || '…'}
+                  <p className="truncate font-bold text-base text-slate-900 dark:text-white">
+                    {current?.contactName || current?.contactPhone || 'Customer'}
                   </p>
                   {channel === 'WHATSAPP' ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
                       WhatsApp
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40">
                       Website Chat
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted mt-0.5">
+                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {current?.contactPhone && (
-                    <a href={`tel:${current.contactPhone}`} className="flex items-center gap-1 hover:text-brand-600 hover:underline">
+                    <a href={`tel:${current.contactPhone}`} className="flex items-center gap-1 hover:text-emerald-600 hover:underline">
                       <Phone className="size-3" />
                       <span>{current.contactPhone}</span>
                     </a>
                   )}
                   {current?.lastMessageAt && (
-                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-subtle">
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400">
                       <Clock className="size-3" /> {timeAgo(current.lastMessageAt)}
                     </span>
                   )}
                 </div>
               </div>
+
+              {/* Action Buttons in Header */}
               <div className="flex items-center gap-2">
                 {current?.lead && (
                   <Link
                     href={`/broker/leads/${current.lead.id}`}
-                    className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-semibold hover:bg-surface-2 transition shadow-xs"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-2xs"
                   >
-                    <span className="text-muted">Lead:</span>
+                    <span className="text-slate-500">Lead:</span>
                     <StageBadge stage={current.lead.stage} />
                   </Link>
                 )}
@@ -361,7 +459,7 @@ function InboxInner() {
                   size="sm"
                   variant="ghost"
                   onClick={() => setDeleteTarget(current)}
-                  className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15 transition flex items-center gap-1.5"
+                  className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/15 transition flex items-center gap-1.5 rounded-xl border border-transparent hover:border-rose-200"
                   title="Delete chat (चैट हटाएं - Lead सुरक्षित रहेगी)"
                 >
                   <Trash2 className="size-4" />
@@ -370,12 +468,13 @@ function InboxInner() {
               </div>
             </header>
 
+            {/* Conversation Stream */}
             {channel === 'CHAT' ? (
               <div className="min-h-0 flex-1">
-                <ChatThread id={active} side="broker" onRead={handleRead} />
+                <ChatThread id={active} side="broker" onRead={refreshAll} />
               </div>
             ) : (
-              <WaThread id={active} connected={!!status.data?.connected} onRead={handleRead} />
+              <WaThread id={active} connected={!!status.data?.connected} onRead={refreshAll} />
             )}
           </>
         )}
@@ -399,18 +498,18 @@ function InboxInner() {
         }
       >
         <div className="space-y-3">
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-50 p-3 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-            <p className="font-bold flex items-center gap-1.5">
-              <Check className="size-4" /> आपकी Lead 100% सुरक्षित रहेगी!
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30 p-3.5 text-xs text-emerald-800 dark:text-emerald-300">
+            <p className="font-bold flex items-center gap-1.5 text-sm">
+              <Check className="size-4 text-emerald-600" /> आपकी Lead 100% सुरक्षित रहेगी!
             </p>
-            <p className="mt-1">
+            <p className="mt-1.5 leading-relaxed">
               {deleteTarget?.lead
                 ? `इस बातचीत से संबद्ध Lead (${deleteTarget.lead.name || 'Lead'}) का डेटाबेस रिकॉर्ड, स्थिति और विवरण डिलीट नहीं होंगे। सिर्फ चैट और संदेश इतिहास हटाया जाएगा।`
                 : 'यह क्रिया इस बातचीत और इसके सभी संदेशों को हटा देगी।'}
             </p>
           </div>
-          <p className="text-xs text-muted">
-            डिलीट करने के बाद आप इस कॉन्टैक्ट के साथ कभी भी नया मैसेज भेजकर नई चैट शुरू कर सकते हैं।
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            डिलीट करने के बाद आप इस कॉन्टैक्ट के साथ कभी भी नया मैसेज भेजकर नई बातचीत शुरू कर सकते हैं।
           </p>
         </div>
       </Dialog>
@@ -419,10 +518,10 @@ function InboxInner() {
 }
 
 const TICKS: Record<string, React.ReactNode> = {
-  QUEUED: <Clock className="size-3" />,
-  SENT: <Check className="size-3" />,
-  DELIVERED: <CheckCheck className="size-3" />,
-  READ: <CheckCheck className="size-3 text-sky-300" />,
+  QUEUED: <Clock className="size-3 text-emerald-100/70" />,
+  SENT: <Check className="size-3 text-emerald-100/80" />,
+  DELIVERED: <CheckCheck className="size-3 text-emerald-100/80" />,
+  READ: <CheckCheck className="size-3 text-[#53bdeb]" />,
   FAILED: <AlertTriangle className="size-3 text-rose-300" />,
 };
 
@@ -442,14 +541,6 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   useRealtime<any>('wa:status', (d) => d?.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
 
   useEffect(() => {
-    if (q.data?.conversation?.unreadCount) {
-      api(`/whatsapp/conversations/${id}/read`, { method: 'POST', body: {} })
-        .then(() => onReadRef.current())
-        .catch(() => undefined);
-    }
-  }, [q.data?.conversation?.unreadCount, id]);
-
-  useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth' });
   }, [q.data?.items?.length]);
 
@@ -460,6 +551,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       await post('/whatsapp/send', { conversationId: id, ...body });
       setText('');
       q.refetch();
+      onReadRef.current();
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.isNotConfigured) setNotConfigured(e);
@@ -493,15 +585,20 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       </div>
     );
   }
+
   const windowOpen = q.data?.windowOpen;
+
   return (
     <>
-      <div className="flex-1 space-y-2 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,var(--color-line)_1px,transparent_0)] [background-size:24px_24px] p-4">
+      {/* Message List Canvas */}
+      <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
         {grouped.map((g) => (
-          <div key={g.day} className="space-y-2">
-            <p className="sticky top-0 z-10 mx-auto my-3 w-fit rounded-full bg-surface/90 backdrop-blur-md px-3.5 py-1 text-[11px] font-semibold text-muted shadow-xs border border-line/60">
-              {g.day}
-            </p>
+          <div key={g.day} className="space-y-3">
+            <div className="flex justify-center sticky top-0 z-10 my-2">
+              <span className="rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-4 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-xs border border-slate-200/80 dark:border-slate-700/80">
+                {g.day}
+              </span>
+            </div>
             <AnimatePresence initial={false}>
               {g.items.map((m: any) => {
                 const out = m.direction === 'OUTBOUND';
@@ -514,24 +611,24 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                   >
                     <div
                       className={cn(
-                        'max-w-[78%] rounded-2xl px-4 py-2.5 text-sm shadow-sm transition',
+                        'max-w-[78%] sm:max-w-[65%] rounded-2xl px-4 py-2.5 text-sm shadow-xs transition',
                         out
-                          ? 'rounded-br-sm bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 text-white'
-                          : 'rounded-bl-sm bg-surface border border-line/70 text-fg',
+                          ? 'rounded-tr-xs bg-gradient-to-br from-[#005c4b] via-[#006a57] to-[#008069] text-white'
+                          : 'rounded-tl-xs bg-white dark:bg-[#202c33] border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 shadow-2xs',
                       )}
                     >
                       {m.mediaUrl && m.type === 'IMAGE' && (
-                        <img src={m.mediaUrl} alt="Media" className="mb-2 max-h-72 rounded-xl object-cover shadow-xs" />
+                        <img src={m.mediaUrl} alt="Media" className="mb-2 max-h-72 rounded-xl object-cover shadow-2xs" />
                       )}
                       {m.templateName && (
-                        <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase', out ? 'text-white/80' : 'text-subtle')}>
+                        <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', out ? 'text-emerald-100/90' : 'text-slate-500')}>
                           <FileText className="size-3" /> {m.templateName}
                         </p>
                       )}
-                      <p className="break-words whitespace-pre-line leading-relaxed">
+                      <p className="break-words whitespace-pre-line leading-relaxed text-[13.5px]">
                         {m.body ?? (m.type !== 'TEXT' ? `[${m.type.toLowerCase()}]` : '')}
                       </p>
-                      <p className={cn('mt-1 flex items-center justify-end gap-1 text-[10px]', out ? 'text-white/80' : 'text-subtle')}>
+                      <p className={cn('mt-1 flex items-center justify-end gap-1 text-[10px]', out ? 'text-emerald-100/80' : 'text-slate-400 font-medium')}>
                         {out && m.sender?.name && <span className="mr-1">{m.sender.name} ·</span>}
                         {formatDate(m.createdAt, { timeStyle: 'short' })}
                         {out && TICKS[m.status]}
@@ -544,12 +641,12 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             </AnimatePresence>
           </div>
         ))}
-        {!q.data?.items.length && <p className="py-12 text-center text-sm text-muted">अभी कोई संदेश नहीं है</p>}
+        {!q.data?.items.length && <p className="py-12 text-center text-sm text-slate-400">अभी कोई संदेश नहीं है</p>}
         <div ref={end} />
       </div>
 
-      {/* Composer Area */}
-      <div className="border-t border-line bg-surface p-3 space-y-2.5">
+      {/* Modern Composer Dock */}
+      <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-2.5 shadow-2xs">
         {notConfigured?.body.integration && (
           <div className="mb-2">
             <IntegrationBanner compact name={notConfigured.body.integration.name} message={notConfigured.body.message} />
@@ -558,20 +655,20 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
 
         {/* 24-Hour Window Alert */}
         {!windowOpen && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20">
-            <Clock className="size-3.5" />
-            <span className="flex-1">24-घंटे की window बंद है — WhatsApp नियम के अनुसार केवल approved template भेज सकते हैं।</span>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
+            <Clock className="size-3.5 text-amber-600" />
+            <span className="flex-1 leading-normal">24-घंटे की window बंद है — WhatsApp नियम के अनुसार केवल approved template भेज सकते हैं।</span>
             <Button size="xs" variant="secondary" onClick={() => setTplOpen(true)}>
               Template भेजें
             </Button>
           </div>
         )}
 
-        {/* Canned Quick Replies */}
+        {/* Canned Quick Replies with Beautiful Horizontal Scroll */}
         {windowOpen && connected && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-subtle shrink-0 mr-1">
-              <Sparkles className="size-3 text-brand-500" />
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 shrink-0 mr-1">
+              <Sparkles className="size-3 text-emerald-600" />
               त्वरित उत्तर:
             </span>
             {CANNED_REPLIES.map((cr, idx) => (
@@ -579,7 +676,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                 key={idx}
                 type="button"
                 onClick={() => setText((prev) => (prev ? `${prev} ${cr}` : cr))}
-                className="shrink-0 rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition hover:border-brand-500 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-500/15"
+                className="shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-1 text-xs text-slate-700 dark:text-slate-300 transition hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 shadow-2xs"
               >
                 {cr}
               </button>
@@ -587,36 +684,38 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           </div>
         )}
 
-        {/* Message Input Form */}
+        {/* Modern Rounded Input Box */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (text.trim()) send({ text });
           }}
-          className="flex items-end gap-2"
+          className="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition shadow-inner"
         >
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setShareOpen(true)}
-            aria-label="Share property"
-            title="प्रॉपर्टी शेयर करें"
-            className="hover:bg-surface-2"
-          >
-            <Building2 className="size-5 text-muted hover:text-fg" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setTplOpen(true)}
-            aria-label="Templates"
-            title="WhatsApp Templates"
-            className="hover:bg-surface-2"
-          >
-            <FileText className="size-5 text-muted hover:text-fg" />
-          </Button>
+          <div className="flex items-center gap-0.5 pb-1 pl-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setShareOpen(true)}
+              aria-label="Share property"
+              title="प्रॉपर्टी शेयर करें"
+              className="size-8 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+            >
+              <Building2 className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setTplOpen(true)}
+              aria-label="Templates"
+              title="WhatsApp Templates"
+              className="size-8 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+            >
+              <FileText className="size-4" />
+            </Button>
+          </div>
           <Textarea
             rows={1}
             value={text}
@@ -629,7 +728,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               }
             }}
             placeholder={!connected ? 'WhatsApp connect नहीं है' : windowOpen ? 'संदेश लिखें… (Enter = भेजें, Shift+Enter = नई पंक्ति)' : 'Window बंद — template भेजें'}
-            className="max-h-40 min-h-11 resize-none py-2.5"
+            className="border-0 bg-transparent py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal flex-1"
           />
           <Button
             type="submit"
@@ -638,7 +737,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             loading={sending}
             disabled={!windowOpen || !text.trim()}
             aria-label="Send"
-            className="shadow-sm"
+            className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md active:scale-95 shrink-0"
           >
             {!sending && <Send className="size-4" />}
           </Button>
