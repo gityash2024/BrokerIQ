@@ -28,7 +28,12 @@ export function TempBadge({ t }: { t?: string | null }) {
 }
 
 export function useTeam() {
-  return useQuery({ queryKey: ['team', 'overview'], queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>('/broker/team')), staleTime: 60_000 });
+  return useQuery({
+    queryKey: ['team', 'overview'],
+    queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>('/broker/team')),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
 }
 
 export function useAssignees() {

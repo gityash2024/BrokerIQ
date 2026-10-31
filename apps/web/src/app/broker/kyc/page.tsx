@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -396,7 +396,7 @@ function AdminKycManagementView({ user }: { user: any }) {
         /* Firm KYC Tab */
         <div className="card max-w-2xl p-6 space-y-6">
           <div className="flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-2xl bg-brand/10 text-brand">
+            <div className="grid size-12 place-items-center rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
               <Building2 className="size-6" />
             </div>
             <div>
@@ -502,9 +502,12 @@ function AgentKycSubmissionView() {
   });
 
   const [aadhaarNumber, setAadhaarNumber] = useState('');
-  const [aadhaarPhotoUrl, setAadhaarPhotoUrl] = useState('');
+  const [aadhaarPhotoUrl, setAadhaarPhotoUrl] = useState<string | null>(null);
   const [panNumber, setPanNumber] = useState('');
-  const [panPhotoUrl, setPanPhotoUrl] = useState('');
+  const [panPhotoUrl, setPanPhotoUrl] = useState<string | null>(null);
+  const aadhaarInputRef = useRef<HTMLInputElement | null>(null);
+  const panInputRef = useRef<HTMLInputElement | null>(null);
+
   const [liveliness, setLiveliness] = useState<{
     straightUrl: string | null;
     leftUrl: string | null;
@@ -522,6 +525,22 @@ function AgentKycSubmissionView() {
   const isVerified = kyc?.status === 'VERIFIED';
   const isPending = kyc?.status === 'PENDING';
   const isRejected = kyc?.status === 'REJECTED';
+
+  useEffect(() => {
+    if (kyc) {
+      if (kyc.aadhaarNumber && !aadhaarNumber) setAadhaarNumber(kyc.aadhaarNumber);
+      if (kyc.aadhaarPhotoUrl && aadhaarPhotoUrl === null) setAadhaarPhotoUrl(kyc.aadhaarPhotoUrl);
+      if (kyc.panNumber && !panNumber) setPanNumber(kyc.panNumber);
+      if (kyc.panPhotoUrl && panPhotoUrl === null) setPanPhotoUrl(kyc.panPhotoUrl);
+      if (kyc.livelinessStraightUrl) {
+        setLiveliness((prev) => ({
+          straightUrl: prev.straightUrl || kyc.livelinessStraightUrl,
+          leftUrl: prev.leftUrl || kyc.livelinessLeftUrl,
+          rightUrl: prev.rightUrl || kyc.livelinessRightUrl,
+        }));
+      }
+    }
+  }, [kyc]);
 
   const submitMutation = useApiMutation(
     (body: any) => post('/broker/team/agent-kyc', body),
@@ -572,7 +591,7 @@ function AgentKycSubmissionView() {
       toast.error('Aadhaar number invalid है — कृपया ठीक 12 अंकों का आधार नंबर दर्ज करें');
       return;
     }
-    const finalAadhaarDoc = aadhaarPhotoUrl || kyc?.aadhaarPhotoUrl;
+    const finalAadhaarDoc = aadhaarPhotoUrl !== null ? aadhaarPhotoUrl : (kyc?.aadhaarPhotoUrl || '');
     if (!finalAadhaarDoc) {
       toast.error('Aadhaar card की फ़ोटो/डॉक्यूमेंट अपलोड करना ज़रूरी है');
       return;
@@ -583,7 +602,7 @@ function AgentKycSubmissionView() {
       toast.error('PAN card number invalid है — 10 अक्षरों का फॉर्मेट होना चाहिए (उदा: ABCDE1234F)');
       return;
     }
-    const finalPanDoc = panPhotoUrl || kyc?.panPhotoUrl;
+    const finalPanDoc = panPhotoUrl !== null ? panPhotoUrl : (kyc?.panPhotoUrl || '');
     if (!finalPanDoc) {
       toast.error('PAN card की फ़ोटो/डॉक्यूमेंट अपलोड करना ज़रूरी है');
       return;
@@ -614,9 +633,9 @@ function AgentKycSubmissionView() {
   }
 
   const currentAadhaar = aadhaarNumber || kyc?.aadhaarNumber || '';
-  const currentAadhaarPhoto = aadhaarPhotoUrl || kyc?.aadhaarPhotoUrl || '';
+  const currentAadhaarPhoto = aadhaarPhotoUrl !== null ? aadhaarPhotoUrl : (kyc?.aadhaarPhotoUrl || '');
   const currentPan = panNumber || kyc?.panNumber || '';
-  const currentPanPhoto = panPhotoUrl || kyc?.panPhotoUrl || '';
+  const currentPanPhoto = panPhotoUrl !== null ? panPhotoUrl : (kyc?.panPhotoUrl || '');
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -708,30 +727,40 @@ function AgentKycSubmissionView() {
                     <FileText className="size-4 text-emerald-600 shrink-0" />
                     <span className="truncate text-xs font-semibold">Aadhaar_Document.jpg</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <a
                       href={currentAadhaarPhoto}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-brand hover:underline flex items-center gap-1"
+                      className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
                     >
                       <Eye className="size-3" /> देखें
                     </a>
                     {!isVerified && (
-                      <button
-                        type="button"
-                        onClick={() => setAadhaarPhotoUrl('')}
-                        className="text-muted hover:text-rose-600"
-                      >
-                        <X className="size-3.5" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => aadhaarInputRef.current?.click()}
+                          className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <Upload className="size-3" /> फ़ोटो बदलें
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAadhaarPhotoUrl('')}
+                          className="text-muted hover:text-rose-600"
+                          title="हटाएँ"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
               ) : (
                 <label className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line p-3 text-xs font-semibold transition-colors',
-                  isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand hover:bg-surface-2',
+                  isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand-500 hover:bg-surface-2',
                 )}>
                   <Upload className="size-4 text-muted" />
                   <span>{uploadingAadhaar ? 'अपलोड हो रहा है...' : 'Aadhaar फ़ोटो चुनें'}</span>
@@ -744,6 +773,15 @@ function AgentKycSubmissionView() {
                   />
                 </label>
               )}
+              {/* Hidden file input for Replace action */}
+              <input
+                ref={aadhaarInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                disabled={isVerified || uploadingAadhaar}
+                onChange={handleAadhaarUpload}
+              />
             </Field>
           </div>
         </div>
@@ -777,30 +815,40 @@ function AgentKycSubmissionView() {
                     <FileText className="size-4 text-emerald-600 shrink-0" />
                     <span className="truncate text-xs font-semibold">PAN_Document.jpg</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <a
                       href={currentPanPhoto}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-brand hover:underline flex items-center gap-1"
+                      className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
                     >
                       <Eye className="size-3" /> देखें
                     </a>
                     {!isVerified && (
-                      <button
-                        type="button"
-                        onClick={() => setPanPhotoUrl('')}
-                        className="text-muted hover:text-rose-600"
-                      >
-                        <X className="size-3.5" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => panInputRef.current?.click()}
+                          className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <Upload className="size-3" /> फ़ोटो बदलें
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPanPhotoUrl('')}
+                          className="text-muted hover:text-rose-600"
+                          title="हटाएँ"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
               ) : (
                 <label className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line p-3 text-xs font-semibold transition-colors',
-                  isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand hover:bg-surface-2',
+                  isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand-500 hover:bg-surface-2',
                 )}>
                   <Upload className="size-4 text-muted" />
                   <span>{uploadingPan ? 'अपलोड हो रहा है...' : 'PAN फ़ोटो चुनें'}</span>
@@ -813,6 +861,15 @@ function AgentKycSubmissionView() {
                   />
                 </label>
               )}
+              {/* Hidden file input for Replace action */}
+              <input
+                ref={panInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                disabled={isVerified || uploadingPan}
+                onChange={handlePanUpload}
+              />
             </Field>
           </div>
         </div>
@@ -849,7 +906,7 @@ function AgentKycSubmissionView() {
               type="submit"
               size="lg"
               loading={submitMutation.isPending}
-              className="bg-brand text-white font-bold px-8"
+              className="bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold px-8 shadow-md shadow-brand-600/25 transition-all"
             >
               <ShieldCheck className="size-5" />
               {isRejected ? 'KYC पुनः सबमिट करें (Resubmit)' : 'KYC सत्यापन के लिए सबमिट करें'}

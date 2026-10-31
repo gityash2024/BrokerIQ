@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
@@ -364,7 +364,7 @@ function AgentDetailsAndTargetModal({
   const [commissionPct, setCommissionPct] = useState<number>(10);
 
   // Sync state when agent selected
-  useState(() => {
+  useEffect(() => {
     if (agent) {
       setEditName(agent.name || '');
       setEditPhone(agent.phone || '');
@@ -374,7 +374,7 @@ function AgentDetailsAndTargetModal({
       setLeadsTarget(agent.targets?.monthlyLeads ?? 30);
       setCommissionPct(agent.targets?.commissionPct ?? 10);
     }
-  });
+  }, [agent]);
 
   const saveMutation = useApiMutation(
     (body: any) => patch(`/broker/team/${agent?.id}`, body),

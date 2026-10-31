@@ -24,10 +24,9 @@ export class MediaService {
   ) {}
 
   async sign(kind: UploadKind, contentType = 'image/jpeg', ownerId = 'anon') {
-    if (this.local.enabled) return this.local.presign(kind, contentType, ownerId);
     const folderSuffix = `${kind}/${ownerId}`;
     const cld = await this.settings.resolve('cloudinary');
-    if (cld) {
+    if (cld?.cloudName && cld?.apiKey && cld?.apiSecret) {
       const timestamp = Math.floor(Date.now() / 1000);
       const folder = `${cld.folder ?? 'brokeriq'}/${folderSuffix}`;
       const params = { folder, timestamp };
@@ -41,6 +40,7 @@ export class MediaService {
         fileField: 'file',
       };
     }
+    if (this.local.enabled) return this.local.presign(kind, contentType, ownerId);
     const s3 = await this.settings.resolve('s3');
     if (s3) {
       const ext =
@@ -66,12 +66,14 @@ export class MediaService {
   /** Server-side upload of a base64 data URL (used for AI scanner images). */
   async uploadDataUrl(dataUrl: string, kind: UploadKind, ownerId: string): Promise<string | null> {
     if (!dataUrl.startsWith('data:')) throw new BadRequestException('Invalid image');
-    if (this.local.enabled) return this.local.putDataUrl(dataUrl, kind, ownerId);
     const cld = await this.settings.resolve('cloudinary');
-    if (!cld) return null;
-    cloudinary.config({ cloud_name: String(cld.cloudName), api_key: String(cld.apiKey), api_secret: String(cld.apiSecret) });
-    const res = await cloudinary.uploader.upload(dataUrl, { folder: `${cld.folder ?? 'brokeriq'}/${kind}/${ownerId}` });
-    return res.secure_url;
+    if (cld?.cloudName && cld?.apiKey && cld?.apiSecret) {
+      cloudinary.config({ cloud_name: String(cld.cloudName), api_key: String(cld.apiKey), api_secret: String(cld.apiSecret) });
+      const res = await cloudinary.uploader.upload(dataUrl, { folder: `${cld.folder ?? 'brokeriq'}/${kind}/${ownerId}` });
+      return res.secure_url;
+    }
+    if (this.local.enabled) return this.local.putDataUrl(dataUrl, kind, ownerId);
+    return null;
   }
 
   async testCloudinary(values: Record<string, unknown>) {

@@ -120,6 +120,32 @@ export class SettingsService {
 
   private envValues(def: IntegrationDef): IntegrationValues {
     const out: IntegrationValues = {};
+
+    // Direct Cloudinary environment variables support
+    if (def.key === 'cloudinary') {
+      const cldUrl = process.env.CLOUDINARY_URL;
+      if (cldUrl && cldUrl.startsWith('cloudinary://')) {
+        try {
+          const parsed = new URL(cldUrl);
+          out.cloudName = parsed.host;
+          out.apiKey = decodeURIComponent(parsed.username);
+          out.apiSecret = decodeURIComponent(parsed.password);
+        } catch {}
+      }
+      if (process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_NAME) {
+        out.cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_NAME;
+      }
+      if (process.env.CLOUDINARY_API_KEY) {
+        out.apiKey = process.env.CLOUDINARY_API_KEY;
+      }
+      if (process.env.CLOUDINARY_API_SECRET) {
+        out.apiSecret = process.env.CLOUDINARY_API_SECRET;
+      }
+      if (process.env.CLOUDINARY_FOLDER) {
+        out.folder = process.env.CLOUDINARY_FOLDER;
+      }
+    }
+
     for (const f of def.fields) {
       const v = process.env[`INTEGRATION_${def.key.toUpperCase()}_${f.key.toUpperCase()}`];
       if (v !== undefined && v !== '') out[f.key] = f.type === 'number' ? Number(v) : f.type === 'boolean' ? v === 'true' : v;

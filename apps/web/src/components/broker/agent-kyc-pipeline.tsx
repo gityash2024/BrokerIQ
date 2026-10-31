@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, RefreshCw, Upload, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Camera, CheckCircle2, RefreshCw, Upload, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { uploadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -38,9 +38,18 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   const [uploading, setUploading] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  // Pending approval state for review step
+  const [pendingCapture, setPendingCapture] = useState<{
+    step: LivelinessStep;
+    dataUrl: string;
+    blob: Blob;
+  } | null>(null);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const allComplete = !!captures.straightUrl && !!captures.leftUrl && !!captures.rightUrl;
 
   // Sync initialValues
   useEffect(() => {
@@ -53,53 +62,62 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     }
   }, [initialValues?.straightUrl, initialValues?.leftUrl, initialValues?.rightUrl]);
 
-  // Start camera when component mounts or step changes (if not disabled)
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => {
+        try {
+          t.stop();
+        } catch {}
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
   const startCamera = async () => {
     if (disabled) return;
     try {
       setCameraError(null);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
+      stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } },
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setCameraActive(true);
+      // Wait for next render cycle so video element is in DOM
+      setTimeout(() => {
+        if (videoRef.current && streamRef.current) {
+          videoRef.current.srcObject = streamRef.current;
+          videoRef.current.play().catch(() => {});
+        }
+      }, 50);
     } catch (err: any) {
       console.warn('Camera access error:', err);
       setCameraActive(false);
-      setCameraError('कैमरा शुरू नहीं हो पाया। कृपया कैमरा परमिशन दें या फ़ाइल अपलोड विकल्प का उपयोग करें।');
+      setCameraError('कैमरा शुरू नहीं हो पाया। कृपया कैमरा परमिशन दें या फ़ोटो चुनें विकल्प का उपयोग करें।');
     }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
   };
 
   useEffect(() => {
-    if (!disabled) {
+    // Only auto-start camera on mount if not disabled and captures are not already complete
+    if (!disabled && !allComplete) {
       startCamera();
+    } else {
+      stopCamera();
     }
     return () => {
       stopCamera();
     };
   }, [disabled]);
 
-  // Capture frame from video stream
+  // Capture frame to preview and approve
   const captureFrame = async () => {
     if (!videoRef.current || uploading) return;
     try {
-      setUploading(true);
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 640;
@@ -112,29 +130,61 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.88));
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.9));
       if (!blob) throw new Error('Image capture failed');
 
-      // Upload file directly
-      const { url } = await uploadFile(blob, 'kyc');
+      setPendingCapture({
+        step: activeStep,
+        dataUrl,
+        blob,
+      });
+      toast.info('फ़ोटो ले ली गई है — कृपया फ़ोटो की समीक्षा करके "स्वीकारें" पर क्लिक करें');
+    } catch (err: any) {
+      toast.error('फ़ोटो कैप्चर में समस्या: ' + (err?.message || 'Error'));
+    }
+  };
+
+  // Agent approves capture -> Upload & Advance
+  const approveCapture = async () => {
+    if (!pendingCapture || uploading) return;
+    try {
+      setUploading(true);
+      const { url } = await uploadFile(pendingCapture.blob, 'kyc');
 
       const nextCaptures = { ...captures };
-      if (activeStep === 'STRAIGHT') nextCaptures.straightUrl = url;
-      if (activeStep === 'LEFT') nextCaptures.leftUrl = url;
-      if (activeStep === 'RIGHT') nextCaptures.rightUrl = url;
+      if (pendingCapture.step === 'STRAIGHT') nextCaptures.straightUrl = url;
+      if (pendingCapture.step === 'LEFT') nextCaptures.leftUrl = url;
+      if (pendingCapture.step === 'RIGHT') nextCaptures.rightUrl = url;
 
       setCaptures(nextCaptures);
       onChange(nextCaptures);
-      toast.success(`${STEPS.find((s) => s.key === activeStep)?.label} कैप्चर हो गया ✅`);
+      setPendingCapture(null);
+      toast.success(`${STEPS.find((s) => s.key === pendingCapture.step)?.label} स्वीकृत व सेव हुआ ✅`);
 
-      // Auto-advance step
-      if (activeStep === 'STRAIGHT') setActiveStep('LEFT');
-      else if (activeStep === 'LEFT') setActiveStep('RIGHT');
+      const isNowComplete = !!nextCaptures.straightUrl && !!nextCaptures.leftUrl && !!nextCaptures.rightUrl;
+      if (isNowComplete) {
+        // Complete -> Turn off camera completely
+        stopCamera();
+        toast.success('सभी 3 फेस पोज़ सफलतापूर्वक कैप्चर हो गए! कैमरा बंद कर दिया गया है।');
+      } else {
+        // Advance to next incomplete pose
+        if (pendingCapture.step === 'STRAIGHT' && !nextCaptures.leftUrl) setActiveStep('LEFT');
+        else if (pendingCapture.step === 'LEFT' && !nextCaptures.rightUrl) setActiveStep('RIGHT');
+        else if (!nextCaptures.straightUrl) setActiveStep('STRAIGHT');
+        else if (!nextCaptures.leftUrl) setActiveStep('LEFT');
+        else if (!nextCaptures.rightUrl) setActiveStep('RIGHT');
+      }
     } catch (err: any) {
-      toast.error('फ़ोटो कैप्चर व अपलोड में समस्या: ' + (err?.message || 'Error'));
+      toast.error('फ़ोटो अपलोड विफल: ' + (err?.message || 'Error'));
     } finally {
       setUploading(false);
     }
+  };
+
+  // Agent discards capture and wants to retake
+  const retakeCapture = () => {
+    setPendingCapture(null);
   };
 
   // Trigger countdown then capture
@@ -168,8 +218,13 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
       onChange(nextCaptures);
       toast.success(`${STEPS.find((s) => s.key === activeStep)?.label} अपलोड हो गया ✅`);
 
-      if (activeStep === 'STRAIGHT') setActiveStep('LEFT');
-      else if (activeStep === 'LEFT') setActiveStep('RIGHT');
+      const isNowComplete = !!nextCaptures.straightUrl && !!nextCaptures.leftUrl && !!nextCaptures.rightUrl;
+      if (isNowComplete) {
+        stopCamera();
+      } else {
+        if (activeStep === 'STRAIGHT' && !nextCaptures.leftUrl) setActiveStep('LEFT');
+        else if (activeStep === 'LEFT' && !nextCaptures.rightUrl) setActiveStep('RIGHT');
+      }
     } catch (err: any) {
       toast.error('फ़ाइल अपलोड विफल: ' + (err?.message || 'Upload failed'));
     } finally {
@@ -177,8 +232,13 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     }
   };
 
+  const handleRetakePose = (pose: LivelinessStep) => {
+    setActiveStep(pose);
+    setPendingCapture(null);
+    startCamera();
+  };
+
   const currentStepConfig = STEPS.find((s) => s.key === activeStep) || STEPS[0];
-  const allComplete = !!captures.straightUrl && !!captures.leftUrl && !!captures.rightUrl;
 
   return (
     <div className="space-y-4 rounded-2xl border border-line bg-surface-2/40 p-4 sm:p-5">
@@ -206,7 +266,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
             (s.key === 'STRAIGHT' && !!captures.straightUrl) ||
             (s.key === 'LEFT' && !!captures.leftUrl) ||
             (s.key === 'RIGHT' && !!captures.rightUrl);
-          const isCurrent = activeStep === s.key;
+          const isCurrent = activeStep === s.key && cameraActive;
 
           return (
             <button
@@ -215,6 +275,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               disabled={disabled}
               onClick={() => {
                 setActiveStep(s.key);
+                setPendingCapture(null);
                 if (!cameraActive) startCamera();
               }}
               className={cn(
@@ -238,90 +299,157 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         })}
       </div>
 
-      {/* Camera Live Pipeline Box */}
+      {/* Camera Live Pipeline Box OR Completion Card */}
       {!disabled && (
         <div className="relative mx-auto max-w-md overflow-hidden rounded-2xl border border-line bg-black">
-          {cameraActive ? (
+          {allComplete && !cameraActive ? (
+            /* All 3 Captured & Camera Turned OFF completely */
+            <div className="flex flex-col items-center justify-center p-8 text-center bg-surface border border-line rounded-2xl">
+              <div className="grid size-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-3">
+                <CheckCircle2 className="size-8" />
+              </div>
+              <h5 className="font-bold text-base text-fg">3/3 फेस लाइवलीनेस सत्यापन पूर्ण</h5>
+              <p className="text-xs text-muted mt-1 max-w-xs">
+                तीनों तस्वीरें सफलतापूर्वक ले ली गई हैं। कैमरा सुरक्षित रूप से बंद कर दिया गया है।
+              </p>
+              <div className="mt-4 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleRetakePose('STRAIGHT')}
+                  className="text-xs"
+                >
+                  <RefreshCw className="size-3.5 mr-1.5" /> किसी भी पोज़ को दोबारा लें
+                </Button>
+              </div>
+            </div>
+          ) : cameraActive ? (
             <div className="relative aspect-square w-full">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-cover -scale-x-100"
-              />
+              {/* If pending capture review, show frozen capture */}
+              {pendingCapture ? (
+                <div className="relative h-full w-full">
+                  <img
+                    src={pendingCapture.dataUrl}
+                    alt="Captured pose preview"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30 pointer-events-none" />
 
-              {/* Liveliness Face Guide Overlay */}
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div
-                  className={cn(
-                    'relative h-64 w-48 rounded-[50%] border-2 border-dashed transition-all duration-300',
-                    activeStep === 'STRAIGHT' && 'border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]',
-                    activeStep === 'LEFT' && 'border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] -rotate-6',
-                    activeStep === 'RIGHT' && 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] rotate-6',
-                  )}
-                >
-                  {/* Directional cue arrow */}
-                  {activeStep === 'LEFT' && (
-                    <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-1 text-[11px] font-bold text-black animate-pulse">
-                      <ArrowLeft className="size-4" /> Left
+                  {/* Header confirmation tag */}
+                  <div className="absolute top-3 inset-x-3 text-center">
+                    <span className="inline-block rounded-full bg-black/80 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-white border border-white/20">
+                      फ़ोटो की समीक्षा करें • {STEPS.find((s) => s.key === pendingCapture.step)?.label}
+                    </span>
+                  </div>
+
+                  {/* Approve or Retake Action Dock */}
+                  <div className="absolute bottom-4 inset-x-3 flex items-center justify-center gap-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="md"
+                      onClick={retakeCapture}
+                      disabled={uploading}
+                      className="bg-black/70 text-white border-white/30 hover:bg-black/90 font-semibold"
+                    >
+                      <RefreshCw className="size-4 mr-1.5" /> दोबारा लें (Retake)
+                    </Button>
+                    <Button
+                      type="button"
+                      size="md"
+                      onClick={approveCapture}
+                      disabled={uploading}
+                      loading={uploading}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 shadow-xl shadow-emerald-950/60"
+                    >
+                      <Check className="size-4 mr-1.5" /> {uploading ? 'सेव हो रहा है...' : 'स्वीकारें (Approve & Next)'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover -scale-x-100"
+                  />
+
+                  {/* Liveliness Face Guide Overlay */}
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div
+                      className={cn(
+                        'relative h-64 w-48 rounded-[50%] border-2 border-dashed transition-all duration-300',
+                        activeStep === 'STRAIGHT' && 'border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]',
+                        activeStep === 'LEFT' && 'border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] -rotate-6',
+                        activeStep === 'RIGHT' && 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] rotate-6',
+                      )}
+                    >
+                      {/* Directional cue arrow */}
+                      {activeStep === 'LEFT' && (
+                        <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-1 text-[11px] font-bold text-black animate-pulse">
+                          <ArrowLeft className="size-4" /> Left
+                        </div>
+                      )}
+                      {activeStep === 'RIGHT' && (
+                        <div className="absolute -right-10 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-sky-500/90 px-2 py-1 text-[11px] font-bold text-black animate-pulse">
+                          Right <ArrowRight className="size-4" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Countdown badge */}
+                  {countdown !== null && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+                      <span className="text-6xl font-black text-white animate-ping">{countdown}</span>
                     </div>
                   )}
-                  {activeStep === 'RIGHT' && (
-                    <div className="absolute -right-10 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-sky-500/90 px-2 py-1 text-[11px] font-bold text-black animate-pulse">
-                      Right <ArrowRight className="size-4" />
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Countdown badge */}
-              {countdown !== null && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
-                  <span className="text-6xl font-black text-white animate-ping">{countdown}</span>
-                </div>
+                  {/* Step Instruction pill */}
+                  <div className="absolute top-3 inset-x-3 text-center">
+                    <span className="inline-block rounded-full bg-black/70 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-white border border-white/10">
+                      {currentStepConfig.label}: {currentStepConfig.sub}
+                    </span>
+                  </div>
+
+                  {/* Action dock */}
+                  <div className="absolute bottom-3 inset-x-3 flex items-center justify-center gap-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={startCamera}
+                      disabled={uploading}
+                      className="bg-black/60 text-white border-white/20 hover:bg-black/80"
+                      title="कैमरा रीफ्रेश करें"
+                    >
+                      <RefreshCw className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleCountdownCapture}
+                      disabled={uploading || countdown !== null}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 shadow-lg shadow-emerald-900/40"
+                    >
+                      <Camera className="size-4 mr-1.5" />
+                      {uploading ? 'सेव हो रहा है...' : 'फ़ोटो लें (Capture)'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="bg-black/60 text-white border-white/20 hover:bg-black/80"
+                      title="Upload from device"
+                    >
+                      <Upload className="size-3.5" />
+                    </Button>
+                  </div>
+                </>
               )}
-
-              {/* Step Instruction pill */}
-              <div className="absolute top-3 inset-x-3 text-center">
-                <span className="inline-block rounded-full bg-black/70 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-white border border-white/10">
-                  {currentStepConfig.label}: {currentStepConfig.sub}
-                </span>
-              </div>
-
-              {/* Action dock */}
-              <div className="absolute bottom-3 inset-x-3 flex items-center justify-center gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={startCamera}
-                  disabled={uploading}
-                  className="bg-black/60 text-white border-white/20 hover:bg-black/80"
-                >
-                  <RefreshCw className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleCountdownCapture}
-                  disabled={uploading || countdown !== null}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 shadow-lg shadow-emerald-900/40"
-                >
-                  <Camera className="size-4 mr-1.5" />
-                  {uploading ? 'सेव हो रहा है...' : 'फ़ोटो लें (Capture)'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="bg-black/60 text-white border-white/20 hover:bg-black/80"
-                  title="Upload from device"
-                >
-                  <Upload className="size-3.5" />
-                </Button>
-              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-8 text-center text-white/80">
@@ -329,7 +457,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               <p className="text-xs max-w-xs mb-4">{cameraError || 'कैमरा लाइव व्यू उपलब्ध नहीं है'}</p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={startCamera}>
-                  <RefreshCw className="size-4 mr-1" /> Retry Camera
+                  <RefreshCw className="size-4 mr-1" /> कैमरा शुरू करें (Start Camera)
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="size-4 mr-1" /> फ़ोटो चुनें (Upload)
@@ -382,11 +510,8 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               {url && !disabled && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveStep(s.key);
-                    startCamera();
-                  }}
-                  className="mt-1 text-[11px] text-emerald-600 hover:underline dark:text-emerald-400"
+                  onClick={() => handleRetakePose(s.key)}
+                  className="mt-1 text-[11px] text-emerald-600 hover:underline dark:text-emerald-400 font-medium"
                 >
                   दोबारा लें
                 </button>
