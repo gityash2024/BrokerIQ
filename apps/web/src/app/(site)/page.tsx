@@ -21,9 +21,9 @@ export default async function Home() {
       apkUrl={releaseApkUrl}
       checksum={releaseChecksum}
       releaseUpdates={{
-        user: process.env.RELEASE_UPDATED_AT || '2026-10-31T04:35:00Z',
-        broker: process.env.RELEASE_UPDATED_AT || '2026-10-31T04:35:00Z',
-        android: process.env.RELEASE_UPDATED_AT || '2026-10-31T04:35:00Z',
+        user: process.env.RELEASE_UPDATED_AT || '2026-10-31T05:10:00Z',
+        broker: process.env.RELEASE_UPDATED_AT || '2026-10-31T05:10:00Z',
+        android: process.env.RELEASE_UPDATED_AT || '2026-10-31T05:10:00Z',
       }}
       screenshots={[
         {
