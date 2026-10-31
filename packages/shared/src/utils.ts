@@ -98,8 +98,10 @@ export function renderTemplate(tpl: string, vars: Record<string, unknown>): stri
   });
 }
 
-export function timeAgo(date: string | Date, now: Date = new Date()): string {
+export function timeAgo(date: string | Date | null | undefined, now: Date = new Date()): string {
+  if (!date) return '—';
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return '—';
   const s = Math.floor((now.getTime() - d.getTime()) / 1000);
   if (s < 60) return 'just now';
   const m = Math.floor(s / 60);
