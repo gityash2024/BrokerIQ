@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Inbox, LayoutDashboard, MessagesSquare, Plus, Workflow, FileSpreadsheet, ShieldCheck, Users } from 'lucide-react';
+import { CalendarCheck2, Building2, Target, MessageSquareText, ShieldCheck, Users, Workflow, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
@@ -53,22 +53,66 @@ function Inner({ children }: { children: React.ReactNode }) {
   const groups: NavGroup[] = [
     {
       items: [
-        { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, iconImage: '/icons/sidebar/today.png', exact: true },
-        { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet, iconImage: '/icons/sidebar/inventory.png' },
-        { href: '/broker/leads', label: 'Leads', icon: Inbox, iconImage: '/icons/sidebar/leads.png', badge: k?.newToday || null },
-        { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, iconImage: '/icons/sidebar/inbox.png', badge: k?.unreadMessages || null },
+        {
+          href: '/broker',
+          label: 'Today • आज का काम',
+          icon: CalendarCheck2,
+          iconGradient: 'from-amber-500 to-orange-500',
+          iconShadow: 'shadow-amber-500/25',
+          exact: true,
+        },
+        {
+          href: '/broker/inventory',
+          label: 'Inventory',
+          icon: Building2,
+          iconGradient: 'from-blue-600 to-cyan-500',
+          iconShadow: 'shadow-blue-500/25',
+        },
+        {
+          href: '/broker/leads',
+          label: 'Leads',
+          icon: Target,
+          iconGradient: 'from-violet-600 to-fuchsia-600',
+          iconShadow: 'shadow-violet-500/25',
+          badge: k?.newToday || null,
+        },
+        {
+          href: '/broker/inbox',
+          label: 'Inbox',
+          icon: MessageSquareText,
+          iconGradient: 'from-emerald-500 to-teal-600',
+          iconShadow: 'shadow-emerald-500/25',
+          badge: k?.unreadMessages || null,
+        },
         {
           href: '/broker/kyc',
           label: 'KYC',
           icon: ShieldCheck,
-          iconImage: '/icons/sidebar/kyc.png',
+          iconGradient: 'from-indigo-600 to-blue-600',
+          iconShadow: 'shadow-indigo-500/25',
           badge: kycStatus === 'VERIFIED' ? 'Verified' : kycStatus === 'PENDING' ? 'Under Review' : kycStatus === 'REJECTED' ? 'Rejected' : 'Required',
         },
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'
-          ? [{ href: '/broker/team', label: 'Team & Agents', icon: Users, iconImage: '/icons/sidebar/team.png' }]
+          ? [
+              {
+                href: '/broker/team',
+                label: 'Team & Agents',
+                icon: Users,
+                iconGradient: 'from-sky-600 to-indigo-600',
+                iconShadow: 'shadow-sky-500/25',
+              },
+            ]
           : []),
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'
-          ? [{ href: '/broker/automations', label: 'Automation', icon: Workflow, iconImage: '/icons/sidebar/automation.png' }]
+          ? [
+              {
+                href: '/broker/automations',
+                label: 'Automation',
+                icon: Workflow,
+                iconGradient: 'from-pink-600 to-rose-600',
+                iconShadow: 'shadow-pink-500/25',
+              },
+            ]
           : []),
       ],
     },

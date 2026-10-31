@@ -25,6 +25,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon?: LucideIcon | React.ComponentType<{ className?: string }>;
+  iconGradient?: string;
+  iconShadow?: string;
   iconImage?: string;
   badge?: number | string | null;
   exact?: boolean;
@@ -82,7 +84,19 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
                         transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                       />
                     )}
-                    {it.iconImage ? (
+                    {it.iconGradient && it.icon ? (
+                      <div
+                        className={cn(
+                          'relative size-7 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 group-hover:scale-110 shadow-sm',
+                          `bg-gradient-to-br ${it.iconGradient} text-white ${it.iconShadow || ''}`,
+                          active
+                            ? 'ring-2 ring-brand-500/40 shadow-md scale-105'
+                            : 'opacity-90 group-hover:opacity-100',
+                        )}
+                      >
+                        <it.icon className="size-4 text-white stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
+                      </div>
+                    ) : it.iconImage ? (
                       <div
                         className={cn(
                           'relative size-6 shrink-0 flex items-center justify-center rounded-lg overflow-hidden transition-all duration-200 group-hover:scale-110 shadow-sm border border-black/5 dark:border-white/10',

@@ -13,11 +13,43 @@ function Inner({ children }: { children: React.ReactNode }) {
   const groups: NavGroup[] = [
     {
       items: [
-        { href: '/admin', label: 'Overview', icon: LayoutDashboard, iconImage: '/icons/sidebar/admin_overview.png', exact: true },
-        { href: '/admin/brokers', label: 'Broker firms', icon: Building2, iconImage: '/icons/sidebar/admin_brokers.png' },
-        { href: '/admin/modules', label: 'Modules & permissions', icon: ToggleRight, iconImage: '/icons/sidebar/admin_modules.png' },
-        { href: '/admin/settings/integrations', label: 'Integrations', icon: KeyRound, iconImage: '/icons/sidebar/admin_integrations.png', badge: missing || null },
-        { href: '/admin/system', label: 'System', icon: SlidersHorizontal, iconImage: '/icons/sidebar/admin_system.png' },
+        {
+          href: '/admin',
+          label: 'Overview',
+          icon: LayoutDashboard,
+          iconGradient: 'from-blue-600 to-indigo-600',
+          iconShadow: 'shadow-blue-500/25',
+          exact: true,
+        },
+        {
+          href: '/admin/brokers',
+          label: 'Broker firms',
+          icon: Building2,
+          iconGradient: 'from-emerald-600 to-teal-700',
+          iconShadow: 'shadow-emerald-500/25',
+        },
+        {
+          href: '/admin/modules',
+          label: 'Modules & permissions',
+          icon: ToggleRight,
+          iconGradient: 'from-violet-600 to-purple-700',
+          iconShadow: 'shadow-violet-500/25',
+        },
+        {
+          href: '/admin/settings/integrations',
+          label: 'Integrations',
+          icon: KeyRound,
+          iconGradient: 'from-amber-500 to-orange-600',
+          iconShadow: 'shadow-amber-500/25',
+          badge: missing || null,
+        },
+        {
+          href: '/admin/system',
+          label: 'System',
+          icon: SlidersHorizontal,
+          iconGradient: 'from-slate-700 to-zinc-900',
+          iconShadow: 'shadow-slate-500/25',
+        },
       ],
     },
   ];
