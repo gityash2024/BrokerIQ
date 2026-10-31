@@ -52,9 +52,11 @@ export class MediaController {
     const { contentType, body } = await this.store.read(key, width);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', body.length);
-    // Only images / video / PDF render inline; anything else (svg, html, docs) is downloaded.
-    if (!/^(image\/(webp|jpeg|png|gif|avif)|video\/|audio\/|application\/pdf)/.test(contentType)) res.setHeader('Content-Disposition', 'attachment');
-    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox");
+    // Only images / video / PDF render inline; anything else (svg, html, docs) is downloaded with sandbox.
+    if (!/^(image\/(webp|jpeg|png|gif|avif)|video\/|audio\/|application\/pdf)/.test(contentType)) {
+      res.setHeader('Content-Disposition', 'attachment');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    }
     return res.end(body);
   }
 }

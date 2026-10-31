@@ -33,6 +33,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     leftUrl: initialValues?.leftUrl || null,
     rightUrl: initialValues?.rightUrl || null,
   });
+  const [isRetaking, setIsRetaking] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -103,16 +104,15 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   };
 
   useEffect(() => {
-    // Only auto-start camera on mount if not disabled and captures are not already complete
-    if (!disabled && !allComplete) {
-      startCamera();
-    } else {
+    if (disabled || (allComplete && !isRetaking)) {
       stopCamera();
+    } else if (!allComplete || isRetaking) {
+      startCamera();
     }
     return () => {
       stopCamera();
     };
-  }, [disabled]);
+  }, [disabled, allComplete, isRetaking]);
 
   // Capture frame to preview and approve
   const captureFrame = async () => {
@@ -165,6 +165,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
       const isNowComplete = !!nextCaptures.straightUrl && !!nextCaptures.leftUrl && !!nextCaptures.rightUrl;
       if (isNowComplete) {
         // Complete -> Turn off camera completely
+        setIsRetaking(false);
         stopCamera();
         toast.success('सभी 3 फेस पोज़ सफलतापूर्वक कैप्चर हो गए! कैमरा बंद कर दिया गया है।');
       } else {
@@ -220,6 +221,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
 
       const isNowComplete = !!nextCaptures.straightUrl && !!nextCaptures.leftUrl && !!nextCaptures.rightUrl;
       if (isNowComplete) {
+        setIsRetaking(false);
         stopCamera();
       } else {
         if (activeStep === 'STRAIGHT' && !nextCaptures.leftUrl) setActiveStep('LEFT');
@@ -235,6 +237,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   const handleRetakePose = (pose: LivelinessStep) => {
     setActiveStep(pose);
     setPendingCapture(null);
+    setIsRetaking(true);
     startCamera();
   };
 
@@ -276,7 +279,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               onClick={() => {
                 setActiveStep(s.key);
                 setPendingCapture(null);
-                if (!cameraActive) startCamera();
+                if (allComplete) {
+                  setIsRetaking(true);
+                }
+                startCamera();
               }}
               className={cn(
                 'flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-all',
@@ -302,10 +308,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
       {/* Camera Live Pipeline Box OR Completion Card */}
       {!disabled && (
         <div className="relative mx-auto max-w-md overflow-hidden rounded-2xl border border-line bg-black">
-          {allComplete && !cameraActive ? (
+          {allComplete && !isRetaking ? (
             /* All 3 Captured & Camera Turned OFF completely */
             <div className="flex flex-col items-center justify-center p-8 text-center bg-surface border border-line rounded-2xl">
-              <div className="grid size-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-3">
+              <div className="grid size-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-3 shadow-inner">
                 <CheckCircle2 className="size-8" />
               </div>
               <h5 className="font-bold text-base text-fg">3/3 फेस लाइवलीनेस सत्यापन पूर्ण</h5>
@@ -415,7 +421,23 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                   </div>
 
                   {/* Action dock */}
-                  <div className="absolute bottom-3 inset-x-3 flex items-center justify-center gap-3">
+                  <div className="absolute bottom-3 inset-x-3 flex items-center justify-center gap-2 sm:gap-3">
+                    {isRetaking && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setIsRetaking(false);
+                          stopCamera();
+                        }}
+                        disabled={uploading}
+                        className="bg-black/70 text-white border-white/20 hover:bg-black/90 text-xs px-2.5"
+                        title="रद्द करें"
+                      >
+                        <X className="size-3.5 mr-1" /> रद्द करें
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="secondary"
@@ -431,7 +453,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                       type="button"
                       onClick={handleCountdownCapture}
                       disabled={uploading || countdown !== null}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 shadow-lg shadow-emerald-900/40"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 sm:px-6 shadow-lg shadow-emerald-900/40"
                     >
                       <Camera className="size-4 mr-1.5" />
                       {uploading ? 'सेव हो रहा है...' : 'फ़ोटो लें (Capture)'}
@@ -494,7 +516,14 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface-2">
                 {url ? (
-                  <img src={url} alt={s.label} className="h-full w-full object-cover" />
+                  <img
+                    src={url}
+                    alt={s.label}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
                 ) : (
                   <div className="grid h-full place-items-center text-muted">
                     <Camera className="size-6 opacity-40" />

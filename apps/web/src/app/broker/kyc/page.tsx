@@ -13,6 +13,7 @@ import {
   Eye,
   FileText,
   Lock,
+  MapPin,
   RotateCcw,
   Shield,
   ShieldAlert,
@@ -200,11 +201,24 @@ function AdminKycManagementView({ user }: { user: any }) {
                       <div className="flex items-start gap-3">
                         <Avatar name={member.name} src={member.avatarUrl} size={48} />
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold text-base">{member.name}</p>
                             <Badge tone={member.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>
                               {member.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}
                             </Badge>
+                            {member.lastLocation && (
+                              <a
+                                href={`https://www.google.com/maps?q=${member.lastLocation.latitude},${member.lastLocation.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full hover:underline"
+                                title={`${member.lastLocation.latitude.toFixed(4)}, ${member.lastLocation.longitude.toFixed(4)}`}
+                              >
+                                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <MapPin className="size-3" />
+                                लाइव लोकेशन
+                              </a>
+                            )}
                           </div>
                           <p className="text-xs text-muted">{member.email} {member.phone ? `· ${member.phone}` : ''}</p>
                           <div className="mt-2 flex items-center gap-2">
