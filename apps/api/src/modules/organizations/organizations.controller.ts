@@ -783,4 +783,119 @@ export class OrganizationsController {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  // ------------------------------------------------------------------ Firm KYC
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
+  @Get('broker/firm-kyc')
+  async getFirmKyc(@CurrentUser() user: RequestUser) {
+    const orgId = requireOrg(user);
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: orgId },
+      select: { id: true, name: true, reraNumber: true, gstNumber: true, verification: true },
+    });
+    const docs = await this.prisma.kycDocument.findMany({
+      where: { organizationId: orgId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const reraDoc = docs.find((d) => d.docType === 'RERA_CERTIFICATE');
+    const gstDoc = docs.find((d) => d.docType === 'GST_CERTIFICATE');
+    const panDoc = docs.find((d) => d.docType === 'PAN');
+
+    return {
+      organization: org,
+      reraDocument: reraDoc || null,
+      gstDocument: gstDoc || null,
+      panDocument: panDoc || null,
+      documents: docs,
+      canEdit: (user.role === 'BROKER_ADMIN' || user.role === 'SUPER_ADMIN') && org.verification !== 'VERIFIED',
+    };
+  }
+
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
+  @Post('broker/firm-kyc')
+  async submitFirmKyc(
+    @CurrentUser() user: RequestUser,
+    @Body(
+      new ZodPipe(
+        z.object({
+          reraNumber: z.string().trim().max(60).optional().nullable(),
+          reraCertificateUrl: z.string().url().optional().nullable(),
+          gstNumber: z.string().trim().max(30).optional().nullable(),
+          gstCertificateUrl: z.string().url().optional().nullable(),
+          panNumber: z.string().trim().max(30).optional().nullable(),
+          panPhotoUrl: z.string().url().optional().nullable(),
+        }),
+      ),
+    )
+    body: {
+      reraNumber?: string | null;
+      reraCertificateUrl?: string | null;
+      gstNumber?: string | null;
+      gstCertificateUrl?: string | null;
+      panNumber?: string | null;
+      panPhotoUrl?: string | null;
+    },
+  ) {
+    const orgId = requireOrg(user);
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
+    if (org.verification === 'VERIFIED' && user.role !== 'SUPER_ADMIN') {
+      throw new BadRequestException('यह फर्म पहले ही सुपरएडमिन द्वारा सत्यापित (VERIFIED) की जा चुकी है और बदली नहीं जा सकती');
+    }
+
+    await this.prisma.organization.update({
+      where: { id: orgId },
+      data: {
+        ...(body.reraNumber ? { reraNumber: body.reraNumber } : {}),
+        ...(body.gstNumber ? { gstNumber: body.gstNumber } : {}),
+        verification: 'PENDING',
+      },
+    });
+
+    if (body.reraCertificateUrl) {
+      await this.prisma.kycDocument.deleteMany({ where: { organizationId: orgId, docType: 'RERA_CERTIFICATE' } });
+      await this.prisma.kycDocument.create({
+        data: {
+          organizationId: orgId,
+          docType: 'RERA_CERTIFICATE',
+          fileUrl: body.reraCertificateUrl,
+          docNumber: body.reraNumber || org.reraNumber,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    if (body.gstCertificateUrl) {
+      await this.prisma.kycDocument.deleteMany({ where: { organizationId: orgId, docType: 'GST_CERTIFICATE' } });
+      await this.prisma.kycDocument.create({
+        data: {
+          organizationId: orgId,
+          docType: 'GST_CERTIFICATE',
+          fileUrl: body.gstCertificateUrl,
+          docNumber: body.gstNumber || org.gstNumber,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    if (body.panPhotoUrl) {
+      await this.prisma.kycDocument.deleteMany({ where: { organizationId: orgId, docType: 'PAN' } });
+      await this.prisma.kycDocument.create({
+        data: {
+          organizationId: orgId,
+          docType: 'PAN',
+          fileUrl: body.panPhotoUrl,
+          docNumber: body.panNumber,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
+    await this.notifications.notify(
+      admins.map((a) => a.id),
+      { kind: 'KYC_UPDATE', title: `ब्रोकर फर्म "${org.name}" ने KYC सत्यापन के लिए सबमिट किया`, link: '/admin/kyc', push: false },
+    );
+
+    return { ok: true, verification: 'PENDING' };
+  }
 }

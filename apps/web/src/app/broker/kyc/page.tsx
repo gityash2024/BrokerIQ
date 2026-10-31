@@ -11,13 +11,17 @@ import {
   CreditCard,
   ExternalLink,
   Eye,
+  FileCheck,
   FileText,
+  Filter,
   Lock,
   MapPin,
   RotateCcw,
+  Search,
   Shield,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Upload,
   UserCheck,
   Users,
@@ -31,7 +35,7 @@ import { patch, post, useApiMutation } from '@/lib/hooks';
 import { PageHeader } from '@/components/panel/shell';
 import { useTeam } from '@/components/broker/bits';
 import { Button } from '@/components/ui/button';
-import { Field, Input } from '@/components/ui/field';
+import { Field, Input, Select } from '@/components/ui/field';
 import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -55,7 +59,11 @@ export default function BrokerKycPage() {
 
 function AdminKycManagementView({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState<'team' | 'firm'>('team');
-  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_AGENT' | 'BROKER_ADMIN'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'PENDING_FIRST' | 'RECENT' | 'NAME_ASC'>('PENDING_FIRST');
+
   const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
   const [rejectingMember, setRejectingMember] = useState<any | null>(null);
   const [rejectNote, setRejectNote] = useState('');
@@ -76,18 +84,60 @@ function AdminKycManagementView({ user }: { user: any }) {
   );
 
   const firmKycQuery = useQuery({
-    queryKey: ['broker-firm-kyc-mine'],
-    queryFn: () => api<any[]>('/kyc/mine'),
+    queryKey: ['broker-firm-kyc'],
+    queryFn: () => api<any>('/broker/firm-kyc'),
   });
 
   const members = teamQuery.data?.members ?? [];
-  const filteredMembers = members.filter((m: any) => {
-    if (filter === 'ALL') return true;
-    return m.kycStatus === filter;
-  });
+
+  // Filter & Sort members
+  const filteredMembers = members
+    .filter((m: any) => {
+      const hasSubmission = (m.kycDocuments || []).length > 0;
+      // Status filter
+      if (filter === 'PENDING' && m.kycStatus !== 'PENDING') return false;
+      if (filter === 'VERIFIED' && m.kycStatus !== 'VERIFIED') return false;
+      if (filter === 'REJECTED' && m.kycStatus !== 'REJECTED') return false;
+      if (filter === 'NOT_SUBMITTED' && (m.kycStatus === 'VERIFIED' || m.kycStatus === 'PENDING' || hasSubmission)) return false;
+
+      // Role filter
+      if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
+
+      // Search query (name, email, phone)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = m.name?.toLowerCase().includes(q);
+        const emailMatch = m.email?.toLowerCase().includes(q);
+        const phoneMatch = m.phone?.includes(q);
+        if (!nameMatch && !emailMatch && !phoneMatch) return false;
+      }
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      if (sortBy === 'PENDING_FIRST') {
+        if (a.kycStatus === 'PENDING' && b.kycStatus !== 'PENDING') return -1;
+        if (b.kycStatus === 'PENDING' && a.kycStatus !== 'PENDING') return 1;
+        return a.name.localeCompare(b.name);
+      }
+      if (sortBy === 'NAME_ASC') {
+        return a.name.localeCompare(b.name);
+      }
+      if (sortBy === 'RECENT') {
+        const aDate = a.kycDocuments?.[0]?.createdAt ? new Date(a.kycDocuments[0].createdAt).getTime() : 0;
+        const bDate = b.kycDocuments?.[0]?.createdAt ? new Date(b.kycDocuments[0].createdAt).getTime() : 0;
+        return bDate - aDate;
+      }
+      return 0;
+    });
 
   const pendingCount = members.filter((m: any) => m.kycStatus === 'PENDING').length;
   const verifiedCount = members.filter((m: any) => m.kycStatus === 'VERIFIED').length;
+  const rejectedCount = members.filter((m: any) => m.kycStatus === 'REJECTED').length;
+  const notSubmittedCount = members.filter((m: any) => m.kycStatus !== 'VERIFIED' && m.kycStatus !== 'PENDING' && (m.kycDocuments || []).length === 0).length;
+
+  const firmVerification = firmKycQuery.data?.organization?.verification || user?.organization?.verification;
+  const isFirmVerified = firmVerification === 'VERIFIED';
+  const hasActiveFilters = filter !== 'ALL' || roleFilter !== 'ALL' || searchQuery.trim().length > 0 || sortBy !== 'PENDING_FIRST';
 
   return (
     <>
@@ -108,60 +158,140 @@ function AdminKycManagementView({ user }: { user: any }) {
               variant={activeTab === 'firm' ? 'primary' : 'secondary'}
               onClick={() => setActiveTab('firm')}
             >
-              <Building2 className="size-4" /> Firm KYC
+              <Building2 className="size-4" /> Firm KYC {isFirmVerified ? '✅' : '(सत्यापन)'}
             </Button>
           </div>
         }
       />
 
       {activeTab === 'team' ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Status KPI summary */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             <div
               onClick={() => setFilter('ALL')}
               className={cn(
-                'card cursor-pointer p-4 transition-all',
-                filter === 'ALL' ? 'border-brand ring-2 ring-brand/20' : 'hover:bg-surface-2/40',
+                'card cursor-pointer p-3.5 transition-all',
+                filter === 'ALL' ? 'border-brand ring-2 ring-brand/20 bg-brand/5' : 'hover:bg-surface-2/40',
               )}
             >
               <p className="text-xs font-semibold text-muted">कुल टीम मेंबर्स</p>
-              <p className="mt-1 text-2xl font-black">{members.length}</p>
+              <p className="mt-0.5 text-xl font-black">{members.length}</p>
             </div>
             <div
               onClick={() => setFilter('PENDING')}
               className={cn(
-                'card cursor-pointer p-4 transition-all',
-                filter === 'PENDING' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'hover:bg-surface-2/40',
+                'card cursor-pointer p-3.5 transition-all',
+                filter === 'PENDING' ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-500/10' : 'hover:bg-surface-2/40',
               )}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">समीक्षा लंबित (Pending)</p>
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">लंबित (Pending)</p>
                 {pendingCount > 0 && <span className="size-2 rounded-full bg-amber-500 animate-ping" />}
               </div>
-              <p className="mt-1 text-2xl font-black text-amber-600 dark:text-amber-400">{pendingCount}</p>
+              <p className="mt-0.5 text-xl font-black text-amber-600 dark:text-amber-400">{pendingCount}</p>
             </div>
             <div
               onClick={() => setFilter('VERIFIED')}
               className={cn(
-                'card cursor-pointer p-4 transition-all',
-                filter === 'VERIFIED' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'hover:bg-surface-2/40',
+                'card cursor-pointer p-3.5 transition-all',
+                filter === 'VERIFIED' ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-500/10' : 'hover:bg-surface-2/40',
               )}
             >
               <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">प्रमाणित (Verified)</p>
-              <p className="mt-1 text-2xl font-black text-emerald-600 dark:text-emerald-400">{verifiedCount}</p>
+              <p className="mt-0.5 text-xl font-black text-emerald-600 dark:text-emerald-400">{verifiedCount}</p>
             </div>
             <div
               onClick={() => setFilter('REJECTED')}
               className={cn(
-                'card cursor-pointer p-4 transition-all',
-                filter === 'REJECTED' ? 'border-rose-500 ring-2 ring-rose-500/20' : 'hover:bg-surface-2/40',
+                'card cursor-pointer p-3.5 transition-all',
+                filter === 'REJECTED' ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/10' : 'hover:bg-surface-2/40',
               )}
             >
               <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">अस्वीकृत (Rejected)</p>
-              <p className="mt-1 text-2xl font-black text-rose-600 dark:text-rose-400">
-                {members.filter((m: any) => m.kycStatus === 'REJECTED').length}
-              </p>
+              <p className="mt-0.5 text-xl font-black text-rose-600 dark:text-rose-400">{rejectedCount}</p>
+            </div>
+            <div
+              onClick={() => setFilter('NOT_SUBMITTED')}
+              className={cn(
+                'card cursor-pointer p-3.5 transition-all',
+                filter === 'NOT_SUBMITTED' ? 'border-slate-500 ring-2 ring-slate-500/20 bg-slate-500/10' : 'hover:bg-surface-2/40',
+              )}
+            >
+              <p className="text-xs font-semibold text-muted">जमा नहीं (Not Submitted)</p>
+              <p className="mt-0.5 text-xl font-black text-subtle">{notSubmittedCount}</p>
+            </div>
+          </div>
+
+          {/* KYC Smart Filters Toolbar */}
+          <div className="card p-3 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+              {/* Search bar */}
+              <div className="relative flex-1 min-w-[180px] max-w-sm">
+                <Search className="size-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="खोजें — नाम, फ़ोन या ईमेल..."
+                  className="pl-9 pr-7 h-9 text-xs"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Role filter */}
+              <div className="w-36">
+                <Select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value as any)}
+                  className="h-9 text-xs"
+                >
+                  <option value="ALL">सभी रोल्स (All Roles)</option>
+                  <option value="BROKER_AGENT">केवल एजेंट्स (Agents)</option>
+                  <option value="BROKER_ADMIN">केवल एडमिन्स (Admins)</option>
+                </Select>
+              </div>
+
+              {/* Sort by */}
+              <div className="w-40">
+                <Select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="h-9 text-xs"
+                >
+                  <option value="PENDING_FIRST">समीक्षा लंबित पहले</option>
+                  <option value="RECENT">हालिया सबमिशन पहले</option>
+                  <option value="NAME_ASC">नाम (A से Z)</option>
+                </Select>
+              </div>
+
+              {/* Reset filter */}
+              {hasActiveFilters && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setFilter('ALL');
+                    setRoleFilter('ALL');
+                    setSearchQuery('');
+                    setSortBy('PENDING_FIRST');
+                  }}
+                  className="h-9 text-xs text-muted hover:text-fg"
+                >
+                  <RotateCcw className="size-3.5 mr-1" /> रीसेट
+                </Button>
+              )}
+            </div>
+
+            <div className="text-xs font-semibold text-muted shrink-0">
+              दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} मेंबर्स
             </div>
           </div>
 
@@ -338,12 +468,12 @@ function AdminKycManagementView({ user }: { user: any }) {
                           {straight?.fileUrl ? (
                             <div
                               onClick={() => setPreviewPhoto({ title: `${member.name} - फेस लाइवलीनेस (सामने)`, url: straight.fileUrl })}
-                              className="relative cursor-pointer group rounded-lg overflow-hidden border border-line h-20 bg-surface-2"
+                              className="relative cursor-pointer group rounded-xl overflow-hidden border border-line aspect-[4/5] bg-slate-950 flex items-center justify-center"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={straight.fileUrl} alt="Straight Face" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
-                                <Eye className="size-4" />
+                              <img src={straight.fileUrl} alt="Straight Face" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                                <Eye className="size-4 mr-1" /> बड़ा देखें
                               </div>
                             </div>
                           ) : (
@@ -357,12 +487,12 @@ function AdminKycManagementView({ user }: { user: any }) {
                           {left?.fileUrl ? (
                             <div
                               onClick={() => setPreviewPhoto({ title: `${member.name} - फेस लाइवलीनेस (बायाँ)`, url: left.fileUrl })}
-                              className="relative cursor-pointer group rounded-lg overflow-hidden border border-line h-20 bg-surface-2"
+                              className="relative cursor-pointer group rounded-xl overflow-hidden border border-line aspect-[4/5] bg-slate-950 flex items-center justify-center"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={left.fileUrl} alt="Left Face" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
-                                <Eye className="size-4" />
+                              <img src={left.fileUrl} alt="Left Face" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                                <Eye className="size-4 mr-1" /> बड़ा देखें
                               </div>
                             </div>
                           ) : (
@@ -376,12 +506,12 @@ function AdminKycManagementView({ user }: { user: any }) {
                           {right?.fileUrl ? (
                             <div
                               onClick={() => setPreviewPhoto({ title: `${member.name} - फेस लाइवलीनेस (दायाँ)`, url: right.fileUrl })}
-                              className="relative cursor-pointer group rounded-lg overflow-hidden border border-line h-20 bg-surface-2"
+                              className="relative cursor-pointer group rounded-xl overflow-hidden border border-line aspect-[4/5] bg-slate-950 flex items-center justify-center"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={right.fileUrl} alt="Right Face" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
-                                <Eye className="size-4" />
+                              <img src={right.fileUrl} alt="Right Face" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                                <Eye className="size-4 mr-1" /> बड़ा देखें
                               </div>
                             </div>
                           ) : (
@@ -408,38 +538,7 @@ function AdminKycManagementView({ user }: { user: any }) {
         </div>
       ) : (
         /* Firm KYC Tab */
-        <div className="card max-w-2xl p-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
-              <Building2 className="size-6" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold">ब्रोकर फर्म KYC सत्यापन</h3>
-              <p className="text-xs text-muted">यह KYC SuperAdmin द्वारा जाँचा और प्रमाणित किया जाता है</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-line bg-surface-2/40 p-4 space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted">फर्म का नाम:</span>
-              <span className="font-bold text-sm">{user?.organization?.name || 'BrokerIQ Firm'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted">RERA नंबर:</span>
-              <span className="font-mono text-sm font-bold">{user?.organization?.reraNumber || 'Not provided'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted">सत्यापन स्थिति:</span>
-              <Badge tone={user?.organization?.verification === 'VERIFIED' ? 'success' : 'warning'}>
-                {user?.organization?.verification === 'VERIFIED' ? 'Verified by SuperAdmin' : 'Under SuperAdmin Review'}
-              </Badge>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted leading-relaxed">
-            यदि आपको फर्म के RERA लाइसेंस या व्यापार दस्तावेज़ों में बदलाव करना है, तो कृपया SuperAdmin सपोर्ट से संपर्क करें।
-          </p>
-        </div>
+        <FirmKycManagementView user={user} canEdit={true} />
       )}
 
       {/* Photo Preview Dialog */}
@@ -493,7 +592,476 @@ function AdminKycManagementView({ user }: { user: any }) {
 }
 
 /* ========================================================================= */
-/* 2. BROKER AGENT: OWN KYC SUBMISSION (LOCKED ON VERIFIED)                  */
+/* 2. BROKER FIRM KYC MANAGEMENT (SUPERADMIN REVIEW & AGENT VERIFICATION)  */
+/* ========================================================================= */
+
+function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: boolean }) {
+  const firmKycQuery = useQuery({
+    queryKey: ['broker-firm-kyc'],
+    queryFn: () => api<any>('/broker/firm-kyc'),
+  });
+
+  const [reraNumber, setReraNumber] = useState('');
+  const [reraDocUrl, setReraDocUrl] = useState<string | null>(null);
+  const [gstNumber, setGstNumber] = useState('');
+  const [gstDocUrl, setGstDocUrl] = useState<string | null>(null);
+  const [panNumber, setPanNumber] = useState('');
+  const [panDocUrl, setPanDocUrl] = useState<string | null>(null);
+
+  const [uploadingRera, setUploadingRera] = useState(false);
+  const [uploadingGst, setUploadingGst] = useState(false);
+  const [uploadingPan, setUploadingPan] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ title: string; url: string } | null>(null);
+
+  const reraInputRef = useRef<HTMLInputElement | null>(null);
+  const gstInputRef = useRef<HTMLInputElement | null>(null);
+  const panInputRef = useRef<HTMLInputElement | null>(null);
+
+  const firmData = firmKycQuery.data;
+  const org = firmData?.organization;
+  const isVerified = org?.verification === 'VERIFIED';
+  const isPending = org?.verification === 'PENDING';
+  const isRejected = org?.verification === 'REJECTED';
+
+  useEffect(() => {
+    if (firmData) {
+      if (firmData.organization?.reraNumber && !reraNumber) setReraNumber(firmData.organization.reraNumber);
+      if (firmData.organization?.gstNumber && !gstNumber) setGstNumber(firmData.organization.gstNumber);
+      if (firmData.reraDocument?.fileUrl && reraDocUrl === null) setReraDocUrl(firmData.reraDocument.fileUrl);
+      if (firmData.gstDocument?.fileUrl && gstDocUrl === null) setGstDocUrl(firmData.gstDocument.fileUrl);
+      if (firmData.panDocument?.docNumber && !panNumber) setPanNumber(firmData.panDocument.docNumber);
+      if (firmData.panDocument?.fileUrl && panDocUrl === null) setPanDocUrl(firmData.panDocument.fileUrl);
+    }
+  }, [firmData]);
+
+  const submitMutation = useApiMutation(
+    (body: any) => post('/broker/firm-kyc', body),
+    {
+      success: 'फर्म KYC दस्तावेज़ सफलतापूर्वक सबमिट हो गए! सुपरएडमिन जल्द इसे सत्यापित करेगा।',
+      invalidate: [['broker-firm-kyc']],
+    },
+  );
+
+  const handleUpload = async (file: File, type: 'RERA' | 'GST' | 'PAN') => {
+    try {
+      if (type === 'RERA') setUploadingRera(true);
+      if (type === 'GST') setUploadingGst(true);
+      if (type === 'PAN') setUploadingPan(true);
+
+      const res = await uploadFile(file, 'kyc');
+      if (type === 'RERA') setReraDocUrl(res.url);
+      if (type === 'GST') setGstDocUrl(res.url);
+      if (type === 'PAN') setPanDocUrl(res.url);
+      toast.success(`${type} दस्तावेज़ सफलतापूर्वक अपलोड हुआ ✅`);
+    } catch (err: any) {
+      toast.error(err?.message || 'दस्तावेज़ अपलोड करने में त्रुटि हुई');
+    } finally {
+      if (type === 'RERA') setUploadingRera(false);
+      if (type === 'GST') setUploadingGst(false);
+      if (type === 'PAN') setUploadingPan(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canEdit || isVerified) return;
+
+    if (!reraNumber.trim() && !reraDocUrl && !gstNumber.trim() && !gstDocUrl && !panNumber.trim() && !panDocUrl) {
+      toast.error('कृपया कम से कम RERA, GST या PAN दस्तावेज़ विवरण भरें');
+      return;
+    }
+
+    submitMutation.mutate({
+      reraNumber: reraNumber.trim() || null,
+      reraCertificateUrl: reraDocUrl,
+      gstNumber: gstNumber.trim() || null,
+      gstCertificateUrl: gstDocUrl,
+      panNumber: panNumber.trim().toUpperCase() || null,
+      panPhotoUrl: panDocUrl,
+    });
+  };
+
+  const editable = canEdit && !isVerified;
+
+  if (firmKycQuery.isLoading) {
+    return <Skeleton className="h-96 w-full rounded-2xl" />;
+  }
+
+  return (
+    <div className="space-y-4 max-w-4xl">
+      {/* Firm Header Card */}
+      <div className="card p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid size-11 place-items-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 shrink-0">
+              <Building2 className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold">{org?.name || user?.organization?.name || 'BrokerIQ Firm'}</h3>
+                {isVerified ? (
+                  <Badge tone="success">
+                    <ShieldCheck className="size-3 mr-1 text-emerald-500" />
+                    Verified by SuperAdmin
+                  </Badge>
+                ) : isPending ? (
+                  <Badge tone="warning">
+                    <Clock className="size-3 mr-1" />
+                    Under SuperAdmin Review
+                  </Badge>
+                ) : isRejected ? (
+                  <Badge tone="danger">
+                    <ShieldAlert className="size-3 mr-1" />
+                    Rejected by SuperAdmin
+                  </Badge>
+                ) : (
+                  <Badge tone="neutral">
+                    <Shield className="size-3 mr-1" />
+                    KYC Required
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted mt-0.5">
+                {canEdit
+                  ? 'अपनी ब्रोकर फर्म के आधिकारिक रजिस्ट्रेशन, RERA और GST दस्तावेज़ सबमिट करें।'
+                  : 'आपकी फर्म के सुपरएडमिन द्वारा सत्यापित आधिकारिक RERA और GST क्रेडेंशियल्स।'}
+              </p>
+            </div>
+          </div>
+
+          {isVerified && (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+              <Lock className="size-3.5" /> सत्यापित फर्म (Locked)
+            </div>
+          )}
+        </div>
+
+        {/* Status Alerts */}
+        {isVerified && (
+          <div className="mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 flex items-start gap-2.5">
+            <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-emerald-800 dark:text-emerald-200">
+              <p className="font-bold">ब्रोकर फर्म पूरी तरह सत्यापित है</p>
+              <p className="mt-0.5 text-muted">आपकी फर्म के सभी व्यावसायिक दस्तावेज व RERA लाइसेंस सुपरएडमिन द्वारा जांचे और प्रमाणित किए जा चुके हैं।</p>
+            </div>
+          </div>
+        )}
+
+        {isPending && (
+          <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 flex items-start gap-2.5">
+            <Clock className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+            <div className="text-xs text-amber-800 dark:text-amber-200">
+              <p className="font-bold">सुपरएडमिन समीक्षा लंबित है (Review in Progress)</p>
+              <p className="mt-0.5">आपके द्वारा सबमिट किए गए फर्म दस्तावेज़ सुपरएडमिन की वेरिफिकेशन कतार में हैं।</p>
+            </div>
+          </div>
+        )}
+
+        {isRejected && (
+          <div className="mt-3 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 flex items-start gap-2.5">
+            <ShieldAlert className="size-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-800 dark:text-rose-200">
+              <p className="font-bold">सुपरएडमिन द्वारा अस्वीकृत (Action Required)</p>
+              <p className="mt-0.5">
+                {firmData?.reraDocument?.reviewNote || firmData?.gstDocument?.reviewNote || 'दस्तावेज़ स्पष्ट नहीं हैं या RERA नंबर मेल नहीं खाता। कृपया सही दस्तावेज़ दोबारा अपलोड करें।'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Form or Display View */}
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {/* 1. RERA License Card */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-line pb-2.5">
+            <div className="flex items-center gap-2">
+              <FileCheck className="size-4 text-brand-600" />
+              <h4 className="font-bold text-xs uppercase tracking-wider text-muted">1. RERA रजिस्ट्रेशन व सर्टिफिकेट</h4>
+            </div>
+            {firmData?.reraDocument?.status === 'VERIFIED' && (
+              <Badge tone="success">Verified RERA</Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <Field label="RERA रजिस्ट्रेशन नंबर (RERA Number)">
+              <Input
+                value={reraNumber}
+                onChange={(e) => setReraNumber(e.target.value)}
+                placeholder="उदा: HRERA-GGM-2024-XXXX"
+                disabled={!editable}
+                className="font-mono text-xs h-9"
+              />
+            </Field>
+
+            <div>
+              <label className="text-xs font-bold text-muted mb-1 block">
+                RERA सर्टिफिकेट दस्तावेज़ (PDF / Image)
+              </label>
+              <input
+                type="file"
+                ref={reraInputRef}
+                className="hidden"
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUpload(f, 'RERA');
+                }}
+              />
+
+              {reraDocUrl ? (
+                <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-line bg-surface-2/60 text-xs">
+                  <div className="flex items-center gap-2 truncate">
+                    <FileText className="size-4 text-brand shrink-0" />
+                    <span className="truncate font-medium">RERA_Certificate_Doc</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPreviewDoc({ title: 'RERA Certificate', url: reraDocUrl })}
+                      className="h-7 text-xs px-2"
+                    >
+                      <Eye className="size-3.5 mr-1" /> देखें
+                    </Button>
+                    {editable && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setReraDocUrl(null)}
+                        className="h-7 text-xs px-2 text-rose-500 hover:text-rose-600"
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                editable && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={uploadingRera}
+                    onClick={() => reraInputRef.current?.click()}
+                    className="w-full text-xs h-9 justify-center"
+                  >
+                    <Upload className="size-3.5 mr-1.5" /> RERA सर्टिफिकेट अपलोड करें
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 2. GST & Trade License Card */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-line pb-2.5">
+            <div className="flex items-center gap-2">
+              <CreditCard className="size-4 text-blue-500" />
+              <h4 className="font-bold text-xs uppercase tracking-wider text-muted">2. GSTIN / ट्रेड लाइसेंस</h4>
+            </div>
+            {firmData?.gstDocument?.status === 'VERIFIED' && (
+              <Badge tone="success">Verified GST</Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <Field label="GSTIN / ट्रेड लाइसेंस नंबर">
+              <Input
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                placeholder="उदा: 07AAAAA0000A1Z5"
+                disabled={!editable}
+                className="font-mono uppercase text-xs h-9"
+              />
+            </Field>
+
+            <div>
+              <label className="text-xs font-bold text-muted mb-1 block">
+                GST / ट्रेड सर्टिफिकेट (PDF / Image)
+              </label>
+              <input
+                type="file"
+                ref={gstInputRef}
+                className="hidden"
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUpload(f, 'GST');
+                }}
+              />
+
+              {gstDocUrl ? (
+                <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-line bg-surface-2/60 text-xs">
+                  <div className="flex items-center gap-2 truncate">
+                    <FileText className="size-4 text-blue-500 shrink-0" />
+                    <span className="truncate font-medium">GST_Certificate_Doc</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPreviewDoc({ title: 'GST Certificate', url: gstDocUrl })}
+                      className="h-7 text-xs px-2"
+                    >
+                      <Eye className="size-3.5 mr-1" /> देखें
+                    </Button>
+                    {editable && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setGstDocUrl(null)}
+                        className="h-7 text-xs px-2 text-rose-500 hover:text-rose-600"
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                editable && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={uploadingGst}
+                    onClick={() => gstInputRef.current?.click()}
+                    className="w-full text-xs h-9 justify-center"
+                  >
+                    <Upload className="size-3.5 mr-1.5" /> GST सर्टिफिकेट अपलोड करें
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Company PAN Card */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-line pb-2.5">
+            <div className="flex items-center gap-2">
+              <CreditCard className="size-4 text-amber-500" />
+              <h4 className="font-bold text-xs uppercase tracking-wider text-muted">3. फर्म पैन कार्ड (Company PAN)</h4>
+            </div>
+            {firmData?.panDocument?.status === 'VERIFIED' && (
+              <Badge tone="success">Verified PAN</Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <Field label="कंपनी पैन नंबर (PAN Number)">
+              <Input
+                value={panNumber}
+                onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                placeholder="उदा: ABCDE1234F"
+                disabled={!editable}
+                className="font-mono uppercase text-xs h-9"
+              />
+            </Field>
+
+            <div>
+              <label className="text-xs font-bold text-muted mb-1 block">
+                कंपनी पैन कार्ड फ़ोटो (PDF / Image)
+              </label>
+              <input
+                type="file"
+                ref={panInputRef}
+                className="hidden"
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUpload(f, 'PAN');
+                }}
+              />
+
+              {panDocUrl ? (
+                <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-line bg-surface-2/60 text-xs">
+                  <div className="flex items-center gap-2 truncate">
+                    <FileText className="size-4 text-amber-500 shrink-0" />
+                    <span className="truncate font-medium">Company_PAN_Doc</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPreviewDoc({ title: 'Company PAN', url: panDocUrl })}
+                      className="h-7 text-xs px-2"
+                    >
+                      <Eye className="size-3.5 mr-1" /> देखें
+                    </Button>
+                    {editable && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPanDocUrl(null)}
+                        className="h-7 text-xs px-2 text-rose-500 hover:text-rose-600"
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                editable && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={uploadingPan}
+                    onClick={() => panInputRef.current?.click()}
+                    className="w-full text-xs h-9 justify-center"
+                  >
+                    <Upload className="size-3.5 mr-1.5" /> पैन कार्ड अपलोड करें
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Submit Action for Admin */}
+        {editable && (
+          <div className="flex justify-end pt-1">
+            <Button
+              type="submit"
+              variant="primary"
+              loading={submitMutation.isPending}
+              className="px-5 h-9 text-xs"
+            >
+              <ShieldCheck className="size-4 mr-1.5" /> फर्म KYC सबमिट करें (Submit to SuperAdmin)
+            </Button>
+          </div>
+        )}
+      </form>
+
+      {/* Document Preview Dialog */}
+      <Dialog
+        open={!!previewDoc}
+        onOpenChange={(v) => !v && setPreviewDoc(null)}
+        title={previewDoc?.title || 'दस्तावेज़'}
+      >
+        {previewDoc && (
+          <div className="overflow-hidden rounded-xl bg-black flex items-center justify-center p-2">
+            {previewDoc.url.toLowerCase().endsWith('.pdf') ? (
+              <iframe src={previewDoc.url} className="w-full h-[70vh] rounded" title={previewDoc.title} />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewDoc.url} alt={previewDoc.title} className="max-h-[70vh] w-auto rounded object-contain" />
+            )}
+          </div>
+        )}
+      </Dialog>
+    </div>
+  );
+}
+
+/* ========================================================================= */
+/* 3. BROKER AGENT: OWN KYC SUBMISSION & FIRM KYC VIEW                       */
 /* ========================================================================= */
 
 interface MyKycResponse {
@@ -510,6 +1078,9 @@ interface MyKycResponse {
 }
 
 function AgentKycSubmissionView() {
+  const { user } = useAuth();
+  const [agentTab, setAgentTab] = useState<'my' | 'firm'>('my');
+
   const kycQuery = useQuery({
     queryKey: ['agent-kyc-mine'],
     queryFn: () => api<MyKycResponse>('/broker/team/agent-kyc/mine'),
@@ -652,13 +1223,39 @@ function AgentKycSubmissionView() {
   const currentPanPhoto = panPhotoUrl !== null ? panPhotoUrl : (kyc?.panPhotoUrl || '');
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4 max-w-4xl">
       <PageHeader
-        title="Agent KYC"
-        subtitle="सुरक्षित ब्रोकर नेटवर्क के लिए आपकी पहचान एवं फेस लाइवलीनेस सत्यापन"
+        title={agentTab === 'my' ? "Agent KYC" : "ब्रोकर फर्म KYC"}
+        subtitle={
+          agentTab === 'my'
+            ? "सुरक्षित ब्रोकर नेटवर्क के लिए आपकी पहचान एवं फेस लाइवलीनेस सत्यापन"
+            : "आपकी ब्रोकर फर्म के आधिकारिक रजिस्ट्रेशन व RERA सत्यापन विवरण"
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={agentTab === 'my' ? 'primary' : 'secondary'}
+              onClick={() => setAgentTab('my')}
+            >
+              <UserCheck className="size-4" /> मेरा KYC (My KYC)
+            </Button>
+            <Button
+              size="sm"
+              variant={agentTab === 'firm' ? 'primary' : 'secondary'}
+              onClick={() => setAgentTab('firm')}
+            >
+              <Building2 className="size-4" /> फर्म KYC (Firm Status)
+            </Button>
+          </div>
+        }
       />
 
-      {/* KYC Status banner */}
+      {agentTab === 'firm' ? (
+        <FirmKycManagementView user={user} canEdit={false} />
+      ) : (
+        <>
+          {/* KYC Status banner */}
       {isVerified ? (
         <div className="flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-5 text-emerald-800 dark:text-emerald-300">
           <BadgeCheck className="size-8 text-emerald-600 shrink-0" />
@@ -928,6 +1525,8 @@ function AgentKycSubmissionView() {
           )}
         </div>
       </form>
+        </>
+      )}
     </div>
   );
 }

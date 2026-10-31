@@ -20,6 +20,7 @@ import {
   Percent,
   Phone,
   Save,
+  Search,
   Send,
   Shield,
   ShieldCheck,
@@ -94,9 +95,28 @@ export default function Team() {
     },
   });
 
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'VERIFIED'>('ALL');
+
   const members = [...(q.data?.members ?? [])].sort(
     (a, b) => (b.stats?.won30d ?? 0) - (a.stats?.won30d ?? 0),
   );
+
+  const filteredMembers = members.filter((m: any) => {
+    if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
+    const isLive = m.lastLocation && (Date.now() - new Date(m.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000);
+    if (statusFilter === 'LIVE' && !isLive) return false;
+    if (statusFilter === 'VERIFIED' && m.kycStatus !== 'VERIFIED') return false;
+    if (search.trim()) {
+      const query = search.toLowerCase().trim();
+      const matchName = m.name?.toLowerCase().includes(query);
+      const matchEmail = m.email?.toLowerCase().includes(query);
+      const matchPhone = m.phone?.includes(query);
+      if (!matchName && !matchEmail && !matchPhone) return false;
+    }
+    return true;
+  });
 
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
@@ -111,11 +131,47 @@ export default function Team() {
         }
       />
 
+      {/* Filter and Search Bar */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 }}>
+        <Input
+          placeholder="खोजें — नाम, ईमेल, फ़ोन..."
+          value={search}
+          onChangeText={setSearch}
+          left={<Search size={16} color={c.textMuted} />}
+          right={
+            search ? (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <X size={16} color={c.textMuted} />
+              </TouchableOpacity>
+            ) : undefined
+          }
+          style={{ height: 38 }}
+        />
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+          <Chip active={roleFilter === 'ALL' && statusFilter === 'ALL'} onPress={() => { setRoleFilter('ALL'); setStatusFilter('ALL'); }}>
+            सभी ({members.length})
+          </Chip>
+          <Chip active={roleFilter === 'BROKER_ADMIN'} onPress={() => setRoleFilter(roleFilter === 'BROKER_ADMIN' ? 'ALL' : 'BROKER_ADMIN')}>
+            👑 Admin
+          </Chip>
+          <Chip active={roleFilter === 'BROKER_AGENT'} onPress={() => setRoleFilter(roleFilter === 'BROKER_AGENT' ? 'ALL' : 'BROKER_AGENT')}>
+            👤 Agent
+          </Chip>
+          <Chip active={statusFilter === 'LIVE'} onPress={() => setStatusFilter(statusFilter === 'LIVE' ? 'ALL' : 'LIVE')}>
+            🟢 Live Now
+          </Chip>
+          <Chip active={statusFilter === 'VERIFIED'} onPress={() => setStatusFilter(statusFilter === 'VERIFIED' ? 'ALL' : 'VERIFIED')}>
+            ✅ KYC Verified
+          </Chip>
+        </ScrollView>
+      </View>
+
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
         <FlatList
-          data={members}
+          data={filteredMembers}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 60 }}
           ListEmptyComponent={q.isLoading ? <Skeleton h={100} /> : null}

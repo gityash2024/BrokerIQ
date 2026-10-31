@@ -107,7 +107,7 @@ body {
 
 @layer components {
   .workspace-page-header {
-    @apply relative rounded-2xl border border-line bg-surface px-5 py-6 shadow-[var(--shadow-card)] sm:px-6;
+    @apply relative rounded-2xl border border-line bg-surface px-4 py-3 shadow-[var(--shadow-card)] sm:px-5 sm:py-3.5;
   }
   .workspace-content {
     min-width: 0;

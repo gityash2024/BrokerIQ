@@ -271,7 +271,7 @@ export function PanelShell({
           <ThemeToggle />
           <NotificationsBell href={notificationsHref} />
         </header>
-        <main className="workspace-content mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
+        <main className="workspace-content mx-auto max-w-[1680px] px-3.5 py-3.5 sm:px-6 sm:py-4 lg:px-8">
           <ModuleAccess>{children}</ModuleAccess>
         </main>
       </div>
@@ -309,15 +309,15 @@ export function PageHeader({ title, subtitle, actions }: { title: React.ReactNod
   const section = path.startsWith('/admin') ? 'Platform administration' : path.startsWith('/broker') ? 'Broker workspace' : 'Your property journey';
   const Icon = path.startsWith('/admin') ? SlidersHorizontal : path.startsWith('/broker') ? Building2 : Compass;
   return (
-    <div className="workspace-page-header mb-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="workspace-page-header mb-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <p className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-brand-700 dark:text-brand-300">
+        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-brand-700 dark:text-brand-300">
           <Icon className="size-3.5" aria-hidden />
           {section}
           <ChevronRight className="size-3" aria-hidden />
         </p>
-        <h1 className="break-words font-display text-2xl font-extrabold tracking-tight sm:text-[28px]">{title}</h1>
-        {subtitle && <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">{subtitle}</p>}
+        <h1 className="break-words font-display text-xl font-extrabold tracking-tight sm:text-2xl">{title}</h1>
+        {subtitle && <p className="mt-0.5 max-w-3xl text-xs sm:text-sm leading-relaxed text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2 sm:max-w-[50%]">{actions}</div>}
     </div>

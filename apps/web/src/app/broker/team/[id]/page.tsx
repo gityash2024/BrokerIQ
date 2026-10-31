@@ -459,14 +459,14 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                     {/* Straight */}
                     <div
                       onClick={() => straight?.fileUrl && setPreviewPhoto({ title: `${member.name} - फेस लाइवलीनेस (सामने)`, url: straight.fileUrl })}
-                      className="group relative aspect-square rounded-xl overflow-hidden border border-line bg-surface-2 cursor-pointer"
+                      className="group relative aspect-[4/5] rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer"
                     >
                       {straight?.fileUrl ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={straight.fileUrl} alt="Straight Face" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src={straight.fileUrl} alt="Straight Face" className="h-full w-full object-contain group-hover:scale-105 transition-transform" />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
-                            <Eye className="size-4" />
+                            <Eye className="size-4 mr-1" /> बड़ा देखें
                           </div>
                           <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
                             Straight
@@ -480,14 +480,14 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                     {/* Left */}
                     <div
                       onClick={() => left?.fileUrl && setPreviewPhoto({ title: `${member.name} - फेस लाइवलीनेस (बायाँ)`, url: left.fileUrl })}
-                      className="group relative aspect-square rounded-xl overflow-hidden border border-line bg-surface-2 cursor-pointer"
+                      className="group relative aspect-[4/5] rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer"
                     >
                       {left?.fileUrl ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={left.fileUrl} alt="Left Face" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src={left.fileUrl} alt="Left Face" className="h-full w-full object-contain group-hover:scale-105 transition-transform" />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
-                            <Eye className="size-4" />
+                            <Eye className="size-4 mr-1" /> बड़ा देखें
                           </div>
                           <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
                             Left
@@ -501,14 +501,14 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                     {/* Right */}
                     <div
                       onClick={() => right?.fileUrl && setPreviewPhoto({ title: `${member.name} - फेस लाइवलीनेस (दायाँ)`, url: right.fileUrl })}
-                      className="group relative aspect-square rounded-xl overflow-hidden border border-line bg-surface-2 cursor-pointer"
+                      className="group relative aspect-[4/5] rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer"
                     >
                       {right?.fileUrl ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={right.fileUrl} alt="Right Face" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src={right.fileUrl} alt="Right Face" className="h-full w-full object-contain group-hover:scale-105 transition-transform" />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
-                            <Eye className="size-4" />
+                            <Eye className="size-4 mr-1" /> बड़ा देखें
                           </div>
                           <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
                             Right

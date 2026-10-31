@@ -21,11 +21,14 @@ import {
   Navigation,
   Percent,
   Phone,
+  RotateCcw,
   Save,
+  Search,
   Send,
   Shield,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Target,
   TrendingUp,
   Trophy,
@@ -72,11 +75,64 @@ export default function TeamPage() {
 
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
 
+  // Teams & Agents Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
+  const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
+  const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
+  const [sortBy, setSortBy] = useState<'PERFORMANCE' | 'LEADS' | 'NAME'>('PERFORMANCE');
+
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   const members = q.data?.members ?? [];
   const ranked = [...members]
     .filter((m) => m.status === 'ACTIVE')
     .sort((a, b) => b.stats.won30d - a.stats.won30d || b.stats.activities30d - a.stats.activities30d);
+
+  // Filter & Sort members
+  const filteredMembers = members
+    .filter((m: any) => {
+      // Role filter
+      if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
+
+      // Live location filter (active within 30 min)
+      const loc = m.lastLocation;
+      const isLive = loc && (Date.now() - new Date(loc.updatedAt).getTime() <= 30 * 60 * 1000);
+      if (locationFilter === 'LIVE' && !isLive) return false;
+      if (locationFilter === 'OFFLINE' && isLive) return false;
+
+      // KYC filter
+      const kyc = m.kycStatus || 'UNVERIFIED';
+      if (kycFilter === 'VERIFIED' && kyc !== 'VERIFIED') return false;
+      if (kycFilter === 'PENDING' && kyc !== 'PENDING') return false;
+      if (kycFilter === 'REQUIRED' && (kyc === 'VERIFIED' || kyc === 'PENDING')) return false;
+
+      // Search (name, email, phone)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const nameMatch = m.name?.toLowerCase().includes(query);
+        const emailMatch = m.email?.toLowerCase().includes(query);
+        const phoneMatch = m.phone?.includes(query);
+        if (!nameMatch && !emailMatch && !phoneMatch) return false;
+      }
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      if (sortBy === 'PERFORMANCE') {
+        const aWon = a.fulfillment?.dealsWonMonth ?? a.stats?.won30d ?? 0;
+        const bWon = b.fulfillment?.dealsWonMonth ?? b.stats?.won30d ?? 0;
+        if (bWon !== aWon) return bWon - aWon;
+        return (b.stats?.activities30d ?? 0) - (a.stats?.activities30d ?? 0);
+      }
+      if (sortBy === 'LEADS') {
+        return (b.stats?.openLeads ?? 0) - (a.stats?.openLeads ?? 0);
+      }
+      if (sortBy === 'NAME') {
+        return a.name.localeCompare(b.name);
+      }
+      return 0;
+    });
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || roleFilter !== 'ALL' || locationFilter !== 'ALL' || kycFilter !== 'ALL' || sortBy !== 'PERFORMANCE';
 
   return (
     <>
@@ -93,22 +149,22 @@ export default function TeamPage() {
       />
 
       {ranked.length > 1 && (
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="mb-4 grid gap-2.5 md:grid-cols-3">
           {ranked.slice(0, 3).map((m, i) => (
             <motion.div
               key={m.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              className={cn('card relative overflow-hidden p-5', i === 0 && 'border-saffron-300 dark:border-saffron-500/40')}
+              className={cn('card relative overflow-hidden p-4', i === 0 && 'border-saffron-300 dark:border-saffron-500/40')}
             >
               {i === 0 && <div className="absolute -top-12 -right-12 size-40 rounded-full bg-saffron-400/20 blur-2xl" />}
               <div className="relative flex items-center gap-3">
                 <div className="relative">
-                  <Avatar name={m.name} src={m.avatarUrl} size={48} />
+                  <Avatar name={m.name} src={m.avatarUrl} size={42} />
                   <span
                     className={cn(
-                      'absolute -right-1 -bottom-1 grid size-6 place-items-center rounded-full text-[11px] font-extrabold text-white ring-2 ring-surface',
+                      'absolute -right-1 -bottom-1 grid size-5 place-items-center rounded-full text-[10px] font-extrabold text-white ring-2 ring-surface',
                       ['bg-saffron-500', 'bg-slate-400', 'bg-amber-700'][i],
                     )}
                   >
@@ -116,20 +172,130 @@ export default function TeamPage() {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{m.name}</p>
+                  <p className="truncate font-bold text-sm">{m.name}</p>
                   <p className="text-xs text-muted">
                     {m.stats.won30d} won · {m.stats.activities30d} activities (30 दिन)
                   </p>
                 </div>
-                {i === 0 && <Trophy className="size-6 text-saffron-500" />}
+                {i === 0 && <Trophy className="size-5 text-saffron-500" />}
               </div>
             </motion.div>
           ))}
         </div>
       )}
 
+      {/* Filter Toolbar for Teams & Agents */}
+      <div className="card mb-3.5 p-3 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+          {/* Instant Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="size-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="मेंबर खोजें — नाम, ईमेल, फ़ोन..."
+              className="pl-9 pr-7 h-9 text-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Role Filter */}
+          <div className="w-32">
+            <Select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as any)}
+              className="h-9 text-xs"
+            >
+              <option value="ALL">सभी रोल्स (Role)</option>
+              <option value="BROKER_ADMIN">Admin</option>
+              <option value="BROKER_AGENT">Agent</option>
+            </Select>
+          </div>
+
+          {/* Live Location Filter */}
+          <div className="w-36">
+            <Select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value as any)}
+              className="h-9 text-xs"
+            >
+              <option value="ALL">सभी लोकेशन (Location)</option>
+              <option value="LIVE">🟢 लाइव (Active Now)</option>
+              <option value="OFFLINE">ऑफलाइन (Offline)</option>
+            </Select>
+          </div>
+
+          {/* KYC Status Filter */}
+          <div className="w-36">
+            <Select
+              value={kycFilter}
+              onChange={(e) => setKycFilter(e.target.value as any)}
+              className="h-9 text-xs"
+            >
+              <option value="ALL">सभी KYC स्थिति</option>
+              <option value="VERIFIED">✅ प्रमाणित (Verified)</option>
+              <option value="PENDING">⏳ समीक्षाधीन (Pending)</option>
+              <option value="REQUIRED">⚠️ अप्रमाणित (Required)</option>
+            </Select>
+          </div>
+
+          {/* Sort By */}
+          <div className="w-36">
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="h-9 text-xs"
+            >
+              <option value="PERFORMANCE">डील्स परफ़ॉर्मेंस</option>
+              <option value="LEADS">ओपन लीड्स</option>
+              <option value="NAME">नाम (A से Z)</option>
+            </Select>
+          </div>
+
+          {/* Clear Filter button */}
+          {hasActiveFilters && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSearchQuery('');
+                setRoleFilter('ALL');
+                setLocationFilter('ALL');
+                setKycFilter('ALL');
+                setSortBy('PERFORMANCE');
+              }}
+              className="h-9 text-xs text-muted hover:text-fg"
+            >
+              <RotateCcw className="size-3.5 mr-1" /> रीसेट
+            </Button>
+          )}
+        </div>
+
+        <div className="text-xs font-semibold text-muted shrink-0">
+          दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} सदस्य
+        </div>
+      </div>
+
       {!q.data ? (
         <Skeleton className="h-64 rounded-2xl" />
+      ) : filteredMembers.length === 0 ? (
+        <Empty
+          icon={<Users className="size-8" />}
+          title="कोई सदस्य नहीं मिला"
+          text={
+            hasActiveFilters
+              ? 'चुने गए फ़िल्टर के अनुसार कोई टीम सदस्य नहीं मिला। कृपया फ़िल्टर रीसेट करें।'
+              : 'अभी तक कोई सदस्य टीम में नहीं जुड़ा है।'
+          }
+        />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[850px] text-sm">
@@ -146,7 +312,7 @@ export default function TeamPage() {
               </tr>
             </thead>
             <tbody>
-              {members.map((m: any) => {
+              {filteredMembers.map((m: any) => {
                 const kycStatus = m.kycStatus || 'UNVERIFIED';
                 const loc = m.lastLocation;
                 const dealsTarget = m.targets?.monthlyDeals || 5;
