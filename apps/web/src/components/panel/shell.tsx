@@ -24,7 +24,8 @@ import { moduleAllowed, moduleForPath } from '@brokeriq/shared';
 export interface NavItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon?: LucideIcon | React.ComponentType<{ className?: string }>;
+  iconImage?: string;
   badge?: number | string | null;
   exact?: boolean;
   /** Hidden while Super Admin has this feature flag switched off ('paid' = hidden in free mode). */
@@ -81,7 +82,28 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
                         transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                       />
                     )}
-                    <it.icon className={cn('relative size-[18px]', active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg')} />
+                    {it.iconImage ? (
+                      <div
+                        className={cn(
+                          'relative size-6 shrink-0 flex items-center justify-center rounded-lg overflow-hidden transition-all duration-200 group-hover:scale-110 shadow-sm border border-black/5 dark:border-white/10',
+                          active
+                            ? 'ring-2 ring-brand-500/30 shadow-[0_2px_10px_rgba(37,99,235,0.25)]'
+                            : 'opacity-90 group-hover:opacity-100',
+                        )}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={it.iconImage}
+                          alt=""
+                          className={cn(
+                            'size-full object-cover select-none transition-transform duration-200',
+                            active ? 'scale-105' : 'group-hover:scale-105',
+                          )}
+                        />
+                      </div>
+                    ) : it.icon ? (
+                      <it.icon className={cn('relative size-[18px]', active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg')} />
+                    ) : null}
                     <span className="relative flex-1">{it.label}</span>
                     {it.badge ? <span className="relative rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span> : null}
                   </Link>

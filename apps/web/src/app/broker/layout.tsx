@@ -53,18 +53,23 @@ function Inner({ children }: { children: React.ReactNode }) {
   const groups: NavGroup[] = [
     {
       items: [
-        { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, exact: true },
-        { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet },
-        { href: '/broker/leads', label: 'Leads', icon: Inbox, badge: k?.newToday || null },
-        { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, badge: k?.unreadMessages || null },
+        { href: '/broker', label: 'Today • आज का काम', icon: LayoutDashboard, iconImage: '/icons/sidebar/today.png', exact: true },
+        { href: '/broker/inventory', label: 'Inventory', icon: FileSpreadsheet, iconImage: '/icons/sidebar/inventory.png' },
+        { href: '/broker/leads', label: 'Leads', icon: Inbox, iconImage: '/icons/sidebar/leads.png', badge: k?.newToday || null },
+        { href: '/broker/inbox', label: 'Inbox', icon: MessagesSquare, iconImage: '/icons/sidebar/inbox.png', badge: k?.unreadMessages || null },
         {
           href: '/broker/kyc',
           label: 'KYC',
           icon: ShieldCheck,
+          iconImage: '/icons/sidebar/kyc.png',
           badge: kycStatus === 'VERIFIED' ? 'Verified' : kycStatus === 'PENDING' ? 'Under Review' : kycStatus === 'REJECTED' ? 'Rejected' : 'Required',
         },
-        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/team', label: 'Team & Agents', icon: Users }] : []),
-        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ href: '/broker/automations', label: 'Automation', icon: Workflow }] : []),
+        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'
+          ? [{ href: '/broker/team', label: 'Team & Agents', icon: Users, iconImage: '/icons/sidebar/team.png' }]
+          : []),
+        ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'
+          ? [{ href: '/broker/automations', label: 'Automation', icon: Workflow, iconImage: '/icons/sidebar/automation.png' }]
+          : []),
       ],
     },
   ];

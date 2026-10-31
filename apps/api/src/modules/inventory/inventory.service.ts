@@ -270,8 +270,10 @@ export class InventoryService {
         : size && price != null
           ? Number(price) / size
           : null;
+    const effectiveAssignedToId = data.assignedToId === '' ? null : data.assignedToId;
     return {
       ...data,
+      ...(data.assignedToId !== undefined ? { assignedToId: effectiveAssignedToId } : {}),
       price: price == null ? null : Number(price),
       ratePerSqft: rate,
       ...(details ? { details: details as Prisma.InputJsonValue } : {}),
@@ -299,7 +301,8 @@ export class InventoryService {
       if (existing) return ledgerJson(existing);
     }
     if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
-    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : (input.assignedToId || user.id);
+    const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
+    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : (rawAssigned || user.id);
     if (assignedToId) {
       const assignee = await this.prisma.user.findFirst({
         where: { id: assignedToId, organizationId },
@@ -329,15 +332,19 @@ export class InventoryService {
     return ledgerJson(item);
   }
   async update(id: string, input: InventoryInput, user: RequestUser) {
-    if (input.assignedToId) {
-      if (user.role === 'BROKER_AGENT' && input.assignedToId !== user.id) {
-        throw new ForbiddenException('Only Broker Admins can re-assign properties');
+    if (input.assignedToId !== undefined) {
+      if (input.assignedToId && input.assignedToId !== '') {
+        if (user.role === 'BROKER_AGENT' && input.assignedToId !== user.id) {
+          throw new ForbiddenException('Only Broker Admins can re-assign properties');
+        }
+        const organizationId = this.orgId(user, input.organizationId, false);
+        const assignee = await this.prisma.user.findFirst({
+          where: { id: input.assignedToId, ...(organizationId ? { organizationId } : {}) },
+        });
+        if (!assignee) throw new BadRequestException('Assigned user not found in organization');
+      } else if (user.role === 'BROKER_AGENT') {
+        throw new ForbiddenException('Only Broker Admins can unassign properties');
       }
-      const organizationId = this.orgId(user, input.organizationId, false);
-      const assignee = await this.prisma.user.findFirst({
-        where: { id: input.assignedToId, ...(organizationId ? { organizationId } : {}) },
-      });
-      if (!assignee) throw new BadRequestException('Assigned user not found in organization');
     }
     const item = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;

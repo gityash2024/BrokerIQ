@@ -91,7 +91,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
 
   // Mutations
   const updateProfileMutation = useApiMutation(
-    (body: any) => patch(`/broker/team/members/${resolvedParams.id}`, body),
+    (body: any) => patch(`/broker/team/${resolvedParams.id}`, body),
     {
       success: 'एजेंट प्रोफाइल अपडेट हो गई ✅',
       invalidate: [['team']],
@@ -99,7 +99,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
   );
 
   const updateTargetsMutation = useApiMutation(
-    (body: any) => patch('/broker/team/targets', body),
+    (body: any) => patch(`/broker/team/${resolvedParams.id}`, body),
     {
       success: 'मासिक लक्ष्य सेव हो गए ✅',
       invalidate: [['team']],

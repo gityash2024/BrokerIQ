@@ -200,13 +200,94 @@ export class OrganizationsController {
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
-  @Patch('broker/team/:userId')
-  async updateMember(
+  @Patch('broker/team/targets')
+  async updateTargets(
     @CurrentUser() user: RequestUser,
-    @Param('userId') userId: string,
     @Body(
       new ZodPipe(
         z.object({
+          agentId: z.string().min(1),
+          targets: z.object({
+            monthlyDeals: z.number().nonnegative().optional(),
+            monthlyRevenue: z.number().nonnegative().optional(),
+            monthlyLeads: z.number().nonnegative().optional(),
+            commissionPct: z.number().min(0).max(100).optional(),
+          }),
+        }),
+      ),
+    )
+    body: {
+      agentId: string;
+      targets: {
+        monthlyDeals?: number;
+        monthlyRevenue?: number;
+        monthlyLeads?: number;
+        commissionPct?: number;
+      };
+    },
+  ) {
+    return this.updateMember(user, body.agentId, { targets: body.targets });
+  }
+
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
+  @Get('broker/team/members/:userId')
+  @Get('broker/team/:userId')
+  async getMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
+    const isSuper = user.role === 'SUPER_ADMIN';
+    const member = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        avatarUrl: true,
+        createdAt: true,
+        organizationId: true,
+      },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+    if (!isSuper && member.organizationId !== user.orgId && member.id !== user.id) {
+      throw new ForbiddenException();
+    }
+    const loc = await this.prisma.userLocation.findFirst({
+      where: { userId: member.id },
+      orderBy: { capturedAt: 'desc' },
+    });
+    let targets = null;
+    if (member.organizationId) {
+      const setting = await this.prisma.orgSetting.findUnique({
+        where: { organizationId_key: { organizationId: member.organizationId, key: 'agent_targets' } },
+      });
+      const allTargets = (setting?.value as Record<string, any>) || {};
+      targets = allTargets[member.id] || null;
+    }
+    const docs = await this.prisma.kycDocument.findMany({
+      where: { userId: member.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      member: {
+        ...member,
+        lastLocation: loc,
+        targets,
+      },
+      kyc: docs,
+    };
+  }
+
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
+  @Patch('broker/team/members/:userId')
+  @Patch('broker/team/:userId')
+  async updateMember(
+    @CurrentUser() user: RequestUser,
+    @Param('userId') paramUserId: string,
+    @Body(
+      new ZodPipe(
+        z.object({
+          agentId: z.string().optional(),
           name: z.string().min(2).max(100).optional(),
           phone: z.string().optional().nullable(),
           role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(),
@@ -223,6 +304,7 @@ export class OrganizationsController {
       ),
     )
     body: {
+      agentId?: string;
       name?: string;
       phone?: string | null;
       role?: 'BROKER_ADMIN' | 'BROKER_AGENT';
@@ -235,6 +317,7 @@ export class OrganizationsController {
       };
     },
   ) {
+    const userId = paramUserId === 'targets' && body.agentId ? body.agentId : paramUserId;
     const isSuper = user.role === 'SUPER_ADMIN';
     const member = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!member) throw new NotFoundException('Member not found');
@@ -279,6 +362,7 @@ export class OrganizationsController {
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
+  @Delete('broker/team/members/:userId')
   @Delete('broker/team/:userId')
   async removeMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
     const isSuper = user.role === 'SUPER_ADMIN';

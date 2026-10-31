@@ -13,11 +13,11 @@ function Inner({ children }: { children: React.ReactNode }) {
   const groups: NavGroup[] = [
     {
       items: [
-        { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
-        { href: '/admin/brokers', label: 'Broker firms', icon: Building2 },
-        { href: '/admin/modules', label: 'Modules & permissions', icon: ToggleRight },
-        { href: '/admin/settings/integrations', label: 'Integrations', icon: KeyRound, badge: missing || null },
-        { href: '/admin/system', label: 'System', icon: SlidersHorizontal },
+        { href: '/admin', label: 'Overview', icon: LayoutDashboard, iconImage: '/icons/sidebar/admin_overview.png', exact: true },
+        { href: '/admin/brokers', label: 'Broker firms', icon: Building2, iconImage: '/icons/sidebar/admin_brokers.png' },
+        { href: '/admin/modules', label: 'Modules & permissions', icon: ToggleRight, iconImage: '/icons/sidebar/admin_modules.png' },
+        { href: '/admin/settings/integrations', label: 'Integrations', icon: KeyRound, iconImage: '/icons/sidebar/admin_integrations.png', badge: missing || null },
+        { href: '/admin/system', label: 'System', icon: SlidersHorizontal, iconImage: '/icons/sidebar/admin_system.png' },
       ],
     },
   ];
