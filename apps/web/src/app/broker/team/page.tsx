@@ -53,7 +53,7 @@ import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
-import { TeamLeaderboardView, TeamLeaderboardModal } from '@/components/broker/team/team-leaderboard';
+import { TeamLeaderboardView } from '@/components/broker/team/team-leaderboard';
 
 export default function TeamPage() {
   const router = useRouter();
@@ -61,7 +61,6 @@ export default function TeamPage() {
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const q = useTeam();
   const [invite, setInvite] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const inv = [['team']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
     success: 'अपडेट हो गया ✅',
@@ -191,7 +190,7 @@ export default function TeamPage() {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => setShowLeaderboard(true)}
+              onClick={() => router.push('/broker/team/leaderboard')}
               className="border-amber-300/40 hover:border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold"
             >
               <Trophy className="size-4 mr-1.5 text-amber-500" /> Leaderboard
@@ -531,12 +530,6 @@ export default function TeamPage() {
       )}
 
       <InviteDialog open={invite} onOpenChange={setInvite} />
-      <TeamLeaderboardModal
-        open={showLeaderboard}
-        onOpenChange={setShowLeaderboard}
-        members={members}
-        currentUserId={user?.id}
-      />
       <AgentDetailsAndTargetModal
         agent={selectedAgent}
         open={!!selectedAgent}

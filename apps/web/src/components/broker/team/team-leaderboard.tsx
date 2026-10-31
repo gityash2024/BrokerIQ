@@ -72,7 +72,7 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
-              टीम लीडरबोर्ड <span className="text-xs px-2 py-0.5 rounded-full bg-brand/10 text-brand font-bold">Team Rankings</span>
+              टीम लीडरबोर्ड <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-600 dark:text-brand-400 font-bold">Team Rankings</span>
             </h2>
             <p className="text-xs text-muted">सर्वश्रेष्ठ प्रदर्शन, डील्स व टार्गेट पूर्ति के आधार पर रैंकिंग</p>
           </div>
@@ -91,9 +91,9 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
               type="button"
               onClick={() => setTimeframe(t.id as Timeframe)}
               className={cn(
-                'px-3 py-1.5 rounded-lg transition-all',
+                'px-3 py-1.5 rounded-lg transition-all text-xs font-bold',
                 timeframe === t.id
-                  ? 'bg-brand text-white shadow-sm'
+                  ? 'bg-brand-600 text-white shadow-sm ring-1 ring-brand-700/30 dark:bg-brand-500'
                   : 'text-muted hover:text-fg hover:bg-surface-2',
               )}
             >
@@ -111,19 +111,19 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
             <div className="flex items-center gap-3.5">
               <div className="relative">
                 <Avatar name={myStats.name} src={myStats.avatarUrl} size={48} />
-                <span className="absolute -bottom-1 -right-1 size-6 rounded-full bg-brand text-white text-xs font-black flex items-center justify-center shadow-md border-2 border-surface">
+                <span className="absolute -bottom-1 -right-1 size-6 rounded-full bg-brand-600 text-white text-xs font-black flex items-center justify-center shadow-md border-2 border-surface">
                   #{myRankIndex + 1}
                 </span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-base text-fg">{myStats.name}</h3>
-                  <span className="px-2 py-0.5 rounded-full bg-brand text-white text-[10px] font-black tracking-wider uppercase">
+                  <span className="px-2 py-0.5 rounded-full bg-brand-600 text-white text-[10px] font-black tracking-wider uppercase">
                     आप (You)
                   </span>
                 </div>
                 <p className="text-xs text-muted mt-0.5">
-                  टीम में आपकी वर्तमान रैंक: <strong className="text-brand">#{myRankIndex + 1}</strong> (कुल {rankedMembers.length} सक्रिय सदस्यों में से)
+                  टीम में आपकी वर्तमान रैंक: <strong className="text-brand-600 dark:text-brand-400">#{myRankIndex + 1}</strong> (कुल {rankedMembers.length} सक्रिय सदस्यों में से)
                 </p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
               <div className="h-8 w-px bg-line" />
               <div className="text-right">
                 <span className="text-[11px] text-muted block uppercase font-bold tracking-wider">Target %</span>
-                <span className="text-xl font-black text-brand">
+                <span className="text-xl font-black text-brand-600 dark:text-brand-400">
                   {myStats.targetPercent}%
                 </span>
               </div>
@@ -306,7 +306,7 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-fg">{m.name}</span>
                             {isMe && (
-                              <span className="px-1.5 py-0.2 rounded bg-brand text-white text-[9px] font-black uppercase">
+                              <span className="px-1.5 py-0.5 rounded bg-brand-600 text-white text-[9px] font-black uppercase">
                                 आप
                               </span>
                             )}
@@ -335,7 +335,7 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
                       <div className="space-y-1">
                         <div className="flex justify-between text-[11px]">
                           <span className="font-bold text-muted">{m.displayDeals} / {m.targetDeals} डील्स</span>
-                          <span className="font-extrabold text-brand">{m.targetPercent}%</span>
+                          <span className="font-extrabold text-brand-600 dark:text-brand-400">{m.targetPercent}%</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-surface-2 overflow-hidden border border-line">
                           <div
@@ -344,7 +344,7 @@ export function TeamLeaderboardView({ members = [], currentUserId, isModal = fal
                               m.targetPercent >= 100
                                 ? 'bg-emerald-500'
                                 : m.targetPercent >= 60
-                                ? 'bg-brand'
+                                ? 'bg-brand-600'
                                 : 'bg-amber-500',
                             )}
                             style={{ width: `${Math.min(100, m.targetPercent)}%` }}
