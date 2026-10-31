@@ -189,6 +189,7 @@ function NavEntry({
         <div className="ml-5 space-y-0.5 border-l-2 border-line/70 pl-3">
           {allowedChildren.map((child) => {
             const childActive = isActive(pathname, child);
+            const ChildIcon = child.icon;
             return (
               <Link
                 key={child.href}
@@ -201,7 +202,17 @@ function NavEntry({
                     : 'text-muted hover:bg-surface-2 hover:text-fg',
                 )}
               >
-                <span>{child.label}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  {ChildIcon && (
+                    <ChildIcon
+                      className={cn(
+                        'size-3.5 shrink-0 transition-colors',
+                        childActive ? 'text-brand-600 dark:text-brand-400' : 'text-subtle group-hover:text-fg'
+                      )}
+                    />
+                  )}
+                  <span className="truncate">{child.label}</span>
+                </div>
                 {child.badge ? (
                   <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
                     {child.badge}

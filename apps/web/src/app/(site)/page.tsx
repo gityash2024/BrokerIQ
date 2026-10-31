@@ -15,15 +15,16 @@ export default async function Home() {
     process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37') && !process.env.ANDROID_RELEASE_URL?.includes('build38') && !process.env.ANDROID_RELEASE_URL?.includes('build39')
       ? process.env.ANDROID_RELEASE_SHA256
       : 'db10b604fc12406b9b94e341e2a2732e9ef5b5bab09ccf5e4be0040dba3bde30';
+  const releaseDate = process.env.RELEASE_UPDATED_AT || new Date().toISOString();
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={releaseApkUrl}
       checksum={releaseChecksum}
       releaseUpdates={{
-        user: process.env.RELEASE_UPDATED_AT || '2026-10-31T05:10:00Z',
-        broker: process.env.RELEASE_UPDATED_AT || '2026-10-31T05:10:00Z',
-        android: process.env.RELEASE_UPDATED_AT || '2026-10-31T05:10:00Z',
+        user: releaseDate,
+        broker: releaseDate,
+        android: releaseDate,
       }}
       screenshots={[
         {

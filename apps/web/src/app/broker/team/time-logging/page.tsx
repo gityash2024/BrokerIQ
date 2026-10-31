@@ -18,9 +18,10 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn, qs } from '@/lib/utils';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
@@ -149,12 +150,14 @@ interface StatusResponse {
 function TimeLoggingContent() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isAgent = user?.role === 'BROKER_AGENT';
 
   // Filters State
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>('');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIst());
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  const [punchLoading, setPunchLoading] = useState(false);
 
   // 1. Fetch broker firms if Super Admin
   const brokersQuery = useQuery({
@@ -163,17 +166,21 @@ function TimeLoggingContent() {
     enabled: isSuperAdmin,
   });
 
-  // 2. Fetch team members (with optional orgId override for Super Admin)
+  // 2. Fetch team members (with optional orgId override for Super Admin, disabled for agent)
   const teamQuery = useQuery({
     queryKey: ['broker-team-time-logging', selectedBrokerId],
     queryFn: () => api<BrokerTeamResponse>(`/broker/team${qs({ orgId: selectedBrokerId || undefined })}`),
+    enabled: !isAgent,
   });
 
   const members = teamQuery.data?.members ?? [];
 
-  // Active agent: fallback to first member if none selected
-  const activeAgentId = selectedAgentId || (members.length > 0 ? members[0].id : user?.id || '');
-  const activeAgent = members.find((m) => m.id === activeAgentId);
+  // Active agent: for agents, strictly locked to their own id; for admins, selectable
+  const activeAgentId = isAgent
+    ? (user?.id || '')
+    : (selectedAgentId || (members.length > 0 ? members[0].id : user?.id || ''));
+  const activeAgent = isAgent ? user : members.find((m) => m.id === activeAgentId);
+  const isMe = activeAgentId === user?.id;
 
   // 3. Fetch agent status (duty state, active shift)
   const statusQuery = useQuery({
@@ -228,6 +235,65 @@ function TimeLoggingContent() {
     statusQuery.refetch();
   };
 
+  const handleWebPunchIn = async () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setPunchLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await api('/time-logging/punch-in', {
+            method: 'POST',
+            body: {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+            },
+          });
+          toast.success('Successfully punched in!');
+          handleRefresh();
+        } catch (e) {
+          toast.error(errorMessage(e));
+        } finally {
+          setPunchLoading(false);
+        }
+      },
+      (err) => {
+        setPunchLoading(false);
+        toast.error('Location permission is required to punch in: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  const handleWebPunchOut = async () => {
+    setPunchLoading(true);
+    try {
+      await api('/time-logging/punch-out', { method: 'POST', body: {} });
+      toast.success('Successfully punched out!');
+      handleRefresh();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setPunchLoading(false);
+    }
+  };
+
+  const handleWebResume = async () => {
+    setPunchLoading(true);
+    try {
+      await api('/time-logging/resume', { method: 'POST', body: {} });
+      toast.success('Shift resumed!');
+      handleRefresh();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setPunchLoading(false);
+    }
+  };
+
   const setPresetToday = () => setSelectedDate(getTodayIst());
   const setPresetYesterday = () => {
     const yesterday = new Date(Date.now() - 86400_000);
@@ -272,24 +338,31 @@ function TimeLoggingContent() {
             </div>
           )}
 
-          {/* Agent Dropdown Selector */}
-          <div className="w-60">
-            <Select
-              className="h-10 text-xs font-semibold"
-              value={activeAgentId}
-              onChange={(e) => setSelectedAgentId(e.target.value)}
-            >
-              {members.length === 0 ? (
-                <option value="">No agents found</option>
-              ) : (
-                members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
-                  </option>
-                ))
-              )}
-            </Select>
-          </div>
+          {/* Agent Dropdown Selector for Admin, or User Indicator for Agent */}
+          {isAgent ? (
+            <div className="flex items-center gap-2 h-10 px-3.5 rounded-xl border border-line bg-surface-2 text-xs font-bold text-fg">
+              <User className="size-3.5 text-brand-600" />
+              <span>{user?.name || 'Agent'} (My Duty & Location)</span>
+            </div>
+          ) : (
+            <div className="w-60">
+              <Select
+                className="h-10 text-xs font-semibold"
+                value={activeAgentId}
+                onChange={(e) => setSelectedAgentId(e.target.value)}
+              >
+                {members.length === 0 ? (
+                  <option value="">No agents found</option>
+                ) : (
+                  members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                    </option>
+                  ))
+                )}
+              </Select>
+            </div>
+          )}
 
           {/* Date Picker Input */}
           <div className="flex items-center gap-1.5">
@@ -346,23 +419,73 @@ function TimeLoggingContent() {
               <User className="size-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            {statusQuery.isLoading ? (
-              <Skeleton className="h-6 w-24 rounded-full" />
-            ) : statusData?.status === 'ACTIVE' ? (
-              <Badge tone="success" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
-                <span className="size-2 rounded-full bg-emerald-500 animate-ping inline-block mr-1.5" />
-                ON DUTY
-              </Badge>
-            ) : statusData?.status === 'PAUSED' ? (
-              <Badge tone="warning" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
-                <Pause className="size-3 mr-1" />
-                PAUSED ({statusData.activeShift?.pauseReason || 'GPS Lost'})
-              </Badge>
-            ) : (
-              <Badge tone="neutral" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
-                OFF DUTY
-              </Badge>
+          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              {statusQuery.isLoading ? (
+                <Skeleton className="h-6 w-24 rounded-full" />
+              ) : statusData?.status === 'ACTIVE' ? (
+                <Badge tone="success" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-ping inline-block mr-1.5" />
+                  ON DUTY
+                </Badge>
+              ) : statusData?.status === 'PAUSED' ? (
+                <Badge tone="warning" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
+                  <Pause className="size-3 mr-1" />
+                  PAUSED ({statusData.activeShift?.pauseReason || 'GPS Lost'})
+                </Badge>
+              ) : (
+                <Badge tone="neutral" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
+                  OFF DUTY
+                </Badge>
+              )}
+            </div>
+
+            {/* Quick Web Actions for logged-in user */}
+            {isMe && !statusQuery.isLoading && (
+              <div className="flex items-center gap-1.5">
+                {statusData?.status === 'ACTIVE' ? (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    loading={punchLoading}
+                    onClick={handleWebPunchOut}
+                    className="h-7 text-[11px] font-bold gap-1 rounded-lg"
+                  >
+                    <LogOut className="size-3" /> Punch Out
+                  </Button>
+                ) : statusData?.status === 'PAUSED' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      loading={punchLoading}
+                      onClick={handleWebResume}
+                      className="h-7 text-[11px] font-bold gap-1 rounded-lg"
+                    >
+                      <PlayCircle className="size-3" /> Resume
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      loading={punchLoading}
+                      onClick={handleWebPunchOut}
+                      className="h-7 text-[11px] font-bold gap-1 rounded-lg"
+                    >
+                      <LogOut className="size-3" /> Punch Out
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="whatsapp"
+                    loading={punchLoading}
+                    onClick={handleWebPunchIn}
+                    className="h-7 text-[11px] font-bold gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <LogIn className="size-3" /> Punch In
+                  </Button>
+                )}
+              </div>
             )}
           </div>
           <p className="mt-2 text-xs text-subtle truncate">
@@ -606,7 +729,7 @@ function TimeLoggingContent() {
 
 export default function TimeLoggingPage() {
   return (
-    <RequireAuth roles={['BROKER_ADMIN', 'SUPER_ADMIN']}>
+    <RequireAuth roles={['BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN']}>
       <TimeLoggingContent />
     </RequireAuth>
   );

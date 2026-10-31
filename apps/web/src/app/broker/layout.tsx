@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarCheck2, Building2, Target, MessageSquareText, ShieldCheck, Users, Workflow, Plus } from 'lucide-react';
+import { CalendarCheck2, Building2, Target, MessageSquareText, ShieldCheck, Users, Workflow, Plus, Clock, Trophy } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useRealtime } from '@/lib/realtime';
@@ -112,15 +112,44 @@ function Inner({ children }: { children: React.ReactNode }) {
                     href: '/broker/team',
                     label: 'Team Members',
                     exact: true,
+                    icon: Users,
                   },
                   {
                     href: '/broker/team/time-logging',
                     label: 'Time Logging',
+                    icon: Clock,
+                  },
+                  {
+                    href: '/broker/team/leaderboard',
+                    label: 'Leaderboard',
+                    icon: Trophy,
                   },
                 ],
               },
             ]
-          : []),
+          : user?.role === 'BROKER_AGENT'
+            ? [
+                {
+                  href: '/broker/team/time-logging',
+                  label: 'Team & Agents',
+                  icon: Users,
+                  iconGradient: 'from-sky-600 to-indigo-600',
+                  iconShadow: 'shadow-sky-500/25',
+                  children: [
+                    {
+                      href: '/broker/team/time-logging',
+                      label: 'Time Logging',
+                      icon: Clock,
+                    },
+                    {
+                      href: '/broker/team/leaderboard',
+                      label: 'Leaderboard',
+                      icon: Trophy,
+                    },
+                  ],
+                },
+              ]
+            : []),
         ...(user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN'
           ? [
               {
