@@ -230,7 +230,6 @@ export class OrganizationsController {
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
-  @Get('broker/team/members/:userId')
   @Get('broker/team/:userId')
   async getMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
     const isSuper = user.role === 'SUPER_ADMIN';
@@ -278,8 +277,13 @@ export class OrganizationsController {
     };
   }
 
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
+  @Get('broker/team/members/:userId')
+  async getMemberAlias(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
+    return this.getMember(user, userId);
+  }
+
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
-  @Patch('broker/team/members/:userId')
   @Patch('broker/team/:userId')
   async updateMember(
     @CurrentUser() user: RequestUser,
@@ -362,7 +366,16 @@ export class OrganizationsController {
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
-  @Delete('broker/team/members/:userId')
+  @Patch('broker/team/members/:userId')
+  async updateMemberAlias(
+    @CurrentUser() user: RequestUser,
+    @Param('userId') paramUserId: string,
+    @Body() body: any,
+  ) {
+    return this.updateMember(user, paramUserId, body);
+  }
+
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
   @Delete('broker/team/:userId')
   async removeMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
     const isSuper = user.role === 'SUPER_ADMIN';
@@ -384,6 +397,12 @@ export class OrganizationsController {
     await this.auth.revokeAll(userId);
     await this.audit.log(user, 'team.remove', 'User', userId);
     return { ok: true };
+  }
+
+  @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
+  @Delete('broker/team/members/:userId')
+  async removeMemberAlias(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
+    return this.removeMember(user, userId);
   }
 
   @Public()
