@@ -39,8 +39,7 @@ import { useTeam } from '@/components/broker/bits';
 import { useAuth } from '@/lib/auth';
 import { patch, useApiMutation } from '@/lib/hooks';
 import { useReverseGeocode } from '@/lib/reverse-geocode';
-import { cn, formatDate } from '@/lib/utils';
-import { timeAgo } from '@brokeriq/shared';
+import { cn, formatDate, safeTimeAgo } from '@/lib/utils';
 
 export default function TeamMemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -298,7 +297,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
               </h3>
               {loc && (
                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  एक्टिव • {timeAgo(loc.capturedAt)}
+                  एक्टिव • {safeTimeAgo(loc?.capturedAt || (loc as any)?.recordedAt)}
                 </span>
               )}
             </div>

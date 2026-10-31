@@ -36,11 +36,10 @@ import {
   X,
 } from 'lucide-react';
 import * as DM from '@radix-ui/react-dropdown-menu';
-import { timeAgo } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, safeTimeAgo } from '@/lib/utils';
 import { useReverseGeocode } from '@/lib/reverse-geocode';
 import { PageHeader } from '@/components/panel/shell';
 import { useTeam } from '@/components/broker/bits';
@@ -151,7 +150,7 @@ export default function TeamPage() {
                 const kycStatus = m.kycStatus || 'UNVERIFIED';
                 const loc = m.lastLocation;
                 const dealsTarget = m.targets?.monthlyDeals || 5;
-                const dealsWon = m.fulfillment?.dealsWonMonth ?? m.stats.won30d ?? 0;
+                const dealsWon = m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0;
                 const dealsPct = m.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
 
                 return (
@@ -233,8 +232,8 @@ export default function TeamPage() {
                       )}
                     </td>
 
-                    <td className="px-4 py-3 text-center font-semibold">{m.stats.openLeads}</td>
-                    <td className="px-4 py-3 text-center font-semibold text-emerald-600">{m.stats.won30d}</td>
+                    <td className="px-4 py-3 text-center font-semibold">{m.stats?.openLeads ?? m.fulfillment?.leadsOpen ?? 0}</td>
+                    <td className="px-4 py-3 text-center font-semibold text-emerald-600">{m.stats?.won30d ?? m.fulfillment?.dealsWonMonth ?? 0}</td>
 
                     {/* Actions */}
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -447,7 +446,7 @@ function AgentDetailsAndTargetModal({
             {loc ? (
               <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="size-2 rounded-full bg-emerald-500 animate-ping" />
-                एक्टिव ({timeAgo(loc.capturedAt)})
+                एक्टिव ({safeTimeAgo(loc.capturedAt)})
               </span>
             ) : (
               <span className="text-xs text-muted">लोकेशन उपलब्ध नहीं</span>
@@ -656,7 +655,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
 function TeamLiveLocationCell({ loc }: { loc: any }) {
   const { location: geoLoc, loading } = useReverseGeocode(loc?.latitude, loc?.longitude);
 
-  if (!loc) {
+  if (!loc || loc.latitude == null || loc.longitude == null) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted">
         <span className="size-2 rounded-full bg-slate-300 dark:bg-slate-700" />
@@ -665,7 +664,8 @@ function TeamLiveLocationCell({ loc }: { loc: any }) {
     );
   }
 
-  const isRecent = loc.recordedAt && Date.now() - new Date(loc.recordedAt).getTime() < 15 * 60 * 1000;
+  const capturedTime = loc.capturedAt || loc.recordedAt || loc.createdAt;
+  const isRecent = capturedTime && Date.now() - new Date(capturedTime).getTime() < 15 * 60 * 1000;
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -681,7 +681,7 @@ function TeamLiveLocationCell({ loc }: { loc: any }) {
           )}
         </span>
         <span className={cn('font-semibold', isRecent ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted')}>
-          {timeAgo(loc.recordedAt)}
+          {safeTimeAgo(capturedTime)}
         </span>
         <a
           href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
@@ -696,7 +696,7 @@ function TeamLiveLocationCell({ loc }: { loc: any }) {
       </div>
       <div
         className="text-[11px] text-muted flex items-center gap-1 truncate max-w-[200px]"
-        title={geoLoc?.fullAddress || `${loc.latitude}, ${loc.longitude}`}
+        title={geoLoc?.fullAddress || `${Number(loc.latitude).toFixed(4)}, ${Number(loc.longitude).toFixed(4)}`}
       >
         <MapPin className="size-3 text-muted shrink-0" />
         <span className="truncate">

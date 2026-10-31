@@ -44,3 +44,26 @@ export function toLocalInput(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+export function safeTimeAgo(date: string | Date | null | undefined): string {
+  if (!date) return '—';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const t = d.getTime();
+    if (isNaN(t)) return '—';
+    const s = Math.floor((Date.now() - t) / 1000);
+    if (s < 45) return 'just now';
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const days = Math.floor(h / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    return `${Math.floor(months / 12)}y ago`;
+  } catch {
+    return '—';
+  }
+}
