@@ -12,6 +12,7 @@ import re
 import subprocess
 import tarfile
 import tempfile
+from datetime import datetime, timezone
 
 parser = argparse.ArgumentParser()
 parser.add_argument('archive', type=Path)
@@ -94,7 +95,9 @@ with tempfile.TemporaryDirectory(prefix='brokeriq-restore-', dir=archive.parent)
         row = json.loads(result.stdout.strip().splitlines()[-1])
         if row['count'] != expected_table['count'] or row['digest'] != expected_table['digest']:
             raise RuntimeError('Restored table count/digest mismatch: ' + expected_table['table'])
-    report = {'archive': archive.name, 'database': args.database, 'tablesVerified': len(manifest['database']), 'mediaFilesVerified': len(media), 'mediaBytesVerified': sum(f['bytes'] for f in media.values()), 'dumpSha256': actual_dump_hash, 'result': 'VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED'}
+    has_private = subprocess.run(['psql', '-XAt', '-c', "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='KycDocument' AND column_name='privateKey'"], env=env, capture_output=True, text=True, check=True).stdout.strip() == '1'
+    private_count = int(subprocess.run(['psql', '-XAt', '-c', 'SELECT count(*) FROM "KycDocument" WHERE "privateKey" IS NOT NULL'], env=env, capture_output=True, text=True, check=True).stdout.strip()) if has_private else 0
+    report = {'archive': archive.name, 'database': args.database, 'snapshotStartedAt': manifest['startedAt'], 'verifiedAt': datetime.now(timezone.utc).isoformat(), 'privateKycDocuments': private_count, 'tablesVerified': len(manifest['database']), 'mediaFilesVerified': len(media), 'mediaBytesVerified': sum(f['bytes'] for f in media.values()), 'dumpSha256': actual_dump_hash, 'result': 'VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED'}
     output = archive.with_suffix('.verified.json')
     output.write_text(json.dumps(report, indent=2))
     output.chmod(0o600)

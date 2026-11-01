@@ -165,3 +165,7 @@ Source privacy and review defects corrected; see KYC_PRIVATE_CHECKPOINT.md for e
 ## Production data safety checkpoint
 
 fd96714 records an actual consistent 99-table database snapshot and 595-file checksum manifest, encrypted off-host copy and successful isolated local restore with matching table digests and media hashes. No application/worker was started against restored production data; no production code/migration was applied. See BACKUP_RESTORE_20261101.md, including the local Homebrew cleanup incident and CLI repair. Refresh backup before final release if data has changed.
+
+## KYC migration rehearsal — production untouched
+
+All additive migrations applied to the actual verified production restore. All ten Cloudinary KYC originals were copied to encrypted private storage there (6,776,237 original bytes), with matching SHA-256 and full pre-migration KycDocument content digest after restoring legacy URL references. Ten original ciphertext files plus checksum report were age-archived off-host and verified. The Admin API omits ETag, so the migration now verifies stable provider identity/version and matching delivery/original downloads instead of assuming upload metadata is present. Four migration tests cover provider-boundary simulation and operations safety; live retirement is not evidenced. Production public URLs remain active until compatible web/APK and a post-copy off-host restore pass. See KYC_MIGRATION_REHEARSAL.md.

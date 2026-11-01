@@ -439,7 +439,9 @@
         "SUPER_ADMIN"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -1974,7 +1976,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2003,7 +2007,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2032,7 +2038,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2061,7 +2069,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2090,7 +2100,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2119,7 +2131,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2206,7 +2220,9 @@
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
-      "commits": [],
+      "commits": [
+        "fe70dd5"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
@@ -2223,13 +2239,14 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
+      "backend": "REHEARSED_ON_REAL_PRODUCTION_RESTORE_NOT_DEPLOYED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Ten actual Cloudinary originals: byte-identical original/delivery reads, encrypted local copies and SHA-256 re-read, unchanged original-field whole-table snapshot digest. Verified supplemental age archive. Four tests use stubbed provider mutations; actual production retirement/CDN blocking pending.",
       "notes": [
-        "Original-preserving encrypted write is implemented; actual 10-public-document migration and old URL retirement remain PENDING. Off-host backup/scratch restore verified in fd96714."
+        "Original-preserving encrypted write is implemented; actual 10-public-document migration and old URL retirement remain PENDING. Off-host backup/scratch restore verified in fd96714.",
+        "ETag was absent from Admin API metadata; corrected our migration assumption, kept stable identity/version plus two identical downloads and own SHA-256. No original/provider access was changed in production."
       ],
       "roles": [
         "TO_RECONCILE"

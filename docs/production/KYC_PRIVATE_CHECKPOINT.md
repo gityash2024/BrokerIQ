@@ -27,3 +27,7 @@ This checkpoint is not deployed. Full KYC/native capture and production privacy 
 2. Complete actual native face/pose/blink capture and device camera lifecycle acceptance; complete member detail/date/export parity and remaining languages.
 3. Old clients cannot display authenticated media as ordinary public images. Coordinate the API, web, signed upgrade APK and explicit old-client update behavior before public media retirement.
 4. Validate the installed APK, current Admin/Super Admin browser journeys, PDF runtime preflight, production role-negative tests and final media counts/hash evidence. No production completion claim until these pass.
+
+## Subsequent rehearsal
+
+See KYC_MIGRATION_REHEARSAL.md: all ten actual original documents copied privately on the verified production restore; all original fields match the snapshot digest and all original bytes match SHA-256. Their encrypted off-host supplemental archive was verified. Production copying/retirement remains pending; native pose and installed-client gates remain open. Local Admin browser additionally reviewed all five synthetic QA previews successfully.
