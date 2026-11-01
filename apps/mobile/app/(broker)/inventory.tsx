@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, FlatList, Pressable, ActivityIndicator, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
 import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger } from '@brokeriq/shared';
@@ -49,6 +49,11 @@ export default function Inventory() {
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
   const [filters, setFilters] = useState(initial);
+  const params = useLocalSearchParams();
+  const parameterKey = JSON.stringify(Object.fromEntries(Object.keys(initial).flatMap((key) => (typeof params[key] === 'string' ? [[key, params[key]]] : []))));
+  useEffect(() => {
+    setFilters({ ...initial, ...JSON.parse(parameterKey) });
+  }, [parameterKey]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);

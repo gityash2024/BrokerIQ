@@ -1,14 +1,5 @@
 import { useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Linking,
-  ScrollView,
-  Share,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, FlatList, Linking, ScrollView, Share, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Compass,
@@ -39,22 +30,7 @@ import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { useTeam } from '@/components/crm';
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Chip,
-  ErrorView,
-  Header,
-  IconBtn,
-  Input,
-  Row,
-  Screen,
-  Sheet,
-  Skeleton,
-  Txt,
-} from '@/ui';
+import { Avatar, Badge, Button, Card, Chip, ErrorView, Header, IconBtn, Input, Row, Screen, Sheet, Skeleton, Txt } from '@/ui';
 
 export default function Team() {
   const { c, isDark } = useTheme();
@@ -99,13 +75,11 @@ export default function Team() {
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'VERIFIED'>('ALL');
 
-  const members = [...(q.data?.members ?? [])].sort(
-    (a, b) => (b.stats?.won30d ?? 0) - (a.stats?.won30d ?? 0),
-  );
+  const members = [...(q.data?.members ?? [])].sort((a, b) => (b.stats?.won30d ?? 0) - (a.stats?.won30d ?? 0));
 
   const filteredMembers = members.filter((m: any) => {
     if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
-    const isLive = m.lastLocation && (Date.now() - new Date(m.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000);
+    const isLive = m.lastLocation && Date.now() - new Date(m.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000;
     if (statusFilter === 'LIVE' && !isLive) return false;
     if (statusFilter === 'VERIFIED' && m.kycStatus !== 'VERIFIED') return false;
     if (search.trim()) {
@@ -142,11 +116,22 @@ export default function Team() {
         />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-          <Chip label={`सभी (${members.length})`} active={roleFilter === 'ALL' && statusFilter === 'ALL'} onPress={() => { setRoleFilter('ALL'); setStatusFilter('ALL'); }} />
+          <Chip
+            label={`सभी (${members.length})`}
+            active={roleFilter === 'ALL' && statusFilter === 'ALL'}
+            onPress={() => {
+              setRoleFilter('ALL');
+              setStatusFilter('ALL');
+            }}
+          />
           <Chip label="👑 Admin" active={roleFilter === 'BROKER_ADMIN'} onPress={() => setRoleFilter(roleFilter === 'BROKER_ADMIN' ? 'ALL' : 'BROKER_ADMIN')} />
           <Chip label="👤 Agent" active={roleFilter === 'BROKER_AGENT'} onPress={() => setRoleFilter(roleFilter === 'BROKER_AGENT' ? 'ALL' : 'BROKER_AGENT')} />
           <Chip label="🟢 Live Now" active={statusFilter === 'LIVE'} onPress={() => setStatusFilter(statusFilter === 'LIVE' ? 'ALL' : 'LIVE')} />
-          <Chip label="✅ KYC Verified" active={statusFilter === 'VERIFIED'} onPress={() => setStatusFilter(statusFilter === 'VERIFIED' ? 'ALL' : 'VERIFIED')} />
+          <Chip
+            label="✅ KYC Verified"
+            active={statusFilter === 'VERIFIED'}
+            onPress={() => setStatusFilter(statusFilter === 'VERIFIED' ? 'ALL' : 'VERIFIED')}
+          />
         </ScrollView>
       </View>
 
@@ -178,16 +163,13 @@ export default function Team() {
           renderItem={({ item: m, index }) => {
             const memberAny = m as any;
             const loc = memberAny.lastLocation;
-            const dealsTarget = memberAny.targets?.monthlyDeals || 5;
+            const dealsTarget = memberAny.targets?.monthlyDeals ?? 0;
             const dealsWon = memberAny.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0;
             const dealsPct = memberAny.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
 
             return (
               <Animated.View entering={FadeInDown.delay(index * 40)}>
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  onPress={() => setSelectedMember(m)}
-                >
+                <TouchableOpacity activeOpacity={0.75} onPress={() => setSelectedMember(m)}>
                   <Card
                     style={{
                       padding: 14,
@@ -211,7 +193,11 @@ export default function Team() {
                         <View style={{ gap: 2 }}>
                           <Row gap={6} align="center">
                             <Txt v="bodyStrong">{m.name}</Txt>
-                            {m.id === user?.id && <Txt v="caption" color="muted">(आप)</Txt>}
+                            {m.id === user?.id && (
+                              <Txt v="caption" color="muted">
+                                (आप)
+                              </Txt>
+                            )}
                           </Row>
                           <Txt v="caption" color="muted">
                             {m.phone || m.email}
@@ -225,9 +211,7 @@ export default function Team() {
                         ) : (
                           <Badge label="Agent" color="#3B82F6" />
                         )}
-                        {m.status === 'SUSPENDED' && (
-                          <Badge label="Suspended" color="#EF4444" />
-                        )}
+                        {m.status === 'SUSPENDED' && <Badge label="Suspended" color="#EF4444" />}
                       </View>
                     </Row>
 
@@ -252,7 +236,9 @@ export default function Team() {
                         ) : (
                           <Row gap={6} align="center">
                             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.muted }} />
-                            <Txt v="caption" color="muted">Offline</Txt>
+                            <Txt v="caption" color="muted">
+                              Offline
+                            </Txt>
                           </Row>
                         )}
 
@@ -271,7 +257,9 @@ export default function Team() {
                       {/* Target Progress Bar */}
                       <View style={{ gap: 3, marginTop: 2 }}>
                         <Row justify="space-between">
-                          <Txt v="caption" color="muted">मासिक डील्स लक्ष्य:</Txt>
+                          <Txt v="caption" color="muted">
+                            मासिक डील्स लक्ष्य:
+                          </Txt>
                           <Txt v="caption" style={{ fontWeight: '800' }}>
                             {dealsWon} / {dealsTarget} won ({dealsPct}%)
                           </Txt>
@@ -359,20 +347,20 @@ function MemberDetailSheet({
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [deals, setDeals] = useState('5');
-  const [leads, setLeads] = useState('30');
-  const [revenue, setRevenue] = useState('500000');
-  const [commission, setCommission] = useState('10');
+  const [deals, setDeals] = useState('0');
+  const [leads, setLeads] = useState('0');
+  const [revenue, setRevenue] = useState('0');
+  const [commission, setCommission] = useState('0');
 
   // Initialize values when member opened
   useState(() => {
     if (member) {
       setName(member.name || '');
       setPhone(member.phone || '');
-      setDeals(String(member.targets?.monthlyDeals ?? 5));
-      setLeads(String(member.targets?.monthlyLeads ?? 30));
-      setRevenue(String(member.targets?.monthlyRevenue ?? 500000));
-      setCommission(String(member.targets?.commissionPct ?? 10));
+      setDeals(String(member.targets?.monthlyDeals ?? 0));
+      setLeads(String(member.targets?.monthlyLeads ?? 0));
+      setRevenue(String(member.targets?.monthlyRevenue ?? 0));
+      setCommission(String(member.targets?.commissionPct ?? 0));
     }
   });
 
@@ -407,8 +395,12 @@ function MemberDetailSheet({
         <Row gap={12} align="center" style={{ padding: 12, backgroundColor: isDark ? '#141829' : '#F1F5F9', borderRadius: 14 }}>
           <Avatar name={member.name} uri={member.avatarUrl} size={48} />
           <View style={{ flex: 1 }}>
-            <Txt v="bodyStrong" style={{ fontSize: 16 }}>{member.name}</Txt>
-            <Txt v="caption" color="muted">{member.email}</Txt>
+            <Txt v="bodyStrong" style={{ fontSize: 16 }}>
+              {member.name}
+            </Txt>
+            <Txt v="caption" color="muted">
+              {member.email}
+            </Txt>
             <Row gap={6} style={{ marginTop: 4 }}>
               <Badge label={member.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'} color={member.role === 'BROKER_ADMIN' ? c.brand : '#3B82F6'} />
               <Badge label={member.kycStatus || 'UNVERIFIED'} color={member.kycStatus === 'VERIFIED' ? '#10B981' : '#F59E0B'} />
@@ -428,7 +420,9 @@ function MemberDetailSheet({
                 🟢 {timeAgo(loc.capturedAt)}
               </Txt>
             ) : (
-              <Txt v="caption" color="muted">Offline</Txt>
+              <Txt v="caption" color="muted">
+                Offline
+              </Txt>
             )}
           </Row>
 
@@ -460,39 +454,19 @@ function MemberDetailSheet({
 
           <Row gap={10}>
             <View style={{ flex: 1 }}>
-              <Input
-                label="Deals Target"
-                value={deals}
-                onChangeText={setDeals}
-                keyboardType="numeric"
-              />
+              <Input label="Deals Target" value={deals} onChangeText={setDeals} keyboardType="numeric" />
             </View>
             <View style={{ flex: 1 }}>
-              <Input
-                label="Leads Target"
-                value={leads}
-                onChangeText={setLeads}
-                keyboardType="numeric"
-              />
+              <Input label="Leads Target" value={leads} onChangeText={setLeads} keyboardType="numeric" />
             </View>
           </Row>
 
           <Row gap={10}>
             <View style={{ flex: 1 }}>
-              <Input
-                label="Revenue (₹)"
-                value={revenue}
-                onChangeText={setRevenue}
-                keyboardType="numeric"
-              />
+              <Input label="Revenue (₹)" value={revenue} onChangeText={setRevenue} keyboardType="numeric" />
             </View>
             <View style={{ flex: 1 }}>
-              <Input
-                label="Commission %"
-                value={commission}
-                onChangeText={setCommission}
-                keyboardType="numeric"
-              />
+              <Input label="Commission %" value={commission} onChangeText={setCommission} keyboardType="numeric" />
             </View>
           </Row>
         </Card>
@@ -539,14 +513,10 @@ function MemberDetailSheet({
               icon={<UserMinus size={15} color="#EF4444" />}
               style={{ borderColor: '#EF4444' }}
               onPress={() => {
-                Alert.alert(
-                  'Team से हटाएँ?',
-                  `क्या आप ${member.name} को टीम से हटाना चाहते हैं? उनकी सभी leads unassigned हो जाएँगी।`,
-                  [
-                    { text: 'रद्द करें', style: 'cancel' },
-                    { text: 'हटाएँ', style: 'destructive', onPress: () => onRemove(member.id) },
-                  ],
-                );
+                Alert.alert('Team से हटाएँ?', `क्या आप ${member.name} को टीम से हटाना चाहते हैं? उनकी सभी leads unassigned हो जाएँगी।`, [
+                  { text: 'रद्द करें', style: 'cancel' },
+                  { text: 'हटाएँ', style: 'destructive', onPress: () => onRemove(member.id) },
+                ]);
               }}
             />
           </Card>

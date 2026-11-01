@@ -3510,5 +3510,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "അഞ്ച് ഉപകരണങ്ങളിൽ സൈൻ ഇൻ ചെയ്തിരിക്കുന്നു. ഈ ഉപകരണത്തിൽ തുടരാൻ ഒന്ന് തിരഞ്ഞെടുക്കുക.",
  "Sign out this device and continue": "ഈ ഉപകരണത്തിൽ നിന്ന് സൈൻ ഔട്ട് ചെയ്ത് തുടരുക",
  "Unknown device": "അജ്ഞാത ഉപകരണം",
- "Last active": "അവസാന പ്രവർത്തനം"
+ "Last active": "അവസാന പ്രവർത്തനം",
+ "Today's Focus": "ഇന്നത്തെ ജോലി",
+ "All properties": "എല്ലാ വസ്തുക്കളും",
+ "Publication reviews": "പ്രസിദ്ധീകരണ അവലോകനം",
+ "Public listings": "പൊതു ലിസ്റ്റിംഗുകൾ",
+ "Conversations": "സംഭാഷണങ്ങൾ",
+ "Capture & imports": "ക്യാപ്ചറും ഇറക്കുമതിയും",
+ "Scan property or requirement": "വസ്തു അല്ലെങ്കിൽ ആവശ്യം സ്കാൻ ചെയ്യുക",
+ "WhatsApp export & paste": "WhatsApp കയറ്റുമതിയും പേസ്റ്റും",
+ "Public listing drafts": "പൊതു ലിസ്റ്റിംഗ് ഡ്രാഫ്റ്റുകൾ",
+ "My work": "എന്റെ ജോലി",
+ "Time Logging": "സമയ രേഖ",
+ "Rules & execution history": "നിയമങ്ങളും പ്രവർത്തന ചരിത്രവും",
+ "Housing & connectors": "Housing കണക്ടറുകൾ",
+ "Other tools": "മറ്റ് ടൂളുകൾ",
+ "Find a module or tool": "മൊഡ്യൂൾ അല്ലെങ്കിൽ ടൂൾ തിരയുക",
+ "Search your workspace": "നിങ്ങളുടെ പ്രവർത്തനസ്ഥലത്ത് തിരയുക",
+ "Search leads, inventory, requirements…": "ലീഡുകൾ, ഇൻവെന്ററി, ആവശ്യങ്ങൾ തിരയുക…"
 }

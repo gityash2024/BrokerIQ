@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import * as DM from '@radix-ui/react-dropdown-menu';
-import { Bell, ExternalLink, LogOut, Menu, Building2, SlidersHorizontal, Compass, ChevronRight, type LucideIcon } from 'lucide-react';
+import { Bell, LogOut, Menu, Building2, SlidersHorizontal, Compass, ChevronRight, Settings, Search, Clock3, type LucideIcon } from 'lucide-react';
 import { timeAgo, type NotificationsResponse } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -19,7 +19,7 @@ import { ThemeToggle } from '../ui/theme-toggle';
 import { LanguagePicker } from '../i18n/language-picker';
 import { ModuleAccess } from './module-access';
 import { ProductCatalog } from './product-catalog';
-import { moduleAllowed, moduleForPath } from '@brokeriq/shared';
+import { brokerUpcomingModules, moduleAllowed, moduleForPath } from '@brokeriq/shared';
 
 export interface NavItem {
   href: string;
@@ -43,7 +43,8 @@ export interface NavGroup {
 }
 
 function isActive(pathname: string, item: NavItem) {
-  return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + '/');
+  const path = item.href.split('?')[0];
+  return item.exact ? pathname === path : pathname === path || pathname.startsWith(path + '/');
 }
 
 function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
@@ -53,9 +54,7 @@ function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
         className={cn(
           'relative size-7 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 group-hover:scale-110 shadow-sm',
           `bg-gradient-to-br ${item.iconGradient} text-white ${item.iconShadow || ''}`,
-          active
-            ? 'ring-2 ring-brand-500/40 shadow-md scale-105'
-            : 'opacity-90 group-hover:opacity-100',
+          active ? 'ring-2 ring-brand-500/40 shadow-md scale-105' : 'opacity-90 group-hover:opacity-100',
         )}
       >
         <item.icon className="size-4 text-white stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
@@ -67,32 +66,20 @@ function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
       <div
         className={cn(
           'relative size-6 shrink-0 flex items-center justify-center rounded-lg overflow-hidden transition-all duration-200 group-hover:scale-110 shadow-sm border border-black/5 dark:border-white/10',
-          active
-            ? 'ring-2 ring-brand-500/30 shadow-[0_2px_10px_rgba(37,99,235,0.25)]'
-            : 'opacity-90 group-hover:opacity-100',
+          active ? 'ring-2 ring-brand-500/30 shadow-[0_2px_10px_rgba(37,99,235,0.25)]' : 'opacity-90 group-hover:opacity-100',
         )}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={item.iconImage}
           alt=""
-          className={cn(
-            'size-full object-cover select-none transition-transform duration-200',
-            active ? 'scale-105' : 'group-hover:scale-105',
-          )}
+          className={cn('size-full object-cover select-none transition-transform duration-200', active ? 'scale-105' : 'group-hover:scale-105')}
         />
       </div>
     );
   }
   if (item.icon) {
-    return (
-      <item.icon
-        className={cn(
-          'relative size-[18px]',
-          active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg',
-        )}
-      />
-    );
+    return <item.icon className={cn('relative size-[18px]', active ? 'text-brand-600 dark:text-brand-300' : 'text-subtle group-hover:text-fg')} />;
   }
   return null;
 }
@@ -103,18 +90,20 @@ function NavEntry({
   onNavigate,
   config,
   role,
+  searching,
 }: {
   item: NavItem;
   pathname: string;
   onNavigate?: () => void;
   config: any;
   role?: string;
+  searching?: boolean;
 }) {
   const allowedChildren = (item.children ?? []).filter(
     (child) =>
       isGateOpen(config, child.flag) &&
-      (child.href === '/broker/kyc' || child.href.startsWith('/broker/kyc') || !moduleForPath(child.href) || moduleAllowed(config.modules, moduleForPath(child.href)!, role ?? '')) &&
-      (!child.roles || role === 'SUPER_ADMIN' || (!!role && child.roles.includes(role)))
+      (!moduleForPath(child.href) || moduleAllowed(config.modules, moduleForPath(child.href)!, role ?? '')) &&
+      (!child.roles || role === 'SUPER_ADMIN' || (!!role && child.roles.includes(role))),
   );
 
   const hasChildren = allowedChildren.length > 0;
@@ -161,7 +150,7 @@ function NavEntry({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        aria-expanded={isOpen}
+        aria-expanded={!!(isOpen || searching)}
         className={cn(
           'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition text-left select-none',
           isItemActive ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg',
@@ -180,12 +169,12 @@ function NavEntry({
         <ChevronRight
           className={cn(
             'relative size-4 shrink-0 text-subtle transition-transform duration-200 group-hover:text-fg',
-            isOpen && 'rotate-90 text-fg',
+            (isOpen || searching) && 'rotate-90 text-fg',
           )}
         />
       </button>
 
-      {isOpen && (
+      {(isOpen || searching) && (
         <div className="ml-5 space-y-0.5 border-l-2 border-line/70 pl-3">
           {allowedChildren.map((child) => {
             const childActive = isActive(pathname, child);
@@ -197,9 +186,7 @@ function NavEntry({
                 onClick={onNavigate}
                 className={cn(
                   'group relative flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition',
-                  childActive
-                    ? 'bg-brand-50 text-brand-700 font-bold dark:bg-brand-500/15 dark:text-brand-300'
-                    : 'text-muted hover:bg-surface-2 hover:text-fg',
+                  childActive ? 'bg-brand-50 text-brand-700 font-bold dark:bg-brand-500/15 dark:text-brand-300' : 'text-muted hover:bg-surface-2 hover:text-fg',
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -207,17 +194,13 @@ function NavEntry({
                     <ChildIcon
                       className={cn(
                         'size-3.5 shrink-0 transition-colors',
-                        childActive ? 'text-brand-600 dark:text-brand-400' : 'text-subtle group-hover:text-fg'
+                        childActive ? 'text-brand-600 dark:text-brand-400' : 'text-subtle group-hover:text-fg',
                       )}
                     />
                   )}
                   <span className="truncate">{child.label}</span>
                 </div>
-                {child.badge ? (
-                  <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    {child.badge}
-                  </span>
-                ) : null}
+                {child.badge ? <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[9px] font-bold text-white">{child.badge}</span> : null}
               </Link>
             );
           })}
@@ -231,36 +214,65 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
   const pathname = usePathname();
   const config = useConfig();
   const role = useAuth().user?.role;
+  const [search, setSearch] = useState('');
+  const term = search.trim().toLocaleLowerCase();
+  const canShow = (item: NavItem) =>
+    isGateOpen(config, item.flag) &&
+    (!moduleForPath(item.href) || moduleAllowed(config.modules, moduleForPath(item.href)!, role ?? '')) &&
+    (!item.roles || role === 'SUPER_ADMIN' || (!!role && item.roles.includes(role)));
+  const visible = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(canShow).flatMap((item) => {
+        const children = item.children?.filter(canShow);
+        if (!term || item.label.toLocaleLowerCase().includes(term)) return [{ ...item, children }];
+        const matches = children?.filter((child) => child.label.toLocaleLowerCase().includes(term));
+        return matches?.length ? [{ ...item, children: matches }] : [];
+      }),
+    }))
+    .filter((group) => group.items.length);
+  const upcoming = brokerUpcomingModules(config.modules, role ?? '').filter((item) => `${item.name} ${item.description}`.toLocaleLowerCase().includes(term));
   return (
-    <nav className="space-y-6">
-      {groups
-        .map((g) => ({
-          ...g,
-          items: g.items.filter(
-            (it) =>
-              isGateOpen(config, it.flag) &&
-              (it.href === '/broker/kyc' || it.href.startsWith('/broker/kyc') || !moduleForPath(it.href) || moduleAllowed(config.modules, moduleForPath(it.href)!, role ?? '')) &&
-              (!it.roles || role === 'SUPER_ADMIN' || (!!role && it.roles.includes(role))),
-          ),
-        }))
-        .filter((g) => g.items.length)
-        .map((g, gi) => (
-          <div key={gi}>
-            {g.title && <p className="mb-2 px-3 text-[11px] font-bold tracking-wider text-subtle uppercase">{g.title}</p>}
-            <div className="space-y-0.5">
-              {g.items.map((it) => (
-                <NavEntry
-                  key={it.href}
-                  item={it}
-                  pathname={pathname}
-                  onNavigate={onNavigate}
-                  config={config}
-                  role={role}
-                />
-              ))}
-            </div>
+    <nav aria-label="Workspace navigation" className="space-y-4">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-3 size-4 text-subtle" />
+        <input
+          aria-label="Find a module or tool"
+          placeholder="Find a module or tool"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-10 w-full rounded-xl border border-line bg-surface-2 pl-9 pr-3 text-xs outline-none focus:border-brand-500"
+        />
+      </div>
+      {visible.map((group, index) => (
+        <div key={group.title ?? index}>
+          {group.title && <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-subtle">{group.title}</p>}
+          <div className="space-y-0.5">
+            {group.items.map((item) => (
+              <NavEntry key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} config={config} role={role} searching={!!term} />
+            ))}
           </div>
-        ))}
+        </div>
+      ))}
+      {!!upcoming.length && (
+        <details className="rounded-xl border border-dashed border-line" open={term ? true : undefined}>
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 py-2 text-xs font-semibold text-muted">
+            <Clock3 className="size-4" />
+            <span>Coming soon</span>
+            <span className="ml-auto text-subtle">{upcoming.length}</span>
+          </summary>
+          <div className="space-y-2 border-t border-line px-3 py-3">
+            {upcoming.map((item) => (
+              <div key={item.key} aria-disabled="true" className="rounded-lg bg-surface-2 p-2.5">
+                <p className="text-xs font-semibold text-muted">{item.name}</p>
+                <p className="mt-1 text-[11px] leading-4 text-subtle">{item.description}</p>
+                <span className="mt-1 block text-[10px] font-semibold text-subtle">Coming soon · Disabled</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+      {!visible.length && !upcoming.length && <p className="px-3 text-xs text-muted">No matching features.</p>}
     </nav>
   );
 }
@@ -359,7 +371,18 @@ export function PanelShell({
         <Nav groups={groups} onNavigate={() => setOpen(false)} />
       </div>
       {footer}
-      <div className="border-t border-line p-3">
+      <div className="border-t border-line px-3 pt-2">
+        <Link
+          href={user?.role === 'SUPER_ADMIN' ? '/admin/settings/app' : user?.role === 'USER' ? '/user/account/profile' : '/broker/settings'}
+          onClick={() => setOpen(false)}
+          className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:bg-surface-2 hover:text-fg"
+        >
+          <Settings className="size-[18px]" />
+          <span>{user?.role === 'BROKER_AGENT' ? 'My account' : 'Settings'}</span>
+        </Link>
+        {!['BROKER_ADMIN', 'BROKER_AGENT'].includes(user?.role ?? '') && <ProductCatalog />}
+      </div>
+      <div className="p-3">
         <div className="flex items-center gap-3 rounded-xl p-2">
           <Avatar name={user?.name} src={user?.avatarUrl} size={36} />
           <div className="min-w-0 flex-1">
@@ -384,24 +407,7 @@ export function PanelShell({
           <button className="rounded-xl p-2 lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">
             <Menu className="size-5" />
           </button>
-          {/* Consumer website link commented out during broker-first pivot
-          <Link href="/" target="_blank" className="hidden items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface-2 sm:flex">
-            Website <ExternalLink className="size-3.5" />
-          </Link>
-          */}
-          <Link href="/" className="hidden text-sm font-medium text-muted sm:block">
-            Website
-          </Link>
-          <div className="ml-auto flex items-center gap-3">
-            {headerExtra}
-            <ProductCatalog />
-            <Link
-              href={user?.role === 'SUPER_ADMIN' ? '/admin/settings/app' : user?.role === 'USER' ? '/user/account/profile' : '/broker/settings'}
-              className="hidden text-sm font-semibold sm:inline"
-            >
-              Settings
-            </Link>
-          </div>
+          <div className="min-w-0 flex-1">{headerExtra}</div>
           <LanguagePicker />
           <ThemeToggle />
           <NotificationsBell href={notificationsHref} />

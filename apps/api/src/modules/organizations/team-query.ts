@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { agentTargets, dashboardMonthPeriod } from '@brokeriq/shared';
 import type { RequestUser } from '../../common/decorators';
 import { requireOrg } from '../../common/utils';
 import type { PrismaService } from '../../prisma/prisma.service';
@@ -16,13 +17,7 @@ export interface BrokerTeamQueryFilters {
 }
 
 /** Full team payload, with targets, fulfillment, KYC, and live location. */
-export async function readBrokerTeam(
-  prisma: PrismaService,
-  user: RequestUser,
-  activeOnly = false,
-  overrideOrgId?: string,
-  filters?: BrokerTeamQueryFilters,
-) {
+export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, activeOnly = false, overrideOrgId?: string, filters?: BrokerTeamQueryFilters) {
   let organizationId: string;
   if (user.role === 'SUPER_ADMIN') {
     if (overrideOrgId) {
@@ -45,7 +40,8 @@ export async function readBrokerTeam(
   }
 
   const since = new Date(Date.now() - 30 * 86400_000);
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const month = dashboardMonthPeriod(new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10));
+  const monthly = { gte: month.start, lt: month.end };
 
   const userWhere: Prisma.UserWhereInput = {
     organizationId,
@@ -55,7 +51,10 @@ export async function readBrokerTeam(
   };
 
   if (filters?.ids) {
-    const idList = filters.ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const idList = filters.ids
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (idList.length > 0) userWhere.id = { in: idList };
   } else {
     if (filters?.agentId) userWhere.id = filters.agentId;
@@ -101,10 +100,7 @@ export async function readBrokerTeam(
     if (filters?.role && filters.role !== 'ALL') inviteWhere.role = filters.role as any;
     if (filters?.search && filters.search.trim()) {
       const term = filters.search.trim();
-      inviteWhere.OR = [
-        { name: { contains: term, mode: 'insensitive' } },
-        { email: { contains: term, mode: 'insensitive' } },
-      ];
+      inviteWhere.OR = [{ name: { contains: term, mode: 'insensitive' } }, { email: { contains: term, mode: 'insensitive' } }];
     }
   }
 
@@ -142,10 +138,10 @@ export async function readBrokerTeam(
     organizationId,
     members: await Promise.all(
       members.map(async (member) => {
-        const [openLeads, won30d, wonThisMonth, activities30d, kycDocs, lastLocation] = await Promise.all([
+        const [openLeads, won30d, wonThisMonth, activities30d, kycDocs, lastLocation, leadsThisMonth] = await Promise.all([
           prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: { notIn: ['WON', 'LOST'] } } }),
           prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: 'WON', stageChangedAt: { gte: since } } }),
-          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: 'WON', stageChangedAt: { gte: startOfMonth } } }),
+          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: 'WON', stageChangedAt: monthly } }),
           prisma.activity.count({ where: { organizationId, userId: member.id, createdAt: { gte: since } } }),
           prisma.kycDocument.findMany({
             where: { userId: member.id },
@@ -157,6 +153,7 @@ export async function readBrokerTeam(
             orderBy: { capturedAt: 'desc' },
             select: { latitude: true, longitude: true, accuracy: true, source: true, capturedAt: true },
           }),
+          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, createdAt: monthly } }),
         ]);
 
         let kycStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' = 'UNVERIFIED';
@@ -166,38 +163,25 @@ export async function readBrokerTeam(
           else if (kycDocs.every((d) => d.status === 'VERIFIED')) kycStatus = 'VERIFIED';
         }
 
-        const targets = allTargets[member.id] || {
-          monthlyDeals: 5,
-          monthlyRevenue: 500000,
-          monthlyLeads: 30,
-          commissionPct: 10,
-        };
-
-        const targetDeals = Number(targets.monthlyDeals) || 5;
-        const targetLeads = Number(targets.monthlyLeads) || 30;
-        const targetRevenue = Number(targets.monthlyRevenue) || 500000;
-        const commissionPct = Number(targets.commissionPct) || 10;
-
-        const dealsPercent = targetDeals > 0 ? Math.min(100, Math.round((wonThisMonth / targetDeals) * 100)) : 0;
-        const leadsPercent = targetLeads > 0 ? Math.min(100, Math.round((openLeads / targetLeads) * 100)) : 0;
+        const targets = agentTargets(allTargets[member.id]);
+        const targetDeals = targets.monthlyDeals;
+        const targetLeads = targets.monthlyLeads;
+        const dealsPercent = targetDeals ? Math.min(100, Math.round((wonThisMonth / targetDeals) * 100)) : undefined;
+        const leadsPercent = targetLeads ? Math.min(100, Math.round((leadsThisMonth / targetLeads) * 100)) : undefined;
 
         return {
           ...member,
           kycStatus,
           kycDocuments: kycDocs,
           lastLocation: lastLocation || null,
-          targets: {
-            monthlyDeals: targetDeals,
-            monthlyRevenue: targetRevenue,
-            monthlyLeads: targetLeads,
-            commissionPct,
-          },
+          targets,
           fulfillment: {
             dealsWonMonth: wonThisMonth,
             dealsPercent,
             leadsOpen: openLeads,
+            leadsReceivedMonth: leadsThisMonth,
             leadsPercent,
-            revenueTarget: targetRevenue,
+            revenueTarget: targets.monthlyRevenue,
           },
           stats: { openLeads, won30d, activities30d },
         };

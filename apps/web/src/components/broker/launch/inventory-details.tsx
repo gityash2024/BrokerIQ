@@ -38,7 +38,7 @@ export function InventoryDetails({ item, onEdit, onPublish }: { item: LedgerItem
       <div className="grid gap-3 sm:grid-cols-2">
         <Button onClick={onEdit}>Edit property</Button>
         <Button variant="secondary" onClick={onPublish}>
-          Publish / review rental
+          Publish / review property
         </Button>
       </div>
       {!!item.photoUrls?.length && (

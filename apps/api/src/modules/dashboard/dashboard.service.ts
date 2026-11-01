@@ -1,6 +1,16 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma, LeadSource, LeadStage, VisitStatus } from '@prisma/client';
-import { dashboardPeriod, INTEGRATIONS, type DashboardChart, type DashboardData, type DashboardMetric, type DashboardQuery } from '@brokeriq/shared';
+import {
+  agentTargets,
+  dashboardMonthPeriod,
+  dashboardPeriod,
+  INTEGRATIONS,
+  type PerformanceQuery,
+  type DashboardChart,
+  type DashboardData,
+  type DashboardMetric,
+  type DashboardQuery,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { ModulesService } from '../../core/features/modules.service';
@@ -13,7 +23,7 @@ export class DashboardService {
     private readonly settings: SettingsService,
     private readonly modules: ModulesService,
   ) {}
-  private metric(key: string, label: string, value: number | null, href: string, definition: string): DashboardMetric {
+  private metric(key: string, label: string, value: DashboardMetric['value'], href: string, definition: string): DashboardMetric {
     return { key, label, value, href, definition };
   }
   private chart(
@@ -24,6 +34,100 @@ export class DashboardService {
     rows: { label: string; value: number; href: string }[],
   ): DashboardChart {
     return { key, title, kind, scope, points: rows.map((r, i) => ({ key: String(i), ...r })) };
+  }
+  async performance(user: RequestUser, query: PerformanceQuery) {
+    const agent = user.role === 'BROKER_AGENT';
+    if (user.role !== 'SUPER_ADMIN' && (!user.orgId || (query.organizationId && query.organizationId !== user.orgId)))
+      throw new ForbiddenException('Firm membership required');
+    if (!agent) await this.modules.assertPath('/broker/team', user.role);
+    const organizationId = user.role === 'SUPER_ADMIN' ? query.organizationId : user.orgId!;
+    const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+    if (query.range === 'CUSTOM' && query.to && query.to > today) throw new BadRequestException('Future reporting dates are not supported');
+    const monthly = dashboardMonthPeriod(today);
+    let period = dashboardPeriod({ days: query.range === 'YEAR' ? 365 : 90 });
+    if (query.range === 'CUSTOM') period = dashboardPeriod({ days: 30, from: query.from, to: query.to });
+    if (query.range === 'MONTH') period = { ...period, from: monthly.month + '-01', start: monthly.start };
+    if (query.range === 'ALL') period = { ...period, from: '1970-01-01', start: new Date('1970-01-01T00:00:00Z') };
+    const members = await this.db.user.findMany({
+      where: {
+        ...(agent ? { id: user.id } : {}),
+        ...(organizationId ? { organizationId } : {}),
+        role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+        status: 'ACTIVE',
+        deletedAt: null,
+        organization: { status: 'ACTIVE' },
+      },
+      select: { id: true, name: true, role: true, avatarUrl: true, organizationId: true, organization: { select: { name: true } } },
+    });
+    const ids = members.map((member) => member.id);
+    const organizations = [...new Set(members.map((member) => member.organizationId!))];
+    const dateRange = { gte: period.start, lt: period.end };
+    const [wins, activities, leads, monthlyWins, settings] = await Promise.all([
+      this.db.lead.groupBy({
+        by: ['assignedToId'],
+        where: { organizationId: { in: organizations }, assignedToId: { in: ids }, deletedAt: null, stage: 'WON', stageChangedAt: dateRange },
+        _count: { _all: true },
+      }),
+      this.db.activity.groupBy({
+        by: ['userId'],
+        where: { organizationId: { in: organizations }, userId: { in: ids }, createdAt: dateRange },
+        _count: { _all: true },
+      }),
+      this.db.lead.groupBy({
+        by: ['assignedToId'],
+        where: { organizationId: { in: organizations }, assignedToId: { in: ids }, deletedAt: null, createdAt: dateRange },
+        _count: { _all: true },
+      }),
+      this.db.lead.groupBy({
+        by: ['assignedToId'],
+        where: {
+          organizationId: { in: organizations },
+          assignedToId: { in: ids },
+          deletedAt: null,
+          stage: 'WON',
+          stageChangedAt: { gte: monthly.start, lt: monthly.end },
+        },
+        _count: { _all: true },
+      }),
+      this.db.orgSetting.findMany({ where: { organizationId: { in: organizations }, key: 'agent_targets' }, select: { organizationId: true, value: true } }),
+    ]);
+    const targetMap = new Map(settings.map((setting) => [setting.organizationId, setting.value as Record<string, unknown>]));
+    const winMap = new Map(wins.map((row) => [row.assignedToId, row._count._all]));
+    const monthMap = new Map(monthlyWins.map((row) => [row.assignedToId, row._count._all]));
+    const activityMap = new Map(activities.map((row) => [row.userId, row._count._all]));
+    const leadMap = new Map(leads.map((row) => [row.assignedToId, row._count._all]));
+    const rows = members
+      .map((member) => {
+        const targets = agentTargets(targetMap.get(member.organizationId!)?.[member.id]);
+        const monthWon = monthMap.get(member.id) ?? 0;
+        return {
+          id: member.id,
+          name: member.name,
+          avatarUrl: member.avatarUrl,
+          role: member.role,
+          organizationId: member.organizationId,
+          organizationName: member.organization?.name,
+          wonLeads: winMap.get(member.id) ?? 0,
+          activities: activityMap.get(member.id) ?? 0,
+          receivedLeads: leadMap.get(member.id) ?? 0,
+          monthlyWonLeads: monthWon,
+          targets,
+          monthlyFulfillment: targets.monthlyDeals ? Math.min(100, Math.round((monthWon / targets.monthlyDeals) * 100)) : null,
+        };
+      })
+      .sort((a, b) => b.wonLeads - a.wonLeads || b.activities - a.activities || a.id.localeCompare(b.id));
+    let rank = 0;
+    const items = rows.map((row, index) => {
+      if (!index || row.wonLeads !== rows[index - 1].wonLeads || row.activities !== rows[index - 1].activities) rank = index + 1;
+      return { ...row, rank: agent ? null : rank };
+    });
+    return {
+      items,
+      scope: agent ? 'SELF' : organizationId ? 'FIRM' : 'ALL_FIRMS',
+      period: { from: period.from, to: period.to, timezone: 'Asia/Kolkata' },
+      targetMonth: monthly.month,
+      definition: 'Ranked by leads marked Won, then logged activities in the selected period. Goal fulfillment uses the current calendar month.',
+    };
   }
   async metrics(role: DashboardData['role'], q: DashboardQuery, user: RequestUser): Promise<DashboardData> {
     let p: ReturnType<typeof dashboardPeriod>;
@@ -126,17 +230,28 @@ export class DashboardService {
               take: 8,
             })
           : null,
-        on('leads') ? this.db.brokerRequirement.count({ where: { organizationId: org, deletedAt: null, status: 'OPEN',intent:'DEMAND' } }) : null,
+        on('leads') ? this.db.brokerRequirement.count({ where: { organizationId: org, deletedAt: null, status: 'OPEN', intent: 'DEMAND' } }) : null,
         on('leads') ? this.db.lead.count({ where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d } }) : null,
         on('leads') ? this.db.followUp.count({ where: { organizationId: org, ...assigned, status: 'PENDING', dueAt: { lt: new Date() } } }) : null,
-        on('leads') ? this.db.siteVisit.count({ where: { organizationId: org, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } }) : null,
-        on('leads') ? this.db.lead.groupBy({ by: ['source'], where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d }, _count: { _all: true } }) : null,
+        on('leads')
+          ? this.db.siteVisit.count({ where: { organizationId: org, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } })
+          : null,
+        on('leads')
+          ? this.db.lead.groupBy({ by: ['source'], where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d }, _count: { _all: true } })
+          : null,
         on('leads') ? this.db.lead.groupBy({ by: ['stage'], where: { organizationId: org, ...assigned, deletedAt: null }, _count: { _all: true } }) : null,
         on('inbox') ? this.db.sourceEntry.count({ where: { batch: { organizationId: org }, reviewState: 'NEEDS_REVIEW' } }) : null,
       ]);
+      const periodHref = '/broker/leads?' + new URLSearchParams({ from: p.from, to: p.to });
       const n = (key: string) => (availability ? (availability.find((r) => r.availability === key)?._count._all ?? 0) : null);
       if (user.role === 'BROKER_AGENT') {
-        const [activeLeads, wonDeals] = await Promise.all([
+        const monthPeriod = dashboardMonthPeriod(new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10));
+        const month = monthPeriod.month;
+        const monthHref =
+          '/broker/leads?' + new URLSearchParams({ from: month + '-01', to: new Date(monthPeriod.end.getTime() - 1 + 330 * 60000).toISOString().slice(0, 10) });
+        const monthly = { gte: monthPeriod.start, lt: monthPeriod.end };
+        const own = { organizationId: org, assignedToId: user.id, deletedAt: null };
+        const [activeLeads, wonDeals, wonMonth, leadsMonth, targetSetting, response] = await Promise.all([
           this.db.lead.count({
             where: {
               organizationId: org,
@@ -145,28 +260,67 @@ export class DashboardService {
               stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION'] },
             },
           }),
-          this.db.deal.count({
-            where: {
-              lead: { organizationId: org, assignedToId: user.id },
-              closedAt: d,
-            },
-          }),
+          this.db.lead.count({ where: { ...own, stage: 'WON', stageChangedAt: d } }),
+          this.db.lead.count({ where: { ...own, stage: 'WON', stageChangedAt: monthly } }),
+          this.db.lead.count({ where: { ...own, createdAt: monthly } }),
+          this.db.orgSetting.findUnique({ where: { organizationId_key: { organizationId: org, key: 'agent_targets' } } }),
+          this.db.$queryRaw<
+            { eligible: bigint; met: bigint }[]
+          >`SELECT COUNT(*) FILTER (WHERE "firstResponseAt" IS NOT NULL OR "createdAt" <= (NOW() AT TIME ZONE 'UTC') - INTERVAL '15 minutes') AS eligible, COUNT(*) FILTER (WHERE "firstResponseAt" IS NOT NULL AND "firstResponseAt" >= "createdAt" AND "firstResponseAt" <= "createdAt" + INTERVAL '15 minutes') AS met FROM "Lead" WHERE "organizationId"=${org} AND "assignedToId"=${user.id} AND "deletedAt" IS NULL AND "createdAt">=${p.start} AND "createdAt"<${p.end}`,
         ]);
-        const targetVisits = 20;
-        const targetDeals = 3;
+        const targets = agentTargets((targetSetting?.value as Record<string, unknown> | null)?.[user.id]);
+        const eligible = Number(response[0]?.eligible ?? 0);
+        const sla = eligible ? `${Math.round((Number(response[0]?.met ?? 0) / eligible) * 100)}%` : null;
         result.metrics = [
-          this.metric('myActiveLeads', 'My active leads', activeLeads, '/broker/leads', 'Assigned open leads in active pipeline'),
-          this.metric('newLeads', 'New assigned leads', leads, '/broker/leads', 'Leads assigned to you in selected period'),
+          this.metric(
+            'myActiveLeads',
+            'My active leads',
+            activeLeads,
+            '/broker/leads?stage=NEW,CONTACTED,INTERESTED,SITE_VISIT,NEGOTIATION',
+            'Assigned open leads in active pipeline',
+          ),
+          this.metric('newLeads', 'New assigned leads', leads, periodHref, 'Leads assigned to you in selected period'),
           this.metric('overdue', 'Overdue follow-ups', overdue, '/broker/follow-ups', 'Pending follow-ups due before now'),
           this.metric('visits', 'My site visits', visits, '/broker/visits', 'Scheduled/confirmed visits for your leads'),
-          this.metric('wonDeals', 'Deals closed', wonDeals, '/broker/deals', 'Closed deals won in selected period'),
-          this.metric('targetVisits', 'Visits target (monthly)', `${visits ?? 0}/${targetVisits}` as any, '/broker/visits', 'Completed/planned visits toward monthly goal of 20'),
-          this.metric('targetDeals', 'Deals target (monthly)', `${wonDeals ?? 0}/${targetDeals}` as any, '/broker/deals', 'Closed deals toward monthly goal of 3'),
-          this.metric('slaHealth', 'First response SLA', '100%' as any, '/broker/leads', 'First response within 15 mins target'),
+          this.metric(
+            'wonDeals',
+            'Won leads',
+            on('leads') ? wonDeals : null,
+            periodHref + '&stage=WON&dateField=stageChangedAt',
+            'Assigned leads marked Won in the selected period',
+          ),
+          this.metric(
+            'targetLeads',
+            'Leads target (monthly)',
+            targets.monthlyLeads === undefined ? 'Not set' : targets.monthlyLeads === 0 ? 'No monthly target' : `${leadsMonth}/${targets.monthlyLeads}`,
+            monthHref,
+            `New assigned leads in ${month}; target configured by your firm Admin`,
+          ),
+          this.metric(
+            'targetDeals',
+            'Won leads target (monthly)',
+            targets.monthlyDeals === undefined ? 'Not set' : targets.monthlyDeals === 0 ? 'No monthly target' : `${wonMonth}/${targets.monthlyDeals}`,
+            monthHref + '&stage=WON&dateField=stageChangedAt',
+            `Assigned leads marked Won in ${month}; target configured by your firm Admin`,
+          ),
+          this.metric(
+            'slaHealth',
+            'First response SLA',
+            on('leads') ? sla : null,
+            periodHref + '&responseSla=eligible',
+            eligible ? 'Eligible leads answered within 15 minutes; unanswered overdue leads count as missed' : 'No eligible leads in the selected period',
+          ),
         ];
         if (on('leads'))
           result.charts.push(
-            await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL AND "assignedToId"=${user.id}`, '/broker/leads', 'My assigned leads', 'leads'),
+            await series(
+              'Lead',
+              'createdAt',
+              Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL AND "assignedToId"=${user.id}`,
+              '/broker/leads',
+              'My assigned leads',
+              'leads',
+            ),
           );
         if (stages)
           result.charts.push(
@@ -206,7 +360,7 @@ export class DashboardService {
           ),
           this.metric('unknown', 'Availability to check', n('UNKNOWN'), '/broker/inventory?availability=UNKNOWN', 'Current records with unknown availability'),
           this.metric('requirements', 'Open requirements', requirements, '/broker/leads/requirements', 'Current open client requirements'),
-          this.metric('newLeads', 'New leads', leads, '/broker/leads', 'Leads created in the selected period'),
+          this.metric('newLeads', 'New leads', leads, periodHref, 'Leads created in the selected period'),
           this.metric('overdue', 'Overdue follow-ups', overdue, '/broker/follow-ups', 'Pending follow-ups due before now'),
           this.metric('visits', 'Planned visits', visits, '/broker/visits', 'Scheduled/confirmed visits within the selected period'),
           this.metric('sourceReviews', 'Sources to review', pendingReview, '/broker/imports', 'Current source entries awaiting your review'),

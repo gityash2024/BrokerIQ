@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowUpRight, Blocks, Clock3 } from 'lucide-react-native';
-import { catalogModules } from '@brokeriq/shared';
+import { brokerWorkspaceGroups, brokerUpcomingModules, catalogModules } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { useTheme } from '@/lib/theme';
@@ -16,6 +16,48 @@ export default function ProductTools() {
   const [search, setSearch] = useState('');
   const role = user?.role ?? 'PUBLIC';
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
+  const broker = ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role);
+  const groups = brokerWorkspaceGroups(modules, role)
+    .map((group) => ({
+      ...group,
+      links: group.links.filter((link) => link.nativeHref && (!search || `${group.label} ${link.label}`.toLowerCase().includes(search.toLowerCase()))),
+    }))
+    .filter((group) => group.links.length);
+  const upcoming = brokerUpcomingModules(modules, role).filter((item) => `${item.name} ${item.description}`.toLowerCase().includes(search.toLowerCase()));
+  if (broker)
+    return (
+      <BrokerScreen title="Product features" subtitle="Your authorized modules and tools" back>
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+          <Input accessibilityLabel="Find a module or tool" placeholder="Find a module or tool" value={search} onChangeText={setSearch} />
+          {groups.map((group) => (
+            <NativeCard key={group.key}>
+              <Txt v="h3">{group.label}</Txt>
+              {group.links.map((link) => (
+                <Button key={link.href} title={link.label} variant="secondary" onPress={() => router.push(link.nativeHref as any)} />
+              ))}
+            </NativeCard>
+          ))}
+          {!!upcoming.length && (
+            <NativeCard>
+              <Txt v="h3">Coming soon</Txt>
+              {upcoming.map((item) => (
+                <View key={item.key} accessibilityState={{ disabled: true }} style={{ gap: 4, paddingVertical: 8 }}>
+                  <Txt v="title" color="muted">
+                    {item.name}
+                  </Txt>
+                  <Txt v="caption" color="muted">
+                    {item.description}
+                  </Txt>
+                  <WorkspaceTag tone="muted" label="Coming soon · Disabled" />
+                </View>
+              ))}
+            </NativeCard>
+          )}
+          {!groups.length && !upcoming.length && <Txt color="muted">No matching features.</Txt>}
+        </ScrollView>
+      </BrokerScreen>
+    );
+
   const routes: Record<string, string> =
     role === 'BROKER_ADMIN'
       ? {

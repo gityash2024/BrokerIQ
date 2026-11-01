@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
@@ -15,7 +16,16 @@ import { offeredRequirement, moduleAllowed } from '@brokeriq/shared';
 import { formatINR, readableValue } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 export default function RequirementsPage() {
+  return (
+    <Suspense>
+      <RequirementsInner />
+    </Suspense>
+  );
+}
+function RequirementsInner() {
   const { user } = useAuth();
+  const params = useSearchParams();
+  const router = useRouter();
   const config = useConfig();
   const configStatus = useConfigStatus();
   const inventoryAllowed = configStatus.loaded && !!user && moduleAllowed(config.modules, 'inventory', user.role);
@@ -29,6 +39,22 @@ export default function RequirementsPage() {
   const [busy, setBusy] = useState(false);
   const [match, setMatch] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const requestedId = params.get('record');
+  const requested = useQuery({
+    queryKey: ['requirement-deep-link', user?.id, requestedId],
+    queryFn: () => api<any>(`/broker-requirements/${requestedId}`),
+    enabled: !!requestedId,
+  });
+  useEffect(() => {
+    if (requested.data) setEditing(requested.data);
+  }, [requested.data]);
+  function clearRequested() {
+    if (requestedId) {
+      const next = new URLSearchParams(params.toString());
+      next.delete('record');
+      router.replace('/broker/leads/requirements' + (next.size ? '?' + next : ''));
+    }
+  }
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['broker-requirements', page, search, intent],
@@ -163,12 +189,20 @@ export default function RequirementsPage() {
           Next
         </button>
       </div>
+      {requested.error && (
+        <p role="alert" className="text-sm text-rose-600">
+          {errorMessage(requested.error)}
+        </p>
+      )}
       <Dialog
         open={adding || !!editing}
         onOpenChange={(open) => {
           if (!open && dirty && !window.confirm('Discard unsaved requirement changes?')) return;
           setAdding(open);
-          if (!open) setEditing(null);
+          if (!open) {
+            setEditing(null);
+            clearRequested();
+          }
           if (!open) setDirty(false);
         }}
         title={editing ? 'Review requirement' : 'New requirement'}
@@ -182,6 +216,7 @@ export default function RequirementsPage() {
             await api(editing ? `/broker-requirements/${editing.id}` : '/broker-requirements', { method: editing ? 'PATCH' : 'POST', body });
             setAdding(false);
             setEditing(null);
+            clearRequested();
             setDirty(false);
             await qc.invalidateQueries({ queryKey: ['broker-requirements'] });
           }}

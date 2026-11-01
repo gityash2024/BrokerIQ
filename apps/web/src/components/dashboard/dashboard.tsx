@@ -1,23 +1,37 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Label, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowUpRight, CalendarDays, RefreshCw, ShieldCheck, Activity } from 'lucide-react';
-import { type DashboardData, type DashboardChart, dashboardQuerySchema } from '@brokeriq/shared';
+import { workspaceHrefAllowed, type DashboardData, type DashboardChart, dashboardQuerySchema } from '@brokeriq/shared';
+import { useConfig } from '@/lib/config';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Skeleton } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
+function Link({ href, children, ...props }: { href: string; children: React.ReactNode; className?: string; title?: string }) {
+  const { user } = useAuth();
+  const { modules } = useConfig();
+  return workspaceHrefAllowed(modules, user?.role ?? 'PUBLIC', href) ? (
+    <NextLink href={href} {...props}>
+      {children}
+    </NextLink>
+  ) : (
+    <div {...props}>{children}</div>
+  );
+}
 const COLORS = ['#4f46e5', '#f59e0b', '#0d9488', '#0284c7', '#e11d48', '#7c3aed', '#64748b'];
 function Chart({ chart }: { chart: DashboardChart }) {
   const router = useRouter();
+  const { modules } = useConfig();
+  const { user } = useAuth();
   const nonzero = chart.points.some((p) => p.value > 0);
   const open = (point: any) => {
     const href = point?.payload?.href ?? point?.href;
-    if (typeof href === 'string') router.push(href);
+    if (typeof href === 'string' && workspaceHrefAllowed(modules, user?.role ?? 'PUBLIC', href)) router.push(href);
   };
   return (
     <section className="card min-w-0 overflow-hidden p-5">
@@ -298,7 +312,7 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
                   </div>
                   <p className="metric-label">{m.label}</p>
                   <p className="metric-value">{m.value === null ? '—' : m.value.toLocaleString('en-IN')}</p>
-                  <p className="mt-2 text-[10px] leading-4 text-muted">{m.value === null ? 'Module unavailable' : m.definition}</p>
+                  <p className="mt-2 text-[10px] leading-4 text-muted">{m.definition}</p>
                 </Link>
               ))}
             </div>

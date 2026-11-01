@@ -93,8 +93,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'Today • आज का काम',
     'Follow-ups, visits and next actions',
     '/broker',
-    ['/broker/dashboard', '/broker/activity'],
-    ['/broker/dashboard', '/broker/today'],
+    ['/broker/dashboard', '/broker/activity', '/broker/performance'],
+    ['/broker/dashboard', '/broker/today', '/broker/performance'],
   ),
   core(
     'directory',

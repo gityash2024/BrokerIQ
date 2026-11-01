@@ -23,6 +23,18 @@ const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुर�
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  if (user?.role === 'BROKER_AGENT')
+    return (
+      <>
+        <PageHeader title="My account" subtitle="Your personal profile and account settings" />
+        <ProfileForm />
+      </>
+    );
+  return <FirmSettingsPage />;
+}
+
+function FirmSettingsPage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me'>(user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
   const cardOn = useFlag('visiting_card');
   const q = useQuery({ queryKey: ['broker-profile'], queryFn: () => api<any>('/broker/profile') });
@@ -36,9 +48,14 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Firm profile, microsite, business hours और verification"
         actions={
-          <><Button size="sm" variant="secondary" href="/broker/team">Team & sub-agents</Button><Button size="sm" variant="secondary" href={`/brokers/${org.slug}`} external>
-            Microsite देखें <ExternalLink className="size-3.5" />
-          </Button></>
+          <>
+            <Button size="sm" variant="secondary" href="/broker/team">
+              Team & sub-agents
+            </Button>
+            <Button size="sm" variant="secondary" href={`/brokers/${org.slug}`} external>
+              Microsite देखें <ExternalLink className="size-3.5" />
+            </Button>
+          </>
         }
       />
       <Segmented

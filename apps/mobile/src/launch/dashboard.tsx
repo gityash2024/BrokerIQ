@@ -5,33 +5,29 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { WorkspaceHero } from './workspace';
 import { ArrowUpRight, BarChart3, ChevronDown } from 'lucide-react-native';
-import { type DashboardData, type DashboardChart, type DashboardMetric, dashboardQuerySchema } from '@brokeriq/shared';
+import {
+  type DashboardData,
+  type DashboardChart,
+  type DashboardMetric,
+  dashboardQuerySchema,
+  workspaceHrefAllowed,
+  nativeDashboardPath,
+} from '@brokeriq/shared';
+import { useConfig } from '@/lib/config';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Button, ErrorView, Input, Txt } from '@/ui';
 const colors = ['#4f46e5', '#f59e0b', '#0d9488', '#0284c7', '#e11d48', '#7c3aed'];
-function href(web: string) {
-  const [path, query] = web.split('?');
-  if (path === '/broker/activity' || path === '/user/account/activity')
-    return '/dashboard-records?' + (path.startsWith('/user/') ? 'view=user&' : '') + (query ?? '');
-  const map: Record<string, string> = {
-    '/broker/inventory': '/(broker)/inventory',
-    '/broker/imports': '/(broker)/inbox',
-    '/broker/leads': '/(broker)/leads',
-    '/broker/leads/requirements': '/requirements',
-    '/broker/follow-ups': '/follow-ups',
-    '/broker/visits': '/visits',
-    '/user/account/saved': '/(user)/saved',
-    '/user/account/searches': '/(user)/saved',
-    '/user/account/enquiries': '/enquiries',
-    '/user/account/visits': '/my-visits',
-  };
-  return (map[path] ?? '/customer-overview') + (query ? '?' + query : '');
+function useDashboardDestination() {
+  const { user } = useAuth();
+  const { modules } = useConfig();
+  return (web: string) => (workspaceHrefAllowed(modules, user?.role ?? 'PUBLIC', web) ? nativeDashboardPath(web) : null);
 }
 function NativeChart({ chart }: { chart: DashboardChart }) {
   const { c } = useTheme();
+  const destination = useDashboardDestination();
   const [details, setDetails] = useState(false);
   const max = Math.max(1, ...chart.points.map((p) => p.value));
   const sum = chart.points.reduce((s, p) => s + p.value, 0);
@@ -65,7 +61,7 @@ function NativeChart({ chart }: { chart: DashboardChart }) {
                     cy={92 - (p.value / max) * 80}
                     r="3"
                     fill={c.brand}
-                    onPress={() => router.push(href(p.href) as any)}
+                    onPress={destination(p.href) ? () => router.push(destination(p.href) as any) : undefined}
                   />
                 ))}
               </>
@@ -79,44 +75,62 @@ function NativeChart({ chart }: { chart: DashboardChart }) {
                   height={(p.value / max) * 80}
                   rx="4"
                   fill={colors[i % colors.length]}
-                  onPress={() => router.push(href(p.href) as any)}
+                  onPress={destination(p.href) ? () => router.push(destination(p.href) as any) : undefined}
                 />
               ))
             ) : (
-              chart.points
-                .map((p, i) => {
-                  if (p.value <= 0) return null;
-                  const fraction = p.value / sum;
-                  const offset = cumulative;
-                  cumulative += fraction;
-                  return (
-                    <Circle
-                      key={p.key}
-                      cx="150"
-                      cy="66"
-                      r="44"
-                      fill="none"
-                      stroke={colors[i % colors.length]}
-                      strokeWidth="17"
-                      strokeDasharray={`${fraction * 276.46} ${276.46}`}
-                      strokeDashoffset={-offset * 276.46}
-                      rotation="-90"
-                      origin="150,66"
-                      onPress={() => router.push(href(p.href) as any)}
-                    />
-                  );
-                })
+              chart.points.map((p, i) => {
+                if (p.value <= 0) return null;
+                const fraction = p.value / sum;
+                const offset = cumulative;
+                cumulative += fraction;
+                return (
+                  <Circle
+                    key={p.key}
+                    cx="150"
+                    cy="66"
+                    r="44"
+                    fill="none"
+                    stroke={colors[i % colors.length]}
+                    strokeWidth="17"
+                    strokeDasharray={`${fraction * 276.46} ${276.46}`}
+                    strokeDashoffset={-offset * 276.46}
+                    rotation="-90"
+                    origin="150,66"
+                    onPress={destination(p.href) ? () => router.push(destination(p.href) as any) : undefined}
+                  />
+                );
+              })
             )}
-            {chart.kind === 'donut' && <><SvgText x="150" y="66" fill={c.fg} fontSize="20" fontWeight="700" textAnchor="middle">{sum.toLocaleString('en-IN')}</SvgText><SvgText x="150" y="82" fill={c.muted} fontSize="10" textAnchor="middle">Total</SvgText></>}
+            {chart.kind === 'donut' && (
+              <>
+                <SvgText x="150" y="66" fill={c.fg} fontSize="20" fontWeight="700" textAnchor="middle">
+                  {sum.toLocaleString('en-IN')}
+                </SvgText>
+                <SvgText x="150" y="82" fill={c.muted} fontSize="10" textAnchor="middle">
+                  Total
+                </SvgText>
+              </>
+            )}
           </Svg>
-          {chart.kind === 'donut' && chart.points.map((point, index) => point.value > 0 ? (
-            <Pressable key={point.key} accessibilityRole="button" onPress={() => router.push(href(point.href) as any)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors[index % colors.length] }} />
-              <Txt v="small" color="muted" style={{ flex: 1 }}>{point.label}</Txt>
-              <Txt v="title">{point.value.toLocaleString('en-IN')}</Txt>
-              <ArrowUpRight size={14} color={c.brand} />
-            </Pressable>
-          ) : null)}
+          {chart.kind === 'donut' &&
+            chart.points.map((point, index) =>
+              point.value > 0 ? (
+                <Pressable
+                  key={point.key}
+                  accessibilityRole="button"
+                  onPress={destination(point.href) ? () => router.push(destination(point.href) as any) : undefined}
+                  style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                >
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors[index % colors.length] }} />
+                  <Txt v="small" color="muted" style={{ flex: 1 }}>
+                    {point.label}
+                  </Txt>
+                  <Txt v="title">{point.value.toLocaleString('en-IN')}</Txt>
+                  <ArrowUpRight size={14} color={c.brand} />
+                </Pressable>
+              ) : null,
+            )}
           {chart.kind === 'line' && (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Txt v="caption" color="muted">
@@ -149,7 +163,11 @@ function NativeChart({ chart }: { chart: DashboardChart }) {
       </Pressable>
       {details &&
         chart.points.map((p, i) => (
-          <Pressable key={p.key} onPress={() => router.push(href(p.href) as any)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            key={p.key}
+            onPress={destination(p.href) ? () => router.push(destination(p.href) as any) : undefined}
+            style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          >
             <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors[i % colors.length] }} />
             <Txt v="small" style={{ flex: 1 }}>
               {p.label}
@@ -163,19 +181,33 @@ function NativeChart({ chart }: { chart: DashboardChart }) {
 }
 function NativeMetric({ metric: m, index, compact = false }: { metric: DashboardMetric; index: number; compact?: boolean }) {
   const { c } = useTheme();
+  const destination = useDashboardDestination()(m.href);
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={destination ? 'button' : undefined}
+      disabled={!destination}
       accessibilityLabel={`${m.label}: ${m.value ?? 'Unavailable'}. ${m.definition}`}
-      onPress={() => router.push(href(m.href) as any)}
-      style={{ ...(compact ? { width: 156 } : { flexGrow: 1, flexBasis: '46%' }), padding: 14, borderRadius: 20, borderWidth: 1, borderColor: c.line, backgroundColor: c.surface, gap: 4 }}
+      onPress={destination ? () => router.push(destination as any) : undefined}
+      style={{
+        ...(compact ? { width: 156 } : { flexGrow: 1, flexBasis: '46%' }),
+        padding: 14,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: c.line,
+        backgroundColor: c.surface,
+        gap: 4,
+      }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <View style={{ width: 18, height: 3, borderRadius: 3, backgroundColor: colors[index % colors.length], marginTop: 5 }} />
         <ArrowUpRight size={14} color={c.subtle} />
       </View>
-      <Txt v="h2" style={{ fontSize: 28, lineHeight: 34 }}>{m.value === null ? '—' : m.value.toLocaleString('en-IN')}</Txt>
-      <Txt v="caption" color="muted">{m.label}</Txt>
+      <Txt v="h2" style={{ fontSize: 28, lineHeight: 34 }}>
+        {m.value === null ? '—' : m.value.toLocaleString('en-IN')}
+      </Txt>
+      <Txt v="caption" color="muted">
+        {m.label}
+      </Txt>
     </Pressable>
   );
 }
@@ -194,7 +226,7 @@ export function NativeDashboard({ role }: { role: 'broker' | 'user' }) {
     refetchInterval: 60000,
   });
   const [showCustom, setShowCustom] = useState(false);
-  const currentChart = q.data?.charts.find(chart => chart.scope === 'current');
+  const currentChart = q.data?.charts.find((chart) => chart.scope === 'current');
   return (
     <View style={{ gap: 16 }}>
       <WorkspaceHero
@@ -242,21 +274,31 @@ export function NativeDashboard({ role }: { role: 'broker' | 'user' }) {
       {q.data && (
         <>
           <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
-            {q.data.metrics.slice(0, 4).map((metric, index) => <NativeMetric key={metric.key} metric={metric} index={index} />)}
+            {q.data.metrics.slice(0, 4).map((metric, index) => (
+              <NativeMetric key={metric.key} metric={metric} index={index} />
+            ))}
           </View>
           {currentChart && <NativeChart chart={currentChart} />}
-          {q.data.metrics.length > 4 && <>
-            <Txt v="caption" color="muted">More insights · Swipe to explore</Txt>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
-              {q.data.metrics.slice(4).map((metric, index) => <NativeMetric key={metric.key} metric={metric} index={index + 4} compact />)}
-            </ScrollView>
-          </>}
+          {q.data.metrics.length > 4 && (
+            <>
+              <Txt v="caption" color="muted">
+                More insights · Swipe to explore
+              </Txt>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
+                {q.data.metrics.slice(4).map((metric, index) => (
+                  <NativeMetric key={metric.key} metric={metric} index={index + 4} compact />
+                ))}
+              </ScrollView>
+            </>
+          )}
           <Txt v="caption" color="muted">
             {q.data.period.from + ' — ' + q.data.period.to + ' · IST'}
           </Txt>
-          {q.data.charts.filter(chart => chart !== currentChart).map((chart) => (
-            <NativeChart key={chart.key} chart={chart} />
-          ))}
+          {q.data.charts
+            .filter((chart) => chart !== currentChart)
+            .map((chart) => (
+              <NativeChart key={chart.key} chart={chart} />
+            ))}
           <Txt v="caption" color="subtle">
             Updated {new Date(q.data.generatedAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
           </Txt>

@@ -86,10 +86,7 @@ function IndeterminateCheckbox({
       ref={ref}
       checked={checked}
       onChange={onChange}
-      className={cn(
-        'size-4 rounded border-line bg-surface text-brand focus:ring-2 focus:ring-brand-500/20 cursor-pointer accent-brand-600',
-        className,
-      )}
+      className={cn('size-4 rounded border-line bg-surface text-brand focus:ring-2 focus:ring-brand-500/20 cursor-pointer accent-brand-600', className)}
       {...rest}
     />
   );
@@ -150,7 +147,7 @@ export default function TeamPage() {
 
       // 3. Live location filter (active within 30 min)
       const loc = m.lastLocation;
-      const isLive = loc && (Date.now() - new Date(loc.updatedAt || loc.capturedAt).getTime() <= 30 * 60 * 1000);
+      const isLive = loc && Date.now() - new Date(loc.updatedAt || loc.capturedAt).getTime() <= 30 * 60 * 1000;
       if (locationFilter === 'LIVE' && !isLive) return false;
       if (locationFilter === 'OFFLINE' && isLive) return false;
 
@@ -184,14 +181,14 @@ export default function TeamPage() {
         if (sortColumn === 'name') diff = (a.name || '').localeCompare(b.name || '');
         else if (sortColumn === 'role') diff = (a.role || '').localeCompare(b.role || '');
         else if (sortColumn === 'location') {
-          const aLive = a.lastLocation && (Date.now() - new Date(a.lastLocation.updatedAt || a.lastLocation.capturedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
-          const bLive = b.lastLocation && (Date.now() - new Date(b.lastLocation.updatedAt || b.lastLocation.capturedAt).getTime() <= 30 * 60 * 1000) ? 1 : 0;
+          const aLive = a.lastLocation && Date.now() - new Date(a.lastLocation.updatedAt || a.lastLocation.capturedAt).getTime() <= 30 * 60 * 1000 ? 1 : 0;
+          const bLive = b.lastLocation && Date.now() - new Date(b.lastLocation.updatedAt || b.lastLocation.capturedAt).getTime() <= 30 * 60 * 1000 ? 1 : 0;
           diff = aLive - bLive;
         } else if (sortColumn === 'target') {
-          const aTarget = Number(a.targets?.monthlyDeals) || 5;
-          const bTarget = Number(b.targets?.monthlyDeals) || 5;
-          const aPct = aTarget > 0 ? ((a.fulfillment?.dealsWonMonth ?? a.stats?.won30d ?? 0) / aTarget) : 0;
-          const bPct = bTarget > 0 ? ((b.fulfillment?.dealsWonMonth ?? b.stats?.won30d ?? 0) / bTarget) : 0;
+          const aTarget = Number(a.targets?.monthlyDeals ?? 0);
+          const bTarget = Number(b.targets?.monthlyDeals ?? 0);
+          const aPct = aTarget > 0 ? (a.fulfillment?.dealsWonMonth ?? a.stats?.won30d ?? 0) / aTarget : 0;
+          const bPct = bTarget > 0 ? (b.fulfillment?.dealsWonMonth ?? b.stats?.won30d ?? 0) / bTarget : 0;
           diff = aPct - bPct;
         } else if (sortColumn === 'kyc') {
           diff = (a.kycStatus || 'UNVERIFIED').localeCompare(b.kycStatus || 'UNVERIFIED');
@@ -220,10 +217,8 @@ export default function TeamPage() {
     });
 
   // Selection helpers
-  const isAllFilteredSelected =
-    filteredMembers.length > 0 && filteredMembers.every((m: any) => selectedIds.has(m.id));
-  const isSomeFilteredSelected =
-    filteredMembers.some((m: any) => selectedIds.has(m.id)) && !isAllFilteredSelected;
+  const isAllFilteredSelected = filteredMembers.length > 0 && filteredMembers.every((m: any) => selectedIds.has(m.id));
+  const isSomeFilteredSelected = filteredMembers.some((m: any) => selectedIds.has(m.id)) && !isAllFilteredSelected;
 
   const toggleSelectAll = () => {
     if (isAllFilteredSelected) {
@@ -276,10 +271,7 @@ export default function TeamPage() {
   if (!admin) {
     return (
       <>
-        <PageHeader
-          title="Team Leaderboard"
-          subtitle="अपनी टीम की रैंकिंग, क्लोज़ हुई डील्स व प्रदर्शन बोर्ड"
-        />
+        <PageHeader title="Team Leaderboard" subtitle="अपनी टीम की रैंकिंग, क्लोज़ हुई डील्स व प्रदर्शन बोर्ड" />
         <div className="mt-4">
           <TeamLeaderboardView members={members} currentUserId={user?.id} />
         </div>
@@ -359,11 +351,7 @@ export default function TeamPage() {
                 className="pl-9 pr-7 h-9 text-xs"
               />
               {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
-                >
+                <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg">
                   <X className="size-3.5" />
                 </button>
               )}
@@ -371,11 +359,7 @@ export default function TeamPage() {
 
             {/* Role Filter */}
             <div className="w-32">
-              <Select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as any)}
-                className="h-9 text-xs"
-              >
+              <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as any)} className="h-9 text-xs">
                 <option value="ALL">सभी रोल्स (Role)</option>
                 <option value="BROKER_ADMIN">Admin</option>
                 <option value="BROKER_AGENT">Agent</option>
@@ -384,11 +368,7 @@ export default function TeamPage() {
 
             {/* Account Status Filter */}
             <div className="w-32">
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="h-9 text-xs"
-              >
+              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="h-9 text-xs">
                 <option value="ALL">सभी स्थिति (Status)</option>
                 <option value="ACTIVE">सक्रिय (Active)</option>
                 <option value="SUSPENDED">निलंबित (Suspended)</option>
@@ -397,11 +377,7 @@ export default function TeamPage() {
 
             {/* Live Location Filter */}
             <div className="w-36">
-              <Select
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value as any)}
-                className="h-9 text-xs"
-              >
+              <Select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value as any)} className="h-9 text-xs">
                 <option value="ALL">सभी लोकेशन (Location)</option>
                 <option value="LIVE">🟢 लाइव (Active Now)</option>
                 <option value="OFFLINE">ऑफलाइन (Offline)</option>
@@ -410,11 +386,7 @@ export default function TeamPage() {
 
             {/* KYC Status Filter */}
             <div className="w-36">
-              <Select
-                value={kycFilter}
-                onChange={(e) => setKycFilter(e.target.value as any)}
-                className="h-9 text-xs"
-              >
+              <Select value={kycFilter} onChange={(e) => setKycFilter(e.target.value as any)} className="h-9 text-xs">
                 <option value="ALL">सभी KYC स्थिति</option>
                 <option value="VERIFIED">✅ प्रमाणित (Verified)</option>
                 <option value="PENDING">⏳ समीक्षाधीन (Pending)</option>
@@ -424,11 +396,7 @@ export default function TeamPage() {
 
             {/* Agent Selector Dropdown */}
             <div className="w-40">
-              <Select
-                value={agentFilter}
-                onChange={(e) => setAgentFilter(e.target.value)}
-                className="h-9 text-xs"
-              >
+              <Select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} className="h-9 text-xs">
                 <option value="ALL">सभी सदस्य (All Agents)</option>
                 {members.map((m: any) => (
                   <option key={m.id} value={m.id}>
@@ -439,20 +407,11 @@ export default function TeamPage() {
             </div>
 
             {/* Date Range Preset Filter */}
-            <DateRangeFilter
-              value={dateRange}
-              onChange={setDateRange}
-              size="xs"
-              className="min-w-[190px]"
-            />
+            <DateRangeFilter value={dateRange} onChange={setDateRange} size="xs" className="min-w-[190px]" />
 
             {/* Sort By */}
             <div className="w-36">
-              <Select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="h-9 text-xs"
-              >
+              <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="h-9 text-xs">
                 <option value="PERFORMANCE">डील्स परफ़ॉर्मेंस</option>
                 <option value="LEADS">ओपन लीड्स</option>
                 <option value="NAME">नाम (A से Z)</option>
@@ -461,12 +420,7 @@ export default function TeamPage() {
 
             {/* Clear Filter button */}
             {hasActiveFilters && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleResetFilters}
-                className="h-9 text-xs text-muted hover:text-fg"
-              >
+              <Button size="sm" variant="ghost" onClick={handleResetFilters} className="h-9 text-xs text-muted hover:text-fg">
                 <RotateCcw className="size-3.5 mr-1" /> रीसेट
               </Button>
             )}
@@ -504,11 +458,7 @@ export default function TeamPage() {
               <span className="inline-flex size-2 rounded-full bg-brand animate-pulse" />
               <span>{selectedIds.size} सदस्य चयनित (Selected for Export)</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="text-xs font-bold text-brand hover:underline"
-            >
+            <button type="button" onClick={() => setSelectedIds(new Set())} className="text-xs font-bold text-brand hover:underline">
               चयन हटाएं (Clear Selection)
             </button>
           </div>
@@ -521,11 +471,7 @@ export default function TeamPage() {
         <Empty
           icon={<Users className="size-8" />}
           title="कोई सदस्य नहीं मिला"
-          text={
-            hasActiveFilters
-              ? 'चुने गए फ़िल्टर के अनुसार कोई टीम सदस्य नहीं मिला। कृपया फ़िल्टर रीसेट करें।'
-              : 'अभी तक कोई सदस्य टीम में नहीं जुड़ा है।'
-          }
+          text={hasActiveFilters ? 'चुने गए फ़िल्टर के अनुसार कोई टीम सदस्य नहीं मिला। कृपया फ़िल्टर रीसेट करें।' : 'अभी तक कोई सदस्य टीम में नहीं जुड़ा है।'}
         />
       ) : (
         <div className="card overflow-x-auto">
@@ -541,13 +487,27 @@ export default function TeamPage() {
                     aria-label="सभी सदस्य चुनें (Select all)"
                   />
                 </th>
-                <SortableTh column="name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Member</SortableTh>
-                <SortableTh column="role" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Role</SortableTh>
-                <SortableTh column="location" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Live Location</SortableTh>
-                <SortableTh column="target" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Target & Fulfillment</SortableTh>
-                <SortableTh column="kyc" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>KYC Status</SortableTh>
-                <SortableTh column="leads" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center">Open leads</SortableTh>
-                <SortableTh column="won" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center">Won (30d)</SortableTh>
+                <SortableTh column="name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Member
+                </SortableTh>
+                <SortableTh column="role" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Role
+                </SortableTh>
+                <SortableTh column="location" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Live Location
+                </SortableTh>
+                <SortableTh column="target" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Target & Fulfillment
+                </SortableTh>
+                <SortableTh column="kyc" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  KYC Status
+                </SortableTh>
+                <SortableTh column="leads" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center">
+                  Open leads
+                </SortableTh>
+                <SortableTh column="won" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center">
+                  Won (30d)
+                </SortableTh>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -555,7 +515,7 @@ export default function TeamPage() {
               {filteredMembers.map((m: any) => {
                 const kycStatus = m.kycStatus || 'UNVERIFIED';
                 const loc = m.lastLocation;
-                const dealsTarget = m.targets?.monthlyDeals || 5;
+                const dealsTarget = m.targets?.monthlyDeals ?? 0;
                 const dealsWon = m.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0;
                 const dealsPct = m.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
                 const isSelected = selectedIds.has(m.id);
@@ -620,7 +580,9 @@ export default function TeamPage() {
                       <div>
                         <div className="flex items-center justify-between text-xs font-semibold mb-1">
                           <span className="text-muted">डील्स:</span>
-                          <span>{dealsWon} / {dealsTarget} ({dealsPct}%)</span>
+                          <span>
+                            {dealsWon} / {dealsTarget} ({dealsPct}%)
+                          </span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
                           <div
@@ -729,11 +691,7 @@ export default function TeamPage() {
       )}
 
       <InviteDialog open={invite} onOpenChange={setInvite} />
-      <AgentDetailsAndTargetModal
-        agent={selectedAgent}
-        open={!!selectedAgent}
-        onOpenChange={(v) => !v && setSelectedAgent(null)}
-      />
+      <AgentDetailsAndTargetModal agent={selectedAgent} open={!!selectedAgent} onOpenChange={(v) => !v && setSelectedAgent(null)} />
     </>
   );
 }
@@ -742,25 +700,17 @@ export default function TeamPage() {
 /* AGENT DETAILS, EDITABLE PROFILE, TARGETS & LIVE LOCATION MODAL            */
 /* ========================================================================= */
 
-function AgentDetailsAndTargetModal({
-  agent,
-  open,
-  onOpenChange,
-}: {
-  agent: any | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
+function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any | null; open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
 
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editRole, setEditRole] = useState<'BROKER_ADMIN' | 'BROKER_AGENT'>('BROKER_AGENT');
-  const [dealsTarget, setDealsTarget] = useState<number>(5);
-  const [revenueTarget, setRevenueTarget] = useState<number>(500000);
-  const [leadsTarget, setLeadsTarget] = useState<number>(30);
-  const [commissionPct, setCommissionPct] = useState<number>(10);
+  const [dealsTarget, setDealsTarget] = useState<number>(0);
+  const [revenueTarget, setRevenueTarget] = useState<number>(0);
+  const [leadsTarget, setLeadsTarget] = useState<number>(0);
+  const [commissionPct, setCommissionPct] = useState<number>(0);
 
   // Sync state when agent selected
   useEffect(() => {
@@ -768,23 +718,20 @@ function AgentDetailsAndTargetModal({
       setEditName(agent.name || '');
       setEditPhone(agent.phone || '');
       setEditRole(agent.role || 'BROKER_AGENT');
-      setDealsTarget(agent.targets?.monthlyDeals ?? 5);
-      setRevenueTarget(agent.targets?.monthlyRevenue ?? 500000);
-      setLeadsTarget(agent.targets?.monthlyLeads ?? 30);
-      setCommissionPct(agent.targets?.commissionPct ?? 10);
+      setDealsTarget(agent.targets?.monthlyDeals ?? 0);
+      setRevenueTarget(agent.targets?.monthlyRevenue ?? 0);
+      setLeadsTarget(agent.targets?.monthlyLeads ?? 0);
+      setCommissionPct(agent.targets?.commissionPct ?? 0);
     }
   }, [agent]);
 
-  const saveMutation = useApiMutation(
-    (body: any) => patch(`/broker/team/${agent?.id}`, body),
-    {
-      success: 'Agent प्रोफाइल और टारगेट्स अपडेट हो गए ✅',
-      invalidate: [['team']],
-      onSuccess: () => {
-        onOpenChange(false);
-      },
+  const saveMutation = useApiMutation((body: any) => patch(`/broker/team/${agent?.id}`, body), {
+    success: 'Agent प्रोफाइल और टारगेट्स अपडेट हो गए ✅',
+    invalidate: [['team']],
+    onSuccess: () => {
+      onOpenChange(false);
     },
-  );
+  });
 
   if (!agent) return null;
 
@@ -816,10 +763,7 @@ function AgentDetailsAndTargetModal({
       description="प्रोफाइल, रोल्स, मासिक टारगेट्स एवं एजेंट की लाइव लोकेशन प्रबंधित करें"
       footer={
         <div className="flex items-center justify-between w-full">
-          <Link
-            href="/broker/kyc"
-            className="text-xs text-brand font-semibold hover:underline flex items-center gap-1"
-          >
+          <Link href="/broker/kyc" className="text-xs text-brand font-semibold hover:underline flex items-center gap-1">
             <ShieldCheck className="size-4" /> KYC मॉड्यूल में देखें
           </Link>
           <div className="flex items-center gap-2">
@@ -842,13 +786,13 @@ function AgentDetailsAndTargetModal({
             <Avatar name={agent.name} src={agent.avatarUrl} size={48} />
             <div>
               <p className="font-bold text-base">{agent.name}</p>
-              <p className="text-xs text-muted">{agent.email} {agent.phone ? `· ${agent.phone}` : ''}</p>
+              <p className="text-xs text-muted">
+                {agent.email} {agent.phone ? `· ${agent.phone}` : ''}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge tone={agent.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>
-              {agent.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}
-            </Badge>
+            <Badge tone={agent.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>{agent.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}</Badge>
             <Badge tone={agent.kycStatus === 'VERIFIED' ? 'success' : agent.kycStatus === 'PENDING' ? 'warning' : 'neutral'}>
               {agent.kycStatus || 'UNVERIFIED'}
             </Badge>
@@ -912,15 +856,14 @@ function AgentDetailsAndTargetModal({
           <div className="space-y-3">
             <div>
               <div className="flex justify-between text-xs font-bold mb-1">
-                <span>Deals Won: {wonThisMonth} / {dealsTarget}</span>
+                <span>
+                  Deals Won: {wonThisMonth} / {dealsTarget}
+                </span>
                 <span className={dealsPct >= 100 ? 'text-emerald-600' : 'text-fg'}>{dealsPct}% पूर्ण</span>
               </div>
               <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
                 <div
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    dealsPct >= 100 ? 'bg-emerald-500' : 'bg-saffron-500',
-                  )}
+                  className={cn('h-full rounded-full transition-all', dealsPct >= 100 ? 'bg-emerald-500' : 'bg-saffron-500')}
                   style={{ width: `${dealsPct}%` }}
                 />
               </div>
@@ -928,7 +871,9 @@ function AgentDetailsAndTargetModal({
 
             <div>
               <div className="flex justify-between text-xs font-bold mb-1">
-                <span>Leads Handled: {openLeads} / {leadsTarget}</span>
+                <span>
+                  Leads Handled: {openLeads} / {leadsTarget}
+                </span>
                 <span>{leadsPct}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
@@ -941,20 +886,10 @@ function AgentDetailsAndTargetModal({
           {isAdmin && (
             <div className="grid grid-cols-2 gap-3 pt-2">
               <Field label="Monthly Deals Target">
-                <Input
-                  type="number"
-                  min="0"
-                  value={dealsTarget}
-                  onChange={(e) => setDealsTarget(Math.max(0, parseInt(e.target.value) || 0))}
-                />
+                <Input type="number" min="0" value={dealsTarget} onChange={(e) => setDealsTarget(Math.max(0, parseInt(e.target.value) || 0))} />
               </Field>
               <Field label="Monthly Leads Target">
-                <Input
-                  type="number"
-                  min="0"
-                  value={leadsTarget}
-                  onChange={(e) => setLeadsTarget(Math.max(0, parseInt(e.target.value) || 0))}
-                />
+                <Input type="number" min="0" value={leadsTarget} onChange={(e) => setLeadsTarget(Math.max(0, parseInt(e.target.value) || 0))} />
               </Field>
               <Field label="Revenue Target (₹)">
                 <Input
@@ -1099,9 +1034,7 @@ function TeamLiveLocationCell({ loc }: { loc: any }) {
             <span className="inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
           )}
         </span>
-        <span className={cn('font-semibold', isRecent ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted')}>
-          {safeTimeAgo(capturedTime)}
-        </span>
+        <span className={cn('font-semibold', isRecent ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted')}>{safeTimeAgo(capturedTime)}</span>
         <a
           href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
           target="_blank"

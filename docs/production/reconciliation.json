@@ -2365,18 +2365,20 @@
         "10892",
         "11527"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_CHECKPOINT",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
+      "notes": [
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2392,18 +2394,20 @@
         "10892",
         "11527"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_CHECKPOINT",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
+      "notes": [
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2419,18 +2423,20 @@
         "10892",
         "11527"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_CHECKPOINT",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
+      "notes": [
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2842,18 +2848,20 @@
         "10489",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_CHECKPOINT",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
+      "notes": [
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2867,18 +2875,20 @@
         "10489",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_CHECKPOINT",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
+      "notes": [
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -3047,7 +3057,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Checkpoint: Agent goals/SLA, role-safe drilldowns, Lead IST date/stage filters, and native deep-link filters corrected. Other dashboard datasets remain under audit."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],

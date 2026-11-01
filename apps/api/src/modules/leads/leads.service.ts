@@ -39,6 +39,8 @@ export interface LeadListQuery {
   tag?: string;
   from?: string;
   to?: string;
+  dateField?: 'createdAt' | 'stageChangedAt';
+  responseSla?: 'eligible';
   view?: 'all' | 'unassigned' | 'mine' | 'due' | 'new' | 'stale';
   page?: number;
   pageSize?: number;
@@ -198,8 +200,24 @@ export class LeadsService {
     if (q.assignedToId) and.push({ assignedToId: q.assignedToId === 'none' ? null : q.assignedToId });
     if (q.temperature) and.push({ temperature: q.temperature as any });
     if (q.tag) and.push({ tags: { has: q.tag } });
-    if (q.from) and.push({ createdAt: { gte: new Date(q.from) } });
-    if (q.to) and.push({ createdAt: { lte: new Date(q.to) } });
+    const dateField = q.dateField ?? 'createdAt';
+    if (!['createdAt', 'stageChangedAt'].includes(dateField)) throw new BadRequestException('Invalid reporting date field');
+    const parseBound = (value: string, end: boolean) => {
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+      const date = new Date(dateOnly ? value + 'T00:00:00+05:30' : value);
+      if (!Number.isFinite(date.getTime()) || (dateOnly && new Date(value).toISOString().slice(0, 10) !== value))
+        throw new BadRequestException('Invalid reporting date');
+      return dateOnly && end ? new Date(date.getTime() + 86400000) : date;
+    };
+    const from = q.from ? parseBound(q.from, false) : null,
+      to = q.to ? parseBound(q.to, true) : null;
+    if (from && to && from > to) throw new BadRequestException('Invalid reporting date range');
+    if (from) and.push({ [dateField]: { gte: from } });
+    if (to) and.push({ [dateField]: /^\d{4}-\d{2}-\d{2}$/.test(q.to!) ? { lt: to } : { lte: to } });
+    if (q.responseSla) {
+      if (q.responseSla !== 'eligible') throw new BadRequestException('Invalid response filter');
+      and.push({ OR: [{ firstResponseAt: { not: null } }, { createdAt: { lte: new Date(Date.now() - 15 * 60_000) } }] });
+    }
     if (q.q) {
       const s = q.q.trim();
       and.push({
@@ -253,7 +271,11 @@ export class LeadsService {
     const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'NOT_INTERESTED', 'SITE_VISIT', 'NEGOTIATION', 'WON', 'LOST'];
     const columns = await Promise.all(
       stages.map(async (stage) => {
-        const where = { ...base, stage, ...(stage === 'WON' || stage === 'LOST' || stage === 'NOT_INTERESTED' ? { stageChangedAt: { gte: new Date(Date.now() - 30 * 86400_000) } } : {}) };
+        const where = {
+          ...base,
+          stage,
+          ...(stage === 'WON' || stage === 'LOST' || stage === 'NOT_INTERESTED' ? { stageChangedAt: { gte: new Date(Date.now() - 30 * 86400_000) } } : {}),
+        };
         const [items, count] = await Promise.all([
           this.prisma.lead.findMany({ where, orderBy: [{ stageChangedAt: 'desc' }], take: 50, include: LEAD_LIST_INCLUDE }),
           this.prisma.lead.count({ where }),

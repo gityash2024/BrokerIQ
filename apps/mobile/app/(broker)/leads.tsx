@@ -1,7 +1,7 @@
 import { openLeadInbox } from '@/lib/inbox-composer';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -136,11 +136,33 @@ export default function Leads() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [filters, setFilters] = useState(false);
+  const [dateField, setDateField] = useState('createdAt');
+  const [responseSla, setResponseSla] = useState('');
+  const params = useLocalSearchParams();
+  const parameterKey = JSON.stringify(
+    ['stage', 'source', 'temperature', 'from', 'to', 'dateField', 'responseSla', 'view', 'q'].map((key) =>
+      typeof params[key] === 'string' ? params[key] : '',
+    ),
+  );
+  useEffect(() => {
+    const [nextStage, nextSource, nextTemp, nextFrom, nextTo, nextDateField, nextSla, nextView, nextText] = JSON.parse(parameterKey);
+    setStage(nextStage);
+    setSource(nextSource);
+    setTemperature(nextTemp);
+    setFrom(nextFrom);
+    setTo(nextTo);
+    setDateField(nextDateField || 'createdAt');
+    setResponseSla(nextSla);
+    setView(nextView);
+    setText(nextText);
+  }, [parameterKey]);
 
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const sevenDaysAgoStr = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
-  const startOfMonthStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const istDate = (value: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(value);
+  const todayStr = istDate(now);
+  const sevenDaysAgoStr = istDate(new Date(now.getTime() - 7 * 86400000));
+  const startOfMonthStr = todayStr.slice(0, 7) + '-01';
 
   const resetFilters = () => {
     setView('');
@@ -149,16 +171,20 @@ export default function Leads() {
     setTemperature('');
     setFrom('');
     setTo('');
+    setDateField('createdAt');
+    setResponseSla('');
   };
 
   const activeCount = [view, stage, source, temperature, from, to].filter(Boolean).length;
 
   const list = useInfiniteQuery({
-    queryKey: ['leads', q, view, stage, source, temperature, from, to],
+    queryKey: ['leads', q, view, stage, source, temperature, from, to, dateField, responseSla],
     queryFn: ({ pageParam }) =>
       api<any>(
         `/leads${qs({
           q,
+          dateField,
+          responseSla: responseSla || undefined,
           view: view || undefined,
           stage: stage || undefined,
           source: source || undefined,
@@ -207,6 +233,8 @@ export default function Leads() {
                 onPress={() => {
                   setFrom('');
                   setTo('');
+                  setDateField('createdAt');
+                  setResponseSla('');
                 }}
               />
             )}
@@ -285,6 +313,8 @@ export default function Leads() {
                   onPress={() => {
                     setFrom('');
                     setTo('');
+                    setDateField('createdAt');
+                    setResponseSla('');
                   }}
                 />
               )}

@@ -73,6 +73,15 @@ function LedgerInner() {
   const [layout, setLayout] = useState<'TABLE' | 'CARDS'>('TABLE');
   const [editing, setEditing] = useState<LedgerItem | null>(null);
   const [dirty, setDirty] = useState(false);
+  const requestedId = params.get('item');
+  const requested = useQuery({
+    queryKey: ['ledger-deep-link', user?.id, requestedId],
+    queryFn: () => api<LedgerItem>(`/inventory/${requestedId}`),
+    enabled: !!requestedId,
+  });
+  useEffect(() => {
+    if (requested.data) setViewing(requested.data);
+  }, [requested.data]);
   useEffect(() => {
     const guard = (e: BeforeUnloadEvent) => {
       if (dirty) {
@@ -566,7 +575,26 @@ function LedgerInner() {
           </button>
         </div>
       </div>
-      <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)} title={viewing ? inventoryTitle(viewing) : 'Property details'} size="xl">
+      {requested.error && (
+        <p role="alert" className="text-sm text-rose-600">
+          {errorMessage(requested.error)}
+        </p>
+      )}
+      <Dialog
+        open={!!viewing}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewing(null);
+            if (requestedId) {
+              const next = new URLSearchParams(params.toString());
+              next.delete('item');
+              router.replace('/broker/inventory' + (next.size ? '?' + next : ''));
+            }
+          }
+        }}
+        title={viewing ? inventoryTitle(viewing) : 'Property details'}
+        size="xl"
+      >
         {viewing && (
           <InventoryDetails
             item={viewing}

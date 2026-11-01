@@ -32,3 +32,4 @@ export * from './directory-profile';
 export * from './team';
 export * from './time-logging';
 export * from './visits';
+export * from './workspace-navigation';

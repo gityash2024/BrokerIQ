@@ -63,10 +63,10 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
   const [editRole, setEditRole] = useState<'BROKER_ADMIN' | 'BROKER_AGENT'>('BROKER_AGENT');
 
   // Targets State
-  const [monthlyDeals, setMonthlyDeals] = useState<number>(5);
-  const [monthlyRevenue, setMonthlyRevenue] = useState<number>(500000);
-  const [monthlyLeads, setMonthlyLeads] = useState<number>(30);
-  const [commissionPct, setCommissionPct] = useState<number>(10);
+  const [monthlyDeals, setMonthlyDeals] = useState<number>(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<number>(0);
+  const [monthlyLeads, setMonthlyLeads] = useState<number>(0);
+  const [commissionPct, setCommissionPct] = useState<number>(0);
 
   // KYC Preview / Reject State
   const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
@@ -82,34 +82,27 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
 
       const tg = member.targets;
       if (tg) {
-        setMonthlyDeals(Number(tg.monthlyDeals) || 5);
-        setMonthlyRevenue(Number(tg.monthlyRevenue) || 500000);
-        setMonthlyLeads(Number(tg.monthlyLeads) || 30);
-        setCommissionPct(Number(tg.commissionPct) || 10);
+        setMonthlyDeals(Number(tg.monthlyDeals ?? 0));
+        setMonthlyRevenue(Number(tg.monthlyRevenue ?? 0));
+        setMonthlyLeads(Number(tg.monthlyLeads ?? 0));
+        setCommissionPct(Number(tg.commissionPct ?? 0));
       }
     }
   }, [member?.id, member?.name, member?.phone, member?.role, member?.targets]);
 
   // Mutations
-  const updateProfileMutation = useApiMutation(
-    (body: any) => patch(`/broker/team/${resolvedParams.id}`, body),
-    {
-      success: 'एजेंट प्रोफाइल अपडेट हो गई ✅',
-      invalidate: [['team']],
-    },
-  );
+  const updateProfileMutation = useApiMutation((body: any) => patch(`/broker/team/${resolvedParams.id}`, body), {
+    success: 'एजेंट प्रोफाइल अपडेट हो गई ✅',
+    invalidate: [['team']],
+  });
 
-  const updateTargetsMutation = useApiMutation(
-    (body: any) => patch(`/broker/team/${resolvedParams.id}`, body),
-    {
-      success: 'मासिक लक्ष्य सेव हो गए ✅',
-      invalidate: [['team']],
-    },
-  );
+  const updateTargetsMutation = useApiMutation((body: any) => patch(`/broker/team/${resolvedParams.id}`, body), {
+    success: 'मासिक लक्ष्य सेव हो गए ✅',
+    invalidate: [['team']],
+  });
 
   const reviewKycMutation = useApiMutation(
-    (body: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) =>
-      patch(`/broker/team/agents/${resolvedParams.id}/kyc`, body),
+    (body: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) => patch(`/broker/team/agents/${resolvedParams.id}/kyc`, body),
     {
       success: 'KYC स्टेटस अपडेट हो गया ✅',
       invalidate: [['team'], ['agent-kyc-mine']],
@@ -175,11 +168,11 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
   const right = kycDocs.find((d: any) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_RIGHT');
   const hasKyc = !!(aadhaar || pan || straight);
 
-  const dealsTarget = Number(member.targets?.monthlyDeals) || 5;
+  const dealsTarget = Number(member.targets?.monthlyDeals ?? 0);
   const dealsWon = member.fulfillment?.dealsWonMonth ?? member.stats?.won30d ?? 0;
   const dealsPct = member.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
 
-  const leadsTarget = Number(member.targets?.monthlyLeads) || 30;
+  const leadsTarget = Number(member.targets?.monthlyLeads ?? 0);
   const openLeads = member.fulfillment?.leadsOpen ?? member.stats?.openLeads ?? 0;
   const leadsPct = member.fulfillment?.leadsPercent ?? (leadsTarget > 0 ? Math.min(100, Math.round((openLeads / leadsTarget) * 100)) : 0);
 
@@ -198,12 +191,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
           <span>/</span>
           <span className="font-bold text-fg truncate max-w-[200px] sm:max-w-xs">{member.name}</span>
         </div>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => router.push('/broker/team')}
-          className="text-xs"
-        >
+        <Button size="sm" variant="secondary" onClick={() => router.push('/broker/team')} className="text-xs">
           <ArrowLeft className="size-3.5 mr-1.5" /> टीम सूची पर लौटें
         </Button>
       </div>
@@ -217,10 +205,18 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">{member.name}</h1>
                 <Badge tone={member.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'} className="font-bold">
-                  {member.role === 'BROKER_ADMIN' ? <><Crown className="size-3 mr-1" /> Admin</> : 'Agent'}
+                  {member.role === 'BROKER_ADMIN' ? (
+                    <>
+                      <Crown className="size-3 mr-1" /> Admin
+                    </>
+                  ) : (
+                    'Agent'
+                  )}
                 </Badge>
                 {member.status === 'SUSPENDED' && (
-                  <Badge tone="danger" className="font-bold">सस्पेंडेड (Suspended)</Badge>
+                  <Badge tone="danger" className="font-bold">
+                    सस्पेंडेड (Suspended)
+                  </Badge>
                 )}
                 {member.kycStatus === 'VERIFIED' ? (
                   <Badge tone="success" className="font-bold">
@@ -311,12 +307,8 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                     <p className="text-xs font-semibold text-muted flex items-center gap-1.5">
                       <MapPin className="size-3.5 text-emerald-500" /> वर्तमान वास्तविक पता (Live Street Address)
                     </p>
-                    <p className="text-base font-extrabold text-fg">
-                      {geoLoading ? 'पता लोड हो रहा है...' : geoLoc?.shortAddress || 'Gurugram, Haryana'}
-                    </p>
-                    <p className="text-xs text-muted max-w-xl">
-                      {geoLoading ? '...' : geoLoc?.fullAddress}
-                    </p>
+                    <p className="text-base font-extrabold text-fg">{geoLoading ? 'पता लोड हो रहा है...' : geoLoc?.shortAddress || 'Gurugram, Haryana'}</p>
+                    <p className="text-xs text-muted max-w-xl">{geoLoading ? '...' : geoLoc?.fullAddress}</p>
                   </div>
                   <a
                     href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
@@ -383,9 +375,13 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                 KYC दस्तावेज़ व 3-स्टेप फेस लाइवलीनेस सत्यापन
               </h3>
               {member.kycStatus === 'VERIFIED' ? (
-                <Badge tone="success" className="font-bold">प्रमाणित (Verified)</Badge>
+                <Badge tone="success" className="font-bold">
+                  प्रमाणित (Verified)
+                </Badge>
               ) : member.kycStatus === 'PENDING' ? (
-                <Badge tone="warning" className="font-bold animate-pulse">समीक्षा लंबित (Pending)</Badge>
+                <Badge tone="warning" className="font-bold animate-pulse">
+                  समीक्षा लंबित (Pending)
+                </Badge>
               ) : (
                 <Badge tone="neutral">अपलोड नहीं हुआ</Badge>
               )}
@@ -401,9 +397,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                         <span className="flex items-center gap-1.5">
                           <CreditCard className="size-4 text-saffron-500" /> आधार कार्ड
                         </span>
-                        <Badge tone={aadhaar?.status === 'VERIFIED' ? 'success' : 'neutral'}>
-                          {aadhaar?.status || 'PENDING'}
-                        </Badge>
+                        <Badge tone={aadhaar?.status === 'VERIFIED' ? 'success' : 'neutral'}>{aadhaar?.status || 'PENDING'}</Badge>
                       </div>
                       <p className="font-mono text-sm font-extrabold tracking-wider">
                         {aadhaar?.docNumber ? aadhaar.docNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3') : 'नंबर दर्ज नहीं'}
@@ -416,11 +410,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                         onClick={() => setPreviewPhoto({ title: `${member.name} - आधार कार्ड`, url: aadhaar.fileUrl })}
                         className="my-3 relative aspect-[4/3] max-h-48 rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
                       >
-                        <img
-                          src={aadhaar.fileUrl}
-                          alt="Aadhaar Document"
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                        />
+                        <img src={aadhaar.fileUrl} alt="Aadhaar Document" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1.5">
                           <Eye className="size-4" /> फ़ोटो देखें
                         </div>
@@ -453,13 +443,9 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                         <span className="flex items-center gap-1.5">
                           <CreditCard className="size-4 text-blue-500" /> पैन कार्ड
                         </span>
-                        <Badge tone={pan?.status === 'VERIFIED' ? 'success' : 'neutral'}>
-                          {pan?.status || 'PENDING'}
-                        </Badge>
+                        <Badge tone={pan?.status === 'VERIFIED' ? 'success' : 'neutral'}>{pan?.status || 'PENDING'}</Badge>
                       </div>
-                      <p className="font-mono text-sm font-extrabold tracking-wider">
-                        {pan?.docNumber || 'नंबर दर्ज नहीं'}
-                      </p>
+                      <p className="font-mono text-sm font-extrabold tracking-wider">{pan?.docNumber || 'नंबर दर्ज नहीं'}</p>
                     </div>
 
                     {/* Embedded Photo Thumbnail */}
@@ -468,11 +454,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                         onClick={() => setPreviewPhoto({ title: `${member.name} - पैन कार्ड`, url: pan.fileUrl })}
                         className="my-3 relative aspect-[4/3] max-h-48 rounded-xl overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
                       >
-                        <img
-                          src={pan.fileUrl}
-                          alt="PAN Document"
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                        />
+                        <img src={pan.fileUrl} alt="PAN Document" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1.5">
                           <Eye className="size-4" /> फ़ोटो देखें
                         </div>
@@ -515,9 +497,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
                             <Eye className="size-4 mr-1" /> बड़ा देखें
                           </div>
-                          <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            Straight
-                          </div>
+                          <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">Straight</div>
                         </>
                       ) : (
                         <div className="grid h-full place-items-center text-xs text-muted">अनुपलब्ध</div>
@@ -536,9 +516,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
                             <Eye className="size-4 mr-1" /> बड़ा देखें
                           </div>
-                          <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            Left
-                          </div>
+                          <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">Left</div>
                         </>
                       ) : (
                         <div className="grid h-full place-items-center text-xs text-muted">अनुपलब्ध</div>
@@ -557,9 +535,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
                             <Eye className="size-4 mr-1" /> बड़ा देखें
                           </div>
-                          <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            Right
-                          </div>
+                          <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">Right</div>
                         </>
                       ) : (
                         <div className="grid h-full place-items-center text-xs text-muted">अनुपलब्ध</div>
@@ -616,14 +592,13 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
               <div>
                 <div className="flex items-center justify-between font-semibold mb-1">
                   <span className="text-muted">डील्स पूर्ति (Deals Won):</span>
-                  <span className="font-bold">{dealsWon} / {dealsTarget} ({dealsPct}%)</span>
+                  <span className="font-bold">
+                    {dealsWon} / {dealsTarget} ({dealsPct}%)
+                  </span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
                   <div
-                    className={cn(
-                      'h-full rounded-full transition-all',
-                      dealsPct >= 100 ? 'bg-emerald-500' : dealsPct >= 50 ? 'bg-amber-500' : 'bg-brand-600',
-                    )}
+                    className={cn('h-full rounded-full transition-all', dealsPct >= 100 ? 'bg-emerald-500' : dealsPct >= 50 ? 'bg-amber-500' : 'bg-brand-600')}
                     style={{ width: `${dealsPct}%` }}
                   />
                 </div>
@@ -632,14 +607,13 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
               <div>
                 <div className="flex items-center justify-between font-semibold mb-1">
                   <span className="text-muted">ओपन लीड्स (Leads Handled):</span>
-                  <span className="font-bold">{openLeads} / {leadsTarget} ({leadsPct}%)</span>
+                  <span className="font-bold">
+                    {openLeads} / {leadsTarget} ({leadsPct}%)
+                  </span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
                   <div
-                    className={cn(
-                      'h-full rounded-full transition-all',
-                      leadsPct >= 100 ? 'bg-emerald-500' : leadsPct >= 50 ? 'bg-amber-500' : 'bg-blue-600',
-                    )}
+                    className={cn('h-full rounded-full transition-all', leadsPct >= 100 ? 'bg-emerald-500' : leadsPct >= 50 ? 'bg-amber-500' : 'bg-blue-600')}
                     style={{ width: `${leadsPct}%` }}
                   />
                 </div>
@@ -701,12 +675,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
               </div>
 
               {isAdmin && (
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="w-full mt-2 font-bold"
-                  loading={updateTargetsMutation.isPending}
-                >
+                <Button type="submit" size="sm" className="w-full mt-2 font-bold" loading={updateTargetsMutation.isPending}>
                   <Save className="size-3.5 mr-1.5" /> लक्ष्य सेव करें (Save Targets)
                 </Button>
               )}
@@ -756,12 +725,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
                   </select>
                 </div>
 
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="w-full mt-2 font-bold"
-                  loading={updateProfileMutation.isPending}
-                >
+                <Button type="submit" size="sm" className="w-full mt-2 font-bold" loading={updateProfileMutation.isPending}>
                   <Save className="size-3.5 mr-1.5" /> प्रोफाइल अपडेट करें
                 </Button>
               </form>
@@ -783,9 +747,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
       {/* Reject KYC Dialog */}
       <Dialog open={rejecting} onOpenChange={setRejecting} title={`KYC अस्वीकृत करें: ${member.name}`}>
         <div className="space-y-4">
-          <p className="text-xs text-muted">
-            कृपया अस्वीकृति का कारण लिखें। यह कारण एजेंट को उनकी स्क्रीन पर दिखाई देगा ताकि वे सुधार कर सकें।
-          </p>
+          <p className="text-xs text-muted">कृपया अस्वीकृति का कारण लिखें। यह कारण एजेंट को उनकी स्क्रीन पर दिखाई देगा ताकि वे सुधार कर सकें।</p>
           <textarea
             rows={3}
             value={rejectNote}

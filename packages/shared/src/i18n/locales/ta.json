@@ -3510,5 +3510,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "ஐந்து சாதனங்களில் உள்நுழைந்துள்ளீர்கள். இந்தச் சாதனத்தில் தொடர ஒன்றைத் தேர்ந்தெடுக்கவும்.",
  "Sign out this device and continue": "இந்தச் சாதனத்திலிருந்து வெளியேறித் தொடரவும்",
  "Unknown device": "தெரியாத சாதனம்",
- "Last active": "கடைசியாகச் செயல்பட்டது"
+ "Last active": "கடைசியாகச் செயல்பட்டது",
+ "Today's Focus": "இன்றைய வேலை",
+ "All properties": "அனைத்து சொத்துகள்",
+ "Publication reviews": "வெளியீட்டு மதிப்பாய்வு",
+ "Public listings": "பொதுப் பட்டியல்கள்",
+ "Conversations": "உரையாடல்கள்",
+ "Capture & imports": "பதிவு மற்றும் இறக்குமதி",
+ "Scan property or requirement": "சொத்து அல்லது தேவையை ஸ்கேன் செய்க",
+ "WhatsApp export & paste": "WhatsApp ஏற்றுமதி மற்றும் ஒட்டுதல்",
+ "Public listing drafts": "பொதுப் பட்டியல் வரைவுகள்",
+ "My work": "எனது வேலை",
+ "Time Logging": "நேரப் பதிவு",
+ "Rules & execution history": "விதிகள் மற்றும் செயல்பாட்டு வரலாறு",
+ "Housing & connectors": "Housing இணைப்பிகள்",
+ "Other tools": "மற்ற கருவிகள்",
+ "Find a module or tool": "தொகுதி அல்லது கருவியைத் தேடுக",
+ "Search your workspace": "உங்கள் பணியிடத்தில் தேடுக",
+ "Search leads, inventory, requirements…": "லீட்கள், இருப்பு, தேவைகளைத் தேடுக…"
 }

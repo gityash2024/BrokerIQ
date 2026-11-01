@@ -98,6 +98,33 @@ function LeadsInner() {
         }
       />
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <label className="text-xs text-muted">
+          From date
+          <Input type="date" value={f.from?.slice(0, 10) ?? ''} onChange={(e) => setF({ from: e.target.value || null })} />
+        </label>
+        <label className="text-xs text-muted">
+          To date
+          <Input type="date" value={f.to?.slice(0, 10) ?? ''} onChange={(e) => setF({ to: e.target.value || null })} />
+        </label>
+        <label className="text-xs text-muted">
+          Date field
+          <Select value={f.dateField ?? 'createdAt'} onChange={(e) => setF({ dateField: e.target.value })}>
+            <option value="createdAt">Lead created</option>
+            <option value="stageChangedAt">Stage changed</option>
+          </Select>
+        </label>
+        {f.responseSla && (
+          <Button size="sm" variant="secondary" onClick={() => setF({ responseSla: null })}>
+            SLA eligible leads · clear
+          </Button>
+        )}
+        {(f.from || f.to) && (
+          <Button size="sm" variant="ghost" onClick={() => setF({ from: null, to: null, dateField: null, responseSla: null })}>
+            Clear dates
+          </Button>
+        )}
+      </div>
       <div className="mb-4 flex flex-col gap-3">
         <Segmented value={f.view ?? ''} onChange={(v) => setF({ view: v || null })} options={views} />
         <div className="flex flex-wrap items-center gap-2">

@@ -3510,5 +3510,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "ಐದು ಸಾಧನಗಳಲ್ಲಿ ಸೈನ್ ಇನ್ ಆಗಿದೆ. ಈ ಸಾಧನದಲ್ಲಿ ಮುಂದುವರಿಯಲು ಒಂದನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
  "Sign out this device and continue": "ಈ ಸಾಧನದಿಂದ ಸೈನ್ ಔಟ್ ಮಾಡಿ ಮುಂದುವರಿಯಿರಿ",
  "Unknown device": "ಅಜ್ಞಾತ ಸಾಧನ",
- "Last active": "ಕೊನೆಯ ಚಟುವಟಿಕೆ"
+ "Last active": "ಕೊನೆಯ ಚಟುವಟಿಕೆ",
+ "Today's Focus": "ಇಂದಿನ ಕೆಲಸ",
+ "All properties": "ಎಲ್ಲಾ ಆಸ್ತಿಗಳು",
+ "Publication reviews": "ಪ್ರಕಟಣೆ ಪರಿಶೀಲನೆ",
+ "Public listings": "ಸಾರ್ವಜನಿಕ ಪಟ್ಟಿಗಳು",
+ "Conversations": "ಸಂಭಾಷಣೆಗಳು",
+ "Capture & imports": "ಕ್ಯಾಪ್ಚರ್ ಮತ್ತು ಆಮದು",
+ "Scan property or requirement": "ಆಸ್ತಿ ಅಥವಾ ಅಗತ್ಯವನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಿ",
+ "WhatsApp export & paste": "WhatsApp ರಫ್ತು ಮತ್ತು ಪೇಸ್ಟ್",
+ "Public listing drafts": "ಸಾರ್ವಜನಿಕ ಪಟ್ಟಿಗಳ ಕರಡುಗಳು",
+ "My work": "ನನ್ನ ಕೆಲಸ",
+ "Time Logging": "ಸಮಯದ ದಾಖಲೆ",
+ "Rules & execution history": "ನಿಯಮಗಳು ಮತ್ತು ಕಾರ್ಯನಿರ್ವಹಣೆ ಇತಿಹಾಸ",
+ "Housing & connectors": "Housing ಮತ್ತು ಕನೆಕ್ಟರ್‌ಗಳು",
+ "Other tools": "ಇತರೆ ಸಾಧನಗಳು",
+ "Find a module or tool": "ಮಾಡ್ಯೂಲ್ ಅಥವಾ ಸಾಧನ ಹುಡುಕಿ",
+ "Search your workspace": "ನಿಮ್ಮ ಕಾರ್ಯಕ್ಷೇತ್ರದಲ್ಲಿ ಹುಡುಕಿ",
+ "Search leads, inventory, requirements…": "ಲೀಡ್, ಇನ್ವೆಂಟರಿ, ಅಗತ್ಯಗಳನ್ನು ಹುಡುಕಿ…"
 }

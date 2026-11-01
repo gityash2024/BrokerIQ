@@ -1,35 +1,67 @@
 import { z } from 'zod';
 
 const teamRole = z.enum(['BROKER_ADMIN', 'BROKER_AGENT']);
+export interface AgentTargets {
+  monthlyDeals?: number;
+  monthlyRevenue?: number;
+  monthlyLeads?: number;
+  commissionPct?: number;
+}
+export function agentTargets(raw: unknown): AgentTargets {
+  const result: AgentTargets = {};
+  if (!raw || typeof raw !== 'object') return result;
+  for (const key of ['monthlyDeals', 'monthlyRevenue', 'monthlyLeads', 'commissionPct'] as const) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && (key !== 'commissionPct' || value <= 100)) result[key] = value;
+  }
+  return result;
+}
 export const brokerTeamResponseSchema = z.object({
-  members: z.array(z.object({
-    id: z.string(), name: z.string(), email: z.string().nullable(), phone: z.string().nullable(),
-    avatarUrl: z.string().nullable(), role: teamRole, status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']),
-    lastLoginAt: z.string().nullable(), createdAt: z.string(),
-    kycStatus: z.enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED']).optional().default('UNVERIFIED'),
-    kycDocuments: z.array(z.any()).optional().default([]),
-    lastLocation: z.object({
-      latitude: z.number(),
-      longitude: z.number(),
-      accuracy: z.number().nullable().optional(),
-      source: z.string().optional(),
-      capturedAt: z.any().optional(),
-    }).nullable().optional(),
-    targets: z.object({
-      monthlyDeals: z.number().optional(),
-      monthlyRevenue: z.number().optional(),
-      monthlyLeads: z.number().optional(),
-      commissionPct: z.number().optional(),
-    }).optional(),
-    fulfillment: z.object({
-      dealsWonMonth: z.number().optional(),
-      dealsPercent: z.number().optional(),
-      leadsOpen: z.number().optional(),
-      leadsPercent: z.number().optional(),
-      revenueTarget: z.number().optional(),
-    }).optional(),
-    stats: z.object({ openLeads: z.number().int().nonnegative(), won30d: z.number().int().nonnegative(), activities30d: z.number().int().nonnegative() }),
-  }).passthrough()),
+  members: z.array(
+    z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        email: z.string().nullable(),
+        phone: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+        role: teamRole,
+        status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']),
+        lastLoginAt: z.string().nullable(),
+        createdAt: z.string(),
+        kycStatus: z.enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED']).optional().default('UNVERIFIED'),
+        kycDocuments: z.array(z.any()).optional().default([]),
+        lastLocation: z
+          .object({
+            latitude: z.number(),
+            longitude: z.number(),
+            accuracy: z.number().nullable().optional(),
+            source: z.string().optional(),
+            capturedAt: z.any().optional(),
+          })
+          .nullable()
+          .optional(),
+        targets: z
+          .object({
+            monthlyDeals: z.number().optional(),
+            monthlyRevenue: z.number().optional(),
+            monthlyLeads: z.number().optional(),
+            commissionPct: z.number().optional(),
+          })
+          .optional(),
+        fulfillment: z
+          .object({
+            dealsWonMonth: z.number().optional(),
+            dealsPercent: z.number().optional(),
+            leadsOpen: z.number().optional(),
+            leadsPercent: z.number().optional(),
+            revenueTarget: z.number().optional(),
+          })
+          .optional(),
+        stats: z.object({ openLeads: z.number().int().nonnegative(), won30d: z.number().int().nonnegative(), activities30d: z.number().int().nonnegative() }),
+      })
+      .passthrough(),
+  ),
   invites: z.array(z.object({ id: z.string(), name: z.string(), email: z.string(), role: teamRole, expiresAt: z.string() }).passthrough()),
 });
 export type BrokerTeamResponse = z.infer<typeof brokerTeamResponseSchema>;

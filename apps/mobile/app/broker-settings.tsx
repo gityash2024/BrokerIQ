@@ -4,11 +4,10 @@ import { router } from 'expo-router';
 import { tr } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
-import { PLATFORM_MODULES, defaultModulePolicies, moduleAllowed, languageOf } from '@brokeriq/shared';
+import { brokerUpcomingModules, defaultModulePolicies, moduleAllowed, languageOf } from '@brokeriq/shared';
 import { Txt, Button } from '@/ui';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { LanguageSheet } from '@/components/language';
-import { TimeLoggingCard } from '@/components/time-logging-card';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { useLang } from '@/lib/lang';
 import {
@@ -38,14 +37,10 @@ export default function BrokerSettings() {
   const [langSheetOpen, setLangSheetOpen] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      tr('Log out of BrokerIQ?'),
-      tr('Are you sure you want to log out of your account?'),
-      [
-        { text: tr('Cancel'), style: 'cancel' },
-        { text: tr('Log out'), style: 'destructive', onPress: logout },
-      ],
-    );
+    Alert.alert(tr('Log out of BrokerIQ?'), tr('Are you sure you want to log out of your account?'), [
+      { text: tr('Cancel'), style: 'cancel' },
+      { text: tr('Log out'), style: 'destructive', onPress: logout },
+    ]);
   };
 
   const getInitials = (name?: string | null) => {
@@ -91,9 +86,7 @@ export default function BrokerSettings() {
                 elevation: 6,
               }}
             >
-              <Txt style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>
-                {getInitials(user?.name)}
-              </Txt>
+              <Txt style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>{getInitials(user?.name)}</Txt>
             </View>
 
             <View style={{ flex: 1, gap: 3 }}>
@@ -135,10 +128,7 @@ export default function BrokerSettings() {
               </Txt>
             </View>
 
-            <TouchableOpacity
-              onPress={() => router.push('/edit-profile')}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-            >
+            <TouchableOpacity onPress={() => router.push('/edit-profile')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Edit2 size={14} color={c.brand} />
               <Txt v="small" style={{ color: c.brand, fontWeight: '700' }}>
                 Edit Profile
@@ -148,7 +138,9 @@ export default function BrokerSettings() {
         </View>
 
         {/* Shift Attendance & Time Logging */}
-        <TimeLoggingCard />
+        {moduleAllowed(modules, 'time_logging', user?.role ?? '') && (
+          <Button title="Time Logging" variant="secondary" onPress={() => router.push('/time-logging' as any)} />
+        )}
 
         {/* Agent KYC Verification Card */}
         <TouchableOpacity
@@ -178,9 +170,7 @@ export default function BrokerSettings() {
               <ShieldCheck size={22} color="#FFFFFF" />
             </View>
             <View style={{ gap: 2 }}>
-              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>
-                Agent KYC Verification
-              </Txt>
+              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>Agent KYC Verification</Txt>
               <Txt v="caption" color="muted">
                 आधार, पैन व 3-स्टेप चेहरा सत्यापन
               </Txt>
@@ -217,12 +207,16 @@ export default function BrokerSettings() {
                   borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : c.line,
                 }}
               >
-                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <View
+                  style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                >
                   <Users size={18} color={c.brand} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Txt v="bodyStrong">Team & Sub-Agents</Txt>
-                  <Txt v="caption" color="muted">Manage agency members, agents & invites</Txt>
+                  <Txt v="caption" color="muted">
+                    Manage agency members, agents & invites
+                  </Txt>
                 </View>
                 <ChevronRight size={18} color={c.muted} />
               </TouchableOpacity>
@@ -241,12 +235,16 @@ export default function BrokerSettings() {
                   borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : c.line,
                 }}
               >
-                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <View
+                  style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(16,185,129,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                >
                   <Building2 size={18} color={c.success} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Txt v="bodyStrong">Firm Profile & RERA</Txt>
-                  <Txt v="caption" color="muted">Company details, GST & RERA license</Txt>
+                  <Txt v="caption" color="muted">
+                    Company details, GST & RERA license
+                  </Txt>
                 </View>
                 <ChevronRight size={18} color={c.muted} />
               </TouchableOpacity>
@@ -262,12 +260,16 @@ export default function BrokerSettings() {
                 gap: 12,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <FileDown size={18} color={c.warning} />
               </View>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">Saved Drafts & Offline Sync</Txt>
-                <Txt v="caption" color="muted">Local offline property listings & retry queue</Txt>
+                <Txt v="caption" color="muted">
+                  Local offline property listings & retry queue
+                </Txt>
               </View>
               <ChevronRight size={18} color={c.muted} />
             </TouchableOpacity>
@@ -302,15 +304,21 @@ export default function BrokerSettings() {
                 borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : c.line,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <Languages size={18} color={c.brand} />
               </View>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">App Language / भाषा</Txt>
-                <Txt v="caption" color="muted">{currentLangLabel}</Txt>
+                <Txt v="caption" color="muted">
+                  {currentLangLabel}
+                </Txt>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Txt v="small" style={{ color: c.brand, fontWeight: '700' }}>Change</Txt>
+                <Txt v="small" style={{ color: c.brand, fontWeight: '700' }}>
+                  Change
+                </Txt>
                 <ChevronRight size={18} color={c.muted} />
               </View>
             </TouchableOpacity>
@@ -326,12 +334,16 @@ export default function BrokerSettings() {
                 borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : c.line,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 {isDark ? <Moon size={18} color={c.warning} /> : <Sun size={18} color={c.warning} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">Theme Display</Txt>
-                <Txt v="caption" color="muted">{isDark ? 'Dark Luxury' : 'Light Mode'}</Txt>
+                <Txt v="caption" color="muted">
+                  {isDark ? 'Dark Luxury' : 'Light Mode'}
+                </Txt>
               </View>
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 <TouchableOpacity
@@ -340,10 +352,12 @@ export default function BrokerSettings() {
                     paddingHorizontal: 10,
                     paddingVertical: 5,
                     borderRadius: 10,
-                    backgroundColor: mode === 'light' ? c.brand : (isDark ? 'rgba(255,255,255,0.06)' : c.surface2),
+                    backgroundColor: mode === 'light' ? c.brand : isDark ? 'rgba(255,255,255,0.06)' : c.surface2,
                   }}
                 >
-                  <Txt v="caption" style={{ color: mode === 'light' ? '#fff' : c.muted, fontWeight: '700' }}>Light</Txt>
+                  <Txt v="caption" style={{ color: mode === 'light' ? '#fff' : c.muted, fontWeight: '700' }}>
+                    Light
+                  </Txt>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setMode('dark')}
@@ -351,10 +365,12 @@ export default function BrokerSettings() {
                     paddingHorizontal: 10,
                     paddingVertical: 5,
                     borderRadius: 10,
-                    backgroundColor: mode === 'dark' ? c.brand : (isDark ? 'rgba(255,255,255,0.06)' : c.surface2),
+                    backgroundColor: mode === 'dark' ? c.brand : isDark ? 'rgba(255,255,255,0.06)' : c.surface2,
                   }}
                 >
-                  <Txt v="caption" style={{ color: mode === 'dark' ? '#fff' : c.muted, fontWeight: '700' }}>Dark</Txt>
+                  <Txt v="caption" style={{ color: mode === 'dark' ? '#fff' : c.muted, fontWeight: '700' }}>
+                    Dark
+                  </Txt>
                 </TouchableOpacity>
               </View>
             </View>
@@ -370,12 +386,16 @@ export default function BrokerSettings() {
                 gap: 12,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <Sparkles size={18} color="#A855F7" />
               </View>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">Product Tools & AI Features</Txt>
-                <Txt v="caption" color="muted">Upcoming roadmap, AI matching & feature flags</Txt>
+                <Txt v="caption" color="muted">
+                  Upcoming roadmap, AI matching & feature flags
+                </Txt>
               </View>
               <ChevronRight size={18} color={c.muted} />
             </TouchableOpacity>
@@ -409,12 +429,16 @@ export default function BrokerSettings() {
                 borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : c.line,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(14,165,233,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(14,165,233,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <Eye size={18} color="#0EA5E9" />
               </View>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">Browse Consumer Portal</Txt>
-                <Txt v="caption" color="muted">Experience the public buyer & tenant portal</Txt>
+                <Txt v="caption" color="muted">
+                  Experience the public buyer & tenant portal
+                </Txt>
               </View>
               <ChevronRight size={18} color={c.muted} />
             </TouchableOpacity>
@@ -429,12 +453,16 @@ export default function BrokerSettings() {
                 gap: 12,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}
+              >
                 <ExternalLink size={18} color={c.brand} />
               </View>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">Open Web Dashboard</Txt>
-                <Txt v="caption" color="muted">brokeriq.mymultimeds.com</Txt>
+                <Txt v="caption" color="muted">
+                  brokeriq.mymultimeds.com
+                </Txt>
               </View>
               <ChevronRight size={18} color={c.muted} />
             </TouchableOpacity>
@@ -442,13 +470,13 @@ export default function BrokerSettings() {
         </View>
 
         {/* Section 4: Upcoming Modules */}
-        {PLATFORM_MODULES.filter((m) => modules[m.key]?.state === 'COMING_SOON' && m.key !== 'legacy').length > 0 && (
+        {brokerUpcomingModules(modules, user?.role ?? '').length > 0 && (
           <View style={{ gap: 8 }}>
             <Txt v="caption" color="muted" style={{ fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', paddingHorizontal: 4 }}>
               Upcoming Modules
             </Txt>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {PLATFORM_MODULES.filter((m) => modules[m.key]?.state === 'COMING_SOON' && m.key !== 'legacy').map((m) => (
+              {brokerUpcomingModules(modules, user?.role ?? '').map((m) => (
                 <View
                   key={m.key}
                   style={{

@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { dashboardPeriod, dashboardQuerySchema } from '../dashboard';
+import { dashboardPeriod, dashboardQuerySchema, dashboardMonthPeriod } from '../dashboard';
+import { agentTargets } from '../team';
+test('IST monthly goals use real calendar boundaries and preserve explicit zero targets', () => {
+  const month = dashboardMonthPeriod('2026-11-01');
+  assert.equal(month.start.toISOString(), '2026-10-31T18:30:00.000Z');
+  assert.equal(month.end.toISOString(), '2026-11-30T18:30:00.000Z');
+  assert.deepEqual(agentTargets(undefined), {});
+  assert.deepEqual(agentTargets({ monthlyDeals: 0, monthlyLeads: 11, commissionPct: 0, monthlyRevenue: -2 }), { monthlyDeals: 0, monthlyLeads: 11, commissionPct: 0 });
+});
 import { inventoryPublishSchema } from '../publishing';
 test('IST reporting days cross UTC midnight correctly', () => {
   const p = dashboardPeriod(dashboardQuerySchema.parse({ days: 7 }), new Date('2026-10-16T19:00:00Z'));

@@ -3510,5 +3510,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "ఐదు పరికరాలలో సైన్ ఇన్ అయ్యారు. ఈ పరికరంలో కొనసాగడానికి ఒకదాన్ని ఎంచుకోండి.",
  "Sign out this device and continue": "ఈ పరికరం నుండి సైన్ అవుట్ చేసి కొనసాగండి",
  "Unknown device": "తెలియని పరికరం",
- "Last active": "చివరిగా సక్రియంగా ఉన్న సమయం"
+ "Last active": "చివరిగా సక్రియంగా ఉన్న సమయం",
+ "Today's Focus": "నేటి పని",
+ "All properties": "అన్ని ఆస్తులు",
+ "Publication reviews": "ప్రచురణ సమీక్ష",
+ "Public listings": "పబ్లిక్ లిస్టింగ్‌లు",
+ "Conversations": "సంభాషణలు",
+ "Capture & imports": "క్యాప్చర్ మరియు దిగుమతి",
+ "Scan property or requirement": "ఆస్తి లేదా అవసరాన్ని స్కాన్ చేయండి",
+ "WhatsApp export & paste": "WhatsApp ఎగుమతి మరియు పేస్ట్",
+ "Public listing drafts": "పబ్లిక్ లిస్టింగ్ డ్రాఫ్ట్‌లు",
+ "My work": "నా పని",
+ "Time Logging": "సమయ రికార్డు",
+ "Rules & execution history": "నియమాలు మరియు అమలు చరిత్ర",
+ "Housing & connectors": "Housing కనెక్టర్లు",
+ "Other tools": "ఇతర సాధనాలు",
+ "Find a module or tool": "మాడ్యూల్ లేదా సాధనాన్ని వెతకండి",
+ "Search your workspace": "మీ కార్యస్థలంలో వెతకండి",
+ "Search leads, inventory, requirements…": "లీడ్‌లు, ఇన్వెంటరీ, అవసరాలను వెతకండి…"
 }

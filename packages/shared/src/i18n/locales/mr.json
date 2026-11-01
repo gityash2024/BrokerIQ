@@ -3495,5 +3495,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "पाच डिव्हाइसवर साइन इन आहे. या डिव्हाइसवर पुढे जाण्यासाठी एक निवडा.",
  "Sign out this device and continue": "या डिव्हाइसवरून साइन आउट करून पुढे जा",
  "Unknown device": "अज्ञात डिव्हाइस",
- "Last active": "शेवटचे सक्रिय"
+ "Last active": "शेवटचे सक्रिय",
+ "Today's Focus": "आजचे काम",
+ "All properties": "सर्व मालमत्ता",
+ "Publication reviews": "प्रकाशनाचे पुनरावलोकन",
+ "Public listings": "सार्वजनिक लिस्टिंग",
+ "Conversations": "संभाषणे",
+ "Capture & imports": "कॅप्चर आणि आयात",
+ "Scan property or requirement": "मालमत्ता किंवा गरज स्कॅन करा",
+ "WhatsApp export & paste": "WhatsApp निर्यात आणि पेस्ट",
+ "Public listing drafts": "सार्वजनिक लिस्टिंगचे मसुदे",
+ "My work": "माझे काम",
+ "Time Logging": "वेळेची नोंद",
+ "Rules & execution history": "नियम आणि कार्यवाहीचा इतिहास",
+ "Housing & connectors": "Housing आणि कनेक्टर",
+ "Other tools": "इतर साधने",
+ "Find a module or tool": "मॉड्यूल किंवा साधन शोधा",
+ "Search your workspace": "आपल्या कार्यक्षेत्रात शोधा",
+ "Search leads, inventory, requirements…": "लीड, इन्व्हेंटरी, गरजा शोधा…"
 }

@@ -2615,5 +2615,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "Five devices are signed in. Choose one to continue on this device.",
  "Sign out this device and continue": "Sign out this device and continue",
  "Unknown device": "Unknown device",
- "Last active": "Last active"
+ "Last active": "Last active",
+ "Today's Focus": "Today's Focus",
+ "All properties": "All properties",
+ "Publication reviews": "Publication reviews",
+ "Public listings": "Public listings",
+ "Conversations": "Conversations",
+ "Capture & imports": "Capture & imports",
+ "Scan property or requirement": "Scan property or requirement",
+ "WhatsApp export & paste": "WhatsApp export & paste",
+ "Public listing drafts": "Public listing drafts",
+ "My work": "My work",
+ "Time Logging": "Time Logging",
+ "Rules & execution history": "Rules & execution history",
+ "Housing & connectors": "Housing & connectors",
+ "Other tools": "Other tools",
+ "Find a module or tool": "Find a module or tool",
+ "Search your workspace": "Search your workspace",
+ "Search leads, inventory, requirements…": "Search leads, inventory, requirements…"
 }

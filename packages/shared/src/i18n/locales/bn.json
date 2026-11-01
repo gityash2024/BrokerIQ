@@ -3510,5 +3510,22 @@
  "Five devices are signed in. Choose one to continue on this device.": "পাঁচটি ডিভাইসে সাইন ইন করা আছে। এই ডিভাইসে চালিয়ে যেতে একটি বেছে নিন।",
  "Sign out this device and continue": "এই ডিভাইস থেকে সাইন আউট করে এগিয়ে যান",
  "Unknown device": "অজানা ডিভাইস",
- "Last active": "শেষ সক্রিয়"
+ "Last active": "শেষ সক্রিয়",
+ "Today's Focus": "আজকের কাজ",
+ "All properties": "সব সম্পত্তি",
+ "Publication reviews": "প্রকাশনার পর্যালোচনা",
+ "Public listings": "সর্বজনীন তালিকা",
+ "Conversations": "কথোপকথন",
+ "Capture & imports": "ক্যাপচার ও আমদানি",
+ "Scan property or requirement": "সম্পত্তি বা চাহিদা স্ক্যান করুন",
+ "WhatsApp export & paste": "WhatsApp রপ্তানি ও পেস্ট",
+ "Public listing drafts": "সর্বজনীন তালিকার খসড়া",
+ "My work": "আমার কাজ",
+ "Time Logging": "সময়ের রেকর্ড",
+ "Rules & execution history": "নিয়ম ও কার্য সম্পাদনের ইতিহাস",
+ "Housing & connectors": "Housing ও সংযোগকারী",
+ "Other tools": "অন্যান্য টুল",
+ "Find a module or tool": "মডিউল বা টুল খুঁজুন",
+ "Search your workspace": "আপনার কর্মক্ষেত্রে খুঁজুন",
+ "Search leads, inventory, requirements…": "লিড, ইনভেন্টরি, চাহিদা খুঁজুন…"
 }

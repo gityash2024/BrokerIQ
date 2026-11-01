@@ -1,11 +1,17 @@
 import { Module, Controller, Get, Query, BadRequestException } from '@nestjs/common';
-import { dashboardQuerySchema, type DashboardQuery } from '@brokeriq/shared';
+import { dashboardQuerySchema, performanceQuerySchema, type PerformanceQuery, type DashboardQuery } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { DashboardService } from './dashboard.service';
 @Controller()
 class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
+  @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT') @Get('broker/performance') performance(
+    @Query(new ZodPipe(performanceQuerySchema)) query: PerformanceQuery,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.dashboard.performance(user, query);
+  }
   private records(role: 'admin' | 'broker' | 'user', q: Record<string, string>, user: RequestUser) {
     const parsed = dashboardQuerySchema.safeParse(q);
     if (!parsed.success) throw new BadRequestException('Invalid reporting dates');
