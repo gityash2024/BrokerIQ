@@ -7,25 +7,31 @@ const workflows = [
   ['03', 'Capture now. Review with confidence.', 'Turn shared messages, images and registers into records you can check before using.'],
   ['04', 'A clearer view of your business.', 'Real activity, useful trends and visible connection status across web and Android.'],
 ];
-function ReleaseTimestamp({ updatedAt }: { updatedAt?: string }) {
+function ReleaseTimestamp({ updatedAt, build }: { updatedAt?: string; build?: string }) {
   if (!updatedAt) return null;
   const formatted = new Intl.DateTimeFormat('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
   }).format(new Date(updatedAt));
-  return <time className="biq-release-updated" dateTime={updatedAt}>Updated · {formatted} IST</time>;
+  return (
+    <time className="biq-release-updated" dateTime={updatedAt}>
+      {build ? `${build} · ` : ''}Updated · {formatted} IST
+    </time>
+  );
 }
 export function BrokerIQLanding({
   apkUrl,
   contact,
   screenshots = [],
   releaseUpdates,
+  builds,
 }: {
   apkUrl?: string;
   contact?: { email?: string; phone?: string; address?: string };
   checksum?: string;
   screenshots?: { src: string; label: string; caption?: string }[];
   releaseUpdates?: { user: string; broker: string; android: string };
+  builds?: { user?: string; broker?: string; android?: string };
 }) {
   return (
     <div className="biq-landing" style={{ '--biq-brand': BRAND.primary, '--biq-accent': BRAND.accent } as React.CSSProperties}>
@@ -88,7 +94,7 @@ export function BrokerIQLanding({
               <small>FOR YOUR NEXT HOME</small>
               <h2>User Portal</h2>
               <p>Discover, shortlist and enquire.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.user} />
+              <ReleaseTimestamp updatedAt={releaseUpdates?.user} build={builds?.user} />
             </div>
             <span aria-hidden>↗</span>
           </a>
@@ -98,7 +104,7 @@ export function BrokerIQLanding({
               <small>FOR YOUR WORKING DAY</small>
               <h2>Broker Portal</h2>
               <p>Your inventory and conversations.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.broker} />
+              <ReleaseTimestamp updatedAt={releaseUpdates?.broker} build={builds?.broker} />
             </div>
             <span aria-hidden>↗</span>
           </a>
@@ -108,7 +114,7 @@ export function BrokerIQLanding({
               <small>WHEREVER WORK TAKES YOU</small>
               <h2>Android App</h2>
               <p>One app. User and Broker modes.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.android} />
+              <ReleaseTimestamp updatedAt={releaseUpdates?.android} build={builds?.android} />
             </div>
             <span aria-hidden>↗</span>
           </a>
