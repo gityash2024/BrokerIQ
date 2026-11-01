@@ -1,0 +1,6 @@
+{
+  "name": "brokeriq-face-capture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BrokerIQ private on-device guided KYC capture"
+}

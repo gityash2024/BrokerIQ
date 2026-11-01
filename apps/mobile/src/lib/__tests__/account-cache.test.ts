@@ -1,5 +1,5 @@
 import * as storage from 'expo-secure-store';
-import { authStore } from '../api';
+import { authStore, api, AccountScopeChangedError } from '../api';
 import { queryClient } from '../query';
 
 it('keeps same-account refresh data but clears private queries before switching accounts', async () => {
@@ -68,4 +68,34 @@ it('clears privileged queries when the same account changes role or firm', async
   queryClient.setQueryData(['inventory-private'], ['firm-a']);
   await authStore.set({ ...session, user: { ...session.user, role: 'BROKER_AGENT', organization: { id: 'firm-b' } } });
   expect(queryClient.getQueryData(['inventory-private'])).toBeUndefined();
+});
+
+it.each(['role', 'firm'])('rejects a late privileged response after the same user changes %s', async (change) => {
+  const original = { accessToken: 'fixture', refreshToken: 'fixture', user: { id: 'same-user', role: 'BROKER_ADMIN', organization: { id: 'firm-a' } } } as any;
+  await authStore.set(original);
+  let release!: (response: any) => void;
+  const fetch = jest.spyOn(globalThis, 'fetch').mockReturnValueOnce(
+    new Promise((resolve) => {
+      release = resolve;
+    }),
+  );
+  try {
+    const pending = api('/broker/team');
+    const rejected = expect(pending).rejects.toBeInstanceOf(AccountScopeChangedError);
+    await authStore.set({ ...original, user: { ...original.user, ...(change === 'role' ? { role: 'BROKER_AGENT' } : { organization: { id: 'firm-b' } }) } });
+    release({ status: 200, ok: true, text: async () => JSON.stringify({ privateAdminData: true }) });
+    await rejected;
+  } finally {
+    fetch.mockRestore();
+  }
+});
+
+it('preserves existing guest access for public listing requests', async () => {
+  await authStore.set(null);
+  const request = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ status: 200, ok: true, text: async () => '{"id":"public-listing"}' } as Response);
+  try {
+    await expect(api('/listings/public-slug')).resolves.toEqual({ id: 'public-listing' });
+  } finally {
+    request.mockRestore();
+  }
 });

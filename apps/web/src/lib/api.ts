@@ -84,12 +84,22 @@ async function refresh(): Promise<boolean> {
 }
 
 type Opts = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean; raw?: boolean; ownerId?: string };
+export class AccountScopeChangedError extends Error {}
+function currentScope() {
+  const user = authStore.get()?.user;
+  return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
+}
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { body, auth = true, raw, headers, ownerId, ...rest } = opts;
   const owner = auth ? (ownerId ?? authStore.get()?.user.id) : undefined;
+  const ownerScope = auth ? currentScope() : undefined;
+  const assertOwner = () => {
+    if (auth && (authStore.get()?.user.id !== owner || currentScope() !== ownerScope))
+      throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+  };
   const send = async () => {
-    if (auth && authStore.get()?.user.id !== owner) throw new Error('Account changed. This operation stays with its original account.');
+    assertOwner();
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}/api${path}`, {
       ...rest,
@@ -105,13 +115,15 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   let res: Response;
   try {
     res = await send();
-  } catch {
+  } catch (error) {
+    if (error instanceof AccountScopeChangedError) throw error;
     throw new ApiError(0, { statusCode: 0, code: 'INTERNAL', message: 'Server से connect नहीं हो पाया — internet check करें' });
   }
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
-  if (auth && authStore.get()?.user.id !== owner) throw new Error('Account changed. The response belongs to the original account.');
+  assertOwner();
   if (raw) return res as unknown as T;
   const text = await res.text();
+  assertOwner();
   const data = text ? safeJson(text) : null;
   if (!res.ok) {
     const b: ApiErrorBody = isApiErrorBody(data) ? data : { statusCode: res.status, code: 'INTERNAL', message: res.statusText || 'Request failed' };

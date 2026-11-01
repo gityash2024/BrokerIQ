@@ -2152,16 +2152,21 @@
       ],
       "backend": "PENDING",
       "web": "IMPLEMENTED_NOT_REAL_FACE_VERIFIED",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_NATIVE_COMPILED_NOT_DEVICE_VERIFIED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Native Gradle compile + 9 JUnit pose cases; mobile79 boundary/source checks, workspace types, Android Hermes export. Real camera/device and signed upgrade pending; see NATIVE_KYC_CAPTURE_CHECKPOINT.md.",
       "notes": [
-        "Web manual-upload fallback removed; second-face/blink gating and late-camera shutdown corrected. Native actual pose pipeline and physical-device lifecycle checks remain open."
+        "Web manual-upload fallback removed; second-face/blink gating and late-camera shutdown corrected. Native actual pose pipeline and physical-device lifecycle checks remain open.",
+        "Tracked CameraX/bundled ML Kit native capture, own FLAG_SECURE window, single-face/pose/blink/continuous hold, still-image recheck, three review/retake captures and role/firm-scoped retry. No automatic KYC approval or physical-device completion claim."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/mobile/modules/brokeriq-face-capture",
+        "apps/mobile/src/lib/native-face-capture.ts",
+        "apps/mobile/app/agent-kyc.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2181,16 +2186,21 @@
       ],
       "backend": "PENDING",
       "web": "IMPLEMENTED_NOT_REAL_FACE_VERIFIED",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_NATIVE_COMPILED_NOT_DEVICE_VERIFIED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Native Gradle compile + 9 JUnit pose cases; mobile79 boundary/source checks, workspace types, Android Hermes export. Real camera/device and signed upgrade pending; see NATIVE_KYC_CAPTURE_CHECKPOINT.md.",
       "notes": [
-        "Web manual-upload fallback removed; second-face/blink gating and late-camera shutdown corrected. Native actual pose pipeline and physical-device lifecycle checks remain open."
+        "Web manual-upload fallback removed; second-face/blink gating and late-camera shutdown corrected. Native actual pose pipeline and physical-device lifecycle checks remain open.",
+        "Tracked CameraX/bundled ML Kit native capture, own FLAG_SECURE window, single-face/pose/blink/continuous hold, still-image recheck, three review/retake captures and role/firm-scoped retry. No automatic KYC approval or physical-device completion claim."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/mobile/modules/brokeriq-face-capture",
+        "apps/mobile/src/lib/native-face-capture.ts",
+        "apps/mobile/app/agent-kyc.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

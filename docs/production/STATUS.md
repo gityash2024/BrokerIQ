@@ -169,3 +169,9 @@ fd96714 records an actual consistent 99-table database snapshot and 595-file che
 ## KYC migration rehearsal — production untouched
 
 All additive migrations applied to the actual verified production restore. All ten Cloudinary KYC originals were copied to encrypted private storage there (6,776,237 original bytes), with matching SHA-256 and full pre-migration KycDocument content digest after restoring legacy URL references. Ten original ciphertext files plus checksum report were age-archived off-host and verified. The Admin API omits ETag, so the migration now verifies stable provider identity/version and matching delivery/original downloads instead of assuming upload metadata is present. Four migration tests cover provider-boundary simulation and operations safety; live retirement is not evidenced. Production public URLs remain active until compatible web/APK and a post-copy off-host restore pass. See KYC_MIGRATION_REHEARSAL.md.
+
+## Native guided KYC capture checkpoint
+
+Tracked local Expo Android CameraX/ML Kit module now compiles and autolinks; native pose/blink gate 9/9, mobile79/79, workspace types and Android JS export pass. See NATIVE_KYC_CAPTURE_CHECKPOINT.md. Private retry/result handling is account/role/firm scoped, and late web/mobile API responses after permission changes are rejected. Actual phone camera, recording/recents protection, final APK alignment and signed upgrade remain open.
+
+Textbee user setup inspected in Chrome: one online Redmi device (app 2.9.0/build20), one active masked API key, free dashboard quota 50/day and 300/month, one previously sent SMS. This is provider setup evidence only; no BrokerIQ integration or outbound diagnostic was performed. Existing dashboard exposes key rename/revoke only, not full-key recovery. User chose Rahul/Olive Estate SIM ending0802; actual device SIM association and inbound privacy filters still require phone-side verification.

@@ -1,3 +1,4 @@
+import { captureGuidedFaces, hasPendingFaceCaptures, discardFaceCaptures } from '@/lib/native-face-capture';
 import { KycHistory } from '@/launch/kyc-history';
 import { KycMedia } from '@/launch/kyc-media';
 import { useState, useEffect } from 'react';
@@ -75,6 +76,7 @@ export default function AgentKycScreen() {
   const [uploadingAadhaar, setUploadingAadhaar] = useState(false);
   const [uploadingPan, setUploadingPan] = useState(false);
   const [uploadingPose, setUploadingPose] = useState<string | null>(null);
+  const [retryFaceUpload, setRetryFaceUpload] = useState(false);
 
   const kyc = kycQuery.data;
   const isVerified = kyc?.status === 'VERIFIED';
@@ -135,33 +137,25 @@ export default function AgentKycScreen() {
     }
   };
 
-  // Capture Liveliness Selfie with front camera
-  const capturePose = async (pose: 'STRAIGHT' | 'LEFT' | 'RIGHT') => {
-    if (isVerified) return;
+  // The guided native activity requires a live blink and every pose, then review/retake.
+  const capturePose = async (_pose: 'STRAIGHT' | 'LEFT' | 'RIGHT') => {
+    if (isVerified || !user || uploadingPose) return;
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('कैमरा परमिशन आवश्यक', 'चेहरा सत्यापन हेतु कैमरा परमिशन दें।');
+        Alert.alert('कैमरा परमिशन आवश्यक', 'चेहरे की तस्वीरें लेने के लिए कैमरा परमिशन दें।');
         return;
       }
-
-      const res = await ImagePicker.launchCameraAsync({
-        cameraType: ImagePicker.CameraType.front,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (res.canceled || !res.assets[0]?.uri) return;
-
-      setUploadingPose(pose);
-      const { url } = await uploadUri(res.assets[0].uri, 'kyc');
-
-      if (pose === 'STRAIGHT') setStraightUrl(url);
-      if (pose === 'LEFT') setLeftUrl(url);
-      if (pose === 'RIGHT') setRightUrl(url);
-    } catch (e: any) {
-      Alert.alert('Camera Error', e?.message || 'फ़ोटो कैप्चर नहीं हो सकी');
+      setUploadingPose('ALL');
+      const result = await captureGuidedFaces(user.id, isDark);
+      if (!result) return;
+      setStraightUrl(result.straightUrl);
+      setLeftUrl(result.leftUrl);
+      setRightUrl(result.rightUrl);
+      setRetryFaceUpload(false);
+    } catch (error: any) {
+      setRetryFaceUpload(hasPendingFaceCaptures(user.id));
+      Alert.alert('Face capture', error?.message || 'कैप्चर पूरा नहीं हो सका। दोबारा कोशिश करें।');
     } finally {
       setUploadingPose(null);
     }
@@ -641,7 +635,7 @@ export default function AgentKycScreen() {
           </View>
         </View>
 
-        {/* Section 3: Face Liveliness Check (3 Poses) */}
+        {/* Section 3: Guided Face Capture (3 Poses) */}
         <View
           style={{
             borderRadius: 22,
@@ -655,9 +649,7 @@ export default function AgentKycScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Camera size={18} color="#10B981" />
-              <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>
-                3. Face Liveliness (3 Poses)
-              </Txt>
+              <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>3. Guided Face Capture (3 Poses)</Txt>
             </View>
             {straightUrl && leftUrl && rightUrl && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -702,11 +694,7 @@ export default function AgentKycScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  {pose.url ? (
-                    <KycMedia uri={pose.url} style={{ width: '100%', height: '100%' }} />
-                  ) : (
-                    <Camera size={24} color={c.muted} />
-                  )}
+                  {pose.url ? <KycMedia uri={pose.url} style={{ width: '100%', height: '100%' }} /> : <Camera size={24} color={c.muted} />}
                   {pose.url && (
                     <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#10B981', borderRadius: 99, padding: 2 }}>
                       <CheckCircle2 size={12} color="#fff" />
@@ -716,27 +704,37 @@ export default function AgentKycScreen() {
 
                 <Txt style={{ fontSize: 11, fontWeight: '800', color: c.fg }}>{pose.label}</Txt>
                 <Txt style={{ fontSize: 10, color: c.muted }}>{pose.hint}</Txt>
-
-                {!isVerified && (
-                  <TouchableOpacity
-                    disabled={uploadingPose === pose.key}
-                    onPress={() => capturePose(pose.key)}
-                    style={{
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                      backgroundColor: pose.url ? 'transparent' : c.brand,
-                    }}
-                  >
-                    <Txt style={{ fontSize: 11, fontWeight: '700', color: pose.url ? c.brand : '#fff' }}>
-                      {uploadingPose === pose.key ? 'Saving...' : pose.url ? 'दोबारा लें' : 'कैप्चर करें'}
-                    </Txt>
-                  </TouchableOpacity>
-                )}
               </View>
             ))}
           </View>
+          {!isVerified && (
+            <Button
+              title={
+                retryFaceUpload
+                  ? 'कैप्चर की हुई फ़ोटो upload दोबारा करें'
+                  : straightUrl && leftUrl && rightUrl
+                    ? 'तीनों face poses दोबारा लें'
+                    : 'तीनों face poses कैप्चर करें'
+              }
+              loading={!!uploadingPose}
+              onPress={() => capturePose('STRAIGHT')}
+            />
+          )}
+          {retryFaceUpload && !!user && (
+            <Button
+              title="नई captures लें"
+              variant="secondary"
+              disabled={!!uploadingPose}
+              onPress={async () => {
+                await discardFaceCaptures(user.id);
+                setRetryFaceUpload(false);
+                capturePose('STRAIGHT');
+              }}
+            />
+          )}
         </View>
+
+  
 
         {/* Submit Button */}
         {!isVerified && (
@@ -745,6 +743,7 @@ export default function AgentKycScreen() {
             variant="primary"
             title={isRejected ? 'सुधार कर पुनः सबमिट करें' : 'KYC सबमिट करें (Submit KYC)'}
             loading={submitMutation.isPending}
+            disabled={!!uploadingPose}
             onPress={handleSubmit}
             style={{ marginTop: 8 }}
           />

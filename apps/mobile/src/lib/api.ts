@@ -101,12 +101,22 @@ async function refresh(): Promise<boolean> {
 }
 
 type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string>; ownerId?: string };
+export class AccountScopeChangedError extends Error {}
+function currentScope() {
+  const user = authStore.get()?.user;
+  return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
+}
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { body, auth = true, method = body === undefined ? 'GET' : 'POST', headers } = opts;
   const ownerId = auth ? (opts.ownerId ?? authStore.get()?.user.id) : undefined;
+  const ownerScope = auth ? currentScope() : undefined;
+  const assertOwner = () => {
+    if (auth && (authStore.get()?.user.id !== ownerId || currentScope() !== ownerScope))
+      throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+  };
   const send = () => {
-    if (auth && authStore.get()?.user.id !== ownerId) throw new Error('Account changed. Saved operation remains with its original account.');
+    assertOwner();
     const token = auth ? authStore.get()?.accessToken : undefined;
     return fetch(`${API_URL}${path}`, {
       method,
@@ -122,12 +132,14 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   let res: Response;
   try {
     res = await send();
-  } catch {
+  } catch (error) {
+    if (error instanceof AccountScopeChangedError) throw error;
     throw new ApiError(0, { statusCode: 0, code: 'INTERNAL', message: 'Server से connect नहीं हो पाया — internet check करें' } as ApiErrorBody);
   }
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
-  if (auth && authStore.get()?.user.id !== ownerId) throw new Error('Account changed. The response belongs to the original account.');
+  assertOwner();
   const text = await res.text();
+  assertOwner();
   let data: any = null;
   try {
     data = text ? JSON.parse(text) : null;
@@ -158,19 +170,32 @@ export const qs = (o: Record<string, unknown>) => {
 
 /** Direct upload (Cloudinary / S3) of a local file uri via a server signature. */
 export async function uploadUri(uri: string, kind: string, mime = 'image/jpeg'): Promise<{ url: string; publicId?: string }> {
+  const scope = () => {
+    const user = authStore.get()?.user;
+    return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
+  };
+  const owner = scope();
+  const assertOwner = () => {
+    if (!owner || owner !== scope()) throw new Error('Account permissions changed. Please reopen the upload.');
+  };
+  assertOwner();
   const sig = await post<any>('/me/uploads/sign', { kind, contentType: mime });
+  assertOwner();
   if (sig.provider === 'cloudinary') {
     const fd = new FormData();
     Object.entries(sig.fields as Record<string, string>).forEach(([k, v]) => fd.append(k, v));
     fd.append('file', { uri, name: `upload.${mime.split('/')[1] ?? 'jpg'}`, type: mime } as any);
     const r = await fetch(sig.uploadUrl, { method: 'POST', body: fd });
     const j = await r.json();
+    assertOwner();
     if (!r.ok || !j.secure_url) throw new Error(j?.error?.message ?? 'Upload failed');
     return { url: j.secure_url, publicId: j.public_id };
   }
   const blob = await (await fetch(uri)).blob();
+  assertOwner();
   const r = await fetch(sig.uploadUrl, { method: 'PUT', headers: sig.headers ?? { 'Content-Type': mime }, body: blob });
   if (!r.ok) throw new Error('Upload failed');
+  assertOwner();
   return { url: sig.publicUrl };
 }
 
