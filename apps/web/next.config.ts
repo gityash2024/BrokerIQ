@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   // optimizer is disabled to keep hosting free (no Vercel image-optimization quota).
   images: { unoptimized: true },
   poweredByHeader: false,
+  experimental: {
+    // Optional local-QA limit for prolonged sessions on machines with little disk space.
+    turbopackFileSystemCacheForDev: process.env.BROKERIQ_DISABLE_DEV_CACHE !== '1',
+  },
   // Canonical consumer URLs. Next preserves query filters on redirects.
   async redirects() {
     return [
