@@ -56,6 +56,35 @@ export class InventoryController {
   ) {
     return this.inventory.publishToListing(id, body, user);
   }
+  @Post(':id/publication/review') reviewPublication(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body(
+      new ZodPipe(z.object({ action: z.enum(['approve', 'reject']), reason: z.string().trim().max(500).optional(), expectedUpdatedAt: z.string().datetime() })),
+    )
+    body: { action: 'approve' | 'reject'; reason?: string; expectedUpdatedAt: string },
+  ) {
+    return this.inventory.reviewPublication(id, body, user);
+  }
+  @Post(':id/publication/withdraw') withdrawPublication(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.inventory.withdrawPublication(id, user);
+  }
+  @Get('publications/queue') publicationQueue(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodPipe(z.object({ page: z.coerce.number().int().positive().default(1) }))) query: { page: number },
+  ) {
+    return this.inventory.publicationQueue(user, query.page);
+  }
+  @Post('publications/:id/review') reviewListingPublication(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body(
+      new ZodPipe(z.object({ action: z.enum(['approve', 'reject']), reason: z.string().trim().max(500).optional(), expectedUpdatedAt: z.string().datetime() })),
+    )
+    body: { action: 'approve' | 'reject'; reason?: string; expectedUpdatedAt: string },
+  ) {
+    return this.inventory.reviewListingPublication(id, body, user);
+  }
   @Post('bulk') bulk(
     @Body(new ZodPipe(z.object({ items: z.array(inventoryInputSchema).min(1).max(500) }))) body: { items: CreateInventoryItemDto[] },
     @CurrentUser() user: RequestUser,

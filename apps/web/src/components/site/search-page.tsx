@@ -13,6 +13,7 @@ import {
   PROPERTY_TYPE_CATEGORY,
   PROPERTY_TYPE_LABELS,
   RENTABLE_TYPES,
+  PROPERTY_TYPES,
   plural,
   type LocalityListItem,
 } from '@brokeriq/shared';
@@ -35,10 +36,10 @@ export type SearchMode = 'buy' | 'rent' | 'commercial' | 'plots';
 
 // Rental marketplace: every mode searches rent listings ('buy' / 'plots' routes redirect to /rent).
 const MODE: Record<SearchMode, { purpose?: 'SALE' | 'RENT'; category?: string; title: string; base: string }> = {
-  buy: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/user/search' },
+  buy: { purpose: 'SALE', category: 'RESIDENTIAL', title: 'Homes for sale', base: '/buy' },
   rent: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/user/search' },
   commercial: { purpose: 'RENT', category: 'COMMERCIAL', title: 'Commercial space for rent', base: '/user/commercial' },
-  plots: { purpose: 'RENT', category: 'RESIDENTIAL', title: 'Homes for rent', base: '/user/search' },
+  plots: { purpose: 'SALE', category: 'PLOT', title: 'Plots for sale', base: '/plots' },
 };
 
 const BEDS = ['1', '2', '3', '4', '5+'];
@@ -96,7 +97,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
 
   const mapQ = useQuery({ queryKey: ['search-map', key], queryFn: () => api<any[]>(`/listings/map${key}`, { auth: false }), enabled: view === 'map' });
 
-  const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && RENTABLE_TYPES.includes(t.value));
+  const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && (purpose==='SALE'?PROPERTY_TYPES:RENTABLE_TYPES).includes(t.value));
   const budgets: number[] = tax?.budgets?.[purpose] ?? [];
   const selectedLocs = (f.localities ?? '').split(',').filter(Boolean);
   const activeCount = [

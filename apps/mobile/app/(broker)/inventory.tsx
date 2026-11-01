@@ -61,8 +61,7 @@ export default function Inventory() {
 
   const query = useInfiniteQuery({
     queryKey: ['ledger', term, filters],
-    queryFn: ({ pageParam }) =>
-      api<PagedLedger>(`/inventory${qs({ ...filters, search: term, page: pageParam, pageSize: 30 })}`),
+    queryFn: ({ pageParam }) => api<PagedLedger>(`/inventory${qs({ ...filters, search: term, page: pageParam, pageSize: 30 })}`),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
   });
@@ -129,14 +128,10 @@ export default function Inventory() {
       }
     >
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 12 }}>
+        {user?.role === 'BROKER_ADMIN' && <Button title="Publication reviews" variant="secondary" onPress={() => router.push('/publication-reviews' as any)} />}
         {/* Top Quick Actions */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Button
-            title="Scan / import"
-            size="sm"
-            style={{ flex: 1 }}
-            onPress={() => router.push('/scanner?target=INVENTORY' as any)}
-          />
+          <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />
           <Button
             title="Paste / chat export"
             size="sm"
@@ -206,11 +201,7 @@ export default function Inventory() {
         </View>
 
         {/* CRED-Style Horizontal Quick Filter Carousel */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
           {/* All */}
           <Pressable
             onPress={() => setFilters(initial)}
@@ -219,14 +210,8 @@ export default function Inventory() {
               paddingVertical: 7,
               borderRadius: 20,
               borderWidth: 1,
-              borderColor:
-                !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector
-                  ? c.brand
-                  : `${c.line}90`,
-              backgroundColor:
-                !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector
-                  ? `${c.brand}20`
-                  : c.surface,
+              borderColor: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? c.brand : `${c.line}90`,
+              backgroundColor: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? `${c.brand}20` : c.surface,
             }}
           >
             <Txt
@@ -234,10 +219,7 @@ export default function Inventory() {
               style={{
                 fontSize: 12,
                 fontWeight: '700',
-                color:
-                  !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector
-                    ? c.brand
-                    : c.fg,
+                color: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? c.brand : c.fg,
               }}
             >
               All
@@ -246,9 +228,7 @@ export default function Inventory() {
 
           {/* My Properties */}
           <Pressable
-            onPress={() =>
-              setFilters({ ...filters, onlyMine: filters.onlyMine === 'true' ? '' : 'true' })
-            }
+            onPress={() => setFilters({ ...filters, onlyMine: filters.onlyMine === 'true' ? '' : 'true' })}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -305,9 +285,7 @@ export default function Inventory() {
 
           {/* Rent */}
           <Pressable
-            onPress={() =>
-              setFilters({ ...filters, purpose: filters.purpose === 'RENT' ? '' : 'RENT' })
-            }
+            onPress={() => setFilters({ ...filters, purpose: filters.purpose === 'RENT' ? '' : 'RENT' })}
             style={{
               paddingHorizontal: 13,
               paddingVertical: 7,
@@ -331,9 +309,7 @@ export default function Inventory() {
 
           {/* Sale */}
           <Pressable
-            onPress={() =>
-              setFilters({ ...filters, purpose: filters.purpose === 'SALE' ? '' : 'SALE' })
-            }
+            onPress={() => setFilters({ ...filters, purpose: filters.purpose === 'SALE' ? '' : 'SALE' })}
             style={{
               paddingHorizontal: 13,
               paddingVertical: 7,
@@ -359,9 +335,7 @@ export default function Inventory() {
           {sectors.data?.slice(0, 4).map((s) => (
             <Pressable
               key={s.sector}
-              onPress={() =>
-                setFilters({ ...filters, sector: filters.sector === s.sector ? '' : s.sector })
-              }
+              onPress={() => setFilters({ ...filters, sector: filters.sector === s.sector ? '' : s.sector })}
               style={{
                 paddingHorizontal: 13,
                 paddingVertical: 7,

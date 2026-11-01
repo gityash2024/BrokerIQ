@@ -1,28 +1,69 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { inventoryPublishSchema, RENTABLE_TYPES, PROPERTY_TYPE_LABELS, type LedgerItem, type LocalityListItem } from '@brokeriq/shared';
+import { inventoryPublishSchema, RENTABLE_TYPES, PROPERTY_TYPES, PROPERTY_TYPE_LABELS, type LedgerItem, type LocalityListItem } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea, Select } from '@/components/ui/field';
+import { PublicationReview } from './publication-review';
 export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () => void }) {
   const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }) });
+  const saved = useQuery({
+    queryKey: ['publication-saved', item.publishedListingId, item.publishedListing?.updatedAt],
+    queryFn: () => api<any>('/listings/' + item.publishedListingId),
+    enabled: !!item.publishedListingId,
+  });
+  const hydrated = useRef(false);
   const [preview, setPreview] = useState(false),
     [accepted, setAccepted] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const [value, setValue] = useState({
-    title: item.sector ? `Rental property in ${item.sector}` : '',
+    title: item.sector ? `${item.purpose === 'SALE' ? 'Property for sale' : 'Rental property'} in ${item.sector}` : '',
     description: '',
     localityId: item.localityId ?? '',
     propertyType: item.propertyType ?? '',
-    price: String(item.monthlyRent ?? ''),
+    price: String((item.purpose === 'SALE' ? item.totalSalePrice : item.monthlyRent) ?? ''),
     contactPhone: '',
     contactName: '',
     bedrooms: String(item.bhk ?? ''),
     floor: item.floor && /^-?\d+$/.test(item.floor) ? item.floor : '',
     photos: [] as { url: string }[],
   });
+  useEffect(() => {
+    if (!saved.data || hydrated.current) return;
+    const current = saved.data;
+    const fields = Object.fromEntries(
+      [
+        'title',
+        'description',
+        'localityId',
+        'propertyType',
+        'address',
+        'bathrooms',
+        'balconies',
+        'carpetArea',
+        'totalFloors',
+        'furnishing',
+        'securityDeposit',
+        'amenities',
+        'contactName',
+        'contactPhone',
+      ].flatMap((key) => (current[key] !== undefined ? [[key, current[key]]] : [])),
+    );
+    setValue((previous) => ({
+      ...previous,
+      ...fields,
+      description: current.description ?? '',
+      contactName: current.contactName ?? '',
+      contactPhone: current.contactPhone ?? '',
+      price: String(current.price),
+      bedrooms: current.bedrooms == null ? '' : String(current.bedrooms),
+      floor: current.floor == null ? '' : String(current.floor),
+      photos: current.media?.map((m: any) => ({ url: m.url, ...(m.kind ? { kind: m.kind } : {}) })) ?? [],
+    }));
+    hydrated.current = true;
+  }, [saved.data]);
   const set = (key: string, v: any) => {
     setPreview(false);
     setAccepted(false);
@@ -31,6 +72,7 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
   const parsed = () =>
     inventoryPublishSchema.safeParse({
       ...value,
+      purpose: item.purpose,
       price: Number(value.price),
       bedrooms: value.bedrooms === '' ? null : Number(value.bedrooms),
       floor: value.floor === '' ? null : Number(value.floor),
@@ -38,15 +80,20 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
       confirmedAvailable: true,
       publicPreviewAccepted: true,
     });
-  const ready = item.availability === 'AVAILABLE' && item.status === 'ACTIVE' && item.purpose === 'RENT';
+  const ready = item.availability === 'AVAILABLE' && item.status === 'ACTIVE' && ['RENT', 'SALE'].includes(item.purpose || '');
   return (
     <div className="space-y-5">
+      <PublicationReview item={item} onDone={onDone} />
       <p className="rounded-xl bg-brand-50 p-4 text-xs leading-6 text-brand-800 dark:bg-brand-900/30 dark:text-brand-200">
-        Choose exactly what customers may see. Private contacts, register images and internal notes stay in your ledger. The listing goes through Admin review.
+        Choose exactly what customers may see. Private contacts, register images and internal notes stay in your ledger. Verified Broker Admins publish
+        directly; Agent offers go to their Admin, and unverified firms require Super Admin approval.
       </p>
-      {!ready ? (
+      {saved.error && <p role="alert">{errorMessage(saved.error)}</p>}
+      {item.publishedListingId && !saved.data ? (
+        <p role="status">Loading saved public details…</p>
+      ) : !ready ? (
         <p role="alert" className="text-sm text-amber-700">
-          First save this as an active rental and confirm availability.
+          First save this as an active Rent/Sale property and confirm availability.
         </p>
       ) : (
         <>
@@ -54,7 +101,7 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
             <Field label="Public title">
               <Input value={value.title} onChange={(e) => set('title', e.target.value)} />
             </Field>
-            <Field label="Monthly rent ₹">
+            <Field label={item.purpose === 'SALE' ? 'Total sale price ₹' : 'Monthly rent ₹'}>
               <Input type="number" min="1" value={value.price} onChange={(e) => set('price', e.target.value)} />
             </Field>
             <Field label="Locality">
@@ -70,7 +117,7 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
             <Field label="Property type">
               <Select value={value.propertyType} onChange={(e) => set('propertyType', e.target.value)}>
                 <option value="">Choose type</option>
-                {RENTABLE_TYPES.map((t) => (
+                {(item.purpose === 'SALE' ? PROPERTY_TYPES : RENTABLE_TYPES).map((t) => (
                   <option key={t} value={t}>
                     {PROPERTY_TYPE_LABELS[t]}
                   </option>
@@ -130,7 +177,8 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
               <p className="section-kicker">CUSTOMER PREVIEW</p>
               <h3 className="font-display text-xl font-bold">{value.title}</h3>
               <p className="text-sm">
-                ₹{Number(value.price).toLocaleString('en-IN')}/month · {locs.data?.find((l) => l.id === value.localityId)?.name}
+                ₹{Number(value.price).toLocaleString('en-IN')}
+                {item.purpose === 'RENT' ? '/month' : ''} · {locs.data?.find((l) => l.id === value.localityId)?.name}
               </p>
               <p className="whitespace-pre-wrap text-sm text-muted">{value.description}</p>
               <p className="text-xs">
@@ -157,7 +205,7 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
                   }
                 }}
               >
-                Submit for Admin review
+                Publish / submit for required review
               </Button>
             </section>
           )}

@@ -29,7 +29,7 @@ describe('Production agent/firm record boundaries', () => {
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = mod.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0,'127.0.0.1');
     db = app.get(PrismaService);
     org = (await db.organization.create({ data: { name: 'Isolated permissions fixture', slug: 'permissions-' + uid, restrictions: [] } })).id;
     otherOrg = (await db.organization.create({ data: { name: 'Isolated other firm', slug: 'permissions-other-' + uid, restrictions: [] } })).id;

@@ -91,6 +91,7 @@ export const inventoryInputSchema = z
   });
 export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const inventoryFilterSchema = z.object({
+  review:z.enum(['publication']).optional(),
   detailFilters: z.string().max(12000).optional(),
   amenities: z.string().max(2000).optional(),
   hasPhotos: z.enum(['true', 'false']).optional(),
@@ -183,6 +184,7 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
 export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
   localityId?: string | null;
   publishedListingId?: string | null;
+  publishedListing?:{id:string;slug:string;title:string;status:string;purpose:string;reviewRequiredRole:string|null;rejectionReason:string|null;updatedAt:string}|null;
   isPublished?: boolean;
   id: string;
   organizationId: string;

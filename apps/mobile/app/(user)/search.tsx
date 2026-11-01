@@ -5,7 +5,16 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellPlus, List, Map as MapIcon, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { FURNISHING_LABELS, OFFICE_HUBS, PROPERTY_TYPE_LABELS, RENTABLE_TYPES, formatPriceShort, type PropertyType, plural } from '@brokeriq/shared';
+import {
+  FURNISHING_LABELS,
+  OFFICE_HUBS,
+  PROPERTY_TYPE_LABELS,
+  RENTABLE_TYPES,
+  PROPERTY_TYPES,
+  formatPriceShort,
+  type PropertyType,
+  plural,
+} from '@brokeriq/shared';
 import { api, post, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useDebounced } from '@/lib/hooks';
@@ -50,7 +59,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams<F>();
   // Rental marketplace: search is always RENT; quick filters (furnished / PG / commercial) arrive as params.
   const initialF = (): F => ({
-    purpose: 'RENT',
+    purpose: params.purpose === 'SALE' ? 'SALE' : 'RENT',
     category: params.category,
     localities: params.localities,
     furnishing: params.furnishing,
@@ -60,9 +69,9 @@ export default function SearchScreen() {
   });
   const [f, setF] = useState<F>(initialF);
   useEffect(() => {
-    if (params.category || params.localities || params.furnishing || params.types || params.maxPrice) setF(initialF());
+    if (params.purpose || params.category || params.localities || params.furnishing || params.types || params.maxPrice) setF(initialF());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.category, params.localities, params.furnishing, params.types, params.maxPrice]);
+  }, [params.purpose, params.category, params.localities, params.furnishing, params.types, params.maxPrice]);
   const [text, setText] = useState('');
   const q = useDebounced(text);
   const [filters, setFilters] = useState(false);
@@ -92,7 +101,7 @@ export default function SearchScreen() {
     if (!user) return router.push('/login');
     try {
       await post('/me/saved-searches', {
-        name: [f.bedrooms && `${f.bedrooms} BHK`, 'Rent', f.localities ?? q].filter(Boolean).join(' · ') || 'My search',
+        name: [f.bedrooms && `${f.bedrooms} BHK`, f.purpose === 'SALE' ? 'Sale' : 'Rent', f.localities ?? q].filter(Boolean).join(' · ') || 'My search',
         filters: query,
         alertsEnabled: true,
       });
@@ -104,6 +113,16 @@ export default function SearchScreen() {
 
   const header = (
     <View style={{ paddingHorizontal: 16, gap: 12, paddingBottom: 8 }}>
+      <Row>
+        {['RENT', 'SALE'].map((purpose) => (
+          <Chip
+            key={purpose}
+            label={purpose === 'SALE' ? 'Buy' : 'Rent'}
+            active={f.purpose === purpose}
+            onPress={() => set({ purpose, types: undefined, minPrice: undefined, maxPrice: undefined })}
+          />
+        ))}
+      </Row>
       <Row>
         <View style={{ flex: 1 }}>
           <Input
@@ -280,7 +299,7 @@ export default function SearchScreen() {
         </Txt>
         <Row wrap>
           {(tax.data?.propertyTypes ?? [])
-            .filter((t: any) => (!f.category || t.category === f.category) && RENTABLE_TYPES.includes(t.value))
+            .filter((t: any) => (!f.category || t.category === f.category) && (f.purpose === 'SALE' ? PROPERTY_TYPES : RENTABLE_TYPES).includes(t.value))
             .map((t: any) => (
               <Chip
                 key={t.value}

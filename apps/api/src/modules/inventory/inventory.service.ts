@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { Prisma, PropertyType } from '@prisma/client';
 import {
   type InventoryInput,
@@ -11,16 +12,24 @@ import {
   INVENTORY_SORTS,
   type InventoryPublishInput,
   PROPERTY_TYPE_CATEGORY,
+  RENTABLE_TYPES,
+  publicationDecision,
   slugify,
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { ModulesService } from '../../core/features/modules.service';
 import type { RequestUser } from '../../common/decorators';
+import { SettingsService } from '../../core/settings/settings.service';
+import { EventsService } from '../../core/events/events.service';
+import { NotificationsService } from '../../core/notifications/notifications.service';
 import type { InventoryFilterQuery } from './inventory.dto';
 
 const include = {
   contacts: true,
+  publishedListing: {
+    select: { id: true, slug: true, title: true, status: true, purpose: true, reviewRequiredRole: true, rejectionReason: true, updatedAt: true },
+  },
   sourceEntry: { select: { id: true, rawText: true, pageNo: true, bbox: true, batch: { select: { id: true, sourceType: true, fileName: true } } } },
   assignedTo: { select: { id: true, name: true, phone: true, email: true, role: true, avatarUrl: true } },
   createdBy: { select: { id: true, name: true } },
@@ -38,6 +47,9 @@ export class InventoryService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly modules: ModulesService,
+    private readonly settings: SettingsService,
+    private readonly events: EventsService,
+    private readonly notifications: NotificationsService,
   ) {}
   orgId(user: RequestUser, requested?: string, required = true) {
     const id = user.role === 'SUPER_ADMIN' ? requested : user.orgId;
@@ -57,6 +69,8 @@ export class InventoryService {
       deletedAt: null,
     };
     const and: Prisma.InventoryItemWhereInput[] = [];
+    if (q.review === 'publication')
+      and.push({ publishedListing: { is: { status: 'PENDING_REVIEW', ...(user.role === 'BROKER_ADMIN' ? { reviewRequiredRole: 'BROKER_ADMIN' } : {}) } } });
     if (user.role === 'BROKER_AGENT') {
       and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }] });
     } else {
@@ -179,6 +193,7 @@ export class InventoryService {
           where: {
             lead: {
               organizationId: orgIdForLeads,
+              ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
               stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION'] },
               deletedAt: null,
             },
@@ -225,11 +240,14 @@ export class InventoryService {
   }
   async getStats(user: RequestUser, organizationId?: string) {
     const where = this.scope(user, organizationId);
-    const [total, statuses, availability, reviewed] = await Promise.all([
+    const [total, statuses, availability, reviewed, published] = await Promise.all([
       this.prisma.inventoryItem.count({ where }),
       this.prisma.inventoryItem.groupBy({ by: ['status'], where, _count: { id: true } }),
       this.prisma.inventoryItem.groupBy({ by: ['availability'], where, _count: { id: true } }),
       this.prisma.inventoryItem.count({ where: { ...where, verificationStatus: 'VERIFIED' } }),
+      this.prisma.inventoryItem.count({
+        where: { ...where, status: 'ACTIVE', availability: 'AVAILABLE', publishedListing: { is: { status: 'ACTIVE', deletedAt: null } } },
+      }),
     ]);
     const count = (state: string) => statuses.find((x) => x.status === state)?._count.id ?? 0;
     const avail = (state: string) => availability.find((x) => x.availability === state)?._count.id ?? 0;
@@ -243,7 +261,7 @@ export class InventoryService {
       available: avail('AVAILABLE'),
       unknown: avail('UNKNOWN'),
       reviewed,
-      published: 0,
+      published,
     };
   }
   async getSectors(user: RequestUser, organizationId?: string) {
@@ -300,13 +318,14 @@ export class InventoryService {
         include,
       });
       if (existing) {
-        if (user.role === 'BROKER_AGENT' && existing.createdById !== user.id && existing.assignedToId !== user.id) throw new ForbiddenException('Inventory belongs to another member');
+        if (user.role === 'BROKER_AGENT' && existing.createdById !== user.id && existing.assignedToId !== user.id)
+          throw new ForbiddenException('Inventory belongs to another member');
         return ledgerJson(existing);
       }
     }
     if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
     const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
-    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : (rawAssigned || user.id);
+    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
     if (assignedToId) {
       const assignee = await db.user.findFirst({
         where: { id: assignedToId, organizationId },
@@ -332,7 +351,8 @@ export class InventoryService {
           include,
         })
       : await db.inventoryItem.create(creation);
-    if (user.role === 'BROKER_AGENT' && item.createdById !== user.id && item.assignedToId !== user.id) throw new ForbiddenException('Inventory belongs to another member');
+    if (user.role === 'BROKER_AGENT' && item.createdById !== user.id && item.assignedToId !== user.id)
+      throw new ForbiddenException('Inventory belongs to another member');
     if (!transaction) await this.audit.log(user, 'inventory.create', 'InventoryItem', item.id);
     return ledgerJson(item);
   }
@@ -374,9 +394,10 @@ export class InventoryService {
         else if (contact.name || contact.phone) await tx.inventoryContact.create({ data: { ...contact, inventoryId: id } });
       }
       const updated = await tx.inventoryItem.findUniqueOrThrow({ where: { id }, include });
-      if (updated.availability !== 'AVAILABLE' || updated.status !== 'ACTIVE' || updated.purpose !== 'RENT') await this.withdrawLinked(tx, current);
+      if (updated.availability !== 'AVAILABLE' || updated.status !== 'ACTIVE' || !['RENT', 'SALE'].includes(updated.purpose || ''))
+        await this.withdrawLinked(tx, current);
       else if (Object.keys(input).some((key) => !['expectedRevision', 'clientMutationId'].includes(key))) await this.withdrawLinked(tx, current);
-      return updated;
+      return current.publishedListingId ? tx.inventoryItem.findUniqueOrThrow({ where: { id }, include }) : updated;
     });
     await this.audit.log(user, 'inventory.update', 'InventoryItem', id, {
       fields: Object.keys(input).filter((k) => k !== 'contacts'),
@@ -396,37 +417,60 @@ export class InventoryService {
   }
   async publishToListing(id: string, input: InventoryPublishInput, user: RequestUser) {
     await this.modules.assertPath('/listings', user.role);
+    const app = await this.settings.getAppConfig();
+    const hash = createHash('sha256')
+      .update(JSON.stringify({ actor: user.id, role: user.role, input }))
+      .digest('hex');
     const result = await this.prisma.$transaction(async (tx) => {
-      // Serialize submit/edit/withdraw and review on the same ledger row.
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
       if (!item) throw new NotFoundException('Inventory item not found');
+      const existing = item.publishedListingId ? await tx.listing.findUnique({ where: { id: item.publishedListingId } }) : null;
+      if (existing && existing.organizationId !== item.organizationId) throw new ForbiddenException('Listing ownership mismatch');
+      if (existing && item.publicationHash === hash && item.revision === input.expectedRevision + 1)
+        return {
+          id: existing.id,
+          slug: existing.slug,
+          status: existing.status,
+          reviewRequiredRole: existing.reviewRequiredRole,
+          organizationId: item.organizationId,
+          duplicate: true,
+        };
       if (item.revision !== input.expectedRevision) throw new ConflictException('Property changed. Reload the public preview.');
-      if (item.availability !== 'AVAILABLE' || item.status !== 'ACTIVE' || item.purpose !== 'RENT')
-        throw new BadRequestException('Confirm an active rental is available before publishing.');
+      if (item.availability !== 'AVAILABLE' || item.status !== 'ACTIVE' || !['RENT', 'SALE'].includes(item.purpose || ''))
+        throw new BadRequestException('Confirm an active Rent/Sale property is available before publishing.');
+      if (input.purpose && input.purpose !== item.purpose) throw new BadRequestException('Public purpose must match inventory');
+      const purpose = item.purpose as 'RENT' | 'SALE';
+      if (purpose === 'RENT' && !RENTABLE_TYPES.includes(input.propertyType)) throw new BadRequestException('Property type is not rentable');
       const locality = await tx.locality.findFirst({ where: { id: input.localityId, isActive: true } });
       if (!locality) throw new BadRequestException('Choose a real locality.');
-      // Block private source URLs even when pasted into the public photo picker.
       for (const photo of input.photos)
-        if (/\/(imports|private)(\/|\?)/i.test(new URL(photo.url).pathname)) throw new BadRequestException('Private source images cannot be published.');
-      if (!Object.values(PropertyType).includes(input.propertyType as PropertyType)) throw new BadRequestException('Unsupported rental type');
-      const { confirmedAvailable, publicPreviewAccepted, expectedRevision, photos, ...publicFields } = input;
+        if (/\/(imports|private|kyc|scan|chat)(\/|$)/i.test(new URL(photo.url).pathname))
+          throw new BadRequestException('Private source images cannot be published.');
+      if (!Object.values(PropertyType).includes(input.propertyType as PropertyType)) throw new BadRequestException('Unsupported property type');
+      await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${item.organizationId} FOR SHARE`;
+      const org = await tx.organization.findUniqueOrThrow({ where: { id: item.organizationId } });
+      if (org.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
+      const decision = publicationDecision(user.role, org.verification);
+      const active = decision.status === 'ACTIVE';
+      const reviewRequiredRole = decision.reviewRequiredRole;
+      const { confirmedAvailable, publicPreviewAccepted, expectedRevision, photos, purpose: _purpose, ...publicFields } = input;
       const data = {
         ...publicFields,
         propertyType: input.propertyType as PropertyType,
-        purpose: 'RENT' as const,
+        purpose,
         category: PROPERTY_TYPE_CATEGORY[input.propertyType],
-        status: 'PENDING_REVIEW' as const,
+        pricePerSqft: input.carpetArea ? input.price / input.carpetArea : null,
+        status: active ? ('ACTIVE' as const) : ('PENDING_REVIEW' as const),
+        reviewRequiredRole,
         coverUrl: photos[0]?.url ?? null,
         rejectionReason: null,
         moderationFlags: [],
-        publishedAt: null,
-        expiresAt: null,
+        publishedAt: active ? (existing?.publishedAt ?? new Date()) : (existing?.publishedAt ?? null),
+        expiresAt: active ? new Date(Date.now() + app.listing.expiryDays * 86400_000) : null,
       };
-      const existing = item.publishedListingId ? await tx.listing.findUnique({ where: { id: item.publishedListingId } }) : null;
-      if (existing && existing.organizationId !== item.organizationId) throw new ForbiddenException('Listing ownership mismatch');
       const listing = existing
-        ? await tx.listing.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt } })
+        ? await tx.listing.update({ where: { id: existing.id }, data })
         : await tx.listing.create({
             data: {
               ...data,
@@ -442,14 +486,168 @@ export class InventoryService {
         await tx.listingMedia.createMany({
           data: photos.map((photo, sortOrder) => ({ listingId: listing.id, ...photo, kind: photo.kind ?? 'PHOTO', sortOrder })),
         });
-      await tx.inventoryItem.update({ where: { id }, data: { publishedListingId: listing.id, isPublished: true } });
-      return { id: listing.id, slug: listing.slug, status: listing.status };
+      await tx.inventoryItem.update({
+        where: { id },
+        data: { publishedListingId: listing.id, isPublished: active, publicationHash: hash, revision: { increment: 1 } },
+      });
+      return { id: listing.id, slug: listing.slug, status: listing.status, reviewRequiredRole, organizationId: item.organizationId, duplicate: false };
     });
-    await this.audit.log(user, 'inventory.submit_public_listing', 'Listing', result.id, { inventoryId: id });
+    if (!result.duplicate) {
+      await this.audit.log(user, result.status === 'ACTIVE' ? 'inventory.publish' : 'inventory.submit_public_listing', 'Listing', result.id, {
+        inventoryId: id,
+        reviewRequiredRole: result.reviewRequiredRole,
+      });
+      if (result.status === 'ACTIVE') this.events.emit('listing.published', { listingId: result.id });
+      else {
+        const reviewers = await this.prisma.user.findMany({
+          where: {
+            role: result.reviewRequiredRole as 'BROKER_ADMIN' | 'SUPER_ADMIN',
+            status: 'ACTIVE',
+            deletedAt: null,
+            ...(result.reviewRequiredRole === 'BROKER_ADMIN' ? { organizationId: result.organizationId } : {}),
+          },
+          select: { id: true },
+        });
+        await this.notifications
+          .notify(
+            reviewers.map((x) => x.id),
+            {
+              kind: 'MODERATION',
+              title: 'Property publication review',
+              body: input.title,
+              link: result.reviewRequiredRole === 'BROKER_ADMIN' ? '/broker/inventory?review=publication' : '/admin/moderation',
+              data: { listingId: result.id },
+              push: false,
+            },
+          )
+          .catch(() => undefined);
+      }
+    }
     return result;
   }
+  async reviewPublication(id: string, body: { action: 'approve' | 'reject'; reason?: string; expectedUpdatedAt: string }, user: RequestUser) {
+    if (!['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role)) throw new ForbiddenException('Admin review required');
+    if (body.action === 'reject' && !body.reason?.trim()) throw new BadRequestException('Rejection reason required');
+    const app = await this.settings.getAppConfig();
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id=${id} FOR UPDATE`;
+      const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
+      if (!item?.publishedListingId) throw new NotFoundException('Publication not found');
+      const listing = await tx.listing.findUniqueOrThrow({ where: { id: item.publishedListingId } });
+      if (listing.organizationId !== item.organizationId) throw new ForbiddenException('Listing ownership mismatch');
+      if (listing.status !== 'PENDING_REVIEW' || listing.updatedAt.getTime() !== new Date(body.expectedUpdatedAt).getTime())
+        throw new ConflictException('Publication changed; reload review');
+      await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${item.organizationId} FOR SHARE`;
+      const org = await tx.organization.findUniqueOrThrow({ where: { id: item.organizationId } });
+      if (user.role === 'BROKER_ADMIN' && (org.verification !== 'VERIFIED' || listing.reviewRequiredRole !== 'BROKER_ADMIN'))
+        throw new ForbiddenException('Super Admin approval required');
+      if (
+        body.action === 'approve' &&
+        (org.status !== 'ACTIVE' || item.status !== 'ACTIVE' || item.availability !== 'AVAILABLE' || item.purpose !== listing.purpose)
+      )
+        throw new BadRequestException('Property is no longer confirmed available for this purpose');
+      const updated = await tx.listing.update({
+        where: { id: listing.id },
+        data:
+          body.action === 'approve'
+            ? {
+                status: 'ACTIVE',
+                reviewRequiredRole: null,
+                rejectionReason: null,
+                publishedAt: listing.publishedAt ?? new Date(),
+                expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000),
+              }
+            : { status: 'REJECTED', rejectionReason: body.reason, reviewRequiredRole: null },
+      });
+      await tx.inventoryItem.update({ where: { id }, data: { isPublished: body.action === 'approve', revision: { increment: 1 } } });
+      return updated;
+    });
+    await this.audit.log(user, 'inventory.publication.' + body.action, 'Listing', result.id, { inventoryId: id });
+    if (result.status === 'ACTIVE') this.events.emit('listing.published', { listingId: result.id });
+    await this.notifications
+      .notify(result.postedById, {
+        kind: body.action === 'approve' ? 'LISTING_APPROVED' : 'LISTING_REJECTED',
+        title: body.action === 'approve' ? 'Property is live' : 'Publication needs changes',
+        body: body.reason || result.title,
+        link: '/inventory/' + id,
+        push: false,
+      })
+      .catch(() => undefined);
+    return { id: result.id, status: result.status, reviewRequiredRole: result.reviewRequiredRole };
+  }
+  async withdrawPublication(id: string, user: RequestUser) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id=${id} FOR UPDATE`;
+      const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
+      if (!item) throw new NotFoundException('Inventory item not found');
+      await this.withdrawLinked(tx, item);
+      await tx.inventoryItem.update({ where: { id }, data: { publicationHash: null, revision: { increment: 1 } } });
+    });
+    await this.audit.log(user, 'inventory.publication.withdraw', 'InventoryItem', id);
+    return { ok: true };
+  }
+  async publicationQueue(user: RequestUser, page: number) {
+    if (!['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role)) throw new ForbiddenException('Admin review required');
+    const where: Prisma.ListingWhereInput = {
+      deletedAt: null,
+      status: 'PENDING_REVIEW',
+      ...(user.role === 'BROKER_ADMIN' ? { organizationId: this.orgId(user), reviewRequiredRole: 'BROKER_ADMIN' } : { organizationId: { not: null } }),
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.listing.findMany({
+        where,
+        orderBy: { updatedAt: 'asc' },
+        skip: (page - 1) * 10,
+        take: 10,
+        select: { id: true, slug: true, title: true, purpose: true, status: true, reviewRequiredRole: true, rejectionReason: true, updatedAt: true },
+      }),
+      this.prisma.listing.count({ where }),
+    ]);
+    return { items, total, page, totalPages: Math.ceil(total / 10) };
+  }
+  async reviewListingPublication(id: string, body: { action: 'approve' | 'reject'; reason?: string; expectedUpdatedAt: string }, user: RequestUser) {
+    if (!['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role)) throw new ForbiddenException('Admin review required');
+    const origin = await this.prisma.inventoryItem.findFirst({ where: { publishedListingId: id, ...this.scope(user) }, select: { id: true } });
+    if (origin) return this.reviewPublication(origin.id, body, user);
+    if (body.action === 'reject' && !body.reason?.trim()) throw new BadRequestException('Rejection reason required');
+    const app = await this.settings.getAppConfig();
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Listing" WHERE id=${id} FOR UPDATE`;
+      const listing = await tx.listing.findFirst({
+        where: { id, deletedAt: null, ...(user.role === 'BROKER_ADMIN' ? { organizationId: this.orgId(user) } : {}) },
+      });
+      if (!listing?.organizationId) throw new NotFoundException('Firm publication not found');
+      if (await tx.inventoryItem.count({ where: { publishedListingId: id } })) throw new ConflictException('Open the inventory publication review');
+      if (listing.status !== 'PENDING_REVIEW' || listing.updatedAt.getTime() !== new Date(body.expectedUpdatedAt).getTime())
+        throw new ConflictException('Publication changed; reload review');
+      await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${listing.organizationId} FOR SHARE`;
+      const org = await tx.organization.findUniqueOrThrow({ where: { id: listing.organizationId } });
+      if (user.role === 'BROKER_ADMIN' && (org.verification !== 'VERIFIED' || listing.reviewRequiredRole !== 'BROKER_ADMIN'))
+        throw new ForbiddenException('Super Admin approval required');
+      if (org.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
+      return tx.listing.update({
+        where: { id },
+        data:
+          body.action === 'approve'
+            ? {
+                status: 'ACTIVE',
+                reviewRequiredRole: null,
+                rejectionReason: null,
+                publishedAt: listing.publishedAt ?? new Date(),
+                expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000),
+              }
+            : { status: 'REJECTED', reviewRequiredRole: null, rejectionReason: body.reason },
+      });
+    });
+    await this.audit.log(user, 'listing.publication.' + body.action, 'Listing', id);
+    if (result.status === 'ACTIVE') this.events.emit('listing.published', { listingId: id });
+    return { id: result.id, status: result.status };
+  }
   private async withdrawLinked(tx: Prisma.TransactionClient, item: { publishedListingId: string | null }, status: string = 'ARCHIVED') {
-    if (item.publishedListingId) await tx.listing.updateMany({ where: { id: item.publishedListingId, deletedAt: null }, data: { status: status as any } });
+    if (item.publishedListingId) {
+      await tx.listing.updateMany({ where: { id: item.publishedListingId, deletedAt: null }, data: { status: status as any, reviewRequiredRole: null } });
+      await tx.inventoryItem.updateMany({ where: { publishedListingId: item.publishedListingId }, data: { isPublished: false } });
+    }
   }
   async bulkCreate(items: InventoryInput[], user: RequestUser) {
     // Validation happens on the complete batch before any write. Every insert is atomic.

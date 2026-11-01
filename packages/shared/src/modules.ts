@@ -71,7 +71,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'User marketplace • ग्राहक पोर्टल',
     'Rental discovery, owner listings and customer journeys',
     '/user',
-    ['/user', '/account', '/rent', '/commercial', '/property', '/localities', '/locality', '/post-property', '/brokers'],
+    ['/user', '/account', '/rent', '/buy', '/plots', '/commercial', '/property', '/localities', '/locality', '/post-property', '/brokers'],
     [
       '/listings',
       '/enquiries',
@@ -109,7 +109,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'Inventory • इन्वेंटरी',
     'Property ledger, units, contacts and source review',
     '/broker/inventory',
-    ['/broker/inventory', '/broker/scanner', '/broker/listings'],
+    ['/broker/inventory', '/broker/scanner', '/broker/listings','/broker/publications'],
     ['/inventory', '/listings', '/ai/scan'],
     ['import.pdf'],
   ),

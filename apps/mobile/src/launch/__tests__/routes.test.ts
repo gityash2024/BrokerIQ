@@ -15,6 +15,7 @@ describe('native module routes', () => {
   it('keeps private detail routes in their parent module', () => {
     expect(nativeModuleKey('/inventory/[id]')).toBe('inventory');
     expect(nativeModuleKey('/scanner')).toBe('inventory');
+    expect(nativeModuleKey('/publication-reviews')).toBe('inventory');
     expect(nativeModuleKey('/import-review/[id]')).toBe('inbox');
     expect(nativeModuleKey('/wa/[id]')).toBe('inbox');
   });

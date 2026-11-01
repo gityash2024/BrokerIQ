@@ -138,14 +138,14 @@ describe('BrokerIQ API (e2e)', () => {
     expect(c.body.phone).toBe('+919876500011');
   });
 
-  it('rental marketplace: sale listings and plots are rejected, legacy sale listings stay hidden', async () => {
-    // Sale listings stay off until Super Admin switches "sale_listings" on.
+  it('ordinary sale is core while plots still require explicit SALE purpose', async () => {
+    // Core ordinary Sale no longer depends on the upcoming project/tool flag.
     const sale = await http
       .post('/api/listings')
       .set(auth(brokerA.token))
       .send({ purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [] })
-      .expect(403);
-    expect(sale.body.code).toBe('FEATURE_DISABLED');
+      .expect(201);
+    expect(sale.body.purpose).toBe('SALE');
     await http.post('/api/listings').set(auth(brokerA.token)).send({ propertyType: 'RESIDENTIAL_PLOT', localityId, price: 20000, photos: [] }).expect(400);
     // purpose defaults to RENT
     const r = await http
@@ -154,7 +154,7 @@ describe('BrokerIQ API (e2e)', () => {
       .send({ propertyType: 'PG', localityId, price: 12000, submit: false, photos: [] })
       .expect(201);
     expect(r.body.purpose).toBe('RENT');
-    // a legacy sale listing (created before the pivot) never shows in public search or detail
+    // Existing approved ACTIVE sale listings are discoverable with the Sale filter.
     const legacy = await prisma.listing.create({
       data: {
         slug: `legacy-sale-${Date.now()}`,
@@ -171,8 +171,8 @@ describe('BrokerIQ API (e2e)', () => {
       },
     });
     const s = await http.get('/api/listings?localities=sector-65-gurgaon&purpose=SALE').expect(200);
-    expect(s.body.items.find((x: any) => x.id === legacy.id)).toBeUndefined();
-    await http.get(`/api/listings/${legacy.slug}`).expect(404);
+    expect(s.body.items.find((x: any) => x.id === legacy.id)).toBeDefined();
+    await http.get(`/api/listings/${legacy.slug}`).expect(200);
     // partial PATCH must not wipe photos / amenities (no schema defaults on update)
     const before = await prisma.listingMedia.count({ where: { listingId } });
     await http.patch(`/api/listings/${listingId}`).set(auth(brokerA.token)).send({ priceNegotiable: true }).expect(200);
@@ -424,7 +424,7 @@ describe('BrokerIQ API (e2e)', () => {
     expect(h.body.find((s: any) => s.type === 'HERO')).toBeTruthy();
     const loc = await http.get('/api/public/localities/sector-65-gurgaon').expect(200);
     expect(loc.body.listingsRent).toBeGreaterThanOrEqual(1);
-    expect(loc.body.listingsSale).toBe(0); // rental marketplace
+    expect(loc.body.listingsSale).toBeGreaterThanOrEqual(1); // ordinary Sale is now core
     const t = await http.get('/api/public/taxonomies').expect(200);
     expect(t.body.amenities.length).toBeGreaterThan(10);
   });

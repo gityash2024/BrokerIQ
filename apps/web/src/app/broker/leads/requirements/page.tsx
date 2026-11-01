@@ -23,6 +23,7 @@ export default function RequirementsPage() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [converting, setConverting] = useState<any>(null);
+  const [conversionDirty, setConversionDirty] = useState(false);
   const [search, setSearch] = useState('');
   const [intent, setIntent] = useState('');
   const [busy, setBusy] = useState(false);
@@ -125,7 +126,13 @@ export default function RequirementsPage() {
                   Review / edit
                 </button>
                 {inventoryAllowed && item.intent === 'OFFER' && !item.convertedAt && item.status === 'OPEN' && (
-                  <button onClick={() => setConverting(item)} className="text-sm font-semibold text-brand-600">
+                  <button
+                    onClick={() => {
+                      setConverting(item);
+                      setConversionDirty(false);
+                    }}
+                    className="text-sm font-semibold text-brand-600"
+                  >
                     Review and add to inventory →
                   </button>
                 )}
@@ -195,6 +202,7 @@ export default function RequirementsPage() {
             </p>
             <PropertyForm
               key={converting.id}
+              onDirty={() => setConversionDirty(true)}
               initial={converting.offerDetails || {}}
               label="Save reviewed property details"
               onSave={async (data) => {
@@ -203,6 +211,7 @@ export default function RequirementsPage() {
                   body: { ...offeredRequirement(data), leadId: converting.leadId, expectedRevision: converting.revision },
                 });
                 setConverting(saved);
+                setConversionDirty(false);
                 await qc.invalidateQueries({ queryKey: ['broker-requirements'] });
                 toast.success('Reviewed offer saved');
               }}
@@ -210,6 +219,7 @@ export default function RequirementsPage() {
             <Button
               className="mt-4"
               loading={busy}
+              disabled={conversionDirty}
               onClick={async () => {
                 setBusy(true);
                 try {
@@ -226,6 +236,11 @@ export default function RequirementsPage() {
             >
               Confirm · add to inventory
             </Button>
+            {conversionDirty && (
+              <p role="status" className="mt-2 text-sm text-muted">
+                Save reviewed changes before adding this offer to Inventory.
+              </p>
+            )}
           </>
         )}
       </Dialog>

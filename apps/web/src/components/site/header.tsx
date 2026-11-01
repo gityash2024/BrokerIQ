@@ -16,6 +16,7 @@ import { ThemeToggle } from '../ui/theme-toggle';
 
 const NAV = [
   { href: '/user/search', label: 'Rent' },
+  {href:'/buy',label:'Buy'},
   { href: '/user/commercial', label: 'Commercial' },
   { href: '/localities', label: 'Localities' },
   { href: '/brokers', label: 'Brokers' },

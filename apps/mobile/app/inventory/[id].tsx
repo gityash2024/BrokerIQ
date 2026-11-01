@@ -55,7 +55,7 @@ export default function PropertyDetail() {
 
   const team = useQuery({
     queryKey: ['broker-team'],
-    queryFn: () => api<any>('/broker/team'),
+    queryFn: () => api<any>('/broker/team'),enabled:isAdmin,
   });
 
   const item = q.data;
@@ -617,6 +617,7 @@ export default function PropertyDetail() {
         </View>
       )}
 
+      {item&&<View style={{padding:16,gap:8}}><Txt v="caption" color="muted">Publication: {item.publishedListing?.status || 'Not submitted'}{item.publishedListing?.reviewRequiredRole?' · '+item.publishedListing.reviewRequiredRole:''}</Txt><Button title={isAdmin&&item.publishedListing?.reviewRequiredRole==='BROKER_ADMIN'?'Review publication':'Public preview / publish'} variant="secondary" onPress={()=>router.push(`/publish-rental?id=${id}` as any)}/></View>}
       {/* 1-Tap Quick Assignee Selection Sheet */}
       <Sheet open={reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
         <View style={{ gap: 8, paddingBottom: 20 }}>

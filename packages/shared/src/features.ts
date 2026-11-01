@@ -39,8 +39,8 @@ export const GROWTH_FEATURES = [
   { key: 'referrals', name: 'Invite friends', description: 'Every user gets a personal invite link; signups and move-ins are counted (no money)' },
   {
     key: 'sale_listings',
-    name: 'Sale & new projects',
-    description: 'Buy, plots, new-launch projects, EMI tools (rental-only launch: keep OFF)',
+    name: 'New projects & advanced sale tools',
+    description: 'New-launch projects and EMI tools (Coming Soon; ordinary Rent/Sale properties remain core)',
     defaultOn: false,
   },
 ] as const;

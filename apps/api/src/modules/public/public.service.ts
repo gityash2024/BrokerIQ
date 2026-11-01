@@ -37,6 +37,7 @@ export class PublicService {
 
   async stats() {
     const rentalOnly = await this.features.rentalOnly();
+    const projectsOn = (await this.features.isEnabled('sale_listings')) && (await this.modules.enabled('sale_listings'));
     const [listings, sale, rent, brokers, localities, projects] = await Promise.all([
       this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null, ...(rentalOnly ? { purpose: 'RENT' as const } : {}) } }),
       this.prisma.listing.count({ where: { status: 'ACTIVE', deletedAt: null, purpose: 'SALE' } }),
@@ -45,7 +46,7 @@ export class PublicService {
       this.prisma.locality.count({ where: { isActive: true } }),
       this.prisma.project.count({ where: { isActive: true } }),
     ]);
-    return { listings, sale: rentalOnly ? 0 : sale, rent, brokers, localities, projects: rentalOnly ? 0 : projects };
+    return { listings, sale: rentalOnly ? 0 : sale, rent, brokers, localities, projects: projectsOn ? projects : 0 };
   }
 
   /** Localities with live listing counts, average rent (2 BHK) and — for legacy clients — average sale ₹/sqft. */
@@ -86,6 +87,7 @@ export class PublicService {
 
   async homepage() {
     const rentalOnly = await this.features.rentalOnly();
+    const projectsOn = (await this.features.isEnabled('sale_listings')) && (await this.modules.enabled('sale_listings'));
     if (this.homepageCache && Date.now() - this.homepageCache.at < 60_000) return this.homepageCache.value;
     const sections = await this.prisma.homepageSection.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } });
     const out = [];
@@ -118,7 +120,7 @@ export class PublicService {
         }
         case 'FEATURED_PROJECTS':
           // New-launch projects are sale inventory — hidden on the rental marketplace.
-          data = rentalOnly
+          data = !projectsOn
             ? []
             : await this.prisma.project.findMany({
                 where: { isActive: true },
@@ -169,7 +171,7 @@ export class PublicService {
   }
 
   async localityDetail(slug: string) {
-    const rentalOnly = await this.features.rentalOnly();
+    const projectsOn = (await this.features.isEnabled('sale_listings')) && (await this.modules.enabled('sale_listings'));
     const loc = await this.prisma.locality.findFirst({ where: { slug, isActive: true } });
     if (!loc) throw new NotFoundException('Locality नहीं मिली');
     const [withStats] = await this.localitiesWithStats({ id: loc.id }, 1);
@@ -182,7 +184,7 @@ export class PublicService {
         AND "createdAt" >= ${since} AND "deletedAt" IS NULL
       GROUP BY 1 ORDER BY 1`;
     const [projects, brokers, rentAgg, bhkMix] = await Promise.all([
-      rentalOnly
+      !projectsOn
         ? Promise.resolve([])
         : this.prisma.project.findMany({ where: { localityId: loc.id, isActive: true }, take: 12, include: { builder: { select: { name: true } } } }),
       this.prisma.organization.findMany({
@@ -233,7 +235,7 @@ export class PublicService {
   }
 
   async suggest(q: string) {
-    const rentalOnly = await this.features.rentalOnly();
+    const projectsOn = (await this.features.isEnabled('sale_listings')) && (await this.modules.enabled('sale_listings'));
     const s = q.trim();
     if (s.length < 2) return { localities: [], projects: [], brokers: [] };
     const [localities, projects, brokers] = await Promise.all([
@@ -243,7 +245,7 @@ export class PublicService {
         orderBy: [{ isPopular: 'desc' }],
         select: { id: true, name: true, slug: true, zone: true },
       }),
-      rentalOnly
+      !projectsOn
         ? Promise.resolve([])
         : this.prisma.project.findMany({
             where: { isActive: true, OR: [{ name: { contains: s, mode: 'insensitive' } }, { builder: { name: { contains: s, mode: 'insensitive' } } }] },

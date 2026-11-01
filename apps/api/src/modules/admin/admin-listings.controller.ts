@@ -75,26 +75,34 @@ export class AdminListingsController {
     const updated = await this.prisma.$transaction(async (tx) => {
       const origin = await tx.inventoryItem.findFirst({ where: { publishedListingId: id } });
       if (origin) {
+        if (user.role !== 'SUPER_ADMIN') throw new BadRequestException('Inventory publication requires the configured Broker Admin or Super Admin reviewer');
         await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${origin.id} FOR UPDATE`;
         const current = await tx.inventoryItem.findUniqueOrThrow({ where: { id: origin.id } });
-        if (approve && (current.deletedAt || current.availability !== 'AVAILABLE' || current.status !== 'ACTIVE' || current.purpose !== 'RENT'))
-          throw new BadRequestException('The linked rental is no longer confirmed available.');
+        if (
+          approve &&
+          (current.deletedAt || current.availability !== 'AVAILABLE' || current.status !== 'ACTIVE' || !['RENT', 'SALE'].includes(current.purpose || ''))
+        )
+          throw new BadRequestException('The linked property is no longer confirmed available.');
       }
+      await tx.$queryRaw`SELECT id FROM "Listing" WHERE id=${id} FOR UPDATE`;
       const currentListing = await tx.listing.findUniqueOrThrow({ where: { id } });
       if (currentListing.deletedAt || currentListing.status !== 'PENDING_REVIEW')
         throw new BadRequestException('Only a pending listing can be reviewed. Reload the queue.');
-      return tx.listing.update({
+      const updated = await tx.listing.update({
         where: { id },
         data: approve
           ? {
               status: 'ACTIVE',
+              reviewRequiredRole: null,
               rejectionReason: null,
               moderationFlags: [],
               publishedAt: l.publishedAt ?? new Date(),
               expiresAt: new Date(Date.now() + app.listing.expiryDays * 86400_000),
             }
-          : { status: 'REJECTED', rejectionReason: body.reason },
+          : { status: 'REJECTED', reviewRequiredRole: null, rejectionReason: body.reason },
       });
+      if (origin) await tx.inventoryItem.update({ where: { id: origin.id }, data: { isPublished: approve, revision: { increment: 1 } } });
+      return updated;
     });
     const link = approve
       ? `${env().PUBLIC_WEB_URL}/property/${l.slug}`

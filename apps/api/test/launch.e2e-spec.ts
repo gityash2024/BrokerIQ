@@ -31,7 +31,7 @@ describe('Launch readiness (e2e)', () => {
     app.use(json());
     app.use(urlencoded({ extended: true }));
     configureApp(app);
-    await app.init();
+    await app.listen(0,'127.0.0.1');
     prisma = app.get(PrismaService);
     settings = app.get(SettingsService);
     http = request(app.getHttpServer());
@@ -82,11 +82,11 @@ describe('Launch readiness (e2e)', () => {
     await settings.updateAppConfig({ ai: { dailyCap: 200 } } as any);
   });
 
-  it('sale switch: off by default, Super Admin can turn it on', async () => {
+  it('ordinary sale stays core while upcoming projects remain separately switched', async () => {
     await http.get('/api/public/projects').expect(403);
     const localityId = (await prisma.locality.findFirstOrThrow({ where: { slug: 'sector-65-gurgaon' } })).id;
     const sale = { purpose: 'SALE', propertyType: 'APARTMENT', localityId, price: 9000000, photos: [], submit: false };
-    await http.post('/api/listings').set(auth(broker.token)).send(sale).expect(403);
+    await http.post('/api/listings').set(auth(broker.token)).send(sale).expect(201);
 
     await http.patch('/api/admin/flags/sale_listings').set(auth(admin)).send({ enabled: true }).expect(200);
     expect((await http.get('/api/public/config').expect(200)).body.flags.sale_listings).toBe(true);

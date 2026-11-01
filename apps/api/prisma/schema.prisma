@@ -871,6 +871,7 @@ model Amenity {
 // ============================================================ Marketplace
 
 model Listing {
+  reviewRequiredRole String? @default("SUPER_ADMIN")
   inventoryOrigin InventoryItem? @relation("InventoryPublicListing")
   blockedReason     String?
   blockedAt         DateTime?
@@ -2498,6 +2499,7 @@ model ShortlistShare {
 
 /// Internal broker inventory ledger (Google Sheet / Excel register style).
 model InventoryItem {
+  publicationHash    String?
   convertedRequirement BrokerRequirement? @relation("RequirementConversion")
   visits             SiteVisit[]
   id                 String    @id @default(cuid())

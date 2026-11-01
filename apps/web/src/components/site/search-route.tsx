@@ -6,10 +6,10 @@ import { SearchPage, type SearchMode } from './search-page';
 import { PageLoader } from '../ui/misc';
 
 const TITLES: Record<SearchMode, string> = {
-  buy: 'Property for rent in Gurgaon',
+  buy: 'Property for sale in Gurgaon',
   rent: 'Property for rent in Gurgaon',
   commercial: 'Commercial space for rent in Gurgaon',
-  plots: 'Property for rent in Gurgaon',
+  plots: 'Plots for sale in Gurgaon',
 };
 
 export async function searchMetadata(mode: SearchMode, sp: Record<string, string | undefined>): Promise<Metadata> {
@@ -27,12 +27,12 @@ export async function searchMetadata(mode: SearchMode, sp: Record<string, string
   return {
     title,
     description: `${title} — rental search with photos, rent, deposit, brokerage and locality maps on BrokerIQ.`,
-    alternates: { canonical: mode === 'commercial' ? '/user/commercial' : '/user/search' },
+    alternates: { canonical:mode==='buy'?'/buy':mode==='plots'?'/plots':mode === 'commercial' ? '/user/commercial' : '/user/search' },
   };
 }
 
 export async function SearchRoute({ mode }: { mode: SearchMode }) {
-  const params = mode === 'commercial' ? 'purpose=RENT&category=COMMERCIAL' : 'purpose=RENT&category=RESIDENTIAL';
+  const params=mode==='buy'?'purpose=SALE&category=RESIDENTIAL':mode==='plots'?'purpose=SALE&category=PLOT':mode === 'commercial' ? 'purpose=RENT&category=COMMERCIAL' : 'purpose=RENT&category=RESIDENTIAL';
   const initial = await sget<any>(`/listings?${params}&pageSize=18`, 30);
   return (
     <PageShell>

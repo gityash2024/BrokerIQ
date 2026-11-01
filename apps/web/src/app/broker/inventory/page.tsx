@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { SortableTh } from '@/components/ui/sortable-header';
 
 const initialFilters = {
+  review: '',
   detailFilters: '',
   sort: '',
   hasPhotos: '',
@@ -94,7 +95,7 @@ function LedgerInner() {
   });
   const stats = useQuery({ queryKey: ['ledger-stats'], queryFn: () => api<any>('/inventory/stats') });
   const sectors = useQuery({ queryKey: ['ledger-sectors'], queryFn: () => api<{ sector: string; count: number }[]>('/inventory/sectors') });
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team') });
+  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team'), enabled: user?.role === 'BROKER_ADMIN' });
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
   async function refresh() {
     await Promise.all(
@@ -131,6 +132,11 @@ function LedgerInner() {
         subtitle="हर property, contact और source एक जगह"
         actions={
           <>
+            {user?.role === 'BROKER_ADMIN' && (
+              <Link href="/broker/publications" className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
+                Publication reviews
+              </Link>
+            )}
             <Link href="/broker/inventory/directory" className="text-sm font-semibold text-brand-600">
               Area Directory
             </Link>
@@ -147,7 +153,8 @@ function LedgerInner() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface/80 px-4 py-2 text-xs shadow-sm">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <span className="font-semibold text-fg">
-            <b>{stats.data?.total == null ? '—' : Number(stats.data.total).toLocaleString('en-IN')}</b> <span className="text-muted font-normal">Total Properties</span>
+            <b>{stats.data?.total == null ? '—' : Number(stats.data.total).toLocaleString('en-IN')}</b>{' '}
+            <span className="text-muted font-normal">Total Properties</span>
           </span>
           <span className="h-3 w-px bg-line" />
           <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
@@ -178,9 +185,7 @@ function LedgerInner() {
         <button
           onClick={() => setFilters({ ...filters, onlyMine: filters.onlyMine === 'true' ? '' : 'true' })}
           className={`flex h-11 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
-            filters.onlyMine === 'true'
-              ? 'border-brand-600 bg-brand-50 text-brand-700'
-              : 'border-line bg-surface text-muted hover:text-fg'
+            filters.onlyMine === 'true' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line bg-surface text-muted hover:text-fg'
           }`}
         >
           👤 My Properties
@@ -200,7 +205,10 @@ function LedgerInner() {
             ))}
           </select>
         )}
-        <button onClick={() => setFilterOpen(true)} className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold">
+        <button
+          onClick={() => setFilterOpen(true)}
+          className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold"
+        >
           <SlidersHorizontal size={16} />
           Filters {count > 0 && `(${count})`}
         </button>
@@ -289,16 +297,12 @@ function LedgerInner() {
                   </div>
 
                   <div className="mt-2.5">
-                    <h3 className="font-display text-base font-bold text-fg group-hover:text-brand-600 transition-colors">
-                      {inventoryTitle(item)}
-                    </h3>
+                    <h3 className="font-display text-base font-bold text-fg group-hover:text-brand-600 transition-colors">{inventoryTitle(item)}</h3>
                     <p className="text-xs text-muted font-medium">{item.sector || 'Locality not recorded'}</p>
                   </div>
 
                   <div className="mt-2.5 flex items-baseline gap-1.5">
-                    <span className="font-display text-lg font-bold tracking-tight text-fg">
-                      {inventoryPrice(item)}
-                    </span>
+                    <span className="font-display text-lg font-bold tracking-tight text-fg">{inventoryPrice(item)}</span>
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -419,11 +423,7 @@ function LedgerInner() {
               {query.data?.items.map((item) => {
                 const phone = item.contacts?.find((c) => c.phone)?.phone ?? item.ownerPhone;
                 return (
-                  <tr
-                    key={item.id}
-                    onClick={() => setViewing(item)}
-                    className="hover:bg-surface-2/60 transition-colors cursor-pointer group"
-                  >
+                  <tr key={item.id} onClick={() => setViewing(item)} className="hover:bg-surface-2/60 transition-colors cursor-pointer group">
                     <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                       <input
                         aria-label={`Select property ${item.houseNo ?? item.id}`}
@@ -445,17 +445,13 @@ function LedgerInner() {
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-foreground">{item.sector || '—'}</span>
                         {item.purpose && (
-                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-700">
-                            {item.purpose}
-                          </span>
+                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-700">{item.purpose}</span>
                         )}
                       </div>
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <span>{item.bhk ? `${item.bhk} BHK` : '—'}</span>
-                      {item.furnishing && (
-                        <span className="ml-1 text-[11px] text-muted">· {item.furnishing.replace(/_/g, ' ').toLowerCase()}</span>
-                      )}
+                      {item.furnishing && <span className="ml-1 text-[11px] text-muted">· {item.furnishing.replace(/_/g, ' ').toLowerCase()}</span>}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap font-semibold">
                       {item.purpose === 'RENT' && item.monthlyRent != null
@@ -522,7 +518,13 @@ function LedgerInner() {
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <button className="font-semibold text-brand-600 hover:underline" onClick={() => setPublishing(item)}>
-                        Publish ↗
+                        {item.publishedListing?.status === 'ACTIVE'
+                          ? 'Live · update ↗'
+                          : item.publishedListing?.status === 'PENDING_REVIEW'
+                            ? 'Pending review'
+                            : item.publishedListing?.status === 'REJECTED'
+                              ? 'Rejected · resubmit'
+                              : 'Publish ↗'}
                       </button>
                     </td>
                   </tr>
@@ -579,7 +581,7 @@ function LedgerInner() {
           />
         )}
       </Dialog>
-      <Dialog open={!!publishing} onOpenChange={(v) => !v && setPublishing(null)} title="Publish rental listing" size="lg">
+      <Dialog open={!!publishing} onOpenChange={(v) => !v && setPublishing(null)} title="Public property preview" size="lg">
         {publishing && (
           <PublicPublish
             key={publishing.id}
@@ -587,7 +589,7 @@ function LedgerInner() {
             onDone={() => {
               setPublishing(null);
               refresh();
-              toast.success('Submitted for Admin review');
+              toast.success('Publication saved; status follows the required review path');
             }}
           />
         )}

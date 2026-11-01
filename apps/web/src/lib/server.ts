@@ -23,3 +23,9 @@ export async function requireSaleListings() {
   const cfg = await getConfig();
   if (cfg?.flags?.sale_listings !== true) redirect('/rent');
 }
+
+/** Core resale/ordinary properties do not enable upcoming New Projects. */
+export async function requireOrdinarySaleListings() {
+  const cfg = await getConfig();
+  if (cfg?.flags?.ordinary_sale_listings !== true && cfg?.flags?.sale_listings !== true) redirect('/rent');
+}

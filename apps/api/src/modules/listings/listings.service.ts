@@ -1,7 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Listing } from '@prisma/client';
 import {
   PROPERTY_TYPE_CATEGORY,
+  RENTABLE_TYPES,
+  publicationDecision,
   PROPERTY_TYPE_LABELS,
   maskPhone,
   normalizeIndianPhone,
@@ -72,8 +74,6 @@ export const LISTING_CARD_SELECT = {
   _count: { select: { media: true } },
 } satisfies Prisma.ListingSelect;
 
-const CONTENT_FIELDS: (keyof ListingInput)[] = ['title', 'description', 'photos', 'videoUrl', 'floorPlanUrl', 'propertyType', 'localityId', 'purpose'];
-
 @Injectable()
 export class ListingsService {
   constructor(
@@ -88,12 +88,26 @@ export class ListingsService {
   ) {}
 
   /** Tell every Super Admin that a listing is waiting for approval. */
-  async notifyReviewers(listing: { id: string; title: string }) {
-    const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }, select: { id: true } });
+  async notifyReviewers(listing: { id: string; title: string; organizationId?: string | null; reviewRequiredRole?: string | null }) {
+    const admins = await this.prisma.user.findMany({
+      where: {
+        role: listing.reviewRequiredRole === 'BROKER_ADMIN' ? 'BROKER_ADMIN' : 'SUPER_ADMIN',
+        status: 'ACTIVE',
+        deletedAt: null,
+        ...(listing.reviewRequiredRole === 'BROKER_ADMIN' ? { organizationId: listing.organizationId } : {}),
+      },
+      select: { id: true },
+    });
     await this.notifications
       .notify(
         admins.map((a) => a.id),
-        { kind: 'MODERATION', title: 'नई listing approval के लिए', body: listing.title, link: '/admin/moderation', data: { listingId: listing.id } },
+        {
+          kind: 'MODERATION',
+          title: 'नई listing approval के लिए',
+          body: listing.title,
+          link: listing.reviewRequiredRole === 'BROKER_ADMIN' ? '/broker/publications' : '/admin/moderation',
+          data: { listingId: listing.id },
+        },
       )
       .catch(() => undefined);
   }
@@ -101,7 +115,7 @@ export class ListingsService {
   /** An inventory-backed listing can only be public while its source unit is available. */
   private publicOriginWhere(): Prisma.ListingWhereInput {
     return {
-      OR: [{ inventoryOrigin: { is: null } }, { inventoryOrigin: { is: { availability: 'AVAILABLE', status: 'ACTIVE', purpose: 'RENT', deletedAt: null } } }],
+      OR: [{ inventoryOrigin: { is: null } }, { inventoryOrigin: { is: { availability: 'AVAILABLE', status: 'ACTIVE', deletedAt: null } } }],
     };
   }
 
@@ -312,13 +326,14 @@ export class ListingsService {
   private canManage(listing: Pick<Listing, 'postedById' | 'organizationId'>, user?: RequestUser) {
     if (!user) return false;
     if (user.role === 'SUPER_ADMIN') return true;
+    if (listing.organizationId && listing.organizationId !== user.orgId) return false;
     if (listing.postedById === user.id) return true;
     return !!listing.organizationId && listing.organizationId === user.orgId && user.role === 'BROKER_ADMIN';
   }
 
   private canEdit(listing: Pick<Listing, 'postedById' | 'organizationId'>, user?: RequestUser) {
     if (this.canManage(listing, user)) return true;
-    return !!user && !!listing.organizationId && listing.organizationId === user.orgId;
+    return false;
   }
 
   async detail(slugOrId: string, user?: RequestUser, track = true) {
@@ -347,7 +362,17 @@ export class ListingsService {
       },
     });
     if (!listing) throw new NotFoundException('Property नहीं मिली');
-    const manage = this.canEdit(listing, user);
+    const mayEdit = this.canEdit(listing, user);
+    const manage =
+      mayEdit ||
+      !!(
+        user?.role === 'BROKER_AGENT' &&
+        !!user.orgId &&
+        user.orgId === listing.organizationId &&
+        (await this.prisma.inventoryItem.count({
+          where: { publishedListingId: listing.id, organizationId: user.orgId, deletedAt: null, OR: [{ createdById: user.id }, { assignedToId: user.id }] },
+        }))
+      );
     if (!manage && !(await this.prisma.listing.count({ where: { id: listing.id, ...this.publicOriginWhere() } })))
       throw new NotFoundException('Property नहीं मिली');
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
@@ -374,7 +399,7 @@ export class ListingsService {
       organization: listing.organization
         ? { ...listing.organization, phone: manage ? listing.organization.phone : maskPhone(listing.organization.phone), whatsapp: undefined }
         : null,
-      canManage: manage,
+      canManage: mayEdit,
       saved,
       localityAvgPsf: localityStats,
     };
@@ -436,7 +461,7 @@ export class ListingsService {
   private autoTitle(input: ListingInput, localityName: string) {
     const typeLabel = PROPERTY_TYPE_LABELS[input.propertyType];
     const bhk = input.bedrooms && PROPERTY_TYPE_CATEGORY[input.propertyType] === 'RESIDENTIAL' && input.propertyType !== 'PG' ? `${input.bedrooms} BHK ` : '';
-    return `${bhk}${typeLabel} for Rent in ${localityName}, Gurgaon`;
+    return `${bhk}${typeLabel} for ${input.purpose === 'SALE' ? 'Sale' : 'Rent'} in ${localityName}, Gurgaon`;
   }
 
   private area(input: Partial<ListingInput>) {
@@ -475,7 +500,8 @@ export class ListingsService {
 
   async create(input: ListingInput, user: RequestUser) {
     await this.access.assertAllowed(user, 'post');
-    if (input.purpose === 'SALE') await this.features.assertEnabled('sale_listings');
+    if (input.purpose === 'SALE' && (await this.features.rentalOnly())) await this.features.assertEnabled('ordinary_sale_listings');
+    if (input.purpose === 'RENT' && !RENTABLE_TYPES.includes(input.propertyType)) throw new BadRequestException('Choose a rentable property type');
     const locality = await this.prisma.locality.findUnique({ where: { id: input.localityId } });
     if (!locality) throw new BadRequestException('Locality select करें');
     const isBroker = user.role === 'BROKER_ADMIN' || user.role === 'BROKER_AGENT';
@@ -487,30 +513,34 @@ export class ListingsService {
     if (input.photos.length > app.listing.maxPhotos) throw new BadRequestException(`ज़्यादा से ज़्यादा ${app.listing.maxPhotos} photos`);
     const title = input.title?.trim() || this.autoTitle(input, locality.name);
     const flags = this.moderationFlags({ ...input, title }, await this.localityPsf(locality.id, input.purpose, PROPERTY_TYPE_CATEGORY[input.propertyType]));
-    // Every listing goes live only after Super Admin approval (the approver's own listings are live at once).
-    const autoApprove = user.role === 'SUPER_ADMIN';
-    const status = !input.submit ? 'DRAFT' : autoApprove ? 'ACTIVE' : 'PENDING_REVIEW';
-
-    const listing = await this.prisma.listing.create({
-      data: {
-        ...this.toData(input),
-        title,
-        slug: await this.uniqueSlug(title),
-        category: PROPERTY_TYPE_CATEGORY[input.propertyType],
-        pricePerSqft: pricePerSqft(input.price, this.area(input)),
-        latitude: input.latitude ?? locality.latitude,
-        longitude: input.longitude ?? locality.longitude,
-        coverUrl: (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null,
-        status,
-        moderationFlags: flags,
-        postedByType: user.role === 'SUPER_ADMIN' ? 'BUILDER' : isBroker ? 'BROKER' : 'OWNER',
-        postedById: user.id,
-        organizationId: isBroker ? user.orgId : null,
-        publishedAt: status === 'ACTIVE' ? new Date() : null,
-        expiresAt: status === 'ACTIVE' ? new Date(Date.now() + app.listing.expiryDays * 86400_000) : null,
-        media: { create: input.photos.map((p, i) => ({ url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })) },
-      } as Prisma.ListingUncheckedCreateInput,
+    const listing = await this.prisma.$transaction(async (tx) => {
+      if (isBroker && user.orgId) await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${user.orgId} FOR SHARE`;
+      const org = isBroker && user.orgId ? await tx.organization.findUnique({ where: { id: user.orgId } }) : null;
+      if (isBroker && (!org || org.status !== 'ACTIVE')) throw new ForbiddenException('Active firm membership required');
+      const { status, reviewRequiredRole } = publicationDecision(user.role, org?.verification, input.submit);
+      return tx.listing.create({
+        data: {
+          ...this.toData(input),
+          title,
+          slug: await this.uniqueSlug(title),
+          category: PROPERTY_TYPE_CATEGORY[input.propertyType],
+          pricePerSqft: pricePerSqft(input.price, this.area(input)),
+          latitude: input.latitude ?? locality.latitude,
+          longitude: input.longitude ?? locality.longitude,
+          coverUrl: (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null,
+          status,
+          reviewRequiredRole,
+          moderationFlags: flags,
+          postedByType: user.role === 'SUPER_ADMIN' ? 'BUILDER' : isBroker ? 'BROKER' : 'OWNER',
+          postedById: user.id,
+          organizationId: isBroker ? user.orgId : null,
+          publishedAt: status === 'ACTIVE' ? new Date() : null,
+          expiresAt: status === 'ACTIVE' ? new Date(Date.now() + app.listing.expiryDays * 86400_000) : null,
+          media: { create: input.photos.map((p, i) => ({ url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })) },
+        } as Prisma.ListingUncheckedCreateInput,
+      });
     });
+    const status = listing.status;
     if (status === 'ACTIVE') this.events.emit('listing.published', { listingId: listing.id });
     if (status === 'PENDING_REVIEW') await this.notifyReviewers(listing);
     await this.audit.log(user, 'listing.create', 'Listing', listing.id, { status });
@@ -521,33 +551,51 @@ export class ListingsService {
     const existing = await this.prisma.listing.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundException();
     if (!this.canEdit(existing, user)) throw new ForbiddenException();
-    if (input.purpose === 'SALE' && existing.purpose !== 'SALE') await this.features.assertEnabled('sale_listings');
+    if (await this.prisma.inventoryItem.count({ where: { publishedListingId: id } }))
+      throw new BadRequestException('Open the Inventory public preview to edit this publication');
+    if (input.purpose === 'SALE' && (await this.features.rentalOnly())) await this.features.assertEnabled('ordinary_sale_listings');
+    if ((input.purpose ?? existing.purpose) === 'RENT' && !RENTABLE_TYPES.includes(input.propertyType ?? existing.propertyType))
+      throw new BadRequestException('Choose a rentable property type');
     const app = await this.settings.getAppConfig();
-    const contentChanged = CONTENT_FIELDS.some((k) => input[k] !== undefined);
-    const isAdmin = user.role === 'SUPER_ADMIN';
+    const contentChanged = Object.entries(input).some(([key, value]) => key !== 'submit' && value !== undefined);
     let status = existing.status;
-    if (input.submit && existing.status === 'DRAFT') status = isAdmin ? 'ACTIVE' : 'PENDING_REVIEW';
-    else if (existing.status === 'REJECTED' && input.submit !== false) status = 'PENDING_REVIEW';
-    else if (existing.status === 'ACTIVE' && contentChanged && !isAdmin) status = 'PENDING_REVIEW';
+    const requiresDecision =
+      (input.submit && existing.status === 'DRAFT') ||
+      (existing.status === 'REJECTED' && input.submit !== false) ||
+      (['ACTIVE', 'PENDING_REVIEW'].includes(existing.status) && contentChanged);
 
     const merged = { ...existing, ...input } as any;
     const data: any = {
       ...this.toData(input),
-      status,
       pricePerSqft: pricePerSqft(merged.price, this.area(merged)),
-      rejectionReason: status === 'PENDING_REVIEW' ? null : existing.rejectionReason,
     };
     if (input.localityId) {
       const loc = await this.prisma.locality.findUnique({ where: { id: input.localityId } });
       if (!loc) throw new BadRequestException('Invalid locality');
     }
     if (input.propertyType) data.category = PROPERTY_TYPE_CATEGORY[input.propertyType];
-    if (status === 'ACTIVE' && !existing.publishedAt) {
-      data.publishedAt = new Date();
-      data.expiresAt = new Date(Date.now() + app.listing.expiryDays * 86400_000);
-    }
+    if (input.photos && input.photos.length > app.listing.maxPhotos) throw new BadRequestException('Too many public photos');
     return this.prisma
       .$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Listing" WHERE id=${id} FOR UPDATE`;
+        const current = await tx.listing.findUniqueOrThrow({ where: { id } });
+        if (current.deletedAt || current.updatedAt.getTime() !== existing.updatedAt.getTime())
+          throw new ConflictException('Listing changed; reload before editing');
+        if (!this.canEdit(current, user)) throw new ForbiddenException();
+        if (requiresDecision) {
+          if (current.organizationId) await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${current.organizationId} FOR SHARE`;
+          const org = current.organizationId ? await tx.organization.findUniqueOrThrow({ where: { id: current.organizationId } }) : null;
+          if (org && org.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
+          const decision = publicationDecision(user.role, org?.verification);
+          status = decision.status;
+          data.reviewRequiredRole = decision.reviewRequiredRole;
+          data.rejectionReason = null;
+        }
+        data.status = status;
+        if (status === 'ACTIVE' && !existing.publishedAt) {
+          data.publishedAt = new Date();
+          data.expiresAt = new Date(Date.now() + app.listing.expiryDays * 86400_000);
+        }
         if (input.photos) {
           await tx.listingMedia.deleteMany({ where: { listingId: id } });
           await tx.listingMedia.createMany({
@@ -556,37 +604,70 @@ export class ListingsService {
           data.coverUrl = (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null;
         }
         const updated = await tx.listing.update({ where: { id }, data });
-        if (status === 'ACTIVE' && existing.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
         return updated;
       })
       .then(async (updated) => {
+        if (status === 'ACTIVE' && existing.status !== 'ACTIVE') this.events.emit('listing.published', { listingId: id });
         if (status === 'PENDING_REVIEW' && existing.status !== 'PENDING_REVIEW') await this.notifyReviewers(updated);
         return updated;
       });
   }
 
   async setStatus(id: string, status: 'SOLD' | 'RENTED' | 'ARCHIVED' | 'ACTIVE', user: RequestUser) {
-    const existing = await this.prisma.listing.findFirst({ where: { id, deletedAt: null } });
-    if (!existing) throw new NotFoundException();
-    if (!this.canEdit(existing, user)) throw new ForbiddenException();
     const app = await this.settings.getAppConfig();
-    let next: any = status;
-    const data: any = {};
-    if (status === 'ACTIVE') {
-      const origin = await this.prisma.inventoryItem.findUnique({ where: { publishedListingId: id }, select: { id: true } });
-      if (origin) throw new BadRequestException('Inventory listing को availability और public preview के साथ दोबारा review में भेजें');
-      if (existing.organizationId && ['ARCHIVED', 'EXPIRED', 'SOLD', 'RENTED'].includes(existing.status)) {
-        const active = await this.prisma.listing.count({
-          where: { organizationId: existing.organizationId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null },
-        });
-        await this.usage.assert(existing.organizationId, 'activeListings', active);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Keep the Inventory → Listing lock order used by publishing and availability updates.
+      const origin = await tx.inventoryItem.findUnique({ where: { publishedListingId: id }, select: { id: true } });
+      if (origin) await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id=${origin.id} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "Listing" WHERE id=${id} FOR UPDATE`;
+      const existing = await tx.listing.findFirst({ where: { id, deletedAt: null } });
+      if (!existing) throw new NotFoundException();
+      if (!this.canEdit(existing, user)) throw new ForbiddenException();
+      if ((status === 'SOLD' && existing.purpose !== 'SALE') || (status === 'RENTED' && existing.purpose !== 'RENT'))
+        throw new BadRequestException('Choose a status matching the property purpose');
+      let next: string = status;
+      const data: Prisma.ListingUpdateInput = { reviewRequiredRole: null };
+      if (status === 'ACTIVE') {
+        if (origin) throw new BadRequestException('Inventory listing को availability और public preview के साथ दोबारा review में भेजें');
+        if (existing.status === 'BLOCKED') throw new ForbiddenException('A blocked listing requires platform moderation');
+        if (existing.organizationId) {
+          await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${existing.organizationId} FOR SHARE`;
+          const org = await tx.organization.findUniqueOrThrow({ where: { id: existing.organizationId } });
+          if (org.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
+          if (['ARCHIVED', 'EXPIRED', 'SOLD', 'RENTED'].includes(existing.status)) {
+            const active = await tx.listing.count({
+              where: { organizationId: existing.organizationId, status: { in: ['ACTIVE', 'PENDING_REVIEW'] }, deletedAt: null },
+            });
+            await this.usage.assert(existing.organizationId, 'activeListings', active);
+          }
+          const decision = publicationDecision(user.role, org.verification);
+          next = decision.status;
+          data.reviewRequiredRole = decision.reviewRequiredRole;
+        } else {
+          const decision = publicationDecision(user.role, undefined);
+          next = decision.status;
+          data.reviewRequiredRole = decision.reviewRequiredRole;
+        }
+        data.rejectionReason = null;
+        if (next === 'ACTIVE') {
+          data.publishedAt = existing.publishedAt ?? new Date();
+          data.expiresAt = new Date(Date.now() + app.listing.expiryDays * 86400_000);
+        }
       }
-      // Re-activating (after archive/rented/rejection) always goes back through admin review.
-      next = user.role === 'SUPER_ADMIN' ? 'ACTIVE' : existing.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_REVIEW';
-      if (next === 'ACTIVE') data.expiresAt = new Date(Date.now() + app.listing.expiryDays * 86400_000);
-    }
-    const updated = await this.prisma.listing.update({ where: { id }, data: { ...data, status: next } });
-    if (next === 'PENDING_REVIEW' && existing.status !== 'PENDING_REVIEW') await this.notifyReviewers(updated);
+      if (origin)
+        await tx.inventoryItem.update({
+          where: { id: origin.id },
+          data: {
+            isPublished: false,
+            publicationHash: null,
+            revision: { increment: 1 },
+            ...(status === 'SOLD' || status === 'RENTED' ? { availability: status, availabilityAt: new Date() } : {}),
+          },
+        });
+      return tx.listing.update({ where: { id }, data: { ...data, status: next as Listing['status'] } });
+    });
+    if (updated.status === 'PENDING_REVIEW') await this.notifyReviewers(updated);
+    if (updated.status === 'ACTIVE') this.events.emit('listing.published', { listingId: id });
     return updated;
   }
 
@@ -605,6 +686,9 @@ export class ListingsService {
     const where: Prisma.ListingWhereInput = {
       deletedAt: null,
       ...(user.orgId ? { organizationId: user.orgId } : { postedById: user.id }),
+      ...(user.role === 'BROKER_AGENT'
+        ? { AND: [{ OR: [{ postedById: user.id }, { inventoryOrigin: { is: { OR: [{ createdById: user.id }, { assignedToId: user.id }] } } }] }] }
+        : {}),
       ...(q.status ? { status: q.status as any } : {}),
       ...(q.search ? { OR: [{ title: { contains: q.search, mode: 'insensitive' } }, { societyName: { contains: q.search, mode: 'insensitive' } }] } : {}),
     };
@@ -619,7 +703,13 @@ export class ListingsService {
       this.prisma.listing.count({ where }),
       this.prisma.listing.groupBy({
         by: ['status'],
-        where: { deletedAt: null, ...(user.orgId ? { organizationId: user.orgId } : { postedById: user.id }) },
+        where: {
+          deletedAt: null,
+          ...(user.orgId ? { organizationId: user.orgId } : { postedById: user.id }),
+          ...(user.role === 'BROKER_AGENT'
+            ? { AND: [{ OR: [{ postedById: user.id }, { inventoryOrigin: { is: { OR: [{ createdById: user.id }, { assignedToId: user.id }] } } }] }] }
+            : {}),
+        },
         _count: { _all: true },
       }),
     ]);

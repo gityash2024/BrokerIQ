@@ -27,15 +27,15 @@ export class FeaturesService {
       throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.FEATURE_DISABLED, `${featureName(key)} अभी बंद है।`, { feature: key });
   }
 
-  /** Rental-only marketplace unless Super Admin switches sale listings on. */
+  /** Ordinary sale properties are core; the older flag controls upcoming project/sale tools. */
   async rentalOnly() {
-    return !(await this.isEnabled('sale_listings'));
+    return !(await this.isEnabled('ordinary_sale_listings')) && !(await this.isEnabled('sale_listings'));
   }
 
   /** All flags as clients should see them: known features with their defaults, overridden by stored rows. */
   async all() {
     const known = Object.fromEntries(GROWTH_FEATURES.map((f) => [f.key, featureDefault(f.key)]));
-    return { ...known, ...Object.fromEntries(await this.flags()) } as Record<string, boolean>;
+    return { ordinary_sale_listings: true, ...known, ...Object.fromEntries(await this.flags()) } as Record<string, boolean>;
   }
 
   invalidate() {

@@ -242,7 +242,9 @@ describe('Growth features (e2e)', () => {
         ...extra,
       })
       .expect(201);
-    await http.post(`/api/admin/moderation/listings/${l.body.id}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
+    if (l.body.status === 'PENDING_REVIEW')
+      await http.post(`/api/admin/moderation/listings/${l.body.id}`).set(auth(admin)).send({ action: 'approve' }).expect(201);
+    else expect(l.body.status).toBe('ACTIVE'); // Verified firm Admins publish directly.
     return { id: l.body.id as string, slug: l.body.slug as string };
   };
 

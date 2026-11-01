@@ -1385,19 +1385,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1406,19 +1416,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1427,19 +1447,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1448,19 +1478,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1469,19 +1509,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1490,19 +1540,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1511,19 +1571,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1532,19 +1602,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -1553,19 +1633,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_DB_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_CHECKPOINT",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_BUNDLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
+      "notes": [
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/publishing.ts",
+        "apps/api/src/modules/inventory/inventory.service.ts",
+        "apps/api/src/modules/listings/listings.service.ts",
+        "apps/web/src/components/broker/launch/public-publish.tsx",
+        "apps/mobile/app/publish-rental.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
+      "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
     },
     {
@@ -3313,9 +3403,10 @@
       "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "133 source unit / 10 real PostgreSQL email-session checks, later adapter9; full API272 passed25skip. Live provider pending Zoho authorization/browser access.",
+      "verification": "Zoho minimum-scope grant encrypted in production SystemSetting (disabled pending release). Authorized server → gityash216@gmail.com diagnostic from hello@yarvixhq.com visibly received in Gmail, 2026-11-01 14:43 IST. Application OTP/invitation delivery remains pending.",
       "notes": [
-        "User superseded Gmail with hello@yarvixhq.com via Zoho HTTPS. Production Gmail SMTP disabled due host port block. Dedicated client created by user; no live Zoho token or delivery yet. See EMAIL_INTEGRATION.md."
+        "User superseded Gmail with hello@yarvixhq.com via Zoho HTTPS. Production Gmail SMTP disabled due host port block. Dedicated client created by user; no live Zoho token or delivery yet. See EMAIL_INTEGRATION.md.",
+        "Gmail SMTP TCP egress was blocked on hosting; user selected YARVIX Zoho HTTPS. No secrets committed; no application release/provider switch yet."
       ],
       "roles": [
         "SUPER_ADMIN"
