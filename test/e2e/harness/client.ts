@@ -33,6 +33,9 @@ export class E2EClient {
     if (process.env.E2E_API_URL) {
       return new E2EClient(process.env.E2E_API_URL);
     }
+    if (process.env.E2E_USE_SIMULATOR !== 'true') {
+      throw new Error('Real E2E tests require E2E_API_URL. Set E2E_USE_SIMULATOR=true only for explicitly labelled contract simulation; it is not release acceptance.');
+    }
     const simulator = new ContractSimulator();
     const url = await simulator.start();
     return new E2EClient(url, simulator);

@@ -9,6 +9,15 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
+const simulation = process.env.E2E_USE_SIMULATOR === 'true';
+if (!process.env.E2E_API_URL && !simulation) {
+  throw new Error('E2E_API_URL is required. Refusing to report simulator results as real backend release verification.');
+}
+if (process.env.CI && simulation) {
+  throw new Error('Contract simulation is not a release/CI acceptance target. Start the real isolated API and set E2E_API_URL.');
+}
+console.log(simulation ? 'MODE: CONTRACT SIMULATION — not production/release evidence' : 'MODE: REAL HTTP API');
+
 const SUITES = [
   { tier: 'Tier 1', name: 'KYC Module Filtering', file: 'tier1-feature-coverage/kyc-filtering.e2e.test.ts' },
   { tier: 'Tier 1', name: 'Teams Module Filtering', file: 'tier1-feature-coverage/teams-filtering.e2e.test.ts' },
@@ -74,6 +83,6 @@ console.log('===================================================================
 if (totalFailed > 0) {
   process.exit(1);
 } else {
-  console.log('🎉 All 4-tier requirement E2E test suites passed successfully!\n');
+  console.log(simulation ? 'Contract simulation suites passed; real API/device acceptance remains required.\n' : 'All real API requirement suites passed.\n');
   process.exit(0);
 }

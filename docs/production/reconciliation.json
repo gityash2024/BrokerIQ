@@ -110,10 +110,12 @@
       ],
       "backend": "PENDING",
       "web": "PENDING",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "3 plugin regressions passed; Expo Android clean regeneration re-applied FLAG_SECURE; signed-APK/device verification pending",
+      "notes": [
+        "Tracked Expo plugin replaces ignored generated Activity edit. Release guarded with !BuildConfig.DEBUG."
+      ]
     },
     {
       "id": "SECURITY-02",
@@ -2039,8 +2041,10 @@
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "VERIFIED",
+      "notes": [
+        "56.30 GB measured available-space increase; 58.80 GB now free; all running service/container identities and health preserved."
+      ]
     },
     {
       "id": "RELEASE-02",
@@ -2052,11 +2056,11 @@
         "11882",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
+      "backend": "IMPLEMENTED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Runner without E2E_API_URL refuses execution; explicit simulation labelled non-release and refused in CI. Real E2E suites pending.",
       "notes": []
     },
     {

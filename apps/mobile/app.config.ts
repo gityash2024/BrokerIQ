@@ -67,6 +67,7 @@ const config: ExpoConfig = {
       },
     ],
     './plugins/with-release-signing',
+    './plugins/with-screen-protection',
     'expo-router',
     'expo-secure-store',
     'expo-web-browser',

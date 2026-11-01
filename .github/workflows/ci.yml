@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'feat/**', 'claude/**']
+    branches: [main, 'feat/**', 'claude/**', 'codex/**']
   pull_request:
 
 concurrency:
@@ -55,6 +55,8 @@ jobs:
           pnpm --filter @brokeriq/api test:e2e
       - name: Mobile unit tests
         run: pnpm --filter @brokeriq/mobile test
+      - name: Native prebuild protection regression
+        run: node --test apps/mobile/plugins/*.test.cjs
       - name: API production build
         run: pnpm --filter @brokeriq/api build
       - name: Web production build
