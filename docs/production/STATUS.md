@@ -75,3 +75,7 @@ OPEN: native background GPS-off detection, battery/permission interruption, proc
 - Four previously hard-disabled UI stubs were removed; their routes/tools remain controlled by the module catalogue. This did not enable Coming Soon modules. The hidden listing AI description entry remains M09 work; its existing handler is retained.
 
 No new production deployment, production migration, signed APK, live provider delivery, load/soak acceptance or final guide has been declared complete.
+
+### M04 offline restart follow-up
+
+Persisted native pause binding now survives offline hydration; a transient null UI shift no longer clears an active binding. Owner checks reject late reads after account switching. Pause/resume responses include authoritative intervals, preventing break time from being counted locally as work. Validation: mobile 61/61, real PostgreSQL location suite 6/6, workspace typechecks pass. Physical-device restart/background acceptance remains open.

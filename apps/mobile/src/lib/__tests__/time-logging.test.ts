@@ -9,6 +9,7 @@ import * as apiModule from '../api';
 
 jest.mock('../background-shift-tracking', () => ({ configureBackgroundShift: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../shift-location-outbox', () => ({
+  trackingBinding: jest.fn().mockResolvedValue(null),
   queueShiftPing: jest.fn().mockResolvedValue(undefined),
   flushShiftPings: jest.fn().mockResolvedValue(0),
   pendingShiftPings: jest.fn().mockResolvedValue({ pending: 0, blocked: 0 }),
@@ -69,6 +70,71 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
     periodicLocationTracker.stop();
     jest.useRealTimers();
     jest.restoreAllMocks();
+  });
+
+  it('keeps a durable manual pause when restarting offline with stale active UI storage', async () => {
+    const shift = { id: 'restart-shift', userId: 'agent_1', status: 'ACTIVE', punchInAt: new Date().toISOString(), totalMinutes: 0 };
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(
+      JSON.stringify({ userId: 'agent_1', activeShift: shift, isPunchedIn: true, isPaused: false, pauseReason: null }),
+    );
+    (outbox.trackingBinding as jest.Mock).mockResolvedValueOnce({
+      ownerId: 'agent_1',
+      shiftId: shift.id,
+      enabled: false,
+      pauseReason: 'MANUAL',
+      pausedAt: '2026-11-01T03:00:00Z',
+    });
+    (apiModule.api as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    await useTimeTrackingStore.getState().loadPersistedState();
+    expect(useTimeTrackingStore.getState().activeShift?.status).toBe('PAUSED');
+    expect(useTimeTrackingStore.getState().pauseReason).toBe('MANUAL');
+    expect(periodicLocationTracker.getStatus().isRunning).toBe(false);
+  });
+
+  it('uses authoritative pause/resume intervals so break time is not counted as work', async () => {
+    const now = Date.now();
+    const active = {
+      id: 'interval-shift',
+      userId: 'agent_1',
+      status: 'ACTIVE',
+      punchInAt: new Date(now - 120_000).toISOString(),
+      totalMinutes: 0,
+      intervals: [{ id: 'i1', status: 'ACTIVE', startTime: new Date(now - 120_000).toISOString(), endTime: null }],
+    };
+    const paused = {
+      ...active,
+      status: 'PAUSED',
+      pauseReason: 'MANUAL',
+      pausedAt: new Date(now).toISOString(),
+      intervals: [
+        { ...active.intervals[0], endTime: new Date(now).toISOString() },
+        { id: 'i2', status: 'PAUSED', startTime: new Date(now).toISOString(), endTime: null },
+      ],
+    };
+    useTimeTrackingStore.setState({ activeShift: active as any, isPunchedIn: true });
+    (apiModule.post as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      shiftId: active.id,
+      status: 'PAUSED',
+      pauseReason: 'MANUAL',
+      pausedAt: paused.pausedAt,
+      shift: paused,
+    });
+    await useTimeTrackingStore.getState().pauseShift('MANUAL');
+    expect(useTimeTrackingStore.getState().activeShift?.intervals).toEqual(paused.intervals);
+    jest.setSystemTime(now + 60_000);
+    const resumed = {
+      ...active,
+      intervals: [
+        paused.intervals[0],
+        { ...paused.intervals[1], endTime: new Date(now + 60_000).toISOString() },
+        { id: 'i3', status: 'ACTIVE', startTime: new Date(now + 60_000).toISOString(), endTime: null },
+      ],
+    };
+    (apiModule.post as jest.Mock).mockResolvedValueOnce({ success: true, shiftId: active.id, status: 'ACTIVE', shift: resumed });
+    await useTimeTrackingStore.getState().resumeShift();
+    useTimeTrackingStore.getState().tickElapsed();
+    expect(useTimeTrackingStore.getState().elapsedSeconds).toBe(120);
   });
 
   // Test 1: Mandatory GPS Gating

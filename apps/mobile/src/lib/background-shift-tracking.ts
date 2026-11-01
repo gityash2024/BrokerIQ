@@ -45,15 +45,26 @@ async function stopNativeTracking() {
 }
 let operations = Promise.resolve();
 /** Native starts/stops serialize so a delayed start cannot survive pause/logout. */
-export function configureBackgroundShift(shiftId: string | null, enabled = true): Promise<void> {
+export function configureBackgroundShift(shiftId: string | null, enabled = true, pause?: { reason: string; at: string }): Promise<void> {
   const owner = authStore.get()?.user.id;
   operations = operations
     .catch(() => undefined)
     .then(async () => {
       if (Platform.OS === 'web') return;
-      if (!owner || owner !== authStore.get()?.user.id || !shiftId || !enabled) {
+      if (!owner || owner !== authStore.get()?.user.id || !shiftId) {
         await stopNativeTracking();
         await setTrackingBinding(null);
+        return;
+      }
+      if (!enabled) {
+        await stopNativeTracking();
+        await setTrackingBinding({
+          ownerId: owner,
+          shiftId,
+          enabled: false,
+          pauseReason: pause?.reason || 'MANUAL',
+          pausedAt: pause?.at || new Date().toISOString(),
+        });
         return;
       }
       const previous = await trackingBinding();

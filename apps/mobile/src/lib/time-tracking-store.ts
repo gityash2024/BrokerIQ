@@ -25,6 +25,8 @@ async function safeSecureStoreDelete(key: string): Promise<void> {
   }
 }
 
+import { trackingBinding } from './shift-location-outbox';
+import { configureBackgroundShift } from './background-shift-tracking';
 import { periodicLocationTracker } from './periodic-location-tracker';
 
 interface PersistedState {
@@ -161,8 +163,10 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
   },
 
   loadPersistedState: async () => {
+    const ownerId = authStore.get()?.user.id;
     try {
       const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+      if (authStore.get()?.user.id !== ownerId) return;
       if (!raw) return;
       const parsed: PersistedState = JSON.parse(raw);
       const currentUser = authStore.get()?.user;
@@ -172,6 +176,18 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         return;
       }
 
+      const binding = await trackingBinding();
+      if (authStore.get()?.user.id !== ownerId) return;
+      if (binding?.ownerId === currentUser.id && binding.shiftId === parsed.activeShift?.id && !binding.enabled) {
+        parsed.isPaused = true;
+        parsed.pauseReason = binding.pauseReason || 'MANUAL';
+        parsed.activeShift = {
+          ...parsed.activeShift,
+          status: 'PAUSED',
+          pauseReason: parsed.pauseReason,
+          pausedAt: binding.pausedAt || parsed.activeShift.pausedAt,
+        };
+      }
       set({
         activeShift: parsed.activeShift,
         isPunchedIn: parsed.isPunchedIn,
@@ -182,7 +198,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         lastSyncAt: parsed.lastSyncAt,
       });
 
-      if (parsed.isPunchedIn && parsed.activeShift && !parsed.isPaused) {
+      if (parsed.isPunchedIn && parsed.activeShift && (!parsed.isPaused || parsed.pauseReason === 'GPS_SIGNAL_LOST')) {
         periodicLocationTracker.start(parsed.activeShift.id);
       }
 
@@ -484,6 +500,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         status: 'PAUSED';
         pauseReason: string;
         pausedAt: string;
+        shift?: AgentShiftDto;
       }>('/time-logging/pause', {
         shiftId: activeShift.id,
         reason,
@@ -493,17 +510,22 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         isLoading: false,
         isPaused: true,
         pauseReason: res.pauseReason,
-        activeShift: state.activeShift
-          ? {
-              ...state.activeShift,
-              status: 'PAUSED',
-              pauseReason: res.pauseReason,
-              pausedAt: res.pausedAt,
-            }
-          : null,
+        activeShift:
+          res.shift ??
+          (state.activeShift
+            ? {
+                ...state.activeShift,
+                status: 'PAUSED',
+                pauseReason: res.pauseReason,
+                pausedAt: res.pausedAt,
+              }
+            : null),
       }));
 
-      if (res.pauseReason !== 'GPS_SIGNAL_LOST') periodicLocationTracker.stop();
+      if (res.pauseReason !== 'GPS_SIGNAL_LOST') {
+        periodicLocationTracker.stop({ shiftId: activeShift.id, reason: res.pauseReason, at: res.pausedAt });
+        await configureBackgroundShift(activeShift.id, false, { reason: res.pauseReason, at: res.pausedAt });
+      }
       return { success: true };
     } catch (err) {
       const msg = errorMessage(err);
@@ -540,10 +562,11 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         }
       }
 
-      await post<{
+      const res = await post<{
         success: boolean;
         shiftId: string;
         status: 'ACTIVE';
+        shift?: AgentShiftDto;
       }>('/time-logging/resume', {
         shiftId: activeShift.id,
         latitude: lat,
@@ -555,14 +578,16 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         isLoading: false,
         isPaused: false,
         pauseReason: null,
-        activeShift: state.activeShift
-          ? {
-              ...state.activeShift,
-              status: 'ACTIVE',
-              pauseReason: null,
-              pausedAt: null,
-            }
-          : null,
+        activeShift:
+          res.shift ??
+          (state.activeShift
+            ? {
+                ...state.activeShift,
+                status: 'ACTIVE',
+                pauseReason: null,
+                pausedAt: null,
+              }
+            : null),
       }));
 
       periodicLocationTracker.start(activeShift.id);
@@ -575,6 +600,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
   },
 
   syncStatus: async () => {
+    const ownerId = authStore.get()?.user.id;
     try {
       const res = await api<{
         activeShift: (AgentShiftDto & { currentMinutes: number }) | null;
@@ -582,6 +608,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         todaySummary: TodaySummary;
         lastKnownLocation: ShiftLocationDto | null;
       }>('/time-logging/status');
+      if (authStore.get()?.user.id !== ownerId) return;
 
       if (res.activeShift) {
         const isPaused = res.activeShift.status === 'PAUSED';
@@ -601,7 +628,12 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
 
         if (!isPaused || res.activeShift.pauseReason === 'GPS_SIGNAL_LOST') {
           periodicLocationTracker.start(res.activeShift.id);
-        } else periodicLocationTracker.stop();
+        } else
+          periodicLocationTracker.stop({
+            shiftId: res.activeShift.id,
+            reason: res.activeShift.pauseReason || 'MANUAL',
+            at: res.activeShift.pausedAt || new Date().toISOString(),
+          });
 
         // Update local secure storage with confirmed backend shift
         const currentUser = authStore.get()?.user;
@@ -619,9 +651,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         }
       } else {
         const hadActive = get().isPunchedIn;
-        if (hadActive) {
-          periodicLocationTracker.stop();
-        }
+        periodicLocationTracker.stop();
         set({
           activeShift: null,
           isPunchedIn: false,

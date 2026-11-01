@@ -78,8 +78,8 @@ class PeriodicLocationTrackerEngine {
   /**
    * Stop periodic tracking (on punch out or shift end).
    */
-  stop() {
-    configureBackgroundShift(null).catch((error) => useTimeTrackingStore.setState({ error: error.message }));
+  stop(pause?: { shiftId: string; reason: string; at: string }) {
+    configureBackgroundShift(pause?.shiftId ?? null, false, pause).catch((error) => useTimeTrackingStore.setState({ error: error.message }));
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

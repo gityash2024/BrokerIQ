@@ -16,6 +16,7 @@ import * as apiModule from '../api';
 
 jest.mock('../background-shift-tracking', () => ({ configureBackgroundShift: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../shift-location-outbox', () => ({
+  trackingBinding: jest.fn().mockResolvedValue(null),
   queueShiftPing: jest.fn().mockResolvedValue(undefined),
   flushShiftPings: jest.fn().mockResolvedValue(0),
   pendingShiftPings: jest.fn().mockResolvedValue({ pending: 0, blocked: 0 }),

@@ -283,6 +283,7 @@ export class TimeLoggingService {
         }
         return {
           success: true,
+          shift: await tx.agentShift.findUnique({ where: { id: shift.id }, include: { intervals: { orderBy: { startTime: 'asc' } } } }),
           shiftId: shift.id,
           status: 'PAUSED' as const,
           pauseReason: shift.pauseReason === 'GPS_SIGNAL_LOST' ? dto.reason : shift.pauseReason,
@@ -293,7 +294,14 @@ export class TimeLoggingService {
       await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { endTime: now } });
       await tx.shiftInterval.create({ data: { shiftId: shift.id, startTime: now, status: 'PAUSED', reason: dto.reason } });
       await tx.agentShift.update({ where: { id: shift.id }, data: { status: 'PAUSED', pauseReason: dto.reason, pausedAt: now } });
-      return { success: true, shiftId: shift.id, status: 'PAUSED' as const, pauseReason: dto.reason, pausedAt: now.toISOString() };
+      return {
+        success: true,
+        shift: await tx.agentShift.findUnique({ where: { id: shift.id }, include: { intervals: { orderBy: { startTime: 'asc' } } } }),
+        shiftId: shift.id,
+        status: 'PAUSED' as const,
+        pauseReason: dto.reason,
+        pausedAt: now.toISOString(),
+      };
     });
   }
 
@@ -301,7 +309,14 @@ export class TimeLoggingService {
     return this.prisma.$transaction(async (tx) => {
       const shift = await this.lockShift(tx, user, dto.shiftId);
       if (shift.status === 'COMPLETED') throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'Shift already completed');
-      if (shift.status === 'ACTIVE') return { success: true, shiftId: shift.id, status: 'ACTIVE' as const, message: 'Shift is already active' };
+      if (shift.status === 'ACTIVE')
+        return {
+          success: true,
+          shift: await tx.agentShift.findUnique({ where: { id: shift.id }, include: { intervals: { orderBy: { startTime: 'asc' } } } }),
+          shiftId: shift.id,
+          status: 'ACTIVE' as const,
+          message: 'Shift is already active',
+        };
       const now = new Date();
       await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { endTime: now } });
       await tx.shiftInterval.create({ data: { shiftId: shift.id, startTime: now, status: 'ACTIVE', reason: 'MANUAL_RESUME' } });
@@ -319,7 +334,12 @@ export class TimeLoggingService {
             source: 'MANUAL_RESUME',
           },
         });
-      return { success: true, shiftId: shift.id, status: 'ACTIVE' as const };
+      return {
+        success: true,
+        shift: await tx.agentShift.findUnique({ where: { id: shift.id }, include: { intervals: { orderBy: { startTime: 'asc' } } } }),
+        shiftId: shift.id,
+        status: 'ACTIVE' as const,
+      };
     });
   }
 

@@ -16,6 +16,8 @@ export interface TrackingBinding {
   shiftId: string;
   enabled: boolean;
   lastCapturedAt?: number;
+  pauseReason?: string;
+  pausedAt?: string;
 }
 async function database() {
   const db = await privateDraftDatabase();

@@ -63,7 +63,9 @@ describe('Shift state transitions and offline location provenance', () => {
       .expect(409);
   });
   it('manual pause remains paused and does not store paused-period coordinates', async () => {
-    await request(app.getHttpServer()).post('/api/time-logging/pause').set(h()).send({ shiftId, reason: 'MANUAL' }).expect(201);
+    const paused = await request(app.getHttpServer()).post('/api/time-logging/pause').set(h()).send({ shiftId, reason: 'MANUAL' }).expect(201);
+    expect(paused.body.shift.status).toBe('PAUSED');
+    expect(paused.body.shift.intervals.filter((i: any) => !i.endTime).map((i: any) => i.status)).toEqual(['PAUSED']);
     const result = await request(app.getHttpServer())
       .post('/api/time-logging/location')
       .set(h())
