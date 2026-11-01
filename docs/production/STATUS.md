@@ -55,3 +55,23 @@ Remaining: complete shared action contract, exhaustive all-module negative tests
 Stable device-session IDs, atomic five-session limit, explicit login-authenticated replacement challenge, per-session HTTP/realtime revocation and encrypted 15-second concurrent-refresh retry response are implemented. Existing refresh rows upgrade transparently; access JWTs without sid request refresh. Onboarding updates the current session instead of consuming a sixth slot. Web/mobile login support password, OTP and Google session-limit selection. Network/provider errors do not erase mobile credentials. New selection copy exists in all 13 enabled language dictionaries.
 
 Validation: 18 real Nest/PostgreSQL cases (six session scenarios plus nine permissions and three recovery cases), 125 API unit tests and workspace typechecks pass. Real Chrome on localhost:3311 showed five devices and successful selected replacement into /admin against isolated PostgreSQL/API. Evidence screenshot: output/playwright/device-selection-local.png. This is local development browser evidence, not an APK or production capture. Mobile installed-device and final release acceptance remain pending.
+
+## M04 implementation checkpoint — native acceptance still open
+
+Added root-registered Expo TaskManager location task using the existing SQLCipher-enabled SQLite store, explicit active-shift permission disclosure, foreground notification and owner/shift binding. Native captures use OS timestamps; JS timers no longer generate Android/iOS periodic captures. Web watcher and legacy team-location endpoint no longer record outside an active shift. Pause/punch-out/logout stop native collection; stale callbacks cannot restore a cleared binding. Queue writes precede dispatch, retries preserve IDs/times, permanent rejects stay available for review and account changes stop replay. Unowned legacy SecureStore entries are preserved without uploading them as another user.
+
+Server serializes punch/pause/resume/location actions, retains one open interval and supports idempotent offline replay from completed shifts when captured in a valid active interval. Manual pause is never auto-resumed by GPS. All-firms time summary no longer silently selects the first firm; UI hierarchy work remains in M10.
+
+OPEN: native background GPS-off detection, battery/permission interruption, process restart behavior, blocked legacy queue review UX and installed-device durability remain required before launch. Android clean prebuild succeeds, regenerates FLAG_SECURE, and retains SQLCipher configuration; this is not a signed APK acceptance result.
+
+## Validation and test classification checkpoint
+
+- Shared package rebuilds before its tests, preventing stale dist evidence; 43 source tests pass, including Unicode multi-property separators.
+- Full API suite against isolated, migrated, master-seeded PostgreSQL: 250 passed, 25 Broker-first-only cases skipped in full-platform configuration. This includes 125 source unit checks; provider adapters inside legacy tests are mocked and are NOT live-provider acceptance.
+- Separate Broker-first configuration: 46 passed across source-ledger, enterprise, team, module/role, sessions, location and ownership suites. No active Broker-first suite skipped in this selection.
+- Mobile: 59 passed. SQLite outbox SQL is exercised through Node SQLite; Android SQLCipher encryption and OS task reliability remain device gates.
+- Workspace typechecks pass; native protection plugin cases 3/3 pass; repository ESLint now has zero errors (existing warnings remain).
+- Historical five-tier simulator is explicitly named test:legacy-simulation, outside real database acceptance. Its nine simulator suites pass as a self-test only. Corrected its first-of-month membership-count assumption; no production evidence derives from it.
+- Four previously hard-disabled UI stubs were removed; their routes/tools remain controlled by the module catalogue. This did not enable Coming Soon modules. The hidden listing AI description entry remains M09 work; its existing handler is retained.
+
+No new production deployment, production migration, signed APK, live provider delivery, load/soak acceptance or final guide has been declared complete.

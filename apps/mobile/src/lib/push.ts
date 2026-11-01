@@ -44,9 +44,14 @@ export async function registerPush() {
   }
 }
 
-export async function unregisterPush() {
-  if (lastToken) await api(`/me/push-tokens/${encodeURIComponent(lastToken)}`, { method: 'DELETE' });
+export async function unregisterPush(accessToken?: string) {
+  const token = lastToken;
   lastToken = null;
+  if (token)
+    await api(`/me/push-tokens/${encodeURIComponent(token)}`, {
+      method: 'DELETE',
+      ...(accessToken ? { auth: false, headers: { Authorization: `Bearer ${accessToken}` } } : {}),
+    });
 }
 
 /** Local reminder N minutes before a follow-up/visit (works offline). */

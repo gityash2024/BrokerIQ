@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { SOCKET_URL, useSession } from './api';
+import { authStore, SOCKET_URL, useSession } from './api';
 
 let socket: Socket | null = null;
 let tokenUsed: string | null = null;
@@ -16,6 +16,9 @@ function getSocket(token: string | null) {
   socket?.disconnect();
   tokenUsed = token;
   socket = io(SOCKET_URL, { path: '/socket.io', transports: ['websocket'], auth: { token } });
+  socket.on('session.revoked', () => {
+    if (authStore.get()?.accessToken === token) void authStore.set(null);
+  });
   return socket;
 }
 

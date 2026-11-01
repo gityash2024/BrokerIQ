@@ -757,10 +757,13 @@ model ShiftLocation {
   address    String?
   source     String     @default("MOBILE")
   capturedAt DateTime   @default(now())
+  receivedAt DateTime   @default(now())
+  eventId    String?
 
   shift      AgentShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, eventId])
   @@index([shiftId, capturedAt])
   @@index([userId, capturedAt])
 }

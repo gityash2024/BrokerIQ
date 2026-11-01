@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cur = authStore.get();
     if (!cur) return;
     const me = await api<AuthUser>('/auth/me');
-    authStore.set({ ...cur, user: me });
+    if (authStore.get()?.user.id === cur.user.id) authStore.set({ ...authStore.get()!, user: me });
   }, []);
 
   const logout = useCallback(async () => {

@@ -144,7 +144,14 @@ export default function Login() {
 
   return (
     <Screen keyboard padded={false} edges={['bottom']}>
-      <Modal visible={!!selection} transparent animationType="slide" onRequestClose={() => { if (!busy) setSelection(null); }}>
+      <Modal
+        visible={!!selection}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!busy) setSelection(null);
+        }}
+      >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 20 }}>
           <View style={{ maxHeight: '85%', backgroundColor: c.surface, borderRadius: 24, padding: 20, gap: 12 }}>
             <Txt v="h3">Choose a device to sign out</Txt>
@@ -153,11 +160,20 @@ export default function Login() {
               {selection?.sessions.map((device) => (
                 <View key={device.id} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 14, padding: 14, gap: 8 }}>
                   <Txt>{device.userAgent || 'Unknown device'}</Txt>
-                  <Txt v="caption">{device.ip || '—'} · {new Date(device.lastUsedAt).toLocaleString()}</Txt>
-                  <Button title="Sign out this device and continue" loading={busy} onPress={() => run(async () => {
-                    const result = await post<AuthResponse>('/auth/sessions/replace', { challenge: selection.challenge, sessionId: device.id });
-                    setSelection(null); await done(result);
-                  })} />
+                  <Txt v="caption">
+                    {device.ip || '—'} · {new Date(device.lastUsedAt).toLocaleString()}
+                  </Txt>
+                  <Button
+                    title="Sign out this device and continue"
+                    loading={busy}
+                    onPress={() =>
+                      run(async () => {
+                        const result = await post<AuthResponse>('/auth/sessions/replace', { challenge: selection.challenge, sessionId: device.id });
+                        setSelection(null);
+                        await done(result);
+                      })
+                    }
+                  />
                 </View>
               ))}
             </ScrollView>

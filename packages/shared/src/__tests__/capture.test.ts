@@ -137,3 +137,10 @@ test('BHK+1 records an unspecified extra space without inventing a bathroom or d
   assert.equal(inventoryInputSchema.safeParse({ details: { additionalRooms: 1 } }).success, true);
   assert.equal(inventoryInputSchema.safeParse({ details: { additionalRooms: 1.5 } }).success, false);
 });
+
+test('emoji property separators keep distinct rent and sale offers apart', () => {
+  const entries = extractCapture('🏠 For rent: 2 BHK Sector 45, rent 40k\n\n🌿 For sale: 3 BHK Sector 57, price 2 cr');
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0].inventory?.purpose, 'RENT');
+  assert.equal(entries[1].inventory?.purpose, 'SALE');
+});

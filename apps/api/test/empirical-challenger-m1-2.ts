@@ -1,6 +1,6 @@
 /**
  * Empirical Challenger M1.2: Advanced Filtering & Multi-Format Export Stress Harness
- * 
+ *
  * Verifies:
  * 1. Simultaneous multi-facet filtering (Date presets, Status, Role, Search, Agent/Broker)
  * 2. Excel (.xlsx) OpenXML package, typed dates/numbers, headers, styling, totals
@@ -29,7 +29,7 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-function createMockFn(impl?: Function) {
+function createMockFn(impl?: (...args: any[]) => unknown) {
   const calls: any[][] = [];
   const fn: any = function (...args: any[]) {
     calls.push(args);
@@ -46,7 +46,7 @@ function createMockFn(impl?: Function) {
   return fn;
 }
 
-const mockFn = (impl?: Function) => createMockFn(impl);
+const mockFn = (impl?: (...args: any[]) => unknown) => createMockFn(impl);
 
 async function runTest(name: string, fn: () => Promise<void> | void) {
   try {
@@ -176,14 +176,7 @@ async function testMultiFacetFiltering() {
   await runTest('Simultaneous 5-way KYC filter preserves all 5 criteria without dropping any', async () => {
     resetMocks();
     // 5 criteria: status + role + search + brokerId + datePreset
-    await adminController.kyc(
-      'PENDING',
-      'BROKER_AGENT',
-      'Sharma',
-      'org_123',
-      'agent_456',
-      'last_7_days'
-    );
+    await adminController.kyc('PENDING', 'BROKER_AGENT', 'Sharma', 'org_123', 'agent_456', 'last_7_days');
 
     const call = mockPrisma.kycDocument.findMany.mock.calls[0][0];
     const where = call.where;
@@ -234,7 +227,7 @@ async function testMultiFacetFiltering() {
       undefined,
       undefined,
       'doc_101,doc_102',
-      mockRes
+      mockRes,
     );
 
     const call = mockPrisma.kycDocument.findMany.mock.calls[0][0];
@@ -263,7 +256,7 @@ async function testMultiFacetFiltering() {
       undefined,
       undefined,
       '  doc_101 ,  doc_102 , , doc_103  ',
-      mockRes
+      mockRes,
     );
 
     const call = mockPrisma.kycDocument.findMany.mock.calls[0][0];
@@ -397,9 +390,7 @@ async function testExcelExport() {
         { header: 'Deals Won', key: 'dealsWon', width: 14, type: 'number' },
         { header: 'Joined Date', key: 'createdAt', width: 20, type: 'date' },
       ],
-      data: [
-        { id: 'a1', name: 'Agent One', dealsWon: 12, createdAt: new Date() },
-      ],
+      data: [{ id: 'a1', name: 'Agent One', dealsWon: 12, createdAt: new Date() }],
     });
 
     const wb = new ExcelJS.Workbook();
@@ -416,8 +407,8 @@ async function testExcelExport() {
       assert.strictEqual(cell.font?.bold, true, 'Header text must be bold');
       assert.strictEqual(cell.font?.color?.argb, 'FFFFFFFF', 'Header font color must be white');
       assert.strictEqual(cell.fill?.type, 'pattern');
-      // @ts-ignore
-      assert.strictEqual(cell.fill?.fgColor?.argb, 'FF1E293B', 'Header fill must be Slate-800 (#1E293B)');
+      assert.ok(cell.fill?.type === 'pattern');
+      assert.strictEqual(cell.fill.fgColor?.argb, 'FF1E293B', 'Header fill must be Slate-800 (#1E293B)');
     });
   });
 
@@ -465,8 +456,9 @@ async function testExcelExport() {
 
     // Data Row 2 (Row 6) - Even row in 0-indexed data -> alternating zebra shading Slate-50 (#FFF8FAFC)
     const row6 = ws.getRow(6);
-    // @ts-ignore
-    assert.strictEqual(row6.getCell(1).fill?.fgColor?.argb, 'FFF8FAFC', 'Odd data row must have zebra fill #FFF8FAFC');
+    const row6Fill = row6.getCell(1).fill;
+    assert.ok(row6Fill?.type === 'pattern');
+    assert.strictEqual(row6Fill.fgColor?.argb, 'FFF8FAFC', 'Odd data row must have zebra fill #FFF8FAFC');
   });
 
   await runTest('Verify Totals row positioning, bold font, Slate-200 fill, and double bottom border', async () => {
@@ -497,8 +489,9 @@ async function testExcelExport() {
     assert.strictEqual(totalsRow.getCell(1).value, 'Total Deals');
     assert.strictEqual(totalsRow.getCell(2).value, 25);
     assert.strictEqual(totalsRow.getCell(1).font?.bold, true);
-    // @ts-ignore
-    assert.strictEqual(totalsRow.getCell(1).fill?.fgColor?.argb, 'FFE2E8F0', 'Totals fill must be Slate-200');
+    const totalsFill = totalsRow.getCell(1).fill;
+    assert.ok(totalsFill?.type === 'pattern');
+    assert.strictEqual(totalsFill.fgColor?.argb, 'FFE2E8F0', 'Totals fill must be Slate-200');
     assert.strictEqual(totalsRow.getCell(1).border?.bottom?.style, 'double', 'Totals bottom border must be double');
   });
 
@@ -532,7 +525,7 @@ async function testPdfExport() {
         doc.font('B').fontSize(16).text('BrokerIQ — KYC Verification Report');
         doc.font('R').fontSize(9).text('Generated: 2026-10-31 | Status: ALL | Total: 2');
       },
-      { layout: 'landscape', size: 'A4', margin: 36 }
+      { layout: 'landscape', size: 'A4', margin: 36 },
     );
 
     assert.ok(Buffer.isBuffer(buffer));
@@ -574,7 +567,7 @@ async function testPdfExport() {
         doc.font('B').fontSize(9).fillColor('#1e293b');
         doc.text('Summary: Verified: 0   |   Pending: 0   |   Rejected: 0   |   Total: 0');
       },
-      { layout: 'landscape', size: 'A4', margin: 36 }
+      { layout: 'landscape', size: 'A4', margin: 36 },
     );
 
     assert.ok(buffer.length > 500);
@@ -611,8 +604,8 @@ async function testCsvExport() {
     assert.strictEqual(csvCell('He said "Approved"'), '"He said ""Approved"""');
 
     // String containing newlines -> must enclose
-    assert.strictEqual(csvCell("Line 1\nLine 2"), '"Line 1\nLine 2"');
-    assert.strictEqual(csvCell("Line 1\r\nLine 2"), '"Line 1\r\nLine 2"');
+    assert.strictEqual(csvCell('Line 1\nLine 2'), '"Line 1\nLine 2"');
+    assert.strictEqual(csvCell('Line 1\r\nLine 2'), '"Line 1\r\nLine 2"');
 
     // Null and undefined
     assert.strictEqual(csvCell(null), '');
@@ -685,19 +678,7 @@ async function testContractDiscrepancy() {
     const mockRes = { setHeader: mockFn(), send: mockFn() };
 
     // Pass ids
-    await controller.exportKyc(
-      'csv',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      'doc_abc,doc_xyz',
-      mockRes
-    );
+    await controller.exportKyc('csv', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'doc_abc,doc_xyz', mockRes);
 
     const call = mockPrisma.kycDocument.findMany.mock.calls[0][0];
     assert.deepStrictEqual(call.where, { id: { in: ['doc_abc', 'doc_xyz'] } }, 'Controller correctly handles "ids" parameter');
@@ -722,7 +703,7 @@ async function testContractDiscrepancy() {
       undefined,
       undefined,
       undefined, // ids is undefined because client sent selectedIds
-      mockRes
+      mockRes,
     );
 
     const call = mockPrisma.kycDocument.findMany.mock.calls[0][0];
@@ -843,8 +824,8 @@ async function testTeamsModule() {
     const mockPrisma: any = createTeamPrismaMock();
     await readBrokerTeam(mockPrisma, mockAdminUser as any, false, undefined, {
       role: 'BROKER_ADMIN', // Conflicting
-      status: 'SUSPENDED',  // Conflicting
-      search: 'Something',  // Conflicting
+      status: 'SUSPENDED', // Conflicting
+      search: 'Something', // Conflicting
       ids: 'agent_001, agent_002',
     });
 
@@ -859,16 +840,7 @@ async function testTeamsModule() {
 
   await runTest('OrganizationsController.exportTeam generates valid .xlsx report with summary totals row', async () => {
     const mockPrisma: any = createTeamPrismaMock();
-    const controller = new OrganizationsController(
-      {} as any,
-      mockPrisma,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any
-    );
+    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
     const mockRes = {
       headers: {} as Record<string, string>,
@@ -890,13 +862,10 @@ async function testTeamsModule() {
       undefined,
       undefined,
       undefined,
-      mockRes
+      mockRes,
     );
 
-    assert.strictEqual(
-      mockRes.headers['content-type'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
+    assert.strictEqual(mockRes.headers['content-type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     assert.ok(mockRes.headers['content-disposition'].includes('.xlsx'));
 
     const buffer = mockRes.send.mock.calls[0][0];
@@ -921,16 +890,7 @@ async function testTeamsModule() {
 
   await runTest('OrganizationsController.exportTeam generates valid .pdf report with table and totals line', async () => {
     const mockPrisma: any = createTeamPrismaMock();
-    const controller = new OrganizationsController(
-      {} as any,
-      mockPrisma,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any
-    );
+    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
     const mockRes = {
       headers: {} as Record<string, string>,
@@ -952,7 +912,7 @@ async function testTeamsModule() {
       undefined,
       undefined,
       undefined,
-      mockRes
+      mockRes,
     );
 
     assert.strictEqual(mockRes.headers['content-type'], 'application/pdf');
@@ -966,16 +926,7 @@ async function testTeamsModule() {
 
   await runTest('OrganizationsController.exportTeam generates valid .csv report with UTF-8 BOM and metrics', async () => {
     const mockPrisma: any = createTeamPrismaMock();
-    const controller = new OrganizationsController(
-      {} as any,
-      mockPrisma,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any
-    );
+    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
     const mockRes = {
       headers: {} as Record<string, string>,
@@ -997,7 +948,7 @@ async function testTeamsModule() {
       undefined,
       undefined,
       undefined,
-      mockRes
+      mockRes,
     );
 
     assert.strictEqual(mockRes.headers['content-type'], 'text/csv; charset=utf-8');

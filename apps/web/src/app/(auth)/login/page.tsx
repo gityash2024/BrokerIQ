@@ -43,7 +43,8 @@ function LoginInner() {
       next &&
         /^\/(?![\/\\])/.test(next) &&
         !next.includes('\\') &&
-        (next.startsWith('/user') || next.startsWith('/invite/') ||
+        (next.startsWith('/user') ||
+          next.startsWith('/invite/') ||
           (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
           (['BROKER_ADMIN', 'BROKER_AGENT'].includes(r.user.role) && next.startsWith('/broker')))
         ? next
@@ -71,20 +72,42 @@ function LoginInner() {
 
   return (
     <AuthShell title="Welcome back" subtitle="अपने account में login करें">
-      <Dialog open={!!selection} onOpenChange={(open) => { if (!open && !loading) setSelection(null); }}
-        title={t('Choose a device to sign out')} description={t('Five devices are signed in. Choose one to continue on this device.')}>
+      <Dialog
+        open={!!selection}
+        onOpenChange={(open) => {
+          if (!open && !loading) setSelection(null);
+        }}
+        title={t('Choose a device to sign out')}
+        description={t('Five devices are signed in. Choose one to continue on this device.')}
+      >
         <div className="space-y-3">
           {selection?.sessions.map((device) => (
             <div key={device.id} className="rounded-xl border border-line p-4">
               <p className="break-words font-medium">{device.userAgent || t('Unknown device')}</p>
-              <p className="mt-1 text-sm text-muted">{device.ip || '—'} · {t('Last active')}: {new Date(device.lastUsedAt).toLocaleString()}</p>
-              <Button className="mt-3" loading={loading} onClick={() => run(async () => {
-                const result = await api<AuthResponse>('/auth/sessions/replace', { auth: false, body: { challenge: selection.challenge, sessionId: device.id } });
-                setSelection(null); done(result);
-              })}>{t('Sign out this device and continue')}</Button>
+              <p className="mt-1 text-sm text-muted">
+                {device.ip || '—'} · {t('Last active')}: {new Date(device.lastUsedAt).toLocaleString()}
+              </p>
+              <Button
+                className="mt-3"
+                loading={loading}
+                onClick={() =>
+                  run(async () => {
+                    const result = await api<AuthResponse>('/auth/sessions/replace', {
+                      auth: false,
+                      body: { challenge: selection.challenge, sessionId: device.id },
+                    });
+                    setSelection(null);
+                    done(result);
+                  })
+                }
+              >
+                {t('Sign out this device and continue')}
+              </Button>
             </div>
           ))}
-          <Button variant="secondary" disabled={loading} onClick={() => setSelection(null)}>{t('Cancel')}</Button>
+          <Button variant="secondary" disabled={loading} onClick={() => setSelection(null)}>
+            {t('Cancel')}
+          </Button>
         </div>
       </Dialog>
       <GoogleButton

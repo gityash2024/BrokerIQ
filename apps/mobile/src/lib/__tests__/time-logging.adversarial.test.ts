@@ -1,10 +1,10 @@
+import { Platform } from 'react-native';
+jest.mock('expo-crypto', () => ({ randomUUID: () => 'isolated-test-event-id' }));
+import * as outbox from '../shift-location-outbox';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, type AppStateStatus } from 'react-native';
-import {
-  useTimeTrackingStore,
-  computeActiveElapsedSeconds,
-} from '../time-tracking-store';
+import { useTimeTrackingStore, computeActiveElapsedSeconds } from '../time-tracking-store';
 import {
   periodicLocationTracker,
   RECORDING_INTERVAL_MS,
@@ -14,9 +14,17 @@ import {
 } from '../periodic-location-tracker';
 import * as apiModule from '../api';
 
+jest.mock('../background-shift-tracking', () => ({ configureBackgroundShift: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../shift-location-outbox', () => ({
+  queueShiftPing: jest.fn().mockResolvedValue(undefined),
+  flushShiftPings: jest.fn().mockResolvedValue(0),
+  pendingShiftPings: jest.fn().mockResolvedValue({ pending: 0, blocked: 0 }),
+}));
+
 // Mocks
 jest.mock('expo-location', () => ({
   hasServicesEnabledAsync: jest.fn(),
+  getBackgroundPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
   requestForegroundPermissionsAsync: jest.fn(),
   getForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
@@ -61,6 +69,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
   let appStateListener: ((state: AppStateStatus) => void) | null = null;
 
   beforeEach(() => {
+    jest.replaceProperty(Platform, 'OS', 'web'); // These exercise the foreground timer adapter; native task has separate acceptance.
     jest.clearAllMocks();
     jest.useFakeTimers();
     (SecureStore as any).__resetStore();
@@ -105,6 +114,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
   afterEach(() => {
     periodicLocationTracker.stop();
     jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   // =========================================================================
@@ -114,22 +124,16 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
     it('STRESS-1.1: Rejects punch-in when Location.hasServicesEnabledAsync returns false', async () => {
       (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(false);
 
-      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-        /Location services are disabled/i,
-      );
+      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Location services are disabled/i);
       expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
       expect(useTimeTrackingStore.getState().isLocationServicesEnabled).toBe(false);
       expect(apiModule.post).not.toHaveBeenCalled();
     });
 
     it('STRESS-1.2: Rejects punch-in when Location.hasServicesEnabledAsync throws hardware error', async () => {
-      (Location.hasServicesEnabledAsync as jest.Mock).mockRejectedValue(
-        new Error('Hardware sensor bus failure'),
-      );
+      (Location.hasServicesEnabledAsync as jest.Mock).mockRejectedValue(new Error('Hardware sensor bus failure'));
 
-      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-        /Hardware sensor bus failure/i,
-      );
+      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Hardware sensor bus failure/i);
       expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
       expect(apiModule.post).not.toHaveBeenCalled();
     });
@@ -141,9 +145,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
         granted: false,
       });
 
-      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-        /Location permission is required/i,
-      );
+      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Location permission is required/i);
       expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
       expect(useTimeTrackingStore.getState().isLocationPermissionGranted).toBe(false);
       expect(apiModule.post).not.toHaveBeenCalled();
@@ -156,9 +158,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
         granted: false,
       });
 
-      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-        /Location permission is required/i,
-      );
+      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Location permission is required/i);
       expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
       expect(apiModule.post).not.toHaveBeenCalled();
     });
@@ -169,13 +169,9 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
         status: Location.PermissionStatus.GRANTED,
         granted: true,
       });
-      (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(
-        new Error('Location provider timed out after 10000ms'),
-      );
+      (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(new Error('Location provider timed out after 10000ms'));
 
-      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-        /Unable to acquire GPS coordinates/i,
-      );
+      await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Unable to acquire GPS coordinates/i);
       expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
       expect(apiModule.post).not.toHaveBeenCalled();
     });
@@ -189,9 +185,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
       (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
         coords: { latitude: 28.5355, longitude: 77.391, accuracy: 8.5 },
       });
-      (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
-        { name: 'Tower B', street: 'Sector 62', city: 'Noida', region: 'UP' },
-      ]);
+      (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([{ name: 'Tower B', street: 'Sector 62', city: 'Noida', region: 'UP' }]);
 
       (apiModule.post as jest.Mock).mockResolvedValue({
         success: true,
@@ -395,25 +389,20 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
       (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
         coords: { latitude: 28.6139, longitude: 77.209, accuracy: 15 },
       });
-      (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
-        { name: 'Connaught Place', city: 'New Delhi' },
-      ]);
+      (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([{ name: 'Connaught Place', city: 'New Delhi' }]);
       (apiModule.post as jest.Mock).mockResolvedValue({ success: true, status: 'ACTIVE' });
 
       await periodicLocationTracker.start('shift_periodic_1');
 
       // Advance to 14 minutes 59 seconds -> no periodic ping yet
       await jest.advanceTimersByTimeAsync(14 * 60 * 1000 + 59 * 1000);
-      expect(apiModule.post).not.toHaveBeenCalledWith(
-        '/time-logging/location',
-        expect.anything(),
-      );
+      expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/location', expect.anything());
 
       // Advance 1 more second to reach 15m (900,000ms)
       await jest.advanceTimersByTimeAsync(1000);
 
-      expect(apiModule.post).toHaveBeenCalledWith(
-        '/time-logging/location',
+      expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           shiftId: 'shift_periodic_1',
           latitude: 28.6139,
@@ -450,8 +439,8 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
       const success = await periodicLocationTracker.recordPeriodicLocation();
       expect(success).toBe(true);
 
-      expect(apiModule.post).toHaveBeenCalledWith(
-        '/time-logging/location',
+      expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           shiftId: 'shift_periodic_2',
           latitude: 19.076,
@@ -482,16 +471,14 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
         coords: { latitude: 12.9716, longitude: 77.5946, accuracy: 20 },
       });
       // Geocode throws network error
-      (Location.reverseGeocodeAsync as jest.Mock).mockRejectedValue(
-        new Error('Reverse geocoding network unavailable'),
-      );
+      (Location.reverseGeocodeAsync as jest.Mock).mockRejectedValue(new Error('Reverse geocoding network unavailable'));
       (apiModule.post as jest.Mock).mockResolvedValue({ success: true, status: 'ACTIVE' });
 
       const success = await periodicLocationTracker.recordPeriodicLocation();
       expect(success).toBe(true);
 
-      expect(apiModule.post).toHaveBeenCalledWith(
-        '/time-logging/location',
+      expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           shiftId: 'shift_periodic_3',
           latitude: 12.9716,
@@ -554,10 +541,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
       // Idempotency: Subsequent health check while still disabled does NOT re-trigger pause
       (apiModule.post as jest.Mock).mockClear();
       await jest.advanceTimersByTimeAsync(HEALTH_CHECK_INTERVAL_MS);
-      expect(apiModule.post).not.toHaveBeenCalledWith(
-        '/time-logging/pause',
-        expect.anything(),
-      );
+      expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/pause', expect.anything());
     });
 
     it('STRESS-4.2: Auto-resumes shift when GPS signal is restored after GPS_SIGNAL_LOST', async () => {
@@ -602,21 +586,22 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
         return Promise.resolve({ success: true });
       });
 
+      (apiModule.api as jest.Mock).mockResolvedValue({ activeShift: { ...useTimeTrackingStore.getState().activeShift, status: 'ACTIVE', pauseReason: null } });
       await periodicLocationTracker.start('shift_autores_1');
 
       // Advance by 30 seconds
       await jest.advanceTimersByTimeAsync(HEALTH_CHECK_INTERVAL_MS);
 
       // Verify breadcrumb and resume were dispatched
-      expect(apiModule.post).toHaveBeenCalledWith(
-        '/time-logging/location',
+      expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           shiftId: 'shift_autores_1',
           latitude: 28.5355,
           longitude: 77.391,
         }),
       );
-      expect(apiModule.post).toHaveBeenCalledWith(
+      expect(apiModule.post).not.toHaveBeenCalledWith(
         '/time-logging/resume',
         expect.objectContaining({
           shiftId: 'shift_autores_1',
@@ -666,14 +651,8 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
       }
 
       // CRITICAL ASSERTION: No resume or location calls dispatched!
-      expect(apiModule.post).not.toHaveBeenCalledWith(
-        '/time-logging/resume',
-        expect.anything(),
-      );
-      expect(apiModule.post).not.toHaveBeenCalledWith(
-        '/time-logging/location',
-        expect.anything(),
-      );
+      expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/resume', expect.anything());
+      expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/location', expect.anything());
 
       // Shift remains strictly paused
       expect(useTimeTrackingStore.getState().isPaused).toBe(true);
@@ -732,10 +711,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
 
       expect(useTimeTrackingStore.getState().isPaused).toBe(true);
       expect(useTimeTrackingStore.getState().pauseReason).toBe('DOCTOR_APPOINTMENT');
-      expect(apiModule.post).not.toHaveBeenCalledWith(
-        '/time-logging/resume',
-        expect.anything(),
-      );
+      expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/resume', expect.anything());
     });
   });
 
@@ -769,128 +745,28 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
 
       await periodicLocationTracker.recordPeriodicLocation();
 
-      // Verify item enqueued to SecureStore
-      const rawQueue = await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY);
-      expect(rawQueue).not.toBeNull();
-      const queue: OfflineLocationPing[] = JSON.parse(rawQueue!);
-      expect(queue.length).toBe(1);
-      expect(queue[0].shiftId).toBe('shift_offline_1');
-      expect(queue[0].latitude).toBe(28.4595);
-      expect(queue[0].longitude).toBe(77.0266);
-
+      expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+        'agent_adversarial_1',
+        expect.objectContaining({ shiftId: 'shift_offline_1', latitude: 28.4595, longitude: 77.0266, eventId: expect.any(String) }),
+      );
       // Crucial: Shift remains ACTIVE (working hours accumulation continues!)
       expect(useTimeTrackingStore.getState().isPaused).toBe(false);
     });
 
-    it('STRESS-6.2: Preserves FIFO order across multiple offline breadcrumbs and flushes in sequence', async () => {
-      useTimeTrackingStore.setState({
-        activeShift: {
-          id: 'shift_offline_2',
-          userId: 'agent_adversarial_1',
-          status: 'ACTIVE',
-          punchInAt: new Date().toISOString(),
-          totalMinutes: 0,
-        } as any,
-        isPunchedIn: true,
-        isPaused: false,
-      });
-
-      // Populate 3 pings captured at T1, T2, T3
-      const ping1: OfflineLocationPing = {
-        shiftId: 'shift_offline_2',
-        latitude: 28.451,
-        longitude: 77.021,
-        accuracy: 10,
-        address: 'Point 1',
-        source: 'MOBILE',
-        capturedAt: '2026-10-31T10:00:00.000Z',
-      };
-      const ping2: OfflineLocationPing = {
-        shiftId: 'shift_offline_2',
-        latitude: 28.452,
-        longitude: 77.022,
-        accuracy: 11,
-        address: 'Point 2',
-        source: 'MOBILE',
-        capturedAt: '2026-10-31T10:15:00.000Z',
-      };
-      const ping3: OfflineLocationPing = {
-        shiftId: 'shift_offline_2',
-        latitude: 28.453,
-        longitude: 77.023,
-        accuracy: 12,
-        address: 'Point 3',
-        source: 'MOBILE',
-        capturedAt: '2026-10-31T10:30:00.000Z',
-      };
-
-      await SecureStore.setItemAsync(OFFLINE_QUEUE_KEY, JSON.stringify([ping1, ping2, ping3]));
-
-      // Mock network restoration
-      const dispatchedPings: OfflineLocationPing[] = [];
-      (apiModule.post as jest.Mock).mockImplementation((path: string, payload: any) => {
-        if (path === '/time-logging/location') {
-          dispatchedPings.push(payload);
-          return Promise.resolve({ success: true, status: 'ACTIVE' });
-        }
-        return Promise.resolve({ success: true });
-      });
-
-      const flushedCount = await periodicLocationTracker.flushOfflineQueue();
-
-      expect(flushedCount).toBe(3);
-      expect(dispatchedPings.length).toBe(3);
-
-      // Verify Strict FIFO Order
-      expect(dispatchedPings[0].address).toBe('Point 1');
-      expect(dispatchedPings[1].address).toBe('Point 2');
-      expect(dispatchedPings[2].address).toBe('Point 3');
-
-      // Verify SecureStore key is deleted after complete flush
-      const remainingRaw = await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY);
-      expect(remainingRaw).toBeNull();
+    it('preserves unowned legacy queue for review and does not dispatch it as the current account', async () => {
+      const legacy = JSON.stringify([{ shiftId: 'unknown-owner-shift', latitude: 28.45, longitude: 77.02 }]);
+      await SecureStore.setItemAsync(OFFLINE_QUEUE_KEY, legacy);
+      await periodicLocationTracker.flushOfflineQueue();
+      expect(await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY)).toBe(legacy);
+      expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/location', expect.anything());
+      expect(useTimeTrackingStore.getState().error).toContain('preserved');
     });
 
-    it('STRESS-6.3: Partial flush: retains unsent items in SecureStore if network drops mid-flush', async () => {
-      const ping1: OfflineLocationPing = {
-        shiftId: 'shift_offline_3',
-        latitude: 28.461,
-        longitude: 77.031,
-        source: 'MOBILE',
-        capturedAt: '2026-10-31T11:00:00.000Z',
-      };
-      const ping2: OfflineLocationPing = {
-        shiftId: 'shift_offline_3',
-        latitude: 28.462,
-        longitude: 77.032,
-        source: 'MOBILE',
-        capturedAt: '2026-10-31T11:15:00.000Z',
-      };
-
-      await SecureStore.setItemAsync(OFFLINE_QUEUE_KEY, JSON.stringify([ping1, ping2]));
-
-      let callIndex = 0;
-      (apiModule.post as jest.Mock).mockImplementation((path: string) => {
-        if (path === '/time-logging/location') {
-          callIndex++;
-          if (callIndex === 1) {
-            return Promise.resolve({ success: true, status: 'ACTIVE' }); // First succeeds
-          }
-          return Promise.reject(new Error('Connection dropped')); // Second fails
-        }
-        return Promise.resolve({ success: true });
-      });
-
-      const flushedCount = await periodicLocationTracker.flushOfflineQueue();
-
-      expect(flushedCount).toBe(1);
-
-      // Remaining ping2 MUST be preserved in SecureStore
-      const remainingRaw = await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY);
-      expect(remainingRaw).not.toBeNull();
-      const remaining: OfflineLocationPing[] = JSON.parse(remainingRaw!);
-      expect(remaining.length).toBe(1);
-      expect(remaining[0].latitude).toBe(28.462);
+    it('reports pending and blocked durable outbox rows instead of always reporting zero', async () => {
+      (outbox.pendingShiftPings as jest.Mock).mockResolvedValue({ pending: 2, blocked: 1 });
+      (outbox.flushShiftPings as jest.Mock).mockResolvedValue(1);
+      expect(await periodicLocationTracker.flushOfflineQueue()).toBe(1);
+      expect(periodicLocationTracker.getStatus().offlineQueueCount).toBe(3);
     });
   });
 });

@@ -3,15 +3,7 @@
  * Supports targeting external live servers via E2E_API_URL or the local ContractSimulator.
  */
 import { ContractSimulator } from './contract-simulator';
-import type {
-  FilterParams,
-  KycDocumentRecord,
-  TeamMemberRecord,
-  ShiftStatusResponse,
-  TimelineResponse,
-  TimeLoggingSummaryResponse,
-  AgentShift,
-} from './types';
+import type { FilterParams, KycDocumentRecord, TeamMemberRecord, ShiftStatusResponse, TimelineResponse, TimeLoggingSummaryResponse, AgentShift } from './types';
 
 export interface E2EResponse<T = any> {
   status: number;
@@ -34,7 +26,9 @@ export class E2EClient {
       return new E2EClient(process.env.E2E_API_URL);
     }
     if (process.env.E2E_USE_SIMULATOR !== 'true') {
-      throw new Error('Real E2E tests require E2E_API_URL. Set E2E_USE_SIMULATOR=true only for explicitly labelled contract simulation; it is not release acceptance.');
+      throw new Error(
+        'Real E2E tests require E2E_API_URL. Set E2E_USE_SIMULATOR=true only for explicitly labelled contract simulation; it is not release acceptance.',
+      );
     }
     const simulator = new ContractSimulator();
     const url = await simulator.start();
@@ -56,7 +50,7 @@ export class E2EClient {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     body?: any,
     headers: Record<string, string> = {},
-    isBinary: boolean = false
+    isBinary: boolean = false,
   ): Promise<E2EResponse<T>> {
     const url = `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
     const reqHeaders: Record<string, string> = {
@@ -138,7 +132,7 @@ export class E2EClient {
 
   public async punchIn(
     coords: { latitude?: any; longitude?: any; accuracy?: number; address?: string },
-    token?: string
+    token?: string,
   ): Promise<E2EResponse<{ shift: AgentShift; status: string }>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return this.request<{ shift: AgentShift; status: string }>('/api/time-logging/punch-in', 'POST', coords, headers);
@@ -146,7 +140,7 @@ export class E2EClient {
 
   public async punchOut(
     coords: { latitude?: number; longitude?: number; accuracy?: number; address?: string } = {},
-    token?: string
+    token?: string,
   ): Promise<E2EResponse<{ shift: AgentShift; status: string; totalMinutes: number }>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return this.request<{ shift: AgentShift; status: string; totalMinutes: number }>('/api/time-logging/punch-out', 'POST', coords, headers);
@@ -154,23 +148,20 @@ export class E2EClient {
 
   public async recordLocation(
     data: { shiftId: string; latitude: number; longitude: number; accuracy?: number; address?: string },
-    token?: string
+    token?: string,
   ): Promise<E2EResponse<{ success: boolean; locationId: string; status: string }>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return this.request<{ success: boolean; locationId: string; status: string }>('/api/time-logging/location', 'POST', data, headers);
   }
 
-  public async pauseShift(
-    data: { shiftId: string; reason?: string },
-    token?: string
-  ): Promise<E2EResponse<{ shiftId: string; status: string }>> {
+  public async pauseShift(data: { shiftId: string; reason?: string }, token?: string): Promise<E2EResponse<{ shiftId: string; status: string }>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return this.request<{ shiftId: string; status: string }>('/api/time-logging/pause', 'POST', data, headers);
   }
 
   public async resumeShift(
     data: { shiftId: string; latitude?: number; longitude?: number },
-    token?: string
+    token?: string,
   ): Promise<E2EResponse<{ shiftId: string; status: string }>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return this.request<{ shiftId: string; status: string }>('/api/time-logging/resume', 'POST', data, headers);
@@ -184,12 +175,22 @@ export class E2EClient {
 
   public async getTimeline(agentId: string, date: string, token?: string): Promise<E2EResponse<TimelineResponse>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    return this.request<TimelineResponse>(`/api/time-logging/timeline?agentId=${encodeURIComponent(agentId)}&date=${encodeURIComponent(date)}`, 'GET', undefined, headers);
+    return this.request<TimelineResponse>(
+      `/api/time-logging/timeline?agentId=${encodeURIComponent(agentId)}&date=${encodeURIComponent(date)}`,
+      'GET',
+      undefined,
+      headers,
+    );
   }
 
   public async getHistory(agentId: string, date: string, token?: string): Promise<E2EResponse<{ points: any[] }>> {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    return this.request<{ points: any[] }>(`/api/time-logging/history?agentId=${encodeURIComponent(agentId)}&date=${encodeURIComponent(date)}`, 'GET', undefined, headers);
+    return this.request<{ points: any[] }>(
+      `/api/time-logging/history?agentId=${encodeURIComponent(agentId)}&date=${encodeURIComponent(date)}`,
+      'GET',
+      undefined,
+      headers,
+    );
   }
 
   public async getSummary(params: { brokerId?: string; agentId?: string } = {}, token?: string): Promise<E2EResponse<TimeLoggingSummaryResponse>> {

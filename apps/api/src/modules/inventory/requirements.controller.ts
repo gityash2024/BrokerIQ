@@ -35,11 +35,15 @@ export class BrokerRequirementsController {
       ...(q.leadId ? { leadId: q.leadId } : {}),
       ...(q.search
         ? {
-            AND: [{ OR: [
-              { contactName: { contains: q.search, mode: 'insensitive' as const } },
-              { notes: { contains: q.search, mode: 'insensitive' as const } },
-              { contactPhone: { contains: q.search } },
-            ] }],
+            AND: [
+              {
+                OR: [
+                  { contactName: { contains: q.search, mode: 'insensitive' as const } },
+                  { notes: { contains: q.search, mode: 'insensitive' as const } },
+                  { contactPhone: { contains: q.search } },
+                ],
+              },
+            ],
           }
         : {}),
     };
@@ -52,15 +56,23 @@ export class BrokerRequirementsController {
   @Post() async create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(brokerRequirementSchema)) input: BrokerRequirementInput) {
     const organizationId = this.inventory.orgId(user)!;
     if (!input.purpose || !input.localityNames.length) throw new BadRequestException('Purpose and preferred locality required');
-    if (input.leadId && !(await this.prisma.lead.findFirst({ where: { id: input.leadId, organizationId, deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) } })))
+    if (
+      input.leadId &&
+      !(await this.prisma.lead.findFirst({
+        where: { id: input.leadId, organizationId, deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) },
+      }))
+    )
       throw new NotFoundException('Lead not found');
     const data = { ...input, organizationId, createdById: user.id, assignedToId: user.role === 'BROKER_AGENT' ? user.id : null };
     const item = await this.prisma.$transaction(async (tx) => {
       if (input.clientMutationId) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId + ':' + input.clientMutationId}))`;
-        const existing = await tx.brokerRequirement.findUnique({ where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } } });
+        const existing = await tx.brokerRequirement.findUnique({
+          where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
+        });
         if (existing) {
-          if (!(await tx.brokerRequirement.findFirst({ where: { ...this.scope(user), id: existing.id } }))) throw new ForbiddenException('Requirement belongs to another member');
+          if (!(await tx.brokerRequirement.findFirst({ where: { ...this.scope(user), id: existing.id } })))
+            throw new ForbiddenException('Requirement belongs to another member');
           return existing;
         }
       }

@@ -1,4 +1,18 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Prisma } from '@prisma/client';
@@ -60,7 +74,9 @@ export class WhatsAppController {
               ...(user.role === 'BROKER_AGENT' ? { lead: { is: { assignedToId: user.id } } } : {}),
             }),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
-        ...(q.q ? { AND: [{ OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] }] } : {}),
+        ...(q.q
+          ? { AND: [{ OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] }] }
+          : {}),
       },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
       take: 200,
@@ -194,7 +210,14 @@ export class WhatsAppController {
     if (!phone) throw new BadRequestException('leadId या conversationId ज़रूरी है');
     let text: string | undefined = body.text;
     if (body.listingId && !text) {
-      const l = await this.prisma.listing.findFirst({ where: { id: body.listingId, deletedAt: null, OR: [{ status: 'ACTIVE' }, { organizationId: orgId, ...(user.role === 'BROKER_AGENT' ? { postedById: user.id } : {}) }] }, include: { locality: true } });
+      const l = await this.prisma.listing.findFirst({
+        where: {
+          id: body.listingId,
+          deletedAt: null,
+          OR: [{ status: 'ACTIVE' }, { organizationId: orgId, ...(user.role === 'BROKER_AGENT' ? { postedById: user.id } : {}) }],
+        },
+        include: { locality: true },
+      });
       if (!l) throw new NotFoundException('Listing not available to this account');
       if (l) text = `*${l.title}*\n💰 ${formatPriceShort(l.price)} · 📍 ${l.locality.name}\n${env().PUBLIC_WEB_URL}/property/${l.slug}`;
     }

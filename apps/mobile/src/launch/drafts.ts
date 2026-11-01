@@ -304,3 +304,6 @@ export async function saveLaunchConfig(value: unknown) {
     await db()
   ).runAsync('INSERT INTO local_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', 'public-config', JSON.stringify(value));
 }
+
+/** Shared encrypted storage connection for private account-scoped outboxes. */
+export const privateDraftDatabase = db;

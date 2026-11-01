@@ -41,7 +41,9 @@ describe('Password recovery and one-time OTP consumption', () => {
     refreshToken = login.refreshToken;
     accessToken = login.accessToken;
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('allows only one reset when both requests read the same unused OTP', async () => {
     await otp('123456');
@@ -49,7 +51,9 @@ describe('Password recovery and one-time OTP consumption', () => {
     const original = prisma.otpCode.findFirst.bind(prisma.otpCode);
     let arrived = 0;
     let release!: () => void;
-    const bothRead = new Promise<void>((resolve) => { release = resolve; });
+    const bothRead = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const synchronizedRead = async (args: any) => {
       const row = await original(args);
       if (args.where.email === email && args.where.purpose.in.includes('RESET_PASSWORD')) {
@@ -63,11 +67,10 @@ describe('Password recovery and one-time OTP consumption', () => {
     const spy = jest.spyOn(prisma.otpCode, 'findFirst').mockImplementation(synchronizedRead as typeof prisma.otpCode.findFirst);
     let results: PromiseSettledResult<unknown>[];
     try {
-      results = await Promise.allSettled([
-        auth.resetPassword(email, '123456', replacement),
-        auth.resetPassword(email, '123456', replacement),
-      ]);
-    } finally { spy.mockRestore(); }
+      results = await Promise.allSettled([auth.resetPassword(email, '123456', replacement), auth.resetPassword(email, '123456', replacement)]);
+    } finally {
+      spy.mockRestore();
+    }
     expect(results!.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
     expect(results!.filter((x) => x.status === 'rejected')).toHaveLength(1);
     await expect(auth.login(email, initial, {})).rejects.toMatchObject({ status: 401 });
@@ -79,7 +82,9 @@ describe('Password recovery and one-time OTP consumption', () => {
     // A refresh issued after an in-flight reset using an older user snapshot
     // remains invalid even if it was inserted after the reset's revoke query.
     const staleToken = `stale-refresh-${userId}`;
-    const stale = await prisma.refreshToken.create({ data: { userId, tokenHash: sha256(staleToken), sessionVersion: 0, expiresAt: new Date(Date.now() + 60000) } });
+    const stale = await prisma.refreshToken.create({
+      data: { userId, tokenHash: sha256(staleToken), sessionVersion: 0, expiresAt: new Date(Date.now() + 60000) },
+    });
     await expect(auth.refresh(staleToken, {})).rejects.toMatchObject({ status: 401 });
     expect(stale.sessionVersion).toBeLessThan((await prisma.user.findUniqueOrThrow({ where: { id: userId } })).sessionVersion);
     await expect(auth.resetPassword(email, '123456', initial)).rejects.toMatchObject({ status: 401 });

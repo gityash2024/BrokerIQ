@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  HttpStatus,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus, NotFoundException, ForbiddenException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../../common/decorators';
 import { requireOrg, istDay } from '../../common/utils';
@@ -40,16 +36,17 @@ export class TimeLoggingService {
 
   private async resolveOrgId(user: RequestUser, overrideOrgId?: string): Promise<string> {
     if (user.role === 'SUPER_ADMIN' && overrideOrgId) return overrideOrgId;
-    if (user.orgId) return user.orgId;
-    if (user.role === 'SUPER_ADMIN') {
-      const firstOrg = await this.prisma.organization.findFirst({
-        where: { status: 'ACTIVE' },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      });
-      if (firstOrg) return firstOrg.id;
-    }
     return requireOrg(user);
+  }
+
+  private async lockShift(tx: Prisma.TransactionClient, user: RequestUser, shiftId?: string) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id + ':shift'}))`;
+    const shift = await tx.agentShift.findFirst({
+      where: { userId: user.id, organizationId: requireOrg(user), ...(shiftId ? { id: shiftId } : { status: { in: ['ACTIVE', 'PAUSED'] } }) },
+      include: { intervals: { orderBy: { startTime: 'asc' } } },
+    });
+    if (!shift) throw new AppException(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND, 'Shift not found');
+    return shift;
   }
 
   /** Validates that target agent belongs to caller's organization. Super admin is exempt. */
@@ -67,7 +64,7 @@ export class TimeLoggingService {
       select: { id: true, name: true, email: true, role: true, avatarUrl: true, organizationId: true },
     });
 
-    const userOrg = targetUser ? ((targetUser as any).organizationId || (targetUser as any).orgId) : null;
+    const userOrg = targetUser ? (targetUser as any).organizationId || (targetUser as any).orgId : null;
     if (!targetUser || userOrg !== callerOrgId) {
       throw new ForbiddenException('You are not authorized to view an agent outside your organization');
     }
@@ -78,11 +75,7 @@ export class TimeLoggingService {
   /** POST /api/time-logging/punch-in */
   async punchIn(user: RequestUser, dto: PunchInDto) {
     if (typeof dto.latitude !== 'number' || typeof dto.longitude !== 'number') {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'GPS coordinates are mandatory to punch in',
-      );
+      throw new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, 'GPS coordinates are mandatory to punch in');
     }
 
     const organizationId = await this.resolveOrgId(user);
@@ -90,6 +83,7 @@ export class TimeLoggingService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id + ':shift'}))`;
         // Concurrency check inside transaction: Ensure no active or paused shift exists
         const existing = await tx.agentShift.findFirst({
           where: {
@@ -99,12 +93,10 @@ export class TimeLoggingService {
         });
 
         if (existing) {
-          throw new AppException(
-            HttpStatus.CONFLICT,
-            ErrorCode.CONFLICT,
-            'An active shift is already in progress',
-            { shiftId: existing.id, status: existing.status },
-          );
+          throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'An active shift is already in progress', {
+            shiftId: existing.id,
+            status: existing.status,
+          });
         }
 
         const shift = await tx.agentShift.create({
@@ -155,353 +147,179 @@ export class TimeLoggingService {
       }
       // Handle database unique constraint violation (Prisma P2002 on partial unique index)
       if (error?.code === 'P2002') {
-        throw new AppException(
-          HttpStatus.CONFLICT,
-          ErrorCode.CONFLICT,
-          'An active shift is already in progress',
-        );
+        throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'An active shift is already in progress');
       }
       throw error;
     }
   }
 
-  /** POST /api/time-logging/punch-out */
+  /** All transitions serialize on the same user lock; no ping can race a manual pause/punch-out. */
   async punchOut(user: RequestUser, dto: PunchOutDto) {
-    const shift = await this.prisma.agentShift.findFirst({
-      where: {
-        userId: user.id,
-        ...(dto.shiftId ? { id: dto.shiftId } : { status: { in: ['ACTIVE', 'PAUSED'] } }),
-      },
-      include: { intervals: true },
-    });
-
-    if (!shift || shift.status === 'COMPLETED') {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'No active shift found to punch out',
-      );
-    }
-
-    const now = new Date();
-
     return this.prisma.$transaction(async (tx) => {
-      // 1. Close current open interval
-      const openInterval = shift.intervals.find((i) => !i.endTime);
-      if (openInterval) {
-        await tx.shiftInterval.update({
-          where: { id: openInterval.id },
-          data: { endTime: now },
-        });
-      }
-
-      // 2. Compute total accumulated active minutes
-      const allIntervals = await tx.shiftInterval.findMany({
-        where: { shiftId: shift.id },
-      });
-
-      let totalActiveMs = 0;
-      for (const inv of allIntervals) {
-        if (inv.status === 'ACTIVE') {
-          const end = inv.endTime || now;
-          totalActiveMs += Math.max(0, end.getTime() - inv.startTime.getTime());
-        }
-      }
-      const totalMinutes = Math.max(0, Math.round(totalActiveMs / 60000));
-
-      // 3. Record final coordinates if provided
-      if (typeof dto.latitude === 'number' && typeof dto.longitude === 'number') {
+      const shift = await this.lockShift(tx, user, dto.shiftId);
+      if (shift.status === 'COMPLETED') return { success: true, shift, status: 'COMPLETED' as const, totalMinutes: shift.totalMinutes };
+      const now = new Date();
+      await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { endTime: now } });
+      const intervals = await tx.shiftInterval.findMany({ where: { shiftId: shift.id } });
+      const totalMinutes = Math.max(
+        0,
+        Math.round(
+          intervals.reduce((ms, inv) => ms + (inv.status === 'ACTIVE' ? Math.max(0, (inv.endTime || now).getTime() - inv.startTime.getTime()) : 0), 0) / 60000,
+        ),
+      );
+      if (typeof dto.latitude === 'number' && typeof dto.longitude === 'number')
         await tx.shiftLocation.create({
           data: {
             shiftId: shift.id,
             userId: user.id,
             latitude: dto.latitude,
             longitude: dto.longitude,
-            accuracy: dto.accuracy ?? null,
-            address: dto.address ?? null,
-            source: 'MOBILE',
+            accuracy: dto.accuracy,
+            address: dto.address,
             capturedAt: now,
+            source: 'PUNCH_OUT',
           },
         });
-      }
-
-      // 4. Seal shift
-      const updatedShift = await tx.agentShift.update({
+      const updated = await tx.agentShift.update({
         where: { id: shift.id },
         data: {
           status: 'COMPLETED',
           punchOutAt: now,
           totalMinutes,
-          punchOutLat: dto.latitude ?? null,
-          punchOutLng: dto.longitude ?? null,
-          punchOutAccuracy: dto.accuracy ?? null,
-          punchOutAddress: dto.address ?? null,
           pausedAt: null,
+          punchOutLat: dto.latitude,
+          punchOutLng: dto.longitude,
+          punchOutAccuracy: dto.accuracy,
+          punchOutAddress: dto.address,
         },
       });
-
-      return {
-        success: true,
-        shift: updatedShift,
-        status: 'COMPLETED' as const,
-        totalMinutes,
-      };
+      return { success: true, shift: updated, status: 'COMPLETED' as const, totalMinutes };
     });
   }
 
-  /** POST /api/time-logging/location */
   async recordLocation(user: RequestUser, dto: LocationUpdateDto) {
-    if (typeof dto.latitude !== 'number' || typeof dto.longitude !== 'number') {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'Valid GPS coordinates required',
-      );
-    }
-
-    const shift = await this.prisma.agentShift.findFirst({
-      where: {
-        userId: user.id,
-        ...(dto.shiftId ? { id: dto.shiftId } : { status: { in: ['ACTIVE', 'PAUSED'] } }),
-      },
-    });
-
-    if (!shift) {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'No active or paused shift found for location recording',
-      );
-    }
-
-    if (shift.status === 'COMPLETED') {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'Cannot record location for a completed shift',
-      );
-    }
-
-    const now = new Date();
-    let autoResumed = false;
-
+    if (!Number.isFinite(dto.latitude) || !Number.isFinite(dto.longitude) || Math.abs(dto.latitude) > 90 || Math.abs(dto.longitude) > 180)
+      throw new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, 'Valid GPS coordinates required');
     return this.prisma.$transaction(async (tx) => {
-      // Auto-resume if shift was paused due to GPS loss/interruption
-      if (shift.status === 'PAUSED') {
-        autoResumed = true;
-
-        // Close open paused interval
-        const openPause = await tx.shiftInterval.findFirst({
-          where: { shiftId: shift.id, endTime: null },
-        });
-        if (openPause) {
-          await tx.shiftInterval.update({
-            where: { id: openPause.id },
-            data: { endTime: now },
-          });
+      const shift = await this.lockShift(tx, user, dto.shiftId);
+      if (dto.eventId) {
+        const existing = await tx.shiftLocation.findUnique({ where: { userId_eventId: { userId: user.id, eventId: dto.eventId } } });
+        if (existing) {
+          if (
+            existing.shiftId !== shift.id ||
+            existing.latitude !== dto.latitude ||
+            existing.longitude !== dto.longitude ||
+            (dto.capturedAt && existing.capturedAt.getTime() !== new Date(dto.capturedAt).getTime())
+          )
+            throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'Location event ID already belongs to a different capture');
+          return {
+            success: true,
+            acknowledged: true,
+            duplicate: true,
+            eventId: dto.eventId,
+            locationId: existing.id,
+            capturedAt: existing.capturedAt.toISOString(),
+            receivedAt: existing.receivedAt.toISOString(),
+            status: shift.status,
+            autoResumed: false,
+          };
         }
-
-        // Open new active interval
-        await tx.shiftInterval.create({
-          data: {
-            shiftId: shift.id,
-            startTime: now,
-            endTime: null,
-            status: 'ACTIVE',
-            reason: 'GPS_RESTORED',
-          },
-        });
-
-        // Set shift status back to ACTIVE
-        await tx.agentShift.update({
-          where: { id: shift.id },
-          data: {
-            status: 'ACTIVE',
-            pauseReason: null,
-            pausedAt: null,
-          },
-        });
       }
-
-      // Record location breadcrumb
+      if (shift.status === 'COMPLETED' && !dto.capturedAt)
+        throw new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, 'Cannot record location for a completed shift');
+      const now = new Date();
+      const capturedAt = dto.capturedAt ? new Date(dto.capturedAt) : now;
+      if (capturedAt.getTime() > now.getTime() + 90_000 || capturedAt < shift.punchInAt || (shift.punchOutAt && capturedAt > shift.punchOutAt))
+        throw new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, 'Location capture must fall within its shift and cannot be in the future');
+      const lag = now.getTime() - capturedAt.getTime();
+      const autoResumed =
+        shift.status === 'PAUSED' && shift.pauseReason === 'GPS_SIGNAL_LOST' && !!shift.pausedAt && capturedAt >= shift.pausedAt && lag <= 120_000;
+      const activeAtCapture = shift.intervals.some((i) => i.status === 'ACTIVE' && i.startTime <= capturedAt && (!i.endTime || capturedAt < i.endTime));
+      // Historical active breadcrumbs can arrive after punch-out; a paused interval is never tracked.
+      if (!activeAtCapture && !autoResumed)
+        return { success: true, acknowledged: true, ignored: true, eventId: dto.eventId, status: shift.status, autoResumed: false };
+      if (autoResumed) {
+        await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { endTime: now } });
+        await tx.shiftInterval.create({ data: { shiftId: shift.id, startTime: now, status: 'ACTIVE', reason: 'GPS_RESTORED' } });
+        await tx.agentShift.update({ where: { id: shift.id }, data: { status: 'ACTIVE', pauseReason: null, pausedAt: null } });
+      }
       const location = await tx.shiftLocation.create({
         data: {
           shiftId: shift.id,
           userId: user.id,
+          eventId: dto.eventId,
+          capturedAt,
+          receivedAt: now,
           latitude: dto.latitude,
           longitude: dto.longitude,
-          accuracy: dto.accuracy ?? null,
-          address: dto.address ?? null,
+          accuracy: dto.accuracy,
+          address: dto.address,
           source: dto.source || 'MOBILE',
-          capturedAt: now,
         },
       });
-
       return {
         success: true,
+        acknowledged: true,
+        eventId: dto.eventId,
         locationId: location.id,
+        capturedAt: capturedAt.toISOString(),
+        receivedAt: now.toISOString(),
         status: autoResumed ? ('ACTIVE' as const) : shift.status,
         autoResumed,
       };
     });
   }
 
-  /** POST /api/time-logging/pause */
   async pauseShift(user: RequestUser, dto: PauseShiftDto) {
-    const shift = await this.prisma.agentShift.findFirst({
-      where: {
-        userId: user.id,
-        ...(dto.shiftId ? { id: dto.shiftId } : { status: { in: ['ACTIVE', 'PAUSED'] } }),
-      },
-    });
-
-    if (!shift || shift.status === 'COMPLETED') {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'No active shift found to pause',
-      );
-    }
-
-    if (shift.status === 'PAUSED') {
-      return {
-        success: true,
-        shiftId: shift.id,
-        status: 'PAUSED' as const,
-        message: 'Shift is already paused' as string | undefined,
-        pauseReason: shift.pauseReason ?? undefined,
-        pausedAt: shift.pausedAt?.toISOString() ?? undefined,
-      };
-    }
-
-    const now = new Date();
-
     return this.prisma.$transaction(async (tx) => {
-      // Close open active interval
-      const openActive = await tx.shiftInterval.findFirst({
-        where: { shiftId: shift.id, endTime: null },
-      });
-      if (openActive) {
-        await tx.shiftInterval.update({
-          where: { id: openActive.id },
-          data: { endTime: now },
-        });
-      }
-
-      // Create new paused interval
-      await tx.shiftInterval.create({
-        data: {
+      const shift = await this.lockShift(tx, user, dto.shiftId);
+      if (shift.status === 'COMPLETED') throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'Shift already completed');
+      const now = new Date();
+      // A manual pause supersedes a GPS interruption. A later GPS ping must not undo it.
+      if (shift.status === 'PAUSED') {
+        if (shift.pauseReason === 'GPS_SIGNAL_LOST' && dto.reason !== 'GPS_SIGNAL_LOST') {
+          await tx.agentShift.update({ where: { id: shift.id }, data: { pauseReason: dto.reason } });
+          await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { reason: dto.reason } });
+        }
+        return {
+          success: true,
           shiftId: shift.id,
-          startTime: now,
-          endTime: null,
-          status: 'PAUSED',
-          reason: dto.reason,
-        },
-      });
-
-      // Update shift status
-      await tx.agentShift.update({
-        where: { id: shift.id },
-        data: {
-          status: 'PAUSED',
-          pauseReason: dto.reason,
-          pausedAt: now,
-        },
-      });
-
-      return {
-        success: true,
-        shiftId: shift.id,
-        status: 'PAUSED' as const,
-        pauseReason: dto.reason,
-        pausedAt: now.toISOString(),
-        message: undefined as string | undefined,
-      };
+          status: 'PAUSED' as const,
+          pauseReason: shift.pauseReason === 'GPS_SIGNAL_LOST' ? dto.reason : shift.pauseReason,
+          pausedAt: shift.pausedAt?.toISOString(),
+          message: 'Shift is already paused',
+        };
+      }
+      await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { endTime: now } });
+      await tx.shiftInterval.create({ data: { shiftId: shift.id, startTime: now, status: 'PAUSED', reason: dto.reason } });
+      await tx.agentShift.update({ where: { id: shift.id }, data: { status: 'PAUSED', pauseReason: dto.reason, pausedAt: now } });
+      return { success: true, shiftId: shift.id, status: 'PAUSED' as const, pauseReason: dto.reason, pausedAt: now.toISOString() };
     });
   }
 
-  /** POST /api/time-logging/resume */
   async resumeShift(user: RequestUser, dto: ResumeShiftDto) {
-    const shift = await this.prisma.agentShift.findFirst({
-      where: {
-        userId: user.id,
-        ...(dto.shiftId ? { id: dto.shiftId } : { status: { in: ['ACTIVE', 'PAUSED'] } }),
-      },
-    });
-
-    if (!shift || shift.status === 'COMPLETED') {
-      throw new AppException(
-        HttpStatus.BAD_REQUEST,
-        ErrorCode.VALIDATION_FAILED,
-        'No shift found to resume',
-      );
-    }
-
-    if (shift.status === 'ACTIVE') {
-      return {
-        success: true,
-        shiftId: shift.id,
-        status: 'ACTIVE' as const,
-        message: 'Shift is already active',
-      };
-    }
-
-    const now = new Date();
-
     return this.prisma.$transaction(async (tx) => {
-      // Close paused interval
-      const openPause = await tx.shiftInterval.findFirst({
-        where: { shiftId: shift.id, endTime: null },
-      });
-      if (openPause) {
-        await tx.shiftInterval.update({
-          where: { id: openPause.id },
-          data: { endTime: now },
-        });
-      }
-
-      // Open new active interval
-      await tx.shiftInterval.create({
-        data: {
-          shiftId: shift.id,
-          startTime: now,
-          endTime: null,
-          status: 'ACTIVE',
-          reason: 'MANUAL_RESUME',
-        },
-      });
-
-      // Optional location recording on resume
-      if (typeof dto.latitude === 'number' && typeof dto.longitude === 'number') {
+      const shift = await this.lockShift(tx, user, dto.shiftId);
+      if (shift.status === 'COMPLETED') throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'Shift already completed');
+      if (shift.status === 'ACTIVE') return { success: true, shiftId: shift.id, status: 'ACTIVE' as const, message: 'Shift is already active' };
+      const now = new Date();
+      await tx.shiftInterval.updateMany({ where: { shiftId: shift.id, endTime: null }, data: { endTime: now } });
+      await tx.shiftInterval.create({ data: { shiftId: shift.id, startTime: now, status: 'ACTIVE', reason: 'MANUAL_RESUME' } });
+      await tx.agentShift.update({ where: { id: shift.id }, data: { status: 'ACTIVE', pauseReason: null, pausedAt: null } });
+      if (typeof dto.latitude === 'number' && typeof dto.longitude === 'number')
         await tx.shiftLocation.create({
           data: {
             shiftId: shift.id,
             userId: user.id,
+            capturedAt: now,
             latitude: dto.latitude,
             longitude: dto.longitude,
-            accuracy: dto.accuracy ?? null,
-            address: dto.address ?? null,
-            source: 'MOBILE',
-            capturedAt: now,
+            accuracy: dto.accuracy,
+            address: dto.address,
+            source: 'MANUAL_RESUME',
           },
         });
-      }
-
-      await tx.agentShift.update({
-        where: { id: shift.id },
-        data: {
-          status: 'ACTIVE',
-          pauseReason: null,
-          pausedAt: null,
-        },
-      });
-
-      return {
-        success: true,
-        shiftId: shift.id,
-        status: 'ACTIVE' as const,
-        message: undefined as string | undefined,
-      };
+      return { success: true, shiftId: shift.id, status: 'ACTIVE' as const };
     });
   }
 
@@ -566,6 +384,7 @@ export class TimeLoggingService {
     const checkpointsCount = await this.prisma.shiftLocation.count({
       where: {
         userId: targetUserId,
+        ...(user.role !== 'SUPER_ADMIN' ? { shift: { organizationId: requireOrg(user) } } : {}),
         capturedAt: { gte: todayStart, lte: todayEnd },
       },
     });
@@ -740,6 +559,7 @@ export class TimeLoggingService {
     const points = await this.prisma.shiftLocation.findMany({
       where: {
         userId: targetUserId,
+        ...(user.role !== 'SUPER_ADMIN' ? { shift: { organizationId: requireOrg(user) } } : {}),
         ...(query.shiftId ? { shiftId: query.shiftId } : { capturedAt: { gte: start, lte: end } }),
       },
       orderBy: { capturedAt: 'asc' },
@@ -752,6 +572,8 @@ export class TimeLoggingService {
         address: true,
         source: true,
         capturedAt: true,
+        receivedAt: true,
+        eventId: true,
       },
     });
 
@@ -772,7 +594,7 @@ export class TimeLoggingService {
       throw new ForbiddenException('Only admins can view team summary');
     }
 
-    const organizationId = await this.resolveOrgId(user, query.brokerId);
+    const organizationId = user.role === 'SUPER_ADMIN' ? query.brokerId : requireOrg(user);
 
     const { startDate, endDate } = resolveDateRange(query.datePreset, query.from, query.to);
     const start = startDate || getIstDayBounds().start;

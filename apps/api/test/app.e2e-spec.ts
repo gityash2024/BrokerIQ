@@ -392,10 +392,14 @@ describe('BrokerIQ API (e2e)', () => {
     expect(k.body.find((c: any) => c.stage === 'INTERESTED').count).toBeGreaterThanOrEqual(1);
   });
 
-  it('rotates refresh tokens and detects reuse', async () => {
+  it('rotates one device safely and accepts bounded concurrent retries', async () => {
     const r1 = await http.post('/api/auth/refresh').send({ refreshToken: brokerA.refresh }).expect(200);
-    await http.post('/api/auth/refresh').send({ refreshToken: brokerA.refresh }).expect(401); // reuse
-    await http.post('/api/auth/refresh').send({ refreshToken: r1.body.refreshToken }).expect(401); // family revoked
+    const retry = await http.post('/api/auth/refresh').send({ refreshToken: brokerA.refresh }).expect(200);
+    expect(retry.body.refreshToken).toBe(r1.body.refreshToken);
+    const r2 = await http.post('/api/auth/refresh').send({ refreshToken: r1.body.refreshToken }).expect(200);
+    expect(r2.body.refreshToken).not.toBe(r1.body.refreshToken);
+    brokerA.refresh = r2.body.refreshToken;
+    brokerA.token = r2.body.accessToken;
   });
 
   it('OTP login works (dev mode returns code when SMTP missing)', async () => {

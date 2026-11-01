@@ -27,7 +27,7 @@ export function DirectoryDetails({ record }: { record: DirectoryRecord }) {
           {record.address || record.sector || 'Address not recorded'}
         </p>
       </header>
-      {!!profile.photos.length ? (
+      {profile.photos.length > 0 ? (
         <section>
           <h3 className="mb-3 font-bold">Source-verified project images</h3>
           <div className="grid gap-4 sm:grid-cols-2">

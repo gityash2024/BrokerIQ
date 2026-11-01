@@ -1,13 +1,10 @@
 import { create } from './store';
 import * as SecureStore from 'expo-secure-store';
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
+import { alert } from './i18n';
 import { api, post, authStore, errorMessage } from './api';
-import type {
-  AgentShiftDto,
-  ShiftIntervalDto,
-  ShiftLocationDto,
-  ShiftStatus,
-} from '@brokeriq/shared';
+import type { AgentShiftDto, ShiftIntervalDto, ShiftLocationDto, ShiftStatus } from '@brokeriq/shared';
 import { tr } from './i18n';
 
 const STORAGE_KEY = 'biq.time_tracking';
@@ -78,12 +75,10 @@ export interface TimeTrackingState {
     longitude: number,
     accuracy?: number,
     address?: string,
-    source?: string
+    source?: string,
   ) => Promise<{ success: boolean; autoResumed?: boolean; error?: string }>;
   pauseShift: (reason?: string) => Promise<{ success: boolean; error?: string }>;
-  resumeShift: (
-    reasonOrCoords?: string | { latitude?: number; longitude?: number; accuracy?: number }
-  ) => Promise<{ success: boolean; error?: string }>;
+  resumeShift: (reasonOrCoords?: string | { latitude?: number; longitude?: number; accuracy?: number }) => Promise<{ success: boolean; error?: string }>;
   syncStatus: () => Promise<void>;
   checkLocationPermissions: () => Promise<{ servicesEnabled: boolean; permissionGranted: boolean; error?: string }>;
   tickElapsed: () => void;
@@ -232,6 +227,23 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         const msg = tr('Location permission is required to punch in. Please grant location access in settings.');
         set({ isLoading: false, error: msg, isLocationPermissionGranted: false });
         throw new Error(msg);
+      }
+
+      // Explain Android's Settings permission screen before opening it. No background permission prompts on app launch.
+      if (Platform.OS !== 'web' && !(await Location.getBackgroundPermissionsAsync()).granted) {
+        const consent = await new Promise<boolean>((resolve) =>
+          alert(
+            'Active shift location',
+            'During an active shift, BrokerIQ records your location about every 15 minutes, including when the app is in the background. Your firm admin can view it. Manual pause, punch-out and logout stop tracking. Allow background location in Settings to continue.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Continue', onPress: () => resolve(true) },
+            ],
+            { cancelable: false },
+          ),
+        );
+        if (!consent || !(await Location.requestBackgroundPermissionsAsync()).granted)
+          throw new Error('Background location permission is required during an active shift.');
       }
 
       // 3. Acquire Coordinates
@@ -491,6 +503,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
           : null,
       }));
 
+      if (res.pauseReason !== 'GPS_SIGNAL_LOST') periodicLocationTracker.stop();
       return { success: true };
     } catch (err) {
       const msg = errorMessage(err);
@@ -552,6 +565,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
           : null,
       }));
 
+      periodicLocationTracker.start(activeShift.id);
       return { success: true };
     } catch (err) {
       const msg = errorMessage(err);
@@ -585,9 +599,9 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
           lastSyncAt: new Date().toISOString(),
         });
 
-        if (!isPaused && res.activeShift.status === 'ACTIVE') {
+        if (!isPaused || res.activeShift.pauseReason === 'GPS_SIGNAL_LOST') {
           periodicLocationTracker.start(res.activeShift.id);
-        }
+        } else periodicLocationTracker.stop();
 
         // Update local secure storage with confirmed backend shift
         const currentUser = authStore.get()?.user;

@@ -73,8 +73,8 @@ export class ChatController {
     });
     if (!c) throw new NotFoundException();
     const isUser = c.userId === user.id;
-    const isOrg = !!user.orgId && c.organizationId === user.orgId &&
-      (user.role === 'BROKER_ADMIN' || (user.role === 'BROKER_AGENT' && c.lead?.assignedToId === user.id));
+    const isOrg =
+      !!user.orgId && c.organizationId === user.orgId && (user.role === 'BROKER_ADMIN' || (user.role === 'BROKER_AGENT' && c.lead?.assignedToId === user.id));
     const isSuper = user.role === 'SUPER_ADMIN';
     if (!isUser && !isOrg && !isSuper) throw new ForbiddenException();
     return { c, isUser };

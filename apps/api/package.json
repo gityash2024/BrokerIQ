@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:legacy-simulation": "jest --config jest.config.js --testRegex '\\.contract-spec\\.ts$' --runInBand"
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"

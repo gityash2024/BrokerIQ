@@ -104,6 +104,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     throw new ApiError(0, { statusCode: 0, code: 'INTERNAL', message: 'Server से connect नहीं हो पाया — internet check करें' });
   }
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
+  if (auth && authStore.get()?.user.id !== owner) throw new Error('Account changed. The response belongs to the original account.');
   if (raw) return res as unknown as T;
   const text = await res.text();
   const data = text ? safeJson(text) : null;

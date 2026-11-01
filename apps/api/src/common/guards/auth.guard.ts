@@ -37,12 +37,31 @@ export class JwtAuthGuard implements CanActivate {
       }
     }
     if (req.user) {
-      const device = await this.prisma.refreshToken.findFirst({ where: { id: sessionId, userId: req.user.id, sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true } });
+      const device = await this.prisma.refreshToken.findFirst({
+        where: { id: sessionId, userId: req.user.id, sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } },
+        select: { id: true },
+      });
       const current = await this.prisma.user.findUnique({
         where: { id: req.user.id },
-        select: { id: true, role: true, organizationId: true, email: true, status: true, deletedAt: true, sessionVersion: true, organization: { select: { status: true } } },
+        select: {
+          id: true,
+          role: true,
+          organizationId: true,
+          email: true,
+          status: true,
+          deletedAt: true,
+          sessionVersion: true,
+          organization: { select: { status: true } },
+        },
       });
-      if (!device || !current || current.sessionVersion !== sessionVersion || current.deletedAt || current.status !== 'ACTIVE' || (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED')) {
+      if (
+        !device ||
+        !current ||
+        current.sessionVersion !== sessionVersion ||
+        current.deletedAt ||
+        current.status !== 'ACTIVE' ||
+        (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED')
+      ) {
         if (!isPublic) throw new UnauthorizedException('Account no longer active');
         delete req.user;
       } else {

@@ -19,6 +19,9 @@ function getSocket(): Socket | null {
   socket?.disconnect();
   token = t;
   socket = io(API_URL, { auth: { token: t }, transports: ['websocket', 'polling'], reconnectionDelayMax: 10_000 });
+  socket.on('session.revoked', () => {
+    if (authStore.get()?.accessToken === t) authStore.set(null);
+  });
   return socket;
 }
 

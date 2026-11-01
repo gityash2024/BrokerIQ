@@ -41,9 +41,22 @@ export class TodayController {
           })
         : [],
       leadsOn ? this.prisma.lead.count({ where: { organizationId, ...assigned, deletedAt: null, createdAt: { gte: start, lt: end } } }) : null,
-      leadsOn ? this.prisma.brokerRequirement.count({ where: { organizationId, deletedAt: null, status: 'OPEN', ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}) } }) : null,
+      leadsOn
+        ? this.prisma.brokerRequirement.count({
+            where: {
+              organizationId,
+              deletedAt: null,
+              status: 'OPEN',
+              ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+            },
+          })
+        : null,
       inventoryOn ? this.inventory.getStats(user) : null,
-      inboxOn ? this.prisma.sourceEntry.count({ where: { batch: { organizationId, ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}) }, reviewState: 'NEEDS_REVIEW' } }) : null,
+      inboxOn
+        ? this.prisma.sourceEntry.count({
+            where: { batch: { organizationId, ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}) }, reviewState: 'NEEDS_REVIEW' },
+          })
+        : null,
       inboxOn
         ? this.prisma.conversation.count({
             where: {

@@ -105,7 +105,6 @@ export function ProfileForm() {
             </Button>
           </div>
         </div>
-        {false && <KycCard />}
       </div>
     </div>
   );

@@ -1,12 +1,23 @@
+import { Platform } from 'react-native';
+jest.mock('expo-crypto', () => ({ randomUUID: () => 'isolated-test-event-id' }));
+import * as outbox from '../shift-location-outbox';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { useTimeTrackingStore } from '../time-tracking-store';
 import { periodicLocationTracker, RECORDING_INTERVAL_MS, HEALTH_CHECK_INTERVAL_MS } from '../periodic-location-tracker';
 import * as apiModule from '../api';
 
+jest.mock('../background-shift-tracking', () => ({ configureBackgroundShift: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../shift-location-outbox', () => ({
+  queueShiftPing: jest.fn().mockResolvedValue(undefined),
+  flushShiftPings: jest.fn().mockResolvedValue(0),
+  pendingShiftPings: jest.fn().mockResolvedValue({ pending: 0, blocked: 0 }),
+}));
+
 // Mocks
 jest.mock('expo-location', () => ({
   hasServicesEnabledAsync: jest.fn(),
+  getBackgroundPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
   requestForegroundPermissionsAsync: jest.fn(),
   getForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
@@ -32,6 +43,7 @@ jest.mock('../api', () => ({
 
 describe('Time Logging & Periodic Location Tracking Engine', () => {
   beforeEach(() => {
+    jest.replaceProperty(Platform, 'OS', 'web'); // These exercise the foreground timer adapter; native task has separate acceptance.
     jest.clearAllMocks();
     jest.useFakeTimers();
     periodicLocationTracker.stop();
@@ -56,15 +68,14 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
   afterEach(() => {
     periodicLocationTracker.stop();
     jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   // Test 1: Mandatory GPS Gating
   it('rejects punch-in if location services are disabled on device', async () => {
     (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(false);
 
-    await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-      /Location services are disabled|Turn on GPS/i,
-    );
+    await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Location services are disabled|Turn on GPS/i);
     expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
     expect(apiModule.post).not.toHaveBeenCalled();
   });
@@ -76,9 +87,7 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
       granted: false,
     });
 
-    await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(
-      /Location permission is required|Permission denied/i,
-    );
+    await expect(useTimeTrackingStore.getState().punchIn()).rejects.toThrow(/Location permission is required|Permission denied/i);
     expect(useTimeTrackingStore.getState().isPunchedIn).toBe(false);
     expect(apiModule.post).not.toHaveBeenCalled();
   });
@@ -97,9 +106,7 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: { latitude: 28.4595, longitude: 77.0266, accuracy: 12 },
     });
-    (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
-      { name: 'DLF Cyber City', street: 'DLF Phase 2', city: 'Gurugram', postalCode: '122002' },
-    ]);
+    (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([{ name: 'DLF Cyber City', street: 'DLF Phase 2', city: 'Gurugram', postalCode: '122002' }]);
 
     (apiModule.post as jest.Mock).mockResolvedValue({
       success: true,
@@ -147,9 +154,7 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: { latitude: 28.4601, longitude: 77.028, accuracy: 10 },
     });
-    (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
-      { name: 'Golf Course Road', street: 'Sector 54', city: 'Gurugram' },
-    ]);
+    (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([{ name: 'Golf Course Road', street: 'Sector 54', city: 'Gurugram' }]);
     (apiModule.post as jest.Mock).mockResolvedValue({ success: true, status: 'ACTIVE' });
 
     await periodicLocationTracker.start('shift_123');
@@ -160,8 +165,8 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
     expect(Location.getCurrentPositionAsync).toHaveBeenCalledWith({
       accuracy: Location.Accuracy.Balanced,
     });
-    expect(apiModule.post).toHaveBeenCalledWith(
-      '/time-logging/location',
+    expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         shiftId: 'shift_123',
         latitude: 28.4601,
@@ -232,6 +237,7 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
       return Promise.resolve({ success: true });
     });
 
+    (apiModule.api as jest.Mock).mockResolvedValue({ activeShift: { ...useTimeTrackingStore.getState().activeShift, status: 'ACTIVE', pauseReason: null } });
     await periodicLocationTracker.start('shift_123');
 
     // Advance by 30 seconds
@@ -295,7 +301,7 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
   });
 
   // Test 8: Offline Queueing on Network Failure
-  it('queues location breadcrumb in SecureStore if network request fails', async () => {
+  it('persists an account-bound breadcrumb before attempting network dispatch', async () => {
     useTimeTrackingStore.setState({
       activeShift: { id: 'shift_123', status: 'ACTIVE', punchInAt: new Date().toISOString(), totalMinutes: 0 } as any,
       isPunchedIn: true,
@@ -317,11 +323,11 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
 
     await periodicLocationTracker.recordPeriodicLocation();
 
-    // Verify it saved to SecureStore
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      'biq.time_logging.offline_locations',
-      expect.stringContaining('shift_123'),
+    expect(outbox.queueShiftPing).toHaveBeenCalledWith(
+      'agent_1',
+      expect.objectContaining({ shiftId: 'shift_123', eventId: expect.any(String), capturedAt: expect.any(String) }),
     );
+    expect(outbox.flushShiftPings).toHaveBeenCalled();
     // Crucial: shift was NOT auto-paused because GPS was fine, only network dropped!
     expect(useTimeTrackingStore.getState().isPaused).toBe(false);
   });

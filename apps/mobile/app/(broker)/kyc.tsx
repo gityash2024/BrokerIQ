@@ -1,29 +1,7 @@
 import { useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, FlatList, Image, Modal, ScrollView, TouchableOpacity, View } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Building2,
-  CheckCircle2,
-  Clock,
-  CreditCard,
-  Eye,
-  FileText,
-  Lock,
-  Shield,
-  ShieldAlert,
-  ShieldCheck,
-  Users,
-  X,
-  XCircle,
-} from 'lucide-react-native';
+import { Building2, CheckCircle2, Clock, CreditCard, Eye, FileText, Lock, Shield, ShieldAlert, ShieldCheck, Users, X, XCircle } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
 import { Txt, Button, Card, Badge, Avatar, Row } from '@/ui';
 import { useTheme } from '@/lib/theme';
@@ -77,56 +55,44 @@ function BrokerAdminKycManagement() {
   });
 
   const handleApprove = (member: any) => {
-    Alert.alert(
-      'KYC Approve करें?',
-      `क्या आप ${member.name} का Agent KYC वेरीफाई करना चाहते हैं?`,
-      [
-        { text: 'रद्द करें', style: 'cancel' },
-        {
-          text: 'Approve',
-          style: 'default',
-          onPress: () => reviewMutation.mutate({ agentId: member.id, status: 'VERIFIED' }),
-        },
-      ],
-    );
+    Alert.alert('KYC Approve करें?', `क्या आप ${member.name} का Agent KYC वेरीफाई करना चाहते हैं?`, [
+      { text: 'रद्द करें', style: 'cancel' },
+      {
+        text: 'Approve',
+        style: 'default',
+        onPress: () => reviewMutation.mutate({ agentId: member.id, status: 'VERIFIED' }),
+      },
+    ]);
   };
 
   const handleReject = (member: any) => {
-    Alert.prompt
-      ? Alert.prompt(
-          'KYC Reject करें',
-          'अस्वीकृति का कारण दर्ज करें (उदा. आधार साफ़ नहीं है):',
-          [
-            { text: 'रद्द करें', style: 'cancel' },
-            {
-              text: 'Reject',
-              style: 'destructive',
-              onPress: (note?: string) =>
-                reviewMutation.mutate({
-                  agentId: member.id,
-                  status: 'REJECTED',
-                  reviewNote: note?.trim() || 'दस्तावेज़ स्पष्ट नहीं हैं',
-                }),
-            },
-          ],
-        )
-      : Alert.alert(
-          'KYC Reject करें',
-          `क्या आप ${member.name} का KYC अस्वीकार करना चाहते हैं?`,
-          [
-            { text: 'रद्द करें', style: 'cancel' },
-            {
-              text: 'Reject',
-              style: 'destructive',
-              onPress: () =>
-                reviewMutation.mutate({
-                  agentId: member.id,
-                  status: 'REJECTED',
-                  reviewNote: 'दस्तावेज़ स्पष्ट नहीं हैं या जानकारी मेल नहीं खाती',
-                }),
-            },
-          ],
-        );
+    return Alert.prompt
+      ? Alert.prompt('KYC Reject करें', 'अस्वीकृति का कारण दर्ज करें (उदा. आधार साफ़ नहीं है):', [
+          { text: 'रद्द करें', style: 'cancel' },
+          {
+            text: 'Reject',
+            style: 'destructive',
+            onPress: (note?: string) =>
+              reviewMutation.mutate({
+                agentId: member.id,
+                status: 'REJECTED',
+                reviewNote: note?.trim() || 'दस्तावेज़ स्पष्ट नहीं हैं',
+              }),
+          },
+        ])
+      : Alert.alert('KYC Reject करें', `क्या आप ${member.name} का KYC अस्वीकार करना चाहते हैं?`, [
+          { text: 'रद्द करें', style: 'cancel' },
+          {
+            text: 'Reject',
+            style: 'destructive',
+            onPress: () =>
+              reviewMutation.mutate({
+                agentId: member.id,
+                status: 'REJECTED',
+                reviewNote: 'दस्तावेज़ स्पष्ट नहीं हैं या जानकारी मेल नहीं खाती',
+              }),
+          },
+        ]);
   };
 
   const members = teamQuery.data?.members ?? [];
@@ -142,7 +108,6 @@ function BrokerAdminKycManagement() {
     <BrokerScreen title="KYC" subtitle="टीम का सत्यापन व फर्म स्टेटस">
       {/* Header with Tab switcher */}
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, gap: 10 }}>
-
         {/* Tab switch pills */}
         <Row gap={8}>
           <TouchableOpacity
@@ -230,7 +195,9 @@ function BrokerAdminKycManagement() {
             <Card style={{ padding: 24, alignItems: 'center', gap: 6 }}>
               <Shield size={36} color={c.muted} />
               <Txt v="bodyStrong">कोई KYC रिकॉर्ड नहीं मिला</Txt>
-              <Txt v="caption" color="muted">इस फ़िल्टर में कोई सदस्य उपलब्ध नहीं हैं</Txt>
+              <Txt v="caption" color="muted">
+                इस फ़िल्टर में कोई सदस्य उपलब्ध नहीं हैं
+              </Txt>
             </Card>
           }
           renderItem={({ item: m }) => {
@@ -257,12 +224,22 @@ function BrokerAdminKycManagement() {
                     <Avatar name={m.name} uri={m.avatarUrl} size={42} />
                     <View>
                       <Txt v="bodyStrong">{m.name}</Txt>
-                      <Txt v="caption" color="muted">{m.email || m.phone}</Txt>
+                      <Txt v="caption" color="muted">
+                        {m.email || m.phone}
+                      </Txt>
                     </View>
                   </Row>
 
                   <Badge
-                    label={m.kycStatus === 'VERIFIED' ? 'Verified' : m.kycStatus === 'PENDING' ? 'Pending' : m.kycStatus === 'REJECTED' ? 'Rejected' : 'Not Submitted'}
+                    label={
+                      m.kycStatus === 'VERIFIED'
+                        ? 'Verified'
+                        : m.kycStatus === 'PENDING'
+                          ? 'Pending'
+                          : m.kycStatus === 'REJECTED'
+                            ? 'Rejected'
+                            : 'Not Submitted'
+                    }
                     color={m.kycStatus === 'VERIFIED' ? '#10B981' : m.kycStatus === 'PENDING' ? '#F59E0B' : m.kycStatus === 'REJECTED' ? '#EF4444' : c.muted}
                   />
                 </Row>
@@ -283,7 +260,9 @@ function BrokerAdminKycManagement() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                         >
                           <Eye size={13} color={c.brand} />
-                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>फ़ोटो</Txt>
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                            फ़ोटो
+                          </Txt>
                         </TouchableOpacity>
                       )}
                     </Row>
@@ -301,7 +280,9 @@ function BrokerAdminKycManagement() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                         >
                           <Eye size={13} color={c.brand} />
-                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>फ़ोटो</Txt>
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                            फ़ोटो
+                          </Txt>
                         </TouchableOpacity>
                       )}
                     </Row>
@@ -334,7 +315,9 @@ function BrokerAdminKycManagement() {
                             {pose.url ? (
                               <Image source={{ uri: pose.url }} style={{ width: '100%', height: '100%' }} />
                             ) : (
-                              <Txt v="caption" color="subtle">{pose.label}</Txt>
+                              <Txt v="caption" color="subtle">
+                                {pose.label}
+                              </Txt>
                             )}
                           </TouchableOpacity>
                         ))}
@@ -343,7 +326,9 @@ function BrokerAdminKycManagement() {
                   </View>
                 ) : (
                   <View style={{ padding: 8, borderRadius: 10, backgroundColor: isDark ? '#141829' : '#F1F5F9' }}>
-                    <Txt v="caption" color="muted">एजेंट ने अभी तक कोई KYC दस्तावेज़ सबमिट नहीं किए हैं।</Txt>
+                    <Txt v="caption" color="muted">
+                      एजेंट ने अभी तक कोई KYC दस्तावेज़ सबमिट नहीं किए हैं।
+                    </Txt>
                   </View>
                 )}
 
@@ -365,7 +350,9 @@ function BrokerAdminKycManagement() {
                         }}
                       >
                         <CheckCircle2 size={16} color="#fff" />
-                        <Txt v="small" style={{ color: '#fff', fontWeight: '800' }}>Approve KYC</Txt>
+                        <Txt v="small" style={{ color: '#fff', fontWeight: '800' }}>
+                          Approve KYC
+                        </Txt>
                       </TouchableOpacity>
                     )}
 
@@ -384,7 +371,9 @@ function BrokerAdminKycManagement() {
                         }}
                       >
                         <XCircle size={16} color="#EF4444" />
-                        <Txt v="small" style={{ color: '#EF4444', fontWeight: '800' }}>Reject KYC</Txt>
+                        <Txt v="small" style={{ color: '#EF4444', fontWeight: '800' }}>
+                          Reject KYC
+                        </Txt>
                       </TouchableOpacity>
                     )}
                   </Row>
@@ -407,22 +396,41 @@ function BrokerAdminKycManagement() {
             return (
               <Card style={{ padding: 18, gap: 14 }}>
                 <Row gap={12} align="center">
-                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      backgroundColor: 'rgba(99,102,241,0.15)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
                     <Building2 size={24} color={c.brand} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Txt v="bodyStrong" style={{ fontSize: 16 }}>फर्म सत्यापन (Firm KYC)</Txt>
-                    <Txt v="caption" color="muted">SuperAdmin द्वारा जाँचा और प्रमाणित किया जाता है</Txt>
+                    <Txt v="bodyStrong" style={{ fontSize: 16 }}>
+                      फर्म सत्यापन (Firm KYC)
+                    </Txt>
+                    <Txt v="caption" color="muted">
+                      SuperAdmin द्वारा जाँचा और प्रमाणित किया जाता है
+                    </Txt>
                   </View>
                 </Row>
 
                 <View style={{ gap: 10, padding: 14, borderRadius: 12, backgroundColor: isDark ? '#13172C' : '#F8FAFC' }}>
                   <Row justify="space-between">
-                    <Txt v="caption" color="muted">फर्म का नाम:</Txt>
-                    <Txt v="small" style={{ fontWeight: '700' }}>{firm?.name || 'BrokerIQ Firm'}</Txt>
+                    <Txt v="caption" color="muted">
+                      फर्म का नाम:
+                    </Txt>
+                    <Txt v="small" style={{ fontWeight: '700' }}>
+                      {firm?.name || 'BrokerIQ Firm'}
+                    </Txt>
                   </Row>
                   <Row justify="space-between">
-                    <Txt v="caption" color="muted">सत्यापन स्थिति:</Txt>
+                    <Txt v="caption" color="muted">
+                      सत्यापन स्थिति:
+                    </Txt>
                     <Badge
                       label={isVerified ? 'Verified by SuperAdmin' : isPending ? 'Under Review' : 'Unverified'}
                       color={isVerified ? '#10B981' : isPending ? '#F59E0B' : '#EF4444'}
@@ -441,7 +449,9 @@ function BrokerAdminKycManagement() {
                     <Row justify="space-between" align="center">
                       <Row gap={8} align="center">
                         <ShieldCheck size={16} color={c.brand} />
-                        <Txt v="small" style={{ fontWeight: '700' }}>RERA Registration</Txt>
+                        <Txt v="small" style={{ fontWeight: '700' }}>
+                          RERA Registration
+                        </Txt>
                       </Row>
                       {reraDoc?.fileUrl && (
                         <TouchableOpacity
@@ -449,11 +459,15 @@ function BrokerAdminKycManagement() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                         >
                           <Eye size={13} color={c.brand} />
-                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                            सर्टिफिकेट देखें
+                          </Txt>
                         </TouchableOpacity>
                       )}
                     </Row>
-                    <Txt v="caption" color="muted">नंबर: {firm?.reraNumber || reraDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                    <Txt v="caption" color="muted">
+                      नंबर: {firm?.reraNumber || reraDoc?.docNumber || 'दर्ज नहीं'}
+                    </Txt>
                   </Card>
 
                   {/* GST */}
@@ -461,7 +475,9 @@ function BrokerAdminKycManagement() {
                     <Row justify="space-between" align="center">
                       <Row gap={8} align="center">
                         <FileText size={16} color="#10B981" />
-                        <Txt v="small" style={{ fontWeight: '700' }}>GSTIN / Trade Tax</Txt>
+                        <Txt v="small" style={{ fontWeight: '700' }}>
+                          GSTIN / Trade Tax
+                        </Txt>
                       </Row>
                       {gstDoc?.fileUrl && (
                         <TouchableOpacity
@@ -469,11 +485,15 @@ function BrokerAdminKycManagement() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                         >
                           <Eye size={13} color={c.brand} />
-                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                            सर्टिफिकेट देखें
+                          </Txt>
                         </TouchableOpacity>
                       )}
                     </Row>
-                    <Txt v="caption" color="muted">नंबर: {firm?.gstNumber || gstDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                    <Txt v="caption" color="muted">
+                      नंबर: {firm?.gstNumber || gstDoc?.docNumber || 'दर्ज नहीं'}
+                    </Txt>
                   </Card>
 
                   {/* PAN */}
@@ -482,7 +502,9 @@ function BrokerAdminKycManagement() {
                       <Row justify="space-between" align="center">
                         <Row gap={8} align="center">
                           <CreditCard size={16} color="#3B82F6" />
-                          <Txt v="small" style={{ fontWeight: '700' }}>Company PAN</Txt>
+                          <Txt v="small" style={{ fontWeight: '700' }}>
+                            Company PAN
+                          </Txt>
                         </Row>
                         {panDoc.fileUrl && (
                           <TouchableOpacity
@@ -490,11 +512,15 @@ function BrokerAdminKycManagement() {
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                           >
                             <Eye size={13} color={c.brand} />
-                            <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>दस्तावेज़ देखें</Txt>
+                            <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                              दस्तावेज़ देखें
+                            </Txt>
                           </TouchableOpacity>
                         )}
                       </Row>
-                      <Txt v="caption" color="muted">नंबर: {panDoc.docNumber || 'दर्ज नहीं'}</Txt>
+                      <Txt v="caption" color="muted">
+                        नंबर: {panDoc.docNumber || 'दर्ज नहीं'}
+                      </Txt>
                     </Card>
                   )}
                 </View>

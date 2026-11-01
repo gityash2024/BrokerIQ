@@ -24,6 +24,8 @@ export const recordLocationRequestSchema = z.object({
   accuracy: z.number().positive().optional().nullable(),
   address: z.string().max(500).optional().nullable(),
   source: z.string().max(50).optional(),
+  eventId: z.string().min(8).max(100).optional(),
+  capturedAt: z.iso.datetime().optional(),
 });
 export type RecordLocationRequest = z.infer<typeof recordLocationRequestSchema>;
 
@@ -61,6 +63,8 @@ export const shiftLocationSchema = z.object({
   address: z.string().nullable().optional(),
   source: z.string().optional(),
   capturedAt: z.string(),
+  receivedAt: z.string().optional(),
+  eventId: z.string().nullable().optional(),
 });
 export type ShiftLocationDto = z.infer<typeof shiftLocationSchema>;
 
@@ -128,7 +132,10 @@ export type AgentTimeSummaryDto = z.infer<typeof agentTimeSummarySchema>;
 export const timeLoggingQuerySchema = z.object({
   brokerId: z.string().optional(),
   agentId: z.string().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   datePreset: z.enum(['today', 'yesterday', 'last_7_days', 'this_month', 'custom']).optional(),
   from: z.string().optional(),
   to: z.string().optional(),

@@ -26,24 +26,31 @@ test('Tier 1: Teams Filtering (Requirement R1)', async (t) => {
 
     const todayStr = new Date().toISOString().slice(0, 10);
     for (const member of res.body.members) {
-      assert.ok(
-        member.createdAt.startsWith(todayStr),
-        `Member ${member.name} createdAt (${member.createdAt}) must match today (${todayStr})`
-      );
+      assert.ok(member.createdAt.startsWith(todayStr), `Member ${member.name} createdAt (${member.createdAt}) must match today (${todayStr})`);
     }
   });
 
   await t.test('T1.2.2: Date Range Preset - "this_month" includes members joined within current calendar month', async () => {
     const res = await client.getTeam({ datePreset: 'this_month' });
     assert.strictEqual(res.status, 200);
-    assert.ok(res.body.members.length >= 3, 'Should include members from this month');
+    const all = await client.getTeam();
+    const prefix = new Date().toISOString().slice(0, 7);
+    const expected = all.body.members
+      .filter((member) => member.createdAt.startsWith(prefix))
+      .map((member) => member.id)
+      .sort();
+    assert.deepStrictEqual(
+      res.body.members.map((member) => member.id).sort(),
+      expected,
+      'Include every member from this month, including on the first day of a month',
+    );
 
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     for (const member of res.body.members) {
       assert.ok(
         member.createdAt.startsWith(currentYearMonth),
-        `Member ${member.name} createdAt (${member.createdAt}) must be in current month (${currentYearMonth})`
+        `Member ${member.name} createdAt (${member.createdAt}) must be in current month (${currentYearMonth})`,
       );
     }
   });

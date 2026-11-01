@@ -26,84 +26,106 @@ export class InsightsController {
     const orgId = requireOrg(user);
     const mine = user.role === 'BROKER_AGENT';
     const leadScope: Prisma.LeadWhereInput = { organizationId: orgId, deletedAt: null, ...(mine ? { assignedToId: user.id } : {}) };
-    const inventoryScope: Prisma.InventoryItemWhereInput = { organizationId: orgId, deletedAt: null, ...(mine ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] } : {}) };
+    const inventoryScope: Prisma.InventoryItemWhereInput = {
+      organizationId: orgId,
+      deletedAt: null,
+      ...(mine ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] } : {}),
+    };
     const today0 = startOfDay();
     const today1 = endOfDay();
-    const [newToday, open, unassigned, overdue, todayFollowUps, todayVisits, pipeline, recentLeads, sources7, wonMonth, activeListings, unread, totalInventory, activeInventory, sectorSpread, housingConnector] =
-      await Promise.all([
-        this.prisma.lead.count({ where: { ...leadScope, createdAt: { gte: today0 } } }),
-        this.prisma.lead.count({ where: { ...leadScope, stage: { notIn: ['WON', 'LOST'] } } }),
-        mine
-          ? Promise.resolve(0)
-          : this.prisma.lead.count({ where: { organizationId: orgId, deletedAt: null, assignedToId: null, stage: { notIn: ['WON', 'LOST'] } } }),
-        this.prisma.followUp.count({
-          where: { organizationId: orgId, status: 'PENDING', dueAt: { lt: new Date() }, ...(mine ? { assignedToId: user.id } : {}) },
-        }),
-        this.prisma.followUp.findMany({
-          where: { organizationId: orgId, status: 'PENDING', dueAt: { lte: today1 }, ...(mine ? { assignedToId: user.id } : {}) },
-          orderBy: { dueAt: 'asc' },
-          take: 20,
-          include: { lead: { select: { id: true, name: true, phone: true, stage: true, source: true } } },
-        }),
-        this.prisma.siteVisit.findMany({
-          where: {
-            organizationId: orgId,
-            scheduledAt: { gte: today0, lte: today1 },
-            status: { in: ['SCHEDULED', 'CONFIRMED'] },
-            ...(mine ? { assignedToId: user.id } : {}),
-          },
-          orderBy: { scheduledAt: 'asc' },
-          include: { lead: { select: { id: true, name: true, phone: true } }, listing: { select: { id: true, title: true, latitude: true, longitude: true } } },
-        }),
-        this.prisma.lead.groupBy({ by: ['stage'], where: leadScope, _count: { _all: true } }),
-        this.prisma.lead.findMany({ where: leadScope, orderBy: { createdAt: 'desc' }, take: 8, include: { assignedTo: { select: { name: true } } } }),
-        this.prisma.lead.groupBy({ by: ['source'], where: { ...leadScope, createdAt: { gte: new Date(Date.now() - 7 * 86400_000) } }, _count: { _all: true } }),
-        this.prisma.deal.aggregate({
-          where: {
-            organizationId: orgId,
-            status: 'CLOSED',
-            closedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-            ...(mine ? { agentId: user.id } : {}),
-          },
-          _sum: { commissionAmount: true, dealValue: true },
-          _count: true,
-        }),
-        this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
-        this.prisma.conversation.count({
-          where: {
-            organizationId: orgId,
-            unreadCount: { gt: 0 },
-            OR: [
-              {
-                channel: 'WHATSAPP',
-                lead: {
-                  is: {
-                    source: 'HOUSING',
-                    ...(mine ? { assignedToId: user.id } : {}),
-                  },
+    const [
+      newToday,
+      open,
+      unassigned,
+      overdue,
+      todayFollowUps,
+      todayVisits,
+      pipeline,
+      recentLeads,
+      sources7,
+      wonMonth,
+      activeListings,
+      unread,
+      totalInventory,
+      activeInventory,
+      sectorSpread,
+      housingConnector,
+    ] = await Promise.all([
+      this.prisma.lead.count({ where: { ...leadScope, createdAt: { gte: today0 } } }),
+      this.prisma.lead.count({ where: { ...leadScope, stage: { notIn: ['WON', 'LOST'] } } }),
+      mine
+        ? Promise.resolve(0)
+        : this.prisma.lead.count({ where: { organizationId: orgId, deletedAt: null, assignedToId: null, stage: { notIn: ['WON', 'LOST'] } } }),
+      this.prisma.followUp.count({
+        where: { organizationId: orgId, status: 'PENDING', dueAt: { lt: new Date() }, ...(mine ? { assignedToId: user.id } : {}) },
+      }),
+      this.prisma.followUp.findMany({
+        where: { organizationId: orgId, status: 'PENDING', dueAt: { lte: today1 }, ...(mine ? { assignedToId: user.id } : {}) },
+        orderBy: { dueAt: 'asc' },
+        take: 20,
+        include: { lead: { select: { id: true, name: true, phone: true, stage: true, source: true } } },
+      }),
+      this.prisma.siteVisit.findMany({
+        where: {
+          organizationId: orgId,
+          scheduledAt: { gte: today0, lte: today1 },
+          status: { in: ['SCHEDULED', 'CONFIRMED'] },
+          ...(mine ? { assignedToId: user.id } : {}),
+        },
+        orderBy: { scheduledAt: 'asc' },
+        include: { lead: { select: { id: true, name: true, phone: true } }, listing: { select: { id: true, title: true, latitude: true, longitude: true } } },
+      }),
+      this.prisma.lead.groupBy({ by: ['stage'], where: leadScope, _count: { _all: true } }),
+      this.prisma.lead.findMany({ where: leadScope, orderBy: { createdAt: 'desc' }, take: 8, include: { assignedTo: { select: { name: true } } } }),
+      this.prisma.lead.groupBy({ by: ['source'], where: { ...leadScope, createdAt: { gte: new Date(Date.now() - 7 * 86400_000) } }, _count: { _all: true } }),
+      this.prisma.deal.aggregate({
+        where: {
+          organizationId: orgId,
+          status: 'CLOSED',
+          closedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+          ...(mine ? { agentId: user.id } : {}),
+        },
+        _sum: { commissionAmount: true, dealValue: true },
+        _count: true,
+      }),
+      this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
+      this.prisma.conversation.count({
+        where: {
+          organizationId: orgId,
+          unreadCount: { gt: 0 },
+          OR: [
+            {
+              channel: 'WHATSAPP',
+              lead: {
+                is: {
+                  source: 'HOUSING',
+                  ...(mine ? { assignedToId: user.id } : {}),
                 },
               },
-              {
-                channel: 'CHAT',
-                ...(mine ? { lead: { is: { assignedToId: user.id } } } : {}),
-              },
-            ],
-          },
-        }),
-        this.prisma.inventoryItem.count({ where: inventoryScope }),
-        this.prisma.inventoryItem.count({ where: { ...inventoryScope, status: 'ACTIVE' } }),
-        this.prisma.inventoryItem.groupBy({
-          by: ['sector'],
-          where: inventoryScope,
-          _count: true,
-          orderBy: { _count: { sector: 'desc' } },
-          take: 6,
-        }),
-        mine ? Promise.resolve(null) : this.prisma.connectorState.findUnique({
-          where: { organizationId_type: { organizationId: orgId, type: 'HOUSING_API' } },
-          select: { status: true, lastSyncAt: true, leadsImported: true },
-        }),
-      ]);
+            },
+            {
+              channel: 'CHAT',
+              ...(mine ? { lead: { is: { assignedToId: user.id } } } : {}),
+            },
+          ],
+        },
+      }),
+      this.prisma.inventoryItem.count({ where: inventoryScope }),
+      this.prisma.inventoryItem.count({ where: { ...inventoryScope, status: 'ACTIVE' } }),
+      this.prisma.inventoryItem.groupBy({
+        by: ['sector'],
+        where: inventoryScope,
+        _count: true,
+        orderBy: { _count: { sector: 'desc' } },
+        take: 6,
+      }),
+      mine
+        ? Promise.resolve(null)
+        : this.prisma.connectorState.findUnique({
+            where: { organizationId_type: { organizationId: orgId, type: 'HOUSING_API' } },
+            select: { status: true, lastSyncAt: true, leadsImported: true },
+          }),
+    ]);
     return {
       kpis: {
         newToday,

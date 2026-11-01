@@ -36,6 +36,7 @@ describe('TimeLoggingService', () => {
         count: jest.fn(),
       },
       shiftInterval: {
+        updateMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         findFirst: jest.fn(),
@@ -48,6 +49,7 @@ describe('TimeLoggingService', () => {
       organization: {
         findFirst: jest.fn(),
       },
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn((callback) => callback(mockPrisma)),
     };
 
@@ -56,13 +58,9 @@ describe('TimeLoggingService', () => {
 
   describe('punchIn', () => {
     it('throws BAD_REQUEST when latitude or longitude is missing or invalid', async () => {
-      await expect(
-        service.punchIn(mockAgentUser, { latitude: undefined as any, longitude: 77.05 }),
-      ).rejects.toThrow(AppException);
+      await expect(service.punchIn(mockAgentUser, { latitude: undefined as any, longitude: 77.05 })).rejects.toThrow(AppException);
 
-      await expect(
-        service.punchIn(mockAgentUser, { latitude: 28.45, longitude: null as any }),
-      ).rejects.toThrow(AppException);
+      await expect(service.punchIn(mockAgentUser, { latitude: 28.45, longitude: null as any })).rejects.toThrow(AppException);
     });
 
     it('throws CONFLICT 409 when an active or paused shift already exists', async () => {
@@ -152,9 +150,7 @@ describe('TimeLoggingService', () => {
         intervals: [{ id: 'inv_open', startTime, endTime: null, status: 'ACTIVE' }],
       });
       mockPrisma.shiftInterval.update.mockResolvedValue({});
-      mockPrisma.shiftInterval.findMany.mockResolvedValue([
-        { id: 'inv_open', startTime, endTime: new Date(), status: 'ACTIVE' },
-      ]);
+      mockPrisma.shiftInterval.findMany.mockResolvedValue([{ id: 'inv_open', startTime, endTime: new Date(), status: 'ACTIVE' }]);
       mockPrisma.shiftLocation.create.mockResolvedValue({ id: 'loc_final' });
       mockPrisma.agentShift.update.mockResolvedValue({
         id: 'shift_123',
@@ -170,7 +166,7 @@ describe('TimeLoggingService', () => {
       expect(res.success).toBe(true);
       expect(res.status).toBe('COMPLETED');
       expect(res.totalMinutes).toBe(120);
-      expect(mockPrisma.shiftInterval.update).toHaveBeenCalled();
+      expect(mockPrisma.shiftInterval.updateMany).toHaveBeenCalled();
       expect(mockPrisma.agentShift.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'shift_123' },
@@ -189,6 +185,10 @@ describe('TimeLoggingService', () => {
         id: 'shift_123',
         userId: mockAgentUser.id,
         status: 'PAUSED',
+        pauseReason: 'GPS_SIGNAL_LOST',
+        pausedAt: new Date(Date.now() - 1000),
+        punchInAt: new Date(Date.now() - 60000),
+        intervals: [],
       });
       mockPrisma.shiftInterval.findFirst.mockResolvedValue({
         id: 'inv_paused',
@@ -227,6 +227,8 @@ describe('TimeLoggingService', () => {
         id: 'shift_123',
         userId: mockAgentUser.id,
         status: 'ACTIVE',
+        punchInAt: new Date(Date.now() - 60000),
+        intervals: [{ status: 'ACTIVE', startTime: new Date(Date.now() - 60000), endTime: null }],
       });
       mockPrisma.shiftLocation.create.mockResolvedValue({ id: 'loc_regular' });
 
@@ -246,6 +248,9 @@ describe('TimeLoggingService', () => {
         id: 'shift_completed',
         userId: mockAgentUser.id,
         status: 'COMPLETED',
+        punchInAt: new Date(Date.now() - 60000),
+        punchOutAt: new Date(Date.now() - 30000),
+        intervals: [],
       });
 
       await expect(
@@ -254,13 +259,7 @@ describe('TimeLoggingService', () => {
           latitude: 28.455,
           longitude: 77.055,
         }),
-      ).rejects.toThrow(
-        new AppException(
-          HttpStatus.BAD_REQUEST,
-          ErrorCode.VALIDATION_FAILED,
-          'Cannot record location for a completed shift',
-        ),
-      );
+      ).rejects.toThrow(new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, 'Cannot record location for a completed shift'));
     });
 
     it('throws BAD_REQUEST (400) when no active or paused shift is found', async () => {
@@ -271,13 +270,7 @@ describe('TimeLoggingService', () => {
           latitude: 28.455,
           longitude: 77.055,
         }),
-      ).rejects.toThrow(
-        new AppException(
-          HttpStatus.BAD_REQUEST,
-          ErrorCode.VALIDATION_FAILED,
-          'No active or paused shift found for location recording',
-        ),
-      );
+      ).rejects.toThrow(new AppException(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND, 'Shift not found'));
     });
   });
 
@@ -463,25 +456,25 @@ describe('TimeLoggingService', () => {
     it('throws ForbiddenException when BROKER_ADMIN queries getStatus of agent from another organization', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(agentFirmB);
 
-      await expect(
-        service.getStatus(adminFirmA, agentFirmB.id),
-      ).rejects.toThrow(new ForbiddenException('You are not authorized to view an agent outside your organization'));
+      await expect(service.getStatus(adminFirmA, agentFirmB.id)).rejects.toThrow(
+        new ForbiddenException('You are not authorized to view an agent outside your organization'),
+      );
     });
 
     it('throws ForbiddenException when BROKER_ADMIN queries getTimeline of agent from another organization', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(agentFirmB);
 
-      await expect(
-        service.getTimeline(adminFirmA, { agentId: agentFirmB.id }),
-      ).rejects.toThrow(new ForbiddenException('You are not authorized to view an agent outside your organization'));
+      await expect(service.getTimeline(adminFirmA, { agentId: agentFirmB.id })).rejects.toThrow(
+        new ForbiddenException('You are not authorized to view an agent outside your organization'),
+      );
     });
 
     it('throws ForbiddenException when BROKER_ADMIN queries getHistory of agent from another organization', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(agentFirmB);
 
-      await expect(
-        service.getHistory(adminFirmA, { agentId: agentFirmB.id }),
-      ).rejects.toThrow(new ForbiddenException('You are not authorized to view an agent outside your organization'));
+      await expect(service.getHistory(adminFirmA, { agentId: agentFirmB.id })).rejects.toThrow(
+        new ForbiddenException('You are not authorized to view an agent outside your organization'),
+      );
     });
 
     it('permits BROKER_ADMIN to view getTimeline when agent belongs to same organization', async () => {

@@ -6,10 +6,7 @@
     {
       "id": "AUTH-01",
       "requirement": "365-day persistent sessions",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED",
@@ -17,15 +14,23 @@
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
         "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
-      ]
+      ],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [
+        "apps/api/src/modules/auth/auth.service.ts",
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/web/src/app/(auth)/login/page.tsx",
+        "apps/mobile/app/login.tsx"
+      ],
+      "commits": ["ea2b66b"],
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
+      "releaseEvidence": null
     },
     {
       "id": "AUTH-02",
       "requirement": "Five simultaneous device sessions",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED",
@@ -33,15 +38,23 @@
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
         "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
-      ]
+      ],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [
+        "apps/api/src/modules/auth/auth.service.ts",
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/web/src/app/(auth)/login/page.tsx",
+        "apps/mobile/app/login.tsx"
+      ],
+      "commits": ["ea2b66b"],
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
+      "releaseEvidence": null
     },
     {
       "id": "AUTH-03",
       "requirement": "Sixth login offers explicit session replacement",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED",
@@ -49,15 +62,23 @@
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
         "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
-      ]
+      ],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [
+        "apps/api/src/modules/auth/auth.service.ts",
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/web/src/app/(auth)/login/page.tsx",
+        "apps/mobile/app/login.tsx"
+      ],
+      "commits": ["ea2b66b"],
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
+      "releaseEvidence": null
     },
     {
       "id": "AUTH-04",
       "requirement": "Refresh rotation preserves other devices",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED",
@@ -65,87 +86,108 @@
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
         "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
-      ]
+      ],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [
+        "apps/api/src/modules/auth/auth.service.ts",
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/web/src/app/(auth)/login/page.tsx",
+        "apps/mobile/app/login.tsx"
+      ],
+      "commits": ["ea2b66b"],
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
+      "releaseEvidence": null
     },
     {
       "id": "AUTH-05",
       "requirement": "Immediate revoke/suspend enforcement",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AUTH-06",
       "requirement": "Logout confirmation on web and Android",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AUTH-07",
       "requirement": "Account changes clear private caches",
-      "sourceRequests": [
-        "2516",
-        "3978"
-      ],
+      "sourceRequests": ["2516", "3978"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["ALL_AUTHENTICATED"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-01",
       "requirement": "Reproducible Android release capture protection",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "IMPLEMENTED",
       "shippedBuild": "PENDING",
       "verification": "3 plugin regressions passed; Expo Android clean regeneration re-applied FLAG_SECURE; signed-APK/device verification pending",
-      "notes": [
-        "Tracked Expo plugin replaces ignored generated Activity edit. Release guarded with !BuildConfig.DEBUG."
-      ]
+      "notes": ["Tracked Expo plugin replaces ignored generated Activity edit. Release guarded with !BuildConfig.DEBUG."],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": ["apps/mobile/plugins/with-screen-protection.js", "apps/mobile/app.config.ts"],
+      "commits": ["7ab7c2d"],
+      "database": "PENDING",
+      "rootCause": "FLAG_SECURE existed only in generated Git-ignored MainActivity and was absent after native regeneration/shipped APK.",
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-02",
       "requirement": "Web print/privacy controls with accurate limitations",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-03",
       "requirement": "Every screen/action follows role permissions",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PARTIAL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
@@ -153,29 +195,35 @@
       "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
       "notes": [
         "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
-      ]
+      ],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": ["3eef6d0"],
+      "database": "REQUIREMENT_OWNERSHIP_AND_MISSING_MIGRATION_REPAIR_LOCAL_VERIFIED",
+      "rootCause": "Several org-only scopes exposed other agents’ records; search OR widened assignment checks; one Team alias bypassed body validation.",
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-04",
       "requirement": "Direct API and URL authorization",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-05",
       "requirement": "Firm/record ownership and cross-firm denial",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PARTIAL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
@@ -183,127 +231,154 @@
       "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
       "notes": [
         "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
-      ]
+      ],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": ["3eef6d0"],
+      "database": "REQUIREMENT_OWNERSHIP_AND_MISSING_MIGRATION_REPAIR_LOCAL_VERIFIED",
+      "rootCause": "Several org-only scopes exposed other agents’ records; search OR widened assignment checks; one Team alias bypassed body validation.",
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-06",
       "requirement": "Search/export/realtime/notification/AI scope",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-07",
       "requirement": "Promotion/demotion invalidates stale privileges",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-08",
       "requirement": "Last active firm administrator protection",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "SECURITY-09",
       "requirement": "Private KYC upload and authenticated previews",
-      "sourceRequests": [
-        "2516",
-        "7844"
-      ],
+      "sourceRequests": ["2516", "7844"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-01",
       "requirement": "Web table/card opens complete property detail",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-02",
       "requirement": "Native details and edit field parity",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-03",
       "requirement": "Sparse PATCH preserves unrelated data and explicit clears",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-04",
       "requirement": "Creator default assignment and admin reassignment",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-05",
       "requirement": "Agent own/assigned inventory only",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PARTIAL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
@@ -311,1958 +386,2205 @@
       "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
       "notes": [
         "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
-      ]
+      ],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": ["3eef6d0"],
+      "database": "REQUIREMENT_OWNERSHIP_AND_MISSING_MIGRATION_REPAIR_LOCAL_VERIFIED",
+      "rootCause": "Several org-only scopes exposed other agents’ records; search OR widened assignment checks; one Team alias bypassed body validation.",
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-06",
       "requirement": "Distinct floors and units remain distinct",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-07",
       "requirement": "Purpose-aware rent and sale fields",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-08",
       "requirement": "Dataset-wide search filtering and sorting",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-09",
       "requirement": "Original source/register evidence and page84 exclusion preserved",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INVENTORY-10",
       "requirement": "Compact table/cards and meaningful actions",
-      "sourceRequests": [
-        "6611",
-        "6825"
-      ],
+      "sourceRequests": ["6611", "6825"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-01",
       "requirement": "Manual lead creation including agent self-assignment",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-02",
       "requirement": "Duplicate phone and existing-assignee handling",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-03",
       "requirement": "NOT_INTERESTED stage and reasons in both clients",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-04",
       "requirement": "Internal inbox from list/detail/swipe/share",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-05",
       "requirement": "Source/stage/temperature/owner/custom-date filters",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-06",
       "requirement": "Pipeline and follow-up action parity",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-07",
       "requirement": "Paginated unrestricted visit-property search",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-08",
       "requirement": "Visit durable property association and address snapshot",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-09",
       "requirement": "Custom visit address and valid IST date/time",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-10",
       "requirement": "Reschedule/cancel/complete and reminder deduplication",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-11",
       "requirement": "Microsite enquiry and QR capture",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-12",
       "requirement": "Reviewed voice entry",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "LEADS-13",
       "requirement": "Share/paste quick capture",
-      "sourceRequests": [
-        "2516",
-        "3978",
-        "5380"
-      ],
+      "sourceRequests": ["2516", "3978", "5380"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-01",
       "requirement": "All group imports enter separate Requirements workspace",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-02",
       "requirement": "Demand/offer/unknown typed records",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-03",
       "requirement": "Multi-property messages split independently",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-04",
       "requirement": "Sender/group/original timestamp/source/media retained",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-05",
       "requirement": "Group system messages ignored",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-06",
       "requirement": "No invented price phone locality rooms availability",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-07",
       "requirement": "Manual idempotent offer-to-inventory conversion",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-08",
       "requirement": "Converted source remains independent and auditable",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-09",
       "requirement": "Demand cannot silently become inventory",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-10",
       "requirement": "300MB chunked resumable uploads and integrity",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-11",
       "requirement": "Overlapping exports/retries deduplicate",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-12",
       "requirement": "Source preview edit ignore retry and extraction versioning",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-13",
       "requirement": "ZIP image OCR associated with message",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "IMPORTS-14",
       "requirement": "Historical availability never auto-confirms current stock",
-      "sourceRequests": [
-        "initial",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["initial", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-01",
       "requirement": "Publish never creates a Requirement",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-02",
       "requirement": "Verified firm admin direct publication",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-03",
       "requirement": "Unverified firm Super Admin publication only",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-04",
       "requirement": "Agent submission follows firm approval hierarchy",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-05",
       "requirement": "Explicit pending/published/rejected/withdrawn states",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-06",
       "requirement": "Public preview excludes private sources and contacts",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-07",
       "requirement": "Rent and normal sale search/detail/share/microsite parity",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-08",
       "requirement": "RENTED/SOLD and withdrawal remove current availability",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "PUBLISH-09",
       "requirement": "Atomic revision-safe repeat publication",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-01",
       "requirement": "Website/WhatsApp channel parity",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-02",
       "requirement": "Housing-linked conversation filtering preserved",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-03",
       "requirement": "Read/receive/delete counts reconcile",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-04",
       "requirement": "Unread chats vs messages labelled",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-05",
       "requirement": "Agent conversation scope including unlinked records",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-06",
       "requirement": "Message delivery/failure states",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-07",
       "requirement": "Delete chat preserves lead",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-08",
       "requirement": "Canned replies and internal property sharing",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-09",
       "requirement": "No duplicate webhook/outbound echo",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-10",
       "requirement": "No sender self-notification",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-11",
       "requirement": "Push tokens deduplicated",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "INBOX-12",
       "requirement": "Foreground/background/killed-app push deep links",
-      "sourceRequests": [
-        "6611",
-        "10994",
-        "11256",
-        "11336"
-      ],
+      "sourceRequests": ["6611", "10994", "11256", "11336"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-01",
       "requirement": "Agent own KYC and firm status screen",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-02",
       "requirement": "Firm submission and correct approval hierarchy",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-03",
       "requirement": "Aadhaar/PAN inputs and validation",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-04",
       "requirement": "Upload failure retry and rejected resubmission",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-05",
       "requirement": "Verified fields locked by frontend and API",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-06",
       "requirement": "Complete document/face previews and no blank cards",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-07",
       "requirement": "Actual on-device face pose and blink gating",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-08",
       "requirement": "Capture review/retake and camera shutdown",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-09",
       "requirement": "Member reviews restricted to authorized firm admins",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "KYC-10",
       "requirement": "Sensitive media migration preserves document content",
-      "sourceRequests": [
-        "7107",
-        "7654",
-        "7844",
-        "8185",
-        "9008",
-        "9918",
-        "10489"
-      ],
+      "sourceRequests": ["7107", "7654", "7844", "8185", "9008", "9918", "10489"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-01",
       "requirement": "Invite/accept/expire/resend flows",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-02",
       "requirement": "Promote/demote/suspend/remove flows",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-03",
       "requirement": "Reassign pending work when membership changes",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-04",
       "requirement": "Separate member detail/edit pages with back navigation",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-05",
       "requirement": "Editable permitted profile and targets",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-06",
       "requirement": "Real target fulfillment and zero-state metrics",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-07",
       "requirement": "Separate leaderboard screen for each permitted role",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-08",
       "requirement": "Agent leaderboard excludes admin/private team data",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-09",
       "requirement": "Team/KYC role status member search and date filters",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-10",
       "requirement": "CSV/XLSX/PDF selected and filtered exports",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-11",
       "requirement": "Applicable web tables numeric/date/text sorting",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TEAM-12",
       "requirement": "Location address accuracy and freshness displayed",
-      "sourceRequests": [
-        "6825",
-        "7844",
-        "9008",
-        "9918",
-        "10489",
-        "10892",
-        "11527"
-      ],
+      "sourceRequests": ["6825", "7844", "9008", "9918", "10489", "10892", "11527"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-01",
       "requirement": "Agent web route and native shift screen access",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
+      "sourceRequests": ["688a3d0", "11653"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-02",
       "requirement": "Single active shift under concurrent actions",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
-      "backend": "PENDING",
+      "sourceRequests": ["688a3d0", "11653"],
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "PENDING",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
+      "notes": [
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+      ],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-03",
       "requirement": "Manual pause distinct from GPS/interruption pause",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
-      "backend": "PENDING",
+      "sourceRequests": ["688a3d0", "11653"],
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "PENDING",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
+      "notes": [
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+      ],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-04",
       "requirement": "Real Android background task and foreground notification",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
+      "sourceRequests": ["688a3d0", "11653"],
       "backend": "PENDING",
       "web": "PENDING",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_NATIVE_PREBUILD_VERIFIED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "Root-scoped Expo TaskManager registration + native Location updates and visible foreground notification configured. Installed APK/device verification PENDING.",
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-05",
       "requirement": "Permission/GPS/battery/network/restart recovery",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
+      "sourceRequests": ["688a3d0", "11653"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [
+        "Foreground health handling and encrypted durable queue implemented. Native GPS-off, battery restrictions, process restart and physical-device acceptance remain OPEN; no reliability sign-off."
+      ],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-06",
       "requirement": "Original capture time and server receive time",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
-      "backend": "PENDING",
+      "sourceRequests": ["688a3d0", "11653"],
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "PENDING",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
+      "notes": [
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+      ],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-07",
       "requirement": "Idempotent account/shift-bound offline event replay",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
-      "backend": "PENDING",
+      "sourceRequests": ["688a3d0", "11653"],
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
       "web": "PENDING",
-      "androidSource": "PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
+      "notes": [
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+      ],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-08",
       "requirement": "No stale location labelled live",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
+      "sourceRequests": ["688a3d0", "11653"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-09",
       "requirement": "Agent/admin/Super Admin history scopes",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
+      "sourceRequests": ["688a3d0", "11653"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "TRACKING-10",
       "requirement": "Browser background limitations represented honestly",
-      "sourceRequests": [
-        "688a3d0",
-        "11653"
-      ],
+      "sourceRequests": ["688a3d0", "11653"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
+      "sourceFiles": [
+        "apps/api/src/modules/time-logging/time-logging.service.ts",
+        "apps/mobile/src/lib/background-shift-tracking.ts",
+        "apps/mobile/src/lib/shift-location-outbox.ts"
+      ],
+      "commits": [],
+      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-01",
       "requirement": "Module-wise sidebar accordions",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-02",
       "requirement": "Global search language theme notifications only in topbar",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-03",
       "requirement": "Settings near profile/logout",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-04",
       "requirement": "Active tools discoverable and Coming Soon disabled",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-05",
       "requirement": "Native navigation compact headers and touch controls",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-06",
       "requirement": "All enabled languages preserved",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-07",
       "requirement": "Dialogs/errors/placeholders/export labels translated",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-08",
       "requirement": "Dark/light contrast and active tabs",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "UI-09",
       "requirement": "Role-specific actionable dashboard and correct drilldowns",
-      "sourceRequests": [
-        "6611",
-        "7844",
-        "9918",
-        "10489",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-01",
       "requirement": "Reuse bounded local Qwen without changing other products",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-02",
       "requirement": "Free-only provider/capability fallback",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-03",
       "requirement": "Durable resumable import jobs",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-04",
       "requirement": "Real group evaluation and holdout",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-05",
       "requirement": "Meaningful structured titles and uncertain-field review",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-06",
       "requirement": "Tenant-scoped corrections/examples without raw-chat training",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-07",
       "requirement": "Draft approval default and admin-only mode control",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-08",
       "requirement": "Allowlisted autonomous follow-up and CRM actions",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-09",
       "requirement": "RBAC audited idempotent actions pause and quiet hours",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "AI-10",
       "requirement": "No automatic outreach from imported group posts",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-01",
       "requirement": "All-firms view without first-firm fallback",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-02",
       "requirement": "Explicit firm/member hierarchy and selectors",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-03",
       "requirement": "All active business modules drill down",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-04",
       "requirement": "Counts search pagination archive and exports reconcile",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-05",
       "requirement": "Credentials masked and sensitive views audited",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-06",
       "requirement": "Existing invoices numbering and exports verified",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-07",
       "requirement": "SMTP encrypted configuration and actual delivery",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-08",
       "requirement": "Housing WhatsApp FCM media and AI live acceptance",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "ADMIN-09",
       "requirement": "Settings-linked integration errors",
-      "sourceRequests": [
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["SUPER_ADMIN"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-01",
       "requirement": "Safe server cache cleanup with all-service health proof",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "VERIFIED",
-      "notes": [
-        "56.30 GB measured available-space increase; 58.80 GB now free; all running service/container identities and health preserved."
-      ]
+      "notes": ["56.30 GB measured available-space increase; 58.80 GB now free; all running service/container identities and health preserved."],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-02",
       "requirement": "Real API/PostgreSQL release tests never simulator fallback",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "IMPLEMENTED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "Runner without E2E_API_URL refuses execution; explicit simulation labelled non-release and refused in CI. Real E2E suites pending.",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-03",
       "requirement": "Tracked native configuration survives clean prebuild",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-04",
       "requirement": "Fresh immutable candidate built from exact tested commit",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-05",
       "requirement": "Backward-compatible reviewed migrations and verified restore",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-06",
       "requirement": "Existing Android signing identity and upgrade preservation",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-07",
       "requirement": "Artifact hash/embedded identity/public download agree",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-08",
       "requirement": "Release manifest drives versions timestamps and links",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-09",
       "requirement": "Actual new screenshots with build provenance",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-10",
       "requirement": "Accurate Terms/Privacy/support and disclosure content",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-11",
       "requirement": "Hindi/English Broker and Super Admin PDF manuals",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-12",
       "requirement": "20 concurrent CRM sessions and representative soak",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     },
     {
       "id": "RELEASE-13",
       "requirement": "Backup off-host copy rollback monitoring and operations handoff",
-      "sourceRequests": [
-        "6095",
-        "6444",
-        "7604",
-        "11882",
-        "latest-approved-plan"
-      ],
+      "sourceRequests": ["6095", "6444", "7604", "11882", "latest-approved-plan"],
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": []
+      "notes": [],
+      "roles": ["TO_RECONCILE"],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     }
   ]
 }

@@ -38,7 +38,9 @@ export class WhatsAppService {
     private readonly leads: LeadsService,
     private readonly jobs: JobsService,
     private readonly storage: LocalStorageService,
-  ) {this.jobs.register('whatsapp.event',(payload)=>this.processEvent(payload.eventId));}
+  ) {
+    this.jobs.register('whatsapp.event', (payload) => this.processEvent(payload.eventId));
+  }
 
   /** Webhook verify token shown to the broker for their Meta app. */
   orgVerifyToken(webhookKey: string) {
@@ -222,26 +224,34 @@ export class WhatsAppService {
 
   async handleWebhook(key: string, body: any) {
     const target = await this.resolveWebhookTarget(key);
-    const externalId=`${key}:${sha256(JSON.stringify(body))}`;
-    const event=await this.prisma.webhookEvent.upsert({where:{provider_externalId:{provider:'whatsapp',externalId}},create:{provider:'whatsapp',organizationId:target.orgId,externalId,payload:body as Prisma.InputJsonValue},update:{}});
-    if(event.status!=='PROCESSED')await this.jobs.enqueue('whatsapp.event',{eventId:event.id},{key:`whatsapp:${event.id}`,repeat:true});
+    const externalId = `${key}:${sha256(JSON.stringify(body))}`;
+    const event = await this.prisma.webhookEvent.upsert({
+      where: { provider_externalId: { provider: 'whatsapp', externalId } },
+      create: { provider: 'whatsapp', organizationId: target.orgId, externalId, payload: body as Prisma.InputJsonValue },
+      update: {},
+    });
+    if (event.status !== 'PROCESSED') await this.jobs.enqueue('whatsapp.event', { eventId: event.id }, { key: `whatsapp:${event.id}`, repeat: true });
   }
-  private async processEvent(eventId:string) {
-    const event=await this.prisma.webhookEvent.findUniqueOrThrow({where:{id:eventId}});
-    if(event.status==='PROCESSED')return;
-    const target={orgId:event.organizationId}; const body:any=event.payload;
+  private async processEvent(eventId: string) {
+    const event = await this.prisma.webhookEvent.findUniqueOrThrow({ where: { id: eventId } });
+    if (event.status === 'PROCESSED') return;
+    const target = { orgId: event.organizationId };
+    const body: any = event.payload;
     try {
-    for (const entry of body?.entry ?? []) {
-      for (const change of entry?.changes ?? []) {
-        const value = change?.value ?? {};
-        const businessPhone = value.metadata?.display_phone_number;
-        const contacts: any[] = value.contacts ?? [];
-        for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone);
-        for (const s of value.statuses ?? []) await this.onStatus(s,target.orgId);
+      for (const entry of body?.entry ?? []) {
+        for (const change of entry?.changes ?? []) {
+          const value = change?.value ?? {};
+          const businessPhone = value.metadata?.display_phone_number;
+          const contacts: any[] = value.contacts ?? [];
+          for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone);
+          for (const s of value.statuses ?? []) await this.onStatus(s, target.orgId);
+        }
       }
+      await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { status: 'PROCESSED', processedAt: new Date(), error: null } });
+    } catch (error) {
+      await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { status: 'FAILED', error: (error as Error).message.slice(0, 500) } });
+      throw error;
     }
-        await this.prisma.webhookEvent.update({where:{id:eventId},data:{status:'PROCESSED',processedAt:new Date(),error:null}});
-    } catch(error) {await this.prisma.webhookEvent.update({where:{id:eventId},data:{status:'FAILED',error:(error as Error).message.slice(0,500)}});throw error;}
   }
 
   isHousingLeadMessage(text: string): boolean {
@@ -259,7 +269,7 @@ export class WhatsAppService {
   }
 
   private async onInbound(orgId: string | null, m: any, profileName?: string, businessPhone?: string) {
-    if (!m.id || typeof m.id!=='string' || !/^[0-9]{10,15}$/.test(String(m.from))) throw new BadRequestException('Malformed WhatsApp message');
+    if (!m.id || typeof m.id !== 'string' || !/^[0-9]{10,15}$/.test(String(m.from))) throw new BadRequestException('Malformed WhatsApp message');
     if (await this.prisma.message.findUnique({ where: { externalId: m.id } })) return;
     const fromPhone = String(m.from).replace(/^\+/, '');
     const cleanBiz = businessPhone ? String(businessPhone).replace(/^\+/, '') : '';
@@ -271,17 +281,19 @@ export class WhatsAppService {
         const recipientPhone = `+${String(recipient).replace(/^\+/, '')}`;
         const conv = await this.conversationFor(orgId, recipientPhone, {});
         const bodyText = m.text?.body ?? `[${m.type ?? 'message'}]`;
-        await this.prisma.message.create({
-          data: {
-            conversationId: conv.id,
-            direction: 'OUTBOUND',
-            type: m.type === 'text' ? 'TEXT' : 'DOCUMENT',
-            body: bodyText,
-            status: 'SENT',
-            externalId: m.id,
-            meta: { raw: m, source: 'coexistence' } as Prisma.InputJsonValue,
-          },
-        }).catch(() => undefined);
+        await this.prisma.message
+          .create({
+            data: {
+              conversationId: conv.id,
+              direction: 'OUTBOUND',
+              type: m.type === 'text' ? 'TEXT' : 'DOCUMENT',
+              body: bodyText,
+              status: 'SENT',
+              externalId: m.id,
+              meta: { raw: m, source: 'coexistence' } as Prisma.InputJsonValue,
+            },
+          })
+          .catch(() => undefined);
         await this.touchConversation(conv.id, bodyText, false);
         this.emit(orgId, 'wa:message', { conversationId: conv.id });
       }
@@ -351,20 +363,25 @@ export class WhatsAppService {
       // Personal chats without Housing context will not create leads (leadId remains null)
     }
     const conv = await this.conversationFor(orgId, phone, { name: profileName, leadId });
-    if(mediaUrl&&orgId)mediaUrl=await this.retrieveMedia(mediaUrl.slice('wa-media:'.length),orgId);
-    let saved;try {saved = await this.prisma.message.create({
-      data: {
-        conversationId: conv.id,
-        direction: 'INBOUND',
-        type,
-        body: text,
-        mediaUrl,
-        status: 'RECEIVED',
-        externalId: m.id,
-        meta: { raw: m } as Prisma.InputJsonValue,
-      },
-    });
-    }catch(error){if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==='P2002')return;throw error;}
+    if (mediaUrl && orgId) mediaUrl = await this.retrieveMedia(mediaUrl.slice('wa-media:'.length), orgId);
+    let saved;
+    try {
+      saved = await this.prisma.message.create({
+        data: {
+          conversationId: conv.id,
+          direction: 'INBOUND',
+          type,
+          body: text,
+          mediaUrl,
+          status: 'RECEIVED',
+          externalId: m.id,
+          meta: { raw: m } as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return;
+      throw error;
+    }
     await this.touchConversation(conv.id, text, true);
     if (leadId && orgId) {
       await this.prisma.activity.create({ data: { organizationId: orgId, leadId, type: 'WHATSAPP', content: `📥 ${text.slice(0, 500)}` } });
@@ -377,7 +394,11 @@ export class WhatsAppService {
       if (lead.assignedToId && lead.assignedToId !== senderUser?.id) {
         await this.notifications.notify(lead.assignedToId, { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` });
       } else {
-        await this.notifications.notifyOrg(orgId, { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` }, { adminsOnly: true, excludeUserId: senderUser?.id });
+        await this.notifications.notifyOrg(
+          orgId,
+          { kind: 'NEW_MESSAGE', title, link: `/broker/inbox?c=${conv.id}` },
+          { adminsOnly: true, excludeUserId: senderUser?.id },
+        );
       }
     }
     this.emit(orgId, 'wa:message', { conversationId: conv.id, message: saved });
@@ -410,19 +431,31 @@ export class WhatsAppService {
     await this.send(orgId, phone, { type: 'text', text: reply }, { leadId, ownNumberOnly: true }).catch(() => undefined);
   }
 
-  private async retrieveMedia(mediaId:string,orgId:string) {
-    if(!/^[0-9]+$/.test(mediaId))throw new BadRequestException('Invalid WhatsApp media id');
-    const creds=await this.requireCreds(orgId); const headers={Authorization:`Bearer ${creds.values.accessToken}`};
-    const metadata=await fetch(`${GRAPH}/${mediaId}`,{headers,signal:AbortSignal.timeout(15000)});
-    if(!metadata.ok)throw new IntegrationFailedException('whatsapp','Media lookup failed');
-    const details:any=await metadata.json(); const url=new URL(details.url);
-    if(url.protocol!=='https:'||!['facebook.com','fbcdn.net','fbsbx.com'].some((domain)=>url.hostname===domain||url.hostname.endsWith(`.${domain}`)))throw new BadRequestException('Unexpected media host');
-    const response=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(30000)});
-    if(!response.ok||!response.body)throw new IntegrationFailedException('whatsapp','Media download failed');
-    const max=12*1024*1024;const chunks:Buffer[]=[];let size=0;
-    for await (const chunk of response.body as any){size+=chunk.length;if(size>max)throw new BadRequestException('WhatsApp media exceeds 12MB');chunks.push(Buffer.from(chunk));}
-    const key=await this.storage.putSource(Buffer.concat(chunks),details.mime_type??'application/octet-stream',orgId);
-    return `${env().PUBLIC_API_URL.replace(/\/$/,'')}/api/media/f/${key}`;
+  private async retrieveMedia(mediaId: string, orgId: string) {
+    if (!/^[0-9]+$/.test(mediaId)) throw new BadRequestException('Invalid WhatsApp media id');
+    const creds = await this.requireCreds(orgId);
+    const headers = { Authorization: `Bearer ${creds.values.accessToken}` };
+    const metadata = await fetch(`${GRAPH}/${mediaId}`, { headers, signal: AbortSignal.timeout(15000) });
+    if (!metadata.ok) throw new IntegrationFailedException('whatsapp', 'Media lookup failed');
+    const details: any = await metadata.json();
+    const url = new URL(details.url);
+    if (
+      url.protocol !== 'https:' ||
+      !['facebook.com', 'fbcdn.net', 'fbsbx.com'].some((domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`))
+    )
+      throw new BadRequestException('Unexpected media host');
+    const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(30000) });
+    if (!response.ok || !response.body) throw new IntegrationFailedException('whatsapp', 'Media download failed');
+    const max = 12 * 1024 * 1024;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of response.body as any) {
+      size += chunk.length;
+      if (size > max) throw new BadRequestException('WhatsApp media exceeds 12MB');
+      chunks.push(Buffer.from(chunk));
+    }
+    const key = await this.storage.putSource(Buffer.concat(chunks), details.mime_type ?? 'application/octet-stream', orgId);
+    return `${env().PUBLIC_API_URL.replace(/\/$/, '')}/api/media/f/${key}`;
   }
 
   private async onStatus(s: any, orgId: string | null) {
@@ -448,25 +481,27 @@ export class WhatsAppService {
       const conv = await this.conversationFor(targetOrgId, recipientPhone, {});
       const msgDate = s.timestamp ? new Date(Number(s.timestamp) * 1000) : new Date();
       const bodyText = s.text?.body || 'WhatsApp message';
-      const created = await this.prisma.message.upsert({
-        where: { externalId: s.id },
-        create: {
-          conversationId: conv.id,
-          direction: 'OUTBOUND',
-          type: 'TEXT',
-          body: bodyText,
-          status,
-          externalId: s.id,
-          createdAt: msgDate,
-          meta: { raw: s, source: 'coexistence' } as Prisma.InputJsonValue,
-        },
-        update: {
-          status,
-        },
-      }).catch((err) => {
-        this.logger.warn(`Failed to upsert coexistence outbound message: ${err?.message}`);
-        return null;
-      });
+      const created = await this.prisma.message
+        .upsert({
+          where: { externalId: s.id },
+          create: {
+            conversationId: conv.id,
+            direction: 'OUTBOUND',
+            type: 'TEXT',
+            body: bodyText,
+            status,
+            externalId: s.id,
+            createdAt: msgDate,
+            meta: { raw: s, source: 'coexistence' } as Prisma.InputJsonValue,
+          },
+          update: {
+            status,
+          },
+        })
+        .catch((err) => {
+          this.logger.warn(`Failed to upsert coexistence outbound message: ${err?.message}`);
+          return null;
+        });
       if (created) {
         await this.touchConversation(conv.id, created.body ?? 'WhatsApp message', false);
         this.emit(conv.organizationId, 'wa:message', { conversationId: conv.id, message: created });

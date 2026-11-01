@@ -21,20 +21,27 @@ import { createExcelReport } from '../../common/excel';
 import { renderPdf, pdfText, pdfTable } from '../../common/pdf';
 import { generateCsv } from '../../common/csv';
 
-
-const memberUpdateSchema = z.object({
-  agentId: z.string().optional(),
-  name: z.string().trim().min(2).max(100).optional(),
-  phone: z.string().nullable().optional().refine((v) => !v || !!normalizeIndianPhone(v), 'Valid phone required'),
-  role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(),
-  status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
-  targets: z.object({
-    monthlyDeals: z.number().nonnegative().optional(),
-    monthlyRevenue: z.number().nonnegative().optional(),
-    monthlyLeads: z.number().nonnegative().optional(),
-    commissionPct: z.number().min(0).max(100).optional(),
-  }).optional(),
-}).strict();
+const memberUpdateSchema = z
+  .object({
+    agentId: z.string().optional(),
+    name: z.string().trim().min(2).max(100).optional(),
+    phone: z
+      .string()
+      .nullable()
+      .optional()
+      .refine((v) => !v || !!normalizeIndianPhone(v), 'Valid phone required'),
+    role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(),
+    status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+    targets: z
+      .object({
+        monthlyDeals: z.number().nonnegative().optional(),
+        monthlyRevenue: z.number().nonnegative().optional(),
+        monthlyLeads: z.number().nonnegative().optional(),
+        commissionPct: z.number().min(0).max(100).optional(),
+      })
+      .optional(),
+  })
+  .strict();
 
 const PUBLIC_ORG_SELECT = {
   id: true,
@@ -333,6 +340,8 @@ export class OrganizationsController {
     )
     body: { latitude: number; longitude: number; accuracy?: number | null; source?: string },
   ) {
+    const activeShift = await this.prisma.agentShift.findFirst({ where: { userId: user.id, organizationId: requireOrg(user), status: 'ACTIVE' } });
+    if (!activeShift) throw new ForbiddenException('Location is accepted only during an active shift');
     const loc = await this.prisma.userLocation.create({
       data: {
         userId: user.id,
@@ -436,8 +445,8 @@ export class OrganizationsController {
     if ((user.role === 'BROKER_AGENT' && member.id !== user.id) || (!isSuper && member.organizationId !== user.orgId)) {
       throw new ForbiddenException();
     }
-    const loc = await this.prisma.userLocation.findFirst({
-      where: { userId: member.id },
+    const loc = await this.prisma.shiftLocation.findFirst({
+      where: { userId: member.id, ...(isSuper ? {} : { shift: { organizationId: user.orgId! } }) },
       orderBy: { capturedAt: 'desc' },
     });
     let targets = null;
@@ -492,7 +501,7 @@ export class OrganizationsController {
     const isSuper = user.role === 'SUPER_ADMIN';
     const member = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!member) throw new NotFoundException('Member not found');
-    if (!isSuper && member.organizationId !== user.orgId) throw new ForbiddenException();
+    if (!isSuper && member.organizationId !== user.orgId) throw new NotFoundException('Member not found');
 
     if ((body.role || body.status) && userId === user.id) {
       throw new BadRequestException('अपना role/status खुद नहीं बदल सकते');
@@ -511,9 +520,14 @@ export class OrganizationsController {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
-      if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE' &&
-          ((body.role && body.role !== 'BROKER_ADMIN') || (body.status && body.status !== 'ACTIVE'))) {
-        const remaining = await tx.user.count({ where: { organizationId: orgId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } } });
+      if (
+        latest.role === 'BROKER_ADMIN' &&
+        latest.status === 'ACTIVE' &&
+        ((body.role && body.role !== 'BROKER_ADMIN') || (body.status && body.status !== 'ACTIVE'))
+      ) {
+        const remaining = await tx.user.count({
+          where: { organizationId: orgId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } },
+        });
         if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
       }
       if (body.targets) {
@@ -522,7 +536,8 @@ export class OrganizationsController {
         current[userId] = { ...(current[userId] || {}), ...body.targets };
         await tx.orgSetting.upsert({
           where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } },
-          create: { organizationId: orgId, key: 'agent_targets', value: current }, update: { value: current },
+          create: { organizationId: orgId, key: 'agent_targets', value: current },
+          update: { value: current },
         });
       }
       if (body.role || body.status === 'SUSPENDED') {
@@ -553,7 +568,7 @@ export class OrganizationsController {
     const isSuper = user.role === 'SUPER_ADMIN';
     const member = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!member) throw new NotFoundException();
-    if (!isSuper && member.organizationId !== user.orgId) throw new ForbiddenException();
+    if (!isSuper && member.organizationId !== user.orgId) throw new NotFoundException('Member not found');
     if (userId === user.id) throw new BadRequestException('खुद को remove नहीं कर सकते');
 
     const orgId = member.organizationId || user.orgId;
@@ -563,7 +578,9 @@ export class OrganizationsController {
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
       if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE') {
-        const remaining = await tx.user.count({ where: { organizationId: member.organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } } });
+        const remaining = await tx.user.count({
+          where: { organizationId: member.organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } },
+        });
         if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
       }
       await tx.lead.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
@@ -938,7 +955,7 @@ export class OrganizationsController {
       where: { userId: agent.id },
       data: {
         status: body.status,
-        reviewNote: body.status === 'REJECTED' ? (body.reviewNote || 'Documents could not be verified') : null,
+        reviewNote: body.status === 'REJECTED' ? body.reviewNote || 'Documents could not be verified' : null,
         reviewedById: user.id,
         reviewedAt: new Date(),
       },

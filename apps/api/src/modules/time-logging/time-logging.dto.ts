@@ -24,6 +24,8 @@ export const locationUpdateSchema = z.object({
   accuracy: z.number().positive().optional().nullable(),
   address: z.string().max(500).optional().nullable(),
   source: z.string().max(50).optional(),
+  eventId: z.string().min(8).max(100).optional(),
+  capturedAt: z.iso.datetime().optional(),
 });
 export type LocationUpdateDto = z.infer<typeof locationUpdateSchema>;
 
@@ -44,14 +46,20 @@ export type ResumeShiftDto = z.infer<typeof resumeShiftSchema>;
 
 export const timelineQuerySchema = z.object({
   agentId: z.string().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in format YYYY-MM-DD' }).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in format YYYY-MM-DD' })
+    .optional(),
 });
 export type TimelineQueryDto = z.infer<typeof timelineQuerySchema>;
 
 export const historyQuerySchema = z.object({
   agentId: z.string().optional(),
   shiftId: z.string().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in format YYYY-MM-DD' }).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in format YYYY-MM-DD' })
+    .optional(),
 });
 export type HistoryQueryDto = z.infer<typeof historyQuerySchema>;
 

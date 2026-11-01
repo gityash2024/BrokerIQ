@@ -22,7 +22,13 @@ export class RealtimeGateway implements OnGatewayConnection {
       const payload = this.jwt.verify(token, { secret: env().JWT_ACCESS_SECRET });
       const current = await this.prisma.user.findUnique({ where: { id: payload.sub }, include: { organization: { select: { status: true } } } });
       const version = payload.sessionVersion ?? 0;
-      const session = typeof payload.sid === 'string' ? await this.prisma.refreshToken.findFirst({ where: { id: payload.sid, userId: payload.sub, sessionVersion: version, revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true } }) : null;
+      const session =
+        typeof payload.sid === 'string'
+          ? await this.prisma.refreshToken.findFirst({
+              where: { id: payload.sid, userId: payload.sub, sessionVersion: version, revokedAt: null, expiresAt: { gt: new Date() } },
+              select: { id: true },
+            })
+          : null;
       if (
         !session ||
         !current ||
@@ -32,7 +38,8 @@ export class RealtimeGateway implements OnGatewayConnection {
         current.deletedAt ||
         (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED') ||
         (env().BROKER_FIRST &&
-          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(current.role) || (['BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) && !current.organizationId)))
+          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(current.role) ||
+            (['BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) && !current.organizationId)))
       ) {
         client.disconnect(true);
         return;
@@ -52,10 +59,12 @@ export class RealtimeGateway implements OnGatewayConnection {
   }
 
   disconnectSession(sessionId: string) {
+    this.server?.to(`session:${sessionId}`).emit('session.revoked', { reason: 'DEVICE_REVOKED' });
     this.server?.in(`session:${sessionId}`).disconnectSockets(true);
   }
 
   disconnectUser(userId: string) {
+    this.server?.to(`user:${userId}`).emit('session.revoked', { reason: 'ACCOUNT_ACCESS_CHANGED' });
     this.server?.in(`user:${userId}`).disconnectSockets(true);
   }
 
@@ -75,7 +84,9 @@ export class RealtimeGateway implements OnGatewayConnection {
       if (!conversation) return;
       this.toOrg(orgId, event, data);
       if (conversation.lead?.assignedToId) {
-        const agent = await this.prisma.user.findFirst({ where: { id: conversation.lead.assignedToId, organizationId: orgId, role: 'BROKER_AGENT', status: 'ACTIVE', deletedAt: null } });
+        const agent = await this.prisma.user.findFirst({
+          where: { id: conversation.lead.assignedToId, organizationId: orgId, role: 'BROKER_AGENT', status: 'ACTIVE', deletedAt: null },
+        });
         if (agent) this.toUser(agent.id, event, data);
       }
     } catch {

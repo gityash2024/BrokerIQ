@@ -46,7 +46,7 @@ for (const suite of SUITES) {
   process.stdout.write(`▶ Running [${suite.tier}] ${suite.name}... `);
 
   const t0 = Date.now();
-  const proc = spawnSync('npx', ['tsx', '--tsconfig', 'apps/web/tsconfig.json', '--test', filePath], {
+  const proc = spawnSync('pnpm', ['exec', 'tsx', '--tsconfig', 'apps/web/tsconfig.json', '--test', filePath], {
     cwd: path.resolve(__dirname, '../..'),
     encoding: 'utf-8',
     env: process.env,

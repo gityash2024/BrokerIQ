@@ -62,10 +62,12 @@ export class ImportsService {
     return user.orgId;
   }
   private scope(user: RequestUser) {
-    return user.role === 'SUPER_ADMIN' ? {} : {
-      organizationId: this.org(user),
-      ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}),
-    };
+    return user.role === 'SUPER_ADMIN'
+      ? {}
+      : {
+          organizationId: this.org(user),
+          ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}),
+        };
   }
   async list(user: RequestUser, page = 1) {
     const where = this.scope(user);
@@ -153,7 +155,8 @@ export class ImportsService {
       }
       await this.audit.log(user, 'import.capture', 'ImportBatch', batch.id, { sourceType: input.sourceType });
     }
-    if (user.role === 'BROKER_AGENT' && batch.createdById !== user.id) throw new ForbiddenException('This source is already captured by another firm member. Ask your firm administrator to review it.');
+    if (user.role === 'BROKER_AGENT' && batch.createdById !== user.id)
+      throw new ForbiddenException('This source is already captured by another firm member. Ask your firm administrator to review it.');
     if (batch.status === 'PENDING') await this.jobs.enqueue('import.extract', { batchId: batch.id }, { key: `import:${batch.id}` });
     return { id: batch.id, status: batch.status };
   }
@@ -349,7 +352,14 @@ export class ImportsService {
               throw new ForbiddenException('Lead belongs to another firm');
             await tx.brokerRequirement.upsert({
               where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
-              create: { ...data, organizationId: entry.batch.organizationId, createdById: entry.batch.createdById, assignedToId: user.role === 'BROKER_AGENT' ? user.id : null, sourceEntryId: entry.id, sourceUnitKey },
+              create: {
+                ...data,
+                organizationId: entry.batch.organizationId,
+                createdById: entry.batch.createdById,
+                assignedToId: user.role === 'BROKER_AGENT' ? user.id : null,
+                sourceEntryId: entry.id,
+                sourceUnitKey,
+              },
               update: {},
             });
           }

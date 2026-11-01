@@ -484,9 +484,7 @@ export default function PostProperty() {
               </View>
               <Input label="Title (optional — खाली छोड़ें तो अपने-आप बनेगा)" value={f.title ?? ''} onChangeText={(v) => set({ title: v })} />
               <Input label="Description" value={f.description ?? ''} onChangeText={(v) => set({ description: v })} multiline />
-              {false && (
-                <Button title="AI से description लिखवाएँ" variant="secondary" loading={aiBusy} icon={<Sparkles size={18} color={c.accent} />} onPress={ai} />
-              )}
+
               <Row>
                 <Input label="Contact name" value={f.contactName ?? ''} onChangeText={(v) => set({ contactName: v })} containerStyle={{ flex: 1 }} />
                 <Input

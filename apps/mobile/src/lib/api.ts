@@ -33,21 +33,41 @@ const KEY = 'biq.session';
 
 export const useSession = create<{ session: Session | null; ready: boolean }>(() => ({ session: null, ready: false }));
 
+let sessionRevision = 0;
+let sessionPersistence: Promise<void> = Promise.resolve();
+const sessionResets = new Set<() => void | Promise<void>>();
+export function registerSessionReset(reset: () => void | Promise<void>) {
+  sessionResets.add(reset);
+  return () => {
+    sessionResets.delete(reset);
+  };
+}
 export const authStore = {
   async load() {
+    const revision = sessionRevision;
     try {
       const raw = await SecureStore.getItemAsync(KEY);
+      if (revision !== sessionRevision) return;
       useSession.setState({ session: raw ? JSON.parse(raw) : null, ready: true });
     } catch {
-      useSession.setState({ session: null, ready: true });
+      if (revision === sessionRevision) useSession.setState({ session: null, ready: true });
     }
   },
   get: () => useSession.getState().session,
   async set(s: Session | null) {
-    if (authStore.get()?.user.id !== s?.user.id) queryClient.clear();
+    const revision = ++sessionRevision;
+    const changed = authStore.get()?.user.id !== s?.user.id;
+    if (changed) queryClient.clear();
     useSession.setState({ session: s });
-    if (s) await SecureStore.setItemAsync(KEY, JSON.stringify(s));
-    else await SecureStore.deleteItemAsync(KEY);
+    if (changed) await Promise.allSettled([...sessionResets].map((reset) => Promise.resolve().then(reset)));
+    sessionPersistence = sessionPersistence
+      .catch(() => undefined)
+      .then(async () => {
+        if (revision !== sessionRevision) return;
+        if (s) await SecureStore.setItemAsync(KEY, JSON.stringify(s));
+        else await SecureStore.deleteItemAsync(KEY);
+      });
+    await sessionPersistence;
   },
 };
 
@@ -105,6 +125,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     throw new ApiError(0, { statusCode: 0, code: 'INTERNAL', message: 'Server से connect नहीं हो पाया — internet check करें' } as ApiErrorBody);
   }
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
+  if (auth && authStore.get()?.user.id !== ownerId) throw new Error('Account changed. The response belongs to the original account.');
   const text = await res.text();
   let data: any = null;
   try {

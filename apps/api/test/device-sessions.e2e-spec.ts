@@ -23,17 +23,27 @@ describe('Stable device sessions and explicit replacement', () => {
   const activeCount = (userId: string) => db.refreshToken.count({ where: { userId, revokedAt: null, expiresAt: { gt: new Date() } } });
   beforeAll(async () => {
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = mod.createNestApplication(); configureApp(app); await app.init();
-    db = app.get(PrismaService); auth = app.get(AuthService);
-    user = await db.user.create({ data: { email: 'sessions.' + uid + '@e2e.test', name: 'Isolated session fixture', role: 'USER' }, include: { organization: true } });
+    app = mod.createNestApplication();
+    configureApp(app);
+    await app.init();
+    db = app.get(PrismaService);
+    auth = app.get(AuthService);
+    user = await db.user.create({
+      data: { email: 'sessions.' + uid + '@e2e.test', name: 'Isolated session fixture', role: 'USER' },
+      include: { organization: true },
+    });
     sessions = [];
     for (let i = 0; i < 5; i++) sessions.push(await auth.issue(user, { userAgent: 'Device ' + i }));
   });
-  afterAll(async () => { await app?.close(); });
+  afterAll(async () => {
+    await app?.close();
+  });
 
   it('the sixth login returns a short-lived selection and keeps all five sessions alive', async () => {
-    try { await auth.issue(user); throw new Error('Expected session challenge'); }
-    catch (error: any) {
+    try {
+      await auth.issue(user);
+      throw new Error('Expected session challenge');
+    } catch (error: any) {
       const body = error.getResponse();
       expect(body.code).toBe('SESSION_LIMIT_REACHED');
       expect(body.details.sessions).toHaveLength(5);
@@ -48,12 +58,18 @@ describe('Stable device sessions and explicit replacement', () => {
   it('only an owned active device can be selected; invalid selection never evicts another device', async () => {
     await request(app.getHttpServer()).post('/api/auth/sessions/replace').send({ challenge, sessionId: 'foreign-session' }).expect(409);
     expect(await activeCount(user.id)).toBe(5);
-    const result = await request(app.getHttpServer()).post('/api/auth/sessions/replace').send({ challenge, sessionId: sid(sessions[0].accessToken) }).expect(200);
+    const result = await request(app.getHttpServer())
+      .post('/api/auth/sessions/replace')
+      .send({ challenge, sessionId: sid(sessions[0].accessToken) })
+      .expect(200);
     replacement = result.body;
     expect(await activeCount(user.id)).toBe(5);
     await request(app.getHttpServer()).get('/api/auth/me').auth(sessions[0].accessToken, { type: 'bearer' }).expect(401);
     for (const session of sessions.slice(1)) await request(app.getHttpServer()).get('/api/auth/me').auth(session.accessToken, { type: 'bearer' }).expect(200);
-    const retry = await request(app.getHttpServer()).post('/api/auth/sessions/replace').send({ challenge, sessionId: sid(sessions[1].accessToken) }).expect(200);
+    const retry = await request(app.getHttpServer())
+      .post('/api/auth/sessions/replace')
+      .send({ challenge, sessionId: sid(sessions[1].accessToken) })
+      .expect(200);
     expect(retry.body.refreshToken).toBe(replacement.refreshToken);
     expect(await activeCount(user.id)).toBe(5);
   });
@@ -92,7 +108,10 @@ describe('Stable device sessions and explicit replacement', () => {
   });
 
   it('upgrades a legacy refresh row without creating an extra device or requiring password login', async () => {
-    const legacyUser = await db.user.create({ data: { email: 'legacy.' + uid + '@e2e.test', name: 'Legacy fixture', role: 'USER' }, include: { organization: true } });
+    const legacyUser = await db.user.create({
+      data: { email: 'legacy.' + uid + '@e2e.test', name: 'Legacy fixture', role: 'USER' },
+      include: { organization: true },
+    });
     const token = 'legacy-test-refresh-' + uid;
     const row = await db.refreshToken.create({ data: { userId: legacyUser.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 86400_000) } });
     const upgraded = await auth.refresh(token, {});

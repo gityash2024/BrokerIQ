@@ -98,14 +98,10 @@ export default function Profile() {
   const setMode = useThemeMode((s) => s.setMode);
   const nextMode = mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
   const handleLogout = () => {
-    Alert.alert(
-      tr('Log out of BrokerIQ?'),
-      tr('Are you sure you want to log out of your account?'),
-      [
-        { text: tr('Cancel'), style: 'cancel' },
-        { text: tr('Log out'), style: 'destructive', onPress: logout },
-      ]
-    );
+    Alert.alert(tr('Log out of BrokerIQ?'), tr('Are you sure you want to log out of your account?'), [
+      { text: tr('Cancel'), style: 'cancel' },
+      { text: tr('Log out'), style: 'destructive', onPress: logout },
+    ]);
   };
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -263,24 +259,8 @@ export default function Profile() {
                 onPress={() => router.push('/admin')}
               />
             )}
-            {false && (
-              <Item
-                icon={<BadgeCheck size={20} color={c.success} />}
-                tint={c.success}
-                label="Verified tenant बनें"
-                sub="Office email से — brokers जल्दी जवाब देते हैं"
-                onPress={() => router.push(user ? '/verify-tenant' : '/login')}
-              />
-            )}
+
             <Item icon={<Send size={20} color={c.info} />} tint={c.info} label="मेरी enquiries" onPress={() => router.push(user ? '/enquiries' : '/login')} />
-            {false && (
-              <Item
-                icon={<Calculator size={20} color={c.success} />}
-                tint={c.success}
-                label="Rent budget, move-in cost & split"
-                onPress={() => router.push('/tools')}
-              />
-            )}
           </Group>
           <Group title="Account">
             {user && <Item icon={<Bell size={20} color={c.brand} />} label="Notifications" onPress={() => router.push('/notifications')} />}

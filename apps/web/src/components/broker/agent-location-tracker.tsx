@@ -1,46 +1,57 @@
 'use client';
-
 import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 
+/** Browser tracking is limited to an open page and an explicitly active shift. */
 export function AgentLocationTracker() {
   const { user } = useAuth();
-  const lastSentRef = useRef<number>(0);
-
+  const lastSentRef = useRef(0);
+  const status = useQuery({
+    queryKey: ['time-logging-status', user?.id],
+    queryFn: () => api<{ activeShift: { id: string; status: string; pauseReason?: string } | null }>('/time-logging/status'),
+    enabled: !!user && ['BROKER_AGENT', 'BROKER_ADMIN'].includes(user.role),
+    refetchInterval: 30_000,
+  });
+  const shift = status.data?.activeShift;
+  const enabled = shift?.status === 'ACTIVE' || (shift?.status === 'PAUSED' && shift.pauseReason === 'GPS_SIGNAL_LOST');
   useEffect(() => {
-    if (!user || (user.role !== 'BROKER_AGENT' && user.role !== 'BROKER_ADMIN')) return;
-    if (typeof window === 'undefined' || !navigator.geolocation) return;
-
-    const report = (pos: GeolocationPosition) => {
-      const now = Date.now();
-      // Send at most once every 45 seconds
-      if (now - lastSentRef.current < 45 * 1000) return;
-      lastSentRef.current = now;
-
-      api('/broker/team/agent-location', {
-        method: 'POST',
-        body: {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy ?? null,
-          source: 'WEB_BROWSER',
-        },
-      }).catch((err) => {
-        console.warn('Agent location report failed:', err);
-      });
+    if (!user || !shift || !enabled || !navigator.geolocation) return;
+    const owner = user.id;
+    let cancelled = false;
+    const report = async (pos: GeolocationPosition) => {
+      if (cancelled || Date.now() - lastSentRef.current < 15 * 60_000) return;
+      lastSentRef.current = Date.now();
+      try {
+        const current = await api<{ activeShift: { id: string; status: string; pauseReason?: string } | null }>('/time-logging/status', { ownerId: owner });
+        if (
+          cancelled ||
+          current.activeShift?.id !== shift.id ||
+          (current.activeShift.status !== 'ACTIVE' && current.activeShift.pauseReason !== 'GPS_SIGNAL_LOST')
+        )
+          return;
+        await api('/time-logging/location', {
+          ownerId: owner,
+          body: {
+            shiftId: shift.id,
+            eventId: crypto.randomUUID(),
+            capturedAt: new Date(pos.timestamp).toISOString(),
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            source: 'WEB_BROWSER',
+          },
+        });
+      } catch {
+        lastSentRef.current = 0;
+      }
     };
-
-    navigator.geolocation.getCurrentPosition(report, (err) => {
-      console.warn('Geolocation permission or device error:', err?.message);
-    }, { enableHighAccuracy: true });
-
-    const watchId = navigator.geolocation.watchPosition(report, () => {}, { enableHighAccuracy: true, maximumAge: 30000 });
-
+    const watchId = navigator.geolocation.watchPosition(report, () => {}, { enableHighAccuracy: false, maximumAge: 30_000 });
     return () => {
+      cancelled = true;
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [user]);
-
+  }, [user?.id, shift?.id, enabled]);
   return null;
 }

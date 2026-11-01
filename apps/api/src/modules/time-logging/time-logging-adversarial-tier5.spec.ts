@@ -1,7 +1,8 @@
+// Simulated unit scenarios only; real concurrency/ownership acceptance is in test/location-events.e2e-spec.ts.
 /**
  * Tier 5 White-Box Adversarial Hardening Test Suite (Jest)
  * Role: Milestone 4 Tier 5 Adversarial Hardening Challenger
- * 
+ *
  * Directly stress-tests backend services and utilities:
  * 1. Concurrent punch-in / punch-out race conditions
  * 2. Time-travel & timezone boundaries (IST midnight transitions, DST, leap year)
@@ -27,10 +28,7 @@ class InMemoryPrismaMock {
   public organizations: any[] = [];
 
   constructor() {
-    this.organizations.push(
-      { id: 'org_firm_a', status: 'ACTIVE', createdAt: new Date() },
-      { id: 'org_firm_b', status: 'ACTIVE', createdAt: new Date() }
-    );
+    this.organizations.push({ id: 'org_firm_a', status: 'ACTIVE', createdAt: new Date() }, { id: 'org_firm_b', status: 'ACTIVE', createdAt: new Date() });
     this.users.push(
       {
         id: 'agent_firm_a_1',
@@ -55,7 +53,7 @@ class InMemoryPrismaMock {
         role: 'BROKER_AGENT',
         orgId: 'org_firm_b',
         organizationId: 'org_firm_b',
-      }
+      },
     );
   }
 
@@ -99,15 +97,17 @@ class InMemoryPrismaMock {
       };
     }),
     findMany: jest.fn(async (query: any) => {
-      return this.shifts.filter((s) => {
-        if (query.where?.userId && s.userId !== query.where.userId) return false;
-        if (query.where?.organizationId && s.organizationId !== query.where.organizationId) return false;
-        return true;
-      }).map((s) => ({
-        ...s,
-        intervals: query.include?.intervals ? this.intervals.filter((i) => i.shiftId === s.id) : [],
-        locations: query.include?.locations ? this.locations.filter((l) => l.shiftId === s.id) : [],
-      }));
+      return this.shifts
+        .filter((s) => {
+          if (query.where?.userId && s.userId !== query.where.userId) return false;
+          if (query.where?.organizationId && s.organizationId !== query.where.organizationId) return false;
+          return true;
+        })
+        .map((s) => ({
+          ...s,
+          intervals: query.include?.intervals ? this.intervals.filter((i) => i.shiftId === s.id) : [],
+          locations: query.include?.locations ? this.locations.filter((l) => l.shiftId === s.id) : [],
+        }));
     }),
     create: jest.fn(async ({ data }: any) => {
       if (['ACTIVE', 'PAUSED'].includes(data.status)) {
@@ -132,7 +132,7 @@ class InMemoryPrismaMock {
 
   shiftLocation = {
     create: jest.fn(async ({ data }: any) => {
-      const loc = { id: `loc_${Date.now()}_${Math.random()}`, ...data, capturedAt: data.capturedAt || new Date() };
+      const loc = { id: `loc_${Date.now()}_${Math.random()}`, ...data, capturedAt: data.capturedAt || new Date(), receivedAt: data.receivedAt || new Date() };
       this.locations.push(loc);
       return loc;
     }),
@@ -146,7 +146,14 @@ class InMemoryPrismaMock {
     count: jest.fn(async () => this.locations.length),
   };
 
+  $executeRaw = jest.fn(async () => 1);
+
   shiftInterval = {
+    updateMany: jest.fn(async ({ where, data }: any) => {
+      const rows = this.intervals.filter((i) => i.shiftId === where.shiftId && (where.endTime !== null || !i.endTime));
+      rows.forEach((i) => Object.assign(i, data));
+      return { count: rows.length };
+    }),
     create: jest.fn(async ({ data }: any) => {
       const inv = { id: `inv_${Date.now()}_${Math.random()}`, ...data, startTime: data.startTime || new Date() };
       this.intervals.push(inv);
@@ -159,12 +166,14 @@ class InMemoryPrismaMock {
       return inv;
     }),
     findFirst: jest.fn(async (query: any) => {
-      return this.intervals.find((i) => {
-        if (query.where?.shiftId && i.shiftId !== query.where.shiftId) return false;
-        if (query.where?.status && i.status !== query.where.status) return false;
-        if (query.where?.endTime === null && i.endTime !== null && i.endTime !== undefined) return false;
-        return true;
-      }) || null;
+      return (
+        this.intervals.find((i) => {
+          if (query.where?.shiftId && i.shiftId !== query.where.shiftId) return false;
+          if (query.where?.status && i.status !== query.where.status) return false;
+          if (query.where?.endTime === null && i.endTime !== null && i.endTime !== undefined) return false;
+          return true;
+        }) || null
+      );
     }),
     findMany: jest.fn(async (query: any) => {
       return this.intervals.filter((i) => {
@@ -203,9 +212,7 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
   // =========================================================================
   describe('1. Concurrent Race Conditions', () => {
     it('T5.B.1.1: 10 parallel punch-in calls from same user -> exactly 1 succeeds, 9 fail with 409', async () => {
-      const calls = Array.from({ length: 10 }, (_, i) =>
-        service.punchIn(agentUser, { latitude: 28.45 + i * 0.001, longitude: 77.05 + i * 0.001 })
-      );
+      const calls = Array.from({ length: 10 }, (_, i) => service.punchIn(agentUser, { latitude: 28.45 + i * 0.001, longitude: 77.05 + i * 0.001 }));
 
       const results = await Promise.allSettled(calls);
       const fulfilled = results.filter((r) => r.status === 'fulfilled');
@@ -221,9 +228,7 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
       }
 
       // Verify only 1 active shift was created
-      const activeShifts = inMemoryPrisma.shifts.filter(
-        (s) => s.userId === agentUser.id && ['ACTIVE', 'PAUSED'].includes(s.status)
-      );
+      const activeShifts = inMemoryPrisma.shifts.filter((s) => s.userId === agentUser.id && ['ACTIVE', 'PAUSED'].includes(s.status));
       expect(activeShifts.length).toBe(1);
     });
 
@@ -248,7 +253,7 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
           latitude: 28.45 + i * 0.001,
           longitude: 77.05 + i * 0.001,
           address: `Concurrent Location ${i}`,
-        })
+        }),
       );
 
       const results = await Promise.all(pings);
@@ -302,7 +307,7 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
       inMemoryPrisma.intervals.push(
         { id: 'inv1', shiftId, startTime: tStart, endTime: tPause, status: 'ACTIVE', reason: 'PUNCH_IN' },
         { id: 'inv2', shiftId, startTime: tPause, endTime: tResume, status: 'PAUSED', reason: 'GPS_SIGNAL_LOST' },
-        { id: 'inv3', shiftId, startTime: tResume, endTime: null, status: 'ACTIVE', reason: 'GPS_RESTORED' }
+        { id: 'inv3', shiftId, startTime: tResume, endTime: null, status: 'ACTIVE', reason: 'GPS_RESTORED' },
       );
 
       const realDate = global.Date;
@@ -343,17 +348,11 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
       // Admin of Firm A attempts to access Agent of Firm B
       const victimId = 'agent_firm_b_1';
 
-      await expect(
-        service.getTimeline(adminFirmA, { agentId: victimId })
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getTimeline(adminFirmA, { agentId: victimId })).rejects.toThrow(ForbiddenException);
 
-      await expect(
-        service.getHistory(adminFirmA, { agentId: victimId })
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getHistory(adminFirmA, { agentId: victimId })).rejects.toThrow(ForbiddenException);
 
-      await expect(
-        service.getStatus(adminFirmA, victimId)
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getStatus(adminFirmA, victimId)).rejects.toThrow(ForbiddenException);
     });
 
     it('T5.B.3.2: resolveOrgId in getSummary forces caller orgId, ignoring spoofed brokerId', async () => {
@@ -377,7 +376,7 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
       const shiftId = start.shift.id;
 
       for (let i = 0; i < 10; i++) {
-        const pauseRes = await service.pauseShift(agentUser, { shiftId, reason: `RAPID_FLAP_PAUSE_${i}` });
+        const pauseRes = await service.pauseShift(agentUser, { shiftId, reason: 'GPS_SIGNAL_LOST' });
         expect(pauseRes.status).toBe('PAUSED');
 
         const locRes = await service.recordLocation(agentUser, {
@@ -457,13 +456,7 @@ describe('Tier 5 White-Box Adversarial Hardening Suite', () => {
     });
 
     it('T5.B.5.3: renderPdf renders multi-page tabular document cleanly without memory leak', async () => {
-      const testRows = Array.from({ length: 200 }, (_, i) => [
-        String(i + 1),
-        pdfText(`Agent ${i + 1}`),
-        'BROKER_AGENT',
-        'AADHAAR',
-        'VERIFIED',
-      ]);
+      const testRows = Array.from({ length: 200 }, (_, i) => [String(i + 1), pdfText(`Agent ${i + 1}`), 'BROKER_AGENT', 'AADHAAR', 'VERIFIED']);
 
       const buffer = await renderPdf((doc) => {
         doc.font('B').fontSize(14).text('BrokerIQ — Tier 5 Multi-Page Test Report');

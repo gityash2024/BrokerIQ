@@ -1,3 +1,4 @@
+import '@/lib/background-shift-tracking';
 import { useEffect } from 'react';
 import { Linking, View } from 'react-native';
 import { Stack, router } from 'expo-router';

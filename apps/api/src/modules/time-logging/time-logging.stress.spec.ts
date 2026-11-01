@@ -1,3 +1,4 @@
+// Simulated unit scenarios only; real concurrency/ownership acceptance is in test/location-events.e2e-spec.ts.
 /**
  * Milestone 1 Time Logging & Location Empirical Stress Test Suite
  * Adversarial Challenger: M1.1
@@ -7,13 +8,7 @@
 import { HttpStatus, ForbiddenException } from '@nestjs/common';
 import { TimeLoggingService } from './time-logging.service';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
-import {
-  punchInSchema,
-  punchOutSchema,
-  locationUpdateSchema,
-  pauseShiftSchema,
-  resumeShiftSchema,
-} from './time-logging.dto';
+import { punchInSchema, punchOutSchema, locationUpdateSchema, pauseShiftSchema, resumeShiftSchema } from './time-logging.dto';
 import { AppException } from '../../common/exceptions';
 import { ErrorCode } from '@brokeriq/shared';
 import type { RequestUser } from '../../common/decorators';
@@ -47,28 +42,36 @@ class InMemoryPrismaMock {
         if (query.where.status?.in && !query.where.status.in.includes(s.status)) return false;
         if (query.where.status && typeof query.where.status === 'string' && s.status !== query.where.status) return false;
         return true;
-      }) ? {
-        ...this.shifts.find((s) => {
-          if (query.where.userId && s.userId !== query.where.userId) return false;
-          if (query.where.id && s.id !== query.where.id) return false;
-          if (query.where.status?.in && !query.where.status.in.includes(s.status)) return false;
-          if (query.where.status && typeof query.where.status === 'string' && s.status !== query.where.status) return false;
-          return true;
-        }),
-        intervals: query.include?.intervals ? this.intervals.filter((i) => i.shiftId === (query.where.id || this.shifts[this.shifts.length - 1]?.id)) : undefined,
-        locations: query.include?.locations ? this.locations.filter((l) => l.shiftId === (query.where.id || this.shifts[this.shifts.length - 1]?.id)) : undefined,
-      } : null;
+      })
+        ? {
+            ...this.shifts.find((s) => {
+              if (query.where.userId && s.userId !== query.where.userId) return false;
+              if (query.where.id && s.id !== query.where.id) return false;
+              if (query.where.status?.in && !query.where.status.in.includes(s.status)) return false;
+              if (query.where.status && typeof query.where.status === 'string' && s.status !== query.where.status) return false;
+              return true;
+            }),
+            intervals: query.include?.intervals
+              ? this.intervals.filter((i) => i.shiftId === (query.where.id || this.shifts[this.shifts.length - 1]?.id))
+              : undefined,
+            locations: query.include?.locations
+              ? this.locations.filter((l) => l.shiftId === (query.where.id || this.shifts[this.shifts.length - 1]?.id))
+              : undefined,
+          }
+        : null;
     }),
     findMany: jest.fn(async (query: any) => {
-      return this.shifts.filter((s) => {
-        if (query.where.userId && s.userId !== query.where.userId) return false;
-        if (query.where.organizationId && s.organizationId !== query.where.organizationId) return false;
-        return true;
-      }).map((s) => ({
-        ...s,
-        intervals: query.include?.intervals ? this.intervals.filter((i) => i.shiftId === s.id) : [],
-        locations: query.include?.locations ? this.locations.filter((l) => l.shiftId === s.id) : [],
-      }));
+      return this.shifts
+        .filter((s) => {
+          if (query.where.userId && s.userId !== query.where.userId) return false;
+          if (query.where.organizationId && s.organizationId !== query.where.organizationId) return false;
+          return true;
+        })
+        .map((s) => ({
+          ...s,
+          intervals: query.include?.intervals ? this.intervals.filter((i) => i.shiftId === s.id) : [],
+          locations: query.include?.locations ? this.locations.filter((l) => l.shiftId === s.id) : [],
+        }));
     }),
     create: jest.fn(async ({ data }: any) => {
       if (['ACTIVE', 'PAUSED'].includes(data.status)) {
@@ -93,7 +96,7 @@ class InMemoryPrismaMock {
 
   shiftLocation = {
     create: jest.fn(async ({ data }: any) => {
-      const loc = { id: `loc_${Date.now()}_${Math.random()}`, ...data, capturedAt: data.capturedAt || new Date() };
+      const loc = { id: `loc_${Date.now()}_${Math.random()}`, ...data, capturedAt: data.capturedAt || new Date(), receivedAt: data.receivedAt || new Date() };
       this.locations.push(loc);
       return loc;
     }),
@@ -112,7 +115,14 @@ class InMemoryPrismaMock {
     }),
   };
 
+  $executeRaw = jest.fn(async () => 1);
+
   shiftInterval = {
+    updateMany: jest.fn(async ({ where, data }: any) => {
+      const rows = this.intervals.filter((i) => i.shiftId === where.shiftId && (where.endTime !== null || !i.endTime));
+      rows.forEach((i) => Object.assign(i, data));
+      return { count: rows.length };
+    }),
     create: jest.fn(async ({ data }: any) => {
       const inv = { id: `inv_${Date.now()}_${Math.random()}`, ...data, startTime: data.startTime || new Date() };
       this.intervals.push(inv);
@@ -125,12 +135,14 @@ class InMemoryPrismaMock {
       return inv;
     }),
     findFirst: jest.fn(async (query: any) => {
-      return this.intervals.find((i) => {
-        if (query.where.shiftId && i.shiftId !== query.where.shiftId) return false;
-        if (query.where.status && i.status !== query.where.status) return false;
-        if (query.where.endTime === null && i.endTime !== null && i.endTime !== undefined) return false;
-        return true;
-      }) || null;
+      return (
+        this.intervals.find((i) => {
+          if (query.where.shiftId && i.shiftId !== query.where.shiftId) return false;
+          if (query.where.status && i.status !== query.where.status) return false;
+          if (query.where.endTime === null && i.endTime !== null && i.endTime !== undefined) return false;
+          return true;
+        }) || null
+      );
     }),
     findMany: jest.fn(async (query: any) => {
       return this.intervals.filter((i) => {
@@ -247,13 +259,9 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
     });
 
     it('STRESS-1.6: service layer throws BAD_REQUEST if invalid coordinates bypass pipe', async () => {
-      await expect(
-        service.punchIn(mockAgentUser, { latitude: undefined as any, longitude: 77.05 }),
-      ).rejects.toThrow(AppException);
+      await expect(service.punchIn(mockAgentUser, { latitude: undefined as any, longitude: 77.05 })).rejects.toThrow(AppException);
 
-      await expect(
-        service.recordLocation(mockAgentUser, { latitude: 'invalid' as any, longitude: 77.05 }),
-      ).rejects.toThrow(AppException);
+      await expect(service.recordLocation(mockAgentUser, { latitude: 'invalid' as any, longitude: 77.05 })).rejects.toThrow(AppException);
     });
   });
 
@@ -267,17 +275,13 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
       expect(start.status).toBe('ACTIVE');
 
       // 2. Second Punch In while ACTIVE
-      await expect(
-        service.punchIn(mockAgentUser, { latitude: 28.46, longitude: 77.06 }),
-      ).rejects.toThrow(AppException);
+      await expect(service.punchIn(mockAgentUser, { latitude: 28.46, longitude: 77.06 })).rejects.toThrow(AppException);
 
       // 3. Pause shift
-      await service.pauseShift(mockAgentUser, { reason: 'GPS_DISABLED' });
+      await service.pauseShift(mockAgentUser, { reason: 'GPS_SIGNAL_LOST' });
 
       // 4. Third Punch In while PAUSED
-      await expect(
-        service.punchIn(mockAgentUser, { latitude: 28.46, longitude: 77.06 }),
-      ).rejects.toThrow(AppException);
+      await expect(service.punchIn(mockAgentUser, { latitude: 28.46, longitude: 77.06 })).rejects.toThrow(AppException);
     });
 
     it('STRESS-2.2: Punch-Out when not on duty throws BAD_REQUEST (400)', async () => {
@@ -323,7 +327,7 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
       const shiftId = start.shift.id;
 
       // Pause shift due to GPS loss
-      await service.pauseShift(mockAgentUser, { shiftId, reason: 'GPS_DISABLED' });
+      await service.pauseShift(mockAgentUser, { shiftId, reason: 'GPS_SIGNAL_LOST' });
       expect(inMemoryPrisma.shifts[0].status).toBe('PAUSED');
 
       // Periodic location ping arrives
@@ -356,13 +360,7 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
           latitude: 28.455,
           longitude: 77.055,
         }),
-      ).rejects.toThrow(
-        new AppException(
-          HttpStatus.BAD_REQUEST,
-          ErrorCode.VALIDATION_FAILED,
-          'Cannot record location for a completed shift',
-        ),
-      );
+      ).rejects.toThrow(new AppException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, 'Cannot record location for a completed shift'));
     });
 
     it('STRESS-2.6: Concurrent punchIn requests race condition prevented', async () => {
@@ -383,9 +381,7 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
       expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
 
       // Verify only 1 active shift was created in DB
-      const activeShifts = inMemoryPrisma.shifts.filter(
-        (s) => s.userId === mockAgentUser.id && ['ACTIVE', 'PAUSED'].includes(s.status),
-      );
+      const activeShifts = inMemoryPrisma.shifts.filter((s) => s.userId === mockAgentUser.id && ['ACTIVE', 'PAUSED'].includes(s.status));
       expect(activeShifts.length).toBe(1);
     });
   });
@@ -413,7 +409,7 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
 
       inMemoryPrisma.intervals.push(
         { id: 'i1', shiftId, startTime: t0, endTime: tPause, status: 'ACTIVE', reason: 'PUNCH_IN' },
-        { id: 'i2', shiftId, startTime: tPause, endTime: tResume, status: 'PAUSED', reason: 'GPS_DISABLED' },
+        { id: 'i2', shiftId, startTime: tPause, endTime: tResume, status: 'PAUSED', reason: 'GPS_SIGNAL_LOST' },
         { id: 'i3', shiftId, startTime: tResume, endTime: null, status: 'ACTIVE', reason: 'GPS_RESTORED' },
       );
 
@@ -454,13 +450,13 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
         organizationId: 'org_1',
         punchInAt: t0,
         status: 'PAUSED',
-        pauseReason: 'GPS_DISABLED',
+        pauseReason: 'GPS_SIGNAL_LOST',
         totalMinutes: 0,
       });
 
       inMemoryPrisma.intervals.push(
         { id: 'i1', shiftId, startTime: t0, endTime: tPause, status: 'ACTIVE', reason: 'PUNCH_IN' },
-        { id: 'i2', shiftId, startTime: tPause, endTime: null, status: 'PAUSED', reason: 'GPS_DISABLED' },
+        { id: 'i2', shiftId, startTime: tPause, endTime: null, status: 'PAUSED', reason: 'GPS_SIGNAL_LOST' },
       );
 
       const realDate = global.Date;
@@ -505,6 +501,8 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
           latitude: 28.45 + i * 0.001,
           longitude: 77.05 + i * 0.001,
         });
+        expect(inMemoryPrisma.shifts[0].status).toBe('PAUSED');
+        await service.resumeShift(mockAgentUser, { shiftId });
         expect(inMemoryPrisma.shifts[0].status).toBe('ACTIVE');
       }
 
@@ -535,7 +533,7 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
 
       inMemoryPrisma.intervals.push(
         { id: 'i1', shiftId, startTime: t0, endTime: tPause, status: 'ACTIVE', reason: 'PUNCH_IN' },
-        { id: 'i2', shiftId, startTime: tPause, endTime: null, status: 'PAUSED', reason: 'GPS_DISABLED' },
+        { id: 'i2', shiftId, startTime: tPause, endTime: null, status: 'PAUSED', reason: 'GPS_SIGNAL_LOST' },
       );
 
       const status = await service.getStatus(mockAgentUser);
@@ -569,10 +567,7 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
         { id: adminFirmA.id, name: 'Admin Firm A', role: adminFirmA.role, orgId: adminFirmA.orgId },
         { id: agentFirmB.id, name: 'Agent Firm B', role: agentFirmB.role, orgId: agentFirmB.orgId },
       );
-      inMemoryPrisma.organizations.push(
-        { id: 'org_firm_a', status: 'ACTIVE' },
-        { id: 'org_firm_b', status: 'ACTIVE' },
-      );
+      inMemoryPrisma.organizations.push({ id: 'org_firm_a', status: 'ACTIVE' }, { id: 'org_firm_b', status: 'ACTIVE' });
 
       // Create a shift with GPS points for Agent Firm B
       const shiftB = {
@@ -606,17 +601,11 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
     });
 
     it('STRESS-4.2: Broker Admin of Firm A is blocked with 403 from viewing Timeline/GPS of Agent from Firm B', async () => {
-      await expect(
-        service.getTimeline(adminFirmA, { agentId: agentFirmB.id }),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getTimeline(adminFirmA, { agentId: agentFirmB.id })).rejects.toThrow(ForbiddenException);
 
-      await expect(
-        service.getStatus(adminFirmA, agentFirmB.id),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getStatus(adminFirmA, agentFirmB.id)).rejects.toThrow(ForbiddenException);
 
-      await expect(
-        service.getHistory(adminFirmA, { agentId: agentFirmB.id }),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getHistory(adminFirmA, { agentId: agentFirmB.id })).rejects.toThrow(ForbiddenException);
     });
 
     it('STRESS-4.3: Broker Admin of Firm A cannot view Firm B in getSummary', async () => {
@@ -627,4 +616,3 @@ describe('MIL-1 Empirical Stress Verification: Time Logging & Location', () => {
     });
   });
 });
-

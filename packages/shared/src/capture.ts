@@ -58,7 +58,7 @@ const parseLabeled = (text: string, label: string) => {
 /** Deterministic extraction creates review drafts; absent values remain null. */
 export function extractCapture(text: string): CapturedEntity[] {
   const normalized = text.replace(/[०-९]/g, (n) => String('०१२३४५६७८९'.indexOf(n)));
-  const blocks = normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/i).filter((b) => b.trim());
+  const blocks = normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/iu).filter((b) => b.trim());
   return blocks.map((raw): CapturedEntity => {
     const phones = contactPhones(raw);
     const localities = captureLocalities(raw);
@@ -161,7 +161,11 @@ export function extractCapture(text: string): CapturedEntity[] {
     const details: Record<string, any> = {};
     // Broker-confirmed BHK+1 is an extra space (e.g. pooja/store); its use
     // stays unspecified. Explicit +1B/bathroom notation is handled separately.
-    if (/\b\d{1,2}\s*BHK\s*\+\s*1(?![\d.]|\s*(?:B|bathrooms?|washrooms?|balcony|balconies|months?|security|advance|deposit|floors?|parking|lac|lacs|lakh|lakhs|cr|crore|k)\b)(?=\s|[,;.()]|$)/i.test(raw)) {
+    if (
+      /\b\d{1,2}\s*BHK\s*\+\s*1(?![\d.]|\s*(?:B|bathrooms?|washrooms?|balcony|balconies|months?|security|advance|deposit|floors?|parking|lac|lacs|lakh|lakhs|cr|crore|k)\b)(?=\s|[,;.()]|$)/i.test(
+        raw,
+      )
+    ) {
       details.additionalRooms = 1;
       warnings.push('One additional room/space is recorded; confirm its use from source');
     }
@@ -217,7 +221,9 @@ export function extractCapture(text: string): CapturedEntity[] {
       propertyType,
       sector: localities[0] ?? null,
       houseNo: house?.[1] ?? null,
-      floor: floor ? ({ FF: '1', SF: '2', GF: '0', GROUND: '0', TF: 'Top Floor', TOPFLOOR: 'Top Floor' }[floor[1].toUpperCase().replace(/\s/g, '')] ?? floor[1]) : null,
+      floor: floor
+        ? ({ FF: '1', SF: '2', GF: '0', GROUND: '0', TF: 'Top Floor', TOPFLOOR: 'Top Floor' }[floor[1].toUpperCase().replace(/\s/g, '')] ?? floor[1])
+        : null,
       bhk,
       roomKind,
       furnishing,

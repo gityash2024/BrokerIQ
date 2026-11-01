@@ -1,7 +1,10 @@
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
-import { post } from '@/lib/api';
+import { authStore } from '@/lib/api';
+import * as Crypto from 'expo-crypto';
+import { configureBackgroundShift } from './background-shift-tracking';
+import { flushShiftPings, queueShiftPing, pendingShiftPings } from './shift-location-outbox';
 import { useTimeTrackingStore } from '@/lib/time-tracking-store';
 
 export const RECORDING_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes (900,000 ms)
@@ -16,6 +19,8 @@ export interface OfflineLocationPing {
   address?: string | null;
   source: string;
   capturedAt: string;
+  eventId?: string;
+  ownerId?: string;
 }
 
 export interface TrackerStatus {
@@ -35,6 +40,7 @@ class PeriodicLocationTrackerEngine {
   private lastPingTime: number | null = null;
   private isProcessing = false;
   private shiftId: string | null = null;
+  private offlineQueueCount = 0;
 
   /**
    * Start the periodic tracking engine for an active shift.
@@ -48,10 +54,13 @@ class PeriodicLocationTrackerEngine {
     }
     this.shiftId = shiftId;
     this.lastPingTime = Date.now();
+    configureBackgroundShift(shiftId).catch((error) => useTimeTrackingStore.setState({ error: error.message }));
 
     // 1. Schedule 15-minute periodic recording
     this.timer = setInterval(() => {
-      this.recordPeriodicLocation();
+      // Android/iOS capture comes from the native task, not JavaScript timers.
+      if (Platform.OS === 'web') this.recordPeriodicLocation();
+      else this.flushOfflineQueue().catch((error) => useTimeTrackingStore.setState({ error: error.message }));
     }, RECORDING_INTERVAL_MS);
 
     // 2. Schedule 30-second rapid health check (auto-pause & auto-resume detection)
@@ -70,6 +79,7 @@ class PeriodicLocationTrackerEngine {
    * Stop periodic tracking (on punch out or shift end).
    */
   stop() {
+    configureBackgroundShift(null).catch((error) => useTimeTrackingStore.setState({ error: error.message }));
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
@@ -101,10 +111,7 @@ class PeriodicLocationTrackerEngine {
     try {
       servicesEnabled = Boolean(await Location.hasServicesEnabledAsync());
       const perm = await Location.getForegroundPermissionsAsync();
-      permissionGranted = Boolean(
-        perm?.granted ||
-        perm?.status === Location.PermissionStatus.GRANTED
-      );
+      permissionGranted = Boolean(perm?.granted || perm?.status === Location.PermissionStatus.GRANTED);
     } catch {
       servicesEnabled = false;
       permissionGranted = false;
@@ -132,11 +139,8 @@ class PeriodicLocationTrackerEngine {
             longitude: pos.coords.longitude,
             accuracy: pos.coords.accuracy ?? null,
           });
-          // Update store status to active
-          await store.resumeShift({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          });
+          // Only the acknowledged server state may resume a GPS pause.
+          await store.syncStatus();
           this.lastPingTime = Date.now();
           return true;
         }
@@ -170,9 +174,13 @@ class PeriodicLocationTrackerEngine {
       }
 
       // 2. Acquire current GPS coordinates
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      let pos: Location.LocationObject;
+      try {
+        pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      } catch {
+        await store.pauseShift('GPS_SIGNAL_LOST');
+        return false;
+      }
 
       if (!pos?.coords) {
         // GPS hardware returned empty -> Auto-pause
@@ -189,9 +197,7 @@ class PeriodicLocationTrackerEngine {
         });
         if (geos && geos.length > 0) {
           const geo = geos[0];
-          address = [geo.name, geo.street, geo.city || geo.subregion, geo.postalCode]
-            .filter(Boolean)
-            .join(', ');
+          address = [geo.name, geo.street, geo.city || geo.subregion, geo.postalCode].filter(Boolean).join(', ');
         }
       } catch {
         // Geocode failure is non-fatal
@@ -204,13 +210,14 @@ class PeriodicLocationTrackerEngine {
         longitude: pos.coords.longitude,
         accuracy: pos.coords.accuracy ?? null,
         address,
+        capturedAt: new Date(pos.timestamp || Date.now()).toISOString(),
       });
 
       this.lastPingTime = Date.now();
       return true;
-    } catch {
-      // Coordinate acquisition failed -> Auto-pause
-      await store.pauseShift('GPS_SIGNAL_LOST');
+    } catch (error) {
+      // Storage/network failures are not GPS failures and must not change working time.
+      useTimeTrackingStore.setState({ error: error instanceof Error ? error.message : 'Location could not be saved' });
       return false;
     } finally {
       this.isProcessing = false;
@@ -226,31 +233,15 @@ class PeriodicLocationTrackerEngine {
     longitude: number;
     accuracy?: number | null;
     address?: string | null;
+    capturedAt?: string;
   }) {
-    const fullPayload: OfflineLocationPing = {
-      ...payload,
-      source: 'MOBILE',
-      capturedAt: new Date().toISOString(),
-    };
-
-    try {
-      const res = await post<{ success: boolean; autoResumed?: boolean; status: string }>(
-        '/time-logging/location',
-        fullPayload,
-      );
-      // If backend auto-resumed the shift, synchronize local store
-      if (res.autoResumed || res.status === 'ACTIVE') {
-        const store = useTimeTrackingStore.getState();
-        if (store.isPaused && store.pauseReason === 'GPS_SIGNAL_LOST') {
-          useTimeTrackingStore.setState({ isPaused: false, pauseReason: null });
-        }
-      }
-      // Successfully communicated with backend -> flush any older offline queue items
-      await this.flushOfflineQueue();
-    } catch {
-      // Network drop: Save to offline queue so breadcrumb is never lost
-      await this.enqueueOfflineLocation(fullPayload);
-    }
+    const owner = authStore.get()?.user.id;
+    if (!owner) return;
+    const store = useTimeTrackingStore.getState();
+    if (store.activeShift?.id !== payload.shiftId || (store.isPaused && store.pauseReason !== 'GPS_SIGNAL_LOST')) return;
+    // Persist before dispatch: a killed process cannot lose a capture between network send and enqueue.
+    await queueShiftPing(owner, { ...payload, eventId: Crypto.randomUUID(), source: 'MOBILE', capturedAt: payload.capturedAt || new Date().toISOString() });
+    await this.flushOfflineQueue();
   }
 
   /**
@@ -266,7 +257,7 @@ class PeriodicLocationTrackerEngine {
 
       // If more than 15 minutes have elapsed since last ping, record immediately
       if (this.lastPingTime && Date.now() - this.lastPingTime >= RECORDING_INTERVAL_MS) {
-        await this.recordPeriodicLocation();
+        if (Platform.OS === 'web') await this.recordPeriodicLocation();
       }
 
       // Flush offline queue
@@ -274,54 +265,14 @@ class PeriodicLocationTrackerEngine {
     }
   };
 
-  /**
-   * Offline Queue: Append unsent ping to SecureStore.
-   */
-  private async enqueueOfflineLocation(item: OfflineLocationPing) {
-    try {
-      const raw = await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY);
-      const queue: OfflineLocationPing[] = raw ? JSON.parse(raw) : [];
-      queue.push(item);
-      // Keep at most 200 items in offline cache to prevent storage bloat
-      const trimmed = queue.slice(-200);
-      await SecureStore.setItemAsync(OFFLINE_QUEUE_KEY, JSON.stringify(trimmed));
-    } catch {
-      // Ignore secure store write failure
-    }
-  }
-
-  /**
-   * Offline Queue: Upload cached pings when network is restored.
-   */
+  /** Durable SQLCipher queue. Legacy unowned SecureStore rows are retained, never replayed under another account. */
   async flushOfflineQueue(): Promise<number> {
-    try {
-      const raw = await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY);
-      if (!raw) return 0;
-      const queue: OfflineLocationPing[] = JSON.parse(raw);
-      if (!queue.length) return 0;
-
-      const remaining: OfflineLocationPing[] = [];
-      let sentCount = 0;
-
-      for (const item of queue) {
-        try {
-          await post('/time-logging/location', item);
-          sentCount++;
-        } catch {
-          // Stop flushing if network fails again
-          remaining.push(item);
-        }
-      }
-
-      if (remaining.length) {
-        await SecureStore.setItemAsync(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
-      } else {
-        await SecureStore.deleteItemAsync(OFFLINE_QUEUE_KEY);
-      }
-      return sentCount;
-    } catch {
-      return 0;
-    }
+    const sent = await flushShiftPings();
+    const count = await pendingShiftPings();
+    this.offlineQueueCount = count.pending + count.blocked;
+    const legacy = await SecureStore.getItemAsync(OFFLINE_QUEUE_KEY);
+    if (legacy) useTimeTrackingStore.setState({ error: 'Older offline location entries have no account owner. They were preserved for review.' });
+    return sent;
   }
 
   /**
@@ -335,7 +286,7 @@ class PeriodicLocationTrackerEngine {
       pauseReason: store.pauseReason,
       lastPingTime: this.lastPingTime,
       nextPingTime: this.lastPingTime ? this.lastPingTime + RECORDING_INTERVAL_MS : null,
-      offlineQueueCount: 0,
+      offlineQueueCount: this.offlineQueueCount,
       gpsEnabled: !store.isPaused || store.pauseReason !== 'GPS_SIGNAL_LOST',
     };
   }
