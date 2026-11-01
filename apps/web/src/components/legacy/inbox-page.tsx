@@ -28,6 +28,8 @@ import {
   X,
 } from 'lucide-react';
 import { renderTemplate, timeAgo, type WaTemplate } from '@brokeriq/shared';
+import { ApiErrorState } from '@/components/ui/api-error';
+import { inboxDraftKey } from '@/lib/inbox-composer';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { post, useDebounced } from '@/lib/hooks';
@@ -77,6 +79,23 @@ function InboxInner() {
   const { user } = useAuth();
   const channel = (sp.get('channel') as Channel) || 'WHATSAPP';
   const active = sp.get('c');
+  const leadTarget = sp.get('lead');
+  const resolve = useQuery({
+    queryKey: ['resolve-lead-inbox', user?.id, leadTarget],
+    enabled: !!user && !!leadTarget,
+    retry: false,
+    queryFn: () => post<{ conversationId: string }>('/whatsapp/resolve-lead', { leadId: leadTarget }),
+  });
+  useEffect(() => {
+    if (!resolve.data || !user || !leadTarget) return;
+    const from = inboxDraftKey(user.id, `lead:${leadTarget}`);
+    const draft = sessionStorage.getItem(from);
+    if (draft) {
+      sessionStorage.setItem(inboxDraftKey(user.id, resolve.data.conversationId), draft);
+      sessionStorage.removeItem(from);
+    }
+    router.replace(`${pathname}?channel=WHATSAPP&c=${encodeURIComponent(resolve.data.conversationId)}`, { scroll: false });
+  }, [resolve.data, user?.id, leadTarget, pathname, router]);
 
   const setParam = (p: Record<string, string | null>) => {
     const n = new URLSearchParams(sp.toString());
@@ -91,7 +110,7 @@ function InboxInner() {
 
   const dq = useDebounced(search);
   const status = useQuery({ queryKey: ['wa-status'], queryFn: () => api<any>('/whatsapp/status'), staleTime: 60_000 });
-  
+
   const unreadStats = useQuery({
     queryKey: ['wa-unread-stats'],
     queryFn: () => api<any>('/whatsapp/unread-stats'),
@@ -165,9 +184,11 @@ function InboxInner() {
 
   const waUnreadCount = unreadStats.data?.whatsapp?.unreadConversations ?? 0;
   const chatUnreadCount = unreadStats.data?.chat?.unreadConversations ?? 0;
-  const totalUnreadCount = unreadStats.data?.total?.unreadConversations ?? (waUnreadCount + chatUnreadCount);
+  const totalUnreadCount = unreadStats.data?.total?.unreadConversations ?? waUnreadCount + chatUnreadCount;
   const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : chatUnreadCount;
 
+  if (leadTarget && resolve.isError) return <ApiErrorState error={resolve.error} onRetry={() => resolve.refetch()} />;
+  if (leadTarget) return <PageLoader />;
   return (
     <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8 bg-surface overflow-hidden">
       {/* Left Conversations Sidebar */}
@@ -184,13 +205,7 @@ function InboxInner() {
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-8 text-muted hover:text-fg"
-                onClick={refreshAll}
-                title="रिफ्रेश करें"
-              >
+              <Button size="icon" variant="ghost" className="size-8 text-muted hover:text-fg" onClick={refreshAll} title="रिफ्रेश करें">
                 <RefreshCw className="size-3.5" />
               </Button>
               {channel === 'WHATSAPP' && status.data && (
@@ -216,9 +231,7 @@ function InboxInner() {
               onClick={() => setParam({ channel: 'WHATSAPP', c: null })}
               className={cn(
                 'flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all',
-                channel === 'WHATSAPP'
-                  ? 'bg-surface text-fg shadow-xs border border-line/40'
-                  : 'text-muted hover:text-fg',
+                channel === 'WHATSAPP' ? 'bg-surface text-fg shadow-xs border border-line/40' : 'text-muted hover:text-fg',
               )}
             >
               <MessageSquare className="size-3.5 text-emerald-600" />
@@ -234,9 +247,7 @@ function InboxInner() {
               onClick={() => setParam({ channel: 'CHAT', c: null })}
               className={cn(
                 'flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all',
-                channel === 'CHAT'
-                  ? 'bg-surface text-fg shadow-xs border border-line/40'
-                  : 'text-muted hover:text-fg',
+                channel === 'CHAT' ? 'bg-surface text-fg shadow-xs border border-line/40' : 'text-muted hover:text-fg',
               )}
             >
               <Globe className="size-3.5 text-indigo-600" />
@@ -260,11 +271,7 @@ function InboxInner() {
                 onChange={(e) => setSearch(e.target.value)}
               />
               {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle hover:text-fg"
-                >
+                <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle hover:text-fg">
                   <X className="size-3.5" />
                 </button>
               )}
@@ -273,9 +280,7 @@ function InboxInner() {
               onClick={() => setUnreadOnly(!unreadOnly)}
               className={cn(
                 'shrink-0 flex items-center gap-1.5 rounded-xl border px-3 h-9 text-xs font-semibold transition shadow-2xs',
-                unreadOnly
-                  ? 'border-emerald-600 bg-emerald-600 text-white'
-                  : 'border-line bg-surface-2 text-muted hover:text-fg hover:bg-surface',
+                unreadOnly ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-line bg-surface-2 text-muted hover:text-fg hover:bg-surface',
               )}
             >
               <span>Unread</span>
@@ -330,25 +335,24 @@ function InboxInner() {
                 onClick={() => handleSelectChat(c)}
                 className={cn(
                   'group relative flex w-full cursor-pointer items-start gap-3 p-3.5 text-left transition-all',
-                  isSelected
-                    ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-l-[3.5px] border-emerald-600 shadow-2xs'
-                    : 'hover:bg-surface-2',
+                  isSelected ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-l-[3.5px] border-emerald-600 shadow-2xs' : 'hover:bg-surface-2',
                 )}
               >
-                <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', gradient)}>
+                <div
+                  className={cn(
+                    'size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr',
+                    gradient,
+                  )}
+                >
                   {displayName.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={cn('truncate text-sm text-fg', c.unreadCount ? 'font-bold' : 'font-semibold')}>
-                      {displayName}
-                    </p>
+                    <p className={cn('truncate text-sm text-fg', c.unreadCount ? 'font-bold' : 'font-semibold')}>{displayName}</p>
                     <span className="shrink-0 text-[11px] text-subtle font-medium">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ''}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-fg' : 'text-muted')}>
-                      {c.lastPreview ?? '—'}
-                    </p>
+                    <p className={cn('truncate text-xs', c.unreadCount ? 'font-semibold text-fg' : 'text-muted')}>{c.lastPreview ?? '—'}</p>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {c.unreadCount > 0 && (
                         <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white shadow-2xs">
@@ -371,9 +375,7 @@ function InboxInner() {
                   {c.lead && (
                     <div className="mt-1 flex items-center justify-between text-[11px] text-subtle">
                       <span className="truncate">Lead · {c.lead.assignedTo?.name ?? 'Unassigned'}</span>
-                      <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[10px] font-medium text-fg">
-                        {c.lead.stage}
-                      </span>
+                      <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[10px] font-medium text-fg">{c.lead.stage}</span>
                     </div>
                   )}
                 </div>
@@ -410,15 +412,18 @@ function InboxInner() {
               </button>
 
               {/* Contact Avatar & Info */}
-              <div className={cn('size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr', getAvatarGradient(current?.contactName || current?.lead?.name || current?.contactPhone || 'Contact'))}>
+              <div
+                className={cn(
+                  'size-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-2xs shrink-0 bg-gradient-to-tr',
+                  getAvatarGradient(current?.contactName || current?.lead?.name || current?.contactPhone || 'Contact'),
+                )}
+              >
                 {(current?.contactName || current?.lead?.name || current?.contactPhone || 'C').charAt(0).toUpperCase()}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate font-bold text-base text-fg">
-                    {current?.contactName || current?.lead?.name || current?.contactPhone || 'Customer'}
-                  </p>
+                  <p className="truncate font-bold text-base text-fg">{current?.contactName || current?.lead?.name || current?.contactPhone || 'Customer'}</p>
                   {channel === 'WHATSAPP' ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
                       WhatsApp
@@ -474,7 +479,7 @@ function InboxInner() {
                 <ChatThread id={active} side="broker" onRead={refreshAll} />
               </div>
             ) : (
-              <WaThread id={active} connected={!!status.data?.connected} onRead={refreshAll} />
+              <WaThread key={`${user?.id}:${active}`} id={active} connected={!!status.data?.connected} onRead={refreshAll} />
             )}
           </>
         )}
@@ -508,9 +513,7 @@ function InboxInner() {
                 : 'यह क्रिया इस बातचीत और इसके सभी संदेशों को हटा देगी।'}
             </p>
           </div>
-          <p className="text-xs text-muted">
-            डिलीट करने के बाद आप इस कॉन्टैक्ट के साथ कभी भी नया मैसेज भेजकर नई बातचीत शुरू कर सकते हैं।
-          </p>
+          <p className="text-xs text-muted">डिलीट करने के बाद आप इस कॉन्टैक्ट के साथ कभी भी नया मैसेज भेजकर नई बातचीत शुरू कर सकते हैं।</p>
         </div>
       </Dialog>
     </div>
@@ -526,9 +529,21 @@ const TICKS: Record<string, React.ReactNode> = {
 };
 
 function WaThread({ id, connected, onRead }: { id: string; connected: boolean; onRead: () => void }) {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['wa-thread', id], queryFn: () => api<any>(`/whatsapp/conversations/${id}/messages`) });
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    if (!user) return '';
+    const key = inboxDraftKey(user.id, id);
+    return sessionStorage.getItem(key) || '';
+  });
+  useEffect(() => {
+    if (user) {
+      const key = inboxDraftKey(user.id, id);
+      if (text) sessionStorage.setItem(key, text);
+      else sessionStorage.removeItem(key);
+    }
+  }, [text, id, user?.id]);
   const [sending, setSending] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -545,6 +560,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   }, [q.data?.items?.length]);
 
   const send = async (body: Record<string, unknown>) => {
+    if (sending) return false;
     setSending(true);
     setNotConfigured(null);
     try {
@@ -617,11 +633,14 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                           : 'rounded-tl-xs bg-surface border border-line text-fg shadow-2xs',
                       )}
                     >
-                      {m.mediaUrl && m.type === 'IMAGE' && (
-                        <img src={m.mediaUrl} alt="Media" className="mb-2 max-h-72 rounded-xl object-cover shadow-2xs" />
-                      )}
+                      {m.mediaUrl && m.type === 'IMAGE' && <img src={m.mediaUrl} alt="Media" className="mb-2 max-h-72 rounded-xl object-cover shadow-2xs" />}
                       {m.templateName && (
-                        <p className={cn('mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', out ? 'text-emerald-100/90' : 'text-subtle')}>
+                        <p
+                          className={cn(
+                            'mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider',
+                            out ? 'text-emerald-100/90' : 'text-subtle',
+                          )}
+                        >
                           <FileText className="size-3" /> {m.templateName}
                         </p>
                       )}
@@ -719,7 +738,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           <Textarea
             rows={1}
             value={text}
-            disabled={!windowOpen || !connected}
+            disabled={!windowOpen || !connected || sending}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -727,7 +746,9 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                 if (text.trim()) send({ text });
               }
             }}
-            placeholder={!connected ? 'WhatsApp connect नहीं है' : windowOpen ? 'संदेश लिखें… (Enter = भेजें, Shift+Enter = नई पंक्ति)' : 'Window बंद — template भेजें'}
+            placeholder={
+              !connected ? 'WhatsApp connect नहीं है' : windowOpen ? 'संदेश लिखें… (Enter = भेजें, Shift+Enter = नई पंक्ति)' : 'Window बंद — template भेजें'
+            }
             className="border-0 bg-transparent py-2 text-sm text-fg placeholder:text-muted focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal flex-1"
           />
           <Button
@@ -735,7 +756,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             size="icon"
             variant="whatsapp"
             loading={sending}
-            disabled={!windowOpen || !text.trim()}
+            disabled={!windowOpen || !text.trim() || sending}
             aria-label="Send"
             className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md active:scale-95 shrink-0"
           >

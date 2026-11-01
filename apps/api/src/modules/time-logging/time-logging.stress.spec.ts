@@ -35,6 +35,7 @@ class InMemoryPrismaMock {
   }
 
   agentShift = {
+    findUnique: jest.fn(async (query: any): Promise<any> => this.agentShift.findFirst(query)),
     findFirst: jest.fn(async (query: any) => {
       return this.shifts.find((s) => {
         if (query.where.userId && s.userId !== query.where.userId) return false;

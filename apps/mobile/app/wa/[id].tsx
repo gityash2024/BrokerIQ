@@ -6,7 +6,9 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
 import { renderTemplate, type WaTemplate } from '@brokeriq/shared';
-import { api, post } from '@/lib/api';
+import { readInboxDraft, saveInboxDraft } from '@/lib/inbox-drafts';
+import { useAuth } from '@/lib/auth';
+import { authStore, api, post } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
@@ -17,9 +19,24 @@ import { Button, Card, ErrorView, Header, IconBtn, Input, Loader, PressableScale
 export default function WaThread() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
+  const { user } = useAuth();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['wa-thread', id], queryFn: () => api<any>(`/whatsapp/conversations/${id}/messages`) });
+  const q = useQuery({ queryKey: ['wa-thread', id, user?.id], queryFn: () => api<any>(`/whatsapp/conversations/${id}/messages`) });
   const [text, setText] = useState('');
+  const edited = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    edited.current = false;
+    setText('');
+    readInboxDraft(id, user?.id)
+      .then((draft) => {
+        if (!cancelled && !edited.current && authStore.get()?.user.id === user?.id) setText(draft);
+      })
+      .catch(showError);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user?.id]);
   const [sending, setSending] = useState(false);
   const [tpl, setTpl] = useState(false);
   const list = useRef<FlatList>(null);
@@ -33,9 +50,12 @@ export default function WaThread() {
     setTimeout(() => list.current?.scrollToEnd({ animated: true }), 120);
   }, [q.data, id, qc]);
   const send = async (body: Record<string, unknown>) => {
+    if (sending) return false;
+    const owner = user?.id;
     setSending(true);
     try {
       await post('/whatsapp/send', { conversationId: id, ...body });
+      await saveInboxDraft(id, '', owner);
       setText('');
       q.refetch();
       return true;
@@ -149,8 +169,12 @@ export default function WaThread() {
           </IconBtn>
           <TextInput
             value={text}
-            onChangeText={setText}
-            editable={windowOpen}
+            onChangeText={(value) => {
+              edited.current = true;
+              setText(value);
+              saveInboxDraft(id, value, user?.id).catch(showError);
+            }}
+            editable={windowOpen && !sending}
             placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')}
             placeholderTextColor={c.subtle}
             multiline

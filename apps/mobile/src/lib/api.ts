@@ -56,7 +56,8 @@ export const authStore = {
   get: () => useSession.getState().session,
   async set(s: Session | null) {
     const revision = ++sessionRevision;
-    const changed = authStore.get()?.user.id !== s?.user.id;
+    const previous = authStore.get()?.user;
+    const changed = previous?.id !== s?.user.id || previous?.role !== s?.user.role || previous?.organization?.id !== s?.user.organization?.id;
     if (changed) queryClient.clear();
     useSession.setState({ session: s });
     if (changed) await Promise.allSettled([...sessionResets].map((reset) => Promise.resolve().then(reset)));

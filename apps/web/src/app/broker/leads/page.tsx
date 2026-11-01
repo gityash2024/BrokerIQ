@@ -1,11 +1,12 @@
 'use client';
+import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, Filter, Inbox, MessageCircle, Phone, Search, Trash2, Upload, UserPlus, X } from 'lucide-react';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink } from '@brokeriq/shared';
+import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { post, useApiMutation } from '@/lib/hooks';
@@ -312,7 +313,7 @@ function LeadsInner() {
                     <Button size="icon-sm" variant="secondary" href={`tel:${l.phone}`} aria-label="Call">
                       <Phone className="size-4" />
                     </Button>
-                    <Button size="icon-sm" variant="whatsapp" href={whatsappLink(l.phone, `नमस्ते ${l.name.split(' ')[0]} जी,`)} external aria-label="WhatsApp">
+                    <Button size="icon-sm" variant="whatsapp" href={leadInboxUrl(l.id)} aria-label="WhatsApp">
                       <MessageCircle className="size-4" />
                     </Button>
                   </div>
@@ -378,13 +379,7 @@ function ImportDialog({ open, onOpenChange, onDone }: { open: boolean; onOpenCha
             <Upload className="size-5" /> CSV file चुनें
             <input type="file" accept=".csv,text/csv" hidden onChange={async (e) => setCsv((await e.target.files?.[0]?.text()) ?? '')} />
           </label>
-          <Textarea
-            rows={6}
-            value={csv}
-            onChange={(e) => setCsv(e.target.value)}
-            placeholder="Name,Phone,Email,Source,Notes"
-            className="font-mono text-xs"
-          />
+          <Textarea rows={6} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder="Name,Phone,Email,Source,Notes" className="font-mono text-xs" />
         </div>
       )}
     </Dialog>

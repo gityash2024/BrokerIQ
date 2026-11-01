@@ -1,3 +1,4 @@
+import { openLeadInbox } from '@/lib/inbox-composer';
 import { useRef, useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
@@ -7,7 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AlarmClock, Inbox, MessageCircle, Phone, Plus, Search } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink } from '@brokeriq/shared';
+import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { api, qs } from '@/lib/api';
@@ -58,7 +59,7 @@ function LeadItem({ l }: { l: any }) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
         // "left" = left-side actions revealed (swiped right) → Call
         if (String(dir) === 'left') Linking.openURL(`tel:${l.phone}`);
-        else Linking.openURL(whatsappLink(l.phone, `Hi ${l.name ?? ''}`));
+        else openLeadInbox(l.id);
         ref.current?.close();
       }}
     >
@@ -199,7 +200,16 @@ export default function Leads() {
             {!!stage && <Chip label={`Stage: ${stage.replace(/_/g, ' ')}`} active onPress={() => setStage('')} />}
             {!!source && <Chip label={`Source: ${source}`} active onPress={() => setSource('')} />}
             {!!temperature && <Chip label={`Temp: ${temperature}`} active onPress={() => setTemperature('')} />}
-            {(!!from || !!to) && <Chip label={`Date: ${from || '…'} to ${to || '…'}`} active onPress={() => { setFrom(''); setTo(''); }} />}
+            {(!!from || !!to) && (
+              <Chip
+                label={`Date: ${from || '…'} to ${to || '…'}`}
+                active
+                onPress={() => {
+                  setFrom('');
+                  setTo('');
+                }}
+              />
+            )}
             <Button title="Reset all" size="sm" variant="ghost" onPress={resetFilters} />
           </View>
         )}
@@ -236,51 +246,55 @@ export default function Leads() {
           />
 
           <View style={{ gap: 8, marginTop: 4 }}>
-            <Txt v="caption" color="muted">Custom Date (अपने हिसाब से Date चुनें)</Txt>
+            <Txt v="caption" color="muted">
+              Custom Date (अपने हिसाब से Date चुनें)
+            </Txt>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
               <Button
                 title="Today"
                 size="sm"
                 variant={from === todayStr && to === todayStr ? 'primary' : 'secondary'}
-                onPress={() => { setFrom(todayStr); setTo(todayStr); }}
+                onPress={() => {
+                  setFrom(todayStr);
+                  setTo(todayStr);
+                }}
               />
               <Button
                 title="Last 7 Days"
                 size="sm"
                 variant={from === sevenDaysAgoStr ? 'primary' : 'secondary'}
-                onPress={() => { setFrom(sevenDaysAgoStr); setTo(todayStr); }}
+                onPress={() => {
+                  setFrom(sevenDaysAgoStr);
+                  setTo(todayStr);
+                }}
               />
               <Button
                 title="This Month"
                 size="sm"
                 variant={from === startOfMonthStr ? 'primary' : 'secondary'}
-                onPress={() => { setFrom(startOfMonthStr); setTo(todayStr); }}
+                onPress={() => {
+                  setFrom(startOfMonthStr);
+                  setTo(todayStr);
+                }}
               />
               {(!!from || !!to) && (
                 <Button
                   title="Clear date"
                   size="sm"
                   variant="ghost"
-                  onPress={() => { setFrom(''); setTo(''); }}
+                  onPress={() => {
+                    setFrom('');
+                    setTo('');
+                  }}
                 />
               )}
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
               <View style={{ flex: 1 }}>
-                <Input
-                  label="From Date"
-                  value={from}
-                  onChangeText={setFrom}
-                  placeholder="YYYY-MM-DD"
-                />
+                <Input label="From Date" value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" />
               </View>
               <View style={{ flex: 1 }}>
-                <Input
-                  label="To Date"
-                  value={to}
-                  onChangeText={setTo}
-                  placeholder="YYYY-MM-DD"
-                />
+                <Input label="To Date" value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" />
               </View>
             </View>
           </View>

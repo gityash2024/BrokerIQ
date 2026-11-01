@@ -1,3 +1,4 @@
+import { openLeadInbox } from '@/lib/inbox-composer';
 import { Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,7 +29,6 @@ import {
   LEAD_STAGE_LABELS,
   formatINR,
   timeAgo,
-  whatsappLink,
   type LeadSource,
   type LeadStage,
   type NotificationsResponse,
@@ -222,7 +222,7 @@ export default function Dashboard() {
                     <IconBtn onPress={() => Linking.openURL(`tel:${f.lead.phone}`)}>
                       <Phone size={18} color={c.brand} />
                     </IconBtn>
-                    <IconBtn onPress={() => Linking.openURL(whatsappLink(f.lead.phone, `Hi ${f.lead.name}`))}>
+                    <IconBtn onPress={() => openLeadInbox(f.lead.id)}>
                       <MessageCircle size={18} color="#16A34A" />
                     </IconBtn>
                   </Card>
@@ -294,66 +294,81 @@ export default function Dashboard() {
             </>
           )}
 
-
-        {/* 🚀 BILLION-DOLLAR MOBILE DASHBOARD UPGRADES 🚀 */}
-        <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: 16 }}>
-          <View style={{ flex: 1, backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.line }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <IndianRupee size={16} color={c.success} />
-              <Txt v="small" color="muted">Pipeline Value</Txt>
+          {/* 🚀 BILLION-DOLLAR MOBILE DASHBOARD UPGRADES 🚀 */}
+          <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: 16 }}>
+            <View style={{ flex: 1, backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.line }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <IndianRupee size={16} color={c.success} />
+                <Txt v="small" color="muted">
+                  Pipeline Value
+                </Txt>
+              </View>
+              <Txt v="h2">—</Txt>
+              <Txt v="caption" color="success">
+                ↑ 12% vs last month
+              </Txt>
             </View>
-            <Txt v="h2">—</Txt>
-            <Txt v="caption" color="success">↑ 12% vs last month</Txt>
+
+            <View style={{ flex: 1, backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.line }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Trophy size={16} color={c.brand} />
+                <Txt v="small" color="muted">
+                  Target (Q4)
+                </Txt>
+              </View>
+              <Txt v="h3">0%</Txt>
+              <View style={{ height: 4, backgroundColor: c.line, borderRadius: 2, marginTop: 4 }}>
+                <View style={{ height: '100%', width: '0%', backgroundColor: c.success, borderRadius: 2 }} />
+              </View>
+            </View>
           </View>
 
-          <View style={{ flex: 1, backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.line }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <Trophy size={16} color={c.brand} />
-              <Txt v="small" color="muted">Target (Q4)</Txt>
-            </View>
-            <Txt v="h3">0%</Txt>
-            <View style={{ height: 4, backgroundColor: c.line, borderRadius: 2, marginTop: 4 }}>
-               <View style={{ height: '100%', width: '0%', backgroundColor: c.success, borderRadius: 2 }} />
-            </View>
-          </View>
-        </View>
-
-        <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
-          <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.line }}>
-             <Txt v="bodyStrong" style={{ marginBottom: 12 }}>API & Platform Sync</Txt>
-             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                 <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+            <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.line }}>
+              <Txt v="bodyStrong" style={{ marginBottom: 12 }}>
+                API & Platform Sync
+              </Txt>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' }}>
                     <MessageCircle size={20} color="#16a34a" />
-                 </View>
-                 <View>
-                   <Txt v="bodyStrong">WhatsApp Cloud API</Txt>
-                   <Txt v="caption" color="success">Connection not checked</Txt>
-                 </View>
-               </View>
-               <View style={{ alignItems: 'flex-end' }}>
-                 <Txt v="h3">{(k?.unreadMessages || 0) + 24}</Txt>
-                 <Txt v="caption" color="muted">24h msgs</Txt>
-               </View>
-             </View>
+                  </View>
+                  <View>
+                    <Txt v="bodyStrong">WhatsApp Cloud API</Txt>
+                    <Txt v="caption" color="success">
+                      Connection not checked
+                    </Txt>
+                  </View>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Txt v="h3">{(k?.unreadMessages || 0) + 24}</Txt>
+                  <Txt v="caption" color="muted">
+                    24h msgs
+                  </Txt>
+                </View>
+              </View>
 
-             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                 <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center' }}>
                     <Building2 size={20} color="#e11d48" />
-                 </View>
-                 <View>
-                   <Txt v="bodyStrong">Housing.com (Pahal)</Txt>
-                   <Txt v="caption" color="danger">Pending RM Whitelist</Txt>
-                 </View>
-               </View>
-               <View style={{ alignItems: 'flex-end' }}>
-                 <Txt v="h3">0</Txt>
-                 <Txt v="caption" color="muted">Synced</Txt>
-               </View>
-             </View>
+                  </View>
+                  <View>
+                    <Txt v="bodyStrong">Housing.com (Pahal)</Txt>
+                    <Txt v="caption" color="danger">
+                      Pending RM Whitelist
+                    </Txt>
+                  </View>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Txt v="h3">0</Txt>
+                  <Txt v="caption" color="muted">
+                    Synced
+                  </Txt>
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
 
           {/* Gurgaon Prime Sectors Ledger Distribution */}
           {d?.sectors?.length > 0 && (

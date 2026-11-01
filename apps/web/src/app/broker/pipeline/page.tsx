@@ -1,11 +1,12 @@
 'use client';
+import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { KanbanSquare, MessageCircle, Phone, Search } from 'lucide-react';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, formatPriceShort, timeAgo, whatsappLink, type LeadStage } from '@brokeriq/shared';
+import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, formatPriceShort, timeAgo, type LeadStage } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { patch, useDebounced } from '@/lib/hooks';
@@ -199,9 +200,7 @@ export default function PipelinePage() {
                                   <Phone className="size-3.5" />
                                 </a>
                                 <a
-                                  href={whatsappLink(l.phone, `Hi ${l.name ?? ''}`)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                  href={leadInboxUrl(l.id)}
                                   className="grid size-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-emerald-600"
                                   aria-label="WhatsApp"
                                 >

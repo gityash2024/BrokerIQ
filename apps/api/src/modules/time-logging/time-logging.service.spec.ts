@@ -25,6 +25,7 @@ describe('TimeLoggingService', () => {
   beforeEach(() => {
     mockPrisma = {
       agentShift: {
+        findUnique: jest.fn(async (query) => mockPrisma.agentShift.findFirst(query)),
         findFirst: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),

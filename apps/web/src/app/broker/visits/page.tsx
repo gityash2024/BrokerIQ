@@ -1,11 +1,12 @@
 'use client';
+import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { CalendarCheck, CalendarPlus, Check, ChevronLeft, ChevronRight, Clock, MapPin, MessageCircle, Navigation, Phone, Star, X } from 'lucide-react';
-import { VISIT_STATUS_LABELS, whatsappLink, parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem, type VisitStatus } from '@brokeriq/shared';
+import { VISIT_STATUS_LABELS, parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem, type VisitStatus } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
@@ -206,16 +207,7 @@ export default function VisitsPage() {
                   <Button size="icon-sm" variant="ghost" href={`tel:${v.lead.phone}`} aria-label="Call">
                     <Phone className="size-4" />
                   </Button>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    external
-                    href={whatsappLink(
-                      v.lead.phone,
-                      `Hi ${v.lead.name ?? ''}, ${formatDate(v.scheduledAt, { dateStyle: 'medium', timeStyle: 'short' })} पर site visit confirm है। ${v.listing?.title ?? ''}`,
-                    )}
-                    aria-label="WhatsApp"
-                  >
+                  <Button size="icon-sm" variant="ghost" href={leadInboxUrl(v.lead.id)} aria-label="WhatsApp">
                     <MessageCircle className="size-4 text-emerald-600" />
                   </Button>
                   {loc && (

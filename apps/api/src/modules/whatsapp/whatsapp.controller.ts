@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ConflictException,
   Delete,
   ForbiddenException,
   Get,
@@ -16,7 +17,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Prisma } from '@prisma/client';
-import { whatsappSendSchema, renderTemplate, formatPriceShort } from '@brokeriq/shared';
+import { whatsappSendSchema, renderTemplate, formatPriceShort, phoneForWhatsApp, normalizeIndianPhone } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
@@ -24,7 +25,7 @@ import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decor
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
 import { env } from '../../config/env';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 @ApiTags('whatsapp')
 @Controller()
@@ -87,10 +88,45 @@ export class WhatsAppController {
     });
   }
 
+  /** Resolve an internal composer without sending a message or broadening the Housing inbox list. */
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Post('whatsapp/resolve-lead')
+  async resolveLead(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ leadId: z.string().min(1) }))) body: { leadId: string }) {
+    const orgId = requireOrg(user);
+    const scope = { id: body.leadId, organizationId: orgId, deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) };
+    const lead = await this.prisma.lead.findFirst({ where: scope });
+    if (!lead) throw new NotFoundException('Lead not found');
+    if (!normalizeIndianPhone(lead.phone)) throw new BadRequestException('Lead needs a valid phone number');
+    await this.wa.requireCreds(orgId);
+    return this.prisma.$transaction(async (tx) => {
+      const contactKey = phoneForWhatsApp(lead.phone);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wa-composer:${orgId}:${contactKey}`}))`;
+      const currentLead = await tx.lead.findFirst({ where: scope });
+      if (!currentLead || phoneForWhatsApp(currentLead.phone) !== contactKey) throw new ConflictException('Lead changed. Refresh and try again.');
+      const existing = await tx.conversation.findUnique({
+        where: { organizationId_channel_contactKey: { organizationId: orgId, channel: 'WHATSAPP', contactKey } },
+      });
+      if (existing) {
+        if (existing.leadId && existing.leadId !== lead.id)
+          throw new ConflictException('This number is linked to another lead. Review that contact before opening its history.');
+        // An unlinked historical chat is not automatically disclosed to an agent.
+        if (!existing.leadId && user.role === 'BROKER_AGENT') throw new ForbiddenException('An administrator must review this unlinked conversation');
+        if (existing.blockedAt) throw new ForbiddenException('This conversation is blocked');
+        if (existing.leadId) return { conversationId: existing.id, channel: existing.channel };
+        const linked = await tx.conversation.update({ where: { id: existing.id }, data: { leadId: lead.id, contactName: lead.name } });
+        return { conversationId: linked.id, channel: linked.channel };
+      }
+      const created = await tx.conversation.create({
+        data: { organizationId: orgId, channel: 'WHATSAPP', contactKey, contactPhone: `+${contactKey}`, contactName: lead.name, leadId: lead.id },
+      });
+      return { conversationId: created.id, channel: created.channel };
+    });
+  }
+
   private async conv(id: string, user: RequestUser) {
     const c = await this.prisma.conversation.findFirst({ where: { id, organizationId: requireOrg(user) }, include: { lead: true } });
     if (!c) throw new NotFoundException();
-    if (user.role === 'BROKER_AGENT' && (!c.lead || c.lead.assignedToId !== user.id)) throw new ForbiddenException();
+    if (user.role === 'BROKER_AGENT' && (!c.lead || c.lead.deletedAt || c.lead.assignedToId !== user.id)) throw new ForbiddenException();
     return c;
   }
 
@@ -195,19 +231,35 @@ export class WhatsAppController {
     let name: string | null = null;
     if (body.conversationId) {
       const c = await this.conv(body.conversationId, user);
+      if (c.channel !== 'WHATSAPP') throw new BadRequestException('Use website chat for this conversation');
+      if (c.blockedAt) throw new ForbiddenException('This conversation is blocked');
+      if (leadId && leadId !== c.leadId) throw new BadRequestException('Lead and conversation do not match');
       phone = c.contactPhone;
       leadId = leadId ?? c.leadId;
       name = c.contactName;
     }
     if (leadId) {
       const lead = await this.prisma.lead.findFirst({
-        where: { id: leadId, organizationId: orgId, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) },
+        where: { id: leadId, organizationId: orgId, deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) },
       });
       if (!lead) throw new NotFoundException('Lead नहीं मिली');
+      if (phone && phoneForWhatsApp(phone) !== phoneForWhatsApp(lead.phone))
+        throw new ConflictException('Lead phone changed; review the conversation before sending');
       phone = phone ?? lead.phone;
       name = name ?? lead.name;
     }
     if (!phone) throw new BadRequestException('leadId या conversationId ज़रूरी है');
+    if (!body.conversationId) {
+      const existing = await this.prisma.conversation.findUnique({
+        where: { organizationId_channel_contactKey: { organizationId: orgId, channel: 'WHATSAPP', contactKey: phoneForWhatsApp(phone) } },
+      });
+      if (existing) {
+        await this.conv(existing.id, user);
+        if (existing.blockedAt) throw new ForbiddenException('This conversation is blocked');
+        if (existing.leadId && existing.leadId !== leadId) throw new ConflictException('This number is linked to another lead');
+      }
+    }
+
     let text: string | undefined = body.text;
     if (body.listingId && !text) {
       const l = await this.prisma.listing.findFirst({

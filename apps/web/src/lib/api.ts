@@ -41,7 +41,12 @@ export const authStore = {
   },
   set(v: StoredAuth | null) {
     if (typeof window === 'undefined') return;
-    if (authStore.get()?.user.id !== v?.user.id) cacheResets.forEach((reset) => reset());
+    const previous = authStore.get()?.user;
+    if (!v || previous?.id !== v.user.id || previous?.role !== v.user.role || previous?.organization?.id !== v.user.organization?.id) {
+      cacheResets.forEach((reset) => reset());
+      if (typeof sessionStorage !== 'undefined')
+        for (const key of Object.keys(sessionStorage)) if (key.startsWith('biq.inbox-draft:')) sessionStorage.removeItem(key);
+    }
     if (v) localStorage.setItem(KEY, JSON.stringify(v));
     else localStorage.removeItem(KEY);
     document.cookie = v ? `biq_role=${v.user.role}; path=/; max-age=31536000; samesite=lax` : 'biq_role=; path=/; max-age=0';

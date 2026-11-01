@@ -763,19 +763,24 @@
         "3978",
         "5380"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_REAL_DB_TESTED_PROVIDER_STUBBED",
+      "web": "LOCAL_CHROME_INTERNAL_ROUTE_AND_MISSING_CONFIG_VERIFIED",
+      "androidSource": "IMPLEMENTED_BUNDLE_AND_DRAFT_TESTS_PASSED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Internal composer/ownership 14 real database cases; API full suite 260/25 skipped; mobile 65; Chrome local route/error acceptance.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/web/src/lib/inbox-composer.ts",
+        "apps/mobile/src/lib/inbox-composer.ts",
+        "apps/mobile/src/lib/inbox-drafts.ts"
+      ],
       "commits": [],
       "database": "PENDING",
-      "rootCause": null,
+      "rootCause": "Lead actions used wa.me links and error handlers launched external WhatsApp. Existing phone conversations could be silently rebound to another lead.",
       "releaseEvidence": null
     },
     {
@@ -833,11 +838,13 @@
         "5380"
       ],
       "backend": "IMPLEMENTED_LOCAL_DB_TESTED",
-      "web": "IMPLEMENTED_BROWSER_ACCEPTANCE_PENDING",
+      "web": "LOCAL_CHROME_PAGINATION_UNIT_SAVE_RESCHEDULE_VERIFIED",
       "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
       "verification": "Shared 46; real PostgreSQL visits 5 and Team/Broker-first regression 9; mobile 61; workspace typechecks; Android Metro export. Browser and installed APK acceptance pending.",
-      "notes": [],
+      "notes": [
+        "Local Chrome on isolated API: 56 inventory fixtures across three pages, second-floor association saved, rescheduled and preserved. No production or APK claim."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -861,11 +868,13 @@
         "5380"
       ],
       "backend": "IMPLEMENTED_LOCAL_DB_TESTED",
-      "web": "IMPLEMENTED_BROWSER_ACCEPTANCE_PENDING",
+      "web": "LOCAL_CHROME_PAGINATION_UNIT_SAVE_RESCHEDULE_VERIFIED",
       "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
       "verification": "Shared 46; real PostgreSQL visits 5 and Team/Broker-first regression 9; mobile 61; workspace typechecks; Android Metro export. Browser and installed APK acceptance pending.",
-      "notes": [],
+      "notes": [
+        "Local Chrome on isolated API: 56 inventory fixtures across three pages, second-floor association saved, rescheduled and preserved. No production or APK claim."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -889,11 +898,13 @@
         "5380"
       ],
       "backend": "IMPLEMENTED_LOCAL_DB_TESTED",
-      "web": "IMPLEMENTED_BROWSER_ACCEPTANCE_PENDING",
+      "web": "LOCAL_CHROME_PAGINATION_UNIT_SAVE_RESCHEDULE_VERIFIED",
       "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
       "verification": "Shared 46; real PostgreSQL visits 5 and Team/Broker-first regression 9; mobile 61; workspace typechecks; Android Metro export. Browser and installed APK acceptance pending.",
-      "notes": [],
+      "notes": [
+        "Local Chrome on isolated API: 56 inventory fixtures across three pages, second-floor association saved, rescheduled and preserved. No production or APK claim."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -1679,7 +1690,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Lead matches and suggested replies use internal drafts. Inventory-owner/client-phone sharing and complete canned-reply/provider acceptance remain open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -3236,19 +3249,21 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
+      "backend": "ENCRYPTED_SETTINGS_SAVED_DISABLED_PENDING_SENDING_ROUTE",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Gmail authentication/local self-email and mailbox receipt verified. Production 465/587 connectivity failed; no production delivery claim.",
       "notes": [],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "docs/production/EMAIL_INTEGRATION.md"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "PRODUCTION_ENCRYPTED_SMTP_CONFIGURATION",
+      "rootCause": "Production host SMTP egress unavailable; credentials valid. HTTPS Gmail API or company-domain provider decision pending.",
       "releaseEvidence": null
     },
     {

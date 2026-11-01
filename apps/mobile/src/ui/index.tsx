@@ -35,7 +35,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AlertTriangle, ChevronLeft, CircleCheck, Info, Inbox, Settings2, XCircle } from 'lucide-react-native';
 import { initials } from '@brokeriq/shared';
-import { ApiError, errorMessage, img } from '../lib/api';
+import { ApiError, errorMessage, img, useSession } from '../lib/api';
 import { fonts, palette, radius, useTheme } from '../lib/theme';
 import { useToasts } from '../lib/toast';
 import { translateChildren, useT, useTextDir } from '../lib/i18n';
@@ -123,7 +123,20 @@ export function Screen({
 export function Header({ title, subtitle, right, back = true }: { title?: string; subtitle?: string; right?: React.ReactNode; back?: boolean }) {
   const { c } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.surface, borderRadius: 18 }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        marginBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: c.line,
+        backgroundColor: c.surface,
+        borderRadius: 18,
+      }}
+    >
       {back && (
         <IconBtn onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
           <ChevronLeft size={24} color={c.fg} />
@@ -391,7 +404,9 @@ export function Button({
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon}
-      {!!title && <Text style={[{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15, flexShrink: 1, textAlign: 'center' }, dir]}>{t(title)}</Text>}
+      {!!title && (
+        <Text style={[{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15, flexShrink: 1, textAlign: 'center' }, dir]}>{t(title)}</Text>
+      )}
     </PressableScale>
   );
 }
@@ -640,6 +655,8 @@ export function Empty({ title, text, icon, action }: { title: string; text?: str
 export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const { c } = useTheme();
   const nc = error instanceof ApiError && error.isNotConfigured ? error.body : null;
+  const role = useSession((state) => state.session?.user.role);
+  const canFix = nc?.integration?.scope === 'organization' && role === 'BROKER_ADMIN';
   return (
     <View
       style={{
@@ -663,10 +680,20 @@ export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => 
       </Txt>
       {nc && (
         <Txt v="caption" color="subtle">
-          {nc.integration?.scope === 'organization'
-            ? 'Broker app → More → Lead connectors में जोड़ें।'
-            : 'Super Admin → Settings → Credentials center (website) में जोड़ें।'}
+          {role === 'BROKER_AGENT'
+            ? 'अपनी firm के Broker Admin से integration configure करवाएँ। आपका draft सुरक्षित है।'
+            : nc.integration?.scope === 'organization'
+              ? 'Broker app → More → Lead connectors में जोड़ें।'
+              : 'Super Admin → Settings → Credentials center (website) में जोड़ें।'}
         </Txt>
+      )}
+      {canFix && (
+        <Button
+          title="Connectors खोलें"
+          size="sm"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/connectors', params: { key: nc!.integration!.key } })}
+        />
       )}
       {onRetry && <Button title="फिर कोशिश करें" size="sm" variant="secondary" onPress={onRetry} style={{ alignSelf: 'flex-start', marginTop: 4 }} />}
     </View>

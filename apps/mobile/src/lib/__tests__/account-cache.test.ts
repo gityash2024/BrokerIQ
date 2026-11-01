@@ -54,3 +54,18 @@ it('credential persistence finishes logout after an older asynchronous write', a
   write.mockRestore();
   remove.mockRestore();
 });
+
+it('clears privileged queries when the same account changes role or firm', async () => {
+  const session = {
+    accessToken: 'isolated',
+    refreshToken: 'isolated',
+    user: { id: 'membership-change', role: 'BROKER_ADMIN', organization: { id: 'firm-a' } },
+  } as any;
+  await authStore.set(session);
+  queryClient.setQueryData(['team-private'], ['admin-only']);
+  await authStore.set({ ...session, user: { ...session.user, role: 'BROKER_AGENT' } });
+  expect(queryClient.getQueryData(['team-private'])).toBeUndefined();
+  queryClient.setQueryData(['inventory-private'], ['firm-a']);
+  await authStore.set({ ...session, user: { ...session.user, role: 'BROKER_AGENT', organization: { id: 'firm-b' } } });
+  expect(queryClient.getQueryData(['inventory-private'])).toBeUndefined();
+});

@@ -1,10 +1,11 @@
 'use client';
+import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlarmClock, CalendarPlus, Check, Clock, ListChecks, Mail, MessageCircle, Phone, Trash2, Users, X } from 'lucide-react';
-import { FollowUpType, whatsappLink } from '@brokeriq/shared';
+import { FollowUpType } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
@@ -186,7 +187,7 @@ export default function FollowUpsPage() {
                             <Button size="icon-sm" variant="ghost" href={`tel:${f.lead.phone}`} aria-label="Call">
                               <Phone className="size-4" />
                             </Button>
-                            <Button size="icon-sm" variant="ghost" href={whatsappLink(f.lead.phone, `Hi ${f.lead.name ?? ''}`)} external aria-label="WhatsApp">
+                            <Button size="icon-sm" variant="ghost" href={leadInboxUrl(f.lead.id)} aria-label="WhatsApp">
                               <MessageCircle className="size-4 text-emerald-600" />
                             </Button>
                             <Select

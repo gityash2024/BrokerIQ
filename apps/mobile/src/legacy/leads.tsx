@@ -1,3 +1,4 @@
+import { openLeadInbox } from '@/lib/inbox-composer';
 import { useRef, useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
@@ -7,7 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AlarmClock, Inbox, MessageCircle, Phone, Plus, Search } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink } from '@brokeriq/shared';
+import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
@@ -56,7 +57,7 @@ function LeadItem({ l }: { l: any }) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
         // "left" = left-side actions revealed (swiped right) → Call
         if (String(dir) === 'left') Linking.openURL(`tel:${l.phone}`);
-        else Linking.openURL(whatsappLink(l.phone, `Hi ${l.name ?? ''}`));
+        else openLeadInbox(l.id);
         ref.current?.close();
       }}
     >

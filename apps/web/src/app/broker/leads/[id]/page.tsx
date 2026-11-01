@@ -1,4 +1,5 @@
 'use client';
+import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
 import { parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import Link from 'next/link';
@@ -38,7 +39,6 @@ import {
   formatINR,
   formatPriceShort,
   timeAgo,
-  whatsappLink,
   RENTABLE_TYPES,
   moduleAllowed,
   type LocalityListItem,
@@ -145,7 +145,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               <Phone className="size-4" /> Call
             </Button>
             {allowed('legacy') && <ClickToCall leadId={l.id} onDone={refresh} />}
-            <Button variant="whatsapp" href={whatsappLink(l.phone, `नमस्ते ${l.name.split(' ')[0]} जी,`)} external>
+            <Button variant="whatsapp" href={leadInboxUrl(l.id)}>
               <MessageCircle className="size-4" /> WhatsApp
             </Button>
             {admin && (
@@ -362,8 +362,8 @@ function Timeline({ lead, onChange }: { lead: any; onChange: () => void }) {
         {waError?.body.integration && (
           <div className="mt-3 space-y-2">
             <IntegrationBanner compact name={waError.body.integration.name} message={waError.body.message} href={waError.body.integration.settingsPath} />
-            <Button size="sm" variant="whatsapp" href={whatsappLink(lead.phone, content)} external>
-              WhatsApp app में खोलें
+            <Button size="sm" variant="whatsapp" onClick={() => openLeadInbox(lead.id, content)}>
+              Inbox में draft खोलें
             </Button>
           </div>
         )}
@@ -411,21 +411,12 @@ function Matches({ lead }: { lead: any }) {
   const [scope, setScope] = useState<'org' | 'all'>('org');
   const coBrokingOn = useFlag('cobroking');
   const q = useQuery({ queryKey: ['matches', lead.id, scope], queryFn: () => api<any[]>(`/leads/${lead.id}/matches?scope=${scope}`) });
-  const share = async (listingId: string, viaApi: boolean) => {
+  const share = async (listingId: string) => {
     try {
       const r = await post<any>(`/leads/${lead.id}/share`, { listingId });
-      if (viaApi) {
-        try {
-          await post('/whatsapp/send', { leadId: lead.id, text: r.text });
-          toast.success('Property WhatsApp पर भेज दी ✓');
-          return;
-        } catch (e) {
-          if (!(e instanceof ApiError && e.isNotConfigured)) throw e;
-        }
-      }
-      window.open(whatsappLink(lead.phone, r.text), '_blank');
-    } catch (e) {
-      toast.error(errorMessage(e));
+      openLeadInbox(lead.id, r.text);
+    } catch (error) {
+      toast.error(errorMessage(error));
     }
   };
   const coBroke = async (listingId: string) => {
@@ -474,7 +465,7 @@ function Matches({ lead }: { lead: any }) {
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Button size="sm" variant="whatsapp" onClick={() => share(m.id, true)}>
+              <Button size="sm" variant="whatsapp" onClick={() => share(m.id)}>
                 <Share2 className="size-4" /> Share
               </Button>
               {coBrokingOn && m.coBroking && m.organization && m.organization.id !== lead.organizationId && (
@@ -782,7 +773,7 @@ function AiCard({ lead, onChange }: { lead: any; onChange: () => void }) {
           <div className="rounded-xl border border-line p-3">
             <p className="text-xs font-bold text-muted">Suggested WhatsApp reply</p>
             <p className="mt-1">{data.suggestedReply}</p>
-            <Button size="xs" variant="whatsapp" className="mt-2" href={whatsappLink(lead.phone, data.suggestedReply)} external>
+            <Button size="xs" variant="whatsapp" className="mt-2" onClick={() => openLeadInbox(lead.id, data.suggestedReply)}>
               Use
             </Button>
           </div>

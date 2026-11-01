@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma, type MessageType } from '@prisma/client';
 import { normalizeIndianPhone, phoneForWhatsApp } from '@brokeriq/shared';
@@ -24,7 +24,7 @@ export interface WaCreds {
 }
 
 const NOT_CONNECTED =
-  'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। तब तक "WhatsApp पर खोलें" button से message भेजें।';
+  'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। Integration configure होने तक draft सुरक्षित रखें; message भेजा नहीं गया है।';
 
 @Injectable()
 export class WhatsAppService {
@@ -74,16 +74,16 @@ export class WhatsAppService {
   // ------------------------------------------------------------------ conversations
   async conversationFor(orgId: string | null, phone: string, opts: { name?: string | null; leadId?: string | null } = {}) {
     const contactKey = phoneForWhatsApp(phone);
-    const patch = { ...(opts.leadId ? { leadId: opts.leadId } : {}), ...(opts.name ? { contactName: opts.name } : {}) };
-    if (!orgId) {
-      const found = await this.prisma.conversation.findFirst({ where: { organizationId: null, channel: 'WHATSAPP', contactKey } });
-      if (found) return Object.keys(patch).length ? this.prisma.conversation.update({ where: { id: found.id }, data: patch }) : found;
-      return this.prisma.conversation.create({ data: { channel: 'WHATSAPP', contactKey, contactPhone: `+${contactKey}`, contactName: opts.name } });
-    }
-    return this.prisma.conversation.upsert({
-      where: { organizationId_channel_contactKey: { organizationId: orgId, channel: 'WHATSAPP', contactKey } },
-      create: { organizationId: orgId, channel: 'WHATSAPP', contactKey, contactPhone: `+${contactKey}`, contactName: opts.name, leadId: opts.leadId },
-      update: patch,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wa-composer:${orgId || 'platform'}:${contactKey}`}))`;
+      const found = await tx.conversation.findFirst({ where: { organizationId: orgId, channel: 'WHATSAPP', contactKey } });
+      if (found?.blockedAt) throw new ForbiddenException('This conversation is blocked');
+      if (found?.leadId && opts.leadId && found.leadId !== opts.leadId) throw new ConflictException('This number is linked to another lead');
+      const patch = { ...(opts.leadId ? { leadId: opts.leadId } : {}), ...(opts.name ? { contactName: opts.name } : {}) };
+      if (found) return Object.keys(patch).length ? tx.conversation.update({ where: { id: found.id }, data: patch }) : found;
+      return tx.conversation.create({
+        data: { organizationId: orgId, channel: 'WHATSAPP', contactKey, contactPhone: `+${contactKey}`, contactName: opts.name, leadId: opts.leadId },
+      });
     });
   }
 

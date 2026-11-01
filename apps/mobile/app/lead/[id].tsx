@@ -1,3 +1,4 @@
+import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
 import * as Crypto from 'expo-crypto';
 import { VisitPropertyPicker } from '@/components/visit-property-picker';
@@ -23,7 +24,7 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, whatsappLink, moduleAllowed, type LeadStage } from '@brokeriq/shared';
+import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, moduleAllowed, type LeadStage } from '@brokeriq/shared';
 import { api, del, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
@@ -56,7 +57,7 @@ export default function LeadDetail() {
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
-  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'not_interested' | 'deal' | 'wa'>(null);
+  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'not_interested' | 'deal'>(null);
   const callPending = useRef(false);
   const refresh = () => {
     q.refetch();
@@ -88,7 +89,6 @@ export default function LeadDetail() {
     callPending.current = true;
     Linking.openURL(`tel:${l.phone}`);
   };
-  const waConv = l.conversations?.find((cv: any) => cv.channel === 'WHATSAPP');
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
@@ -138,7 +138,7 @@ export default function LeadDetail() {
               variant="whatsapp"
               icon={<MessageCircle size={17} color="#fff" />}
               style={{ flex: 1 }}
-              onPress={() => (waConv ? router.push({ pathname: '/wa/[id]', params: { id: waConv.id } }) : setSheet('wa'))}
+              onPress={() => openLeadInbox(l.id)}
             />
           </Row>
           <Button
@@ -294,7 +294,6 @@ export default function LeadDetail() {
         onSave={(reason) => (stage.mutate({ stage: 'NOT_INTERESTED', lostReason: reason || undefined }), setSheet(null))}
       />
       {dealsOn && <DealSheet open={sheet === 'deal'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />}
-      <WaSheet open={sheet === 'wa'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
     </SafeAreaView>
   );
 }
@@ -550,38 +549,6 @@ function DealSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: ()
   );
 }
 
-function WaSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () => void; lead: any; onDone: () => void }) {
-  const [t, setT] = useState(`नमस्ते ${lead.name?.split(' ')[0] ?? ''} 👋 `);
-  const [busy, setBusy] = useState(false);
-  const send = async () => {
-    setBusy(true);
-    try {
-      await post('/whatsapp/send', { leadId: lead.id, text: t });
-      toast.success('WhatsApp भेजा गया');
-      onClose();
-      onDone();
-    } catch {
-      // Not connected / outside 24h window → fall back to the WhatsApp app.
-      Linking.openURL(whatsappLink(lead.phone, t));
-      post(`/leads/${lead.id}/activities`, { type: 'WHATSAPP', content: t })
-        .then(onDone)
-        .catch(() => undefined);
-      onClose();
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Sheet open={open} onClose={onClose} title="WhatsApp message">
-      <Input value={t} onChangeText={setT} multiline />
-      <Txt v="caption" color="muted">
-        Business WhatsApp connected है तो app से जाएगा (inbox में save होगा), नहीं तो WhatsApp app खुलेगा।
-      </Txt>
-      <Button title="भेजें" variant="whatsapp" icon={<Send size={17} color="#fff" />} loading={busy} disabled={!t.trim()} onPress={send} />
-    </Sheet>
-  );
-}
-
 function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void; openSheet: (s: 'followup' | 'visit') => void }) {
   const { c } = useTheme();
   const done = useApiMutation((fid: string) => patch(`/follow-ups/${fid}`, { status: 'DONE' }), { success: 'Done ✅', onSuccess: onChange });
@@ -644,12 +611,7 @@ function Matches({ lead, onShared }: { lead: any; onShared: () => void }) {
   const share = async (listingId: string) => {
     try {
       const r = await post<{ text: string }>(`/leads/${lead.id}/share`, { listingId });
-      try {
-        await post('/whatsapp/send', { leadId: lead.id, text: r.text });
-        toast.success('WhatsApp पर भेजा गया');
-      } catch {
-        Linking.openURL(whatsappLink(lead.phone, r.text));
-      }
+      await openLeadInbox(lead.id, r.text);
       onShared();
     } catch (e) {
       showError(e);
@@ -782,7 +744,7 @@ function Ai({ lead, onDone }: { lead: any; onDone: () => void }) {
                 Suggested WhatsApp
               </Txt>
               <Txt v="small">{r.suggestedReply}</Txt>
-              <Button title="WhatsApp पर भेजें" size="sm" variant="whatsapp" onPress={() => Linking.openURL(whatsappLink(lead.phone, r.suggestedReply))} />
+              <Button title="WhatsApp पर भेजें" size="sm" variant="whatsapp" onPress={() => openLeadInbox(lead.id, r.suggestedReply)} />
             </Card>
           )}
         </Animated.View>
