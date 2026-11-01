@@ -35,6 +35,17 @@ export interface SessionLimitChallenge {
   sessions: { id: string; ip: string | null; userAgent: string | null; createdAt: string; lastUsedAt: string; expiresAt: string }[];
 }
 
+/** Grants no API access. A future verified-phone factor can extend requiredFactors. */
+export interface LoginOtpChallenge {
+  challenge: string;
+  requiredFactors: ('EMAIL' | 'SMS')[];
+  destination: string;
+  expiresAt: string;
+  resendAt: string;
+  /** Only returned outside production when no email provider is configured. */
+  devCode?: string;
+}
+
 export interface JwtPayload {
   sub: string;
   role: AuthUser['role'];

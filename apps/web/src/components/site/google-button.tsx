@@ -41,7 +41,7 @@ export function GoogleButton({
       return;
     }
     const s = document.createElement('script');
-    s.src = 'https://user/accounts.google.com/gsi/client';
+    s.src = 'https://accounts.google.com/gsi/client';
     s.async = true;
     s.onload = render;
     document.head.appendChild(s);

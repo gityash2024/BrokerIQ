@@ -3827,7 +3827,9 @@
         "apps/api/src/modules/me/me.controller.ts",
         "apps/web/src/app/(site)/notification/page.tsx"
       ],
-      "commits": [],
+      "commits": [
+        "2c76251"
+      ],
       "database": "NO_MIGRATION_REQUIRED",
       "rootCause": "Native push forwarded web URLs directly; cold response was not consumed; bare brokeriq:/// passed through unchanged; requirements matched generic lead id; notification list capped at 50.",
       "releaseEvidence": null
@@ -3857,7 +3859,9 @@
         "apps/api/src/modules/me/me.controller.ts",
         "apps/web/src/app/(site)/notification/page.tsx"
       ],
-      "commits": [],
+      "commits": [
+        "2c76251"
+      ],
       "database": "NO_MIGRATION_REQUIRED",
       "rootCause": "Native push forwarded web URLs directly; cold response was not consumed; bare brokeriq:/// passed through unchanged; requirements matched generic lead id; notification list capped at 50.",
       "releaseEvidence": null
@@ -3915,21 +3919,27 @@
       "sourceRequests": [
         "2026-11-01-three-addons-and-unmatched-route-screenshot"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "9 real PostgreSQL factor scenarios; full API 296 passed/25 configuration skips before final rate-bound test; shared 57/mobile 68; local Chrome password/OTP/Agent dashboard; provider/device release pending.",
       "notes": [
-        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled."
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
+        "Explicit rollout gate defaults off for backward compatibility; final production activation is required after selected application mail delivery is tested. No production migration, live OTP send or installed APK claim."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/auth/login-verification.service.ts",
+        "apps/api/prisma/migrations/20261101133000_login_email_factor/migration.sql",
+        "apps/web/src/components/site/login-otp-dialog.tsx",
+        "apps/mobile/src/components/login-otp-sheet.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Password, signup and verified Google login previously issued sessions without a mandatory second step; passwordless verify could independently issue one.",
       "releaseEvidence": null
     },
     {
@@ -3944,7 +3954,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled."
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
+        "LoginVerification.channel and requiredFactors contract added. EMAIL active only; future SMS remains an explicit adapter/policy extension. Phone stays optional; no fake SMS factor approval."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -3953,6 +3964,32 @@
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
+      "releaseEvidence": null
+    },
+    {
+      "id": "AUTH-GOOGLE-URL",
+      "requirement": "Restore the valid Google Identity script URL",
+      "sourceRequests": [
+        "full-history-audit",
+        "2026-11-01-login-addon"
+      ],
+      "backend": "EXISTING_GOOGLE_VERIFICATION",
+      "web": "IMPLEMENTED_TYPECHECKED",
+      "androidSource": "NOT_APPLICABLE",
+      "shippedBuild": "PENDING",
+      "verification": "Official Google setup documentation; source URL corrected. Live Google OAuth consent/sign-in remains pending.",
+      "notes": [
+        "Broken hostname came from 3a4c5f6f dated 2026-10-17, before this audit; do not attribute it to an artifact skip without evidence."
+      ],
+      "roles": [
+        "ALL_AUTHENTICATED"
+      ],
+      "sourceFiles": [
+        "apps/web/src/components/site/google-button.tsx"
+      ],
+      "commits": [],
+      "database": "NOT_APPLICABLE",
+      "rootCause": "A user route prefix was present inside an external script URL, creating hostname user instead of accounts.google.com.",
       "releaseEvidence": null
     }
   ]

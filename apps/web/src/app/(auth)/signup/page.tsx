@@ -2,12 +2,14 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, errorMessage } from '@/lib/api';
+import { LoginOtpDialog } from '@/components/site/login-otp-dialog';
+import { api, ApiError, errorMessage } from '@/lib/api';
+import { useConfig } from '@/lib/config';
 import { homeFor, useAuth } from '@/lib/auth';
 import { AuthShell } from '@/components/site/auth-shell';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
-import type { AuthResponse } from '@brokeriq/shared';
+import type { AuthResponse, LoginOtpChallenge } from '@brokeriq/shared';
 export default function Signup() {
   return (
     <Suspense>
@@ -16,6 +18,7 @@ export default function Signup() {
   );
 }
 function SignupForm() {
+  const { app } = useConfig();
   const sp = useSearchParams();
   const code = sp.get('invite');
   const next = sp.get('next');
@@ -23,6 +26,7 @@ function SignupForm() {
   const broker = !!code || sp.get('type') === 'broker';
   const { setSession } = useAuth();
   const router = useRouter();
+  const [factor, setFactor] = useState<LoginOtpChallenge | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   return (
@@ -30,7 +34,23 @@ function SignupForm() {
       title={broker ? 'Your broker invitation' : 'Find your next home'}
       subtitle={broker ? 'Create your firm account with your invitation.' : 'Create your customer account to save, enquire and plan a visit.'}
     >
-      {broker && !code ? (
+      <LoginOtpDialog
+        challenge={factor}
+        onChange={setFactor}
+        onDone={(session) => {
+          setSession(session);
+          router.replace(returnTo ?? homeFor(session.user));
+        }}
+        onSessionLimit={() => {
+          setFactor(null);
+          setError('Account created. Sign in to choose an existing device.');
+        }}
+      />
+      {!app.auth.allowPasswordLogin ? (
+        <p>
+          Account creation is currently unavailable. <Link href="/login">Sign in</Link> or contact support.
+        </p>
+      ) : broker && !code ? (
         <>
           <p>Broker accounts require an invitation from Super Admin.</p>
           <Link href="/signup">Create a customer account →</Link>
@@ -52,7 +72,8 @@ function SignupForm() {
               setSession(session);
               router.replace(returnTo ?? homeFor(session.user));
             } catch (e) {
-              setError(errorMessage(e));
+              if (e instanceof ApiError && e.body.code === 'LOGIN_OTP_REQUIRED') setFactor(e.body.details as LoginOtpChallenge);
+              else setError(errorMessage(e));
             } finally {
               setBusy(false);
             }

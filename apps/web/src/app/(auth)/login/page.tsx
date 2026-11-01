@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { KeyRound, Mail } from 'lucide-react';
-import type { AuthResponse, SessionLimitChallenge } from '@brokeriq/shared';
+import type { AuthResponse, SessionLimitChallenge, LoginOtpChallenge } from '@brokeriq/shared';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { AuthShell } from '@/components/site/auth-shell';
+import { LoginOtpDialog } from '@/components/site/login-otp-dialog';
 import { GoogleButton } from '@/components/site/google-button';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
@@ -20,6 +21,7 @@ import { Segmented } from '@/components/ui/tabs';
 function LoginInner() {
   const { setSession } = useAuth();
   const { t } = useI18n();
+  const [factor, setFactor] = useState<LoginOtpChallenge | null>(null);
   const [selection, setSelection] = useState<SessionLimitChallenge | null>(null);
   const { app } = useConfig();
   const router = useRouter();
@@ -27,9 +29,9 @@ function LoginInner() {
   const next = sp.get('next');
   const [mode, setMode] = useState<'otp' | 'password'>('password');
   useEffect(() => {
-    if (mode === 'otp' && !app.auth.allowEmailOtp) setMode('password');
-    if (mode === 'password' && !app.auth.allowPasswordLogin && app.auth.allowEmailOtp) setMode('otp');
-  }, [mode, app.auth.allowEmailOtp, app.auth.allowPasswordLogin]);
+    if (mode === 'otp' && (!app.auth.allowEmailOtp || app.auth.requireLoginEmailOtp)) setMode('password');
+    if (mode === 'password' && !app.auth.allowPasswordLogin && app.auth.allowEmailOtp && !app.auth.requireLoginEmailOtp) setMode('otp');
+  }, [mode, app.auth.allowEmailOtp, app.auth.allowPasswordLogin, app.auth.requireLoginEmailOtp]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -43,7 +45,8 @@ function LoginInner() {
       next &&
         /^\/(?![\/\\])/.test(next) &&
         !next.includes('\\') &&
-        (next.startsWith('/notification?notification=') || next.startsWith('/user') ||
+        (next.startsWith('/notification?notification=') ||
+          next.startsWith('/user') ||
           next.startsWith('/invite/') ||
           (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
           (['BROKER_ADMIN', 'BROKER_AGENT'].includes(r.user.role) && next.startsWith('/broker')))
@@ -56,7 +59,10 @@ function LoginInner() {
     try {
       await fn();
     } catch (e) {
-      if (e instanceof ApiError && e.body.code === 'SESSION_LIMIT_REACHED') setSelection(e.body.details as SessionLimitChallenge);
+      if (e instanceof ApiError && e.body.code === 'LOGIN_OTP_REQUIRED') {
+        setFactor(e.body.details as LoginOtpChallenge);
+        setPassword('');
+      } else if (e instanceof ApiError && e.body.code === 'SESSION_LIMIT_REACHED') setSelection(e.body.details as SessionLimitChallenge);
       else toast.error(errorMessage(e));
     } finally {
       setLoading(false);
@@ -72,6 +78,7 @@ function LoginInner() {
 
   return (
     <AuthShell title="Welcome back" subtitle="अपने account में login करें">
+      <LoginOtpDialog challenge={factor} onChange={setFactor} onDone={done} onSessionLimit={setSelection} />
       <Dialog
         open={!!selection}
         onOpenChange={(open) => {
@@ -113,7 +120,7 @@ function LoginInner() {
       <GoogleButton
         onCredential={(idToken) => run(async () => done(await api('/auth/google', { method: 'POST', body: { idToken, ref: pendingReferral() }, auth: false })))}
       />
-      {app.auth.allowEmailOtp && app.auth.allowPasswordLogin && (
+      {app.auth.allowEmailOtp && !app.auth.requireLoginEmailOtp && app.auth.allowPasswordLogin && (
         <Segmented
           className="mb-5 w-full [&>button]:flex-1"
           value={mode}
@@ -138,7 +145,9 @@ function LoginInner() {
           ]}
         />
       )}
-      {mode === 'otp' ? (
+      {!app.auth.allowPasswordLogin && (!app.auth.allowEmailOtp || app.auth.requireLoginEmailOtp) ? (
+        <p className="text-sm text-muted">Use the enabled Google sign-in option to continue.</p>
+      ) : mode === 'otp' ? (
         <form
           className="space-y-4"
           onSubmit={(e) => {

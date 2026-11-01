@@ -39,6 +39,7 @@ export class MaintenanceService {
     }
     if (expired.length) this.logger.log(`expired ${expired.length} listings`);
     await this.prisma.otpCode.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 86400_000) } } });
+    await this.prisma.loginVerification.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 86400_000) } } });
     await this.prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: new Date() } } });
     await this.prisma.notification.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 90 * 86400_000) }, readAt: { not: null } } });
   }

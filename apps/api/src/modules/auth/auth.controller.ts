@@ -39,6 +39,30 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('login/otp/verify')
+  verifyLoginOtp(
+    @Body(
+      new ZodPipe(
+        z.object({ challenge: z.string().min(32).max(128), code: z.string().regex(/^\d{6}$/), factor: z.literal('EMAIL').default('EMAIL') }).strict(),
+      ),
+    )
+    body: { challenge: string; code: string },
+    @Req() req: any,
+  ) {
+    return this.auth.verifyLoginOtp(body.challenge, body.code, meta(req));
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('login/otp/resend')
+  resendLoginOtp(@Body(new ZodPipe(z.object({ challenge: z.string().min(32).max(128) }).strict())) body: { challenge: string }, @Req() req: any) {
+    return this.auth.resendLoginOtp(body.challenge, meta(req));
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(200)
   @Post('otp/request')

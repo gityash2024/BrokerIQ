@@ -18,6 +18,7 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import { ModulesService } from '../../core/features/modules.service';
 import { CryptoService } from '../../core/settings/crypto.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
+import { LoginVerificationService } from './login-verification.service';
 
 type UserWithOrg = User & { organization: Organization | null };
 interface ClientMeta {
@@ -40,6 +41,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
     private readonly crypto: CryptoService,
+    private readonly loginVerification: LoginVerificationService,
   ) {}
 
   /** Ensure the Super Admin from env exists (idempotent). */
@@ -134,7 +136,7 @@ export class AuthService implements OnApplicationBootstrap {
     return response;
   }
 
-  async issue(user: UserWithOrg, meta: ClientMeta = {}, existingSessionId?: string): Promise<AuthResponse> {
+  async issue(user: UserWithOrg, meta: ClientMeta = {}, existingSessionId?: string, emailOtpVerified = false): Promise<AuthResponse> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id + ':sessions'}))`;
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, include: { organization: true } });
@@ -166,7 +168,7 @@ export class AuthService implements OnApplicationBootstrap {
       });
       if (active.length >= 5) {
         const challenge = this.jwt.sign(
-          { sub: current.id, purpose: 'replace-device-session', sessionVersion: current.sessionVersion, nonce: randomToken(24) },
+          { sub: current.id, purpose: 'replace-device-session', sessionVersion: current.sessionVersion, nonce: randomToken(24), emailOtpVerified },
           { secret: env().JWT_REFRESH_SECRET, expiresIn: '5m' },
         );
         throw new AppException(HttpStatus.CONFLICT, ErrorCode.SESSION_LIMIT_REACHED, 'पाँच devices पर login है। जारी रखने के लिए एक device चुनें।', {
@@ -186,6 +188,8 @@ export class AuthService implements OnApplicationBootstrap {
     } catch {
       throw new UnauthorizedException('Login selection expired. Please log in again.');
     }
+    if ((await this.settings.getAppConfig()).auth.requireLoginEmailOtp && payload.emailOtpVerified !== true)
+      throw new UnauthorizedException('Email OTP पूरा करने के लिए दोबारा login करें।');
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${payload.sub + ':sessions'}))`;
       const user = await tx.user.findUniqueOrThrow({ where: { id: payload.sub }, include: { organization: true } });
@@ -276,8 +280,10 @@ export class AuthService implements OnApplicationBootstrap {
     });
     await this.linkReferral(user.id, input.ref);
     await this.audit.log({ id: user.id, role: user.role }, 'auth.register', 'User', user.id, { accountType: input.accountType }, meta.ip);
+    const current = (await this.findUser({ id: user.id }))!;
+    if (app.auth.requireLoginEmailOtp) return this.loginVerification.start(current, 'SIGNUP', meta);
     this.requestOtp(input.email, 'VERIFY_EMAIL').catch(() => undefined);
-    return this.issue((await this.findUser({ id: user.id }))!, meta);
+    return this.issue(current, meta);
   }
 
   /** New account came from a friend's invite link: remember who invited them and say thanks (no money involved). */
@@ -298,16 +304,23 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async login(email: string, password: string, meta: ClientMeta) {
+    const app = await this.settings.getAppConfig();
+    if (!app.auth.allowPasswordLogin) throw new ForbiddenException('Password login बंद है।');
     await this.access.assertNotBlocked({ email, ip: meta.ip });
     const user = await this.findUser({ email });
     if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Email या password गलत है');
     }
+    this.assertEligible(user);
+    if (app.auth.requireLoginEmailOtp) return this.loginVerification.start(user, 'PASSWORD', meta);
     await this.audit.log({ id: user.id, role: user.role, orgId: user.organizationId }, 'auth.login', 'User', user.id, { method: 'password' }, meta.ip);
     return this.issue(user, meta);
   }
 
   async requestOtp(email: string, purpose: 'LOGIN' | 'VERIFY_EMAIL' | 'RESET_PASSWORD') {
+    const auth = (await this.settings.getAppConfig()).auth;
+    if (purpose === 'LOGIN' && (auth.requireLoginEmailOtp || !auth.allowEmailOtp))
+      throw new ForbiddenException('Email और password या Google से login शुरू करें; उसके बाद OTP पूरा करें।');
     await this.access.assertNotBlocked({ email });
     const recent = await this.prisma.otpCode.count({ where: { email, createdAt: { gt: new Date(Date.now() - 15 * 60_000) } } });
     if (recent >= 5) throw new AppException(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMITED, 'बहुत ज़्यादा OTP requests — 15 मिनट बाद try करें।');
@@ -355,6 +368,10 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async verifyOtp(input: { email: string; code: string; name?: string; accountType?: 'USER' | 'BROKER'; inviteCode?: string; ref?: string }, meta: ClientMeta) {
+    const auth = (await this.settings.getAppConfig()).auth;
+    if (auth.requireLoginEmailOtp || !auth.allowEmailOtp)
+      throw new ForbiddenException('Email और password या Google से login शुरू करें; उसके बाद OTP पूरा करें।');
+    await this.access.assertNotBlocked({ email: input.email, ip: meta.ip });
     await this.consumeOtp(input.email, input.code, ['LOGIN', 'VERIFY_EMAIL']);
     let user = await this.findUser({ email: input.email });
     if (!user) {
@@ -373,6 +390,8 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async google(idToken: string, accountType: 'USER' | 'BROKER' | undefined, meta: ClientMeta, inviteCode?: string, ref?: string) {
+    const app = await this.settings.getAppConfig();
+    if (!app.auth.allowGoogle) throw new ForbiddenException('Google login बंद है।');
     const cfg = await this.settings.require('google_oauth');
     const audience = [cfg.webClientId, cfg.androidClientId, cfg.iosClientId].filter(Boolean).map(String);
     const client = new OAuth2Client();
@@ -401,8 +420,28 @@ export class AuthService implements OnApplicationBootstrap {
         data: { googleId: payload.sub, emailVerified: true, avatarUrl: user.avatarUrl ?? payload.picture },
       });
     }
+    this.assertEligible(user!);
+    if (app.auth.requireLoginEmailOtp) return this.loginVerification.start(user!, 'GOOGLE', meta);
     await this.audit.log({ id: user!.id, role: user!.role, orgId: user!.organizationId }, 'auth.login', 'User', user!.id, { method: 'google' }, meta.ip);
     return this.issue(user!, meta);
+  }
+
+  async verifyLoginOtp(challenge: string, code: string, meta: ClientMeta) {
+    const { user, method } = await this.loginVerification.consume(challenge, code, meta);
+    this.assertEligible(user);
+    await this.audit.log(
+      { id: user.id, role: user.role, orgId: user.organizationId },
+      'auth.login',
+      'User',
+      user.id,
+      { method: method.toLowerCase() + '+email_otp' },
+      meta.ip,
+    );
+    return this.issue(user, meta, undefined, true);
+  }
+
+  resendLoginOtp(challenge: string, meta: ClientMeta) {
+    return this.loginVerification.resend(challenge, meta);
   }
 
   async refresh(refreshToken: string, meta: ClientMeta) {
@@ -478,6 +517,7 @@ export class AuthService implements OnApplicationBootstrap {
       this.prisma.userLocation.deleteMany({ where: { userId: id } }),
       this.prisma.userContact.deleteMany({ where: { userId: id } }),
       this.prisma.pushToken.deleteMany({ where: { userId: id } }),
+      this.prisma.loginVerification.deleteMany({ where: { userId: id } }),
       this.prisma.savedListing.deleteMany({ where: { userId: id } }),
       this.prisma.recentView.deleteMany({ where: { userId: id } }),
       this.prisma.savedSearch.deleteMany({ where: { userId: id } }),

@@ -190,6 +190,13 @@ export class AdminCoreController {
 
   @Patch('app-config')
   async updateAppConfig(@CurrentUser() user: RequestUser, @Body() body: any) {
+    const current = await this.settings.getAppConfig();
+    const nextAuth = { ...current.auth, ...body?.auth };
+    if (nextAuth.requireLoginEmailOtp && !nextAuth.allowPasswordLogin && !nextAuth.allowGoogle) throw new BadRequestException('At least one first-factor login method must remain enabled.');
+    if (body?.auth?.requireLoginEmailOtp === true && !current.auth.requireLoginEmailOtp) {
+      const state = await this.settings.view(await this.mail.provider());
+      if (!state.configured || state.lastTestOk !== true) throw new BadRequestException('Save and successfully test the selected email provider before requiring login OTP.');
+    }
     const cfg = await this.settings.updateAppConfig(body ?? {}, user.id);
     await this.audit.log(user, 'app_config.update', 'SystemSetting', 'app.config', { keys: Object.keys(body ?? {}) });
     return cfg;

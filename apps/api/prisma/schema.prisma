@@ -448,6 +448,7 @@ model User {
 
   organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   refreshTokens  RefreshToken[]
+  loginVerifications LoginVerification[]
   pushTokens     PushToken[]
   listings       Listing[]       @relation("ListingPostedBy")
   savedListings  SavedListing[]
@@ -554,6 +555,29 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model LoginVerification {
+  id             String    @id @default(cuid())
+  userId         String
+  tokenHash      String    @unique
+  channel        String    @default("EMAIL")
+  method         String
+  email          String
+  credentialHash String
+  clientHash     String
+  codeHash       String
+  attempts       Int       @default(0)
+  sends          Int       @default(1)
+  sentAt         DateTime?
+  expiresAt      DateTime
+  resendAt       DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model OtpCode {

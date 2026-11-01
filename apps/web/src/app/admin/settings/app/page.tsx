@@ -96,6 +96,7 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
     fields: [
       { key: 'auth.allowEmailOtp', label: 'Email OTP', type: 'switch' },
       { key: 'auth.allowPasswordLogin', label: 'Password login', type: 'switch' },
+      { key: 'auth.requireLoginEmailOtp', label: 'Require email OTP after sign-in', type: 'switch', hint: 'Password / Google / signup के बाद registered email OTP। पहले selected email provider का test सफल होना जरूरी है।' },
       { key: 'auth.allowGoogle', label: 'Google login', type: 'switch', hint: 'Credentials center में Google OAuth भी चाहिए' },
       {
         key: 'auth.allowBrokerSignup',

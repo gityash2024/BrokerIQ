@@ -56,8 +56,10 @@ export const appConfigSchema = z.object({
       allowEmailOtp: z.boolean().default(true),
       allowGoogle: z.boolean().default(true),
       allowBrokerSignup: z.boolean().default(false),
+      /** Explicit rollout gate: enable only after real transactional delivery is verified. */
+      requireLoginEmailOtp: z.boolean().default(false),
     })
-    .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: false }),
+    .default({ allowPasswordLogin: true, allowEmailOtp: true, allowGoogle: true, allowBrokerSignup: false, requireLoginEmailOtp: false }),
   /** Approved WhatsApp template names (platform number) for messages sent outside the 24h window. Empty = skip WhatsApp. */
   whatsappTemplates: z
     .object({
