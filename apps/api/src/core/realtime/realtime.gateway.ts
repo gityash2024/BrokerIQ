@@ -30,7 +30,7 @@ export class RealtimeGateway implements OnGatewayConnection {
         current.deletedAt ||
         (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED') ||
         (env().BROKER_FIRST &&
-          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'USER'].includes(current.role) || (current.role === 'BROKER_ADMIN' && !current.organizationId)))
+          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(current.role) || (['BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) && !current.organizationId)))
       ) {
         client.disconnect(true);
         return;
@@ -54,6 +54,23 @@ export class RealtimeGateway implements OnGatewayConnection {
   }
   toOrg(orgId: string, event: string, data: unknown) {
     this.server?.to(`org:${orgId}`).emit(event, data);
+  }
+  /** Agents never join an organization room. Deliver message bodies only to the current assignee. */
+  async toConversation(orgId: string, conversationId: string, event: string, data: unknown) {
+    try {
+      const conversation = await this.prisma.conversation.findFirst({
+        where: { id: conversationId, organizationId: orgId },
+        select: { lead: { select: { assignedToId: true } } },
+      });
+      if (!conversation) return;
+      this.toOrg(orgId, event, data);
+      if (conversation.lead?.assignedToId) {
+        const agent = await this.prisma.user.findFirst({ where: { id: conversation.lead.assignedToId, organizationId: orgId, role: 'BROKER_AGENT', status: 'ACTIVE', deletedAt: null } });
+        if (agent) this.toUser(agent.id, event, data);
+      }
+    } catch {
+      this.logger.warn('Conversation realtime delivery failed; clients can recover through authorized polling');
+    }
   }
   toAdmins(event: string, data: unknown) {
     this.server?.to('admins').emit(event, data);

@@ -57,10 +57,10 @@ export class WhatsAppController {
               },
             }
           : {
-              ...(user.role === 'BROKER_AGENT' ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+              ...(user.role === 'BROKER_AGENT' ? { lead: { is: { assignedToId: user.id } } } : {}),
             }),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
-        ...(q.q ? { OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] } : {}),
+        ...(q.q ? { AND: [{ OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] }] } : {}),
       },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
       take: 200,
@@ -74,7 +74,7 @@ export class WhatsAppController {
   private async conv(id: string, user: RequestUser) {
     const c = await this.prisma.conversation.findFirst({ where: { id, organizationId: requireOrg(user) }, include: { lead: true } });
     if (!c) throw new NotFoundException();
-    if (user.role === 'BROKER_AGENT' && c.lead && c.lead.assignedToId !== user.id) throw new ForbiddenException();
+    if (user.role === 'BROKER_AGENT' && (!c.lead || c.lead.assignedToId !== user.id)) throw new ForbiddenException();
     return c;
   }
 
@@ -120,7 +120,7 @@ export class WhatsAppController {
       organizationId: orgId,
       channel: 'CHAT',
       unreadCount: { gt: 0 },
-      ...(mine ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+      ...(mine ? { lead: { is: { assignedToId: user.id } } } : {}),
     };
 
     const [waUnreadConvs, chatUnreadConvs] = await Promise.all([
@@ -194,7 +194,8 @@ export class WhatsAppController {
     if (!phone) throw new BadRequestException('leadId या conversationId ज़रूरी है');
     let text: string | undefined = body.text;
     if (body.listingId && !text) {
-      const l = await this.prisma.listing.findFirst({ where: { id: body.listingId }, include: { locality: true } });
+      const l = await this.prisma.listing.findFirst({ where: { id: body.listingId, deletedAt: null, OR: [{ status: 'ACTIVE' }, { organizationId: orgId, ...(user.role === 'BROKER_AGENT' ? { postedById: user.id } : {}) }] }, include: { locality: true } });
+      if (!l) throw new NotFoundException('Listing not available to this account');
       if (l) text = `*${l.title}*\n💰 ${formatPriceShort(l.price)} · 📍 ${l.locality.name}\n${env().PUBLIC_WEB_URL}/property/${l.slug}`;
     }
     if (body.templateName)

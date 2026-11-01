@@ -1054,6 +1054,7 @@ model Enquiry {
   @@index([organizationId, createdAt])
   @@index([ownerUserId])
   @@index([userId])
+  @@index([userId, createdAt], map: "Enquiry_user_created_enterprise_idx")
 }
 
 model Review {
@@ -1243,6 +1244,7 @@ model SiteVisit {
   assignedTo   User?        @relation("VisitAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, scheduledAt])
+  @@index([tenantUserId, scheduledAt], map: "SiteVisit_tenant_scheduled_enterprise_idx")
 }
 
 model Deal {
@@ -2549,6 +2551,7 @@ model InventoryItem {
   @@index([organizationId, sector])
   @@index([organizationId, houseNo])
   @@index([organizationId, date])
+  @@index([organizationId, createdAt], map: "InventoryItem_org_created_enterprise_idx")
 }
 
 
@@ -2638,6 +2641,8 @@ model InventoryContact {
 model BrokerRequirement {
   id              String @id @default(cuid())
   organizationId  String
+  createdById     String?
+  assignedToId    String?
   leadId          String?
   sourceEntryId   String?
   sourceUnitKey   String?
@@ -2666,6 +2671,8 @@ model BrokerRequirement {
   @@unique([organizationId, clientMutationId])
   @@index([organizationId, status])
   @@index([organizationId, leadId])
+  @@index([organizationId, assignedToId])
+  @@index([organizationId, createdById])
 }
 
 /// Public project/colony facts. Records remain distinct by source identity; no guessed merging.

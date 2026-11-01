@@ -6,14 +6,12 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { requireOrg } from '../../common/utils';
 
 function startOfDay(d = new Date()) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+  const x = new Date(d.getTime() + 330 * 60_000);
+  x.setUTCHours(0, 0, 0, 0);
+  return new Date(x.getTime() - 330 * 60_000);
 }
 function endOfDay(d = new Date()) {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
+  return new Date(startOfDay(d).getTime() + 86_400_000 - 1);
 }
 
 @ApiTags('broker')
@@ -28,6 +26,7 @@ export class InsightsController {
     const orgId = requireOrg(user);
     const mine = user.role === 'BROKER_AGENT';
     const leadScope: Prisma.LeadWhereInput = { organizationId: orgId, deletedAt: null, ...(mine ? { assignedToId: user.id } : {}) };
+    const inventoryScope: Prisma.InventoryItemWhereInput = { organizationId: orgId, deletedAt: null, ...(mine ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] } : {}) };
     const today0 = startOfDay();
     const today1 = endOfDay();
     const [newToday, open, unassigned, overdue, todayFollowUps, todayVisits, pipeline, recentLeads, sources7, wonMonth, activeListings, unread, totalInventory, activeInventory, sectorSpread, housingConnector] =
@@ -69,7 +68,7 @@ export class InsightsController {
           _sum: { commissionAmount: true, dealValue: true },
           _count: true,
         }),
-        this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null } }),
+        this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
         this.prisma.conversation.count({
           where: {
             organizationId: orgId,
@@ -86,21 +85,21 @@ export class InsightsController {
               },
               {
                 channel: 'CHAT',
-                ...(mine ? { OR: [{ lead: { assignedToId: user.id } }, { leadId: null }] } : {}),
+                ...(mine ? { lead: { is: { assignedToId: user.id } } } : {}),
               },
             ],
           },
         }),
-        this.prisma.inventoryItem.count({ where: { organizationId: orgId } }),
-        this.prisma.inventoryItem.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
+        this.prisma.inventoryItem.count({ where: inventoryScope }),
+        this.prisma.inventoryItem.count({ where: { ...inventoryScope, status: 'ACTIVE' } }),
         this.prisma.inventoryItem.groupBy({
           by: ['sector'],
-          where: { organizationId: orgId },
+          where: inventoryScope,
           _count: true,
           orderBy: { _count: { sector: 'desc' } },
           take: 6,
         }),
-        this.prisma.connectorState.findUnique({
+        mine ? Promise.resolve(null) : this.prisma.connectorState.findUnique({
           where: { organizationId_type: { organizationId: orgId, type: 'HOUSING_API' } },
           select: { status: true, lastSyncAt: true, leadsImported: true },
         }),

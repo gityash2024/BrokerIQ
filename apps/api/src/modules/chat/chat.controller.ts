@@ -69,12 +69,14 @@ export class ChatController {
   private async access(id: string, user: RequestUser) {
     const c = await this.prisma.conversation.findFirst({
       where: { id, channel: 'CHAT' },
-      include: { organization: { select: { id: true, name: true, slug: true, logoUrl: true } } },
+      include: { organization: { select: { id: true, name: true, slug: true, logoUrl: true } }, lead: { select: { assignedToId: true } } },
     });
     if (!c) throw new NotFoundException();
     const isUser = c.userId === user.id;
-    const isOrg = !!user.orgId && c.organizationId === user.orgId;
-    if (!isUser && !isOrg) throw new ForbiddenException();
+    const isOrg = !!user.orgId && c.organizationId === user.orgId &&
+      (user.role === 'BROKER_ADMIN' || (user.role === 'BROKER_AGENT' && c.lead?.assignedToId === user.id));
+    const isSuper = user.role === 'SUPER_ADMIN';
+    if (!isUser && !isOrg && !isSuper) throw new ForbiddenException();
     return { c, isUser };
   }
 
@@ -142,7 +144,7 @@ export class ChatController {
       where: { id },
       data: { lastMessageAt: new Date(), lastPreview: text.slice(0, 140), ...(isUser ? { lastInboundAt: new Date(), unreadCount: { increment: 1 } } : {}) },
     });
-    if (c.organizationId) this.realtime.toOrg(c.organizationId, 'chat:message', { conversationId: id, message: msg });
+    if (c.organizationId) void this.realtime.toConversation(c.organizationId, id, 'chat:message', { conversationId: id, message: msg });
     if (c.userId) this.realtime.toUser(c.userId, 'chat:message', { conversationId: id, message: msg });
     if (isUser && c.organizationId) {
       const lead = c.leadId ? await this.prisma.lead.findUnique({ where: { id: c.leadId } }) : null;

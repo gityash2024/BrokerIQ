@@ -21,6 +21,21 @@ import { createExcelReport } from '../../common/excel';
 import { renderPdf, pdfText, pdfTable } from '../../common/pdf';
 import { generateCsv } from '../../common/csv';
 
+
+const memberUpdateSchema = z.object({
+  agentId: z.string().optional(),
+  name: z.string().trim().min(2).max(100).optional(),
+  phone: z.string().nullable().optional().refine((v) => !v || !!normalizeIndianPhone(v), 'Valid phone required'),
+  role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(),
+  status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+  targets: z.object({
+    monthlyDeals: z.number().nonnegative().optional(),
+    monthlyRevenue: z.number().nonnegative().optional(),
+    monthlyLeads: z.number().nonnegative().optional(),
+    commissionPct: z.number().min(0).max(100).optional(),
+  }).optional(),
+}).strict();
+
 const PUBLIC_ORG_SELECT = {
   id: true,
   responseMinutes: true,
@@ -417,8 +432,8 @@ export class OrganizationsController {
         organizationId: true,
       },
     });
-    if (!member) throw new NotFoundException('Member not found');
-    if (!isSuper && member.organizationId !== user.orgId && member.id !== user.id) {
+    if (!member || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Member not found');
+    if ((user.role === 'BROKER_AGENT' && member.id !== user.id) || (!isSuper && member.organizationId !== user.orgId)) {
       throw new ForbiddenException();
     }
     const loc = await this.prisma.userLocation.findFirst({
@@ -458,25 +473,7 @@ export class OrganizationsController {
   async updateMember(
     @CurrentUser() user: RequestUser,
     @Param('userId') paramUserId: string,
-    @Body(
-      new ZodPipe(
-        z.object({
-          agentId: z.string().optional(),
-          name: z.string().min(2).max(100).optional(),
-          phone: z.string().optional().nullable(),
-          role: z.enum(['BROKER_ADMIN', 'BROKER_AGENT']).optional(),
-          status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
-          targets: z
-            .object({
-              monthlyDeals: z.number().nonnegative().optional(),
-              monthlyRevenue: z.number().nonnegative().optional(),
-              monthlyLeads: z.number().nonnegative().optional(),
-              commissionPct: z.number().min(0).max(100).optional(),
-            })
-            .optional(),
-        }),
-      ),
-    )
+    @Body(new ZodPipe(memberUpdateSchema))
     body: {
       agentId?: string;
       name?: string;
@@ -503,33 +500,38 @@ export class OrganizationsController {
 
     const orgId = member.organizationId || user.orgId;
 
-    if (body.targets && orgId) {
-      const setting = await this.prisma.orgSetting.findUnique({
-        where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } },
-      });
-      const current = (setting?.value as Record<string, any>) || {};
-      current[userId] = {
-        ...(current[userId] || {}),
-        ...body.targets,
-      };
-      await this.prisma.orgSetting.upsert({
-        where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } },
-        create: { organizationId: orgId, key: 'agent_targets', value: current },
-        update: { value: current },
-      });
-    }
-
     const userUpdateData: Prisma.UserUpdateInput = {};
     if (body.name !== undefined) userUpdateData.name = body.name.trim();
     if (body.phone !== undefined) userUpdateData.phone = body.phone ? normalizeIndianPhone(body.phone) : null;
     if (body.role !== undefined) userUpdateData.role = body.role;
     if (body.status !== undefined) userUpdateData.status = body.status;
 
-    let updated = member;
-    if (Object.keys(userUpdateData).length > 0) {
-      updated = await this.prisma.user.update({ where: { id: userId }, data: userUpdateData });
-      if (body.status === 'SUSPENDED' || body.role) await this.auth.revokeAll(userId);
-    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (!orgId || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Firm member not found');
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
+      const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
+      if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE' &&
+          ((body.role && body.role !== 'BROKER_ADMIN') || (body.status && body.status !== 'ACTIVE'))) {
+        const remaining = await tx.user.count({ where: { organizationId: orgId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } } });
+        if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
+      }
+      if (body.targets) {
+        const setting = await tx.orgSetting.findUnique({ where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } } });
+        const current = (setting?.value as Record<string, any>) || {};
+        current[userId] = { ...(current[userId] || {}), ...body.targets };
+        await tx.orgSetting.upsert({
+          where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } },
+          create: { organizationId: orgId, key: 'agent_targets', value: current }, update: { value: current },
+        });
+      }
+      if (body.role || body.status === 'SUSPENDED') {
+        userUpdateData.sessionVersion = { increment: 1 };
+        await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      }
+      return Object.keys(userUpdateData).length ? tx.user.update({ where: { id: userId }, data: userUpdateData }) : latest;
+    });
+    if (body.status === 'SUSPENDED' || body.role) await this.auth.revokeAll(userId);
 
     await this.audit.log(user, 'team.update', 'User', userId, body);
     return { id: updated.id, name: updated.name, phone: updated.phone, role: updated.role, status: updated.status, targets: body.targets };
@@ -540,7 +542,7 @@ export class OrganizationsController {
   async updateMemberAlias(
     @CurrentUser() user: RequestUser,
     @Param('userId') paramUserId: string,
-    @Body() body: any,
+    @Body(new ZodPipe(memberUpdateSchema)) body: z.infer<typeof memberUpdateSchema>,
   ) {
     return this.updateMember(user, paramUserId, body);
   }
@@ -555,15 +557,21 @@ export class OrganizationsController {
     if (userId === user.id) throw new BadRequestException('खुद को remove नहीं कर सकते');
 
     const orgId = member.organizationId || user.orgId;
-    await this.prisma.$transaction([
-      ...(orgId
-        ? [
-            this.prisma.lead.updateMany({ where: { organizationId: orgId, assignedToId: userId }, data: { assignedToId: null } }),
-            this.prisma.followUp.updateMany({ where: { organizationId: orgId, assignedToId: userId, status: 'PENDING' }, data: { assignedToId: null } }),
-          ]
-        : []),
-      this.prisma.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER' } }),
-    ]);
+    await this.prisma.$transaction(async (tx) => {
+      if (!member.organizationId || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Firm member not found');
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${member.organizationId + ':membership'}))`;
+      const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
+      if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE') {
+        const remaining = await tx.user.count({ where: { organizationId: member.organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } } });
+        if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
+      }
+      await tx.lead.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
+      await tx.followUp.updateMany({ where: { organizationId: orgId!, assignedToId: userId, status: 'PENDING' }, data: { assignedToId: null } });
+      await tx.inventoryItem.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
+      await tx.brokerRequirement.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
+      await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', sessionVersion: { increment: 1 } } });
+    });
     await this.auth.revokeAll(userId);
     await this.audit.log(user, 'team.remove', 'User', userId);
     return { ok: true };

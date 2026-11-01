@@ -138,12 +138,14 @@
         "2516",
         "7844"
       ],
-      "backend": "PENDING",
+      "backend": "PARTIAL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
+      "notes": [
+        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
+      ]
     },
     {
       "id": "SECURITY-04",
@@ -166,12 +168,14 @@
         "2516",
         "7844"
       ],
-      "backend": "PENDING",
+      "backend": "PARTIAL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
+      "notes": [
+        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
+      ]
     },
     {
       "id": "SECURITY-06",
@@ -292,12 +296,14 @@
         "6611",
         "6825"
       ],
-      "backend": "PENDING",
+      "backend": "PARTIAL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
+      "notes": [
+        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
+      ]
     },
     {
       "id": "INVENTORY-06",

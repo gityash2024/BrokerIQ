@@ -191,7 +191,9 @@ export class WhatsAppService {
   }
 
   private emit(orgId: string | null, event: string, data: unknown) {
-    if (orgId) this.realtime.toOrg(orgId, event, data);
+    const conversationId = (data as { conversationId?: string } | null)?.conversationId;
+    if (orgId && conversationId) void this.realtime.toConversation(orgId, conversationId, event, data);
+    else if (orgId) this.realtime.toOrg(orgId, event, data);
     else this.realtime.toAdmins(event, data);
   }
 

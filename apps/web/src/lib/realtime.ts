@@ -9,7 +9,12 @@ let token: string | null = null;
 
 function getSocket(): Socket | null {
   const t = authStore.get()?.accessToken ?? null;
-  if (!t) return null;
+  if (!t) {
+    socket?.disconnect();
+    socket = null;
+    token = null;
+    return null;
+  }
   if (socket && token === t) return socket;
   socket?.disconnect();
   token = t;
