@@ -1224,6 +1224,10 @@ model SiteVisit {
   id                   String      @id @default(cuid())
   organizationId       String
   leadId               String
+  inventoryId          String?
+  propertySnapshot     Json?
+  clientMutationId     String?
+  requestHash          String?
   listingId            String?
   assignedToId         String?
   scheduledAt          DateTime
@@ -1248,9 +1252,12 @@ model SiteVisit {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  inventory    InventoryItem? @relation(fields: [inventoryId], references: [id], onDelete: SetNull)
   listing      Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
   assignedTo   User?        @relation("VisitAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  @@unique([organizationId, clientMutationId])
+  @@index([inventoryId])
   @@index([organizationId, scheduledAt])
   @@index([tenantUserId, scheduledAt], map: "SiteVisit_tenant_scheduled_enterprise_idx")
 }
@@ -2491,6 +2498,7 @@ model ShortlistShare {
 
 /// Internal broker inventory ledger (Google Sheet / Excel register style).
 model InventoryItem {
+  visits             SiteVisit[]
   id                 String    @id @default(cuid())
   organizationId     String
   createdById        String?

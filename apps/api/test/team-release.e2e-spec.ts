@@ -141,7 +141,8 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
     const followUps = (await api().get('/api/follow-ups').set(h(agent)).expect(200)).body.map((item: any) => item.id);
     expect(followUps).toContain(ownFollowUp.id);
     expect(followUps).not.toContain(otherFollowUp.id);
-    const visits = (await api().get(`/api/visits?assignedToId=${ownerId}`).set(h(agent)).expect(200)).body.map((item: any) => item.id);
+    expect((await api().get(`/api/visits?assignedToId=${ownerId}`).set(h(agent)).expect(200)).body).toEqual([]);
+    const visits = (await api().get('/api/visits').set(h(agent)).expect(200)).body.map((item: any) => item.id);
     expect(visits).toContain(ownVisit.id);
     expect(visits).not.toContain(otherVisit.id);
     for (const [path, timing] of [

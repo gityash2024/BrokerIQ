@@ -2,13 +2,14 @@ import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, P
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { dealInputSchema, followUpInputSchema, videoRoomUrl, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
+import { dealInputSchema, followUpInputSchema, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LeadsService } from './leads.service';
 import { EventsService } from '../../core/events/events.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
-import { randomToken, requireOrg } from '../../common/utils';
+import { requireOrg } from '../../common/utils';
+import { VisitsService } from './visits.service';
 import { FeaturesService } from '../../core/features/features.service';
 
 const followUpUpdate = z.object({
@@ -31,6 +32,7 @@ export class TasksController {
     private readonly leads: LeadsService,
     private readonly events: EventsService,
     private readonly features: FeaturesService,
+    private readonly visitService: VisitsService,
   ) {}
 
   private mineFilter(user: RequestUser) {
@@ -39,8 +41,7 @@ export class TasksController {
 
   private async taskAssignee(user: RequestUser, organizationId: string, requested: string | null | undefined, fallback: string | null) {
     const assignedToId = requested ?? fallback ?? user.id;
-    if (user.role === 'BROKER_AGENT' && assignedToId !== user.id)
-      throw new ForbiddenException('सिर्फ admin दूसरे सदस्य को काम assign कर सकते हैं');
+    if (user.role === 'BROKER_AGENT' && assignedToId !== user.id) throw new ForbiddenException('सिर्फ admin दूसरे सदस्य को काम assign कर सकते हैं');
     await this.leads.assertMember(organizationId, assignedToId);
     return assignedToId;
   }
@@ -135,89 +136,16 @@ export class TasksController {
 
   // ------------------------------------------------------------------ site visits
   @Get('visits')
-  visits(@CurrentUser() user: RequestUser, @Query() q: { status?: string; from?: string; to?: string }) {
-    return this.prisma.siteVisit.findMany({
-      where: {
-        organizationId: requireOrg(user),
-        ...this.mineFilter(user),
-        ...(q.status ? { status: q.status as any } : {}),
-        ...(range(q) ? { scheduledAt: range(q) } : {}),
-        lead: { deletedAt: null },
-      },
-      orderBy: { scheduledAt: 'asc' },
-      take: 500,
-      include: {
-        lead: { select: { id: true, name: true, phone: true, stage: true } },
-        listing: { select: { id: true, title: true, slug: true, coverUrl: true, latitude: true, longitude: true, address: true } },
-        assignedTo: { select: { id: true, name: true } },
-      },
-    });
+  visits(@CurrentUser() user: RequestUser, @Query() q: Record<string, string>) {
+    return this.visitService.list(user, q);
   }
-
   @Post('visits')
-  async createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: z.infer<typeof visitInputSchema>) {
-    const lead = await this.leads.getScoped(body.leadId, user);
-    const assignedToId = await this.taskAssignee(user, lead.organizationId, body.assignedToId, lead.assignedToId);
-    const video = body.mode === 'VIDEO';
-    if (video) await this.features.assertEnabled('video_visits');
-    const visit = await this.prisma.siteVisit.create({
-      data: {
-        organizationId: lead.organizationId,
-        leadId: lead.id,
-        listingId: body.listingId,
-        scheduledAt: new Date(body.scheduledAt),
-        address: body.address,
-        note: body.note,
-        assignedToId,
-        mode: video ? 'VIDEO' : 'IN_PERSON',
-        meetingUrl: video ? videoRoomUrl(randomToken(12)) : null,
-      },
-      include: { listing: { select: { title: true } } },
-    });
-    await this.prisma.activity.create({
-      data: {
-        organizationId: lead.organizationId,
-        leadId: lead.id,
-        userId: user.id,
-        type: 'SITE_VISIT',
-        content: `${video ? '🎥 Video visit' : 'Site visit'} scheduled: ${new Date(body.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${visit.listing ? ` — ${visit.listing.title}` : ''}${visit.meetingUrl ? ` · ${visit.meetingUrl}` : ''}`,
-      },
-    });
-    if (['NEW', 'CONTACTED', 'INTERESTED'].includes(lead.stage)) await this.leads.changeStage(lead.id, 'SITE_VISIT', user);
-    this.events.emit('visit.scheduled', { visitId: visit.id, orgId: lead.organizationId, leadId: lead.id });
-    return visit;
+  createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: z.infer<typeof visitInputSchema>) {
+    return this.visitService.create(user, body);
   }
-
   @Patch('visits/:id')
-  async updateVisit(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(visitUpdateSchema)) body: z.infer<typeof visitUpdateSchema>) {
-    const v = await this.prisma.siteVisit.findFirst({ where: { id, organizationId: requireOrg(user), ...this.mineFilter(user) } });
-    if (!v) throw new NotFoundException();
-    const checkIn =
-      body.checkInLat != null && body.checkInLng != null ? { checkInAt: new Date(), checkInLat: body.checkInLat, checkInLng: body.checkInLng } : {};
-    const updated = await this.prisma.siteVisit.update({
-      where: { id },
-      data: {
-        status: body.status,
-        scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
-        feedback: body.feedback,
-        rating: body.rating,
-        ...checkIn,
-        reminderSentAt: body.scheduledAt ? null : undefined,
-      },
-    });
-    if (body.status && body.status !== v.status) {
-      await this.prisma.activity.create({
-        data: {
-          organizationId: v.organizationId,
-          leadId: v.leadId,
-          userId: user.id,
-          type: 'SITE_VISIT',
-          content: `Site visit ${body.status.toLowerCase().replace('_', ' ')}${body.feedback ? `: ${body.feedback}` : ''}`,
-        },
-      });
-      await this.prisma.lead.update({ where: { id: v.leadId }, data: { lastActivityAt: new Date() } });
-    }
-    return updated;
+  updateVisit(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(visitUpdateSchema)) body: z.infer<typeof visitUpdateSchema>) {
+    return this.visitService.update(user, id, body);
   }
 
   // ------------------------------------------------------------------ deals

@@ -298,21 +298,26 @@ export const followUpInputSchema = z.object({
 export const visitInputSchema = z.object({
   leadId: z.string(),
   listingId: z.string().optional().nullable(),
-  scheduledAt: z.string(),
+  inventoryId: z.string().min(1).optional().nullable(),
+  clientMutationId: z.string().min(8).max(100).optional(),
+  scheduledAt: z.string().datetime({ offset: true }),
   address: z.string().max(300).optional().nullable(),
   note: z.string().max(1000).optional().nullable(),
   assignedToId: z.string().optional().nullable(),
   /** VIDEO = free Jitsi Meet room instead of meeting at the property */
   mode: z.enum(['IN_PERSON', 'VIDEO']).default('IN_PERSON'),
 });
-export const visitUpdateSchema = z.object({
-  status: enumOf(VisitStatus).optional(),
-  scheduledAt: z.string().optional(),
-  feedback: z.string().max(2000).optional().nullable(),
-  rating: z.number().int().min(1).max(5).optional().nullable(),
-  checkInLat: z.number().optional().nullable(),
-  checkInLng: z.number().optional().nullable(),
-});
+export const visitUpdateSchema = z
+  .object({
+    status: enumOf(VisitStatus).optional(),
+    scheduledAt: z.string().datetime({ offset: true }).optional(),
+    expectedUpdatedAt: z.string().datetime({ offset: true }).optional(),
+    feedback: z.string().max(2000).optional().nullable(),
+    rating: z.number().int().min(1).max(5).optional().nullable(),
+    checkInLat: z.number().min(-90).max(90).optional().nullable(),
+    checkInLng: z.number().min(-180).max(180).optional().nullable(),
+  })
+  .refine((v) => (v.checkInLat == null) === (v.checkInLng == null), 'Both check-in coordinates are required');
 export const dealInputSchema = z.object({
   leadId: z.string(),
   listingId: z.string().optional().nullable(),

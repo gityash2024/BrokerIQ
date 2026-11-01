@@ -79,3 +79,9 @@ No new production deployment, production migration, signed APK, live provider de
 ### M04 offline restart follow-up
 
 Persisted native pause binding now survives offline hydration; a transient null UI shift no longer clears an active binding. Owner checks reject late reads after account switching. Pause/resume responses include authoritative intervals, preventing break time from being counted locally as work. Validation: mobile 61/61, real PostgreSQL location suite 6/6, workspace typechecks pass. Physical-device restart/background acceptance remains open.
+
+## M05 visit implementation checkpoint
+
+Inventory selectors search the complete authorized server dataset with pagination and retain distinct units/floors. Visit records store an inventory foreign key plus immutable property snapshot; custom addresses and timezone-aware dates remain supported. Atomic submission IDs prevent concurrent retries from duplicating visits, activities or stage transitions. Rescheduling resets all reminder timestamps and optional optimistic concurrency rejects stale edits. Agent scope also follows the lead's current assignee. Legacy array clients remain compatible; new visit lists paginate. Android custom dates use SDK-compatible system calendar/time controls; follow-ups share that control.
+
+Validation: shared 46, real PostgreSQL visits 5 plus Team/Broker-first regression 9, mobile 61, workspace typechecks and Android Metro/Hermes export pass. ESLint changed sources: zero errors. Browser, signed APK, reminder provider delivery and exhaustive visit acceptance remain pending. Internal messaging is the next M05 checkpoint. No production migrations or code deployment applied.

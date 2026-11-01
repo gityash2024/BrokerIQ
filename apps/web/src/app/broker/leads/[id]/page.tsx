@@ -1,4 +1,6 @@
 'use client';
+import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
+import { parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import Link from 'next/link';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -272,7 +274,10 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             <Button variant="ghost" onClick={() => (stage.mutate({ stage: 'NOT_INTERESTED' }), setNotInterestedOpen(false))}>
               Skip reason
             </Button>
-            <Button variant="secondary" onClick={() => (stage.mutate({ stage: 'NOT_INTERESTED', lostReason: notInterestedReason }), setNotInterestedOpen(false))}>
+            <Button
+              variant="secondary"
+              onClick={() => (stage.mutate({ stage: 'NOT_INTERESTED', lostReason: notInterestedReason }), setNotInterestedOpen(false))}
+            >
               Confirm
             </Button>
           </div>
@@ -489,6 +494,8 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
   const tomorrow = new Date(Date.now() + 86400_000);
   tomorrow.setHours(11, 0, 0, 0);
   const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
+  const [visitProperty, setVisitProperty] = useState<LedgerItem | null>(null);
+  const [visitSubmission, setVisitSubmission] = useState({ fingerprint: '', id: '' });
   const [vi, setVi] = useState({ scheduledAt: toLocalInput(tomorrow), listingId: '', address: '', note: '', mode: 'IN_PERSON' as 'IN_PERSON' | 'VIDEO' });
   const videoOn = useFlag('video_visits');
   const addFu = useApiMutation(() => post('/follow-ups', { leadId: lead.id, type: fu.type, dueAt: new Date(fu.dueAt).toISOString(), note: fu.note || null }), {
@@ -497,16 +504,29 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
   });
   const doneFu = useApiMutation((id: string) => patch(`/follow-ups/${id}`, { status: 'DONE' }), { onSuccess: onChange });
   const addVisit = useApiMutation(
-    () =>
-      post('/visits', {
+    () => {
+      const date = parseVisitLocalDateTime(vi.scheduledAt);
+      if (!date) throw new Error('Enter a valid date and time');
+      const payload = {
         leadId: lead.id,
-        scheduledAt: new Date(vi.scheduledAt).toISOString(),
-        listingId: vi.listingId || null,
+        scheduledAt: date.toISOString(),
+        inventoryId: visitProperty?.id ?? null,
         address: vi.address || null,
         note: vi.note || null,
         mode: vi.mode,
-      }),
-    { success: vi.mode === 'VIDEO' ? 'Video visit scheduled 🎥 — link visit पर है' : 'Site visit scheduled 🏠', onSuccess: onChange },
+      };
+      const fingerprint = JSON.stringify(payload);
+      const id = visitSubmission.fingerprint === fingerprint ? visitSubmission.id : crypto.randomUUID();
+      setVisitSubmission({ fingerprint, id });
+      return post('/visits', { ...payload, clientMutationId: id });
+    },
+    {
+      success: vi.mode === 'VIDEO' ? 'Video visit scheduled 🎥 — link visit पर है' : 'Site visit scheduled 🏠',
+      onSuccess: () => {
+        setVisitSubmission({ fingerprint: '', id: '' });
+        onChange();
+      },
+    },
   );
   const visitSt = useApiMutation((v: { id: string; status: string }) => patch(`/visits/${v.id}`, { status: v.status }), { onSuccess: onChange });
   const quick = (h: number) => setFu({ ...fu, dueAt: toLocalInput(new Date(Date.now() + h * 3600_000)) });
@@ -579,12 +599,19 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
             ]}
           />
         )}
+        <VisitPropertyPicker
+          value={visitProperty}
+          onChange={(item) => {
+            setVisitProperty(item);
+            if (item) setVi({ ...vi, address: item.address || visitInventoryTitle(item) });
+          }}
+        />
         <Input type="datetime-local" value={vi.scheduledAt} onChange={(e) => setVi({ ...vi, scheduledAt: e.target.value })} />
         {vi.mode === 'IN_PERSON' && (
           <Input placeholder="Address / meeting point" value={vi.address} onChange={(e) => setVi({ ...vi, address: e.target.value })} />
         )}
         <Input placeholder="Note" value={vi.note} onChange={(e) => setVi({ ...vi, note: e.target.value })} />
-        <Button onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
+        <Button disabled={!parseVisitLocalDateTime(vi.scheduledAt)} onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
           Schedule visit
         </Button>
         <div className="space-y-2 pt-2">
@@ -596,7 +623,7 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
                   {VISIT_STATUS_LABELS[v.status as keyof typeof VISIT_STATUS_LABELS]}
                 </Badge>
               </div>
-              {v.listing && <p className="text-xs text-muted">{v.listing.title}</p>}
+              <p className="text-xs text-muted">{v.propertySnapshot?.title || v.listing?.title || v.address}</p>
               {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <VideoJoin visit={v} size="xs" />

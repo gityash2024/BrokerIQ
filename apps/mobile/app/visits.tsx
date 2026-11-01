@@ -1,8 +1,9 @@
+import { DateTimeField } from '@/components/date-time-field';
 import { useState } from 'react';
 import { FlatList, Linking } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CalendarCheck, Check, MapPin, Navigation, Phone, Star, X } from 'lucide-react-native';
 import { VISIT_STATUS_LABELS, type VisitStatus } from '@brokeriq/shared';
@@ -21,9 +22,19 @@ export default function Visits() {
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() + days);
   const end = new Date(start.getTime() + 7 * 86400_000);
-  const q = useQuery({ queryKey: ['visits', days], queryFn: () => api<any[]>(`/visits${qs({ from: start.toISOString(), to: end.toISOString() })}`) });
+  const q = useInfiniteQuery({
+    queryKey: ['visits', days],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      api<{ items: any[]; total: number; pages: number }>(
+        `/visits${qs({ from: start.toISOString(), to: end.toISOString(), paginated: true, page: pageParam, pageSize: 50 })}`,
+      ),
+    getNextPageParam: (last, pages) => (pages.length < last.pages ? pages.length + 1 : undefined),
+  });
   const upd = useApiMutation(({ id, ...b }: any) => patch(`/visits/${id}`, b), { invalidate: [['visits'], ['broker-dashboard']] });
   const [done, setDone] = useState<any>(null);
+  const [reschedule, setReschedule] = useState<any>(null);
+  const [rescheduleAt, setRescheduleAt] = useState<Date | null>(null);
   const [fb, setFb] = useState({ feedback: '', rating: 0 });
   const checkIn = async (v: any) => {
     const perm = await Location.requestForegroundPermissionsAsync();
@@ -46,7 +57,9 @@ export default function Visits() {
         <ErrorView error={q.error} />
       ) : (
         <FlatList
-          data={q.data ?? []}
+          data={q.data?.pages.flatMap((page) => page.items) ?? []}
+          onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
+          ListFooterComponent={q.hasNextPage ? <Button title="Load more visits" loading={q.isFetchingNextPage} onPress={() => q.fetchNextPage()} /> : null}
           keyExtractor={(x) => x.id}
           refreshing={q.isRefetching}
           onRefresh={() => q.refetch()}
@@ -73,13 +86,21 @@ export default function Visits() {
                   <Txt v="small" color="brand">
                     {new Date(v.scheduledAt).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                   </Txt>
-                  {!!(v.listing?.title || v.address) && (
+                  {!!(v.propertySnapshot?.title || v.listing?.title || v.address) && (
                     <Row gap={4}>
                       <MapPin size={13} color={c.muted} />
                       <Txt v="small" color="muted" style={{ flex: 1 }}>
-                        {v.listing?.title ?? v.address}
+                        {v.propertySnapshot?.title ?? v.listing?.title ?? v.address}
                       </Txt>
                     </Row>
+                  )}
+                  {v.propertySnapshot && (
+                    <Txt v="caption" color="muted">
+                      {v.propertySnapshot.bhk != null ? `${v.propertySnapshot.bhk} BHK · ` : ''}
+                      {v.propertySnapshot.purpose}
+                      {v.propertySnapshot.price != null ? ` · ₹${Number(v.propertySnapshot.price).toLocaleString('en-IN')}` : ''} ·{' '}
+                      {v.propertySnapshot.availability}
+                    </Txt>
                   )}
                   {v.checkInAt && (
                     <Txt v="caption" color="success">
@@ -98,6 +119,15 @@ export default function Visits() {
                         <Navigation size={17} color={c.brand} />
                       </IconBtn>
                     )}
+                    {open && (
+                      <Chip
+                        label="Reschedule"
+                        onPress={() => {
+                          setReschedule(v);
+                          setRescheduleAt(new Date(v.scheduledAt));
+                        }}
+                      />
+                    )}
                     {open && v.status === 'SCHEDULED' && <Chip label="Confirm" onPress={() => upd.mutate({ id: v.id, status: 'CONFIRMED' })} />}
                     {open && !v.checkInAt && <Chip label="📍 Check-in" onPress={() => checkIn(v)} />}
                     {open && <Chip label="✓ Done" color={c.success} active onPress={() => (setDone(v), setFb({ feedback: '', rating: 0 }))} />}
@@ -114,6 +144,20 @@ export default function Visits() {
           }}
         />
       )}
+      <Sheet open={!!reschedule} onClose={() => setReschedule(null)} title="Reschedule visit">
+        <DateTimeField value={rescheduleAt} onChange={setRescheduleAt} />
+        <Button
+          title="Save"
+          disabled={!rescheduleAt}
+          loading={upd.isPending}
+          onPress={() =>
+            upd.mutate(
+              { id: reschedule.id, scheduledAt: rescheduleAt!.toISOString(), expectedUpdatedAt: reschedule.updatedAt },
+              { onSuccess: () => setReschedule(null) },
+            )
+          }
+        />
+      </Sheet>
       <Sheet open={!!done} onClose={() => setDone(null)} title="Visit कैसी रही?">
         <Row>
           {[1, 2, 3, 4, 5].map((n) => (

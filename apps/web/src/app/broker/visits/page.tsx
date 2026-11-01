@@ -1,17 +1,18 @@
 'use client';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useRef, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { CalendarCheck, CalendarPlus, Check, ChevronLeft, ChevronRight, Clock, MapPin, MessageCircle, Navigation, Phone, Star, X } from 'lucide-react';
-import { VISIT_STATUS_LABELS, whatsappLink, type VisitStatus } from '@brokeriq/shared';
+import { VISIT_STATUS_LABELS, whatsappLink, parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem, type VisitStatus } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { VisitSlotsButton } from '@/components/broker/visit-slots';
-import { LeadPicker, ListingPicker } from '@/components/broker/lead-picker';
+import { LeadPicker } from '@/components/broker/lead-picker';
+import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
@@ -40,14 +41,22 @@ export default function VisitsPage() {
   const [day, setDay] = useState<Date | null>(null);
   const [complete, setComplete] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [reschedule, setReschedule] = useState<any>(null);
+  const [rescheduleAt, setRescheduleAt] = useState('');
   const end = new Date(week.getTime() + 7 * 86400_000);
-  const q = useQuery({
+  const q = useInfiniteQuery({
     queryKey: ['visits', week.toISOString()],
-    queryFn: () => api<any[]>(`/visits${qs({ from: week.toISOString(), to: end.toISOString() })}`),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      api<{ items: any[]; total: number; pages: number }>(
+        `/visits${qs({ from: week.toISOString(), to: end.toISOString(), paginated: true, page: pageParam, pageSize: 100 })}`,
+      ),
+    getNextPageParam: (last, pages) => (pages.length < last.pages ? pages.length + 1 : undefined),
   });
+  const visits = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
   const update = useApiMutation(({ id, ...b }: any) => patch(`/visits/${id}`, b), { invalidate: [['visits'], ['broker-dashboard']] });
   const days = Array.from({ length: 7 }, (_, i) => new Date(week.getTime() + i * 86400_000));
-  const list = useMemo(() => (q.data ?? []).filter((v) => !day || sameDay(new Date(v.scheduledAt), day)), [q.data, day]);
+  const list = useMemo(() => visits.filter((v) => !day || sameDay(new Date(v.scheduledAt), day)), [visits, day]);
 
   const checkIn = (v: any) => {
     if (!navigator.geolocation) return toast.error('इस browser में location नहीं है');
@@ -91,7 +100,7 @@ export default function VisitsPage() {
         </div>
         <div className="grid grid-cols-7 gap-1.5">
           {days.map((d) => {
-            const n = (q.data ?? []).filter((v) => sameDay(new Date(v.scheduledAt), d) && v.status !== 'CANCELLED').length;
+            const n = visits.filter((v) => sameDay(new Date(v.scheduledAt), d) && v.status !== 'CANCELLED').length;
             const active = day && sameDay(day, d);
             const today = sameDay(d, new Date());
             return (
@@ -158,6 +167,13 @@ export default function VisitsPage() {
                       <Badge tone={STATUS_TONE[v.status as VisitStatus]}>{VISIT_STATUS_LABELS[v.status as VisitStatus]}</Badge>
                       {v.mode === 'VIDEO' && <Badge tone="info">Video</Badge>}
                     </div>
+                    {v.propertySnapshot && (
+                      <p className="mt-1 text-sm text-muted">
+                        {v.propertySnapshot.title} · {v.propertySnapshot.bhk != null ? `${v.propertySnapshot.bhk} BHK · ` : ''}
+                        {v.propertySnapshot.purpose} {v.propertySnapshot.price != null ? ` · ₹${Number(v.propertySnapshot.price).toLocaleString('en-IN')}` : ''}{' '}
+                        · {v.propertySnapshot.availability}
+                      </p>
+                    )}
                     {v.listing ? (
                       <Link href={`/property/${v.listing.slug}`} target="_blank" className="mt-1 flex items-center gap-2 text-sm text-muted hover:text-fg">
                         {v.listing.coverUrl && <img src={img(v.listing.coverUrl, 80)} alt="" className="size-8 rounded-lg object-cover" />}
@@ -214,6 +230,18 @@ export default function VisitsPage() {
                     </Button>
                   )}
                   <div className="ml-auto flex flex-wrap gap-1.5">
+                    {open && (
+                      <Button
+                        size="xs"
+                        variant="secondary"
+                        onClick={() => {
+                          setReschedule(v);
+                          setRescheduleAt(toLocalInput(new Date(v.scheduledAt)));
+                        }}
+                      >
+                        Reschedule
+                      </Button>
+                    )}
                     {open && v.status === 'SCHEDULED' && !past && (
                       <Button size="xs" variant="secondary" onClick={() => update.mutate({ id: v.id, status: 'CONFIRMED' })}>
                         Confirm
@@ -254,6 +282,34 @@ export default function VisitsPage() {
         }
         saving={update.isPending}
       />
+      {q.hasNextPage && (
+        <Button loading={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>
+          Load more visits ({visits.length} / {q.data?.pages[0].total})
+        </Button>
+      )}
+      <Dialog
+        open={!!reschedule}
+        onOpenChange={(open) => !open && setReschedule(null)}
+        title="Reschedule visit"
+        footer={
+          <Button
+            disabled={!parseVisitLocalDateTime(rescheduleAt)}
+            loading={update.isPending}
+            onClick={() =>
+              update.mutate(
+                { id: reschedule.id, scheduledAt: parseVisitLocalDateTime(rescheduleAt)!.toISOString(), expectedUpdatedAt: reschedule.updatedAt },
+                { onSuccess: () => setReschedule(null) },
+              )
+            }
+          >
+            Save
+          </Button>
+        }
+      >
+        <Field label="Date & time">
+          <Input type="datetime-local" value={rescheduleAt} onChange={(e) => setRescheduleAt(e.target.value)} />
+        </Field>
+      </Dialog>
       <AddVisit open={addOpen} onOpenChange={setAddOpen} />
     </>
   );
@@ -300,7 +356,8 @@ function CompleteVisit({
 
 function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [lead, setLead] = useState<any>(null);
-  const [listingId, setListingId] = useState('');
+  const [property, setProperty] = useState<LedgerItem | null>(null);
+  const submission = useRef({ fingerprint: '', id: '' });
   const [at, setAt] = useState(() => {
     const d = new Date(Date.now() + 86400_000);
     d.setHours(11, 0, 0, 0);
@@ -309,15 +366,22 @@ function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
   const create = useApiMutation(
-    () =>
-      post('/visits', { leadId: lead.id, listingId: listingId || null, scheduledAt: new Date(at).toISOString(), address: address || null, note: note || null }),
+    () => {
+      const date = parseVisitLocalDateTime(at);
+      if (!date) throw new Error('Enter a valid date and time');
+      const payload = { leadId: lead.id, inventoryId: property?.id ?? null, scheduledAt: date.toISOString(), address: address || null, note: note || null };
+      const fingerprint = JSON.stringify(payload);
+      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: crypto.randomUUID() };
+      return post('/visits', { ...payload, clientMutationId: submission.current.id });
+    },
     {
       success: 'Visit scheduled — lead stage "Site visit" पर गया',
       invalidate: [['visits'], ['broker-dashboard'], ['kanban'], ['leads']],
       onSuccess: () => {
         onOpenChange(false);
         setLead(null);
-        setListingId('');
+        setProperty(null);
+        submission.current = { fingerprint: '', id: '' };
         setNote('');
       },
     },
@@ -328,7 +392,7 @@ function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
       onOpenChange={onOpenChange}
       title="Site visit schedule करें"
       footer={
-        <Button disabled={!lead} loading={create.isPending} onClick={() => create.mutate(undefined)}>
+        <Button disabled={!lead || !parseVisitLocalDateTime(at)} loading={create.isPending} onClick={() => create.mutate(undefined)}>
           <Clock className="size-4" /> Schedule
         </Button>
       }
@@ -338,7 +402,13 @@ function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
           <LeadPicker value={lead} onChange={setLead} />
         </Field>
         <Field label="Property">
-          <ListingPicker value={listingId} onChange={setListingId} />
+          <VisitPropertyPicker
+            value={property}
+            onChange={(item) => {
+              setProperty(item);
+              if (item) setAddress(item.address || visitInventoryTitle(item));
+            }}
+          />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Date & time" required>

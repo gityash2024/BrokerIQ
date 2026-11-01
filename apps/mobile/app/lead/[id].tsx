@@ -1,3 +1,7 @@
+import { DateTimeField } from '@/components/date-time-field';
+import * as Crypto from 'expo-crypto';
+import { VisitPropertyPicker } from '@/components/visit-property-picker';
+import { visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, FlatList, Linking, ScrollView, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -369,6 +373,7 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
           {at.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
         </Txt>
       )}
+      <DateTimeField value={at} onChange={setAt} />
       <Input value={note} onChangeText={setNote} placeholder="क्या बात करनी है…" />
       <Button title="Schedule" loading={save.isPending} disabled={!at} onPress={() => save.mutate(undefined)} />
     </Sheet>
@@ -379,54 +384,31 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
   const { c } = useTheme();
   const [at, setAt] = useState<Date | null>(null);
   const [isCustomDate, setIsCustomDate] = useState(false);
-  const [customDateStr, setCustomDateStr] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 2, 0, 0, 0);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-  const [customTimeHour, setCustomTimeHour] = useState('11');
-  const [customTimeMinute, setCustomTimeMinute] = useState('00');
-  const [customTimePeriod, setCustomTimePeriod] = useState<'AM' | 'PM'>('AM');
-  const [searchProperty, setSearchProperty] = useState('');
-  const [listingId, setListingId] = useState<string | null>(lead.listing?.id ?? null);
+  const [property, setProperty] = useState<LedgerItem | null>(null);
+  const submission = useRef({ fingerprint: '', id: Crypto.randomUUID() });
   const [address, setAddress] = useState('');
 
-  const mine = useQuery({ queryKey: ['my-listings-pick'], queryFn: () => api<any>('/inventory?pageSize=100'), enabled: open });
-
-  const applyCustomDateTime = (dateStr: string, hourStr: string, minuteStr: string, period: 'AM' | 'PM') => {
-    try {
-      const parts = dateStr.split('-');
-      const year = Number(parts[0]);
-      const month = Number(parts[1]);
-      const day = Number(parts[2]);
-      let h = parseInt(hourStr, 10) || 10;
-      if (period === 'PM' && h < 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
-      const m = parseInt(minuteStr, 10) || 0;
-      const d = new Date(year, (month || 1) - 1, day || 1, h, m);
-      if (!isNaN(d.getTime())) setAt(d);
-    } catch {}
-  };
-
-  const save = useApiMutation(() => post('/visits', { leadId: lead.id, scheduledAt: at!.toISOString(), address: address || null }), {
-    success: 'Site visit scheduled 🗓',
-    onSuccess: () => {
-      scheduleReminder(`🏠 Site visit: ${lead.name}`, address || 'Visit शुरू होने वाली है', at!, 30).catch(() => undefined);
-      onClose();
-      onDone();
+  const save = useApiMutation(
+    () => {
+      if (!at) throw new Error('Enter a valid date and time');
+      const payload = { leadId: lead.id, inventoryId: property?.id ?? null, scheduledAt: at.toISOString(), address: address || null };
+      const fingerprint = JSON.stringify(payload);
+      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: Crypto.randomUUID() };
+      return post('/visits', { ...payload, clientMutationId: submission.current.id });
     },
-  });
-
-  const allProperties = (mine.data?.items ?? []).filter((item: any, idx: number, self: any[]) => {
-    return self.findIndex((o: any) => o.id === item.id || (o.houseNo && o.sector && o.houseNo === item.houseNo && o.sector === item.sector)) === idx;
-  });
-
-  const filteredProperties = allProperties.filter((x: any) => {
-    if (!searchProperty.trim()) return true;
-    const q = searchProperty.toLowerCase();
-    const str = `${x.houseNo || ''} ${x.unitLabel || ''} ${x.sector || ''} ${x.bedrooms || ''} BHK ${x.furnishing || ''} ${x.rent || ''}`.toLowerCase();
-    return str.includes(q);
-  });
+    {
+      success: 'Site visit scheduled 🗓',
+      onSuccess: () => {
+        scheduleReminder(`🏠 Site visit: ${lead.name}`, address || 'Visit शुरू होने वाली है', at!, 30).catch(() => undefined);
+        submission.current = { fingerprint: '', id: Crypto.randomUUID() };
+        setProperty(null);
+        setAddress('');
+        setAt(null);
+        onClose();
+        onDone();
+      },
+    },
+  );
 
   return (
     <Sheet open={open} onClose={onClose} title="Site visit schedule करें">
@@ -453,75 +435,11 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
           active={isCustomDate}
           onPress={() => {
             setIsCustomDate(true);
-            applyCustomDateTime(customDateStr, customTimeHour, customTimeMinute, customTimePeriod);
           }}
         />
       </Row>
 
-      {isCustomDate && (
-        <Card style={{ padding: 12, gap: 10, backgroundColor: `${c.brand}0c`, borderColor: `${c.brand}30`, marginBottom: 12 }}>
-          <Txt v="small" color="brand" style={{ fontWeight: '700' }}>
-            अपने हिसाब से तारीख और समय चुनें:
-          </Txt>
-          <Row gap={8} style={{ alignItems: 'center' }}>
-            <View style={{ flex: 2 }}>
-              <Txt v="caption" color="muted">तारीख (YYYY-MM-DD)</Txt>
-              <Input
-                value={customDateStr}
-                onChangeText={(v) => {
-                  setCustomDateStr(v);
-                  applyCustomDateTime(v, customTimeHour, customTimeMinute, customTimePeriod);
-                }}
-                placeholder="2026-10-30"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt v="caption" color="muted">घंटे (1-12)</Txt>
-              <Input
-                value={customTimeHour}
-                onChangeText={(v) => {
-                  setCustomTimeHour(v);
-                  applyCustomDateTime(customDateStr, v, customTimeMinute, customTimePeriod);
-                }}
-                keyboardType="numeric"
-                placeholder="11"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt v="caption" color="muted">मिनट</Txt>
-              <Input
-                value={customTimeMinute}
-                onChangeText={(v) => {
-                  setCustomTimeMinute(v);
-                  applyCustomDateTime(customDateStr, customTimeHour, v, customTimePeriod);
-                }}
-                keyboardType="numeric"
-                placeholder="30"
-              />
-            </View>
-            <View style={{ flex: 1.2, alignSelf: 'flex-end', paddingBottom: 2 }}>
-              <Row gap={4}>
-                <Chip
-                  label="AM"
-                  active={customTimePeriod === 'AM'}
-                  onPress={() => {
-                    setCustomTimePeriod('AM');
-                    applyCustomDateTime(customDateStr, customTimeHour, customTimeMinute, 'AM');
-                  }}
-                />
-                <Chip
-                  label="PM"
-                  active={customTimePeriod === 'PM'}
-                  onPress={() => {
-                    setCustomTimePeriod('PM');
-                    applyCustomDateTime(customDateStr, customTimeHour, customTimeMinute, 'PM');
-                  }}
-                />
-              </Row>
-            </View>
-          </Row>
-        </Card>
-      )}
+      {isCustomDate && <DateTimeField value={at} onChange={setAt} />}
 
       {at && (
         <Row gap={6} style={{ alignItems: 'center', marginBottom: 10 }}>
@@ -532,75 +450,25 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
         </Row>
       )}
 
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 4 }}>
-        <Txt v="label" color="subtle">
-          Property (कोई भी चुनें या सर्च करें)
-        </Txt>
-        {filteredProperties.length > 0 && (
-          <Txt v="caption" color="muted">{filteredProperties.length} उपलब्ध</Txt>
-        )}
-      </Row>
-
-      <Input
-        value={searchProperty}
-        onChangeText={setSearchProperty}
-        placeholder="🔍 Sector / House / BHK से फ़िल्टर करें..."
-        containerStyle={{ marginBottom: 8 }}
+      {isCustomDate && !at && <Txt color="danger">सही तारीख और समय भरें; invalid दिन या समय स्वीकार नहीं होगा।</Txt>}
+      <Txt v="label" color="subtle">
+        Property
+      </Txt>
+      <VisitPropertyPicker
+        open={open}
+        value={property}
+        onChange={(item) => {
+          setProperty(item);
+          if (item) setAddress(item.address || visitInventoryTitle(item));
+        }}
       />
-
-      <ScrollView horizontal={false} style={{ maxHeight: 180, marginBottom: 10 }} showsVerticalScrollIndicator={false}>
-        <Row wrap gap={6}>
-          {filteredProperties.slice(0, 30).map((x: any) => {
-            const active = listingId === x.id;
-            const title = [x.houseNo, x.unitLabel, x.sector].filter(Boolean).join(' ') || 'Property';
-            const detail = [x.bedrooms ? `${x.bedrooms} BHK` : null, x.rent ? `₹${(x.rent / 1000).toFixed(0)}k` : null, x.furnishing ? x.furnishing.slice(0, 4) : null].filter(Boolean).join(' · ');
-            return (
-              <PressableScale
-                key={x.id}
-                onPress={() => {
-                  setListingId(x.id);
-                  setAddress([x.houseNo, x.unitLabel, x.sector, x.address].filter(Boolean).join(', '));
-                }}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 14,
-                  borderWidth: 1.5,
-                  borderColor: active ? c.brand : c.line,
-                  backgroundColor: active ? `${c.brand}14` : c.surface,
-                  marginBottom: 4,
-                }}
-              >
-                <Txt v="bodyStrong" color={active ? 'brand' : 'default'} style={{ fontSize: 13 }}>
-                  {title}
-                </Txt>
-                {detail ? (
-                  <Txt v="caption" color={active ? 'brand' : 'muted'} style={{ fontSize: 11, marginTop: 2 }}>
-                    {detail}
-                  </Txt>
-                ) : null}
-              </PressableScale>
-            );
-          })}
-        </Row>
-      </ScrollView>
 
       <Txt v="label" color="subtle" style={{ marginBottom: 4 }}>
         Meeting Point / Custom Address
       </Txt>
-      <Input
-        value={address}
-        onChangeText={setAddress}
-        placeholder="Gate No., Land mark, या कोई भी नया address लिखें…"
-      />
+      <Input value={address} onChangeText={setAddress} placeholder="Gate No., Land mark, या कोई भी नया address लिखें…" />
 
-      <Button
-        title="Schedule visit"
-        loading={save.isPending}
-        disabled={!at}
-        style={{ marginTop: 14 }}
-        onPress={() => save.mutate(undefined)}
-      />
+      <Button title="Schedule visit" loading={save.isPending} disabled={!at} style={{ marginTop: 14 }} onPress={() => save.mutate(undefined)} />
     </Sheet>
   );
 }
