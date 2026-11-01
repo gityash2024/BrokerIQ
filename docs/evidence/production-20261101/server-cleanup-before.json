@@ -1,0 +1,154 @@
+{
+  "capturedAt": "2026-11-01T06:38:02.425008+00:00",
+  "disk": "Filesystem        1B-blocks         Used  Available Use% Mounted on\n/dev/vda1      124678225920 122164174848 2497273856  98% /\n",
+  "pm2": [
+    {
+      "name": "pm2-logrotate",
+      "pid": 987,
+      "status": "online",
+      "restarts": 0,
+      "cwd": "/root/.pm2/modules/pm2-logrotate/node_modules/pm2-logrotate"
+    },
+    {
+      "name": "theeartheon-backend",
+      "pid": 3680167,
+      "status": "online",
+      "restarts": 5,
+      "cwd": "/root/theeartheon/backend"
+    },
+    {
+      "name": "crazygk-backend",
+      "pid": 3680168,
+      "status": "online",
+      "restarts": 5,
+      "cwd": "/root/crazygktricks/backend"
+    },
+    {
+      "name": "staymasterai-backend",
+      "pid": 3680183,
+      "status": "online",
+      "restarts": 5,
+      "cwd": "/root/staymasterai/backend"
+    },
+    {
+      "name": "colladome-uat",
+      "pid": 3680335,
+      "status": "online",
+      "restarts": 5,
+      "cwd": "/root/colladome/colladome-pulse"
+    },
+    {
+      "name": "softlogic-api-backend",
+      "pid": 3680199,
+      "status": "online",
+      "restarts": 8,
+      "cwd": "/opt/softlogic-api/backend"
+    },
+    {
+      "name": "mirsat-backend",
+      "pid": 3680242,
+      "status": "online",
+      "restarts": 23,
+      "cwd": "/root/mirsat-backend"
+    },
+    {
+      "name": "mirsat-backend-prod",
+      "pid": 3680261,
+      "status": "online",
+      "restarts": 8,
+      "cwd": "/root/mirsat-backend-prod"
+    },
+    {
+      "name": "brokeriq-api",
+      "pid": 480849,
+      "status": "online",
+      "restarts": 59,
+      "cwd": "/opt/brokeriq/releases/f02daa4/apps/api"
+    },
+    {
+      "name": "brokeriq-web",
+      "pid": 927052,
+      "status": "online",
+      "restarts": 71,
+      "cwd": "/opt/brokeriq/releases/f02daa4/apps/web"
+    }
+  ],
+  "containers": [
+    {
+      "id": "f0f51426c0886baafe1a3d855002f99808f575c4f2e0b7afa0b17b994d1d4c07",
+      "name": "/yarvix-production-site-1",
+      "image": "sha256:4bb4c65bf3bf0252abcc1f5662e5088da650266b57c69c507acf831cda13ea15",
+      "status": "running",
+      "health": "healthy",
+      "startedAt": "2026-10-13T08:50:26.916856527Z",
+      "mounts": []
+    },
+    {
+      "id": "d0d5d880dd8a3c01f790ca21e6b1b77d0ee34413d91688366817c688311c1fed",
+      "name": "/yarvix-production-admin-1",
+      "image": "sha256:8256cd2134897c83d318c30cb288607c36a481af26d35cf1d8114c08d51c382e",
+      "status": "running",
+      "health": "healthy",
+      "startedAt": "2026-10-13T08:50:20.466790466Z",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/opt/site/yarvix/exports",
+          "destination": "/data/exports"
+        },
+        {
+          "type": "volume",
+          "source": "/var/lib/docker/volumes/yarvix-production_media_data/_data",
+          "destination": "/data/media"
+        }
+      ]
+    },
+    {
+      "id": "c8a802c4cc0e00116557b8f87af1993c9793311912f2e1ee12240c98cccb708c",
+      "name": "/yarvix-production-worker-1",
+      "image": "sha256:fc586b05b92f067016e06b7f99e4cd1c250912354fed3eeefbbe1336e4a62cb9",
+      "status": "running",
+      "health": "healthy",
+      "startedAt": "2026-10-13T08:50:20.467216973Z",
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "/opt/site/yarvix/exports",
+          "destination": "/data/exports"
+        },
+        {
+          "type": "volume",
+          "source": "/var/lib/docker/volumes/yarvix-production_media_data/_data",
+          "destination": "/data/media"
+        }
+      ]
+    },
+    {
+      "id": "21157db881bbc00c00dd0d3db6876ed634446ab5ffb32bdbf030d8514fa882a9",
+      "name": "/yarvix-production-postgres-1",
+      "image": "sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d",
+      "status": "running",
+      "health": "healthy",
+      "startedAt": "2026-10-11T12:26:47.036536586Z",
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "/var/lib/docker/volumes/yarvix-production_postgres_data/_data",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    }
+  ],
+  "nginxRoots": "    root /root/crazygktricks/frontend/build;\n    root /root/crazygktricks/admin/build;\n    root /var/www/mirsat-prod;\n    root /var/www/mirsat-staging/current;\n        root /var/www/mirsat-staging/current;\n        root /var/www/mirsat-prod;\n    root /var/www/sacred/cms;\n        root /var/www/phase2-free-ai-acme;\n    root /root/staymasterai/frontend/dist;\n    root /var/www/theeartheon/frontend/dist;\n",
+  "dockerSpace": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          5         4         50.91GB   50.79GB (99%)\nContainers      4         4         79.95MB   0B (0%)\nLocal Volumes   2         2         70.46MB   0B (0%)\nBuild Cache     116       0         58.86GB   58.86GB\n",
+  "apiHealth": {
+    "status": "ok",
+    "db": "ok",
+    "dbLatencyMs": 1,
+    "uptimeSec": 53137,
+    "time": "2026-11-01T06:38:10.702Z"
+  },
+  "qwenHealth": {
+    "status": "ok"
+  }
+}
