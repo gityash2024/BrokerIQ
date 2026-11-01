@@ -2498,6 +2498,7 @@ model ShortlistShare {
 
 /// Internal broker inventory ledger (Google Sheet / Excel register style).
 model InventoryItem {
+  convertedRequirement BrokerRequirement? @relation("RequirementConversion")
   visits             SiteVisit[]
   id                 String    @id @default(cuid())
   organizationId     String
@@ -2663,6 +2664,15 @@ model BrokerRequirement {
   sourceEntryId   String?
   sourceUnitKey   String?
   clientMutationId String?
+  intent          String @default("DEMAND")
+  title           String?
+  offerDetails    Json?
+  revision        Int @default(1)
+  provenance      Json?
+  convertedInventoryId String? @unique
+  convertedAt     DateTime?
+  convertedById   String?
+  convertedInventory InventoryItem? @relation("RequirementConversion", fields: [convertedInventoryId], references: [id], onDelete: Restrict)
   contactName     String?
   contactPhone    String?
   purpose         String?
@@ -2689,6 +2699,7 @@ model BrokerRequirement {
   @@index([organizationId, leadId])
   @@index([organizationId, assignedToId])
   @@index([organizationId, createdById])
+  @@index([organizationId, intent])
 }
 
 /// Public project/colony facts. Records remain distinct by source identity; no guessed merging.

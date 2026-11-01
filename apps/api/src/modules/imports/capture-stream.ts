@@ -67,6 +67,9 @@ export class ChatStreamParser {
     if (match) {
       if (this.message) output.push(this.message);
       this.message = { text: match[4], sender: match[3].trim(), timestamp: match[1] ?? match[2] };
+    } else if (/^(?:\[[^\]]*\d{1,2}:\d{2}[^\]]*\]|\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}:\d{2}[^-]*?\s+-)\s*/.test(line.replace(/^[\uFEFF\u200e\u200f]+/,''))) {
+      if(this.message)output.push(this.message);
+      this.message={text:line,system:true};
     } else if (this.message) this.message.text += `\n${line}`;
     else if (line.trim()) this.message = { text: line };
     if ((this.message?.text.length ?? 0) > 2_000_000)

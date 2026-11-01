@@ -1,10 +1,12 @@
 import { View } from 'react-native';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, brokerRequirementSchema, preparePropertyDetails } from '@brokeriq/shared';
+import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, brokerRequirementSchema, preparePropertyDetails,offeredRequirement,type InventoryInput,type BrokerRequirementInput } from '@brokeriq/shared';
 import { Input, Button, Txt } from '@/ui';
 import { NativePropertyExtras } from './property-extras';
 import { ChoiceField } from './form';
 import { useTheme } from '@/lib/theme';
-export function prepareEntity(value: Record<string, any>, requirement = false) {
+export function prepareEntity(value: Record<string, any>, requirement = false):InventoryInput|BrokerRequirementInput {
+  if(requirement && value.intent==='OFFER')return brokerRequirementSchema.parse({...offeredRequirement(inventoryInputSchema.parse(prepareEntity(value.offerDetails || {}))),leadId:value.leadId,expectedRevision:value.expectedRevision});
+  if(requirement && value.intent==='UNKNOWN')return brokerRequirementSchema.parse({intent:'UNKNOWN',title:value.title,notes:value.notes,expectedRevision:value.expectedRevision});
   const input = { ...value };
   for (const key of requirement
     ? ['minBudget', 'maxBudget', 'minArea', 'maxArea']
@@ -43,8 +45,12 @@ export function EntityFields({
   const choice = (key: string, label: string, options: string[]) => (
     <ChoiceField label={label} value={value[key]} choices={options} onChange={(v) => change(key, v)} />
   );
+  const intent=choice('intent','Record type',['DEMAND','OFFER','UNKNOWN']);
+  if(requirement && value.intent==='OFFER')return <View style={{gap:14}}>{intent}<EntityFields value={value.offerDetails || {}} onChange={offerDetails=>change('offerDetails',offerDetails)}/></View>;
+  if(requirement && value.intent==='UNKNOWN')return <View style={{gap:14}}>{intent}{field('title','Title')}{field('notes','Original details / notes',true)}</View>;
   return (
     <View style={{ gap: 14 }}>
+      {requirement&&intent}
       {requirement ? (
         <>
           <Txt v="h3">Contact & requirement</Txt>

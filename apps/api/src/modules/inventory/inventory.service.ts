@@ -291,20 +291,24 @@ export class InventoryService {
         : [])
     );
   }
-  async create(input: InventoryInput, user: RequestUser) {
+  async create(input: InventoryInput, user: RequestUser, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     const organizationId = this.orgId(user, input.organizationId)!;
     if (input.clientMutationId) {
-      const existing = await this.prisma.inventoryItem.findUnique({
+      const existing = await db.inventoryItem.findUnique({
         where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
         include,
       });
-      if (existing) return ledgerJson(existing);
+      if (existing) {
+        if (user.role === 'BROKER_AGENT' && existing.createdById !== user.id && existing.assignedToId !== user.id) throw new ForbiddenException('Inventory belongs to another member');
+        return ledgerJson(existing);
+      }
     }
     if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
     const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
-    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : (rawAssigned || user.id);
+    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : (rawAssigned || user.id);
     if (assignedToId) {
-      const assignee = await this.prisma.user.findFirst({
+      const assignee = await db.user.findFirst({
         where: { id: assignedToId, organizationId },
       });
       if (!assignee) throw new BadRequestException('Assigned user not found in organization');
@@ -321,14 +325,15 @@ export class InventoryService {
       include,
     };
     const item = input.clientMutationId
-      ? await this.prisma.inventoryItem.upsert({
+      ? await db.inventoryItem.upsert({
           where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
           create: creation.data,
           update: {},
           include,
         })
-      : await this.prisma.inventoryItem.create(creation);
-    await this.audit.log(user, 'inventory.create', 'InventoryItem', item.id);
+      : await db.inventoryItem.create(creation);
+    if (user.role === 'BROKER_AGENT' && item.createdById !== user.id && item.assignedToId !== user.id) throw new ForbiddenException('Inventory belongs to another member');
+    if (!transaction) await this.audit.log(user, 'inventory.create', 'InventoryItem', item.id);
     return ledgerJson(item);
   }
   async update(id: string, input: InventoryInput, user: RequestUser) {

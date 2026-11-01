@@ -13,6 +13,7 @@ export interface CapturedMessage {
   text: string;
   sender?: string;
   timestamp?: string;
+  system?: boolean;
 }
 
 export function chatExportMessages(text: string): CapturedMessage[] {
@@ -22,6 +23,7 @@ export function chatExportMessages(text: string): CapturedMessage[] {
   for (const line of lines) {
     const match = line.match(header);
     if (match) messages.push({ text: match[4], sender: match[3].trim(), timestamp: match[1] ?? match[2] });
+    else if (/^(?:\[[^\]]*\d{1,2}:\d{2}[^\]]*\]|\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}:\d{2}[^-]*?\s+-)\s*/.test(line)) messages.push({text:line,system:true});
     else if (messages.length) messages[messages.length - 1].text += '\n' + line;
   }
   return messages.length ? messages : [{ text }];
@@ -70,7 +72,8 @@ export function extractCapture(text: string): CapturedEntity[] {
     // combine the first locality, another property's area and a third contact.
     if ((hasRequirement && hasSupply) || (!hasRequirement && localities.length > 1 && (roomMentions.length > 1 || sizeMentions.length > 1))) {
       return {
-        kind: 'UNRELATED',
+        kind: 'REQUIREMENT',
+        requirement: brokerRequirementSchema.parse({intent:'UNKNOWN',title:'Mixed property post — split and review',notes:raw}),
         warnings: [
           'Several property/requirement sections may be interleaved. Split them into separate records using the original source; no combined property was inferred.',
         ],
@@ -134,6 +137,7 @@ export function extractCapture(text: string): CapturedEntity[] {
     if (hasRequirement) {
       const budget = raw.match(new RegExp(`budget\\s*[:=-]?\\s*₹?\\s*${amountPattern}(?:\\s*(?:to|[-–])\\s*₹?\\s*${amountPattern})?`, 'i'));
       const requirement: BrokerRequirementInput = {
+        intent:'DEMAND',
         purpose,
         category,
         propertyTypes: propertyType ? [propertyType] : [],

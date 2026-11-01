@@ -26,7 +26,7 @@ export default function Drafts() {
       if (row.kind === 'PROPERTY_CREATE' || row.kind === 'PROPERTY_EDIT')
         router.push({ pathname: '/inventory-edit', params: { ...(body.id ? { id: body.id } : {}), draft: id } });
       else if (row.kind === 'PUBLIC_PUBLISH') router.push({ pathname: '/publish-rental', params: { id: row.draft_key } } as any);
-      else if (row.kind === 'REQUIREMENT_CREATE') router.push({ pathname: '/requirement-edit', params: { draft: id } } as any);
+      else if (row.kind === 'REQUIREMENT_CREATE' || row.kind === 'REQUIREMENT_EDIT') router.push({ pathname: '/requirement-edit', params: { draft: id,...(body.id?{id:body.id}:{}) } } as any);
       else if (row.kind === 'IMPORT_REVIEW') router.push({ pathname: '/import-review/[id]', params: { id: body.batchId } } as any);
       else if (row.kind === 'CAPTURE_COMPOSE') router.push('/capture');
       else setError('Original capture is preserved. Retry sync after correcting configuration.');

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import {
-  inventoryDerived,
+  offeredRequirement,
   capturedEntitySchema,
   extractCapture,
   chatExportMessages,
@@ -240,7 +240,7 @@ export class ImportsService {
         streamed ?? (batch.sourceType === 'CHAT_EXPORT' ? chatExportMessages(text) : [{ text }]);
       let i = 0;
       for await (const message of messages) {
-        const extracted = entities ?? extractCapture(message.text);
+        const extracted:CapturedEntity[] = message.system ? [{kind:'UNRELATED',warnings:['WhatsApp system event; retained only as source evidence']}] : entities ?? extractCapture(message.text);
         const entryKey = `${i}:${sha(`${message.sender ?? ''}\0${message.timestamp ?? ''}\0${message.text}`)}`;
         const messageIdentity =
           batch.sourceType === 'CHAT_EXPORT' && batch.groupName && message.sender && message.timestamp
@@ -252,7 +252,7 @@ export class ImportsService {
           rowNo: i + 1,
           rawText: message.text,
           extracted: extracted as Prisma.InputJsonValue,
-          ocr: { sender: message.sender ?? null, timestamp: message.timestamp ?? null, sourceFile: message.sourceFile ?? null },
+          ocr: { sender: message.sender ?? null, timestamp: message.timestamp ?? null, sourceFile: message.sourceFile ?? null,system:message.system===true },
           organizationId: batch.organizationId,
           messageIdentity,
         };
@@ -303,9 +303,7 @@ export class ImportsService {
   async review(entryId: string, input: z.infer<typeof reviewSchema>, user: RequestUser, approve = false) {
     if (approve && !input.ignore) {
       if (!input.entities.some((e) => e.kind !== 'UNRELATED')) throw new BadRequestException('Approve a property/requirement or choose Ignore');
-      for (const entity of input.entities) {
-        if (entity.kind !== 'UNRELATED') await this.modules.assertPath(entity.kind === 'INVENTORY' ? '/inventory' : '/broker-requirements', user.role);
-      }
+      await this.modules.assertPath('/broker-requirements', user.role);
     }
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${entryId}))`;
@@ -318,51 +316,26 @@ export class ImportsService {
         for (let index = 0; index < input.entities.length; index++) {
           const entity = input.entities[index];
           const sourceUnitKey = String(index);
-          if (entity.kind === 'INVENTORY') {
-            if (!entity.inventory) throw new BadRequestException('Inventory fields required');
-            const parsed = inventoryInputSchema.parse(entity.inventory);
-            const { contacts, expectedRevision: _rev, organizationId: _org, ...data } = parsed;
-            if (!data.sector && !data.address) throw new BadRequestException('Confirm locality/address before approving');
-            const monthly = data.monthlyRent ?? data.rent ?? null;
-            await tx.inventoryItem.upsert({
-              where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
-              create: {
-                ...data,
-                ...inventoryDerived(data),
-                details: (data.details ?? {}) as Prisma.InputJsonValue,
-                rent: monthly,
-                monthlyRent: monthly,
-                organizationId: entry.batch.organizationId,
-                createdById: user.id,
-                sourceEntryId: entry.id,
-                sourceUnitKey,
-                sourceType: entry.batch.sourceType,
-                pageNo: entry.pageNo,
-                availability: data.availability ?? 'UNKNOWN',
-                verificationStatus: 'VERIFIED',
-                status: data.status === 'DRAFT' ? 'ACTIVE' : (data.status ?? 'ACTIVE'),
-                contacts: { create: contacts ?? [] },
-              },
-              update: {},
-            });
-          } else if (entity.kind === 'REQUIREMENT') {
-            if (!entity.requirement) throw new BadRequestException('Requirement fields required');
-            const data = brokerRequirementSchema.parse(entity.requirement);
-            if (data.leadId && !(await tx.lead.findFirst({ where: { id: data.leadId, organizationId: entry.batch.organizationId, deletedAt: null } })))
-              throw new ForbiddenException('Lead belongs to another firm');
-            await tx.brokerRequirement.upsert({
-              where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
-              create: {
-                ...data,
-                organizationId: entry.batch.organizationId,
-                createdById: entry.batch.createdById,
-                assignedToId: user.role === 'BROKER_AGENT' ? user.id : null,
-                sourceEntryId: entry.id,
-                sourceUnitKey,
-              },
-              update: {},
-            });
-          }
+          if (entity.kind === 'UNRELATED') continue;
+          if (entity.kind === 'INVENTORY' && !entity.inventory) throw new BadRequestException('Offered property fields required');
+          if (entity.kind === 'REQUIREMENT' && !entity.requirement) throw new BadRequestException('Requirement fields required');
+          const parsed = entity.kind === 'INVENTORY' ? offeredRequirement(entity.inventory!) : brokerRequirementSchema.parse(entity.requirement);
+          const { expectedRevision: _revision, organizationId: _organization, clientMutationId: _mutation, offerDetails, ...data } = parsed;
+          if (data.leadId && !(await tx.lead.findFirst({ where: { id:data.leadId, organizationId:entry.batch.organizationId, deletedAt:null, ...(user.role==='BROKER_AGENT'?{assignedToId:user.id}:{}) } })))
+            throw new ForbiddenException('Lead is not accessible');
+          await tx.brokerRequirement.upsert({
+            where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
+            create: {
+              ...data,
+              ...(offerDetails ? {offerDetails:offerDetails as Prisma.InputJsonValue} : {}),
+              organizationId:entry.batch.organizationId,
+              createdById:entry.batch.createdById,
+              assignedToId:user.role==='BROKER_AGENT'?user.id:null,
+              sourceEntryId:entry.id, sourceUnitKey,
+              provenance:{rawText:entry.rawText, sourceType:entry.batch.sourceType, fileName:entry.batch.fileName, groupName:entry.batch.groupName, senderName:entry.batch.senderName, senderPhone:entry.batch.senderPhone, message:entry.ocr, reviewedAt:new Date().toISOString(), reviewedById:user.id} as Prisma.InputJsonValue,
+            },
+            update:{},
+          });
         }
       }
       const state = approve ? (input.ignore ? 'IGNORED' : 'APPROVED') : 'NEEDS_REVIEW';

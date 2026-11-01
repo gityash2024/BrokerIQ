@@ -1,23 +1,30 @@
 import { useState } from 'react';
-import { FlatList, View, ActivityIndicator, Linking } from 'react-native';
+import { FlatList, View, ActivityIndicator, Linking, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { formatINR, readableValue } from '@brokeriq/shared';
+import { formatINR, readableValue, moduleAllowed } from '@brokeriq/shared';
 import { api, qs, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
+import { useAuth } from '@/lib/auth';
+import { useConfig } from '@/lib/config';
 import { useDebounced } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { PropertyCard } from '@/launch/property-card';
 import { Button, Txt, ErrorView, Sheet, Input } from '@/ui';
 export default function Requirements() {
+  const { user } = useAuth();
+  const config = useConfig();
+  const inventoryAllowed = config.loaded && !!user && moduleAllowed(config.modules, 'inventory', user.role);
   const { leadId } = useLocalSearchParams<{ leadId?: string }>();
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
   const [selected, setSelected] = useState<string | null>(null);
+  const [intent, setIntent] = useState('');
+  const [converting, setConverting] = useState<string | null>(null);
   const list = useInfiniteQuery({
-    queryKey: ['broker-requirements', leadId, term],
-    queryFn: ({ pageParam }) => api<any>(`/broker-requirements${qs({ page: pageParam, leadId, search: term })}`),
+    queryKey: ['broker-requirements', leadId, term, intent],
+    queryFn: ({ pageParam }) => api<any>(`/broker-requirements${qs({ page: pageParam, leadId, search: term, intent: intent || undefined })}`),
     initialPageParam: 1,
     getNextPageParam: (p) => (p.page < p.totalPages ? p.page + 1 : undefined),
   });
@@ -29,6 +36,11 @@ export default function Requirements() {
   return (
     <BrokerScreen title="Requirements" subtitle="Separate needs, clear matching reasons." back>
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 10 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {['', 'DEMAND', 'OFFER', 'UNKNOWN'].map((kind) => (
+            <Button key={kind} title={kind || 'All records'} size="sm" variant={intent === kind ? 'primary' : 'secondary'} onPress={() => setIntent(kind)} />
+          ))}
+        </View>
         <Input accessibilityLabel="Search requirements" placeholder="Contact, phone or requirement notes" value={search} onChangeText={setSearch} />
         <Button title="Scan / paste / WhatsApp export" variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
         <Button title="Add requirement" onPress={() => router.push({ pathname: '/requirement-edit', params: leadId ? { leadId } : {} } as any)} />
@@ -59,9 +71,12 @@ export default function Requirements() {
           <NativeCard>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
               <Txt v="h3" style={{ flex: 1 }}>
-                {item.contactName || item.contactPhone || 'Contact not recorded'}
+                {item.title || item.contactName || item.contactPhone || 'Contact not recorded'}
               </Txt>
-              <WorkspaceTag tone={item.status === 'OPEN' ? 'success' : 'muted'} label={readableValue(item.status)} />
+              <WorkspaceTag
+                tone={item.status === 'OPEN' ? 'success' : 'muted'}
+                label={item.convertedAt ? 'Converted' : readableValue(item.intent || 'DEMAND')}
+              />
             </View>
             <Txt>{item.localityNames.join(' · ')}</Txt>
             <Txt v="small" color="muted">
@@ -96,7 +111,50 @@ export default function Requirements() {
                 onPress={() => Linking.openURL(`tel:${item.contactPhone}`).catch((error) => toast.error(errorMessage(error)))}
               />
             )}
-            <Button title="Find matches" variant="secondary" size="sm" onPress={() => setSelected(item.id)} />
+            <Button
+              title="Review / edit"
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push({ pathname: '/requirement-edit', params: { id: item.id } } as any)}
+            />
+            {(item.intent === 'DEMAND' || !item.intent) && <Button title="Find matches" variant="secondary" size="sm" onPress={() => setSelected(item.id)} />}
+            {inventoryAllowed && item.intent === 'OFFER' && !item.convertedAt && item.status === 'OPEN' && (
+              <Button
+                title="Add reviewed offer to inventory"
+                size="sm"
+                loading={converting === item.id}
+                disabled={!!converting}
+                onPress={() =>
+                  Alert.alert(
+                    'Create inventory record?',
+                    'Confirm the offered property purpose, locality and details first using Review / edit. This creates one independent inventory record and retains the original requirement.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Confirm conversion',
+                        onPress: async () => {
+                          setConverting(item.id);
+                          try {
+                            await api(`/broker-requirements/${item.id}/convert`, { body: { expectedRevision: item.revision } });
+                            await list.refetch();
+                            toast.success('Independent inventory record created');
+                          } catch (e) {
+                            toast.error(errorMessage(e));
+                          } finally {
+                            setConverting(null);
+                          }
+                        },
+                      },
+                    ],
+                  )
+                }
+              />
+            )}
+            {item.convertedAt && (
+              <Txt v="caption" color="muted">
+                Converted · original source retained
+              </Txt>
+            )}
           </NativeCard>
         )}
       />

@@ -133,6 +133,11 @@ export const inventoryFilterSchema = z.object({
 });
 export const brokerRequirementSchema = z
   .object({
+    organizationId: z.string().max(100).optional(),
+    intent: z.enum(['DEMAND', 'OFFER', 'UNKNOWN']).default('DEMAND'),
+    title: text,
+    offerDetails: inventoryInputSchema.nullable().optional(),
+    expectedRevision: z.number().int().positive().optional(),
     clientMutationId: z.string().max(100).optional(),
     leadId: z.string().max(100).nullable().optional(),
     contactName: text,
@@ -153,11 +158,28 @@ export const brokerRequirementSchema = z
     status: z.enum(['OPEN', 'FULFILLED', 'CLOSED']).default('OPEN'),
   })
   .superRefine((data, ctx) => {
+    if (data.intent === 'OFFER' && !data.offerDetails) ctx.addIssue({ code: 'custom', path: ['offerDetails'], message: 'Confirm the offered property details' });
+    if (data.intent !== 'OFFER' && data.offerDetails) ctx.addIssue({ code: 'custom', path: ['offerDetails'], message: 'Only offered property records can contain inventory details' });
+    if(data.intent==='UNKNOWN' && !data.title?.trim() && !data.notes?.trim())ctx.addIssue({code:'custom',path:['notes'],message:'Preserve the unclear source or add a review note'});
     if (data.minBudget != null && data.maxBudget != null && data.minBudget > data.maxBudget)
       ctx.addIssue({ code: 'custom', path: ['maxBudget'], message: 'Maximum must be at least minimum' });
     if ((data.minArea != null || data.maxArea != null) && !data.areaUnit) ctx.addIssue({ code: 'custom', path: ['areaUnit'], message: 'Area unit required' });
   });
 export type BrokerRequirementInput = z.infer<typeof brokerRequirementSchema>;
+
+/** An available-property post remains a Requirement until a separate reviewed conversion. */
+export function offeredRequirement(input: InventoryInput): BrokerRequirementInput {
+  const data = inventoryInputSchema.parse(input);
+  const amount = data.purpose === 'SALE' ? data.totalSalePrice : data.monthlyRent ?? data.rent;
+  const title = [data.bhk ? `${data.bhk} ${data.roomKind || 'BHK'}` : data.propertyType, data.houseNo, data.unitLabel || data.floor, data.sector || data.address]
+    .filter(Boolean).join(' · ').slice(0, 200);
+  return brokerRequirementSchema.parse({ intent:'OFFER', title: title || 'Property details need review', offerDetails:data,
+    contactName:data.ownerName, contactPhone:data.ownerPhone, purpose:data.purpose, category:data.category,
+    propertyTypes:data.propertyType ? [data.propertyType] : [], localityNames:data.sector ? [data.sector] : [],
+    minBudget:amount, maxBudget:amount, bedrooms:data.bhk ? [data.bhk] : [], roomKind:data.roomKind,
+    furnishing:data.furnishing, minArea:data.area, maxArea:data.area, areaUnit:data.areaUnit, notes:data.notes,
+  });
+}
 export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
   localityId?: string | null;
   publishedListingId?: string | null;
@@ -211,7 +233,8 @@ export const localityKey = (value: string) =>
     .replace(/[^a-z0-9]/g, '');
 
 /** Hard filters are explicit facts. Unknown availability is shown separately, never as confirmed. */
-export function ledgerMatch(requirement: BrokerRequirementInput, item: InventoryInput) {
+export function ledgerMatch(requirement: Omit<BrokerRequirementInput,'intent'> & {intent?:BrokerRequirementInput['intent']}, item: InventoryInput) {
+  if(requirement.intent && requirement.intent!=='DEMAND')return null;
   const reasons: string[] = [];
   if (!requirement.purpose || !item.purpose || requirement.purpose !== item.purpose) return null;
   reasons.push(requirement.purpose === 'RENT' ? 'Monthly rent' : 'Sale');

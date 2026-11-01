@@ -5,7 +5,7 @@ import * as Crypto from 'expo-crypto';
 import { File, Directory, Paths } from 'expo-file-system';
 import { api, ApiError, authStore } from '@/lib/api';
 
-export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
+export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'REQUIREMENT_EDIT' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
 export type DraftState = 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
 export interface LocalDraft {
   id: string;
@@ -241,6 +241,11 @@ export async function syncDrafts() {
           } else if (row.kind === 'REQUIREMENT_CREATE') {
             path = '/broker-requirements';
             body = { ...body, clientMutationId: row.id };
+          } else if (row.kind === 'REQUIREMENT_EDIT') {
+            path = `/broker-requirements/${body.id}`;
+            method = 'PATCH';
+            const {id:_id,...rest}=body;
+            body=rest;
           } else {
             throw new Error('This local draft must be opened and reviewed before sync. Its data was preserved.');
           }

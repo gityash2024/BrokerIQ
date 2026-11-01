@@ -7,7 +7,7 @@ import { type CapturedEntity } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { PropertyForm } from '@/components/broker/launch/property-form';
-import { RequirementForm } from '@/components/broker/launch/requirement-form';
+import { RequirementRecordForm } from '@/components/broker/launch/requirement-record-form';
 import { PrivateSource } from '@/components/broker/launch/private-source';
 import { toast } from 'sonner';
 export default function ReviewPage() {
@@ -27,7 +27,7 @@ export default function ReviewPage() {
   async function approve(entry: any, entities: CapturedEntity[], ignore = false, version?: string) {
     await api(`/imports/entries/${entry.id}/approve`, { body: { entities, ignore, expectedUpdatedAt: version ?? entry.updatedAt } });
     await Promise.all(['import', 'ledger', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
-    toast.success(ignore ? 'Source marked unrelated' : 'Approved. Availability remains as recorded.');
+    toast.success(ignore ? 'Source marked unrelated' : 'Saved to Requirements. Review property offers there before converting to Inventory.');
   }
   return (
     <>
@@ -200,10 +200,9 @@ function Entry({
                       }}
                     />
                   ) : entity.kind === 'REQUIREMENT' ? (
-                    <RequirementForm
+                    <RequirementRecordForm
                       initial={entity.requirement}
                       onDirty={() => setPrepared(prepared.filter((i) => i !== index))}
-                      label="Save reviewed fields"
                       onSave={async (requirement) => {
                         const next = entities.map((e, i) => (i === index ? { ...e, requirement } : e));
                         const saved = await api<any>(`/imports/entries/${entry.id}`, { method: 'PATCH', body: { entities: next, expectedUpdatedAt: version } });
@@ -228,7 +227,7 @@ function Entry({
                     onClick={() =>
                       setEntities([
                         ...entities,
-                        { kind: 'REQUIREMENT', requirement: { propertyTypes: [], localityNames: [], bedrooms: [], status: 'OPEN' }, warnings: [] },
+                        { kind: 'REQUIREMENT', requirement: { intent:'DEMAND', propertyTypes: [], localityNames: [], bedrooms: [], status: 'OPEN' }, warnings: [] },
                       ])
                     }
                   >

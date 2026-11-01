@@ -32,7 +32,7 @@ export default function ImportReview() {
         <WorkspaceHero
           label="SOURCE REVIEW"
           title="Check every fact before saving."
-          description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve the records."
+          description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve independent requirement records. Property offers require a separate conversion into Inventory."
         />
         {q.data?.metadata?.requestedTarget && q.data.metadata.requestedTarget !== 'AUTO' && (
           <WorkspaceTag label={`Requested destination: ${q.data.metadata.requestedTarget === 'INVENTORY' ? 'Inventory' : 'Requirements'}`} />
@@ -208,7 +208,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
         entities.map((e, index) => (
           <View key={index} style={{ gap: 12 }}>
             <Txt v="h3">
-              {e.kind === 'INVENTORY' ? 'Property / unit' : e.kind === 'REQUIREMENT' ? 'Client requirement' : 'Unclassified source'} · {index + 1}
+              {e.kind === 'INVENTORY' ? 'Property offer' : e.kind === 'REQUIREMENT' ? 'Requirement / review record' : 'Unclassified source'} · {index + 1}
             </Txt>
             {e.warnings?.map((warning: string, i: number) => (
               <Txt key={i} v="small" color="warning">
@@ -238,7 +238,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
             title="Add requirement"
             variant="secondary"
             onPress={() =>
-              change([...entities, { kind: 'REQUIREMENT', requirement: { localityNames: [], propertyTypes: [], bedrooms: [], status: 'OPEN' }, warnings: [] }])
+              change([...entities, { kind: 'REQUIREMENT', requirement: { intent:'DEMAND', localityNames: [], propertyTypes: [], bedrooms: [], status: 'OPEN' }, warnings: [] }])
             }
           />
           <Txt v="caption" color="muted">

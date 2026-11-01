@@ -19,7 +19,7 @@ export default function InventoryEditor() {
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any[]>('/broker/team') });
+  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any[]>('/broker/team'),enabled:user?.role==='BROKER_ADMIN' });
   const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [], assignedToId: user?.id });
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');

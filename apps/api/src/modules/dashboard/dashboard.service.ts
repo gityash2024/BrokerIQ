@@ -126,7 +126,7 @@ export class DashboardService {
               take: 8,
             })
           : null,
-        on('leads') ? this.db.brokerRequirement.count({ where: { organizationId: org, deletedAt: null, status: 'OPEN' } }) : null,
+        on('leads') ? this.db.brokerRequirement.count({ where: { organizationId: org, deletedAt: null, status: 'OPEN',intent:'DEMAND' } }) : null,
         on('leads') ? this.db.lead.count({ where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d } }) : null,
         on('leads') ? this.db.followUp.count({ where: { organizationId: org, ...assigned, status: 'PENDING', dueAt: { lt: new Date() } } }) : null,
         on('leads') ? this.db.siteVisit.count({ where: { organizationId: org, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } }) : null,

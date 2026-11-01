@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { extractCapture, chatExportMessages } from '../capture';
-import { ledgerMatch, inventoryInputSchema, prepareInventoryEditorInput } from '../inventory';
+import { ledgerMatch, inventoryInputSchema, prepareInventoryEditorInput, offeredRequirement } from '../inventory';
 
 test('requirements retain compound sectors and budget range', () => {
   const entry = extractCapture('Requirement\n2bhk\nSector 27&28&43&42\nBudget 45k to 55k rent\nFully furnished luxury')[0];
@@ -67,15 +67,17 @@ test('commercial capture retains explicit possession, purchase, area basis and i
 
 test('interleaved poster columns cannot mix one property locality with another area or room count', () => {
   const [entry] = extractCapture('AVAILABLE FOR SALE\nOffice Sector 56, 400 sqft\nApartment Sector 57, 3 BHK, 1800 sqft');
-  assert.equal(entry.kind, 'UNRELATED');
+  assert.equal(entry.kind, 'REQUIREMENT');
+  assert.equal(entry.requirement?.intent, 'UNKNOWN');
   assert.equal(entry.inventory, undefined);
   assert.ok(entry.warnings.some((w) => w.includes('interleaved')));
 });
 
 test('mixed screenshot supply and requirement stay in source review without a combined lead', () => {
   const [entry] = extractCapture('Requirement 2 BHK Sector 43 budget 45k\nAvailable for sale 3 BHK Sector 57, 1800 sqft');
-  assert.equal(entry.kind, 'UNRELATED');
-  assert.equal(entry.requirement, undefined);
+  assert.equal(entry.kind, 'REQUIREMENT');
+  assert.equal(entry.requirement?.intent, 'UNKNOWN');
+  assert.deepEqual(entry.requirement?.localityNames, []);
 });
 
 test('confirmed register abbreviations keep floors, furnishing and deposit months distinct', () => {
@@ -143,4 +145,15 @@ test('emoji property separators keep distinct rent and sale offers apart', () =>
   assert.equal(entries.length, 2);
   assert.equal(entries[0].inventory?.purpose, 'RENT');
   assert.equal(entries[1].inventory?.purpose, 'SALE');
+});
+
+test('property offers remain typed source records without inventing absent price or contact',()=>{
+  const offer=offeredRequirement({purpose:'SALE',sector:'Sector 93',area:8,areaUnit:'ACRE',ratePerArea:90000000,rateAreaUnit:'ACRE',availability:'UNKNOWN'});
+  assert.equal(offer.intent,'OFFER');assert.equal(offer.minBudget,undefined);assert.equal(offer.maxBudget,undefined);
+  assert.equal(offer.contactPhone,undefined);assert.equal(offer.offerDetails?.ratePerArea,90000000);
+  assert.equal(ledgerMatch(offer,{sector:'Sector 93',purpose:'SALE'}),null);
+});
+test('WhatsApp system headers cannot become continuation text of a preceding property message',()=>{
+ const rows=chatExportMessages('01/11/2026, 09:00 - Broker: 2 BHK for rent Sector 43\n01/11/2026, 09:01 - New member joined using an invite link\n01/11/2026, 09:02 - Broker: Rent 30k');
+ assert.equal(rows.length,3);assert.equal(rows[1].system,true);assert.ok(!rows[0].text.includes('invite link'));
 });

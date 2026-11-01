@@ -47,6 +47,7 @@ export class TodayController {
               organizationId,
               deletedAt: null,
               status: 'OPEN',
+              intent:'DEMAND',
               ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
             },
           })

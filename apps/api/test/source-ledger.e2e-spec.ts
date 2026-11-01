@@ -103,24 +103,21 @@ import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput
       { kind: 'UNRELATED', warnings: [] },
       ...[1, 2].map((floor) => ({ ...entity, inventory: { ...entity.inventory, floor: String(floor), monthlyRent: 20000 + floor * 1000 } })),
     ];
-    try {
-      await api()
-        .patch('/api/admin/modules/leads')
-        .set(header(admin))
-        .send({ state: 'HIDDEN', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
-        .expect(200);
-      await api().post(`/api/imports/entries/${entry.id}/approve`).set(header(a)).send({ entities, expectedUpdatedAt: entry.updatedAt }).expect(201);
-    } finally {
-      await api()
-        .patch('/api/admin/modules/leads')
-        .set(header(admin))
-        .send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
-        .expect(200);
+    await api().post(`/api/imports/entries/${entry.id}/approve`).set(header(a)).send({ entities, expectedUpdatedAt: entry.updatedAt }).expect(201);
+    expect(await prisma.inventoryItem.count({where:{organizationId:orgA}})).toBe(0);
+    const offers=await prisma.brokerRequirement.findMany({where:{organizationId:orgA,sourceEntryId:entry.id},orderBy:{sourceUnitKey:'asc'}});
+    expect(offers).toHaveLength(2);
+    expect(offers.every(row=>row.intent==='OFFER' && !row.convertedInventoryId)).toBe(true);
+    for(const offer of offers){
+      await api().post(`/api/broker-requirements/${offer.id}/convert`).set(header(b)).send({expectedRevision:offer.revision}).expect(404);
+      const results=await Promise.all([1,2].map(()=>api().post(`/api/broker-requirements/${offer.id}/convert`).set(header(a)).send({expectedRevision:offer.revision}).expect(201)));
+      expect(results[0].body.inventoryId).toBe(results[1].body.inventoryId);
     }
     let rows = await prisma.inventoryItem.findMany({ where: { organizationId: orgA }, orderBy: { floor: 'asc' } });
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.floor)).toEqual(['1', '2']);
-    expect(rows.every((r) => r.availability === 'UNKNOWN' && r.sourceEntryId === entry.id)).toBe(true);
+    expect(rows.every((r) => r.availability === 'UNKNOWN' && r.sourceEntryId === null)).toBe(true);
+    expect(await prisma.brokerRequirement.count({where:{sourceEntryId:entry.id,convertedInventoryId:{not:null}}})).toBe(2);
     await api().patch(`/api/inventory/${rows[0].id}`).set(header(a)).send({ expectedRevision: rows[0].revision, monthlyRent: 25000 }).expect(200);
     await api().patch(`/api/inventory/${rows[0].id}`).set(header(a)).send({ expectedRevision: rows[0].revision, monthlyRent: 26000 }).expect(409);
     const duplicate = await api().post('/api/imports').set(header(a)).send(source).expect(201);
@@ -291,7 +288,7 @@ import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput
       await api()
         .patch('/api/admin/modules/inventory')
         .set(header(admin))
-        .send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'SUPER_ADMIN'] })
+        .send({ state: 'ACTIVE', roles: ['BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN'] })
         .expect(200);
     }
   });

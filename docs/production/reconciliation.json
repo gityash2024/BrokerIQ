@@ -1018,19 +1018,29 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "PARTIAL_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
+      "notes": [
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/inventory/requirements.controller.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/inventory.ts",
+        "apps/web/src/app/broker/leads/requirements/page.tsx",
+        "apps/mobile/app/requirements.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
     {
@@ -1040,19 +1050,29 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "PARTIAL_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
+      "notes": [
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/inventory/requirements.controller.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/inventory.ts",
+        "apps/web/src/app/broker/leads/requirements/page.tsx",
+        "apps/mobile/app/requirements.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
     {
@@ -1106,19 +1126,29 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "PARTIAL_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
+      "notes": [
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/inventory/requirements.controller.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/inventory.ts",
+        "apps/web/src/app/broker/leads/requirements/page.tsx",
+        "apps/mobile/app/requirements.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
     {
@@ -1150,19 +1180,29 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
+      "notes": [
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/inventory/requirements.controller.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/inventory.ts",
+        "apps/web/src/app/broker/leads/requirements/page.tsx",
+        "apps/mobile/app/requirements.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
     {
@@ -1172,19 +1212,29 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
+      "notes": [
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/inventory/requirements.controller.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/inventory.ts",
+        "apps/web/src/app/broker/leads/requirements/page.tsx",
+        "apps/mobile/app/requirements.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
     {
@@ -1194,19 +1244,29 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_BUNDLE_VERIFIED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
+      "notes": [
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/inventory/requirements.controller.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/inventory.ts",
+        "apps/web/src/app/broker/leads/requirements/page.tsx",
+        "apps/mobile/app/requirements.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
     {
@@ -3249,19 +3309,23 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "ENCRYPTED_SETTINGS_SAVED_DISABLED_PENDING_SENDING_ROUTE",
-      "web": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED_PROVIDER_PENDING",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "Gmail authentication/local self-email and mailbox receipt verified. Production 465/587 connectivity failed; no production delivery claim.",
-      "notes": [],
+      "verification": "133 source unit / 10 real PostgreSQL email-session checks, later adapter9; full API272 passed25skip. Live provider pending Zoho authorization/browser access.",
+      "notes": [
+        "User superseded Gmail with hello@yarvixhq.com via Zoho HTTPS. Production Gmail SMTP disabled due host port block. Dedicated client created by user; no live Zoho token or delivery yet. See EMAIL_INTEGRATION.md."
+      ],
       "roles": [
         "SUPER_ADMIN"
       ],
       "sourceFiles": [
         "docs/production/EMAIL_INTEGRATION.md"
       ],
-      "commits": [],
+      "commits": [
+        "a40f80a"
+      ],
       "database": "PRODUCTION_ENCRYPTED_SMTP_CONFIGURATION",
       "rootCause": "Production host SMTP egress unavailable; credentials valid. HTTPS Gmail API or company-domain provider decision pending.",
       "releaseEvidence": null

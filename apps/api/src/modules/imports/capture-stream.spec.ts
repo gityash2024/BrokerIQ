@@ -13,6 +13,11 @@ const collect = async <T>(iter: AsyncIterable<T>) => {
 };
 
 describe('bounded capture source streaming', () => {
+  it('separates WhatsApp system events from property text across transport chunks',async()=>{
+    const text='01/11/2026, 09:00 - Broker: 2 BHK for rent Sector 43\n01/11/2026, 09:01 - Member joined using an invite link\n01/11/2026, 09:02 - Broker: Rent 30k';
+    const rows=await collect(textMessages(pieces(Buffer.from(text),3)));
+    expect(rows).toHaveLength(3);expect(rows[1].system).toBe(true);expect(rows[0].text).not.toContain('invite link');
+  });
   it('preserves UTF-8, headers split across frames, multiline bodies and the final message', async () => {
     const text = '\uFEFF[24/10/2026, 11:10:00] Rahul: सेक्टर 45 में 2 BHK\r\nSecond line\r\n24/10/2026, 11:11 - A: Requirement commercial office';
     const rows = await collect(textMessages(pieces(Buffer.from(text), 1)));

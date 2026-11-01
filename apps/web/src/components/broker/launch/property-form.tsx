@@ -45,7 +45,7 @@ export function PropertyForm({
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'BROKER_ADMIN';
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team') });
+  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team'),enabled:isAdmin });
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
   const mutationId = useRef(initial.clientMutationId ?? (typeof crypto !== 'undefined' ? crypto.randomUUID() : undefined));
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>(() => {
