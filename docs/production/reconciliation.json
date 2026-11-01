@@ -3948,21 +3948,29 @@
       "sourceRequests": [
         "2026-11-01-three-addons-and-unmatched-route-screenshot"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_REAL_DB_VERIFIED_PROVIDER_PENDING",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Full fresh isolated API325 passed/25 skips; subsequent SMS/Inbox/provider-boundary20 passed; mobile79/shared58/types; browser access disabled; no live BrokerIQ SMS/provider/device claim. See SMS_CHECKPOINT_20261101.md.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
-        "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending."
+        "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending.",
+        "Textbee provider dashboard configured by user and read-only inspected. Single firm device binding, encrypted settings, idempotent single-attempt outbox, signed business-only inbound, complete pagination, Lead activities and owned notifications implemented. Actual SIM/full-key/webhook/delivery, all-process automation integration and provider-history recovery still open."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/messaging",
+        "apps/api/src/core/sms",
+        "apps/api/prisma/migrations/20261101152000_multichannel_messages",
+        "apps/web/src/components/broker/sms-thread.tsx",
+        "apps/mobile/app/wa/[id].tsx",
+        "apps/mobile/app/connectors.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_ISOLATED_VERIFIED_NOT_DEPLOYED",
       "rootCause": null,
       "releaseEvidence": null
     },

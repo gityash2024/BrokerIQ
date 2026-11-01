@@ -1,3 +1,4 @@
+import { MessagingModule } from './modules/messaging/messaging.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FeatureGuard } from './common/guards/feature.guard';
 import { ModuleGuard } from './common/guards/module.guard';
@@ -67,6 +68,7 @@ import { isInternalCall } from './common/internal';
     IntegrationsModule,
     AdminModule,
     WhatsAppModule,
+    MessagingModule,
     ConnectorsModule,
     AutomationModule,
     BillingModule,

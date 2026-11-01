@@ -190,6 +190,9 @@ export default function FollowUpsPage() {
                             <Button size="icon-sm" variant="ghost" href={leadInboxUrl(f.lead.id)} aria-label="WhatsApp">
                               <MessageCircle className="size-4 text-emerald-600" />
                             </Button>
+                            <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'SMS')} aria-label="SMS">
+                              SMS
+                            </Button>
                             <Select
                               className="h-8 w-28 rounded-lg text-xs"
                               value=""

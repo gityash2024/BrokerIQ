@@ -101,6 +101,29 @@ export const INTEGRATIONS: IntegrationDef[] = [
     ],
     usedFor: ['Email OTP login','Password recovery','Team invitations','Notifications'], testable: true,
   },
+  {
+    key: 'textbee', name: 'SMS · Textbee Android SIM', category: 'messaging', scope: 'organization',
+    description: 'Firm के online Android business SIM से SMS और delivery trail. कोई paid fallback नहीं।',
+    freeTier: 'Free: कुल sent + received 300/month और 50/day. SIM/carrier SMS allowance या charges अलग लागू हैं।',
+    docsUrl: 'https://textbee.dev/docs/getting-started',
+    steps: [
+      'https://app.textbee.dev/dashboard पर free account में Android device register करें। Pro upgrade आवश्यक नहीं है।',
+      'Android app में business SIM चुनें; SIM Cards से current subscription ID लें। SIM बदलने पर ID फिर जाँचें।',
+      'Device ID और API key नीचे save करें। Key encrypted रहेगी; chat में न भेजें।',
+      'Receive SMS अभी OFF रखें। पहले Settings → Configure Filters → Enable SMS Filtering → Allow List में केवल business client senders के Exact rules जोड़ें। खाली allow list सभी SMS forward करती है।',
+      'Personal/banking/OTP messages forward न करें। Filters जाँचने के बाद ही inbound enable करें।',
+      'Test connection केवल device/SIM जाँचता है; SMS नहीं भेजता। Delivery के लिए public HTTPS signed webhook जोड़ना होगा।',
+    ],
+    fields: [
+      { key: 'apiKey', label: 'Textbee API key', type: 'password', secret: true, required: true },
+      { key: 'deviceId', label: 'Registered device ID', type: 'text', required: true },
+      { key: 'senderPhone', label: 'Business SIM phone (E.164)', type: 'text', required: true, placeholder: '+919899980802' },
+      { key: 'simSubscriptionId', label: 'Current SIM subscription ID', type: 'number', required: true },
+      { key: 'webhookSecret', label: 'Webhook signing secret (20+ characters)', type: 'password', secret: true },
+      { key: 'webhookSubscriptionId', label: 'Webhook subscription ID', type: 'text' },
+      { key: 'inboundEnabled', label: 'Inbound enabled after phone filters verified', type: 'boolean', default: false },
+    ], usedFor: ['SMS Inbox', 'Lead communication trail', 'SMS reminders'], testable: true,
+  },
   // ---------------------------------------------------------------- Auth
   {
     key: 'google_oauth',

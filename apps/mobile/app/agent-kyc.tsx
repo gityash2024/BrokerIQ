@@ -734,7 +734,7 @@ export default function AgentKycScreen() {
           )}
         </View>
 
-  
+
 
         {/* Submit Button */}
         {!isVerified && (

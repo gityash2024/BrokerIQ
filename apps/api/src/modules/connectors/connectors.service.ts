@@ -76,6 +76,7 @@ export class ConnectorsService implements OnModuleInit {
         const extra: Record<string, string> = {};
         if (isAdmin && d.key === 'whatsapp')
           Object.assign(extra, { webhookUrl: `${api}/api/webhooks/whatsapp/${org.webhookKey}`, verifyToken: this.wa.orgVerifyToken(org.webhookKey) });
+        if (isAdmin && d.key === 'textbee') Object.assign(extra, { webhookUrl: `${api}/api/webhooks/textbee/${org.webhookKey}` });
         if (isAdmin && d.key === 'meta_leads')
           Object.assign(extra, { webhookUrl: `${api}/api/webhooks/meta-leads/${org.webhookKey}`, verifyToken: this.metaVerifyToken(org.webhookKey) });
         if (isAdmin && d.key === 'exotel') Object.assign(extra, { connectUrl: `${api}/api/webhooks/exotel/${org.webhookKey}/connect` });
@@ -136,6 +137,7 @@ export class ConnectorsService implements OnModuleInit {
   }
 
   async saveConnector(orgId: string, key: string, body: { enabled?: boolean; fields: Record<string, unknown> }, userId: string) {
+    if (key === 'textbee') return this.settings.save(key, body, { orgId, userId });
     if (!ORG_KEY_TO_TYPE[key]) throw new BadRequestException('Unknown connector');
     const wasConfigured = await this.settings.isConfigured(key, orgId);
     if (!wasConfigured) {

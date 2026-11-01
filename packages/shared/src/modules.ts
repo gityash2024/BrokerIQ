@@ -128,8 +128,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'WhatsApp and shared text, images or chat exports',
     '/broker/inbox',
     ['/broker/inbox', '/broker/imports'],
-    ['/whatsapp', '/broker/whatsapp', '/webhooks/whatsapp', '/chat', '/imports'],
-    ['import.extract', 'whatsapp.event'],
+    ['/whatsapp', '/broker/whatsapp', '/webhooks/whatsapp', '/messaging', '/webhooks/textbee', '/chat', '/imports'],
+    ['import.extract', 'whatsapp.event', 'sms.dispatch', 'sms.event', 'sms.notify'],
   ),
   core(
     'automation',

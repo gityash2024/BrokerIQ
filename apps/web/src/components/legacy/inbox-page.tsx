@@ -1,4 +1,5 @@
 'use client';
+import { SmsThread } from '@/components/broker/sms-thread';
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -44,7 +45,7 @@ import { Empty, PageLoader, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { IntegrationBanner } from '@/components/ui/api-error';
 
-type Channel = 'WHATSAPP' | 'CHAT';
+type Channel = 'WHATSAPP' | 'CHAT' | 'SMS';
 
 const CANNED_REPLIES = [
   '👋 नमस्ते! मैं आपकी किस प्रकार सहायता कर सकता हूँ?',
@@ -77,14 +78,18 @@ function InboxInner() {
   const pathname = usePathname();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const channel = (sp.get('channel') as Channel) || 'WHATSAPP';
+  const channel: Channel = ['WHATSAPP', 'CHAT', 'SMS'].includes(sp.get('channel') || '') ? (sp.get('channel') as Channel) : 'WHATSAPP';
   const active = sp.get('c');
   const leadTarget = sp.get('lead');
   const resolve = useQuery({
-    queryKey: ['resolve-lead-inbox', user?.id, leadTarget],
+    queryKey: ['resolve-lead-inbox', user?.id, leadTarget, channel],
     enabled: !!user && !!leadTarget,
     retry: false,
-    queryFn: () => post<{ conversationId: string }>('/whatsapp/resolve-lead', { leadId: leadTarget }),
+    queryFn: () =>
+      post<{ conversationId: string }>(channel === 'SMS' ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
+        leadId: leadTarget,
+        ...(channel === 'SMS' ? { channel: 'SMS' } : {}),
+      }),
   });
   useEffect(() => {
     if (!resolve.data || !user || !leadTarget) return;
@@ -94,8 +99,8 @@ function InboxInner() {
       sessionStorage.setItem(inboxDraftKey(user.id, resolve.data.conversationId), draft);
       sessionStorage.removeItem(from);
     }
-    router.replace(`${pathname}?channel=WHATSAPP&c=${encodeURIComponent(resolve.data.conversationId)}`, { scroll: false });
-  }, [resolve.data, user?.id, leadTarget, pathname, router]);
+    router.replace(`${pathname}?channel=${channel}&c=${encodeURIComponent(resolve.data.conversationId)}`, { scroll: false });
+  }, [resolve.data, user?.id, leadTarget, channel, pathname, router]);
 
   const setParam = (p: Record<string, string | null>) => {
     const n = new URLSearchParams(sp.toString());
@@ -152,7 +157,7 @@ function InboxInner() {
   const activeThreadQuery = useQuery({
     queryKey: ['wa-thread', active],
     queryFn: () => api<any>(`/whatsapp/conversations/${active}/messages`),
-    enabled: !!active && channel === 'WHATSAPP',
+    enabled: !!active && channel !== 'CHAT',
   });
 
   // Current conversation resolution (searches list first, fallbacks to thread query data)
@@ -185,7 +190,7 @@ function InboxInner() {
   const waUnreadCount = unreadStats.data?.whatsapp?.unreadConversations ?? 0;
   const chatUnreadCount = unreadStats.data?.chat?.unreadConversations ?? 0;
   const totalUnreadCount = unreadStats.data?.total?.unreadConversations ?? waUnreadCount + chatUnreadCount;
-  const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : chatUnreadCount;
+  const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : channel === 'SMS' ? (unreadStats.data?.sms?.unreadConversations ?? 0) : chatUnreadCount;
 
   if (leadTarget && resolve.isError) return <ApiErrorState error={resolve.error} onRetry={() => resolve.refetch()} />;
   if (leadTarget) return <PageLoader />;
@@ -258,6 +263,13 @@ function InboxInner() {
                 </span>
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => setParam({ channel: 'SMS', c: null, lead: null })}
+              className={cn('flex-1 rounded-xl px-3 py-2 text-xs font-bold', channel === 'SMS' ? 'bg-surface text-fg shadow-xs' : 'text-muted')}
+            >
+              SMS {unreadStats.data?.sms?.unreadConversations > 0 ? `(${unreadStats.data.sms.unreadConversations})` : ''}
+            </button>
           </div>
 
           {/* Search & Filter Bar */}
@@ -321,7 +333,7 @@ function InboxInner() {
                   ? 'फ़िल्टर या खोज शब्द बदल कर देखें।'
                   : channel === 'WHATSAPP'
                     ? 'Client WhatsApp पर message करेगा तो यहाँ दिखेगा।'
-                    : 'Website पर users chat शुरू करेंगे तो यहाँ दिखेगा।'
+                    : channel === 'SMS' ? 'Lead के SMS action से business बातचीत खोलें।' : 'Website पर users chat शुरू करेंगे तो यहाँ दिखेगा।'
               }
             />
           )}
@@ -430,7 +442,7 @@ function InboxInner() {
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40">
-                      Website Chat
+                      {channel === 'SMS' ? 'SMS' : 'Website Chat'}
                     </span>
                   )}
                 </div>
@@ -474,7 +486,9 @@ function InboxInner() {
             </header>
 
             {/* Conversation Stream */}
-            {channel === 'CHAT' ? (
+            {channel === 'SMS' ? (
+              <SmsThread key={`${user?.id}:${active}`} id={active} onRead={refreshAll} />
+            ) : channel === 'CHAT' ? (
               <div className="min-h-0 flex-1">
                 <ChatThread id={active} side="broker" onRead={refreshAll} />
               </div>

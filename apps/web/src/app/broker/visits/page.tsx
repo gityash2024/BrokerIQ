@@ -210,6 +210,9 @@ export default function VisitsPage() {
                   <Button size="icon-sm" variant="ghost" href={leadInboxUrl(v.lead.id)} aria-label="WhatsApp">
                     <MessageCircle className="size-4 text-emerald-600" />
                   </Button>
+                  <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'SMS')} aria-label="SMS">
+                    SMS
+                  </Button>
                   {loc && (
                     <Button
                       size="icon-sm"

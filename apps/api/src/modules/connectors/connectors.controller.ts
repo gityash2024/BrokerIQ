@@ -25,7 +25,7 @@ export class ConnectorsController {
     private readonly audit: AuditService,
   ) {}
 
-  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Roles('BROKER_ADMIN')
   @Get('broker/connectors')
   overview(@CurrentUser() user: RequestUser) {
     return this.connectors.overview(requireOrg(user), user.role !== 'BROKER_AGENT');

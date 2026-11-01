@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Building2, CheckCircle2, Copy, ExternalLink, Megaphone, Mail, MessageCircle, RefreshCw, Webhook } from 'lucide-react-native';
 import { api, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { LEAD_SOURCE_LABELS, type LeadSource } from '@brokeriq/shared';
+import { LEAD_SOURCE_LABELS, type LeadSource, type IntegrationDef } from '@brokeriq/shared';
 import { useApiMutation } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
@@ -74,6 +74,46 @@ function HousingForm({ configured }: { configured: boolean }) {
   );
 }
 
+/** Credentials stay in the existing encrypted firm integration store; secret masks are preserved on edits. */
+function SmsSetupForm({ connector }: { connector: IntegrationDef & { config: any } }) {
+  const [fields, setFields] = useState<Record<string, unknown>>(() => ({ ...connector.config.fields }));
+  const [enabled, setEnabled] = useState(connector.config.enabled !== false);
+  const save = useApiMutation(() => patch('/broker/connectors/textbee', { enabled, fields }), {
+    success: 'SMS settings encrypted और save हुईं। Device/SIM test करें।',
+    invalidate: [['connectors']],
+    onSuccess: () => setFields((old) => ({ ...old, apiKey: '', webhookSecret: '' })),
+  });
+  const test = useApiMutation(() => post<any>('/broker/connectors/textbee/test'), { success: (result: any) => result.message, invalidate: [['connectors']] });
+  return (
+    <View style={{ gap: 10 }}>
+      <Chip label={enabled ? 'SMS enabled' : 'SMS disabled'} active={enabled} onPress={() => setEnabled(!enabled)} />
+      {connector.fields.map((field) =>
+        field.type === 'boolean' ? (
+          <Chip
+            key={field.key}
+            label={field.label}
+            active={fields[field.key] === true}
+            onPress={() => setFields((old) => ({ ...old, [field.key]: !old[field.key] }))}
+          />
+        ) : (
+          <Input
+            key={field.key}
+            label={field.label}
+            value={String(fields[field.key] ?? '')}
+            secureTextEntry={!!field.secret}
+            autoCapitalize="none"
+            keyboardType={field.type === 'number' ? 'number-pad' : 'default'}
+            onChangeText={(value) => setFields((old) => ({ ...old, [field.key]: value }))}
+            hint={field.help}
+          />
+        ),
+      )}
+      <Button title="SMS settings save करें" loading={save.isPending} onPress={() => save.mutate(undefined)} />
+      <Button title="Device/SIM जाँचें · SMS नहीं भेजेगा" variant="secondary" loading={test.isPending} onPress={() => test.mutate(undefined)} />
+    </View>
+  );
+}
+
 /** Status + setup guide. Credentials are entered on the web CRM (long keys are easier on desktop). */
 export default function Connectors() {
   const { c } = useTheme();
@@ -123,85 +163,88 @@ export default function Connectors() {
           ))}
         </Row>
       )}
-      {d.connectors.filter((cn: any)=>['housing_api','whatsapp'].includes(cn.key)).map((cn: any) => {
-        const Icon = ICON[cn.key] ?? Webhook;
-        const on = cn.config?.configured;
-        return (
-          <Card key={cn.key} style={{ padding: 14, gap: 10, marginTop: 12 }}>
-            <Row gap={12}>
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  backgroundColor: on ? `${c.success}1f` : c.surface2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon size={20} color={on ? c.success : c.muted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Txt v="bodyStrong">{cn.name}</Txt>
-                <Txt v="caption" color="muted" numberOfLines={2}>
-                  {cn.description}
-                </Txt>
-              </View>
-              {on ? (
-                <Badge label="Credentials set" color={c.success} icon={<CheckCircle2 size={11} color={c.success} />} />
-              ) : (
-                <Badge label="Not set" color={c.warning} />
-              )}
-            </Row>
-            {cn.state && (
-              <Txt v="caption" color="muted">
-                {cn.state.leadsImported} leads imported{cn.state.lastSyncAt ? ` · last sync ${new Date(cn.state.lastSyncAt).toLocaleString('en-IN')}` : ''}
-              </Txt>
-            )}
-            {cn.state?.lastError && (
-              <Row>
-                <AlertTriangle size={14} color={c.danger} />
-                <Txt v="caption" color="danger" style={{ flex: 1 }}>
-                  {cn.state.lastError}
-                </Txt>
+      {d.connectors
+        .filter((cn: any) => ['housing_api', 'whatsapp', 'textbee'].includes(cn.key))
+        .map((cn: any) => {
+          const Icon = ICON[cn.key] ?? Webhook;
+          const on = cn.config?.configured;
+          return (
+            <Card key={cn.key} style={{ padding: 14, gap: 10, marginTop: 12 }}>
+              <Row gap={12}>
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    backgroundColor: on ? `${c.success}1f` : c.surface2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon size={20} color={on ? c.success : c.muted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt v="bodyStrong">{cn.name}</Txt>
+                  <Txt v="caption" color="muted" numberOfLines={2}>
+                    {cn.description}
+                  </Txt>
+                </View>
+                {on ? (
+                  <Badge label="Credentials set" color={c.success} icon={<CheckCircle2 size={11} color={c.success} />} />
+                ) : (
+                  <Badge label="Not set" color={c.warning} />
+                )}
               </Row>
-            )}
-            {cn.extra?.webhookUrl && <CopyRow label="Callback URL" value={cn.extra.webhookUrl} />}
-            {cn.extra?.verifyToken && <CopyRow label="Verify token" value={cn.extra.verifyToken} />}
-            {cn.key === 'email_inbox' && on && (
-              <Button
-                title="अभी inbox check करें"
-                size="sm"
-                variant="secondary"
-                icon={<RefreshCw size={15} color={c.fg} />}
-                loading={sync.isPending}
-                onPress={() => sync.mutate(undefined)}
-              />
-            )}
-            {cn.key === 'housing_api' && on && (
-              <Button
-                title="अभी Housing sync करें"
-                size="sm"
-                variant="secondary"
-                icon={<RefreshCw size={15} color={c.fg} />}
-                loading={syncHousing.isPending}
-                onPress={() => syncHousing.mutate(undefined)}
-              />
-            )}
-            {cn.key === 'housing_api' && admin && <HousingForm configured={!!on} />}
-            {!on && (
-              <Button
-                title="Setup guide"
-                size="sm"
-                variant="ghost"
-                icon={<ExternalLink size={15} color={c.brand} />}
-                color={c.brand}
-                onPress={() => Linking.openURL(cn.docsUrl)}
-              />
-            )}
-          </Card>
-        );
-      })}
+              {cn.state && (
+                <Txt v="caption" color="muted">
+                  {cn.state.leadsImported} leads imported{cn.state.lastSyncAt ? ` · last sync ${new Date(cn.state.lastSyncAt).toLocaleString('en-IN')}` : ''}
+                </Txt>
+              )}
+              {cn.state?.lastError && (
+                <Row>
+                  <AlertTriangle size={14} color={c.danger} />
+                  <Txt v="caption" color="danger" style={{ flex: 1 }}>
+                    {cn.state.lastError}
+                  </Txt>
+                </Row>
+              )}
+              {cn.extra?.webhookUrl && <CopyRow label="Callback URL" value={cn.extra.webhookUrl} />}
+              {cn.extra?.verifyToken && <CopyRow label="Verify token" value={cn.extra.verifyToken} />}
+              {cn.key === 'email_inbox' && on && (
+                <Button
+                  title="अभी inbox check करें"
+                  size="sm"
+                  variant="secondary"
+                  icon={<RefreshCw size={15} color={c.fg} />}
+                  loading={sync.isPending}
+                  onPress={() => sync.mutate(undefined)}
+                />
+              )}
+              {cn.key === 'housing_api' && on && (
+                <Button
+                  title="अभी Housing sync करें"
+                  size="sm"
+                  variant="secondary"
+                  icon={<RefreshCw size={15} color={c.fg} />}
+                  loading={syncHousing.isPending}
+                  onPress={() => syncHousing.mutate(undefined)}
+                />
+              )}
+              {cn.key === 'housing_api' && admin && <HousingForm configured={!!on} />}
+              {admin && cn.key === 'textbee' && <SmsSetupForm connector={cn} />}
+              {!on && (
+                <Button
+                  title="Setup guide"
+                  size="sm"
+                  variant="ghost"
+                  icon={<ExternalLink size={15} color={c.brand} />}
+                  color={c.brand}
+                  onPress={() => Linking.openURL(cn.docsUrl)}
+                />
+              )}
+            </Card>
+          );
+        })}
       {d.webhook?.url && (
         <>
           <SectionTitle title="Universal webhook" subtitle="Website forms, Zapier, Google Ads lead forms" />

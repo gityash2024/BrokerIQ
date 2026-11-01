@@ -1,3 +1,4 @@
+import { inspectTextbeeDevice } from '../../core/sms/textbee.client';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
 import { getIntegration } from '@brokeriq/shared';
@@ -25,7 +26,7 @@ export class IntegrationTesterService {
   async test(key: string, orgId: string | null, actorEmail: string): Promise<{ ok: boolean; message: string }> {
     const def = getIntegration(key);
     if (!def) throw new BadRequestException('Unknown integration');
-    const values = await this.settings.resolve(key, orgId);
+    const values = key === 'textbee' ? (orgId ? await this.settings.resolveOrganizationOnly(key, orgId) : null) : await this.settings.resolve(key, orgId);
     if (!values) {
       const r = { ok: false, message: 'पहले सारे required fields भरकर Save करें।' };
       await this.settings.recordTest(key, orgId, false, r.message).catch(() => undefined);
@@ -46,6 +47,10 @@ export class IntegrationTesterService {
 
   private async run(key: string, v: Record<string, any>, actorEmail: string): Promise<string> {
     switch (key) {
+      case 'textbee': {
+        const { device, selected } = await inspectTextbeeDevice(v);
+        return `Textbee device enabled: ${String(device.name || device.model || 'Android').slice(0, 60)}; SIM ${selected.subscriptionId}. Last heartbeat: ${typeof device.lastHeartbeat === 'string' ? device.lastHeartbeat : 'unknown'}. No SMS sent.`;
+      }
       case 'smtp':
         await this.mail.test(v, actorEmail);
         return `SMTP connected — test email ${actorEmail} पर भेजा गया`;

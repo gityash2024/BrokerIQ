@@ -140,6 +140,7 @@ export default function LeadDetail() {
               style={{ flex: 1 }}
               onPress={() => openLeadInbox(l.id)}
             />
+            <Button title="SMS" variant="secondary" style={{ flex: 1 }} onPress={() => openLeadInbox(l.id, undefined, 'SMS')} />
           </Row>
           <Button
             title="Click-to-call (Exotel) — recording lead में save"

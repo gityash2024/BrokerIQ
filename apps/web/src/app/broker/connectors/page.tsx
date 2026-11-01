@@ -146,7 +146,7 @@ function ConnectorsInner() {
                   आएँगे।
                 </p>
               )}
-              {c.extra?.webhookUrl && <CopyField label="Callback URL (Meta में paste करें)" value={c.extra.webhookUrl} />}
+              {c.extra?.webhookUrl && <CopyField label={c.key === 'textbee' ? 'Callback URL (Textbee Webhooks)' : 'Callback URL (Meta में paste करें)'} value={c.extra.webhookUrl} />}
               {c.extra?.verifyToken && <CopyField label="Verify token" value={c.extra.verifyToken} />}
               {c.extra?.connectUrl && (
                 <CopyField

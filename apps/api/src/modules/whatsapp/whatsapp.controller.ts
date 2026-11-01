@@ -55,7 +55,7 @@ export class WhatsAppController {
   @Get('whatsapp/conversations')
   async conversations(@CurrentUser() user: RequestUser, @Query() q: { q?: string; unread?: string; channel?: string }) {
     const orgId = requireOrg(user);
-    const channel = (q.channel as any) || 'WHATSAPP';
+    const channel = z.enum(['WHATSAPP', 'CHAT', 'SMS', 'EMAIL']).parse(q.channel || 'WHATSAPP');
     const isWhatsApp = channel === 'WHATSAPP';
 
     return this.prisma.conversation.findMany({
@@ -67,12 +67,13 @@ export class WhatsAppController {
               lead: {
                 is: {
                   source: 'HOUSING',
+                  deletedAt: null,
                   ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
                 },
               },
             }
           : {
-              ...(user.role === 'BROKER_AGENT' ? { lead: { is: { assignedToId: user.id } } } : {}),
+              ...(user.role === 'BROKER_AGENT' ? { lead: { is: { assignedToId: user.id, deletedAt: null } } } : {}),
             }),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
         ...(q.q
@@ -132,23 +133,33 @@ export class WhatsAppController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('whatsapp/conversations/:id/messages')
-  async messages(@CurrentUser() user: RequestUser, @Param('id') id: string, @Query('before') before?: string) {
+  async messages(@CurrentUser() user: RequestUser, @Param('id') id: string, @Query('before') before?: string, @Query('cursor') cursor?: string) {
     const c = await this.conv(id, user);
     if (c.unreadCount > 0) {
       await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
       c.unreadCount = 0;
       if (c.organizationId) {
-        this.realtime.toOrg(c.organizationId, 'wa:read', { conversationId: id, userId: user.id });
+        await this.realtime.toConversation(c.organizationId, id, 'wa:read', { conversationId: id, userId: user.id });
       }
     }
+    const position = cursor ? await this.prisma.message.findFirst({ where: { id: cursor, conversationId: id }, select: { id: true, createdAt: true } }) : null;
+    if (cursor && !position) throw new BadRequestException('Invalid message cursor');
+    if (before && !Number.isFinite(Date.parse(before))) throw new BadRequestException('Invalid message date');
     const items = await this.prisma.message.findMany({
-      where: { conversationId: id, ...(before ? { createdAt: { lt: new Date(before) } } : {}) },
-      orderBy: { createdAt: 'desc' },
-      take: 60,
+      where: {
+        conversationId: id,
+        ...(position
+          ? { OR: [{ createdAt: { lt: position.createdAt } }, { createdAt: position.createdAt, id: { lt: position.id } }] }
+          : before
+            ? { createdAt: { lt: new Date(before) } }
+            : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 61,
       include: { sender: { select: { id: true, name: true } } },
     });
     const windowOpen = !!c.lastInboundAt && Date.now() - c.lastInboundAt.getTime() < 24 * 3600_000;
-    return { conversation: c, windowOpen, items: items.reverse() };
+    return { conversation: c, windowOpen, nextCursor: items.length > 60 ? items[59].id : null, items: items.slice(0, 60).reverse() };
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
@@ -164,6 +175,7 @@ export class WhatsAppController {
       lead: {
         is: {
           source: 'HOUSING',
+          deletedAt: null,
           ...(mine ? { assignedToId: user.id } : {}),
         },
       },
@@ -172,12 +184,20 @@ export class WhatsAppController {
       organizationId: orgId,
       channel: 'CHAT',
       unreadCount: { gt: 0 },
-      ...(mine ? { lead: { is: { assignedToId: user.id } } } : {}),
+      ...(mine ? { lead: { is: { assignedToId: user.id, deletedAt: null } } } : {}),
     };
 
-    const [waUnreadConvs, chatUnreadConvs] = await Promise.all([
+    const channelWhere = (channel: 'SMS' | 'EMAIL'): Prisma.ConversationWhereInput => ({
+      organizationId: orgId,
+      channel,
+      unreadCount: { gt: 0 },
+      ...(mine ? { lead: { is: { assignedToId: user.id, deletedAt: null } } } : {}),
+    });
+    const [waUnreadConvs, chatUnreadConvs, smsUnreadConvs, emailUnreadConvs] = await Promise.all([
       this.prisma.conversation.count({ where: waWhere }),
       this.prisma.conversation.count({ where: chatWhere }),
+      this.prisma.conversation.count({ where: channelWhere('SMS') }),
+      this.prisma.conversation.count({ where: channelWhere('EMAIL') }),
     ]);
 
     return {
@@ -187,8 +207,10 @@ export class WhatsAppController {
       chat: {
         unreadConversations: chatUnreadConvs,
       },
+      sms: { unreadConversations: smsUnreadConvs },
+      email: { unreadConversations: emailUnreadConvs },
       total: {
-        unreadConversations: waUnreadConvs + chatUnreadConvs,
+        unreadConversations: waUnreadConvs + chatUnreadConvs + smsUnreadConvs + emailUnreadConvs,
       },
     };
   }
@@ -200,7 +222,7 @@ export class WhatsAppController {
     const c = await this.conv(id, user);
     await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
     if (c.organizationId) {
-      this.realtime.toOrg(c.organizationId, 'wa:read', { conversationId: id, userId: user.id });
+      await this.realtime.toConversation(c.organizationId, id, 'wa:read', { conversationId: id, userId: user.id });
     }
     return { ok: true };
   }
@@ -215,10 +237,10 @@ export class WhatsAppController {
     }
     // Delete conversation safely: cascading deletes messages,
     // but LEAVES LEAD 100% UNTOUCHED (as foreign key is SetNull).
-    await this.prisma.conversation.delete({ where: { id } });
     if (c.organizationId) {
-      this.realtime.toOrg(c.organizationId, 'wa:conversation_deleted', { conversationId: id, leadId: c.leadId });
+      await this.realtime.toConversation(c.organizationId, id, 'wa:conversation_deleted', { conversationId: id, leadId: c.leadId });
     }
+    await this.prisma.conversation.delete({ where: { id } });
     return { ok: true, deletedConversationId: id };
   }
 

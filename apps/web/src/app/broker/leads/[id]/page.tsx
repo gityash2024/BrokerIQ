@@ -148,6 +148,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             <Button variant="whatsapp" href={leadInboxUrl(l.id)}>
               <MessageCircle className="size-4" /> WhatsApp
             </Button>
+            <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
+              SMS
+            </Button>
             {admin && (
               <Select className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
                 <option value="">Unassigned</option>

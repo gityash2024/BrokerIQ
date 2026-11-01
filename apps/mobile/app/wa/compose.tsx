@@ -8,12 +8,17 @@ import { ErrorView, Header, Loader, Screen } from '@/ui';
 import { showError } from '@/lib/hooks';
 
 export default function ComposeLead() {
-  const { leadId } = useLocalSearchParams<{ leadId: string }>();
+  const { leadId, channel: requestedChannel } = useLocalSearchParams<{ leadId: string; channel?: string }>();
+  const channel = requestedChannel === 'SMS' ? 'SMS' : 'WHATSAPP';
   const { user } = useAuth();
   const query = useQuery({
-    queryKey: ['resolve-lead-inbox', user?.id, leadId],
+    queryKey: ['resolve-lead-inbox', user?.id, leadId, channel],
     retry: false,
-    queryFn: () => post<{ conversationId: string }>('/whatsapp/resolve-lead', { leadId }),
+    queryFn: () =>
+      post<{ conversationId: string }>(channel === 'SMS' ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
+        leadId,
+        ...(channel === 'SMS' ? { channel } : {}),
+      }),
     enabled: !!user && !!leadId,
   });
   useEffect(() => {
@@ -33,7 +38,7 @@ export default function ComposeLead() {
   }, [query.data, user?.id, leadId]);
   return (
     <Screen>
-      <Header title="WhatsApp Inbox" />
+      <Header title={`${channel} Inbox`} />
       {query.isError ? <ErrorView error={query.error} onRetry={() => query.refetch()} /> : <Loader />}
     </Screen>
   );

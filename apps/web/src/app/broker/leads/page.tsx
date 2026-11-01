@@ -343,6 +343,9 @@ function LeadsInner() {
                     <Button size="icon-sm" variant="whatsapp" href={leadInboxUrl(l.id)} aria-label="WhatsApp">
                       <MessageCircle className="size-4" />
                     </Button>
+                    <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
+                      SMS
+                    </Button>
                   </div>
                 </div>
               );

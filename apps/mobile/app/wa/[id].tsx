@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import * as Crypto from 'expo-crypto';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
@@ -21,7 +22,14 @@ export default function WaThread() {
   const { c } = useTheme();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['wa-thread', id, user?.id], queryFn: () => api<any>(`/whatsapp/conversations/${id}/messages`) });
+  const q = useInfiniteQuery({
+    queryKey: ['wa-thread', id, user?.id],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => api<any>(`/whatsapp/conversations/${id}/messages${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`),
+    getNextPageParam: (page) => page.nextCursor || undefined,
+    refetchInterval: 10_000,
+  });
+  const thread = useMemo(() => (q.data ? { ...q.data.pages[0], items: [...q.data.pages].reverse().flatMap((page) => page.items) } : undefined), [q.data]);
   const [text, setText] = useState('');
   const edited = useRef(false);
   useEffect(() => {
@@ -37,24 +45,40 @@ export default function WaThread() {
       cancelled = true;
     };
   }, [id, user?.id]);
+  const attempt = useRef<{ text: string; requestId: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [tpl, setTpl] = useState(false);
   const list = useRef<FlatList>(null);
   useRealtime<any>('wa:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
   useRealtime<any>('wa:status', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
   useEffect(() => {
-    if (q.data?.conversation?.unreadCount)
+    if (thread?.conversation?.unreadCount)
       post(`/whatsapp/conversations/${id}/read`)
         .then(() => qc.invalidateQueries({ queryKey: ['conversations'] }))
         .catch(() => undefined);
     setTimeout(() => list.current?.scrollToEnd({ animated: true }), 120);
-  }, [q.data, id, qc]);
+  }, [thread, id, qc]);
   const send = async (body: Record<string, unknown>) => {
     if (sending) return false;
     const owner = user?.id;
     setSending(true);
     try {
-      await post('/whatsapp/send', { conversationId: id, ...body });
+      if (thread?.conversation?.channel === 'SMS') {
+        const content = String(body.text || '').trim();
+        if (!attempt.current) {
+          try {
+            const stored = JSON.parse(await readInboxDraft(`sms-attempt:${id}`, owner));
+            if (stored?.text === content && typeof stored?.requestId === 'string') attempt.current = stored;
+          } catch {
+            /* Ignore corrupt local drafts. */
+          }
+        }
+        if (attempt.current?.text !== content) attempt.current = { text: content, requestId: Crypto.randomUUID() };
+        await saveInboxDraft(`sms-attempt:${id}`, JSON.stringify(attempt.current), owner);
+        await post('/messaging/sms/send', { conversationId: id, ...attempt.current });
+        attempt.current = null;
+        await saveInboxDraft(`sms-attempt:${id}`, '', owner);
+      } else await post('/whatsapp/send', { conversationId: id, ...body });
       await saveInboxDraft(id, '', owner);
       setText('');
       q.refetch();
@@ -73,8 +97,9 @@ export default function WaThread() {
         <ErrorView error={q.error} onRetry={() => q.refetch()} />
       </SafeAreaView>
     );
-  const conv = q.data.conversation;
-  const windowOpen = q.data.windowOpen;
+  const conv = thread!.conversation;
+  const sms = conv.channel === 'SMS';
+  const windowOpen = sms || thread!.windowOpen;
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Header
@@ -89,9 +114,10 @@ export default function WaThread() {
         }
       />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {q.hasNextPage && <Button title="पुराने संदेश लोड करें" variant="secondary" loading={q.isFetchingNextPage} onPress={() => q.fetchNextPage()} />}
         <FlatList
           ref={list}
-          data={q.data.items}
+          data={thread!.items}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 14, gap: 6 }}
           renderItem={({ item: m }) => {
@@ -133,7 +159,7 @@ export default function WaThread() {
                     </Txt>
                     {out && <Tick size={13} color={m.status === 'READ' ? '#7DD3FC' : m.status === 'FAILED' ? '#FECACA' : 'rgba(255,255,255,0.8)'} />}
                   </Row>
-                  {m.status === 'FAILED' && !!m.error && (
+                  {!!m.error && (
                     <Txt v="caption" color="#FECACA">
                       {m.error}
                     </Txt>
@@ -143,6 +169,11 @@ export default function WaThread() {
             );
           }}
         />
+        {sms && (
+          <Txt v="caption" color="muted" style={{ paddingHorizontal: 14 }}>
+            SMS business SIM से जाएगा। Queue में पहुँचना delivery नहीं है; अनिश्चित स्थिति में फिर न भेजें।
+          </Txt>
+        )}
         {!windowOpen && (
           <PressableScale
             onPress={() => setTpl(true)}
@@ -164,9 +195,11 @@ export default function WaThread() {
           </PressableScale>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
-          <IconBtn onPress={() => setTpl(true)}>
-            <FileText size={21} color={c.muted} />
-          </IconBtn>
+          {!sms && (
+            <IconBtn onPress={() => setTpl(true)}>
+              <FileText size={21} color={c.muted} />
+            </IconBtn>
+          )}
           <TextInput
             value={text}
             onChangeText={(value) => {
@@ -177,6 +210,7 @@ export default function WaThread() {
             editable={windowOpen && !sending}
             placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')}
             placeholderTextColor={c.subtle}
+            maxLength={sms ? 1600 : undefined}
             multiline
             style={{
               flex: 1,

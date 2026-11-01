@@ -263,6 +263,8 @@ enum DealStatus {
 enum Channel {
   WHATSAPP
   CHAT
+  SMS
+  EMAIL
 }
 
 enum MessageDirection {
@@ -1378,6 +1380,9 @@ model Message {
   meta           Json?
   status         MessageStatus    @default(QUEUED)
   externalId     String?          @unique
+  requestKey     String?          @unique
+  providerBatchId String?
+  providerEventAt DateTime?
   error          String?
   senderUserId   String?
   createdAt      DateTime         @default(now())
@@ -1386,6 +1391,7 @@ model Message {
   sender       User?        @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
 
   @@index([conversationId, createdAt])
+  @@index([providerBatchId])
 }
 
 model WhatsAppTemplate {

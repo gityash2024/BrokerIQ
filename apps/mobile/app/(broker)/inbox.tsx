@@ -4,22 +4,12 @@ import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useRealtime } from '@/lib/realtime';
-import {
-  MessagesSquare,
-  MessageCircle,
-  Globe,
-  Search,
-  CheckCheck,
-  Check,
-  User,
-  Clock,
-  Sparkles,
-} from 'lucide-react-native';
+import { MessagesSquare, MessageCircle, Globe, Search, CheckCheck, Check, User, Clock, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { Txt, ErrorView, Segmented } from '@/ui';
 
-type Channel = 'WHATSAPP' | 'CHAT';
+type Channel = 'WHATSAPP' | 'CHAT' | 'SMS';
 
 export default function Inbox() {
   const { c, isDark } = useTheme();
@@ -59,7 +49,7 @@ export default function Inbox() {
   });
 
   return (
-    <BrokerScreen title="Inbox" subtitle="Website chat and WhatsApp messaging.">
+    <BrokerScreen title="Inbox" subtitle="WhatsApp, Website Chat और SMS.">
       <View style={{ paddingHorizontal: 16, gap: 10, paddingBottom: 8 }}>
         {/* Channel Selector: WhatsApp vs Website Chat */}
         <Segmented
@@ -68,6 +58,7 @@ export default function Inbox() {
           options={[
             { value: 'WHATSAPP', label: 'WhatsApp' },
             { value: 'CHAT', label: 'Website Chat' },
+            { value: 'SMS', label: 'SMS' },
           ]}
         />
 
@@ -89,7 +80,7 @@ export default function Inbox() {
           >
             <Search size={16} color={c.muted} />
             <TextInput
-              placeholder={`Search ${channel === 'WHATSAPP' ? 'WhatsApp' : 'Website'} conversations...`}
+              placeholder={`Search ${channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Website'} conversations...`}
               placeholderTextColor={c.subtle}
               value={search}
               onChangeText={setSearch}
@@ -140,16 +131,12 @@ export default function Inbox() {
             <ActivityIndicator color={c.brand} style={{ padding: 40 }} />
           ) : (
             <NativeCard style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
-              {channel === 'WHATSAPP' ? (
-                <MessageCircle size={38} color="#25D366" />
-              ) : (
-                <Globe size={38} color={c.brand} />
-              )}
-              <Txt v="title">No {channel === 'WHATSAPP' ? 'WhatsApp' : 'Website'} conversations</Txt>
+              {channel === 'WHATSAPP' ? <MessageCircle size={38} color="#25D366" /> : <Globe size={38} color={c.brand} />}
+              <Txt v="title">No {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Website'} conversations</Txt>
               <Txt color="muted" style={{ textAlign: 'center', maxWidth: 280 }}>
                 {channel === 'WHATSAPP'
                   ? 'Incoming WhatsApp chats and client enquiries will appear here automatically.'
-                  : 'Visitors chatting on your public property portal will show up here.'}
+                  : channel === 'SMS' ? 'Lead के SMS action से बातचीत खोलें। केवल configured business SIM का trail यहाँ दिखेगा।' : 'Visitors chatting on your public property portal will show up here.'}
               </Txt>
             </NativeCard>
           )
@@ -162,13 +149,13 @@ export default function Inbox() {
           return (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => router.push(`/wa/${item.id}`)}
+              onPress={() => router.push(item.channel === 'CHAT' ? `/chat/${item.id}` : `/wa/${item.id}`)}
               style={{
                 padding: 14,
                 borderRadius: 18,
-                backgroundColor: isDark ? (hasUnread ? '#171B30' : '#121524') : (hasUnread ? '#EEF2FF' : c.surface),
+                backgroundColor: isDark ? (hasUnread ? '#171B30' : '#121524') : hasUnread ? '#EEF2FF' : c.surface,
                 borderWidth: 1,
-                borderColor: hasUnread ? c.brand : (isDark ? 'rgba(255,255,255,0.06)' : c.line),
+                borderColor: hasUnread ? c.brand : isDark ? 'rgba(255,255,255,0.06)' : c.line,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 12,
@@ -185,11 +172,7 @@ export default function Inbox() {
                   justifyContent: 'center',
                 }}
               >
-                {isWhatsApp ? (
-                  <MessageCircle size={22} color="#25D366" />
-                ) : (
-                  <Globe size={22} color={c.brand} />
-                )}
+                {isWhatsApp ? <MessageCircle size={22} color="#25D366" /> : <Globe size={22} color={c.brand} />}
               </View>
 
               {/* Message Details */}
@@ -205,12 +188,7 @@ export default function Inbox() {
                   )}
                 </View>
 
-                <Txt
-                  v="small"
-                  color={hasUnread ? undefined : 'muted'}
-                  numberOfLines={1}
-                  style={{ fontWeight: hasUnread ? '600' : '400', fontSize: 13 }}
-                >
+                <Txt v="small" color={hasUnread ? undefined : 'muted'} numberOfLines={1} style={{ fontWeight: hasUnread ? '600' : '400', fontSize: 13 }}>
                   {item.lastPreview || 'No messages yet'}
                 </Txt>
 
@@ -234,9 +212,7 @@ export default function Inbox() {
                     paddingHorizontal: 6,
                   }}
                 >
-                  <Txt style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
-                    {item.unreadCount}
-                  </Txt>
+                  <Txt style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{item.unreadCount}</Txt>
                 </View>
               )}
             </TouchableOpacity>
