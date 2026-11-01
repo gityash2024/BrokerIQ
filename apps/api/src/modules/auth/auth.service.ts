@@ -16,6 +16,7 @@ import { env } from '../../config/env';
 import { AccessService } from '../../core/access/access.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { ModulesService } from '../../core/features/modules.service';
+import { CryptoService } from '../../core/settings/crypto.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 
 type UserWithOrg = User & { organization: Organization | null };
@@ -38,6 +39,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly invites: BrokerInvitesService,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
+    private readonly crypto: CryptoService,
   ) {}
 
   /** Ensure the Super Admin from env exists (idempotent). */
@@ -80,40 +82,92 @@ export class AuthService implements OnApplicationBootstrap {
     };
   }
 
-  async issue(user: UserWithOrg, meta: ClientMeta = {}): Promise<AuthResponse> {
+  private assertEligible(user: UserWithOrg) {
     if (env().BROKER_FIRST && (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role) || (['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.organizationId)))
       throw new ForbiddenException('यह account अभी broker launch के लिए सक्षम नहीं है।');
-    if (user.status !== 'ACTIVE') throw new ForbiddenException('यह account suspend है। Support से संपर्क करें।');
+    if (user.status !== 'ACTIVE' || user.deletedAt) throw new ForbiddenException('यह account active नहीं है। Support से संपर्क करें।');
     if (user.organization?.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN')
       throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
-    const active = await this.prisma.refreshToken.findMany({
-      where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (active.length >= 5) {
-      const toRevoke = active.slice(4);
-      if (toRevoke.length > 0) {
-        await this.prisma.refreshToken.updateMany({
-          where: { id: { in: toRevoke.map((r) => r.id) } },
-          data: { revokedAt: new Date() },
-        });
-      }
-    }
-    const accessToken = this.jwt.sign({ sub: user.id, role: user.role, orgId: user.organizationId, email: user.email, sessionVersion: user.sessionVersion });
-    const refreshToken = randomToken(48);
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        sessionVersion: user.sessionVersion,
-        tokenHash: sha256(refreshToken),
-        expiresAt: new Date(Date.now() + env().REFRESH_TTL_DAYS * 86400_000),
-        ip: meta.ip,
-        userAgent: meta.userAgent?.slice(0, 250),
-      },
-    });
-    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  }
+
+  private response(user: UserWithOrg, sessionId: string, refreshToken: string): AuthResponse {
+    const accessToken = this.jwt.sign({ sub: user.id, sid: sessionId, role: user.role, orgId: user.organizationId, email: user.email, sessionVersion: user.sessionVersion });
     const decoded: any = this.jwt.decode(accessToken);
     return { accessToken, refreshToken, expiresIn: decoded.exp - decoded.iat, user: this.toAuthUser(user) };
+  }
+
+  private async createSession(tx: Prisma.TransactionClient, user: UserWithOrg, meta: ClientMeta, loginChallengeHash?: string) {
+    const refreshToken = randomToken(48);
+    const session = await tx.refreshToken.create({ data: {
+      userId: user.id, sessionVersion: user.sessionVersion, tokenHash: sha256(refreshToken),
+      expiresAt: new Date(Date.now() + env().REFRESH_TTL_DAYS * 86400_000),
+      ip: meta.ip, userAgent: meta.userAgent?.slice(0, 250), loginChallengeHash,
+    } });
+    const response = this.response(user, session.id, refreshToken);
+    if (loginChallengeHash) await tx.refreshToken.update({ where: { id: session.id }, data: {
+      rotationResponse: this.crypto.encrypt(JSON.stringify(response)), rotationExpiresAt: new Date(Date.now() + 15_000),
+    } });
+    await tx.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    return response;
+  }
+
+  async issue(user: UserWithOrg, meta: ClientMeta = {}, existingSessionId?: string): Promise<AuthResponse> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id + ':sessions'}))`;
+      const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, include: { organization: true } });
+      if (current.sessionVersion !== user.sessionVersion) throw new UnauthorizedException('Session changed. Please authenticate again.');
+      this.assertEligible(current);
+      if (existingSessionId) {
+        const session = await tx.refreshToken.findFirst({ where: { id: existingSessionId, userId: current.id, sessionVersion: current.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } } });
+        if (!session) throw new UnauthorizedException('Session expired');
+        const token = randomToken(48);
+        const response = this.response(current, session.id, token);
+        await tx.refreshToken.update({ where: { id: session.id }, data: {
+          tokenHash: sha256(token), previousTokenHash: session.tokenHash, lastUsedAt: new Date(),
+          rotationExpiresAt: new Date(Date.now() + 15_000), rotationResponse: this.crypto.encrypt(JSON.stringify(response)),
+        } });
+        return response;
+      }
+      const active = await tx.refreshToken.findMany({
+        where: { userId: user.id, sessionVersion: current.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' },
+        select: { id: true, ip: true, userAgent: true, createdAt: true, lastUsedAt: true, expiresAt: true },
+      });
+      if (active.length >= 5) {
+        const challenge = this.jwt.sign({ sub: current.id, purpose: 'replace-device-session', sessionVersion: current.sessionVersion, nonce: randomToken(24) }, { secret: env().JWT_REFRESH_SECRET, expiresIn: '5m' });
+        throw new AppException(HttpStatus.CONFLICT, ErrorCode.SESSION_LIMIT_REACHED, 'पाँच devices पर login है। जारी रखने के लिए एक device चुनें।', { challenge, sessions: active });
+      }
+      return this.createSession(tx, current, meta);
+    });
+  }
+
+  async replaceSession(challenge: string, sessionId: string, meta: ClientMeta): Promise<AuthResponse> {
+    let payload: any;
+    try {
+      payload = this.jwt.verify(challenge, { secret: env().JWT_REFRESH_SECRET });
+      if (payload.purpose !== 'replace-device-session' || !payload.sub || !payload.nonce) throw new Error();
+    } catch { throw new UnauthorizedException('Login selection expired. Please log in again.'); }
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${payload.sub + ':sessions'}))`;
+      const user = await tx.user.findUniqueOrThrow({ where: { id: payload.sub }, include: { organization: true } });
+      this.assertEligible(user);
+      if (user.sessionVersion !== payload.sessionVersion) throw new UnauthorizedException('Session changed');
+      const challengeHash = sha256(challenge);
+      const consumed = await tx.refreshToken.findUnique({ where: { loginChallengeHash: challengeHash } });
+      if (consumed) {
+        if (!consumed.revokedAt && consumed.rotationResponse && consumed.rotationExpiresAt && consumed.rotationExpiresAt > new Date())
+          return JSON.parse(this.crypto.decrypt(consumed.rotationResponse)) as AuthResponse;
+        throw new UnauthorizedException('Login selection already used. Please log in again.');
+      }
+      const selected = await tx.refreshToken.findFirst({ where: { id: sessionId, userId: user.id, sessionVersion: user.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } } });
+      if (!selected) throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'यह device अब active नहीं है। दोबारा login करें।');
+      await tx.refreshToken.update({ where: { id: selected.id }, data: { revokedAt: new Date(), rotationResponse: null } });
+      // Legacy accounts may already have more than five rows. One selection must never silently evict others.
+      const remaining = await tx.refreshToken.count({ where: { userId: user.id, sessionVersion: user.sessionVersion, revokedAt: null, expiresAt: { gt: new Date() } } });
+      if (remaining >= 5) throw new AppException(HttpStatus.CONFLICT, ErrorCode.CONFLICT, 'पहले Sessions में पुराने devices हटाएँ।');
+      return this.createSession(tx, user, meta, challengeHash);
+    });
+    this.realtime.disconnectSession(sessionId);
+    return result;
   }
 
   private findUser(where: { id?: string; email?: string; googleId?: string }) {
@@ -308,42 +362,56 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async refresh(refreshToken: string, meta: ClientMeta) {
-    const row = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) } });
-    if (!row) throw new UnauthorizedException('Session expired');
-    if (row.revokedAt) {
-      throw new UnauthorizedException('Session expired');
-    }
-    if (row.expiresAt < new Date()) throw new UnauthorizedException('Session expired');
-    const user = await this.findUser({ id: row.userId });
-    if (!user || row.sessionVersion !== user.sessionVersion) throw new UnauthorizedException('Session expired');
-    const claimed = await this.prisma.refreshToken.updateMany({
-      where: { id: row.id, revokedAt: null, expiresAt: { gt: new Date() } },
-      data: { revokedAt: new Date() },
+    const hash = sha256(refreshToken);
+    const original = await this.prisma.refreshToken.findFirst({ where: { OR: [{ tokenHash: hash }, { previousTokenHash: hash }] } });
+    if (!original) throw new UnauthorizedException('Session expired');
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${original.userId + ':sessions'}))`;
+      const row = await tx.refreshToken.findUniqueOrThrow({ where: { id: original.id } });
+      const user = await tx.user.findFirst({ where: { id: row.userId, deletedAt: null }, include: { organization: true } });
+      if (!user || row.revokedAt || row.expiresAt <= new Date() || row.sessionVersion !== user.sessionVersion) throw new UnauthorizedException('Session expired');
+      this.assertEligible(user);
+      // Two browser tabs or retried network requests receive the same rotation within a bounded grace period.
+      if (row.tokenHash !== hash) {
+        if (row.previousTokenHash === hash && row.rotationExpiresAt && row.rotationExpiresAt > new Date() && row.rotationResponse)
+          return JSON.parse(this.crypto.decrypt(row.rotationResponse)) as AuthResponse;
+        throw new UnauthorizedException('Session expired');
+      }
+      const nextToken = randomToken(48);
+      const response = this.response(user, row.id, nextToken);
+      await tx.refreshToken.update({ where: { id: row.id }, data: {
+        tokenHash: sha256(nextToken), previousTokenHash: hash, rotationExpiresAt: new Date(Date.now() + 15_000),
+        rotationResponse: this.crypto.encrypt(JSON.stringify(response)), lastUsedAt: new Date(),
+        ip: meta.ip ?? row.ip, userAgent: meta.userAgent?.slice(0, 250) ?? row.userAgent,
+      } });
+      return response;
     });
-    if (claimed.count !== 1) throw new UnauthorizedException('Session expired');
-    return this.issue(user, meta);
   }
 
   async listSessions(userId: string) {
     return this.prisma.refreshToken.findMany({
-      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: { id: true, ip: true, userAgent: true, createdAt: true, expiresAt: true },
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' },
+      select: { id: true, ip: true, userAgent: true, createdAt: true, lastUsedAt: true, expiresAt: true },
     });
   }
 
   async revokeSession(userId: string, sessionId: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: { id: sessionId, userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId + ':sessions'}))`;
+      await tx.refreshToken.updateMany({ where: { id: sessionId, userId, revokedAt: null }, data: { revokedAt: new Date(), rotationResponse: null } });
     });
+    // A foreign session ID must not let an authenticated user disconnect somebody else.
+    const own = await this.prisma.refreshToken.findFirst({ where: { id: sessionId, userId } });
+    if (own) this.realtime.disconnectSession(sessionId);
     return { ok: true };
   }
 
   async logout(refreshToken?: string) {
-    if (refreshToken)
-      await this.prisma.refreshToken.updateMany({ where: { tokenHash: sha256(refreshToken), revokedAt: null }, data: { revokedAt: new Date() } });
+    if (refreshToken) {
+      const hash = sha256(refreshToken);
+      const row = await this.prisma.refreshToken.findFirst({ where: { OR: [{ tokenHash: hash }, { previousTokenHash: hash }] } });
+      if (row) await this.revokeSession(row.userId, row.id);
+    }
     return { ok: true };
   }
 

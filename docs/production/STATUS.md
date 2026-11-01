@@ -49,3 +49,9 @@ Nine real NestJS/PostgreSQL regression cases pass; API source suite 125/125 and 
 Fresh isolated database migration exposed previously absent InventoryItem.assignedToId and LeadStage.NOT_INTERESTED migrations. Additive repair migration and explicit Requirement creator/assignee migration now produce zero Prisma schema drift on a clean local database. They have NOT been applied to production. Existing rows retain values; only null assignments are backfilled from valid same-firm creators.
 
 Remaining: complete shared action contract, exhaustive all-module negative tests, actual realtime/browser/APK checks and permission-cache journeys. No production release claim.
+
+## M03 implementation checkpoint
+
+Stable device-session IDs, atomic five-session limit, explicit login-authenticated replacement challenge, per-session HTTP/realtime revocation and encrypted 15-second concurrent-refresh retry response are implemented. Existing refresh rows upgrade transparently; access JWTs without sid request refresh. Onboarding updates the current session instead of consuming a sixth slot. Web/mobile login support password, OTP and Google session-limit selection. Network/provider errors do not erase mobile credentials. New selection copy exists in all 13 enabled language dictionaries.
+
+Validation: 18 real Nest/PostgreSQL cases (six session scenarios plus nine permissions and three recovery cases), 125 API unit tests and workspace typechecks pass. Real Chrome on localhost:3311 showed five devices and successful selected replacement into /admin against isolated PostgreSQL/API. Evidence screenshot: output/playwright/device-selection-local.png. This is local development browser evidence, not an APK or production capture. Mobile installed-device and final release acceptance remain pending.

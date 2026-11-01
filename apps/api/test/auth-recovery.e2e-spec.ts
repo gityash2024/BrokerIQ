@@ -100,13 +100,15 @@ describe('Password recovery and one-time OTP consumption', () => {
 
   it('rejects old socket sessions and joins only the current organization and role', async () => {
     const gateway = app.get(RealtimeGateway);
-    const socket = (token: string) => ({ handshake: { auth: { token }, headers: {} }, data: {}, join: jest.fn(), disconnect: jest.fn() });
+    const socket = (token: string) => ({ on: jest.fn(), handshake: { auth: { token }, headers: {} }, data: {}, join: jest.fn(), disconnect: jest.fn() });
     const old = socket(accessToken);
     await gateway.handleConnection(old as any);
     expect(old.disconnect).toHaveBeenCalledWith(true);
     expect(old.join).not.toHaveBeenCalled();
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const staleClaims = app.get(JwtService).sign({ sub: userId, role: 'SUPER_ADMIN', orgId: 'another-fixture-firm', sessionVersion: user.sessionVersion });
+    const session = await auth.issue({ ...user, organization: await prisma.organization.findUnique({ where: { id: user.organizationId! } }) });
+    const sid = (app.get(JwtService).decode(session.accessToken) as any).sid;
+    const staleClaims = app.get(JwtService).sign({ sid, sub: userId, role: 'SUPER_ADMIN', orgId: 'another-fixture-firm', sessionVersion: user.sessionVersion });
     const current = socket(staleClaims);
     await gateway.handleConnection(current as any);
     expect(current.join).toHaveBeenCalledWith(`org:${user.organizationId}`);

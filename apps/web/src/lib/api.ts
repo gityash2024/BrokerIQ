@@ -62,11 +62,11 @@ async function refresh(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: cur.refreshToken }),
       });
       if (!res.ok) {
-        if (res.status === 401 && authStore.get()?.user.id === cur.user.id) authStore.set(null);
+        if (res.status === 401 && authStore.get()?.refreshToken === cur.refreshToken) authStore.set(null);
         return false;
       }
       const data: AuthResponse = await res.json();
-      if (authStore.get()?.user.id !== cur.user.id) return false;
+      if (authStore.get()?.refreshToken !== cur.refreshToken) return false;
       authStore.set({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
       return true;
     } catch {

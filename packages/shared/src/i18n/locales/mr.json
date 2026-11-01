@@ -3490,5 +3490,10 @@
  "🗓 Site visit चाहिए": "🗓 साइट भेट हवी",
  "🚀 Listing boost करें": "🚀 लिस्टिंग बूस्ट करा",
  "🚀 Listing boost हो गई — अब search में सबसे ऊपर दिखेगी": "🚀 लिस्टिंग बूस्ट झाली — आता शोधात सर्वात वर दिसेल",
- "🟢 लाइव (Active Now)": "🟢 आता सक्रिय"
+ "🟢 लाइव (Active Now)": "🟢 आता सक्रिय",
+ "Choose a device to sign out": "साइन आउट करण्यासाठी डिव्हाइस निवडा",
+ "Five devices are signed in. Choose one to continue on this device.": "पाच डिव्हाइसवर साइन इन आहे. या डिव्हाइसवर पुढे जाण्यासाठी एक निवडा.",
+ "Sign out this device and continue": "या डिव्हाइसवरून साइन आउट करून पुढे जा",
+ "Unknown device": "अज्ञात डिव्हाइस",
+ "Last active": "शेवटचे सक्रिय"
 }

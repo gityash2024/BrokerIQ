@@ -540,6 +540,11 @@ model RefreshToken {
   userId    String
   sessionVersion Int  @default(0)
   tokenHash String    @unique
+  previousTokenHash String? @unique
+  rotationExpiresAt DateTime?
+  rotationResponse String?
+  loginChallengeHash String? @unique
+  lastUsedAt DateTime @default(now())
   expiresAt DateTime
   revokedAt DateTime?
   userAgent String?

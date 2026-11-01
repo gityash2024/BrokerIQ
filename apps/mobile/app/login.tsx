@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Modal, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -7,8 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Building2, KeyRound, Lock, Mail, Ticket, User, X } from 'lucide-react-native';
-import type { AuthResponse } from '@brokeriq/shared';
-import { post } from '@/lib/api';
+import type { AuthResponse, SessionLimitChallenge } from '@brokeriq/shared';
+import { ApiError, post } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { showError, useLightStatusBar } from '@/lib/hooks';
@@ -25,11 +25,13 @@ function GoogleButton({
   accountType,
   inviteCode,
   onDone,
+  onError,
 }: {
   clientIds: { web?: string; android?: string; ios?: string };
   accountType: 'USER' | 'BROKER';
   inviteCode?: string;
   onDone: (r: AuthResponse) => void;
+  onError: (error: unknown) => void;
 }) {
   const [req, res, prompt] = Google.useIdTokenAuthRequest({ webClientId: clientIds.web, androidClientId: clientIds.android, iosClientId: clientIds.ios });
   useEffect(() => {
@@ -40,8 +42,8 @@ function GoogleButton({
         inviteCode: accountType === 'BROKER' && inviteCode ? inviteCode : undefined,
       })
         .then(onDone)
-        .catch(showError);
-  }, [res, accountType, inviteCode, onDone]);
+        .catch(onError);
+  }, [res, accountType, inviteCode]);
   return (
     <Button
       title="Google से continue करें"
@@ -63,6 +65,7 @@ export default function Login() {
   const insets = useSafeAreaInsets();
   const { app, integrations } = useConfig();
   const { setSession } = useAuth();
+  const [selection, setSelection] = useState<SessionLimitChallenge | null>(null);
   const [mode, setMode] = useState<Mode>('password');
   const [accountType, setAccountType] = useState<'USER' | 'BROKER'>('USER');
   const [f, setF] = useState({ email: '', password: '', name: '', phone: '', firmName: '', code: '', inviteCode: '' });
@@ -84,12 +87,16 @@ export default function Login() {
     if (r.user.role === 'BROKER_ADMIN' && r.user.organization && !r.user.organization.onboarded) router.replace('/broker-onboarding');
     else router.replace(homeFor(r.user));
   };
+  const handleError = (error: unknown) => {
+    if (error instanceof ApiError && error.body.code === 'SESSION_LIMIT_REACHED') setSelection(error.body.details as SessionLimitChallenge);
+    else showError(error);
+  };
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     try {
       await fn();
     } catch (e) {
-      showError(e);
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -137,6 +144,27 @@ export default function Login() {
 
   return (
     <Screen keyboard padded={false} edges={['bottom']}>
+      <Modal visible={!!selection} transparent animationType="slide" onRequestClose={() => { if (!busy) setSelection(null); }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ maxHeight: '85%', backgroundColor: c.surface, borderRadius: 24, padding: 20, gap: 12 }}>
+            <Txt v="h3">Choose a device to sign out</Txt>
+            <Txt>Five devices are signed in. Choose one to continue on this device.</Txt>
+            <ScrollView contentContainerStyle={{ gap: 16 }}>
+              {selection?.sessions.map((device) => (
+                <View key={device.id} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 14, padding: 14, gap: 8 }}>
+                  <Txt>{device.userAgent || 'Unknown device'}</Txt>
+                  <Txt v="caption">{device.ip || '—'} · {new Date(device.lastUsedAt).toLocaleString()}</Txt>
+                  <Button title="Sign out this device and continue" loading={busy} onPress={() => run(async () => {
+                    const result = await post<AuthResponse>('/auth/sessions/replace', { challenge: selection.challenge, sessionId: device.id });
+                    setSelection(null); await done(result);
+                  })} />
+                </View>
+              ))}
+            </ScrollView>
+            <Button title="Cancel" variant="secondary" disabled={busy} onPress={() => setSelection(null)} />
+          </View>
+        </View>
+      </Modal>
       <LinearGradient
         colors={['#1E1B4B', '#4F46E5']}
         start={{ x: 0, y: 0 }}
@@ -274,6 +302,7 @@ export default function Login() {
               accountType={accountType}
               inviteCode={invite}
               onDone={done}
+              onError={handleError}
             />
           </>
         )}

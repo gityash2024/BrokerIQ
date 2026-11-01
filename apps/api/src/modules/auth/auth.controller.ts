@@ -14,7 +14,7 @@ import {
 import { AuthService } from './auth.service';
 import { CurrentUser, Public, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 const meta = (req: any) => ({ ip: (req.headers['x-forwarded-for']?.split(',')[0] ?? req.ip)?.trim(), userAgent: req.headers['user-agent'] });
 
@@ -94,6 +94,14 @@ export class AuthController {
     return this.auth.me(user.id);
   }
 
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('sessions/replace')
+  replaceSession(@Body(new ZodPipe(z.object({ challenge: z.string().min(20).max(4096), sessionId: z.string().min(1).max(100) }).strict())) body: { challenge: string; sessionId: string }, @Req() req: any) {
+    return this.auth.replaceSession(body.challenge, body.sessionId, meta(req));
+  }
+
   @Get('sessions')
   sessions(@CurrentUser() user: RequestUser) {
     return this.auth.listSessions(user.id);
@@ -101,7 +109,7 @@ export class AuthController {
 
   @HttpCode(200)
   @Post('sessions/revoke')
-  revokeSession(@CurrentUser() user: RequestUser, @Body() body: { sessionId: string }) {
+  revokeSession(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ sessionId: z.string().min(1).max(100) }).strict())) body: { sessionId: string }) {
     return this.auth.revokeSession(user.id, body.sessionId);
   }
 }

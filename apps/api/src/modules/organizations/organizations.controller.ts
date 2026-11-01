@@ -102,7 +102,7 @@ export class OrganizationsController {
     });
     await this.audit.log({ ...user, orgId }, 'broker.onboarding', 'Organization', orgId);
     const fresh = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { organization: true } });
-    return this.auth.issue(fresh, meta(req));
+    return this.auth.issue(fresh, meta(req), req.sessionId);
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')

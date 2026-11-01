@@ -22,7 +22,9 @@ export class RealtimeGateway implements OnGatewayConnection {
       const payload = this.jwt.verify(token, { secret: env().JWT_ACCESS_SECRET });
       const current = await this.prisma.user.findUnique({ where: { id: payload.sub }, include: { organization: { select: { status: true } } } });
       const version = payload.sessionVersion ?? 0;
+      const session = typeof payload.sid === 'string' ? await this.prisma.refreshToken.findFirst({ where: { id: payload.sid, userId: payload.sub, sessionVersion: version, revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true } }) : null;
       if (
+        !session ||
         !current ||
         !Number.isSafeInteger(version) ||
         current.sessionVersion !== version ||
@@ -38,11 +40,19 @@ export class RealtimeGateway implements OnGatewayConnection {
       // Rooms follow current membership, never the possibly stale JWT claims.
       client.data.user = { sub: current.id, role: current.role, orgId: current.organizationId, sessionVersion: current.sessionVersion };
       client.join(`user:${current.id}`);
+      client.join(`session:${session.id}`);
+      const expiry = setTimeout(() => client.disconnect(true), Math.max(1, payload.exp * 1000 - Date.now()));
+      expiry.unref();
+      client.on('disconnect', () => clearTimeout(expiry));
       if (current.organizationId && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(current.role)) client.join(`org:${current.organizationId}`);
       if (current.role === 'SUPER_ADMIN') client.join('admins');
     } catch {
       client.disconnect(true);
     }
+  }
+
+  disconnectSession(sessionId: string) {
+    this.server?.in(`session:${sessionId}`).disconnectSockets(true);
   }
 
   disconnectUser(userId: string) {

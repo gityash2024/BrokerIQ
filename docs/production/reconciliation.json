@@ -10,12 +10,14 @@
         "2516",
         "3978"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
+      "notes": [
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+      ]
     },
     {
       "id": "AUTH-02",
@@ -24,12 +26,14 @@
         "2516",
         "3978"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
+      "notes": [
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+      ]
     },
     {
       "id": "AUTH-03",
@@ -38,12 +42,14 @@
         "2516",
         "3978"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
+      "notes": [
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+      ]
     },
     {
       "id": "AUTH-04",
@@ -52,12 +58,14 @@
         "2516",
         "3978"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": []
+      "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
+      "notes": [
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+      ]
     },
     {
       "id": "AUTH-05",

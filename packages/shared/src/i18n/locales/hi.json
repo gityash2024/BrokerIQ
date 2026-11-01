@@ -3703,5 +3703,10 @@
  "🗓 Site visit चाहिए": "🗓 साइट विज़िट चाहिए",
  "🚀 Listing boost करें": "🚀 लिस्टिंग बूस्ट करें",
  "🚀 Listing boost हो गई — अब search में सबसे ऊपर दिखेगी": "🚀 लिस्टिंग बूस्ट हो गई — अब खोज में सबसे ऊपर दिखेगी",
- "🟢 लाइव (Active Now)": "🟢 आता सक्रिय"
+ "🟢 लाइव (Active Now)": "🟢 आता सक्रिय",
+ "Choose a device to sign out": "Sign out करने के लिए device चुनें",
+ "Five devices are signed in. Choose one to continue on this device.": "पाँच devices पर login है। इस device पर जारी रखने के लिए एक चुनें।",
+ "Sign out this device and continue": "इस device से sign out करके जारी रखें",
+ "Unknown device": "अज्ञात device",
+ "Last active": "आखिरी गतिविधि"
 }

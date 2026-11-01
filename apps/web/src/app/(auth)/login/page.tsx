@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { KeyRound, Mail } from 'lucide-react';
-import type { AuthResponse } from '@brokeriq/shared';
-import { api, errorMessage } from '@/lib/api';
+import type { AuthResponse, SessionLimitChallenge } from '@brokeriq/shared';
+import { api, ApiError, errorMessage } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { AuthShell } from '@/components/site/auth-shell';
@@ -13,10 +13,14 @@ import { GoogleButton } from '@/components/site/google-button';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { pendingReferral } from '@/lib/referral';
+import { Dialog } from '@/components/ui/dialog';
+import { useI18n } from '@/lib/i18n';
 import { Segmented } from '@/components/ui/tabs';
 
 function LoginInner() {
   const { setSession } = useAuth();
+  const { t } = useI18n();
+  const [selection, setSelection] = useState<SessionLimitChallenge | null>(null);
   const { app } = useConfig();
   const router = useRouter();
   const sp = useSearchParams();
@@ -51,7 +55,8 @@ function LoginInner() {
     try {
       await fn();
     } catch (e) {
-      toast.error(errorMessage(e));
+      if (e instanceof ApiError && e.body.code === 'SESSION_LIMIT_REACHED') setSelection(e.body.details as SessionLimitChallenge);
+      else toast.error(errorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -66,6 +71,22 @@ function LoginInner() {
 
   return (
     <AuthShell title="Welcome back" subtitle="अपने account में login करें">
+      <Dialog open={!!selection} onOpenChange={(open) => { if (!open && !loading) setSelection(null); }}
+        title={t('Choose a device to sign out')} description={t('Five devices are signed in. Choose one to continue on this device.')}>
+        <div className="space-y-3">
+          {selection?.sessions.map((device) => (
+            <div key={device.id} className="rounded-xl border border-line p-4">
+              <p className="break-words font-medium">{device.userAgent || t('Unknown device')}</p>
+              <p className="mt-1 text-sm text-muted">{device.ip || '—'} · {t('Last active')}: {new Date(device.lastUsedAt).toLocaleString()}</p>
+              <Button className="mt-3" loading={loading} onClick={() => run(async () => {
+                const result = await api<AuthResponse>('/auth/sessions/replace', { auth: false, body: { challenge: selection.challenge, sessionId: device.id } });
+                setSelection(null); done(result);
+              })}>{t('Sign out this device and continue')}</Button>
+            </div>
+          ))}
+          <Button variant="secondary" disabled={loading} onClick={() => setSelection(null)}>{t('Cancel')}</Button>
+        </div>
+      </Dialog>
       <GoogleButton
         onCredential={(idToken) => run(async () => done(await api('/auth/google', { method: 'POST', body: { idToken, ref: pendingReferral() }, auth: false })))}
       />

@@ -29,6 +29,12 @@ export interface AuthResponse extends AuthTokens {
   user: AuthUser;
 }
 
+/** Short-lived, login-authenticated selection; it grants no CRM access. */
+export interface SessionLimitChallenge {
+  challenge: string;
+  sessions: { id: string; ip: string | null; userAgent: string | null; createdAt: string; lastUsedAt: string; expiresAt: string }[];
+}
+
 export interface JwtPayload {
   sub: string;
   role: AuthUser['role'];

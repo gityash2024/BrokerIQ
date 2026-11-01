@@ -3505,5 +3505,10 @@
  "🗓 Site visit चाहिए": "🗓 সাইট ভিজিট চাই",
  "🚀 Listing boost करें": "🚀 লিস্টিং বুস্ট করুন",
  "🚀 Listing boost हो गई — अब search में सबसे ऊपर दिखेगी": "🚀 লিস্টিং বুস্ট হয়েছে — এখন সার্চে সবার উপরে দেখা যাবে",
- "🟢 लाइव (Active Now)": "🟢 आता सक्रिय"
+ "🟢 लाइव (Active Now)": "🟢 आता सक्रिय",
+ "Choose a device to sign out": "সাইন আউট করার জন্য ডিভাইস বেছে নিন",
+ "Five devices are signed in. Choose one to continue on this device.": "পাঁচটি ডিভাইসে সাইন ইন করা আছে। এই ডিভাইসে চালিয়ে যেতে একটি বেছে নিন।",
+ "Sign out this device and continue": "এই ডিভাইস থেকে সাইন আউট করে এগিয়ে যান",
+ "Unknown device": "অজানা ডিভাইস",
+ "Last active": "শেষ সক্রিয়"
 }

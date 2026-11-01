@@ -2610,5 +2610,10 @@
  "🗓 Site visit चाहिए": "🗓 Site visit needed",
  "🚀 Listing boost करें": "🚀 Boost listing",
  "🚀 Listing boost हो गई — अब search में सबसे ऊपर दिखेगी": "🚀 Listing boosted — it will now appear at the top of search",
- "🟢 लाइव (Active Now)": "🟢 Active Now"
+ "🟢 लाइव (Active Now)": "🟢 Active Now",
+ "Choose a device to sign out": "Choose a device to sign out",
+ "Five devices are signed in. Choose one to continue on this device.": "Five devices are signed in. Choose one to continue on this device.",
+ "Sign out this device and continue": "Sign out this device and continue",
+ "Unknown device": "Unknown device",
+ "Last active": "Last active"
 }

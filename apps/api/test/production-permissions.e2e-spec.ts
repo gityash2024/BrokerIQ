@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../src/modules/auth/auth.service';
 import type { INestApplication } from '@nestjs/common';
 import type { Role } from '@prisma/client';
 import request from 'supertest';
@@ -35,7 +35,8 @@ describe('Production agent/firm record boundaries', () => {
     otherOrg = (await db.organization.create({ data: { name: 'Isolated other firm', slug: 'permissions-other-' + uid, restrictions: [] } })).id;
     const actor = async (role: Role, firm: string, suffix: string) => {
       const user = await db.user.create({ data: { name: suffix, email: suffix + '.' + uid + '@e2e.test', role, organizationId: firm } });
-      return { id: user.id, token: app.get(JwtService).sign({ sub: user.id, role, orgId: firm, email: user.email, sessionVersion: user.sessionVersion }) };
+      const login = await app.get(AuthService).issue({ ...user, organization: await db.organization.findUnique({ where: { id: firm } }) });
+      return { id: user.id, token: login.accessToken };
     };
     a = await actor('BROKER_AGENT', org, 'agent-a');
     b = await actor('BROKER_AGENT', org, 'agent-b');
@@ -117,7 +118,7 @@ describe('Production agent/firm record boundaries', () => {
 
   it('even Super Admin cannot orphan a firm by removing or demoting its last active administrator', async () => {
     const user = await db.user.create({ data: { name: 'Isolated platform admin', email: 'platform.' + uid + '@e2e.test', role: 'SUPER_ADMIN' } });
-    const superActor = { token: app.get(JwtService).sign({ sub: user.id, role: user.role, sessionVersion: user.sessionVersion }) };
+    const superActor = { token: (await app.get(AuthService).issue({ ...user, organization: null })).accessToken };
     await request(app.getHttpServer()).patch('/api/broker/team/' + admin.id).set(headers(superActor)).send({ role: 'BROKER_AGENT', targets: { monthlyDeals: 999 } }).expect(400);
     expect(await db.orgSetting.findUnique({ where: { organizationId_key: { organizationId: org, key: 'agent_targets' } } })).toBeNull();
     await request(app.getHttpServer()).delete('/api/broker/team/' + admin.id).set(headers(superActor)).expect(400);
