@@ -178,6 +178,13 @@ export class SettingsService {
     return this.isComplete(def, values) ? values : null;
   }
 
+  /** Server-only OAuth bootstrap; incomplete credentials never become a configured integration. */
+  async oauthSetup(key: 'zoho_mail'): Promise<IntegrationValues> {
+    const def = this.defOrThrow(key);
+    const { stored } = await this.loadStored(key);
+    return this.withDefaults(def, { ...this.envValues(def), ...this.decode(stored) });
+  }
+
   /** Like resolve() but throws INTEGRATION_NOT_CONFIGURED when missing. */
   async require(key: string, orgId?: string | null, message?: string): Promise<IntegrationValues> {
     const values = await this.resolve(key, orgId);
@@ -245,14 +252,14 @@ export class SettingsService {
       await this.prisma.orgSetting.upsert({
         where: { organizationId_key: { organizationId: opts.orgId!, key: integrationKey(key) } },
         create: { organizationId: opts.orgId!, key: integrationKey(key), value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId },
-        update: { value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId },
+        update: { value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId, lastTestedAt: null, lastTestOk: null, lastTestMessage: null },
       });
       this.invalidate(`org:${opts.orgId}:${key}`);
     } else {
       await this.prisma.systemSetting.upsert({
         where: { key: integrationKey(key) },
         create: { key: integrationKey(key), value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId },
-        update: { value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId },
+        update: { value: value as unknown as Prisma.InputJsonValue, updatedById: opts.userId, lastTestedAt: null, lastTestOk: null, lastTestMessage: null },
       });
       this.invalidate(`sys:${integrationKey(key)}`);
     }

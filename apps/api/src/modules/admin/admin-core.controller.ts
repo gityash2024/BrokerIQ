@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
+import { ZohoMailService } from '../../core/mail/zoho-mail.service';
 import { MailService } from '../../core/mail/mail.service';
 import { EventsService } from '../../core/events/events.service';
 import { IntegrationTesterService } from '../integrations/integration-tester.service';
@@ -30,6 +31,7 @@ export class AdminCoreController {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
+    private readonly zoho: ZohoMailService,
     private readonly tester: IntegrationTesterService,
     private readonly auth: AuthService,
     private readonly events: EventsService,
@@ -122,6 +124,28 @@ export class AdminCoreController {
     return Promise.all(
       defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: await this.settings.view(d.key) })),
     );
+  }
+
+  @Get('email-delivery')
+  async emailDelivery() {
+    const provider = await this.mail.provider();
+    return { provider, providers: await Promise.all(['smtp','zoho_mail'].map(async (key) => { const state = await this.settings.view(key); return { key, configured: state.configured, lastTestOk: state.lastTestOk, enabled: state.enabled }; })) };
+  }
+  @Patch('email-delivery')
+  async selectEmail(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ provider: z.enum(['smtp','zoho_mail']) }))) body: {provider:'smtp'|'zoho_mail'}) {
+    const state = await this.settings.view(body.provider);
+    if (!state.configured || state.lastTestOk !== true) throw new BadRequestException('Save and successfully test the provider before selecting it.');
+    await this.settings.setJson('email.provider', body.provider, user.id);
+    await this.audit.log(user, 'email.provider.select', 'Integration', body.provider);
+    return this.emailDelivery();
+  }
+  @Post('integrations/zoho_mail/authorize')
+  async authorizeZoho(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ code: z.string().trim().min(1).max(4096) }))) body: {code:string}) {
+    const fields = await this.settings.oauthSetup('zoho_mail');
+    const refreshToken = await this.zoho.authorize(fields, body.code);
+    const state = await this.settings.save('zoho_mail', { enabled: true, fields: {...fields, refreshToken} }, {userId:user.id});
+    await this.audit.log(user, 'email.zoho.authorize', 'Integration', 'zoho_mail', {scopes:['ZohoMail.messages.CREATE','ZohoMail.accounts.READ']});
+    return state;
   }
 
   @Get('integrations/:key')
@@ -256,11 +280,11 @@ export class AdminCoreController {
     };
     const users = await this.prisma.user.findMany({ where, select: { id: true, email: true } });
     if (body.channel === 'EMAIL') {
-      await this.settings.require('smtp');
+      const delivery = await this.mail.configuration();
       for (let i = 0; i < users.length; i += 40) {
         await this.mail
           .send({
-            to: (await this.settings.resolve('smtp'))?.fromEmail as string,
+            to: delivery.values.fromEmail as string,
             bcc: users.slice(i, i + 40).map((u) => u.email),
             subject: body.title,
             html: `<p>${escapeHtml(body.body).replace(/\n/g, '<br/>')}</p>${body.link ? `<p><a href="${body.link}">Open →</a></p>` : ''}`,

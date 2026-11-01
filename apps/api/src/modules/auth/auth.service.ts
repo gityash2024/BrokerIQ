@@ -314,20 +314,20 @@ export class AuthService implements OnApplicationBootstrap {
     if (purpose === 'RESET_PASSWORD' && !(await this.prisma.user.findUnique({ where: { email } }))) return { sent: true };
 
     const code = randomOtp();
-    const smtpReady = await this.settings.isConfigured('smtp');
+    const emailReady = await this.mail.isConfigured();
     const devMode = env().NODE_ENV !== 'production';
-    if (!smtpReady && !devMode) {
+    if (!emailReady && !devMode) {
       throw new IntegrationNotConfiguredException(
-        'smtp',
-        'Email OTP अभी उपलब्ध नहीं है — Super Admin → Settings → Integrations → Email (SMTP) configure करें। तब तक password से login करें।',
+        await this.mail.provider(),
+        'Email OTP अभी उपलब्ध नहीं है — Super Admin को selected email delivery provider configure करना है। तब तक password से login करें।',
       );
     }
     await this.prisma.otpCode.create({ data: { email, purpose, codeHash: sha256(`${email}:${code}`), expiresAt: new Date(Date.now() + 10 * 60_000) } });
-    if (smtpReady) {
+    if (emailReady) {
       await this.mail.sendTemplate(purpose === 'RESET_PASSWORD' ? 'auth.reset' : 'auth.otp', email, { code });
       return { sent: true };
     }
-    this.logger.warn(`[dev] OTP for ${email}: ${code} (SMTP not configured)`);
+    this.logger.warn(`[dev] OTP for ${email}: ${code} (email provider not configured)`);
     return { sent: true, devCode: code };
   }
 

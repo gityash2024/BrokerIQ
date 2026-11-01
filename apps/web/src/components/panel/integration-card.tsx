@@ -48,14 +48,15 @@ export function CopyField({ label, value, hint }: { label: string; value: string
 
 export function StatusPill({ view }: { view?: IntegrationView | null }) {
   if (!view) return null;
-  if (!view.configured) return <Badge tone="warning">Not configured</Badge>;
   if (!view.enabled) return <Badge tone="neutral">Disabled</Badge>;
+  if (!view.configured) return <Badge tone="warning">Not configured</Badge>;
   if (view.lastTestOk === false)
     return (
       <Badge tone="danger">
         <XCircle className="size-3" /> Test failed
       </Badge>
     );
+  if (view.lastTestOk !== true) return <Badge tone="warning">Configured · test pending</Badge>;
   return (
     <Badge tone="success">
       <CheckCircle2 className="size-3" /> Connected{view.source === 'env' ? ' (env)' : ''}
@@ -105,7 +106,7 @@ export function IntegrationCard({
     onSuccess: (r) => (r.ok ? toast.success(r.message) : toast.error(r.message, { duration: 8000 })),
   });
   const remove = useApiMutation(() => del(`${apiBase}/${def.key}`), { success: 'Credentials हटाए गए', invalidate });
-  const missing = def.fields.filter((f) => f.required && !String(values[f.key] ?? '').trim()).map((f) => f.label);
+  const missing = def.fields.filter((f) => f.required && !f.setupOptional && !String(values[f.key] ?? '').trim()).map((f) => f.label);
 
   return (
     <div id={def.key} className={cn('card overflow-hidden transition', open && 'ring-2 ring-brand-500/20')}>
@@ -210,7 +211,7 @@ export function IntegrationCard({
                       const setV = (x: unknown) => setValues((p) => ({ ...p, [f.key]: x }));
                       const wide = f.type === 'textarea' || f.type === 'url';
                       return (
-                        <Field key={f.key} label={f.label} required={f.required} hint={f.help} className={cn(wide && 'sm:col-span-2')}>
+                        <Field key={f.key} label={f.label} required={f.required && !f.setupOptional} hint={f.help} className={cn(wide && 'sm:col-span-2')}>
                           {f.type === 'select' ? (
                             <Select value={String(v ?? '')} onChange={(e) => setV(e.target.value)} disabled={readOnly}>
                               <option value="">—</option>

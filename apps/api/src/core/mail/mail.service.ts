@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { renderTemplate } from '@brokeriq/shared';
 import { SettingsService } from '../settings/settings.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ZohoMailService } from './zoho-mail.service';
 import { DEFAULT_TEMPLATES } from './default-templates';
 
 export interface MailInput {
@@ -21,13 +22,27 @@ export class MailService {
   constructor(
     private readonly settings: SettingsService,
     private readonly prisma: PrismaService,
+    private readonly zoho: ZohoMailService,
   ) {}
+
+  async provider(): Promise<'smtp' | 'zoho_mail'> {
+    const selected = await this.settings.getJson<string>('email.provider');
+    if (selected && !['smtp', 'zoho_mail'].includes(selected)) throw new Error('Select a valid email delivery provider');
+    return selected === 'zoho_mail' ? 'zoho_mail' : 'smtp';
+  }
+  async configuration() {
+    const key = await this.provider();
+    return { key, values: await this.settings.require(key) };
+  }
+  async isConfigured() { return this.settings.isConfigured(await this.provider()); }
 
   private async transport(values?: Record<string, unknown>) {
     const v = values ?? (await this.settings.require('smtp'));
     const port = Number(v.port ?? 587);
     return {
       tx: nodemailer.createTransport({
+        connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000,
+        requireTLS: !(v.secure === true || port === 465),
         host: String(v.host),
         port,
         secure: v.secure === true || port === 465,
@@ -38,10 +53,13 @@ export class MailService {
   }
 
   async send(input: MailInput) {
-    const { tx, from } = await this.transport();
+    const { key, values } = await this.configuration();
     const app = await this.settings.getAppConfig();
     const count = [input.to, input.bcc].flat().filter(Boolean).length;
     try {
+      if (key === 'zoho_mail') await this.zoho.send(values, { ...input, html: wrapHtml(input.html, app.siteName, app.primaryColor) });
+      else {
+      const { tx, from } = await this.transport(values);
       await tx.sendMail({
         from,
         to: input.to,
@@ -51,13 +69,14 @@ export class MailService {
         text: input.text,
         replyTo: input.replyTo,
       });
+      }
       // Counted for Admin → Cost & usage (free SMTP plans have daily limits).
       await this.prisma.integrationLog
-        .create({ data: { integration: 'smtp', action: 'send', success: true, meta: { recipients: count } } })
+        .create({ data: { integration: key, action: 'send', success: true, meta: { recipients: count } } })
         .catch(() => undefined);
     } catch (e) {
       await this.prisma.integrationLog
-        .create({ data: { integration: 'smtp', action: 'send', success: false, message: (e as Error).message.slice(0, 300) } })
+        .create({ data: { integration: key, action: 'send', success: false, message: (e as Error).message.slice(0, 300) } })
         .catch(() => undefined);
       throw e;
     }
@@ -78,13 +97,17 @@ export class MailService {
   /** Best effort — never throws (used for notifications). */
   async trySendTemplate(key: string, to: string | string[], vars: Record<string, unknown>) {
     try {
-      if (!(await this.settings.isConfigured('smtp'))) return false;
+      if (!(await this.isConfigured())) return false;
       await this.sendTemplate(key, to, vars);
       return true;
     } catch (e) {
       this.logger.warn(`mail ${key} failed: ${(e as Error).message}`);
       return false;
     }
+  }
+
+  async testZoho(values: Record<string, unknown>, to: string) {
+    await this.zoho.send(values, { to, subject: 'BrokerIQ Zoho HTTPS email test', html: '<p>यह BrokerIQ का Zoho HTTPS sender test है। इस email की inbox में प्राप्ति delivery का प्रमाण है; production workflows की acceptance अलग से होगी।</p>' });
   }
 
   async test(values: Record<string, unknown>, to: string) {

@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { Bot, Cloud, CreditCard, KeyRound, Map, Mail, MessageCircle, Radar, Search, ShieldCheck, Smartphone } from 'lucide-react';
 import type { IntegrationDef } from '@brokeriq/shared';
 import { api } from '@/lib/api';
+import { EmailDeliverySelector, ZohoAuthorization } from '@/components/panel/email-delivery';
 import { PageHeader } from '@/components/panel/shell';
 import { IntegrationCard, type IntegrationView } from '@/components/panel/integration-card';
 import { Input } from '@/components/ui/field';
@@ -41,6 +42,7 @@ function Inner() {
         title="Credentials center"
         subtitle="सारी API keys यहीं — encrypted (AES-256) database में save होती हैं, code में कभी नहीं। हर integration के साथ हिंदी में step-by-step guide है।"
       />
+      <EmailDeliverySelector />
       <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-brand-950 to-brand-800 p-6 text-white">
           <div className="absolute -top-16 -right-10 size-56 rounded-full bg-brand-400/30 blur-3xl" />
@@ -66,7 +68,7 @@ function Inner() {
           <p className="font-semibold text-fg">Launch connections</p>
           <p>1. Housing → partner lead sync</p>
           <p>2. WhatsApp Cloud API → conversations और templates</p>
-          <p>3. SMTP → password recovery और invitations</p>
+          <p>3. Selected email provider → password recovery और invitations</p>
           <p>4. OpenRouter free models → optional extraction assistance</p>
           <p>Media server पर encrypted है। Paid AI fallback बंद है।</p>
         </div>
@@ -84,10 +86,11 @@ function Inner() {
                 .map((i) => (
                   <IntegrationCard
                     key={i.key}
+                    extra={i.key === 'zoho_mail' ? <ZohoAuthorization /> : undefined}
                     def={i}
                     view={i.state}
                     apiBase="/admin/integrations"
-                    invalidate={[['admin-integrations'], ['admin-dashboard']]}
+                    invalidate={[['admin-integrations'], ['admin-dashboard'], ['email-delivery']]}
                     defaultOpen={focus === i.key}
                     icon={CATS[c]?.icon}
                   />

@@ -49,6 +49,9 @@ export class IntegrationTesterService {
       case 'smtp':
         await this.mail.test(v, actorEmail);
         return `SMTP connected — test email ${actorEmail} पर भेजा गया`;
+      case 'zoho_mail':
+        await this.mail.testZoho(v, actorEmail);
+        return `Zoho Mail accepted — test email ${actorEmail} पर भेजा गया; mailbox में receipt verify करें`;
       case 'openrouter':
       case 'groq':
       case 'gemini':

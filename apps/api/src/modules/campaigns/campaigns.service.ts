@@ -155,7 +155,7 @@ export class CampaignsService implements OnModuleInit {
       if (tpl.status && tpl.status !== 'APPROVED') throw new BadRequestException(`Template "${tpl.name}" अभी approved नहीं है (${tpl.status})`);
       if (!c.templateLanguage) await this.prisma.campaign.update({ where: { id }, data: { templateLanguage: tpl.language } });
     }
-    if (wantsEmail && !(await this.settings.resolve('smtp'))) throw new IntegrationNotConfiguredException('smtp');
+    if (wantsEmail) await this.mail.configuration();
 
     const leads = await this.prisma.lead.findMany({
       where: this.audienceWhere(orgId, c.segment as CampaignSegment),

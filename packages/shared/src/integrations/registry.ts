@@ -14,6 +14,8 @@ export interface IntegrationField {
   label: string;
   type: IntegrationFieldType;
   required?: boolean;
+  /** OAuth bootstrap can be saved before this server-generated required credential exists. */
+  setupOptional?: boolean;
   /** Encrypted at rest and never returned to the client in plain text */
   secret?: boolean;
   /** Safe to expose to web/mobile clients via /public/config */
@@ -75,6 +77,29 @@ export const INTEGRATIONS: IntegrationDef[] = [
     ],
     usedFor: ['Email OTP login', 'Lead alerts', 'Team invites', 'Receipts'],
     testable: true,
+  },
+  {
+    key: 'zoho_mail', name: 'Zoho Mail (HTTPS)', category: 'email', scope: 'platform', group: 'email-delivery',
+    description: 'Existing Zoho mailbox से HTTPS पर OTP, recovery और invitation emails भेजें। SMTP port की जरूरत नहीं।',
+    freeTier: 'Existing Zoho Mail plan और उसकी sending limits लागू हैं; कोई paid fallback नहीं।',
+    docsUrl: 'https://www.zoho.com/mail/help/api/using-oauth-2.html',
+    steps: [
+      'अपने Zoho data center का API Console खोलें (India: https://api-console.zoho.in/)।',
+      'BrokerIQ के लिए dedicated Self Client बनाएँ। Client ID और Client Secret नीचे save करें।',
+      'Scopes केवल ZohoMail.messages.CREATE,ZohoMail.accounts.READ रखें; message-read/delete या organization-admin scopes न दें।',
+      'Generate Code से एक short-lived authorization code बनाएँ और BrokerIQ की authorization form में भरें; code या secret chat में न भेजें।',
+      'From email उसी authenticated mailbox का confirmed address/alias होना चाहिए। India region में hello@yarvixhq.com चुनें।',
+      'Test connection से अपना test email भेजें। सफल test के बाद Email delivery selector में Zoho Mail चुनें।',
+    ],
+    fields: [
+      { key: 'region', label: 'Zoho data center', type: 'select', default: 'IN', options: [{label:'India',value:'IN'},{label:'United States',value:'US'},{label:'Europe',value:'EU'},{label:'Australia',value:'AU'},{label:'Japan',value:'JP'},{label:'Canada',value:'CA'}] },
+      { key: 'clientId', label: 'Client ID', type: 'text', required: true },
+      { key: 'clientSecret', label: 'Client Secret', type: 'password', secret: true, required: true },
+      { key: 'refreshToken', label: 'Refresh token', type: 'password', secret: true, required: true, setupOptional: true, help: 'One-time authorization से encrypted रूप में save होगा।' },
+      { key: 'accountId', label: 'Mail account ID (optional)', type: 'text', help: 'खाली छोड़ने पर verified sender alias से account चुनेंगे।' },
+      { key: 'fromEmail', label: 'From email / verified alias', type: 'email', required: true, placeholder: 'hello@yarvixhq.com' },
+    ],
+    usedFor: ['Email OTP login','Password recovery','Team invitations','Notifications'], testable: true,
   },
   // ---------------------------------------------------------------- Auth
   {
