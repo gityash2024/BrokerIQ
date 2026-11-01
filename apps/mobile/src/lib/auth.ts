@@ -29,7 +29,7 @@ export function useAuth() {
       const cur = authStore.get();
       // Clear in-memory ownership and stop native tracking before waiting on network cleanup.
       await authStore.set(null);
-      await unregisterPush(cur?.accessToken).catch(() => undefined);
+      await unregisterPush(cur?.accessToken, cur?.user.id).catch(() => undefined);
       if (cur) await api('/auth/logout', { method: 'POST', auth: false, body: { refreshToken: cur.refreshToken } }).catch(() => undefined);
       router.replace('/login');
     },

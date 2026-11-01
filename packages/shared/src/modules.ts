@@ -245,6 +245,8 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
       '/broker/notifications',
       '/broker/privacy',
       '/broker/feedback',
+      '/feedback',
+      '/notification',
     ].some((p) => prefixMatches(clean, p))
   )
     return null;

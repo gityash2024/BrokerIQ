@@ -38,15 +38,27 @@ export class WebPushService {
     return (await this.vapid()).publicKey;
   }
 
-  async send(userIds: string[], title: string, body: string, data: Record<string, unknown> = {}) {
+  async send(
+    userIds: string[],
+    title: string,
+    body: string,
+    data: Record<string, unknown> = {},
+    recipients: Record<string, { notificationId: string; recipientUserId: string }> = {},
+  ) {
     const subs = await this.prisma.pushToken.findMany({ where: { userId: { in: userIds }, platform: 'web' } });
     if (!subs.length) return 0;
     const { publicKey, privateKey } = await this.vapid();
     const subject = env().PUBLIC_WEB_URL.startsWith('https://') ? env().PUBLIC_WEB_URL : 'mailto:support@brokeriq.in';
-    const payload = JSON.stringify({ title, body, link: typeof data.link === 'string' ? data.link : '/', kind: data.kind ?? null });
     let sent = 0;
     for (const s of subs) {
       try {
+        const payload = JSON.stringify({
+          title,
+          body,
+          link: typeof data.link === 'string' ? data.link : '/',
+          kind: data.kind ?? null,
+          ...recipients[s.userId],
+        });
         await webpush.sendNotification(JSON.parse(s.token), payload, { vapidDetails: { subject, publicKey, privateKey }, TTL: 24 * 3600, urgency: 'normal' });
         sent++;
       } catch (e) {

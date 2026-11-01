@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FlatList, Platform, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -55,13 +55,14 @@ function VoteButton({ item, onVoted }: { item: any; onVoted: () => void }) {
 }
 
 export default function Feedback() {
+  const { record } = useLocalSearchParams<{ record?: string }>();
   const { c } = useTheme();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'board' | 'new' | 'mine'>('board');
   const [sort, setSort] = useState<'top' | 'new'>('top');
   const [status, setStatus] = useState('');
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(record ?? null);
   const board = useQuery({ queryKey: ['feedback-board', sort, status], queryFn: () => api<any>(`/feedback/board${qs({ sort, status })}`) });
   const mine = useQuery({ queryKey: ['feedback-mine'], queryFn: () => api<any[]>('/feedback/mine'), enabled: !!user && tab === 'mine' });
   const refresh = () => qc.invalidateQueries({ queryKey: ['feedback-board'] });

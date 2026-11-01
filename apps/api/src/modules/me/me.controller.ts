@@ -59,31 +59,47 @@ export class MeController {
   }
 
   @Get('notifications')
-  async notifications(@CurrentUser() user: RequestUser, @Query('unread') unread?: string) {
+  async notifications(@CurrentUser() user: RequestUser, @Query('unread') unread?: string, @Query('cursor') cursor?: string) {
+    // An opaque cursor must belong to the same account, including when read state changes.
+    if (cursor && !(await this.prisma.notification.findFirst({ where: { id: cursor, userId: user.id }, select: { id: true } })))
+      throw new BadRequestException('Invalid notification cursor');
     const [items, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where: { userId: user.id, ...(unread === 'true' ? { readAt: null } : {}) },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 51,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       }),
       this.prisma.notification.count({ where: { userId: user.id, readAt: null } }),
     ]);
-    return { items, unreadCount };
+    return { items: items.slice(0, 50), unreadCount, nextCursor: items.length > 50 ? items[49].id : null };
   }
 
   @Post('notifications/read')
   async markRead(@CurrentUser() user: RequestUser, @Body() body: { ids?: string[] }) {
+    if (body?.ids !== undefined && (!Array.isArray(body.ids) || body.ids.length > 200 || body.ids.some((id) => typeof id !== 'string' || id.length > 128)))
+      throw new BadRequestException('Invalid notification ids');
     await this.prisma.notification.updateMany({
-      where: { userId: user.id, readAt: null, ...(body?.ids?.length ? { id: { in: body.ids } } : {}) },
+      where: { userId: user.id, readAt: null, ...(body?.ids !== undefined ? { id: { in: body.ids } } : {}) },
       data: { readAt: new Date() },
     });
     return { ok: true };
   }
 
+  @Post('notifications/:id/open')
+  async openNotification(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const item = await this.prisma.notification.findFirst({ where: { id, userId: user.id } });
+    if (!item) throw new NotFoundException('Notification unavailable for this account');
+    await this.prisma.notification.updateMany({ where: { id, userId: user.id, readAt: null }, data: { readAt: new Date() } });
+    return item;
+  }
+
   /** Signed direct upload (Cloudinary / S3). */
   @Post('uploads/sign')
   sign(@CurrentUser() user: RequestUser, @Body() body: { kind?: UploadKind; contentType?: string }) {
-    const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any) ? body.kind! : 'listing';
+    const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any)
+      ? body.kind!
+      : 'listing';
     return this.media.sign(kind, body?.contentType ?? 'image/jpeg', user.orgId ?? user.id);
   }
 

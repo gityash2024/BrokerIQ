@@ -15,23 +15,25 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       icon: '/icon.svg',
       badge: '/icon.svg',
-      tag: data.kind || undefined,
-      data: { link: data.link || '/' },
+      tag: data.notificationId || undefined,
+      data: { notificationId: data.notificationId },
     }),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const link = (event.notification.data && event.notification.data.link) || '/';
-  // External links (e.g. a video-visit room) open as-is; app links open on this site.
-  const url = /^https?:\/\//.test(link) ? link : new URL(link, self.location.origin).href;
+  const id = event.notification.data && event.notification.data.notificationId;
+  // Resolve the owned notification after login; never navigate an arbitrary push URL.
+  const url = new URL(
+    typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id) ? '/notification?notification=' + encodeURIComponent(id) : '/notification',
+    self.location.origin,
+  ).href;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
-        if (w.url.startsWith(self.location.origin) && 'focus' in w) {
-          w.navigate(url);
-          return w.focus();
+        if (new URL(w.url).origin === self.location.origin && 'focus' in w) {
+          return w.navigate(url).then(() => w.focus());
         }
       }
       return self.clients.openWindow(url);

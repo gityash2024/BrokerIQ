@@ -1,8 +1,7 @@
 import '@/lib/background-shift-tracking';
 import { useEffect } from 'react';
 import { Linking, View } from 'react-native';
-import { Stack, router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -31,6 +30,7 @@ import { LanguageSuggestion } from '@/components/language';
 import { loadLang } from '@/lib/lang';
 import { installGlobalErrorHandler } from '@/lib/report-error';
 import { AppErrorBoundary } from '@/components/error-boundary';
+import { NotificationNavigation } from '@/components/notification-navigation';
 
 /** A crashing screen shows a friendly retry screen and is reported to Admin → Health. */
 export { AppErrorBoundary as ErrorBoundary };
@@ -82,7 +82,7 @@ export default function RootLayout() {
     Inter_700Bold,
   });
   const ready = useSession((s) => s.ready);
-  const loggedIn = useSession((s) => !!s.session);
+  const loggedInUserId = useSession((s) => s.session?.user.id);
   const { c, isDark } = useTheme();
   useEffect(() => {
     installGlobalErrorHandler();
@@ -96,18 +96,8 @@ export default function RootLayout() {
     if (fontsLoaded && ready) SplashScreen.hideAsync().catch(() => undefined);
   }, [fontsLoaded, ready]);
   useEffect(() => {
-    if (loggedIn) registerPush().catch(() => undefined);
-  }, [loggedIn]);
-  useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as any;
-      const link = data?.link;
-      if (typeof link === 'string' && link.startsWith('/')) {
-        router.push(link as any);
-      }
-    });
-    return () => sub.remove();
-  }, []);
+    if (loggedInUserId) registerPush().catch(() => undefined);
+  }, [loggedInUserId]);
   useRealtime<any>('notification', () => {
     qc.invalidateQueries({ queryKey: ['notifications'] });
   });
@@ -130,6 +120,7 @@ export default function RootLayout() {
               <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
             </Stack>
           </Gate>
+          <NotificationNavigation />
           <DraftPump />
           <LanguageSuggestion />
           <Toaster />

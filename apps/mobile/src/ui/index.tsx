@@ -1,3 +1,4 @@
+import { NotificationBell } from '@/components/notification-bell';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -154,6 +155,7 @@ export function Header({ title, subtitle, right, back = true }: { title?: string
           </Txt>
         )}
       </View>
+      <NotificationBell />
       {right}
     </View>
   );

@@ -41,6 +41,7 @@ export interface AppNotification {
 export interface NotificationsResponse {
   items: AppNotification[];
   unreadCount: number;
+  nextCursor?: string | null;
 }
 
 /** GET /whatsapp/templates — the firm's synced Meta templates. */

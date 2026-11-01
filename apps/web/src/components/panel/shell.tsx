@@ -2,7 +2,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { motion } from 'motion/react';
 import * as DM from '@radix-ui/react-dropdown-menu';
 import { Bell, LogOut, Menu, Building2, SlidersHorizontal, Compass, ChevronRight, Settings, Search, Clock3, type LucideIcon } from 'lucide-react';
@@ -278,12 +279,14 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
 }
 
 export function NotificationsBell({ href }: { href: string }) {
-  const { data, refetch } = useQuery({ queryKey: ['notifications'], queryFn: () => api<NotificationsResponse>('/me/notifications'), refetchInterval: 60_000 });
+  const { user } = useAuth();
+  const client = useQueryClient();
+  const { data, refetch, isError, isLoading } = useQuery({ queryKey: ['notifications', user?.id, 'summary'], enabled: !!user, queryFn: () => api<NotificationsResponse>('/me/notifications'), refetchInterval: 60_000 });
   useRealtime('notification', () => refetch());
   const unread = data?.unreadCount ?? 0;
   const markAll = async () => {
-    await api('/me/notifications/read', { method: 'POST', body: {} });
-    refetch();
+    try { await api('/me/notifications/read', { method: 'POST', body: {} }); await client.invalidateQueries({ queryKey: ['notifications'] }); }
+    catch (e) { toast.error((e as Error).message); }
   };
   return (
     <DM.Root>
@@ -309,7 +312,7 @@ export function NotificationsBell({ href }: { href: string }) {
             {(data?.items ?? []).slice(0, 15).map((n: any) => (
               <DM.Item key={n.id} asChild>
                 <Link
-                  href={n.link ?? href}
+                  href={'/notification?notification=' + encodeURIComponent(n.id)}
                   className={cn('flex gap-3 border-b border-line px-4 py-3 outline-none hover:bg-surface-2', !n.readAt && 'bg-brand-50/50 dark:bg-brand-500/5')}
                 >
                   {!n.readAt && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand-600" />}
@@ -321,7 +324,9 @@ export function NotificationsBell({ href }: { href: string }) {
                 </Link>
               </DM.Item>
             ))}
-            {!data?.items?.length && <p className="p-6 text-center text-sm text-muted">कोई notification नहीं</p>}
+            {isError && <button className="p-4 text-sm" onClick={() => refetch()}>Notifications नहीं मिलीं · Retry</button>}
+            {isLoading && <p className="p-4 text-sm">Loading…</p>}
+            {!isError && !isLoading && !data?.items?.length && <p className="p-6 text-center text-sm text-muted">कोई notification नहीं</p>}
           </div>
           <Link href={href} className="block px-4 py-3 text-center text-sm font-semibold text-brand-600 hover:bg-surface-2">
             सब देखें

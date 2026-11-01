@@ -43,7 +43,7 @@ function LoginInner() {
       next &&
         /^\/(?![\/\\])/.test(next) &&
         !next.includes('\\') &&
-        (next.startsWith('/user') ||
+        (next.startsWith('/notification?notification=') || next.startsWith('/user') ||
           next.startsWith('/invite/') ||
           (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
           (['BROKER_ADMIN', 'BROKER_AGENT'].includes(r.user.role) && next.startsWith('/broker')))

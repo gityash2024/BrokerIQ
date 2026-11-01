@@ -3801,6 +3801,159 @@
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
+    },
+    {
+      "id": "ADD-NOTIFY-01",
+      "requirement": "Correct notification/push navigation across foreground/background/cold start and bare app links",
+      "sourceRequests": [
+        "2026-11-01-three-addons-and-unmatched-route-screenshot"
+      ],
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
+      "shippedBuild": "PENDING",
+      "verification": "57 shared + 68 mobile source tests; 3 new PostgreSQL notification cases; full API 288 passed/25 configuration skips; real Chrome owned Lead navigation/read-count and Agent Admin-denial; Android export/types pass. Installed/provider acceptance pending.",
+      "notes": [
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
+        "Checkpoint only: physical push, delivery receipts/retries, reminder lifecycle dedupe and exhaustive destination parity remain open. No production artifact shipped."
+      ],
+      "roles": [
+        "ALL_APPLICABLE_ROLES"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/notification-links.ts",
+        "apps/mobile/src/components/notification-navigation.tsx",
+        "apps/mobile/src/components/notification-bell.tsx",
+        "apps/api/src/modules/me/me.controller.ts",
+        "apps/web/src/app/(site)/notification/page.tsx"
+      ],
+      "commits": [],
+      "database": "NO_MIGRATION_REQUIRED",
+      "rootCause": "Native push forwarded web URLs directly; cold response was not consumed; bare brokeriq:/// passed through unchanged; requirements matched generic lead id; notification list capped at 50.",
+      "releaseEvidence": null
+    },
+    {
+      "id": "ADD-NOTIFY-02",
+      "requirement": "Mobile top-header notification bell and consistent unread/read states",
+      "sourceRequests": [
+        "2026-11-01-three-addons-and-unmatched-route-screenshot"
+      ],
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED",
+      "shippedBuild": "PENDING",
+      "verification": "57 shared + 68 mobile source tests; 3 new PostgreSQL notification cases; full API 288 passed/25 configuration skips; real Chrome owned Lead navigation/read-count and Agent Admin-denial; Android export/types pass. Installed/provider acceptance pending.",
+      "notes": [
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
+        "Checkpoint only: physical push, delivery receipts/retries, reminder lifecycle dedupe and exhaustive destination parity remain open. No production artifact shipped."
+      ],
+      "roles": [
+        "ALL_APPLICABLE_ROLES"
+      ],
+      "sourceFiles": [
+        "packages/shared/src/notification-links.ts",
+        "apps/mobile/src/components/notification-navigation.tsx",
+        "apps/mobile/src/components/notification-bell.tsx",
+        "apps/api/src/modules/me/me.controller.ts",
+        "apps/web/src/app/(site)/notification/page.tsx"
+      ],
+      "commits": [],
+      "database": "NO_MIGRATION_REQUIRED",
+      "rootCause": "Native push forwarded web URLs directly; cold response was not consumed; bare brokeriq:/// passed through unchanged; requirements matched generic lead id; notification list capped at 50.",
+      "releaseEvidence": null
+    },
+    {
+      "id": "ADD-CRM-EMAIL-01",
+      "requirement": "Gmail Inbox, replies and complete permitted Lead communication trail",
+      "sourceRequests": [
+        "2026-11-01-three-addons-and-unmatched-route-screenshot"
+      ],
+      "backend": "PENDING",
+      "web": "PENDING",
+      "androidSource": "PENDING",
+      "shippedBuild": "PENDING",
+      "verification": "PENDING",
+      "notes": [
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled."
+      ],
+      "roles": [
+        "ALL_APPLICABLE_ROLES"
+      ],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
+    },
+    {
+      "id": "ADD-CRM-SMS-01",
+      "requirement": "Verified recurring-free SMS connector, delivery/reply trail and process integration",
+      "sourceRequests": [
+        "2026-11-01-three-addons-and-unmatched-route-screenshot"
+      ],
+      "backend": "PENDING",
+      "web": "PENDING",
+      "androidSource": "PENDING",
+      "shippedBuild": "PENDING",
+      "verification": "PENDING",
+      "notes": [
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
+        "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending."
+      ],
+      "roles": [
+        "ALL_APPLICABLE_ROLES"
+      ],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
+    },
+    {
+      "id": "ADD-AUTH-OTP-01",
+      "requirement": "Password followed by registered-email OTP before final session issuance",
+      "sourceRequests": [
+        "2026-11-01-three-addons-and-unmatched-route-screenshot"
+      ],
+      "backend": "PENDING",
+      "web": "PENDING",
+      "androidSource": "PENDING",
+      "shippedBuild": "PENDING",
+      "verification": "PENDING",
+      "notes": [
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled."
+      ],
+      "roles": [
+        "ALL_APPLICABLE_ROLES"
+      ],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
+    },
+    {
+      "id": "ADD-AUTH-OTP-02",
+      "requirement": "Extensible later verified-phone/SMS factor without making phone mandatory now",
+      "sourceRequests": [
+        "2026-11-01-three-addons-and-unmatched-route-screenshot"
+      ],
+      "backend": "PENDING",
+      "web": "PENDING",
+      "androidSource": "PENDING",
+      "shippedBuild": "PENDING",
+      "verification": "PENDING",
+      "notes": [
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled."
+      ],
+      "roles": [
+        "ALL_APPLICABLE_ROLES"
+      ],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PENDING",
+      "rootCause": null,
+      "releaseEvidence": null
     }
   ]
 }

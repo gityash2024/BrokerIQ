@@ -8,6 +8,7 @@ import { Card, IconBtn, Txt } from '@/ui';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { LanguageSheet } from '@/components/language';
+import { NotificationBell } from '@/components/notification-bell';
 
 export function BrokerScreen({
   title,
@@ -72,6 +73,7 @@ export function BrokerScreen({
             </Txt>
           )}
         </View>
+        <NotificationBell />
         {action ?? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable

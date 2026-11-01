@@ -569,7 +569,7 @@ export class InventoryService {
         kind: body.action === 'approve' ? 'LISTING_APPROVED' : 'LISTING_REJECTED',
         title: body.action === 'approve' ? 'Property is live' : 'Publication needs changes',
         body: body.reason || result.title,
-        link: '/inventory/' + id,
+        link: '/broker/inventory?item=' + id,
         push: false,
       })
       .catch(() => undefined);

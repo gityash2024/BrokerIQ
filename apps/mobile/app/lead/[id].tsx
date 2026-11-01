@@ -345,7 +345,7 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   const save = useApiMutation(() => post('/follow-ups', { leadId: lead.id, type, dueAt: at!.toISOString(), note: note || null }), {
     success: 'Follow-up scheduled ⏰',
     onSuccess: () => {
-      scheduleReminder(`⏰ ${lead.name} को ${type === 'CALL' ? 'call' : type.toLowerCase()} करें`, note || lead.phone, at!).catch(() => undefined);
+      scheduleReminder(`⏰ ${lead.name} को ${type === 'CALL' ? 'call' : type.toLowerCase()} करें`, note || lead.phone, at!, 15, lead.id).catch(() => undefined);
       setNote('');
       setAt(null);
       onClose();
@@ -398,7 +398,7 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
     {
       success: 'Site visit scheduled 🗓',
       onSuccess: () => {
-        scheduleReminder(`🏠 Site visit: ${lead.name}`, address || 'Visit शुरू होने वाली है', at!, 30).catch(() => undefined);
+        scheduleReminder(`🏠 Site visit: ${lead.name}`, address || 'Visit शुरू होने वाली है', at!, 30, lead.id).catch(() => undefined);
         submission.current = { fingerprint: '', id: Crypto.randomUUID() };
         setProperty(null);
         setAddress('');
