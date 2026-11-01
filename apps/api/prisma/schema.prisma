@@ -718,6 +718,9 @@ model KycDocument {
   organizationId String?
   docType        KycDocType
   fileUrl        String
+  privateKey     String?
+  fileSha256     String?
+  supersededAt   DateTime?
   docNumber      String?
   status         VerificationStatus @default(PENDING)
   reviewNote     String?
@@ -729,6 +732,7 @@ model KycDocument {
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([userId, supersededAt])
 }
 
 // ============================================================ Time Logging & Shifts

@@ -170,7 +170,7 @@ async function testMultiFacetFiltering() {
       activity: { count: mockFn().mockResolvedValue(0) },
       userLocation: { findFirst: mockFn().mockResolvedValue(null) },
     };
-    adminController = new AdminUsersController(mockPrisma, {} as any, {} as any, {} as any);
+    adminController = new AdminUsersController(mockPrisma, {} as any, {} as any, {} as any, {} as never);
   };
 
   await runTest('Simultaneous 5-way KYC filter preserves all 5 criteria without dropping any', async () => {
@@ -674,7 +674,7 @@ async function testContractDiscrepancy() {
     const mockPrisma: any = {
       kycDocument: { findMany: mockFn().mockResolvedValue([]) },
     };
-    const controller = new AdminUsersController(mockPrisma, {} as any, {} as any, {} as any);
+    const controller = new AdminUsersController(mockPrisma, {} as any, {} as any, {} as any, {} as never);
     const mockRes = { setHeader: mockFn(), send: mockFn() };
 
     // Pass ids
@@ -688,7 +688,7 @@ async function testContractDiscrepancy() {
     const mockPrisma: any = {
       kycDocument: { findMany: mockFn().mockResolvedValue([]) },
     };
-    const controller = new AdminUsersController(mockPrisma, {} as any, {} as any, {} as any);
+    const controller = new AdminUsersController(mockPrisma, {} as any, {} as any, {} as any, {} as never);
     const mockRes = { setHeader: mockFn(), send: mockFn() };
 
     // If client passes selectedIds as undefined in 10th parameter (ids), where is unconstrained
@@ -840,7 +840,7 @@ async function testTeamsModule() {
 
   await runTest('OrganizationsController.exportTeam generates valid .xlsx report with summary totals row', async () => {
     const mockPrisma: any = createTeamPrismaMock();
-    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as never);
 
     const mockRes = {
       headers: {} as Record<string, string>,
@@ -890,7 +890,7 @@ async function testTeamsModule() {
 
   await runTest('OrganizationsController.exportTeam generates valid .pdf report with table and totals line', async () => {
     const mockPrisma: any = createTeamPrismaMock();
-    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as never);
 
     const mockRes = {
       headers: {} as Record<string, string>,
@@ -926,7 +926,7 @@ async function testTeamsModule() {
 
   await runTest('OrganizationsController.exportTeam generates valid .csv report with UTF-8 BOM and metrics', async () => {
     const mockPrisma: any = createTeamPrismaMock();
-    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+    const controller = new OrganizationsController({} as any, mockPrisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as never);
 
     const mockRes = {
       headers: {} as Record<string, string>,

@@ -24,7 +24,7 @@ test('requirements, selected inventory and both conversation channels map before
   assert.equal(map('/broker/inbox?c=abc'), '/wa/abc');
   assert.equal(map('/broker/inbox?channel=CHAT&c=abc'), '/chat/abc');
   assert.equal(notificationDestination('/account/messages?c=abc', 'USER', true), '/chat/abc');
-  assert.equal(map('/broker/kyc'), '/agent-kyc');
+  assert.equal(map('/broker/kyc'), '/(broker)/kyc');
   assert.equal(map('/feedback/abc'), '/feedback?record=abc');
 });
 

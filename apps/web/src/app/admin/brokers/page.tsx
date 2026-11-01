@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, Ban, CheckCircle2, ExternalLink, Search, SlidersHorizontal, UserMinus } from 'lucide-react';
 import { ORG_RESTRICTIONS, timeAgo } from '@brokeriq/shared';
+import { KycPreviewButton } from '@/components/broker/kyc-media';
 import { api } from '@/lib/api';
 import { del, patch, post, useApiMutation, useDebounced } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
@@ -33,7 +34,9 @@ export default function BrokersPage() {
     <>
       <PageHeader title="Broker firms" subtitle={q.data ? `${q.data.total} firms` : ' '} />
       <CreateBroker />
-      <Link href="/admin/broker-invites" className="mb-4 inline-block text-sm font-semibold text-brand-600">Expiring broker invitations →</Link>
+      <Link href="/admin/broker-invites" className="mb-4 inline-block text-sm font-semibold text-brand-600">
+        Expiring broker invitations →
+      </Link>
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="w-full sm:w-72">
           <Input
@@ -310,18 +313,17 @@ function OrgSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
               <p className="mt-6 mb-2 font-semibold">KYC documents</p>
               <div className="space-y-2">
                 {o.kycDocuments.map((d: any) => (
-                  <a
+                  <KycPreviewButton
                     key={d.id}
-                    href={d.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    src={d.fileUrl}
+                    title={d.docType.replace(/_/g, ' ')}
                     className="flex items-center justify-between rounded-xl border border-line px-3 py-2 text-sm hover:bg-surface-2"
                   >
                     <span>
                       {d.docType.replace(/_/g, ' ')} {d.docNumber && <span className="font-mono text-xs text-muted">{d.docNumber}</span>}
                     </span>
                     <Badge tone={VTONE[d.status]}>{d.status}</Badge>
-                  </a>
+                  </KycPreviewButton>
                 ))}
               </div>
               <Link href="/admin/kyc" className="mt-2 inline-block text-xs font-semibold text-brand-600">

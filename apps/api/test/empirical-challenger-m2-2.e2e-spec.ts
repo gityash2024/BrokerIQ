@@ -120,7 +120,7 @@ describe('Empirical Challenger M2.2 Stress Harness', () => {
         },
       };
 
-      const controller = new AdminUsersController(mockPrisma as any, {} as any, {} as any, {} as any);
+      const controller = new AdminUsersController(mockPrisma as any, {} as any, {} as any, {} as any, {} as never);
       const mockRes = { headers: {}, setHeader: jest.fn(), send: jest.fn() };
 
       // Attacker: BROKER_ADMIN from Firm A (orgId: 'org_firm_a')
@@ -173,7 +173,7 @@ describe('Empirical Challenger M2.2 Stress Harness', () => {
         },
       };
 
-      const controller = new AdminUsersController(mockPrisma as any, {} as any, {} as any, {} as any);
+      const controller = new AdminUsersController(mockPrisma as any, {} as any, {} as any, {} as any, {} as never);
       const mockRes = { headers: {}, setHeader: jest.fn(), send: jest.fn() };
 
       const brokerUser: RequestUser = {
@@ -238,6 +238,7 @@ describe('Empirical Challenger M2.2 Stress Harness', () => {
         {} as any,
         {} as any,
         {} as any,
+        {} as never,
       );
       const mockRes = { headers: {}, setHeader: jest.fn(), send: jest.fn() };
 

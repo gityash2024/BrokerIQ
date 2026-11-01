@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
-import { BadgeCheck, Building2, Check, ExternalLink, FileText, User, X } from 'lucide-react';
+import { BadgeCheck, Building2, Check, User, X } from 'lucide-react';
+import { KycMedia } from '@/components/broker/kyc-media';
 import { api } from '@/lib/api';
 import { patch, useApiMutation } from '@/lib/hooks';
 import { formatDateTime } from '@/lib/utils';
@@ -15,7 +16,11 @@ import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function KycPage() {
   const [status, setStatus] = useState<'PENDING' | 'VERIFIED' | 'REJECTED'>('PENDING');
-  const q = useQuery({ queryKey: ['admin-kyc', status], queryFn: () => api<any[]>(`/admin/kyc?status=${status}`) });
+  const [archived, setArchived] = useState(false);
+  const q = useQuery({
+    queryKey: ['admin-kyc', status, archived],
+    queryFn: () => api<any[]>(`/admin/kyc?status=${status}&history=${archived ? 'ARCHIVED' : 'CURRENT'}`),
+  });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const review = useApiMutation(
     (b: { id: string; status: 'VERIFIED' | 'REJECTED' }) => patch(`/admin/kyc/${b.id}`, { status: b.status, note: notes[b.id] || undefined }),
@@ -23,7 +28,10 @@ export default function KycPage() {
   );
   return (
     <>
-      <PageHeader title="KYC & verification" subtitle="Broker RERA / GST और owner property documents — verify करने पर Verified badge मिलता है" />
+      <PageHeader
+        title="KYC & verification"
+        subtitle="Personal और firm documents की अलग review; सभी active firm documents approve होने पर firm verified होती है"
+      />
       <Segmented
         className="mb-5"
         value={status}
@@ -34,6 +42,10 @@ export default function KycPage() {
           { value: 'REJECTED', label: 'Rejected' },
         ]}
       />
+      <label className="my-3 flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
+        पुरानी / बदली हुई submissions
+      </label>
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
@@ -44,7 +56,6 @@ export default function KycPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <AnimatePresence initial={false}>
             {q.data.map((d) => {
-              const isPdf = /\.pdf($|\?)/i.test(d.fileUrl);
               return (
                 <motion.div
                   key={d.id}
@@ -54,18 +65,9 @@ export default function KycPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="card overflow-hidden"
                 >
-                  <a href={d.fileUrl} target="_blank" rel="noreferrer" className="group relative block h-48 bg-surface-2">
-                    {isPdf ? (
-                      <div className="grid h-full place-items-center text-muted">
-                        <FileText className="size-10" />
-                      </div>
-                    ) : (
-                      <img src={d.fileUrl} alt="" className="h-full w-full object-contain" />
-                    )}
-                    <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-lg bg-slate-900/70 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100">
-                      <ExternalLink className="size-3" /> Open
-                    </span>
-                  </a>
+                  <div className="relative min-h-48 bg-surface-2">
+                    <KycMedia src={d.fileUrl} alt={`${d.user?.name ?? d.organization?.name ?? ''} ${d.docType}`} className="h-64 w-full object-contain" />
+                  </div>
                   <div className="p-5">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone="brand">{d.docType.replace(/_/g, ' ')}</Badge>
@@ -73,7 +75,7 @@ export default function KycPage() {
                       <span className="ml-auto text-xs text-subtle">{formatDateTime(d.createdAt)}</span>
                     </div>
                     <p className="mt-3 flex items-center gap-2 font-semibold">
-                      {d.organization ? (
+                      {!d.userId && d.organization ? (
                         <>
                           <Building2 className="size-4" /> {d.organization.name}
                         </>
@@ -84,18 +86,23 @@ export default function KycPage() {
                       )}
                     </p>
                     <p className="text-xs text-muted">
-                      {d.organization ? `RERA: ${d.organization.reraNumber ?? '—'} · Firm status: ${d.organization.verification}` : d.user?.email}
+                      {!d.userId && d.organization ? `RERA: ${d.organization.reraNumber ?? '—'} · Firm status: ${d.organization.verification}` : d.user?.email}
                     </p>
                     {d.reviewNote && <p className="mt-2 text-sm text-muted">Note: {d.reviewNote}</p>}
-                    {status === 'PENDING' && (
+                    {status === 'PENDING' && !d.supersededAt && (
                       <div className="mt-4 flex gap-2">
                         <Input
                           className="h-9"
-                          placeholder="Note (optional, user को दिखेगा)"
+                          placeholder="अस्वीकृति का कारण जरूरी है"
                           value={notes[d.id] ?? ''}
                           onChange={(e) => setNotes({ ...notes, [d.id]: e.target.value })}
                         />
-                        <Button size="sm" variant="secondary" onClick={() => review.mutate({ id: d.id, status: 'REJECTED' })}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={!notes[d.id]?.trim() || review.isPending}
+                          onClick={() => review.mutate({ id: d.id, status: 'REJECTED' })}
+                        >
                           <X className="size-4" />
                         </Button>
                         <Button size="sm" variant="success" onClick={() => review.mutate({ id: d.id, status: 'VERIFIED' })}>

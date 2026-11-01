@@ -1,4 +1,16 @@
-import { Controller, Get, NotFoundException, Param, PayloadTooLargeException, Put, Query, Req, Res, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  PayloadTooLargeException,
+  Put,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -6,6 +18,10 @@ import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators';
 import { LocalStorageService, RESIZE_WIDTHS } from '../../core/media/local-storage.service';
 import { PhotoBrandingService } from './photo-branding.service';
+import { KycService } from '../../core/media/kyc.service';
+import { CurrentUser, type RequestUser } from '../../common/decorators';
+import { createHash } from 'node:crypto';
+import { renderKyc } from '../../core/media/kyc-render';
 
 /** Upload + serve endpoints for the self-hosted media store (MEDIA_ROOT). */
 @ApiExcludeController()
@@ -15,7 +31,26 @@ export class MediaController {
     private readonly store: LocalStorageService,
     private readonly branding: PhotoBrandingService,
     private readonly prisma: PrismaService,
+    private readonly kyc: KycService,
   ) {}
+
+  @Get('kyc/:id')
+  async kycPreview(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Query('render') render: string | undefined,
+    @Query('page') page: string | undefined,
+    @Res() res: Response,
+  ) {
+    const file = await this.kyc.preview(id, user);
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (render === 'page') return res.json(await renderKyc(file, page));
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Length', file.body.length);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    return res.end(file.body);
+  }
 
   /** Body is the raw file; the signed token (from /me/uploads/sign) authorises exactly one key. */
   @Public()
@@ -31,16 +66,25 @@ export class MediaController {
   @Public()
   @SkipThrottle()
   @Get('f/:kind/:owner/:month/:id')
-  async serve(@Param() p: Record<string, string>, @Query('w') w: string | undefined, @Req() req: Request, @Res() res: Response) {
+  async serve(
+    @Param() p: Record<string, string>,
+    @Query('w') w: string | undefined,
+    @Query('render') render: string | undefined,
+    @Query('page') page: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     if (!this.store.enabled) throw new NotFoundException();
     const key = `${p.kind}/${p.owner}/${p.month}/${p.id}`;
-    const width = RESIZE_WIDTHS.find((x) => String(x) === w);
+    const width = p.kind === 'kyc' ? undefined : RESIZE_WIDTHS.find((x) => String(x) === w);
     const etag = `"${p.id}${width ? `-${width}` : ''}"`;
     const isPrivate = this.store.isPrivate(key);
+    let kycDoc: { fileSha256: string | null } | null = null;
     if (isPrivate) {
       const user = (req as any).user;
       if (!user) throw new UnauthorizedException('Private media requires login');
-      if (user.role !== 'SUPER_ADMIN' && user.id !== p.owner && user.orgId !== p.owner) {
+      if (p.kind === 'kyc') kycDoc = await this.kyc.authorizeRaw(key, user);
+      else if (user.role !== 'SUPER_ADMIN' && user.id !== p.owner && user.orgId !== p.owner) {
         const owner = await this.prisma.user.findUnique({ where: { id: p.owner }, select: { organizationId: true } });
         if (!user.orgId || owner?.organizationId !== user.orgId) throw new ForbiddenException('Private media belongs to another firm');
       }
@@ -50,6 +94,9 @@ export class MediaController {
     if (!isPrivate && req.headers['if-none-match'] === etag) return res.status(304).end();
 
     const { contentType, body } = await this.store.read(key, width);
+    if (kycDoc?.fileSha256 && !width && createHash('sha256').update(body).digest('hex') !== kycDoc.fileSha256)
+      throw new ForbiddenException('KYC integrity check failed');
+    if (p.kind === 'kyc' && render === 'page') return res.json(await renderKyc({ contentType, body }, page));
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', body.length);
     // Only images / video / PDF render inline; anything else (svg, html, docs) is downloaded with sandbox.

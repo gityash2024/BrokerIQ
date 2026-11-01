@@ -100,7 +100,7 @@ export class MeController {
     const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any)
       ? body.kind!
       : 'listing';
-    return this.media.sign(kind, body?.contentType ?? 'image/jpeg', user.orgId ?? user.id);
+    return this.media.sign(kind, body?.contentType ?? 'image/jpeg', kind === 'kyc' ? user.id : user.orgId ?? user.id);
   }
 
   @Get('saved-searches')

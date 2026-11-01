@@ -24,6 +24,12 @@ export class MediaService {
   ) {}
 
   async sign(kind: UploadKind, contentType = 'image/jpeg', ownerId = 'anon') {
+    if (kind === 'kyc') {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(contentType))
+        throw new BadRequestException('KYC supports JPEG, PNG, WebP or PDF only');
+      if (!this.local.enabled) throw new IntegrationNotConfiguredException('private_storage', 'KYC documents require private encrypted storage.');
+      return this.local.presign(kind, contentType, ownerId);
+    }
     const folderSuffix = `${kind}/${ownerId}`;
     const cld = await this.settings.resolve('cloudinary');
     if (cld?.cloudName && cld?.apiKey && cld?.apiSecret) {
@@ -66,6 +72,10 @@ export class MediaService {
   /** Server-side upload of a base64 data URL (used for AI scanner images). */
   async uploadDataUrl(dataUrl: string, kind: UploadKind, ownerId: string): Promise<string | null> {
     if (!dataUrl.startsWith('data:')) throw new BadRequestException('Invalid image');
+    if (kind === 'kyc') {
+      if (!this.local.enabled) throw new IntegrationNotConfiguredException('private_storage');
+      return this.local.putDataUrl(dataUrl, kind, ownerId);
+    }
     const cld = await this.settings.resolve('cloudinary');
     if (cld?.cloudName && cld?.apiKey && cld?.apiSecret) {
       cloudinary.config({ cloud_name: String(cld.cloudName), api_key: String(cld.apiKey), api_secret: String(cld.apiSecret) });

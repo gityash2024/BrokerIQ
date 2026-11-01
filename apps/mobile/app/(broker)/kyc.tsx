@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Alert, FlatList, Image, Modal, ScrollView, TouchableOpacity, View } from 'react-native';
+import { KycHistory } from '@/launch/kyc-history';
+import { router, useLocalSearchParams } from 'expo-router';
+import { KycMedia } from '@/launch/kyc-media';
+import { useState, useEffect } from 'react';
+import { Alert, FlatList, Modal, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Building2, CheckCircle2, Clock, CreditCard, Eye, FileText, Lock, Shield, ShieldAlert, ShieldCheck, Users, X, XCircle } from 'lucide-react-native';
+import { Building2, CheckCircle2, CreditCard, Eye, FileText, Shield, ShieldCheck, Users, X, XCircle } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
 import { Txt, Button, Card, Badge, Avatar, Row } from '@/ui';
 import { useTheme } from '@/lib/theme';
@@ -25,7 +28,13 @@ function BrokerAdminKycManagement() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  const params = useLocalSearchParams<{ view?: string; member?: string }>();
+  const [rejectingMember, setRejectingMember] = useState<any>(null);
+  const [rejectNote, setRejectNote] = useState('');
   const [activeTab, setActiveTab] = useState<'team' | 'firm'>('team');
+  useEffect(() => {
+    setActiveTab(params.view === 'firm' ? 'firm' : 'team');
+  }, [params.view]);
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('ALL');
   const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
 
@@ -41,8 +50,14 @@ function BrokerAdminKycManagement() {
 
   const reviewMutation = useMutation({
     mutationFn: ({ agentId, status, reviewNote }: { agentId: string; status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) =>
-      patch(`/broker/team/agents/${agentId}/kyc`, { status, reviewNote }),
+      patch(`/broker/team/agents/${agentId}/kyc`, {
+        status,
+        reviewNote,
+        expectedDocumentIds: (teamQuery.data?.members ?? []).find((m: any) => m.id === agentId)?.kycDocuments?.map((d: any) => d.id),
+      }),
     onSuccess: (_, vars) => {
+      setRejectingMember(null);
+      setRejectNote('');
       Alert.alert(
         vars.status === 'VERIFIED' ? 'KYC स्वीकृत ✅' : 'KYC अस्वीकृत',
         vars.status === 'VERIFIED' ? 'एजेंट का KYC सफलतापूर्वक वेरीफाई हो गया।' : 'एजेंट का KYC रिजेक्ट कर दिया गया है।',
@@ -66,37 +81,13 @@ function BrokerAdminKycManagement() {
   };
 
   const handleReject = (member: any) => {
-    return Alert.prompt
-      ? Alert.prompt('KYC Reject करें', 'अस्वीकृति का कारण दर्ज करें (उदा. आधार साफ़ नहीं है):', [
-          { text: 'रद्द करें', style: 'cancel' },
-          {
-            text: 'Reject',
-            style: 'destructive',
-            onPress: (note?: string) =>
-              reviewMutation.mutate({
-                agentId: member.id,
-                status: 'REJECTED',
-                reviewNote: note?.trim() || 'दस्तावेज़ स्पष्ट नहीं हैं',
-              }),
-          },
-        ])
-      : Alert.alert('KYC Reject करें', `क्या आप ${member.name} का KYC अस्वीकार करना चाहते हैं?`, [
-          { text: 'रद्द करें', style: 'cancel' },
-          {
-            text: 'Reject',
-            style: 'destructive',
-            onPress: () =>
-              reviewMutation.mutate({
-                agentId: member.id,
-                status: 'REJECTED',
-                reviewNote: 'दस्तावेज़ स्पष्ट नहीं हैं या जानकारी मेल नहीं खाती',
-              }),
-          },
-        ]);
+    setRejectingMember(member);
+    setRejectNote('');
   };
 
   const members = teamQuery.data?.members ?? [];
   const filtered = members.filter((m: any) => {
+    if (params.member && m.id !== params.member) return false;
     if (filter === 'ALL') return true;
     return m.kycStatus === filter;
   });
@@ -105,7 +96,11 @@ function BrokerAdminKycManagement() {
   const verifiedCount = members.filter((m: any) => m.kycStatus === 'VERIFIED').length;
 
   return (
-    <BrokerScreen title="KYC" subtitle="टीम का सत्यापन व फर्म स्टेटस">
+    <BrokerScreen
+      title="KYC"
+      subtitle="टीम का सत्यापन व फर्म स्टेटस"
+      action={<Button title="मेरा KYC" size="sm" variant="secondary" onPress={() => router.push('/agent-kyc')} />}
+    >
       {/* Header with Tab switcher */}
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, gap: 10 }}>
         {/* Tab switch pills */}
@@ -313,7 +308,7 @@ function BrokerAdminKycManagement() {
                             }}
                           >
                             {pose.url ? (
-                              <Image source={{ uri: pose.url }} style={{ width: '100%', height: '100%' }} />
+                              <KycMedia uri={pose.url} style={{ width: '100%', height: '100%' }} />
                             ) : (
                               <Txt v="caption" color="subtle">
                                 {pose.label}
@@ -332,10 +327,11 @@ function BrokerAdminKycManagement() {
                   </View>
                 )}
 
+                {(m.role === 'BROKER_AGENT' || m.id === user?.id) && <KycHistory member={m.id} />}
                 {/* Action Buttons */}
-                {hasSubmission && (
+                {hasSubmission && m.role === 'BROKER_AGENT' && m.id !== user?.id && m.kycStatus === 'PENDING' && (
                   <Row gap={8} style={{ marginTop: 2 }}>
-                    {m.kycStatus !== 'VERIFIED' && (
+                    {m.kycStatus === 'PENDING' && (
                       <TouchableOpacity
                         onPress={() => handleApprove(m)}
                         style={{
@@ -356,7 +352,7 @@ function BrokerAdminKycManagement() {
                       </TouchableOpacity>
                     )}
 
-                    {m.kycStatus !== 'REJECTED' && (
+                    {m.kycStatus === 'PENDING' && (
                       <TouchableOpacity
                         onPress={() => handleReject(m)}
                         style={{
@@ -531,6 +527,28 @@ function BrokerAdminKycManagement() {
       )}
 
       {/* Photo Preview Modal */}
+      <Modal visible={!!rejectingMember} transparent animationType="fade" onRequestClose={() => setRejectingMember(null)}>
+        <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,.75)', padding: 20 }}>
+          <Card style={{ padding: 16, gap: 12 }}>
+            <Txt v="bodyStrong">{rejectingMember?.name}: अस्वीकृति का कारण</Txt>
+            <TextInput
+              value={rejectNote}
+              onChangeText={setRejectNote}
+              multiline
+              maxLength={500}
+              placeholder="कौन-सा document या जानकारी सुधारनी है?"
+              placeholderTextColor={c.muted}
+              style={{ minHeight: 90, color: c.fg, borderWidth: 1, borderColor: c.line, borderRadius: 10, padding: 10 }}
+            />
+            <Button
+              title="Reject KYC"
+              disabled={!rejectNote.trim() || reviewMutation.isPending}
+              onPress={() => reviewMutation.mutate({ agentId: rejectingMember.id, status: 'REJECTED', reviewNote: rejectNote.trim() })}
+            />
+            <Button title="रद्द करें" variant="secondary" onPress={() => setRejectingMember(null)} />
+          </Card>
+        </View>
+      </Modal>
       <Modal visible={!!previewPhoto} transparent animationType="fade" onRequestClose={() => setPreviewPhoto(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <TouchableOpacity
@@ -542,7 +560,7 @@ function BrokerAdminKycManagement() {
           {previewPhoto && (
             <View style={{ width: '100%', alignItems: 'center', gap: 12 }}>
               <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{previewPhoto.title}</Txt>
-              <Image source={{ uri: previewPhoto.url }} style={{ width: '100%', height: 380, borderRadius: 14 }} resizeMode="contain" />
+              <KycMedia uri={previewPhoto.url} style={{ width: '100%', height: 380, borderRadius: 14 }} />
             </View>
           )}
         </View>

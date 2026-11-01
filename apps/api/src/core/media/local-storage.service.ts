@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'crypto';
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
@@ -18,7 +18,7 @@ const FLAG_BROTLI = 1;
 const MB = 1024 * 1024;
 
 /** Kinds whose files must never be cached by browsers / Cloudflare. */
-export const PRIVATE_KINDS: readonly UploadKind[] = ['scan', 'chat', 'inspection'];
+export const PRIVATE_KINDS: readonly UploadKind[] = ['scan', 'chat', 'inspection', 'kyc'];
 /** Widths the API resizes to on `?w=` — a fixed set keeps the CDN cache small. */
 export const RESIZE_WIDTHS = [320, 480, 800, 1200] as const;
 
@@ -119,7 +119,20 @@ export class LocalStorageService {
     await fs.mkdir(dirname(path), { recursive: true });
     const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
     await fs.writeFile(tmp, out, { mode: 0o600 });
-    await fs.rename(tmp, path);
+    if (key.startsWith('kyc/')) {
+      // A still-valid signed PUT must not replace a document already under review.
+      try {
+        await fs.link(tmp, path);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        const existing = await this.read(key);
+        const plain = flags & FLAG_BROTLI ? await unbrotli(body) : body;
+        if (existing.contentType !== ct || !existing.body.equals(plain))
+          throw new ConflictException('Upload पहले पूरी हो चुकी है। Replacement के लिए नया upload शुरू करें।');
+      } finally {
+        await fs.unlink(tmp).catch(() => undefined);
+      }
+    } else await fs.rename(tmp, path);
     return ct;
   }
 
@@ -158,10 +171,20 @@ export class LocalStorageService {
     return key;
   }
 
+  /** Checksum-preserving KYC migration; caller performs authorization and records the hash. */
+  async putKyc(data: Buffer, contentType: string, ownerId: string): Promise<string> {
+    if (!this.enabled) throw new IntegrationNotConfiguredException('private_storage');
+    const key = this.newKey('kyc', ownerId);
+    await this.store(key, contentType, data, true);
+    return key;
+  }
+
   async putDataUrl(dataUrl: string, kind: UploadKind, ownerId: string): Promise<string> {
     const m = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(dataUrl);
     if (!m) throw new BadRequestException('Invalid image');
     const data = m[2] ? Buffer.from(m[3], 'base64') : Buffer.from(decodeURIComponent(m[3]), 'utf8');
+    if (kind === 'kyc' && !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(m[1]))
+      throw new BadRequestException('Unsupported KYC file type');
     if (data.length > maxBytesFor(m[1])) throw new PayloadTooLargeException('File too large');
     const key = this.newKey(kind, ownerId);
     await this.store(key, m[1], data);

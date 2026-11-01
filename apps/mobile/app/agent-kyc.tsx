@@ -1,7 +1,8 @@
+import { KycHistory } from '@/launch/kyc-history';
+import { KycMedia } from '@/launch/kyc-media';
 import { useState, useEffect } from 'react';
 import {
   Alert,
-  Image,
   Modal,
   ScrollView,
   TextInput,
@@ -21,7 +22,6 @@ import {
   ShieldCheck,
   ShieldAlert,
   Shield,
-  RotateCcw,
   Upload,
   UserCheck,
   X,
@@ -217,6 +217,7 @@ export default function AgentKycScreen() {
 
   return (
     <BrokerScreen title="KYC" subtitle={activeTab === 'my' ? 'आधार, पैन व फ़ेस लाइवलीनेस सत्यापन' : 'फर्म का सत्यापन व RERA लाइसेंस'}>
+      <KycHistory />
       {/* Tab Switch Pills */}
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 }}>
         <Row gap={8}>
@@ -516,10 +517,10 @@ export default function AgentKycScreen() {
             </Txt>
             {currentAadhaarDoc ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: c.line, padding: 8 }}>
-                <Image source={{ uri: currentAadhaarDoc }} style={{ width: 50, height: 50, borderRadius: 8 }} />
+                <KycMedia uri={currentAadhaarDoc} style={{ width: 50, height: 50, borderRadius: 8 }} />
                 <View style={{ flex: 1 }}>
                   <Txt style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>दस्तावेज़ संलग्न ✅</Txt>
-                  <Txt v="caption" color="muted" numberOfLines={1}>{currentAadhaarDoc}</Txt>
+                  <Txt v="caption" color="muted" numberOfLines={1}>Private document · देखें</Txt>
                 </View>
                 {!isVerified && (
                   <TouchableOpacity onPress={() => pickDocument('aadhaar')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
@@ -604,10 +605,10 @@ export default function AgentKycScreen() {
             </Txt>
             {currentPanDoc ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: c.line, padding: 8 }}>
-                <Image source={{ uri: currentPanDoc }} style={{ width: 50, height: 50, borderRadius: 8 }} />
+                <KycMedia uri={currentPanDoc} style={{ width: 50, height: 50, borderRadius: 8 }} />
                 <View style={{ flex: 1 }}>
                   <Txt style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>दस्तावेज़ संलग्न ✅</Txt>
-                  <Txt v="caption" color="muted" numberOfLines={1}>{currentPanDoc}</Txt>
+                  <Txt v="caption" color="muted" numberOfLines={1}>Private document · देखें</Txt>
                 </View>
                 {!isVerified && (
                   <TouchableOpacity onPress={() => pickDocument('pan')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
@@ -702,7 +703,7 @@ export default function AgentKycScreen() {
                   }}
                 >
                   {pose.url ? (
-                    <Image source={{ uri: pose.url }} style={{ width: '100%', height: '100%' }} />
+                    <KycMedia uri={pose.url} style={{ width: '100%', height: '100%' }} />
                   ) : (
                     <Camera size={24} color={c.muted} />
                   )}
@@ -763,7 +764,7 @@ export default function AgentKycScreen() {
           {previewPhoto && (
             <View style={{ width: '100%', alignItems: 'center', gap: 12 }}>
               <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{previewPhoto.title}</Txt>
-              <Image source={{ uri: previewPhoto.url }} style={{ width: '100%', height: 380, borderRadius: 14 }} resizeMode="contain" />
+              <KycMedia uri={previewPhoto.url} style={{ width: '100%', height: 380, borderRadius: 14 }} />
             </View>
           )}
         </View>

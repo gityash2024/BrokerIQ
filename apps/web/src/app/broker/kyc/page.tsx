@@ -1,19 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
-  AlertCircle,
   BadgeCheck,
   Building2,
   CheckCircle2,
   Clock,
   CreditCard,
-  ExternalLink,
   Eye,
   FileCheck,
   FileText,
-  Filter,
   Lock,
   MapPin,
   RotateCcw,
@@ -21,7 +19,6 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
   Upload,
   UserCheck,
   Users,
@@ -29,6 +26,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { KycHistory } from '@/components/broker/kyc-history';
+import { KycMedia, KycPreviewButton } from '@/components/broker/kyc-media';
 import { api, uploadFile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { patch, post, useApiMutation } from '@/lib/hooks';
@@ -46,9 +45,20 @@ import { cn, formatDate } from '@/lib/utils';
 
 export default function BrokerKycPage() {
   const { user } = useAuth();
+  const params = useSearchParams();
+  const router = useRouter();
   const isAdminOrSuper = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
 
   if (isAdminOrSuper) {
+    if (params.get('view') === 'mine')
+      return (
+        <>
+          <Button variant="secondary" onClick={() => router.push('/broker/kyc')}>
+            टीम / Firm KYC
+          </Button>
+          <AgentKycSubmissionView />
+        </>
+      );
     return <AdminKycManagementView user={user} />;
   }
 
@@ -60,6 +70,8 @@ export default function BrokerKycPage() {
 /* ========================================================================= */
 
 function AdminKycManagementView({ user }: { user: any }) {
+  const params = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'team' | 'firm'>('team');
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('ALL');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_AGENT' | 'BROKER_ADMIN'>('ALL');
@@ -68,6 +80,10 @@ function AdminKycManagementView({ user }: { user: any }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'PENDING_FIRST' | 'RECENT' | 'NAME_ASC'>('PENDING_FIRST');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setActiveTab(params.get('view') === 'firm' ? 'firm' : 'team');
+    setAgentFilter(params.get('member') || 'ALL');
+  }, [params]);
 
   const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
   const [rejectingMember, setRejectingMember] = useState<any | null>(null);
@@ -77,7 +93,10 @@ function AdminKycManagementView({ user }: { user: any }) {
 
   const reviewMutation = useApiMutation(
     ({ agentId, ...body }: { agentId: string; status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) =>
-      patch(`/broker/team/agents/${agentId}/kyc`, body),
+      patch(`/broker/team/agents/${agentId}/kyc`, {
+        ...body,
+        expectedDocumentIds: (teamQuery.data?.members ?? []).find((m: any) => m.id === agentId)?.kycDocuments?.map((d: any) => d.id),
+      }),
     {
       invalidate: [['team']],
       onSuccess: (_, vars) => {
@@ -202,18 +221,15 @@ function AdminKycManagementView({ user }: { user: any }) {
         subtitle="अपनी टीम के एजेंट्स का KYC सत्यापन करें एवं अपनी फर्म का KYC स्टेटस देखें"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={activeTab === 'team' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('team')}
-            >
+            {user.role === 'BROKER_ADMIN' && (
+              <Button size="sm" variant="secondary" onClick={() => router.push('/broker/kyc?view=mine')}>
+                मेरा KYC
+              </Button>
+            )}
+            <Button size="sm" variant={activeTab === 'team' ? 'primary' : 'secondary'} onClick={() => setActiveTab('team')}>
               <Users className="size-4" /> Team KYC Review ({pendingCount} लंबित)
             </Button>
-            <Button
-              size="sm"
-              variant={activeTab === 'firm' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('firm')}
-            >
+            <Button size="sm" variant={activeTab === 'firm' ? 'primary' : 'secondary'} onClick={() => setActiveTab('firm')}>
               <Building2 className="size-4" /> Firm KYC {isFirmVerified ? '✅' : '(सत्यापन)'}
             </Button>
           </div>
@@ -293,11 +309,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                     className="pl-9 pr-7 h-9 text-xs"
                   />
                   {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
-                    >
+                    <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg">
                       <X className="size-3.5" />
                     </button>
                   )}
@@ -305,11 +317,7 @@ function AdminKycManagementView({ user }: { user: any }) {
 
                 {/* Status filter dropdown */}
                 <div className="w-36">
-                  <Select
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value as any)}
-                    className="h-9 text-xs"
-                  >
+                  <Select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="h-9 text-xs">
                     <option value="ALL">सभी स्टेटस (All)</option>
                     <option value="PENDING">लंबित (Pending)</option>
                     <option value="VERIFIED">प्रमाणित (Verified)</option>
@@ -320,11 +328,7 @@ function AdminKycManagementView({ user }: { user: any }) {
 
                 {/* Role filter */}
                 <div className="w-36">
-                  <Select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value as any)}
-                    className="h-9 text-xs"
-                  >
+                  <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as any)} className="h-9 text-xs">
                     <option value="ALL">सभी रोल्स (All Roles)</option>
                     <option value="BROKER_AGENT">केवल एजेंट्स (Agents)</option>
                     <option value="BROKER_ADMIN">केवल एडमिन्स (Admins)</option>
@@ -333,11 +337,7 @@ function AdminKycManagementView({ user }: { user: any }) {
 
                 {/* Agent dropdown filter */}
                 <div className="w-44">
-                  <Select
-                    value={agentFilter}
-                    onChange={(e) => setAgentFilter(e.target.value)}
-                    className="h-9 text-xs"
-                  >
+                  <Select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} className="h-9 text-xs">
                     <option value="ALL">सभी एजेंट्स (All Agents)</option>
                     {members.map((m: any) => (
                       <option key={m.id} value={m.id}>
@@ -352,11 +352,7 @@ function AdminKycManagementView({ user }: { user: any }) {
 
                 {/* Sort by */}
                 <div className="w-36">
-                  <Select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="h-9 text-xs"
-                  >
+                  <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="h-9 text-xs">
                     <option value="PENDING_FIRST">समीक्षा लंबित पहले</option>
                     <option value="RECENT">हालिया सबमिशन पहले</option>
                     <option value="NAME_ASC">नाम (A से Z)</option>
@@ -365,12 +361,7 @@ function AdminKycManagementView({ user }: { user: any }) {
 
                 {/* Reset filter */}
                 {hasActiveFilters && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleResetFilters}
-                    className="h-9 text-xs text-muted hover:text-fg"
-                  >
+                  <Button size="sm" variant="ghost" onClick={handleResetFilters} className="h-9 text-xs text-muted hover:text-fg">
                     <RotateCcw className="size-3.5 mr-1" /> रीसेट (Clear)
                   </Button>
                 )}
@@ -397,23 +388,15 @@ function AdminKycManagementView({ user }: { user: any }) {
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-bold text-brand-600 dark:text-brand-400">
                     <span>{selectedIds.size} चयनित (Selected)</span>
                     {selectedDocIds.length === 0 ? (
-                      <span className="font-normal text-amber-600 dark:text-amber-400 text-[11px] ml-1">
-                        (0 दस्तावेज़ / No Docs)
-                      </span>
+                      <span className="font-normal text-amber-600 dark:text-amber-400 text-[11px] ml-1">(0 दस्तावेज़ / No Docs)</span>
                     ) : selectedDocIds.length !== selectedIds.size ? (
-                      <span className="font-normal text-muted text-[11px] ml-1">
-                        ({selectedDocIds.length} दस्तावेज़)
-                      </span>
+                      <span className="font-normal text-muted text-[11px] ml-1">({selectedDocIds.length} दस्तावेज़)</span>
                     ) : null}
                   </span>
                 )}
 
                 {selectedIds.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedIds(new Set())}
-                    className="text-xs text-muted hover:text-fg underline"
-                  >
+                  <button type="button" onClick={() => setSelectedIds(new Set())} className="text-xs text-muted hover:text-fg underline">
                     चयन हटाएं
                   </button>
                 )}
@@ -491,9 +474,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold text-base">{member.name}</p>
-                            <Badge tone={member.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>
-                              {member.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}
-                            </Badge>
+                            <Badge tone={member.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>{member.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}</Badge>
                             {member.lastLocation && (
                               <a
                                 href={`https://www.google.com/maps?q=${member.lastLocation.latitude},${member.lastLocation.longitude}`}
@@ -504,11 +485,13 @@ function AdminKycManagementView({ user }: { user: any }) {
                               >
                                 <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                 <MapPin className="size-3" />
-                                लाइव लोकेशन
+                                अंतिम लोकेशन
                               </a>
                             )}
                           </div>
-                          <p className="text-xs text-muted">{member.email} {member.phone ? `· ${member.phone}` : ''}</p>
+                          <p className="text-xs text-muted">
+                            {member.email} {member.phone ? `· ${member.phone}` : ''}
+                          </p>
                           <div className="mt-2 flex items-center gap-2">
                             {member.kycStatus === 'VERIFIED' ? (
                               <Badge tone="success" className="font-bold">
@@ -526,38 +509,45 @@ function AdminKycManagementView({ user }: { user: any }) {
                               <Badge tone="neutral">Not Submitted • जमा नहीं</Badge>
                             )}
                             {aadhaar?.reviewedAt && (
-                              <span className="text-[11px] text-muted">
-                                {formatDate(aadhaar.reviewedAt, { day: 'numeric', month: 'short' })} को समीक्षित
-                              </span>
+                              <span className="text-[11px] text-muted">{formatDate(aadhaar.reviewedAt, { day: 'numeric', month: 'short' })} को समीक्षित</span>
                             )}
                           </div>
                         </div>
                       </div>
 
+                      {(member.role === 'BROKER_AGENT' || member.id === user.id || user.role === 'SUPER_ADMIN') && <KycHistory member={member.id} />}
                       {/* Review Action Buttons */}
                       <div className="flex items-center gap-2 self-end md:self-start">
-                        {member.kycStatus !== 'VERIFIED' && hasSubmission && (
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                            loading={reviewMutation.isPending && reviewMutation.variables?.agentId === member.id && reviewMutation.variables?.status === 'VERIFIED'}
-                            onClick={() => reviewMutation.mutate({ agentId: member.id, status: 'VERIFIED' })}
-                          >
-                            <CheckCircle2 className="size-4" /> Approve KYC
-                          </Button>
-                        )}
-                        {member.kycStatus !== 'REJECTED' && hasSubmission && (
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => {
-                              setRejectingMember(member);
-                              setRejectNote('');
-                            }}
-                          >
-                            <XCircle className="size-4" /> Reject KYC
-                          </Button>
-                        )}
+                        {member.id !== user.id &&
+                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT') &&
+                          member.kycStatus === 'PENDING' &&
+                          hasSubmission && (
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                              loading={
+                                reviewMutation.isPending && reviewMutation.variables?.agentId === member.id && reviewMutation.variables?.status === 'VERIFIED'
+                              }
+                              onClick={() => reviewMutation.mutate({ agentId: member.id, status: 'VERIFIED' })}
+                            >
+                              <CheckCircle2 className="size-4" /> Approve KYC
+                            </Button>
+                          )}
+                        {member.id !== user.id &&
+                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT') &&
+                          member.kycStatus === 'PENDING' &&
+                          hasSubmission && (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => {
+                                setRejectingMember(member);
+                                setRejectNote('');
+                              }}
+                            >
+                              <XCircle className="size-4" /> Reject KYC
+                            </Button>
+                          )}
                       </div>
                     </div>
 
@@ -571,9 +561,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                               <span className="flex items-center gap-1">
                                 <CreditCard className="size-3.5 text-saffron-500" /> आधार कार्ड
                               </span>
-                              <Badge tone={aadhaar?.status === 'VERIFIED' ? 'success' : 'neutral'}>
-                                {aadhaar?.status || 'PENDING'}
-                              </Badge>
+                              <Badge tone={aadhaar?.status === 'VERIFIED' ? 'success' : 'neutral'}>{aadhaar?.status || 'PENDING'}</Badge>
                             </div>
                             <p className="font-mono text-xs font-extrabold tracking-wider">
                               {aadhaar?.docNumber ? aadhaar.docNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3') : 'नंबर दर्ज नहीं'}
@@ -586,7 +574,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                               onClick={() => setPreviewPhoto({ title: `${member.name} - आधार कार्ड`, url: aadhaar.fileUrl })}
                               className="my-2 relative aspect-[4/3] rounded-lg overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
                             >
-                              <img
+                              <KycMedia
                                 src={aadhaar.fileUrl}
                                 alt="Aadhaar Document"
                                 className="w-full h-full object-contain group-hover:scale-105 transition-transform"
@@ -622,13 +610,9 @@ function AdminKycManagementView({ user }: { user: any }) {
                               <span className="flex items-center gap-1">
                                 <CreditCard className="size-3.5 text-blue-500" /> पैन कार्ड
                               </span>
-                              <Badge tone={pan?.status === 'VERIFIED' ? 'success' : 'neutral'}>
-                                {pan?.status || 'PENDING'}
-                              </Badge>
+                              <Badge tone={pan?.status === 'VERIFIED' ? 'success' : 'neutral'}>{pan?.status || 'PENDING'}</Badge>
                             </div>
-                            <p className="font-mono text-xs font-extrabold tracking-wider">
-                              {pan?.docNumber || 'नंबर दर्ज नहीं'}
-                            </p>
+                            <p className="font-mono text-xs font-extrabold tracking-wider">{pan?.docNumber || 'नंबर दर्ज नहीं'}</p>
                           </div>
 
                           {/* Embedded Photo Thumbnail */}
@@ -637,7 +621,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                               onClick={() => setPreviewPhoto({ title: `${member.name} - पैन कार्ड`, url: pan.fileUrl })}
                               className="my-2 relative aspect-[4/3] rounded-lg overflow-hidden border border-line bg-slate-950 flex items-center justify-center cursor-pointer group hover:border-brand transition-all"
                             >
-                              <img
+                              <KycMedia
                                 src={pan.fileUrl}
                                 alt="PAN Document"
                                 className="w-full h-full object-contain group-hover:scale-105 transition-transform"
@@ -675,7 +659,11 @@ function AdminKycManagementView({ user }: { user: any }) {
                               className="relative cursor-pointer group rounded-xl overflow-hidden border border-line aspect-[4/5] bg-slate-950 flex items-center justify-center"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={straight.fileUrl} alt="Straight Face" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                              <KycMedia
+                                src={straight.fileUrl}
+                                alt="Straight Face"
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                              />
                               <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
                                 <Eye className="size-4 mr-1" /> बड़ा देखें
                               </div>
@@ -694,7 +682,11 @@ function AdminKycManagementView({ user }: { user: any }) {
                               className="relative cursor-pointer group rounded-xl overflow-hidden border border-line aspect-[4/5] bg-slate-950 flex items-center justify-center"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={left.fileUrl} alt="Left Face" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                              <KycMedia
+                                src={left.fileUrl}
+                                alt="Left Face"
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                              />
                               <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
                                 <Eye className="size-4 mr-1" /> बड़ा देखें
                               </div>
@@ -713,7 +705,11 @@ function AdminKycManagementView({ user }: { user: any }) {
                               className="relative cursor-pointer group rounded-xl overflow-hidden border border-line aspect-[4/5] bg-slate-950 flex items-center justify-center"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={right.fileUrl} alt="Right Face" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                              <KycMedia
+                                src={right.fileUrl}
+                                alt="Right Face"
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                              />
                               <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
                                 <Eye className="size-4 mr-1" /> बड़ा देखें
                               </div>
@@ -750,7 +746,7 @@ function AdminKycManagementView({ user }: { user: any }) {
         {previewPhoto && (
           <div className="overflow-hidden rounded-xl bg-black flex items-center justify-center p-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewPhoto.url} alt={previewPhoto.title} className="max-h-[70vh] w-auto rounded object-contain" />
+            <KycMedia src={previewPhoto.url} alt={previewPhoto.title} className="max-h-[70vh] w-auto rounded object-contain" />
           </div>
         )}
       </Dialog>
@@ -784,11 +780,7 @@ function AdminKycManagementView({ user }: { user: any }) {
         }
       >
         <Field label="अस्वीकृति का कारण (Reason for Rejection)" required>
-          <Input
-            placeholder="उदा. आधार कार्ड की फ़ोटो धुंधली है या नंबर मेल नहीं खाता"
-            value={rejectNote}
-            onChange={(e) => setRejectNote(e.target.value)}
-          />
+          <Input placeholder="उदा. आधार कार्ड की फ़ोटो धुंधली है या नंबर मेल नहीं खाता" value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} />
         </Field>
       </Dialog>
     </>
@@ -838,13 +830,10 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
     }
   }, [firmData]);
 
-  const submitMutation = useApiMutation(
-    (body: any) => post('/broker/firm-kyc', body),
-    {
-      success: 'फर्म KYC दस्तावेज़ सफलतापूर्वक सबमिट हो गए! सुपरएडमिन जल्द इसे सत्यापित करेगा।',
-      invalidate: [['broker-firm-kyc']],
-    },
-  );
+  const submitMutation = useApiMutation((body: any) => post('/broker/firm-kyc', body), {
+    success: 'फर्म KYC दस्तावेज़ सफलतापूर्वक सबमिट हो गए! सुपरएडमिन जल्द इसे सत्यापित करेगा।',
+    invalidate: [['broker-firm-kyc']],
+  });
 
   const handleUpload = async (file: File, type: 'RERA' | 'GST' | 'PAN') => {
     try {
@@ -967,7 +956,9 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
             <div className="text-xs text-rose-800 dark:text-rose-200">
               <p className="font-bold">सुपरएडमिन द्वारा अस्वीकृत (Action Required)</p>
               <p className="mt-0.5">
-                {firmData?.reraDocument?.reviewNote || firmData?.gstDocument?.reviewNote || 'दस्तावेज़ स्पष्ट नहीं हैं या RERA नंबर मेल नहीं खाता। कृपया सही दस्तावेज़ दोबारा अपलोड करें।'}
+                {firmData?.reraDocument?.reviewNote ||
+                  firmData?.gstDocument?.reviewNote ||
+                  'दस्तावेज़ स्पष्ट नहीं हैं या RERA नंबर मेल नहीं खाता। कृपया सही दस्तावेज़ दोबारा अपलोड करें।'}
               </p>
             </div>
           </div>
@@ -983,9 +974,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
               <FileCheck className="size-4 text-brand-600" />
               <h4 className="font-bold text-xs uppercase tracking-wider text-muted">1. RERA रजिस्ट्रेशन व सर्टिफिकेट</h4>
             </div>
-            {firmData?.reraDocument?.status === 'VERIFIED' && (
-              <Badge tone="success">Verified RERA</Badge>
-            )}
+            {firmData?.reraDocument?.status === 'VERIFIED' && <Badge tone="success">Verified RERA</Badge>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1000,9 +989,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
             </Field>
 
             <div>
-              <label className="text-xs font-bold text-muted mb-1 block">
-                RERA सर्टिफिकेट दस्तावेज़ (PDF / Image)
-              </label>
+              <label className="text-xs font-bold text-muted mb-1 block">RERA सर्टिफिकेट दस्तावेज़ (PDF / Image)</label>
               <input
                 type="file"
                 ref={reraInputRef}
@@ -1067,9 +1054,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
               <CreditCard className="size-4 text-blue-500" />
               <h4 className="font-bold text-xs uppercase tracking-wider text-muted">2. GSTIN / ट्रेड लाइसेंस</h4>
             </div>
-            {firmData?.gstDocument?.status === 'VERIFIED' && (
-              <Badge tone="success">Verified GST</Badge>
-            )}
+            {firmData?.gstDocument?.status === 'VERIFIED' && <Badge tone="success">Verified GST</Badge>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1084,9 +1069,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
             </Field>
 
             <div>
-              <label className="text-xs font-bold text-muted mb-1 block">
-                GST / ट्रेड सर्टिफिकेट (PDF / Image)
-              </label>
+              <label className="text-xs font-bold text-muted mb-1 block">GST / ट्रेड सर्टिफिकेट (PDF / Image)</label>
               <input
                 type="file"
                 ref={gstInputRef}
@@ -1151,9 +1134,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
               <CreditCard className="size-4 text-amber-500" />
               <h4 className="font-bold text-xs uppercase tracking-wider text-muted">3. फर्म पैन कार्ड (Company PAN)</h4>
             </div>
-            {firmData?.panDocument?.status === 'VERIFIED' && (
-              <Badge tone="success">Verified PAN</Badge>
-            )}
+            {firmData?.panDocument?.status === 'VERIFIED' && <Badge tone="success">Verified PAN</Badge>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1168,9 +1149,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
             </Field>
 
             <div>
-              <label className="text-xs font-bold text-muted mb-1 block">
-                कंपनी पैन कार्ड फ़ोटो (PDF / Image)
-              </label>
+              <label className="text-xs font-bold text-muted mb-1 block">कंपनी पैन कार्ड फ़ोटो (PDF / Image)</label>
               <input
                 type="file"
                 ref={panInputRef}
@@ -1231,12 +1210,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
         {/* Submit Action for Admin */}
         {editable && (
           <div className="flex justify-end pt-1">
-            <Button
-              type="submit"
-              variant="primary"
-              loading={submitMutation.isPending}
-              className="px-5 h-9 text-xs"
-            >
+            <Button type="submit" variant="primary" loading={submitMutation.isPending} className="px-5 h-9 text-xs">
               <ShieldCheck className="size-4 mr-1.5" /> फर्म KYC सबमिट करें (Submit to SuperAdmin)
             </Button>
           </div>
@@ -1244,19 +1218,10 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
       </form>
 
       {/* Document Preview Dialog */}
-      <Dialog
-        open={!!previewDoc}
-        onOpenChange={(v) => !v && setPreviewDoc(null)}
-        title={previewDoc?.title || 'दस्तावेज़'}
-      >
+      <Dialog open={!!previewDoc} onOpenChange={(v) => !v && setPreviewDoc(null)} title={previewDoc?.title || 'दस्तावेज़'}>
         {previewDoc && (
           <div className="overflow-hidden rounded-xl bg-black flex items-center justify-center p-2">
-            {previewDoc.url.toLowerCase().endsWith('.pdf') ? (
-              <iframe src={previewDoc.url} className="w-full h-[70vh] rounded" title={previewDoc.title} />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewDoc.url} alt={previewDoc.title} className="max-h-[70vh] w-auto rounded object-contain" />
-            )}
+            <KycMedia src={previewDoc.url} alt={previewDoc.title} className="h-[70vh] w-full object-contain" />
           </div>
         )}
       </Dialog>
@@ -1331,13 +1296,10 @@ function AgentKycSubmissionView() {
     }
   }, [kyc]);
 
-  const submitMutation = useApiMutation(
-    (body: any) => post('/broker/team/agent-kyc', body),
-    {
-      success: 'Agent KYC सफलतापूर्वक सबमिट हो गया है! Admin review करेंगे।',
-      invalidate: [['agent-kyc-mine'], ['agent-kyc-mine-status']],
-    },
-  );
+  const submitMutation = useApiMutation((body: any) => post('/broker/team/agent-kyc', body), {
+    success: 'Agent KYC सफलतापूर्वक सबमिट हो गया है! Admin review करेंगे।',
+    invalidate: [['agent-kyc-mine'], ['agent-kyc-mine-status']],
+  });
 
   const handleAadhaarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isVerified) return;
@@ -1380,7 +1342,7 @@ function AgentKycSubmissionView() {
       toast.error('Aadhaar number invalid है — कृपया ठीक 12 अंकों का आधार नंबर दर्ज करें');
       return;
     }
-    const finalAadhaarDoc = aadhaarPhotoUrl !== null ? aadhaarPhotoUrl : (kyc?.aadhaarPhotoUrl || '');
+    const finalAadhaarDoc = aadhaarPhotoUrl !== null ? aadhaarPhotoUrl : kyc?.aadhaarPhotoUrl || '';
     if (!finalAadhaarDoc) {
       toast.error('Aadhaar card की फ़ोटो/डॉक्यूमेंट अपलोड करना ज़रूरी है');
       return;
@@ -1391,7 +1353,7 @@ function AgentKycSubmissionView() {
       toast.error('PAN card number invalid है — 10 अक्षरों का फॉर्मेट होना चाहिए (उदा: ABCDE1234F)');
       return;
     }
-    const finalPanDoc = panPhotoUrl !== null ? panPhotoUrl : (kyc?.panPhotoUrl || '');
+    const finalPanDoc = panPhotoUrl !== null ? panPhotoUrl : kyc?.panPhotoUrl || '';
     if (!finalPanDoc) {
       toast.error('PAN card की फ़ोटो/डॉक्यूमेंट अपलोड करना ज़रूरी है');
       return;
@@ -1422,33 +1384,26 @@ function AgentKycSubmissionView() {
   }
 
   const currentAadhaar = aadhaarNumber || kyc?.aadhaarNumber || '';
-  const currentAadhaarPhoto = aadhaarPhotoUrl !== null ? aadhaarPhotoUrl : (kyc?.aadhaarPhotoUrl || '');
+  const currentAadhaarPhoto = aadhaarPhotoUrl !== null ? aadhaarPhotoUrl : kyc?.aadhaarPhotoUrl || '';
   const currentPan = panNumber || kyc?.panNumber || '';
-  const currentPanPhoto = panPhotoUrl !== null ? panPhotoUrl : (kyc?.panPhotoUrl || '');
+  const currentPanPhoto = panPhotoUrl !== null ? panPhotoUrl : kyc?.panPhotoUrl || '';
 
   return (
     <div className="space-y-4 max-w-4xl">
+      <KycHistory />
       <PageHeader
-        title={agentTab === 'my' ? "Agent KYC" : "ब्रोकर फर्म KYC"}
+        title={agentTab === 'my' ? 'Agent KYC' : 'ब्रोकर फर्म KYC'}
         subtitle={
           agentTab === 'my'
-            ? "सुरक्षित ब्रोकर नेटवर्क के लिए आपकी पहचान एवं फेस लाइवलीनेस सत्यापन"
-            : "आपकी ब्रोकर फर्म के आधिकारिक रजिस्ट्रेशन व RERA सत्यापन विवरण"
+            ? 'सुरक्षित ब्रोकर नेटवर्क के लिए आपकी पहचान एवं फेस लाइवलीनेस सत्यापन'
+            : 'आपकी ब्रोकर फर्म के आधिकारिक रजिस्ट्रेशन व RERA सत्यापन विवरण'
         }
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={agentTab === 'my' ? 'primary' : 'secondary'}
-              onClick={() => setAgentTab('my')}
-            >
+            <Button size="sm" variant={agentTab === 'my' ? 'primary' : 'secondary'} onClick={() => setAgentTab('my')}>
               <UserCheck className="size-4" /> मेरा KYC (My KYC)
             </Button>
-            <Button
-              size="sm"
-              variant={agentTab === 'firm' ? 'primary' : 'secondary'}
-              onClick={() => setAgentTab('firm')}
-            >
+            <Button size="sm" variant={agentTab === 'firm' ? 'primary' : 'secondary'} onClick={() => setAgentTab('firm')}>
               <Building2 className="size-4" /> फर्म KYC (Firm Status)
             </Button>
           </div>
@@ -1460,275 +1415,249 @@ function AgentKycSubmissionView() {
       ) : (
         <>
           {/* KYC Status banner */}
-      {isVerified ? (
-        <div className="flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-5 text-emerald-800 dark:text-emerald-300">
-          <BadgeCheck className="size-8 text-emerald-600 shrink-0" />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <p className="font-extrabold text-base">KYC Verified & Locked • पहचान प्रमाणित व सुरक्षित</p>
-              <Badge tone="success">Verified</Badge>
-            </div>
-            <p className="text-xs text-muted mt-0.5">
-              आपका KYC एडमिन द्वारा प्रमाणित हो चुका है। सुरक्षा मानकों के कारण अब यह जानकारी बदली नहीं जा सकती।
-            </p>
-          </div>
-          <Lock className="size-5 text-emerald-600 shrink-0" />
-        </div>
-      ) : isPending ? (
-        <div className="flex items-center gap-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-5 text-amber-800 dark:text-amber-300">
-          <Clock className="size-8 text-amber-600 shrink-0 animate-pulse" />
-          <div>
-            <p className="font-extrabold text-base">KYC समीक्षाधीन है (Under Review)</p>
-            <p className="text-xs text-muted mt-0.5">
-              आपके दस्तावेज़ और फेस लाइवलीनेस सबमिट हो चुके हैं। ब्रोकर एडमिन द्वारा जल्द ही इसे जाँचा जाएगा।
-            </p>
-          </div>
-        </div>
-      ) : isRejected ? (
-        <div className="flex items-start gap-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-5 text-rose-800 dark:text-rose-300">
-          <ShieldAlert className="size-8 text-rose-600 shrink-0" />
-          <div className="flex-1">
-            <p className="font-extrabold text-base">KYC Rejected • अस्वीकृत</p>
-            <p className="text-xs mt-1 font-semibold">
-              कारण: {kyc?.reviewNote || 'दस्तावेज़ साफ़ नहीं थे या जानकारी मेल नहीं खाती।'}
-            </p>
-            <p className="text-xs text-muted mt-0.5">
-              कृपया नीचे सही आधार व पैन नंबर दर्ज करें और नए सिरे से सबमिट करें।
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-5 border border-line">
-          <Shield className="size-8 text-brand shrink-0" />
-          <div>
-            <p className="font-bold text-sm">पहचान सत्यापन आवश्यक</p>
-            <p className="text-xs text-muted mt-0.5">
-              लीड्स और इन्वेंटरी एक्सेस के लिए कृपया नीचे आधार, पैन व कैमरा पाइपलाइन पूरी करें।
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* KYC Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1: Aadhaar Card */}
-        <div className={cn('card p-6 space-y-4', isVerified && 'opacity-90 bg-surface-2/30')}>
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <div className="flex items-center gap-2">
-              <CreditCard className="size-5 text-saffron-500" />
-              <h3 className="font-bold text-base">1. Aadhaar Card • आधार कार्ड</h3>
-            </div>
-            {isVerified && <Badge tone="success"><Lock className="size-3 mr-1" /> Locked</Badge>}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="आधार नंबर (12 Digits)" required hint="केवल 12 अंकों का नंबर">
-              <Input
-                placeholder="1234 5678 9012"
-                value={currentAadhaar}
-                disabled={isVerified}
-                maxLength={14}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, '').slice(0, 12);
-                  setAadhaarNumber(raw);
-                }}
-              />
-            </Field>
-
-            <Field label="आधार कार्ड फ़ोटो / डॉक्यूमेंट" required hint="JPG, PNG या PDF">
-              {currentAadhaarPhoto ? (
-                <div className="flex items-center justify-between rounded-xl border border-line bg-surface p-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="size-4 text-emerald-600 shrink-0" />
-                    <span className="truncate text-xs font-semibold">Aadhaar_Document.jpg</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={currentAadhaarPhoto}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
-                    >
-                      <Eye className="size-3" /> देखें
-                    </a>
-                    {!isVerified && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => aadhaarInputRef.current?.click()}
-                          className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 font-semibold"
-                        >
-                          <Upload className="size-3" /> फ़ोटो बदलें
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAadhaarPhotoUrl('')}
-                          className="text-muted hover:text-rose-600"
-                          title="हटाएँ"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+          {isVerified ? (
+            <div className="flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-5 text-emerald-800 dark:text-emerald-300">
+              <BadgeCheck className="size-8 text-emerald-600 shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-extrabold text-base">KYC Verified & Locked • पहचान प्रमाणित व सुरक्षित</p>
+                  <Badge tone="success">Verified</Badge>
                 </div>
-              ) : (
-                <label className={cn(
-                  'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line p-3 text-xs font-semibold transition-colors',
-                  isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand-500 hover:bg-surface-2',
-                )}>
-                  <Upload className="size-4 text-muted" />
-                  <span>{uploadingAadhaar ? 'अपलोड हो रहा है...' : 'Aadhaar फ़ोटो चुनें'}</span>
+                <p className="text-xs text-muted mt-0.5">आपका KYC एडमिन द्वारा प्रमाणित हो चुका है। सुरक्षा मानकों के कारण अब यह जानकारी बदली नहीं जा सकती।</p>
+              </div>
+              <Lock className="size-5 text-emerald-600 shrink-0" />
+            </div>
+          ) : isPending ? (
+            <div className="flex items-center gap-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-5 text-amber-800 dark:text-amber-300">
+              <Clock className="size-8 text-amber-600 shrink-0 animate-pulse" />
+              <div>
+                <p className="font-extrabold text-base">KYC समीक्षाधीन है (Under Review)</p>
+                <p className="text-xs text-muted mt-0.5">आपके दस्तावेज़ और फेस लाइवलीनेस सबमिट हो चुके हैं। ब्रोकर एडमिन द्वारा जल्द ही इसे जाँचा जाएगा।</p>
+              </div>
+            </div>
+          ) : isRejected ? (
+            <div className="flex items-start gap-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-5 text-rose-800 dark:text-rose-300">
+              <ShieldAlert className="size-8 text-rose-600 shrink-0" />
+              <div className="flex-1">
+                <p className="font-extrabold text-base">KYC Rejected • अस्वीकृत</p>
+                <p className="text-xs mt-1 font-semibold">कारण: {kyc?.reviewNote || 'दस्तावेज़ साफ़ नहीं थे या जानकारी मेल नहीं खाती।'}</p>
+                <p className="text-xs text-muted mt-0.5">कृपया नीचे सही आधार व पैन नंबर दर्ज करें और नए सिरे से सबमिट करें।</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-5 border border-line">
+              <Shield className="size-8 text-brand shrink-0" />
+              <div>
+                <p className="font-bold text-sm">पहचान सत्यापन आवश्यक</p>
+                <p className="text-xs text-muted mt-0.5">अपनी पहचान की review के लिए नीचे आधार, पैन और कैमरा captures सबमिट करें।</p>
+              </div>
+            </div>
+          )}
+
+          {/* KYC Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Section 1: Aadhaar Card */}
+            <div className={cn('card p-6 space-y-4', isVerified && 'opacity-90 bg-surface-2/30')}>
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="size-5 text-saffron-500" />
+                  <h3 className="font-bold text-base">1. Aadhaar Card • आधार कार्ड</h3>
+                </div>
+                {isVerified && (
+                  <Badge tone="success">
+                    <Lock className="size-3 mr-1" /> Locked
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="आधार नंबर (12 Digits)" required hint="केवल 12 अंकों का नंबर">
+                  <Input
+                    placeholder="1234 5678 9012"
+                    value={currentAadhaar}
+                    disabled={isVerified}
+                    maxLength={14}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 12);
+                      setAadhaarNumber(raw);
+                    }}
+                  />
+                </Field>
+
+                <Field label="आधार कार्ड फ़ोटो / डॉक्यूमेंट" required hint="JPG, PNG या PDF">
+                  {currentAadhaarPhoto ? (
+                    <div className="flex items-center justify-between rounded-xl border border-line bg-surface p-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="size-4 text-emerald-600 shrink-0" />
+                        <span className="truncate text-xs font-semibold">Aadhaar document</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <KycPreviewButton src={currentAadhaarPhoto} title="Aadhaar document" className="text-xs text-brand hover:underline flex items-center gap-1">
+                          <Eye className="size-3" /> देखें
+                        </KycPreviewButton>
+                        {!isVerified && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => aadhaarInputRef.current?.click()}
+                              className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 font-semibold"
+                            >
+                              <Upload className="size-3" /> फ़ोटो बदलें
+                            </button>
+                            <button type="button" onClick={() => setAadhaarPhotoUrl('')} className="text-muted hover:text-rose-600" title="हटाएँ">
+                              <X className="size-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      className={cn(
+                        'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line p-3 text-xs font-semibold transition-colors',
+                        isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand-500 hover:bg-surface-2',
+                      )}
+                    >
+                      <Upload className="size-4 text-muted" />
+                      <span>{uploadingAadhaar ? 'अपलोड हो रहा है...' : 'Aadhaar फ़ोटो चुनें'}</span>
+                      <input type="file" accept="image/*,.pdf" className="hidden" disabled={isVerified || uploadingAadhaar} onChange={handleAadhaarUpload} />
+                    </label>
+                  )}
+                  {/* Hidden file input for Replace action */}
                   <input
+                    ref={aadhaarInputRef}
                     type="file"
                     accept="image/*,.pdf"
                     className="hidden"
                     disabled={isVerified || uploadingAadhaar}
                     onChange={handleAadhaarUpload}
                   />
-                </label>
-              )}
-              {/* Hidden file input for Replace action */}
-              <input
-                ref={aadhaarInputRef}
-                type="file"
-                accept="image/*,.pdf"
-                className="hidden"
-                disabled={isVerified || uploadingAadhaar}
-                onChange={handleAadhaarUpload}
-              />
-            </Field>
-          </div>
-        </div>
-
-        {/* Section 2: PAN Card */}
-        <div className={cn('card p-6 space-y-4', isVerified && 'opacity-90 bg-surface-2/30')}>
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <div className="flex items-center gap-2">
-              <CreditCard className="size-5 text-blue-500" />
-              <h3 className="font-bold text-base">2. PAN Card • पैन कार्ड</h3>
+                </Field>
+              </div>
             </div>
-            {isVerified && <Badge tone="success"><Lock className="size-3 mr-1" /> Locked</Badge>}
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="पैन नंबर (10 Characters)" required hint="फॉर्मेट: ABCDE1234F">
-              <Input
-                placeholder="ABCDE1234F"
-                value={currentPan}
-                disabled={isVerified}
-                maxLength={10}
-                className="uppercase font-mono"
-                onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-              />
-            </Field>
-
-            <Field label="पैन कार्ड फ़ोटो / डॉक्यूमेंट" required hint="JPG, PNG या PDF">
-              {currentPanPhoto ? (
-                <div className="flex items-center justify-between rounded-xl border border-line bg-surface p-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="size-4 text-emerald-600 shrink-0" />
-                    <span className="truncate text-xs font-semibold">PAN_Document.jpg</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={currentPanPhoto}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
-                    >
-                      <Eye className="size-3" /> देखें
-                    </a>
-                    {!isVerified && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => panInputRef.current?.click()}
-                          className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 font-semibold"
-                        >
-                          <Upload className="size-3" /> फ़ोटो बदलें
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPanPhotoUrl('')}
-                          className="text-muted hover:text-rose-600"
-                          title="हटाएँ"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+            {/* Section 2: PAN Card */}
+            <div className={cn('card p-6 space-y-4', isVerified && 'opacity-90 bg-surface-2/30')}>
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="size-5 text-blue-500" />
+                  <h3 className="font-bold text-base">2. PAN Card • पैन कार्ड</h3>
                 </div>
-              ) : (
-                <label className={cn(
-                  'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line p-3 text-xs font-semibold transition-colors',
-                  isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand-500 hover:bg-surface-2',
-                )}>
-                  <Upload className="size-4 text-muted" />
-                  <span>{uploadingPan ? 'अपलोड हो रहा है...' : 'PAN फ़ोटो चुनें'}</span>
+                {isVerified && (
+                  <Badge tone="success">
+                    <Lock className="size-3 mr-1" /> Locked
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="पैन नंबर (10 Characters)" required hint="फॉर्मेट: ABCDE1234F">
+                  <Input
+                    placeholder="ABCDE1234F"
+                    value={currentPan}
+                    disabled={isVerified}
+                    maxLength={10}
+                    className="uppercase font-mono"
+                    onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  />
+                </Field>
+
+                <Field label="पैन कार्ड फ़ोटो / डॉक्यूमेंट" required hint="JPG, PNG या PDF">
+                  {currentPanPhoto ? (
+                    <div className="flex items-center justify-between rounded-xl border border-line bg-surface p-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="size-4 text-emerald-600 shrink-0" />
+                        <span className="truncate text-xs font-semibold">PAN document</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <KycPreviewButton src={currentPanPhoto} title="PAN document" className="text-xs text-brand hover:underline flex items-center gap-1">
+                          <Eye className="size-3" /> देखें
+                        </KycPreviewButton>
+                        {!isVerified && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => panInputRef.current?.click()}
+                              className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 font-semibold"
+                            >
+                              <Upload className="size-3" /> फ़ोटो बदलें
+                            </button>
+                            <button type="button" onClick={() => setPanPhotoUrl('')} className="text-muted hover:text-rose-600" title="हटाएँ">
+                              <X className="size-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      className={cn(
+                        'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line p-3 text-xs font-semibold transition-colors',
+                        isVerified ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-brand-500 hover:bg-surface-2',
+                      )}
+                    >
+                      <Upload className="size-4 text-muted" />
+                      <span>{uploadingPan ? 'अपलोड हो रहा है...' : 'PAN फ़ोटो चुनें'}</span>
+                      <input type="file" accept="image/*,.pdf" className="hidden" disabled={isVerified || uploadingPan} onChange={handlePanUpload} />
+                    </label>
+                  )}
+                  {/* Hidden file input for Replace action */}
                   <input
+                    ref={panInputRef}
                     type="file"
                     accept="image/*,.pdf"
                     className="hidden"
                     disabled={isVerified || uploadingPan}
                     onChange={handlePanUpload}
                   />
-                </label>
-              )}
-              {/* Hidden file input for Replace action */}
-              <input
-                ref={panInputRef}
-                type="file"
-                accept="image/*,.pdf"
-                className="hidden"
-                disabled={isVerified || uploadingPan}
-                onChange={handlePanUpload}
+                </Field>
+              </div>
+            </div>
+
+            {/* Section 3: Face Liveliness Camera Pipeline */}
+            <div className={cn('card p-6 space-y-4', isVerified && 'opacity-90 bg-surface-2/30')}>
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div>
+                  <h3 className="font-bold text-base">3. Face Liveliness • 3-स्टेप चेहरा सत्यापन</h3>
+                  <p className="text-xs text-muted">कैमरे के सामने चेहरा सीधा, बायाँ और दायाँ घुमाकर 3 फ़ोटो लें</p>
+                </div>
+                {isVerified && (
+                  <Badge tone="success">
+                    <Lock className="size-3 mr-1" /> Locked
+                  </Badge>
+                )}
+              </div>
+
+              <AgentKycPipeline
+                initialValues={{
+                  straightUrl: liveliness.straightUrl || kyc?.livelinessStraightUrl || null,
+                  leftUrl: liveliness.leftUrl || kyc?.livelinessLeftUrl || null,
+                  rightUrl: liveliness.rightUrl || kyc?.livelinessRightUrl || null,
+                }}
+                disabled={isVerified}
+                onChange={(val) => setLiveliness(val)}
               />
-            </Field>
-          </div>
-        </div>
-
-        {/* Section 3: Face Liveliness Camera Pipeline */}
-        <div className={cn('card p-6 space-y-4', isVerified && 'opacity-90 bg-surface-2/30')}>
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <div>
-              <h3 className="font-bold text-base">3. Face Liveliness • 3-स्टेप चेहरा सत्यापन</h3>
-              <p className="text-xs text-muted">कैमरे के सामने चेहरा सीधा, बायाँ और दायाँ घुमाकर 3 फ़ोटो लें</p>
             </div>
-            {isVerified && <Badge tone="success"><Lock className="size-3 mr-1" /> Locked</Badge>}
-          </div>
 
-          <AgentKycPipeline
-            initialValues={{
-              straightUrl: liveliness.straightUrl || kyc?.livelinessStraightUrl || null,
-              leftUrl: liveliness.leftUrl || kyc?.livelinessLeftUrl || null,
-              rightUrl: liveliness.rightUrl || kyc?.livelinessRightUrl || null,
-            }}
-            disabled={isVerified}
-            onChange={(val) => setLiveliness(val)}
-          />
-        </div>
-
-        {/* Submit or Locked state button */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          {isVerified ? (
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-700 dark:text-emerald-300">
-              <ShieldCheck className="size-5" /> KYC Verified & Read-Only • बदलाव की अनुमति नहीं है
+            {/* Submit or Locked state button */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              {isVerified ? (
+                <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                  <ShieldCheck className="size-5" /> KYC Verified & Read-Only • बदलाव की अनुमति नहीं है
+                </div>
+              ) : (
+                <Button
+                  type="submit"
+                  size="lg"
+                  loading={submitMutation.isPending}
+                  className="bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold px-8 shadow-md shadow-brand-600/25 transition-all"
+                >
+                  <ShieldCheck className="size-5" />
+                  {isRejected ? 'KYC पुनः सबमिट करें (Resubmit)' : 'KYC सत्यापन के लिए सबमिट करें'}
+                </Button>
+              )}
             </div>
-          ) : (
-            <Button
-              type="submit"
-              size="lg"
-              loading={submitMutation.isPending}
-              className="bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold px-8 shadow-md shadow-brand-600/25 transition-all"
-            >
-              <ShieldCheck className="size-5" />
-              {isRejected ? 'KYC पुनः सबमिट करें (Resubmit)' : 'KYC सत्यापन के लिए सबमिट करें'}
-            </Button>
-          )}
-        </div>
-      </form>
+          </form>
         </>
       )}
     </div>

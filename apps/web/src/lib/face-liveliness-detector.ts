@@ -39,7 +39,7 @@ export async function getFaceLandmarker(): Promise<any> {
           },
           runningMode: 'VIDEO',
           outputFaceBlendshapes: true,
-          numFaces: 1,
+          numFaces: 2,
           minFaceDetectionConfidence: 0.3,
           minFacePresenceConfidence: 0.3,
           minTrackingConfidence: 0.3,
@@ -54,7 +54,7 @@ export async function getFaceLandmarker(): Promise<any> {
           },
           runningMode: 'VIDEO',
           outputFaceBlendshapes: true,
-          numFaces: 1,
+          numFaces: 2,
           minFaceDetectionConfidence: 0.3,
           minFacePresenceConfidence: 0.3,
           minTrackingConfidence: 0.3,
@@ -75,11 +75,7 @@ export function resetSmoothedYaw() {
   smoothedYaw = 0;
 }
 
-export function inspectFaceFrame(
-  landmarker: any,
-  video: HTMLVideoElement,
-  expectedStep: 'STRAIGHT' | 'LEFT' | 'RIGHT',
-): FaceInspectionResult {
+export function inspectFaceFrame(landmarker: any, video: HTMLVideoElement, expectedStep: 'STRAIGHT' | 'LEFT' | 'RIGHT'): FaceInspectionResult {
   if (!landmarker || !video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
     return {
       ready: false,

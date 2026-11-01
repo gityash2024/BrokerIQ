@@ -87,7 +87,7 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
         { label: 'Public listing drafts', href: '/broker/scanner/listing-drafts', nativeHref: '/listing-scanner', module: 'inventory', adminOnly: true },
       ],
     },
-    { key: 'kyc', label: 'KYC', links: [{ label: 'KYC', href: '/broker/kyc', nativeHref: '/agent-kyc', module: 'kyc' }] },
+    { key: 'kyc', label: 'KYC', links: [{ label: 'KYC', href: '/broker/kyc', nativeHref: '/(broker)/kyc', module: 'kyc' }] },
     {
       key: 'team',
       label: role === 'BROKER_AGENT' ? 'My work' : 'Team & Agents',

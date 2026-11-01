@@ -438,7 +438,7 @@ export class AdminControlService {
       this.prisma.localityReview.count({ where: { status: 'PENDING' } }).catch(() => 0),
       this.prisma.errorLog.count({ where: { resolvedAt: null } }),
       this.prisma.listing.count({ where: { status: 'BLOCKED', deletedAt: null } }),
-      this.prisma.kycDocument.count({ where: { status: 'PENDING' } }).catch(() => 0),
+      this.prisma.kycDocument.count({ where: { status: 'PENDING', supersededAt: null } }).catch(() => 0),
       this.prisma.contentReport.count({ where: { type: 'CHAT', status: 'OPEN' } }),
     ]);
     return { pendingListings, reportsOpen, localityReviews, errorsOpen, blockedListings, kycPending, chatReports };

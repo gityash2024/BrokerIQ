@@ -423,12 +423,14 @@
         "2516",
         "7844"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "GUEST",
         "USER",
@@ -438,7 +440,7 @@
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -1960,18 +1962,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -1987,18 +1991,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2014,18 +2020,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2041,18 +2049,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2068,18 +2078,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2095,18 +2107,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2123,11 +2137,13 @@
         "10489"
       ],
       "backend": "PENDING",
-      "web": "PENDING",
+      "web": "IMPLEMENTED_NOT_REAL_FACE_VERIFIED",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Web manual-upload fallback removed; second-face/blink gating and late-camera shutdown corrected. Native actual pose pipeline and physical-device lifecycle checks remain open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -2150,11 +2166,13 @@
         "10489"
       ],
       "backend": "PENDING",
-      "web": "PENDING",
+      "web": "IMPLEMENTED_NOT_REAL_FACE_VERIFIED",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Web manual-upload fallback removed; second-face/blink gating and late-camera shutdown corrected. Native actual pose pipeline and physical-device lifecycle checks remain open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -2176,18 +2194,20 @@
         "9918",
         "10489"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_PARTIAL_BROWSER_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
+      "notes": [
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2208,7 +2228,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Original-preserving encrypted write is implemented; actual 10-public-document migration and old URL retirement remain PENDING. Off-host backup/scratch restore verified in fd96714."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -3592,7 +3614,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -3792,7 +3816,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -3979,7 +4005,8 @@
       "shippedBuild": "PENDING",
       "verification": "Official Google setup documentation; source URL corrected. Live Google OAuth consent/sign-in remains pending.",
       "notes": [
-        "Broken hostname came from 3a4c5f6f dated 2026-10-17, before this audit; do not attribute it to an artifact skip without evidence."
+        "Broken hostname came from 3a4c5f6f dated 2026-10-17, before this audit; do not attribute it to an artifact skip without evidence.",
+        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate."
       ],
       "roles": [
         "ALL_AUTHENTICATED"

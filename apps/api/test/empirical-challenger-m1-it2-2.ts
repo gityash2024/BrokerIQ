@@ -318,6 +318,7 @@ async function runMultiTenantIsolationChallenges() {
     {} as any,
     {} as any,
     {} as any,
+    {} as never,
   );
 
   const timeLoggingService = new TimeLoggingService(prisma);

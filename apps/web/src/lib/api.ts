@@ -1,5 +1,5 @@
 'use client';
-import { isApiErrorBody, type ApiErrorBody, type AuthResponse } from '@brokeriq/shared';
+import { isApiErrorBody, privateMediaPath, type ApiErrorBody, type AuthResponse } from '@brokeriq/shared';
 import { API_URL } from './utils';
 
 const KEY = 'biq.auth';
@@ -177,12 +177,33 @@ export async function compressImage(file: File, maxW = 1920, quality = 0.82): Pr
 
 /** Authenticated binary reads for private source images and exports. */
 export async function apiBlob(path: string): Promise<Blob> {
-  const send = () => fetch(`${API_URL}/api${path}`, { headers: { Authorization: `Bearer ${authStore.get()?.accessToken ?? ''}` } });
+  // Exports use relative API paths; absolute binary URLs must belong to this API.
+  const safePath = path.startsWith('/') && !path.startsWith('//') && !path.includes('://') ? path : privateMediaPath(path, API_URL);
+  if (!safePath) throw new Error('Untrusted private media URL');
+  const scope = () => {
+    const user = authStore.get()?.user;
+    return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
+  };
+  const owner = scope();
+  const assertOwner = () => {
+    if (!owner || scope() !== owner) throw new Error('Account permissions changed. Reload this document.');
+  };
+  const send = () => {
+    assertOwner();
+    return fetch(`${API_URL}/api${safePath}`, {
+      cache: 'no-store',
+      redirect: 'error',
+      headers: { Authorization: `Bearer ${authStore.get()?.accessToken ?? ''}` },
+    });
+  };
   let response = await send();
   if (response.status === 401 && (await refresh())) response = await send();
+  assertOwner();
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: 'Source could not be loaded' }));
     throw new ApiError(response.status, body);
   }
-  return response.blob();
+  const blob = await response.blob();
+  assertOwner();
+  return blob;
 }

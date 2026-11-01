@@ -53,7 +53,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
     mockNotifications = { notify: jest.fn() };
     mockAuth = { revokeAll: jest.fn() };
 
-    controller = new AdminUsersController(mockPrisma, mockAudit, mockNotifications, mockAuth);
+    controller = new AdminUsersController(mockPrisma, mockAudit, mockNotifications, mockAuth, {} as never);
   });
 
   describe('kyc query filtering', () => {
@@ -155,7 +155,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
 
       expect(mockPrisma.kycDocument.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: { in: ['doc_1', 'doc_2'] } },
+          where: { id: { in: ['doc_1', 'doc_2'] }, supersededAt: null },
         }),
       );
     });

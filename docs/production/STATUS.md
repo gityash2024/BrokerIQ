@@ -157,3 +157,11 @@ Additional historical defect: the Google Identity script URL was `https://user/a
 Validation: 9 new real PostgreSQL/guard/factor scenarios pass in Broker-first mode, including all four active roles, parallel consumption/attempts, expiry, password/session invalidation, sixth-device selection, passwordless bypass rejection, mail outage and production no-dev-code behavior; one also covers new signup and a stubbed verified Google first factor. Complete API regression before the last rate-bound/legacy-selection test addition: 296 passed, 25 configuration skips. Shared 57, mobile 68, workspace types, changed-source ESLint zero errors and Android Metro/Hermes export pass. Actual local Chrome password → OTP → Agent dashboard succeeded, using explicit local test delivery (not live email). QA screenshots output/playwright/login-email-otp-*-local.png are not landing/manual release images.
 
 Production migration, selected Zoho application activation/delivery, enforced production login/recovery/invitation, installed APK upgrade and full translations/device acceptance remain open. Existing source privacy/KYC and all original module/release work are still required.
+
+## KYC private media/review checkpoint — not deployed
+
+Source privacy and review defects corrected; see KYC_PRIVATE_CHECKPOINT.md for exact evidence and open gates. New original-preserving encrypted storage, authenticated role-scoped previews, superseded history, exact-document review, firm/personal separation and native management navigation are implemented. Existing ten public provider documents have NOT been migrated or retired. Actual native pose capture, complete management parity, production client compatibility and installed-device acceptance remain open.
+
+## Production data safety checkpoint
+
+fd96714 records an actual consistent 99-table database snapshot and 595-file checksum manifest, encrypted off-host copy and successful isolated local restore with matching table digests and media hashes. No application/worker was started against restored production data; no production code/migration was applied. See BACKUP_RESTORE_20261101.md, including the local Homebrew cleanup incident and CLI repair. Refresh backup before final release if data has changed.

@@ -137,7 +137,7 @@ export class TrustService {
       select: { occupation: true, employer: true, workEmail: true, workEmailVerifiedAt: true, tenantVerifiedAt: true },
     });
     const kyc = await this.prisma.kycDocument.findMany({
-      where: { userId },
+      where: { userId, supersededAt: null },
       select: { id: true, docType: true, status: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });

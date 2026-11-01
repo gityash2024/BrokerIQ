@@ -1,29 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import {
-  Camera,
-  CheckCircle2,
-  RefreshCw,
-  Upload,
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  ShieldCheck,
-  Check,
-  X,
-  Sparkles,
-  Lock,
-} from 'lucide-react';
+import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Check, X, Sparkles, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { KycMedia } from './kyc-media';
 import { uploadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import {
-  getFaceLandmarker,
-  inspectFaceFrame,
-  resetSmoothedYaw,
-  FaceInspectionResult,
-} from '@/lib/face-liveliness-detector';
+import { getFaceLandmarker, inspectFaceFrame, resetSmoothedYaw, FaceInspectionResult } from '@/lib/face-liveliness-detector';
 import { toast } from 'sonner';
 
 export type LivelinessStep = 'STRAIGHT' | 'LEFT' | 'RIGHT';
@@ -77,7 +60,8 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   const [detectorReady, setDetectorReady] = useState(false);
   const [detection, setDetection] = useState<FaceInspectionResult | null>(null);
   const [holdProgress, setHoldProgress] = useState(0); // 0 to 100
-  const [fallbackMode, setFallbackMode] = useState(false);
+  const [detectorError, setDetectorError] = useState(false);
+  const [blinkComplete, setBlinkComplete] = useState(false);
 
   // Pending approval state for review step
   const [pendingCapture, setPendingCapture] = useState<{
@@ -88,7 +72,9 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraGeneration = useRef(0);
+  const captureGate = useRef({ allowed: false, at: 0 });
+  const blinkPhase = useRef(0);
   const landmarkerRef = useRef<any>(null);
   const animFrameRef = useRef<number | null>(null);
   const holdStartRef = useRef<number | null>(null);
@@ -118,9 +104,9 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         }
       })
       .catch((err) => {
-        console.warn('Face landmarker could not load, using manual fallback:', err);
+        console.warn('Face landmarker could not load:', err);
         if (!cancelled) {
-          setFallbackMode(true);
+          setDetectorError(true);
         }
       });
     return () => {
@@ -129,6 +115,8 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   }, []);
 
   const stopCamera = useCallback(() => {
+    cameraGeneration.current++;
+    captureGate.current = { allowed: false, at: 0 };
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
@@ -157,6 +145,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     try {
       setCameraError(null);
       stopCamera();
+      const generation = cameraGeneration.current;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -165,6 +154,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         },
         audio: false,
       });
+      if (cameraGeneration.current !== generation) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       setCameraActive(true);
       holdStartRef.current = null;
@@ -181,7 +174,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     } catch (err: any) {
       console.warn('Camera access error:', err);
       setCameraActive(false);
-      setCameraError('कैमरा शुरू नहीं हो पाया। कृपया कैमरा परमिशन दें या फ़ोटो चुनें विकल्प का उपयोग करें।');
+      setCameraError('कैमरा शुरू नहीं हो पाया। कृपया कैमरा परमिशन दें और दोबारा कोशिश करें।');
     }
   }, [disabled, stopCamera]);
 
@@ -198,7 +191,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
 
   // Capture frame to preview and approve
   const captureFrame = useCallback(async () => {
-    if (!videoRef.current || uploading) return;
+    if (!videoRef.current || uploading || !captureGate.current.allowed || performance.now() - captureGate.current.at > 300) return;
     try {
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
@@ -249,8 +242,18 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         const result = inspectFaceFrame(landmarker, video, activeStep);
         setDetection(result);
 
-        // Auto-capture on pose lock: User holds pose for 1000ms
-        if (result.isMatchingPose) {
+        // An open → closed → open blink is required in the straight-face step.
+        if (activeStep === 'STRAIGHT' && result.faceCount === 1) {
+          if (blinkPhase.current === 0 && result.blink < 0.25) blinkPhase.current = 1;
+          else if (blinkPhase.current === 1 && result.blink > 0.65) blinkPhase.current = 2;
+          else if (blinkPhase.current === 2 && result.blink < 0.25) {
+            blinkPhase.current = 3;
+            setBlinkComplete(true);
+          }
+        } else if (result.faceCount !== 1 && blinkPhase.current !== 3) blinkPhase.current = 0;
+        const allowed = result.isMatchingPose && blinkPhase.current === 3;
+        captureGate.current = { allowed, at: performance.now() };
+        if (allowed) {
           if (!holdStartRef.current) {
             holdStartRef.current = performance.now();
           }
@@ -336,38 +339,11 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
     resetSmoothedYaw();
   };
 
-  // Manual file upload fallback
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setUploading(true);
-      const { url } = await uploadFile(file, 'kyc');
-      const nextCaptures = { ...captures };
-      if (activeStep === 'STRAIGHT') nextCaptures.straightUrl = url;
-      if (activeStep === 'LEFT') nextCaptures.leftUrl = url;
-      if (activeStep === 'RIGHT') nextCaptures.rightUrl = url;
-
-      setCaptures(nextCaptures);
-      onChange(nextCaptures);
-      toast.success(`${STEPS.find((s) => s.key === activeStep)?.label} अपलोड हो गया ✅`);
-
-      const isNowComplete = !!nextCaptures.straightUrl && !!nextCaptures.leftUrl && !!nextCaptures.rightUrl;
-      if (isNowComplete) {
-        setIsRetaking(false);
-        stopCamera();
-      } else {
-        if (activeStep === 'STRAIGHT' && !nextCaptures.leftUrl) setActiveStep('LEFT');
-        else if (activeStep === 'LEFT' && !nextCaptures.rightUrl) setActiveStep('RIGHT');
-      }
-    } catch (err: any) {
-      toast.error('फ़ाइल अपलोड विफल: ' + (err?.message || 'Upload failed'));
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleRetakePose = (pose: LivelinessStep) => {
+    if (pose === 'STRAIGHT') {
+      blinkPhase.current = 0;
+      setBlinkComplete(false);
+    }
     setActiveStep(pose);
     setPendingCapture(null);
     holdStartRef.current = null;
@@ -379,7 +355,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
   };
 
   const currentStepConfig = STEPS.find((s) => s.key === activeStep) || STEPS[0];
-  const isPoseUnlocked = fallbackMode || (detection && detection.isMatchingPose);
+  const isPoseUnlocked = detectorReady && blinkComplete && detection?.isMatchingPose;
 
   return (
     <div className="space-y-4 rounded-2xl border border-line bg-surface-2/40 p-4 sm:p-5">
@@ -387,11 +363,9 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         <div>
           <h4 className="flex items-center gap-2 font-bold text-base">
             <ShieldCheck className="size-5 text-emerald-500" />
-            Face Liveliness Check • चेहरा सत्यापन (3 Poses)
+            Face Capture • तीन पोज़ और blink check
           </h4>
-          <p className="text-xs text-muted">
-            AI फेस डिटेक्शन द्वारा 3 पोज़ सत्यापित करें (सामने, बाईं ओर, दाईं ओर)
-          </p>
+          <p className="text-xs text-muted">पहले सामने देखकर पलक झपकाएँ, फिर तीन पोज़ लें। KYC का निर्णय reviewer करेगा।</p>
         </div>
         {allComplete && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
@@ -400,13 +374,17 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
         )}
       </div>
 
+      {detectorError && (
+        <p role="alert" className="text-sm text-red-500">
+          Face detector नहीं खुला। Page reload करके दोबारा कोशिश करें; manual photo से pose check bypass नहीं होगा।
+        </p>
+      )}
+      {!blinkComplete && !disabled && !allComplete && <p className="text-sm text-muted">सामने देखें और एक बार पूरी पलक झपकाएँ।</p>}
       {/* Step Tabs */}
       <div className="grid grid-cols-3 gap-2">
         {STEPS.map((s) => {
           const isDone =
-            (s.key === 'STRAIGHT' && !!captures.straightUrl) ||
-            (s.key === 'LEFT' && !!captures.leftUrl) ||
-            (s.key === 'RIGHT' && !!captures.rightUrl);
+            (s.key === 'STRAIGHT' && !!captures.straightUrl) || (s.key === 'LEFT' && !!captures.leftUrl) || (s.key === 'RIGHT' && !!captures.rightUrl);
           const isCurrent = activeStep === s.key && cameraActive;
 
           return (
@@ -415,6 +393,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               type="button"
               disabled={disabled}
               onClick={() => {
+                if (s.key === 'STRAIGHT') {
+                  blinkPhase.current = 0;
+                  setBlinkComplete(false);
+                }
                 setActiveStep(s.key);
                 setPendingCapture(null);
                 holdStartRef.current = null;
@@ -439,9 +421,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                 {isDone ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Camera className="size-3.5" />}
                 <span className="truncate">{s.key}</span>
               </div>
-              <span className="mt-1 text-[11px] font-medium opacity-80">
-                {s.key === 'STRAIGHT' ? 'सामने' : s.key === 'LEFT' ? 'बाईं ओर' : 'दाईं ओर'}
-              </span>
+              <span className="mt-1 text-[11px] font-medium opacity-80">{s.key === 'STRAIGHT' ? 'सामने' : s.key === 'LEFT' ? 'बाईं ओर' : 'दाईं ओर'}</span>
             </button>
           );
         })}
@@ -456,17 +436,10 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               <div className="grid size-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-3 shadow-inner">
                 <CheckCircle2 className="size-8" />
               </div>
-              <h5 className="font-bold text-base text-fg">3/3 फेस लाइवलीनेस सत्यापन पूर्ण</h5>
-              <p className="text-xs text-muted mt-1 max-w-xs">
-                तीनों कोणों से चेहरे की तस्वीरें ले ली गई हैं। कैमरा सुरक्षित रूप से बंद कर दिया गया है।
-              </p>
+              <h5 className="font-bold text-base text-fg">3/3 फेस कैप्चर पूरे</h5>
+              <p className="text-xs text-muted mt-1 max-w-xs">तीनों कोणों से चेहरे की तस्वीरें ले ली गई हैं। कैमरा सुरक्षित रूप से बंद कर दिया गया है।</p>
               <div className="mt-4 flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => handleRetakePose('STRAIGHT')}
-                  className="text-xs"
-                >
+                <Button size="sm" variant="secondary" onClick={() => handleRetakePose('STRAIGHT')} className="text-xs">
                   <RefreshCw className="size-3.5 mr-1.5" /> किसी भी पोज़ को दोबारा लें
                 </Button>
               </div>
@@ -476,11 +449,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
               {/* If pending capture review, show frozen capture */}
               {pendingCapture ? (
                 <div className="relative h-full w-full">
-                  <img
-                    src={pendingCapture.dataUrl}
-                    alt="Captured pose preview"
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={pendingCapture.dataUrl} alt="Captured pose preview" className="h-full w-full object-contain" />
                   <div className="absolute inset-0 bg-black/30 pointer-events-none" />
 
                   {/* Header confirmation tag */}
@@ -516,13 +485,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                 </div>
               ) : (
                 <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="h-full w-full object-cover -scale-x-100"
-                  />
+                  <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover -scale-x-100" />
 
                   {/* Liveliness Face Guide Overlay */}
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -600,10 +563,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                   {/* Hold Progress Bar */}
                   {holdProgress > 0 && (
                     <div className="absolute top-0 inset-x-0 h-1.5 bg-black/40">
-                      <div
-                        className="h-full bg-emerald-400 transition-all duration-100 ease-out"
-                        style={{ width: `${holdProgress}%` }}
-                      />
+                      <div className="h-full bg-emerald-400 transition-all duration-100 ease-out" style={{ width: `${holdProgress}%` }} />
                     </div>
                   )}
 
@@ -657,25 +617,9 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                       ) : (
                         <>
                           <Lock className="size-4 mr-1.5 text-amber-400" />
-                          {activeStep === 'LEFT'
-                            ? 'बाईं ओर घुमाएँ'
-                            : activeStep === 'RIGHT'
-                              ? 'दाईं ओर घुमाएँ'
-                              : 'सामने देखें'}
+                          {activeStep === 'LEFT' ? 'बाईं ओर घुमाएँ' : activeStep === 'RIGHT' ? 'दाईं ओर घुमाएँ' : 'सामने देखें'}
                         </>
                       )}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className="bg-black/60 text-white border-white/20 hover:bg-black/80"
-                      title="फ़ोटो फ़ाइल चुनें (Upload fallback)"
-                    >
-                      <Upload className="size-3.5" />
                     </Button>
                   </div>
                 </>
@@ -689,49 +633,22 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                 <Button size="sm" onClick={startCamera}>
                   <RefreshCw className="size-4 mr-1" /> कैमरा शुरू करें (Start Camera)
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="size-4 mr-1" /> फ़ोटो चुनें (Upload)
-                </Button>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Hidden fallback file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
-
       {/* 3 Captured Previews Gallery */}
       <div className="grid grid-cols-3 gap-3 pt-2">
         {STEPS.map((s) => {
-          const url =
-            s.key === 'STRAIGHT'
-              ? captures.straightUrl
-              : s.key === 'LEFT'
-                ? captures.leftUrl
-                : captures.rightUrl;
+          const url = s.key === 'STRAIGHT' ? captures.straightUrl : s.key === 'LEFT' ? captures.leftUrl : captures.rightUrl;
 
           return (
-            <div
-              key={s.key}
-              className="group relative flex flex-col items-center rounded-xl border border-line bg-surface p-2 text-center"
-            >
+            <div key={s.key} className="group relative flex flex-col items-center rounded-xl border border-line bg-surface p-2 text-center">
               <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface-2">
                 {url ? (
-                  <img
-                    src={url}
-                    alt={s.label}
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = 'none';
-                    }}
-                  />
+                  <KycMedia src={url} alt={s.label} className="h-full w-full object-contain" />
                 ) : (
                   <div className="grid h-full place-items-center text-muted">
                     <Camera className="size-6 opacity-40" />

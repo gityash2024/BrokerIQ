@@ -8,6 +8,8 @@ import { AuthService } from '../auth/auth.service';
 import { UsageService } from '../../core/usage/usage.service';
 import { MailService } from '../../core/mail/mail.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { KycService } from '../../core/media/kyc.service';
+import { kycView } from '../../common/kyc-view';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
@@ -76,6 +78,7 @@ export class OrganizationsController {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly features: FeaturesService,
+    private readonly kyc: KycService,
   ) {}
 
   // ------------------------------------------------------------------ onboarding & profile
@@ -458,7 +461,7 @@ export class OrganizationsController {
       targets = allTargets[member.id] || null;
     }
     const docs = await this.prisma.kycDocument.findMany({
-      where: { userId: member.id },
+      where: { userId: member.id, organizationId: member.organizationId, supersededAt: null },
       orderBy: { createdAt: 'desc' },
     });
     return {
@@ -467,7 +470,7 @@ export class OrganizationsController {
         lastLocation: loc,
         targets,
       },
-      kyc: docs,
+      kyc: user.role === 'SUPER_ADMIN' || member.id === user.id || member.role === 'BROKER_AGENT' ? docs.map(kycView) : [],
     };
   }
 
@@ -733,8 +736,7 @@ export class OrganizationsController {
   @Post('kyc')
   async submitKyc(@CurrentUser() user: RequestUser, @Body(new ZodPipe(kycSubmitSchema)) body: z.infer<typeof kycSubmitSchema>) {
     const forOrg = !!user.orgId && user.role === 'BROKER_ADMIN';
-    const doc = await this.prisma.kycDocument.create({ data: { ...body, userId: forOrg ? null : user.id, organizationId: forOrg ? user.orgId : null } });
-    if (forOrg) await this.prisma.organization.update({ where: { id: user.orgId! }, data: { verification: 'PENDING' } });
+    const doc = await this.kyc.submitOne(user, body);
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
     await this.notifications.notify(
       admins.map((a) => a.id),
@@ -778,163 +780,43 @@ export class OrganizationsController {
     },
   ) {
     const orgId = requireOrg(user);
-    await this.prisma.kycDocument.deleteMany({
-      where: {
-        userId: user.id,
-        status: { in: ['PENDING', 'UNVERIFIED', 'REJECTED'] },
-      },
-    });
+    const result = await this.kyc.personal(user, body);
 
-    const docs = await this.prisma.$transaction([
-      this.prisma.kycDocument.create({
-        data: {
-          userId: user.id,
-          organizationId: orgId,
-          docType: 'AADHAAR',
-          docNumber: body.aadhaarNumber,
-          fileUrl: body.aadhaarPhotoUrl,
-          status: 'PENDING',
-        },
-      }),
-      this.prisma.kycDocument.create({
-        data: {
-          userId: user.id,
-          organizationId: orgId,
-          docType: 'PAN',
-          docNumber: body.panNumber,
-          fileUrl: body.panPhotoUrl,
-          status: 'PENDING',
-        },
-      }),
-      this.prisma.kycDocument.create({
-        data: {
-          userId: user.id,
-          organizationId: orgId,
-          docType: 'OTHER',
-          docNumber: 'LIVELINESS_STRAIGHT',
-          fileUrl: body.livelinessStraightUrl,
-          status: 'PENDING',
-        },
-      }),
-      this.prisma.kycDocument.create({
-        data: {
-          userId: user.id,
-          organizationId: orgId,
-          docType: 'OTHER',
-          docNumber: 'LIVELINESS_LEFT',
-          fileUrl: body.livelinessLeftUrl,
-          status: 'PENDING',
-        },
-      }),
-      this.prisma.kycDocument.create({
-        data: {
-          userId: user.id,
-          organizationId: orgId,
-          docType: 'OTHER',
-          docNumber: 'LIVELINESS_RIGHT',
-          fileUrl: body.livelinessRightUrl,
-          status: 'PENDING',
-        },
-      }),
-    ]);
+    if (!result.replayed) {
+      if (user.role === 'BROKER_ADMIN') {
+        const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }, select: { id: true } });
+        await this.notifications.notify(
+          admins.map((admin) => admin.id),
+          { kind: 'KYC_UPDATE', title: `Broker Admin identity review (${user.email})`, link: '/admin/kyc', push: false },
+        );
+      } else {
+        await this.notifications.notifyOrg(
+          orgId,
+          { kind: 'KYC_UPDATE', title: `Agent KYC submission (${user.email})`, link: '/broker/kyc?member=' + user.id },
+          { adminsOnly: true, excludeUserId: user.id },
+        );
+      }
+    }
 
-    await this.notifications.notifyOrg(
-      orgId,
-      {
-        kind: 'KYC_UPDATE',
-        title: `🛡️ Agent KYC submission (${user.email})`,
-        link: '/broker/team',
-      },
-      { adminsOnly: true },
-    );
-
-    return {
-      ok: true,
-      status: 'PENDING',
-      documentsCount: docs.length,
-    };
+    return result;
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('broker/team/agent-kyc/mine')
   async myAgentKyc(@CurrentUser() user: RequestUser) {
-    const docs = await this.prisma.kycDocument.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
-    const aadhaar = docs.find((d) => d.docType === 'AADHAAR');
-    const pan = docs.find((d) => d.docType === 'PAN');
-    const straight = docs.find((d) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_STRAIGHT');
-    const left = docs.find((d) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_LEFT');
-    const right = docs.find((d) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_RIGHT');
-
-    let status: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' = 'UNVERIFIED';
-    if (docs.length > 0) {
-      if (docs.some((d) => d.status === 'REJECTED')) status = 'REJECTED';
-      else if (docs.some((d) => d.status === 'PENDING')) status = 'PENDING';
-      else if (docs.every((d) => d.status === 'VERIFIED')) status = 'VERIFIED';
-    }
-
-    const rejectionNote = docs.find((d) => d.status === 'REJECTED')?.reviewNote || null;
-    const reviewedAt = docs.find((d) => d.reviewedAt)?.reviewedAt || null;
-
-    return {
-      status,
-      aadhaarNumber: aadhaar?.docNumber ?? null,
-      aadhaarPhotoUrl: aadhaar?.fileUrl ?? null,
-      panNumber: pan?.docNumber ?? null,
-      panPhotoUrl: pan?.fileUrl ?? null,
-      livelinessStraightUrl: straight?.fileUrl ?? null,
-      livelinessLeftUrl: left?.fileUrl ?? null,
-      livelinessRightUrl: right?.fileUrl ?? null,
-      reviewNote: rejectionNote,
-      reviewedAt,
-      documents: docs,
-    };
+    return this.kyc.personalView(user);
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
   @Get('broker/team/agents/:id/kyc')
   async getAgentKycDetails(@CurrentUser() user: RequestUser, @Param('id') agentId: string) {
-    const orgId = user.role === 'SUPER_ADMIN' ? undefined : requireOrg(user);
-    const agent = await this.prisma.user.findFirst({
-      where: { id: agentId, ...(orgId ? { organizationId: orgId } : {}) },
-      select: { id: true, name: true, email: true, phone: true, avatarUrl: true, role: true, organizationId: true },
-    });
-    if (!agent) throw new NotFoundException('Agent not found');
+    return this.kyc.personalView(user, agentId);
+  }
 
-    const docs = await this.prisma.kycDocument.findMany({
-      where: { userId: agent.id },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const aadhaar = docs.find((d) => d.docType === 'AADHAAR');
-    const pan = docs.find((d) => d.docType === 'PAN');
-    const straight = docs.find((d) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_STRAIGHT');
-    const left = docs.find((d) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_LEFT');
-    const right = docs.find((d) => d.docType === 'OTHER' && d.docNumber === 'LIVELINESS_RIGHT');
-
-    let status: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' = 'UNVERIFIED';
-    if (docs.length > 0) {
-      if (docs.some((d) => d.status === 'REJECTED')) status = 'REJECTED';
-      else if (docs.some((d) => d.status === 'PENDING')) status = 'PENDING';
-      else if (docs.every((d) => d.status === 'VERIFIED')) status = 'VERIFIED';
-    }
-
-    return {
-      agent,
-      status,
-      aadhaarNumber: aadhaar?.docNumber ?? null,
-      aadhaarPhotoUrl: aadhaar?.fileUrl ?? null,
-      panNumber: pan?.docNumber ?? null,
-      panPhotoUrl: pan?.fileUrl ?? null,
-      livelinessStraightUrl: straight?.fileUrl ?? null,
-      livelinessLeftUrl: left?.fileUrl ?? null,
-      livelinessRightUrl: right?.fileUrl ?? null,
-      reviewNote: docs.find((d) => d.reviewNote)?.reviewNote ?? null,
-      reviewedAt: docs.find((d) => d.reviewedAt)?.reviewedAt ?? null,
-      documents: docs,
-    };
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
+  @Get('broker/team/agent-kyc/history')
+  async kycHistory(@CurrentUser() user: RequestUser, @Query('member') member?: string, @Query('cursor') cursor?: string) {
+    return this.kyc.history(user, member || user.id, cursor);
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
@@ -942,68 +824,49 @@ export class OrganizationsController {
   async reviewAgentKyc(
     @CurrentUser() user: RequestUser,
     @Param('id') agentId: string,
-    @Body(new ZodPipe(z.object({ status: z.enum(['VERIFIED', 'REJECTED']), reviewNote: z.string().max(500).optional() })))
-    body: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string },
+    @Body(
+      new ZodPipe(
+        z.object({
+          status: z.enum(['VERIFIED', 'REJECTED']),
+          reviewNote: z.string().max(500).optional(),
+          expectedDocumentIds: z.array(z.string()).max(10).optional(),
+        }),
+      ),
+    )
+    body: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string; expectedDocumentIds?: string[] },
   ) {
-    const orgId = user.role === 'SUPER_ADMIN' ? undefined : requireOrg(user);
-    const agent = await this.prisma.user.findFirst({
-      where: { id: agentId, ...(orgId ? { organizationId: orgId } : {}) },
-    });
-    if (!agent) throw new NotFoundException('Agent not found');
+    const result = await this.kyc.reviewPersonal(user, agentId, body);
 
-    await this.prisma.kycDocument.updateMany({
-      where: { userId: agent.id },
-      data: {
-        status: body.status,
-        reviewNote: body.status === 'REJECTED' ? body.reviewNote || 'Documents could not be verified' : null,
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-      },
-    });
+    if (!result.replayed)
+      await this.notifications.notify(agentId, {
+        kind: 'KYC_UPDATE',
+        title: body.status === 'VERIFIED' ? '✅ आपका Agent KYC Approved हो गया है' : '❌ आपका Agent KYC Reject हुआ',
+        body: body.reviewNote,
+        link: '/broker/kyc',
+      });
 
-    await this.notifications.notify(agent.id, {
-      kind: 'KYC_UPDATE',
-      title: body.status === 'VERIFIED' ? '✅ आपका Agent KYC Approved हो गया है' : '❌ आपका Agent KYC Reject हुआ',
-      body: body.reviewNote,
-      link: '/broker/kyc',
-    });
-
-    return { ok: true, status: body.status };
+    return result;
   }
 
   @Get('kyc/mine')
-  myKyc(@CurrentUser() user: RequestUser) {
-    return this.prisma.kycDocument.findMany({
-      where: user.orgId && user.role === 'BROKER_ADMIN' ? { organizationId: user.orgId } : { userId: user.id },
+  async myKyc(@CurrentUser() user: RequestUser) {
+    const docs = await this.prisma.kycDocument.findMany({
+      where: {
+        ...(user.orgId && user.role === 'BROKER_ADMIN'
+          ? { organizationId: user.orgId, userId: null }
+          : { userId: user.id, organizationId: user.orgId ?? null }),
+        supersededAt: null,
+      },
       orderBy: { createdAt: 'desc' },
     });
+    return docs.map(kycView);
   }
 
   // ------------------------------------------------------------------ Firm KYC
   @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
   @Get('broker/firm-kyc')
   async getFirmKyc(@CurrentUser() user: RequestUser) {
-    const orgId = requireOrg(user);
-    const org = await this.prisma.organization.findUniqueOrThrow({
-      where: { id: orgId },
-      select: { id: true, name: true, reraNumber: true, gstNumber: true, verification: true },
-    });
-    const docs = await this.prisma.kycDocument.findMany({
-      where: { organizationId: orgId },
-      orderBy: { createdAt: 'desc' },
-    });
-    const reraDoc = docs.find((d) => d.docType === 'RERA_CERTIFICATE');
-    const gstDoc = docs.find((d) => d.docType === 'GST_CERTIFICATE');
-    const panDoc = docs.find((d) => d.docType === 'PAN');
-
-    return {
-      organization: org,
-      reraDocument: reraDoc || null,
-      gstDocument: gstDoc || null,
-      panDocument: panDoc || null,
-      documents: docs,
-      canEdit: (user.role === 'BROKER_ADMIN' || user.role === 'SUPER_ADMIN') && org.verification !== 'VERIFIED',
-    };
+    return this.kyc.firmView(user);
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
@@ -1032,58 +895,9 @@ export class OrganizationsController {
     },
   ) {
     const orgId = requireOrg(user);
-    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
-    if (org.verification === 'VERIFIED' && user.role !== 'SUPER_ADMIN') {
-      throw new BadRequestException('यह फर्म पहले ही सुपरएडमिन द्वारा सत्यापित (VERIFIED) की जा चुकी है और बदली नहीं जा सकती');
-    }
-
-    await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        ...(body.reraNumber ? { reraNumber: body.reraNumber } : {}),
-        ...(body.gstNumber ? { gstNumber: body.gstNumber } : {}),
-        verification: 'PENDING',
-      },
-    });
-
-    if (body.reraCertificateUrl) {
-      await this.prisma.kycDocument.deleteMany({ where: { organizationId: orgId, docType: 'RERA_CERTIFICATE' } });
-      await this.prisma.kycDocument.create({
-        data: {
-          organizationId: orgId,
-          docType: 'RERA_CERTIFICATE',
-          fileUrl: body.reraCertificateUrl,
-          docNumber: body.reraNumber || org.reraNumber,
-          status: 'PENDING',
-        },
-      });
-    }
-
-    if (body.gstCertificateUrl) {
-      await this.prisma.kycDocument.deleteMany({ where: { organizationId: orgId, docType: 'GST_CERTIFICATE' } });
-      await this.prisma.kycDocument.create({
-        data: {
-          organizationId: orgId,
-          docType: 'GST_CERTIFICATE',
-          fileUrl: body.gstCertificateUrl,
-          docNumber: body.gstNumber || org.gstNumber,
-          status: 'PENDING',
-        },
-      });
-    }
-
-    if (body.panPhotoUrl) {
-      await this.prisma.kycDocument.deleteMany({ where: { organizationId: orgId, docType: 'PAN' } });
-      await this.prisma.kycDocument.create({
-        data: {
-          organizationId: orgId,
-          docType: 'PAN',
-          fileUrl: body.panPhotoUrl,
-          docNumber: body.panNumber,
-          status: 'PENDING',
-        },
-      });
-    }
+    const result = await this.kyc.firm(user, body);
+    if (result.replayed) return result;
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId }, select: { name: true } });
 
     const admins = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true } });
     await this.notifications.notify(
@@ -1091,6 +905,6 @@ export class OrganizationsController {
       { kind: 'KYC_UPDATE', title: `ब्रोकर फर्म "${org.name}" ने KYC सत्यापन के लिए सबमिट किया`, link: '/admin/kyc', push: false },
     );
 
-    return { ok: true, verification: 'PENDING' };
+    return result;
   }
 }

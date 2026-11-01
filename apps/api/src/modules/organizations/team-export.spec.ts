@@ -56,7 +56,9 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
       },
       kycDocument: {
         findMany: jest.fn().mockResolvedValue([
-          { id: 'kyc_1', docType: 'AADHAAR', docNumber: '1111-2222', status: 'VERIFIED' },
+          { id: 'kyc_1', docType: 'AADHAAR', docNumber: '111122223333', status: 'VERIFIED' },
+          { id: 'kyc_2', docType: 'PAN', docNumber: 'ABCDE1234F', status: 'VERIFIED' },
+          ...['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'].map((docNumber, i) => ({ id: `face_${i}`, docType: 'OTHER', docNumber, status: 'VERIFIED' })),
         ]),
       },
       userLocation: {
@@ -87,10 +89,16 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
       mockAudit,
       mockNotifications,
       mockFeatures,
+      {} as never,
     );
   });
 
   describe('team query filtering', () => {
+    it('does not call a single verified Aadhaar a completed personal KYC', async () => {
+      mockPrisma.kycDocument.findMany.mockResolvedValue([{ id: 'partial', docType: 'AADHAAR', status: 'VERIFIED' }]);
+      const result = await controller.team(mockAdminUser);
+      expect(result.members[0].kycStatus).toBe('UNVERIFIED');
+    });
     it('passes filters down to readBrokerTeam', async () => {
       const res = await controller.team(
         mockAdminUser,

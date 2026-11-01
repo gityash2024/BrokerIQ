@@ -62,7 +62,7 @@ export class AdminCoreController {
       this.prisma.listing.count({ where: { status: 'PENDING_REVIEW', deletedAt: null } }),
       this.prisma.lead.count({ where: { createdAt: { gte: since30 } } }),
       this.prisma.enquiry.count({ where: { createdAt: { gte: since30 } } }),
-      this.prisma.kycDocument.count({ where: { status: 'PENDING' } }),
+      this.prisma.kycDocument.count({ where: { status: 'PENDING', supersededAt: null } }),
       this.prisma.listingReport.count({ where: { status: 'OPEN' } }),
       this.prisma.payment.aggregate({ where: { status: 'PAID', paidAt: { gte: since30 } }, _sum: { amount: true } }),
       this.prisma.contactMessage.count({ where: { status: 'OPEN' } }),

@@ -12,6 +12,7 @@ import { WebPushService } from './notifications/web-push.service';
 import { AiService } from './ai/ai.service';
 import { MediaService } from './media/media.service';
 import { LocalStorageService } from './media/local-storage.service';
+import { KycService } from './media/kyc.service';
 import { EventsService } from './events/events.service';
 import { UsageService } from './usage/usage.service';
 import { FeaturesService } from './features/features.service';
@@ -33,6 +34,7 @@ const services = [
   AiService,
   LocalStorageService,
   MediaService,
+  KycService,
   EventsService,
   UsageService,
   FeaturesService,

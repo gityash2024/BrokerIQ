@@ -137,6 +137,7 @@ export function notificationDestination(
   const dashboard = nativeDashboardPath(path);
   if (dashboard) return dashboard;
   if (base === '/broker/inventory') return '/(broker)/inventory' + suffix;
+  if (base === '/broker/kyc' && new URLSearchParams(query).get('view') === 'mine') return '/agent-kyc';
   const lead = match(`^/broker/leads/(${id})$`);
   if (lead) return '/lead/' + lead + suffix;
   const property = match(`^/(?:user/)?property/(${id})$`);

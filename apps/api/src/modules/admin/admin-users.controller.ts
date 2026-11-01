@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
+import { KycService } from '../../core/media/kyc.service';
+import { kycView } from '../../common/kyc-view';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
@@ -26,6 +28,7 @@ export class AdminUsersController {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly auth: AuthService,
+    private readonly kycService: KycService,
   ) {}
 
   // ------------------------------------------------------------------ users
@@ -166,13 +169,13 @@ export class AdminUsersController {
 
   @Roles('SUPER_ADMIN', 'MODERATOR', 'SUPPORT')
   @Get('organizations/:id')
-  async org(@Param('id') id: string) {
+  async org(@Param('id') id: string, @CurrentUser() actor: RequestUser) {
     const org = await this.prisma.organization.findUnique({
       where: { id },
       include: {
         members: { select: { id: true, name: true, email: true, role: true, status: true, lastLoginAt: true } },
         subscription: { include: { plan: true } },
-        kycDocuments: { orderBy: { createdAt: 'desc' } },
+        kycDocuments: { where: { supersededAt: null }, orderBy: { createdAt: 'desc' } },
         localities: { select: { name: true } },
         connectors: true,
         payments: { orderBy: { createdAt: 'desc' }, take: 20 },
@@ -182,7 +185,7 @@ export class AdminUsersController {
     if (!org) throw new NotFoundException();
     const { webhookKey, ...rest } = org;
     void webhookKey;
-    return rest;
+    return { ...rest, kycDocuments: actor.role === 'SUPER_ADMIN' ? rest.kycDocuments.map(kycView) : [] };
   }
 
   @Patch('organizations/:id')
@@ -206,7 +209,7 @@ export class AdminUsersController {
     await this.prisma.organization.update({ where: { id }, data: { status: body.status, verification: body.verification } });
     if (body.verification === 'VERIFIED') {
       await this.prisma.listing.updateMany({ where: { organizationId: id, deletedAt: null }, data: { isVerified: true } });
-      await this.notifications.notifyOrg(id, { kind: 'KYC_UPDATE', title: '✅ आपकी firm verified हो गई है', link: '/broker/settings' }, { adminsOnly: true });
+      await this.notifications.notifyOrg(id, { kind: 'KYC_UPDATE', title: '✅ आपकी firm verified हो गई है', link: '/broker/kyc?view=firm' }, { adminsOnly: true });
     }
     if (body.planCode) {
       const plan = await this.prisma.plan.findUnique({ where: { code: body.planCode } });
@@ -243,18 +246,19 @@ export class AdminUsersController {
     from?: string;
     to?: string;
     ids?: string;
+    history?: string;
   }): Prisma.KycDocumentWhereInput {
-    const where: Prisma.KycDocumentWhereInput = {};
+    const where: Prisma.KycDocumentWhereInput = filters.history === 'ARCHIVED' ? { supersededAt: { not: null } } : filters.history === 'ALL' ? {} : { supersededAt: null };
 
     if (filters.brokerId) {
-      where.OR = [
-        { organizationId: filters.brokerId },
-        { user: { organizationId: filters.brokerId } },
-      ];
+      where.OR = [{ organizationId: filters.brokerId }, { user: { organizationId: filters.brokerId } }];
     }
 
     if (filters.ids) {
-      const idList = filters.ids.split(',').map((s) => s.trim()).filter(Boolean);
+      const idList = filters.ids
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (idList.length > 0) {
         where.id = { in: idList };
       }
@@ -301,7 +305,7 @@ export class AdminUsersController {
   }
 
   @Get('kyc')
-  kyc(
+  async kyc(
     @Query('status') status = 'PENDING',
     @Query('role') role?: string,
     @Query('search') search?: string,
@@ -310,9 +314,10 @@ export class AdminUsersController {
     @Query('datePreset') datePreset?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('history') history?: string,
   ) {
-    const where = this.buildKycWhereClause({ status, role, search, brokerId, agentId, datePreset, from, to });
-    return this.prisma.kycDocument.findMany({
+    const where = this.buildKycWhereClause({ status, role, search, brokerId, agentId, datePreset, from, to, history });
+    const docs = await this.prisma.kycDocument.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -320,6 +325,7 @@ export class AdminUsersController {
         organization: { select: { id: true, name: true, reraNumber: true, verification: true } },
       },
     });
+    return docs.map(kycView);
   }
 
   @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
@@ -356,6 +362,18 @@ export class AdminUsersController {
       to,
       ids,
     });
+
+    if (user?.role === 'BROKER_ADMIN')
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        {
+          OR: [
+            { organizationId: user.orgId!, userId: null },
+            { organizationId: user.orgId!, user: { organizationId: user.orgId!, role: 'BROKER_AGENT' } },
+            { organizationId: user.orgId!, userId: user.id },
+          ],
+        },
+      ];
 
     const docs = await this.prisma.kycDocument.findMany({
       where,
@@ -472,7 +490,6 @@ export class AdminUsersController {
     return res.send(csvContent);
   }
 
-
   @Patch('kyc/:id')
   async reviewKyc(
     @CurrentUser() user: RequestUser,
@@ -482,16 +499,14 @@ export class AdminUsersController {
     )
     body: any,
   ) {
-    const doc = await this.prisma.kycDocument.update({
-      where: { id },
-      data: { status: body.status, reviewNote: body.note, reviewedById: user.id, reviewedAt: new Date() },
-    });
-    // A tenant's approved ID makes them a "Verified tenant" (brokers see the badge on enquiries).
-    if (doc.userId && body.status === 'VERIFIED')
-      await this.prisma.user.updateMany({ where: { id: doc.userId, role: 'USER', tenantVerifiedAt: null }, data: { tenantVerifiedAt: new Date() } });
-    if (doc.organizationId && body.verifyOrganization) {
-      await this.updateOrg(user, doc.organizationId, { verification: body.status } as any);
-    }
+    const { doc, firmVerified, replayed } = await this.kycService.reviewDocument(user, id, body);
+    if (replayed) return kycView(doc);
+    if (firmVerified && doc.organizationId)
+      await this.notifications.notifyOrg(
+        doc.organizationId,
+        { kind: 'KYC_UPDATE', title: '✅ आपकी firm verified हो गई है', link: '/broker/kyc?view=firm' },
+        { adminsOnly: true },
+      );
     const target =
       doc.userId ??
       (doc.organizationId ? (await this.prisma.user.findFirst({ where: { organizationId: doc.organizationId, role: 'BROKER_ADMIN' } }))?.id : null);
@@ -500,9 +515,9 @@ export class AdminUsersController {
         kind: 'KYC_UPDATE',
         title: body.status === 'VERIFIED' ? '✅ Document verified' : '❌ Document rejected',
         body: body.note,
-        link: doc.organizationId ? '/broker/settings' : '/account/profile',
+        link: doc.userId ? (doc.organizationId ? '/broker/kyc?view=mine' : '/account/profile') : '/broker/kyc?view=firm',
       });
     await this.audit.log(user, 'kyc.review', 'KycDocument', id, body);
-    return doc;
+    return kycView(doc);
   }
 }

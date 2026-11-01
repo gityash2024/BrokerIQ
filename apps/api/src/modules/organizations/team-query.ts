@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { agentTargets, dashboardMonthPeriod } from '@brokeriq/shared';
 import type { RequestUser } from '../../common/decorators';
+import { kycView } from '../../common/kyc-view';
 import { requireOrg } from '../../common/utils';
 import type { PrismaService } from '../../prisma/prisma.service';
 import { resolveDateRange } from '../../common/utils/dates';
@@ -144,7 +145,7 @@ export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, a
           prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: 'WON', stageChangedAt: monthly } }),
           prisma.activity.count({ where: { organizationId, userId: member.id, createdAt: { gte: since } } }),
           prisma.kycDocument.findMany({
-            where: { userId: member.id },
+            where: { userId: member.id, organizationId, supersededAt: null },
             orderBy: { createdAt: 'desc' },
             select: { id: true, docType: true, docNumber: true, fileUrl: true, status: true, reviewNote: true, reviewedAt: true },
           }),
@@ -160,7 +161,16 @@ export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, a
         if (kycDocs.length > 0) {
           if (kycDocs.some((d) => d.status === 'REJECTED')) kycStatus = 'REJECTED';
           else if (kycDocs.some((d) => d.status === 'PENDING')) kycStatus = 'PENDING';
-          else if (kycDocs.every((d) => d.status === 'VERIFIED')) kycStatus = 'VERIFIED';
+          else if (
+            kycDocs.length === 5 &&
+            kycDocs.some((d) => d.docType === 'AADHAAR') &&
+            kycDocs.some((d) => d.docType === 'PAN') &&
+            ['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'].every((pose) =>
+              kycDocs.some((d) => d.docType === 'OTHER' && d.docNumber === pose),
+            ) &&
+            kycDocs.every((d) => d.status === 'VERIFIED')
+          )
+            kycStatus = 'VERIFIED';
         }
 
         const targets = agentTargets(allTargets[member.id]);
@@ -172,7 +182,7 @@ export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, a
         return {
           ...member,
           kycStatus,
-          kycDocuments: kycDocs,
+          kycDocuments: user.role === 'SUPER_ADMIN' || member.id === user.id || member.role === 'BROKER_AGENT' ? kycDocs.map(kycView) : [],
           lastLocation: lastLocation || null,
           targets,
           fulfillment: {

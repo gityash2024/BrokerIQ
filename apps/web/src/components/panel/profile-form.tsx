@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BadgeCheck, Camera, Clock, FileUp, ShieldCheck, XCircle } from 'lucide-react';
+import { KycPreviewButton } from '@/components/broker/kyc-media';
 import { api, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/utils';
@@ -141,10 +142,7 @@ export function KycCard({ broker }: { broker?: boolean }) {
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Select value={docType} onChange={(e) => setDocType(e.target.value)}>
-          {(broker
-            ? ['RERA_CERTIFICATE', 'GST_CERTIFICATE', 'PAN', 'AADHAAR', 'OTHER']
-            : ['OWNERSHIP_PROOF', 'ELECTRICITY_BILL', 'AADHAAR', 'PAN', 'OTHER']
-          ).map((d) => (
+          {(broker ? ['RERA_CERTIFICATE', 'GST_CERTIFICATE', 'PAN'] : ['OWNERSHIP_PROOF', 'ELECTRICITY_BILL', 'AADHAAR', 'PAN', 'OTHER']).map((d) => (
             <option key={d} value={d}>
               {d.replace(/_/g, ' ')}
             </option>
@@ -160,9 +158,9 @@ export function KycCard({ broker }: { broker?: boolean }) {
         <div className="mt-4 space-y-2">
           {q.data.map((d) => (
             <div key={d.id} className="flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-sm">
-              <a href={d.fileUrl} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+              <KycPreviewButton src={d.fileUrl} title={d.docType.replace(/_/g, ' ')} className="font-medium hover:underline">
                 {d.docType.replace(/_/g, ' ')}
-              </a>
+              </KycPreviewButton>
               <span className="flex items-center gap-1 text-xs">
                 {d.status === 'VERIFIED' ? (
                   <BadgeCheck className="size-4 text-emerald-500" />
