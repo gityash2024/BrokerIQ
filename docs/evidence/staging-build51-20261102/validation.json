@@ -1,0 +1,41 @@
+{
+  "applicationPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+  "mobile": {
+    "passed": 104,
+    "suites": 12,
+    "seconds": 2.445
+  },
+  "webStorage": {
+    "passed": 19,
+    "milliseconds": 295.985417,
+    "boundary": "Node WebCrypto plus explicitly in-memory fake-indexeddb; not a browser"
+  },
+  "workspaceTypechecks": "PASS",
+  "changedFilesLint": {
+    "errors": 0,
+    "warnings": 30
+  },
+  "unchangedBackendRegression": {
+    "testedPin": "d70af6f4f4423070c9a1f429e3c01a7b40861d96",
+    "sourceTreesUnchanged": [
+      "apps/api",
+      "packages/shared"
+    ],
+    "apiPassed": 398,
+    "apiSkipped": 27,
+    "brokerFirstPassed": 82,
+    "sharedPassed": 65,
+    "freshDatabaseSuiteRerunForBuild51": false
+  },
+  "nativeBuild": {
+    "seconds": 344,
+    "tasksExecuted": 742,
+    "tasksUpToDate": 28
+  },
+  "stagingFixturesOrSeeds": false,
+  "hostedCiVerified": false,
+  "browserVisualAcceptance": false,
+  "installedDeviceAcceptance": false,
+  "legacyOwnershipRecoveryAcceptance": false,
+  "fullProductSignoff": false
+}

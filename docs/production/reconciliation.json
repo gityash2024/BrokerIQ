@@ -3763,16 +3763,25 @@
       "shippedBuild": "PENDING",
       "verification": "VERIFIED",
       "notes": [
-        "56.30 GB measured available-space increase; 58.80 GB now free; all running service/container identities and health preserved."
+        "56.30 GB measured available-space increase; 58.80 GB now free; all running service/container identities and health preserved.",
+        "Reviewed exact cleanup evidence:56,298,688,512 extra available bytes, PM2/container identities unchanged. Later releases retain separate current/rollback protection. No new cleanup inferred."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "docs/production/SERVER_CLEANUP.md",
+        "docs/evidence/production-20261101/server-cleanup-before.json",
+        "docs/evidence/production-20261101/server-cleanup-after.json"
+      ],
+      "commits": [
+        "de27f34"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-02",
@@ -3789,15 +3798,26 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "Runner without E2E_API_URL refuses execution; explicit simulation labelled non-release and refused in CI. Real E2E suites pending.",
-      "notes": [],
+      "notes": [
+        "Reviewed real-PostgreSQL harness/setup and negative permission cases. Build49 full398/27 and Broker-first82 results are inherited by51 because API/shared trees match exactly; not a fresh51 DB run. Separate root test/e2e/harness/client.ts refuses absent real API URL by default. Hosted CI is unverified because gh has no login."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/jest.config.js",
+        "apps/api/test/setup-db.sh",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
+      "commits": [
+        "a675735",
+        "511817d"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-03",
@@ -3814,15 +3834,28 @@
       "androidSource": "PENDING",
       "shippedBuild": "BUILD46_ARTIFACT_VERIFIED_DEVICE_PENDING",
       "verification": "Clean tracked prebuild; actual signed APK MainActivity/FaceCaptureActivity secure flags and60 native library16KB alignments inspected. Signed/public hashes match. Physical recording/recents/upgrade deferred by user.",
-      "notes": [],
+      "notes": [
+        "Reviewed clean prebuild guards and actual APK DEX/permissions/16KB verifiers. Native secure-window configuration survives regeneration in50/51 artifacts; physical capture/recents/recording remains deferred."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/mobile/plugins/with-screen-protection.js",
+        "apps/mobile/plugins/screen-protection.test.cjs",
+        "ops/build-android-release.sh",
+        "ops/verify-android-artifact.py"
+      ],
+      "commits": [
+        "7ab7c2d",
+        "a99406d",
+        "92b1b16"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json"
+      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json",
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-04",
@@ -3839,15 +3872,28 @@
       "androidSource": "PINNED_SIGNED_APK_VERIFIED",
       "shippedBuild": "BUILD46_ARTIFACT_VERIFIED_DEVICE_PENDING",
       "verification": "Pinned0d6c2bc:354 real PostgreSQL tests/27 configuration skips. Broker-first selection53/53 after correcting stale-revision test expectation; unchanged app sources. Signed43 native/security/identity and full public bytes verified. Device/provider/full-product acceptance remains open.",
-      "notes": [],
+      "notes": [
+        "Reviewed immutable candidate, no active-checkout rebuild, exact executable-path helper and fail-fast strict activation/runtime ordering. BrokerIQ-only switch/rollback; actual51 activation evidence is separate."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "ops/prepare-staging-source.sh",
+        "ops/prepare-staging-candidate.sh",
+        "ops/activate-staging-release.sh",
+        "ops/start-pinned-processes.cjs"
+      ],
+      "commits": [
+        "be21ed4",
+        "c425aa8",
+        "08e8a7d"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json"
+      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json",
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-05",
@@ -3865,16 +3911,29 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate."
+        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate.",
+        "Reviewed additive migration rehearsals and actual fresh encrypted scratch restores. Build51 migration set still43, no new migration/fixtures. Protected45 compatibility wrapper needs both45/46 directories; no down-migration."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "ops/verify-private-backup.py",
+        "ops/backup-delta-private.py",
+        "ops/activate-staging-release.sh",
+        "ops/rollback-api-build45-db43.cjs"
+      ],
+      "commits": [
+        "4b521ad",
+        "92b1b16",
+        "c425aa8",
+        "f27ba0d"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-06",
@@ -3891,15 +3950,27 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Reviewed signing identity and monotonically increasing versionCode assertions; actual retained certificate matches published APKs. Installed upgrade/data preservation is NOT accepted without the deferred handset."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/mobile/plugins/with-release-signing.js",
+        "ops/build-android-release.sh",
+        "ops/verify-android-artifact.py"
+      ],
+      "commits": [
+        "8afcf2c",
+        "a99406d",
+        "92b1b16"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-07",
@@ -3916,15 +3987,27 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Reviewed complete-byte hash, embedded Expo identity and actual PM2/public/origin verification. Native/API/provider workflows are not inferred from artifact consistency."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "ops/verify-active-staging-release.cjs",
+        "ops/verify-android-artifact.py",
+        "ops/prepublish-staging-apk.cjs"
+      ],
+      "commits": [
+        "679d940",
+        "92b1b16",
+        "f0c0b5f"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-08",
@@ -3941,15 +4024,27 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Reviewed generated release manifest used by landing versions/timestamps/download and runtime update configuration; all three50 landing timestamps independently matched actual publication. New screenshots still absent, not relabelled."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "ops/prepare-staging-candidate.sh",
+        "ops/update-active-release.cjs",
+        "apps/web/src/app/(site)/page.tsx"
+      ],
+      "commits": [
+        "be21ed4",
+        "08e8a7d",
+        "ef1ac65"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "RELEASE-09",
@@ -4067,16 +4162,28 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate."
+        "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate.",
+        "Reviewed encrypted off-host base+delta restoration and scoped rollback runbook. Full monitoring/alerts/operator handoff, recovery exercises and representative soak remain OPEN."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "ops/backup-delta-private.py",
+        "ops/verify-private-backup.py",
+        "docs/production/BACKUP_RESTORE_20261101.md",
+        "docs/production/STAGING_RELEASE_RUNBOOK.md"
+      ],
+      "commits": [
+        "92b1b16",
+        "4b521ad",
+        "c425aa8"
+      ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": null,
+      "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+      "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
     {
       "id": "ADD-NOTIFY-01",

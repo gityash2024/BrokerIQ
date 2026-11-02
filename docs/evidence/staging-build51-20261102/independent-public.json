@@ -1,0 +1,9 @@
+{
+  "result": "INDEPENDENT_PUBLIC_BYTES_AND_LANDING_VERIFIED",
+  "commit": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
+  "versionCode": 51,
+  "bytes": 186664770,
+  "sha256": "3a373f51136cbd604f53bb692e24a8177ed2c31cd48b1235639ddd6cd740fa0c",
+  "publishedAt": "2026-11-02T17:03:42.683Z",
+  "matchingLandingTimestamps": 3
+}

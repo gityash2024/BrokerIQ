@@ -1,6 +1,6 @@
 # Web private drafts and asynchronous workspace ownership
 
-Prepared after Build50. Not shipped yet; Chrome visual/multi-tab acceptance remains OPEN.
+Shipped in pinned Build51,a34015c/v2.3.10, with independently matching public APK/web/runtime/landing identity. Chrome visual/multi-tab acceptance remains OPEN.
 
 The web counterpart used account-only capture/Inbox keys. Auth changes deleted every Inbox sessionStorage key; same-user role/firm changes could retain form state, and an old A → B → A HTTP response could pass a string-only guard. Upload signing and final binary/XHR reads did not carry a durable original-operation fence.
 
