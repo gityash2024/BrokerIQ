@@ -1,0 +1,14 @@
+{
+  "result": "READ_ONLY_REAL_EXPORT_STREAM_COUNTS_PRESERVED",
+  "sha256": "8b17a3736af80d10d69f24d52f41b6c1df05894f39e5780d035425f66e899b08",
+  "messages": 1897,
+  "system": 543,
+  "userPosts": 1354,
+  "textFiles": 1,
+  "attachmentFiles": 39,
+  "expandedTextBytes": 925037,
+  "crmWrites": false,
+  "automaticModelTraining": false,
+  "semanticPrecisionRecallMeasured": false,
+  "embeddedPhotoOcrImplemented": false
+}

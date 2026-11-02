@@ -1,0 +1,22 @@
+{
+  "result": "REAL_EXPORT_BEFORE_AFTER_RETENTION_PROBE",
+  "baselinePin": "49c158f42c767cedb429545e86e8e510f4a24681",
+  "before": {
+    "entries": 1897,
+    "peakCompressedBytesRetainedByUnzip": 8562593,
+    "textFiles": 1,
+    "attachmentFiles": 39,
+    "expandedTextBytes": 925037
+  },
+  "after": {
+    "entries": 1897,
+    "peakCompressedBytesRetainedByUnzip": 0,
+    "textFiles": 1,
+    "attachmentFiles": 39,
+    "expandedTextBytes": 925037
+  },
+  "metric": "Compressed entry buffers retained inside the archive reader; not process RSS",
+  "crmWrites": false,
+  "training": false,
+  "embeddedPhotoOcrImplemented": false
+}

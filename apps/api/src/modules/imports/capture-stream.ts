@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { Unzip, UnzipInflate } from 'fflate';
+import { Unzip, UnzipInflate, UnzipPassThrough, type UnzipFile } from 'fflate';
 import { TextDecoder } from 'node:util';
 import { IMPORT_MAX_BYTES, type CapturedMessage } from '@brokeriq/shared';
 import type { LocalStorageService } from '../../core/media/local-storage.service';
@@ -92,15 +92,39 @@ export interface ArchiveSummary {
   expandedTextBytes: number;
 }
 
+/** An unstarted fflate entry retains compressed chunks. Consume ignored bytes without inflating them. */
+export function discardZipFile(archive: Unzip, file: UnzipFile) {
+  class Discard {
+    static compression = file.compression;
+    ondata!: (error: Error | null, data: Uint8Array, final: boolean) => void;
+    push(_bytes: Uint8Array, final: boolean) {
+      if (final) this.ondata(null, new Uint8Array(), true);
+    }
+  }
+  file.ondata = () => undefined;
+  archive.register(Discard);
+  file.start();
+}
+
 /** Incremental ZIP inflate: attachment binaries are retained only in the encrypted original. */
 export async function* zipMessages(bytes: AsyncIterable<Buffer>, summary: ArchiveSummary): AsyncGenerator<CapturedMessage & { sourceFile?: string }> {
   let pending: (CapturedMessage & { sourceFile?: string })[] = [];
   let failure: Error | undefined;
+  let files = 0;
   const archive = new Unzip((file) => {
-    if (!/\.txt$/i.test(file.name)) {
-      if (!file.name.endsWith('/')) summary.attachmentFiles++;
+    if (++files > 10_000 || file.name.length > 1024) {
+      failure = new Error('ZIP entry count or filename exceeds the review limit. Original ZIP preserved.');
+      discardZipFile(archive, file);
       return;
     }
+    if (!/\.txt$/i.test(file.name)) {
+      if (!file.name.endsWith('/')) summary.attachmentFiles++;
+      discardZipFile(archive, file);
+      return;
+    }
+    // An ignored entry may use the same compression method as this text entry.
+    archive.register(UnzipInflate);
+    archive.register(UnzipPassThrough);
     summary.textFiles++;
     const parser = new ChatStreamParser();
     const decoder = new TextDecoder('utf-8', { fatal: true });
