@@ -20,6 +20,7 @@ interface Provider {
   url: string;
   textModels: string[];
   visionModels: string[];
+  structuredApproved?: boolean;
 }
 
 interface CallOpts {
@@ -78,7 +79,14 @@ export class AiService {
   private toProvider(name: ProviderName, v: Record<string, unknown>): Provider {
     const apiKey = String(v.apiKey ?? '');
     if (name === 'qwen_local')
-      return { name, apiKey, url: URLS[name], textModels: list(v.textModel).slice(0, 1), visionModels: [] };
+      return {
+        name,
+        apiKey,
+        url: URLS[name],
+        textModels: list(v.textModel).slice(0, 1),
+        visionModels: [],
+        structuredApproved: v.structuredTextApprovedModel === list(v.textModel)[0] && /^[a-f0-9]{64}$/.test(String(v.structuredEvaluationSha256 ?? '')),
+      };
     if (name === 'openrouter')
       return {
         name,
@@ -95,7 +103,9 @@ export class AiService {
   /** Configured providers in the admin-chosen order. */
   async providers(): Promise<Provider[]> {
     const app = await this.settings.getAppConfig();
-    const order = [...new Set(['qwen_local', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName => (PROVIDERS as string[]).includes(p));
+    const order = [...new Set(['qwen_local', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName =>
+      (PROVIDERS as string[]).includes(p),
+    );
     const out: Provider[] = [];
     for (const name of order) {
       const v = await this.settings.resolve(name).catch(() => null);
@@ -115,8 +125,14 @@ export class AiService {
     return out;
   }
 
-  async isAvailable(kind: 'text' | 'vision' | 'tools' = 'text') {
-    return (await this.providers()).some(p => kind === 'vision' ? p.visionModels.length > 0 : (kind !== 'tools' || p.name !== 'qwen_local') && p.textModels.length > 0);
+  async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text') {
+    return (await this.providers()).some((p) =>
+      kind === 'vision'
+        ? p.visionModels.length > 0
+        : (kind !== 'tools' || p.name !== 'qwen_local') &&
+          (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
+          p.textModels.length > 0,
+    );
   }
 
   // ------------------------------------------------------------------ public API
@@ -154,7 +170,7 @@ export class AiService {
   async json<T = any>(messages: ChatMessage[], opts: CallOpts & { schema?: ZodType<T> }): Promise<T> {
     let value: T | undefined;
     const generation = { ...opts, json: true, responseSchema: opts.schema };
-    await this.run(generation, 'text', async (p, model) => {
+    await this.run(generation, 'json', async (p, model) => {
       const first = await this.complete(p, model, messages, generation, TEXT_TIMEOUT_MS);
       const check = (text: string) => {
         const parsed = parseJsonLoose<T>(text);
@@ -302,10 +318,16 @@ export class AiService {
   // ------------------------------------------------------------------ core loop
   private async run(
     opts: CallOpts,
-    kind: 'text' | 'vision' | 'tools',
+    kind: 'text' | 'vision' | 'tools' | 'json',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = (await this.providers()).filter(p => kind === 'vision' ? p.visionModels.length > 0 : (kind !== 'tools' || p.name !== 'qwen_local') && p.textModels.length > 0);
+    const providers = (await this.providers()).filter((p) =>
+      kind === 'vision'
+        ? p.visionModels.length > 0
+        : (kind !== 'tools' || p.name !== 'qwen_local') &&
+          (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
+          p.textModels.length > 0,
+    );
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     for (const p of providers) {
@@ -330,14 +352,19 @@ export class AiService {
     let responseFormat: Record<string, unknown> | undefined = opts.json ? { type: 'json_object' } : undefined;
     if (p.name === 'qwen_local' && opts.responseSchema) {
       let schema;
-      try { schema = toJSONSchema(opts.responseSchema, { target: 'draft-7', io: 'input', reused: 'ref' }); }
-      catch { throw new RetryableError('local JSON schema cannot be represented safely'); }
+      try {
+        schema = toJSONSchema(opts.responseSchema, { target: 'draft-7', io: 'input', reused: 'ref' });
+      } catch {
+        throw new RetryableError('local JSON schema cannot be represented safely');
+      }
       if (Buffer.byteLength(JSON.stringify(schema), 'utf8') > 16000) throw new RetryableError('local JSON schema exceeds bounded grammar size');
       responseFormat = { type: 'json_object', schema };
     }
     const key = opts.cacheMs
       ? createHash('sha256')
-          .update(JSON.stringify([p.name, model, opts.orgId ?? null, opts.userId ?? null, opts.feature, responseFormat, opts.maxTokens, opts.temperature, messages]))
+          .update(
+            JSON.stringify([p.name, model, opts.orgId ?? null, opts.userId ?? null, opts.feature, responseFormat, opts.maxTokens, opts.temperature, messages]),
+          )
           .digest('hex')
       : null;
     const hit = key ? this.cache.get(key) : undefined;
@@ -365,15 +392,26 @@ export class AiService {
       const messages = body.messages;
       // UTF-8 bytes are a conservative upper bound on text tokens, including Hindi;
       // reserve room for the 768-token answer and the4K model's chat template.
-      if (!Array.isArray(messages) || messages.some(m => typeof m?.content !== 'string') || Buffer.byteLength(JSON.stringify(messages), 'utf8') > 2500 || body.tools)
+      if (
+        !Array.isArray(messages) ||
+        messages.some((m) => typeof m?.content !== 'string') ||
+        Buffer.byteLength(JSON.stringify(messages), 'utf8') > 2500 ||
+        body.tools
+      )
         throw new RetryableError('local model supports bounded text only');
       this.localBusy = true;
       try {
-        return await this.postRequest(p, { ...body, max_tokens: Math.min(Number(body.max_tokens) || 512, 768), cache_prompt: false }, Math.min(timeoutMs, 30000));
+        return await this.postRequest(
+          p,
+          { ...body, max_tokens: Math.min(Number(body.max_tokens) || 512, 768), cache_prompt: false },
+          Math.min(timeoutMs, 30000),
+        );
       } catch (error) {
         this.localRetryAt = Date.now() + 60000;
         throw error;
-      } finally { this.localBusy = false; }
+      } finally {
+        this.localBusy = false;
+      }
     }
     return this.postRequest(p, body, timeoutMs);
   }
@@ -415,7 +453,8 @@ export class AiService {
   async test(key: ProviderName, values: Record<string, unknown>) {
     const p = this.toProvider(key, values);
     if (env().BROKER_FIRST) {
-      if (key !== 'openrouter' && key !== 'qwen_local') throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses local Qwen or OpenRouter free models only.');
+      if (key !== 'openrouter' && key !== 'qwen_local')
+        throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses local Qwen or OpenRouter free models only.');
       if (key === 'openrouter') p.textModels = p.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
     }
     const errors: string[] = [];

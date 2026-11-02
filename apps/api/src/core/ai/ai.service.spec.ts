@@ -98,28 +98,55 @@ describe('AiService', () => {
     const current = configuration.env();
     const spy = jest.spyOn(configuration, 'env').mockReturnValue({ ...current, BROKER_FIRST: true });
     try {
-      const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'paid-model', fallbackModels: 'a:free' }, groq: { apiKey: 'g', textModel: 'other' } }), prisma);
-      expect((await ai.providers()).map(p => ({ name: p.name, textModels: p.textModels }))).toEqual([
-        { name: 'qwen_local', textModels: ['qwen'] }, { name: 'openrouter', textModels: ['a:free'] },
+      const ai = new AiService(
+        settings({
+          qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) },
+          openrouter: { apiKey: 'k', textModel: 'paid-model', fallbackModels: 'a:free' },
+          groq: { apiKey: 'g', textModel: 'other' },
+        }),
+        prisma,
+      );
+      expect((await ai.providers()).map((p) => ({ name: p.name, textModels: p.textModels }))).toEqual([
+        { name: 'qwen_local', textModels: ['qwen'] },
+        { name: 'openrouter', textModels: ['a:free'] },
       ]);
-    } finally { spy.mockRestore(); }
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('falls through oversized local prompts without truncating their original text', async () => {
     const prompt = 'x'.repeat(8000);
-    respond = (_url, body) => { expect(body.messages[0].content).toBe(prompt); return ok('hosted'); };
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    respond = (_url, body) => {
+      expect(body.messages[0].content).toBe(prompt);
+      return ok('hosted');
+    };
+    const ai = new AiService(
+      settings({
+        qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) },
+        openrouter: { apiKey: 'k', textModel: 'a:free' },
+      }),
+      prisma,
+    );
     await expect(ai.chat([{ role: 'user', content: prompt }], { feature: 'capture' })).resolves.toBe('hosted');
-    expect(calls.map(c => c.model)).toEqual(['a:free']);
+    expect(calls.map((c) => c.model)).toEqual(['a:free']);
   });
 
   it('does not queue simultaneous local requests and releases its slot on completion', async () => {
     let release!: (value: any) => void;
-    global.fetch = jest.fn(() => new Promise(resolve => { release = resolve; })) as any;
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    global.fetch = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    ) as any;
+    const ai = new AiService(
+      settings({ qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
     const first = ai.chat([{ role: 'user', content: 'one' }], { feature: 'capture' });
     // Let the first provider resolution acquire its only local generation slot.
-    while (!release) await new Promise(resolve => setImmediate(resolve));
+    while (!release) await new Promise((resolve) => setImmediate(resolve));
     await expect(ai.chat([{ role: 'user', content: 'two' }], { feature: 'capture' })).rejects.toMatchObject({ status: 502 });
     expect(global.fetch).toHaveBeenCalledTimes(1);
     release({ ok: true, status: 200, json: async () => ok('one').json });
@@ -131,8 +158,14 @@ describe('AiService', () => {
 
   it('bounds Devanagari by UTF-8 bytes and caps output before the shared local request', async () => {
     let sent: any;
-    respond = (_url, body) => { sent = body; return ok('bounded'); };
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    respond = (_url, body) => {
+      sent = body;
+      return ok('bounded');
+    };
+    const ai = new AiService(
+      settings({ qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
     await ai.chat([{ role: 'user', content: 'छोटा संदेश' }], { feature: 'capture', maxTokens: 6000 });
     expect(sent.max_tokens).toBe(768);
     expect(sent.cache_prompt).toBe(false);
@@ -143,21 +176,55 @@ describe('AiService', () => {
   it('constrains local JSON with the actual schema and still independently checks its answer', async () => {
     let format: any;
     let attempts = 0;
-    respond = (_url, body) => { format = body.response_format; return ok(attempts++ ? '{"intent":"DEMAND"}' : '{"intent":"INVENTED"}'); };
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
-    const schema = z.object({ intent: z.enum(['DEMAND','OFFER']) });
-    await expect(ai.json([{role:'user',content:'Required flat'}],{feature:'capture',schema})).resolves.toEqual({intent:'DEMAND'});
+    respond = (_url, body) => {
+      format = body.response_format;
+      return ok(attempts++ ? '{"intent":"DEMAND"}' : '{"intent":"INVENTED"}');
+    };
+    const ai = new AiService(
+      settings({ qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
+    const schema = z.object({ intent: z.enum(['DEMAND', 'OFFER']) });
+    await expect(ai.json([{ role: 'user', content: 'Required flat' }], { feature: 'capture', schema })).resolves.toEqual({ intent: 'DEMAND' });
     expect(format.type).toBe('json_object');
-    expect(format.schema.properties.intent.enum).toEqual(['DEMAND','OFFER']);
+    expect(format.schema.properties.intent.enum).toEqual(['DEMAND', 'OFFER']);
     expect(format.schema.properties.intent.type).toBe('string');
     expect(attempts).toBe(2);
   });
 
+  it('never treats a successful text connection as approved structured extraction', async () => {
+    respond = () => ok('healthy');
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    await expect(ai.isAvailable('text')).resolves.toBe(true);
+    await expect(ai.isAvailable('json')).resolves.toBe(false);
+    await expect(
+      ai.json([{ role: 'user', content: 'Plot for sale' }], { feature: 'capture', schema: z.object({ purpose: z.enum(['RENT', 'SALE']) }) }),
+    ).rejects.toMatchObject({ status: 424 });
+    expect(calls).toHaveLength(0);
+    const changed = new AiService(
+      settings({ qwen_local: { textModel: 'new-model', structuredTextApprovedModel: 'old-model', structuredEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
+    await expect(changed.isAvailable('json')).resolves.toBe(false);
+    respond = () => ok('{"purpose":"SALE"}');
+    const fallback = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    await expect(
+      fallback.json([{ role: 'user', content: 'Plot for sale' }], { feature: 'capture', schema: z.object({ purpose: z.enum(['RENT', 'SALE']) }) }),
+    ).resolves.toEqual({ purpose: 'SALE' });
+    expect(calls.map((c) => c.model)).toEqual(['a:free']);
+  });
+
   it('constrains transformed input without dropping independent output normalization or refinements', async () => {
     let format: any;
-    respond = (_url, body) => { format = body.response_format; return ok('{"phone":" +91 98999 80802 "}'); };
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
-    const schema = z.object({ phone: z.string().transform(s => s.replace(/\D/g, '')) }).refine(x => x.phone.length === 12);
+    respond = (_url, body) => {
+      format = body.response_format;
+      return ok('{"phone":" +91 98999 80802 "}');
+    };
+    const ai = new AiService(
+      settings({ qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
+    const schema = z.object({ phone: z.string().transform((s) => s.replace(/\D/g, '')) }).refine((x) => x.phone.length === 12);
     await expect(ai.json([{ role: 'user', content: 'Normalize supplied phone' }], { feature: 'capture', schema })).resolves.toEqual({ phone: '919899980802' });
     const phoneSchema = format.schema.properties.phone;
     const resolved = phoneSchema.$ref ? format.schema.definitions[phoneSchema.$ref.split('/').at(-1)] : phoneSchema;
@@ -168,8 +235,14 @@ describe('AiService', () => {
 
   it('keeps the real capture grammar below its unchanged size budget using shared definitions', async () => {
     let format: any;
-    respond = (_url, body) => { format = body.response_format; return ok('{"entities":[{"kind":"UNRELATED","warnings":[]}]}'); };
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    respond = (_url, body) => {
+      format = body.response_format;
+      return ok('{"entities":[{"kind":"UNRELATED","warnings":[]}]}');
+    };
+    const ai = new AiService(
+      settings({ qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
     const schema = z.object({ entities: z.array(capturedEntitySchema).max(100) });
     const value = await ai.json([{ role: 'user', content: 'A group system notice' }], { feature: 'capture', schema });
     expect(value.entities[0].kind).toBe('UNRELATED');
@@ -179,13 +252,19 @@ describe('AiService', () => {
 
   it('cools down a failed local service and keeps cached responses firm/user scoped', async () => {
     let localCalls = 0;
-    respond = (url) => url.includes('127.0.0.1') ? (localCalls++, { status: 503, json: {} }) : ok('hosted');
-    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    respond = (url) => (url.includes('127.0.0.1') ? (localCalls++, { status: 503, json: {} }) : ok('hosted'));
+    const ai = new AiService(
+      settings({
+        qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) },
+        openrouter: { apiKey: 'k', textModel: 'a:free' },
+      }),
+      prisma,
+    );
     const messages = [{ role: 'user' as const, content: 'same' }];
     await ai.chat(messages, { feature: 'capture', orgId: 'a', userId: 'a', cacheMs: 60000 });
     await ai.chat(messages, { feature: 'capture', orgId: 'b', userId: 'b', cacheMs: 60000 });
     await ai.chat(messages, { feature: 'capture', orgId: 'a', userId: 'a', cacheMs: 60000 });
     expect(localCalls).toBe(1);
-    expect(calls.filter(c => c.model === 'a:free')).toHaveLength(2);
+    expect(calls.filter((c) => c.model === 'a:free')).toHaveLength(2);
   });
 });
