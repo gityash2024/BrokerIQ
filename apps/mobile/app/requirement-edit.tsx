@@ -1,3 +1,4 @@
+import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -7,7 +8,7 @@ import { BrokerScreen } from '@/launch/screen';
 import { EntityFields, prepareEntity } from '@/launch/entity-fields';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useAuth } from '@/lib/auth';
-import { api, errorMessage } from '@/lib/api';
+import { captureAccountContext, api, errorMessage } from '@/lib/api';
 import { Button, Txt } from '@/ui';
 export default function RequirementEditor() {
   const { draft, leadId, id: recordId } = useLocalSearchParams<{ draft?: string; leadId?: string; id?: string }>();
@@ -15,10 +16,11 @@ export default function RequirementEditor() {
   const key = recordId || leadId || 'new-requirement';
   const { user } = useAuth();
   const id = useRef(Crypto.randomUUID());
-  const owner = useRef(user!.id);
+  const owner = useRef(captureAccountContext());
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const [value, setValue] = useState<any>({ leadId: leadId ?? null, localityNames: [], propertyTypes: [], bedrooms: [], status: 'OPEN' });
   const [ready, setReady] = useState(false);
+  const [startSeparate, setStartSeparate] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,14 +28,14 @@ export default function RequirementEditor() {
     let active = true;
     (async () => {
       try {
-        const row = draft ? await getLocalDraft(draft) : await editableDraft(kind, key);
+        const row = draft ? await getLocalDraft(draft, owner.current) : await editableDraft(kind, key, owner.current, startSeparate);
         if (draft && (!row || row.kind !== kind || row.draft_key !== key || !['DRAFT', 'FAILED'].includes(row.state)))
           throw new Error('This draft cannot be edited here; its data is preserved');
         if (row) {
           id.current = row.id;
           if (active) setValue(decodeDraft(row));
         } else if (recordId) {
-          const current = await api<any>(`/broker-requirements/${recordId}`);
+          const current = await api<any>(`/broker-requirements/${recordId}`, { ownerContext: owner.current });
           if (active) setValue({ ...current, expectedRevision: current.revision });
         }
         if (active) setReady(true);
@@ -44,7 +46,7 @@ export default function RequirementEditor() {
     return () => {
       active = false;
     };
-  }, [draft, kind, key, recordId]);
+  }, [draft, kind, key, recordId, startSeparate]);
   function change(next: any) {
     setValue(next);
     setStatus('Saving draft…');
@@ -71,7 +73,7 @@ export default function RequirementEditor() {
       if (intent === 'DEMAND' && (!parsed.purpose || !parsed.localityNames.length)) throw new Error('Purpose and preferred locality required');
       await writes.current;
       await saveDraft(kind, key, parsed, id.current, owner.current);
-      await queueDraft(id.current);
+      await queueDraft(id.current, owner.current);
       await syncDrafts();
       router.replace('/drafts');
     } catch (e) {
@@ -88,6 +90,13 @@ export default function RequirementEditor() {
             {status}
           </Txt>
           {ready && <EntityFields value={value} requirement onChange={change} />}
+          <LegacyDraftRecovery
+            error={error}
+            onStart={() => {
+              setError('');
+              setStartSeparate(true);
+            }}
+          />
           {error && <Txt color="danger">{error}</Txt>}
         </ScrollView>
         <View style={{ padding: 16 }}>

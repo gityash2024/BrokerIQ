@@ -2,6 +2,7 @@ import { usePathname, router } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
 import { moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
+import { captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { BrokerScreen } from './screen';
@@ -33,16 +34,18 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const currentPath = usePathname();
   const path = explicitPath ?? currentPath;
   const { user } = useAuth();
+  const context = captureAccountContext();
+  const screenScope = `${context.scope}:${context.epoch}`;
   const broker = !!user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
-  if (essential.includes(path)) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
+  if (essential.includes(path)) return <Fragment key={screenScope}>{children}</Fragment>;
   const key = path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const allowed =
     config.loaded &&
     moduleAllowed(config.modules, key, role) &&
     (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : broker && !!user?.organization?.id);
-  if (allowed) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
+  if (allowed) return <Fragment key={screenScope}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;
   const login = !user && consumer.test(path) && !guest.test(path);

@@ -34,6 +34,7 @@ const KEY = 'biq.session';
 export const useSession = create<{ session: Session | null; ready: boolean }>(() => ({ session: null, ready: false }));
 
 let sessionRevision = 0;
+let scopeEpoch = 0;
 let sessionPersistence: Promise<void> = Promise.resolve();
 const sessionResets = new Set<() => void | Promise<void>>();
 export function registerSessionReset(reset: () => void | Promise<void>) {
@@ -48,7 +49,8 @@ export const authStore = {
     try {
       const raw = await SecureStore.getItemAsync(KEY);
       if (revision !== sessionRevision) return;
-      useSession.setState({ session: raw ? JSON.parse(raw) : null, ready: true });
+      await authStore.set(raw ? JSON.parse(raw) : null);
+      useSession.setState({ ready: true });
     } catch {
       if (revision === sessionRevision) useSession.setState({ session: null, ready: true });
     }
@@ -58,7 +60,10 @@ export const authStore = {
     const revision = ++sessionRevision;
     const previous = authStore.get()?.user;
     const changed = previous?.id !== s?.user.id || previous?.role !== s?.user.role || previous?.organization?.id !== s?.user.organization?.id;
-    if (changed) queryClient.clear();
+    if (changed) {
+      scopeEpoch++;
+      queryClient.clear();
+    }
     useSession.setState({ session: s });
     if (changed) await Promise.allSettled([...sessionResets].map((reset) => Promise.resolve().then(reset)));
     sessionPersistence = sessionPersistence
@@ -72,48 +77,73 @@ export const authStore = {
   },
 };
 
-let refreshing: Promise<boolean> | null = null;
+export class AccountScopeChangedError extends Error {}
+/** A serializable workspace key plus a process-local fence. Token rotation does not change this fence. */
+export interface AccountContext {
+  userId: string | undefined;
+  scope: string;
+  epoch: number;
+}
+export function accountScope(user = authStore.get()?.user): string {
+  return user ? JSON.stringify([user.id, user.role, user.organization?.id ?? '']) : 'UNASSIGNED';
+}
+export function captureAccountContext(): AccountContext {
+  return { userId: authStore.get()?.user.id, scope: accountScope(), epoch: scopeEpoch };
+}
+export function assertAccountContext(context: AccountContext) {
+  if (context.epoch !== scopeEpoch || context.userId !== authStore.get()?.user.id || context.scope !== accountScope())
+    throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+}
+let refreshing: { epoch: number; task: Promise<boolean> } | null = null;
 async function refresh(): Promise<boolean> {
   const cur = authStore.get();
+  const context = captureAccountContext();
   if (!cur?.refreshToken) return false;
-  refreshing ??= (async () => {
+  if (refreshing?.epoch === context.epoch) return refreshing.task;
+  const task = (async () => {
     try {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: cur.refreshToken }),
       });
+      assertAccountContext(context);
       if (!res.ok) {
         if (res.status === 401 && authStore.get()?.refreshToken === cur.refreshToken) await authStore.set(null);
         return false;
       }
       const d: AuthResponse = await res.json();
+      assertAccountContext(context);
       if (authStore.get()?.refreshToken !== cur.refreshToken) return false;
       await authStore.set({ accessToken: d.accessToken, refreshToken: d.refreshToken, user: d.user });
       return true;
     } catch {
       return false;
     } finally {
-      setTimeout(() => (refreshing = null), 0);
+      if (refreshing?.epoch === context.epoch) refreshing = null;
     }
   })();
-  return refreshing;
+  refreshing = { epoch: context.epoch, task };
+  return task;
 }
-
-type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string>; ownerId?: string; responseType?: 'bytes' };
-export class AccountScopeChangedError extends Error {}
-function currentScope() {
-  const user = authStore.get()?.user;
-  return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
-}
+type Opts = {
+  method?: string;
+  body?: unknown;
+  auth?: boolean;
+  headers?: Record<string, string>;
+  ownerId?: string;
+  ownerContext?: AccountContext;
+  responseType?: 'bytes';
+};
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { body, auth = true, method = body === undefined ? 'GET' : 'POST', headers } = opts;
-  const ownerId = auth ? (opts.ownerId ?? authStore.get()?.user.id) : undefined;
-  const ownerScope = auth ? currentScope() : undefined;
+  const context = opts.ownerContext ?? captureAccountContext();
   const assertOwner = () => {
-    if (auth && (authStore.get()?.user.id !== ownerId || currentScope() !== ownerScope))
-      throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+    if (auth) {
+      assertAccountContext(context);
+      if (opts.ownerId !== undefined && opts.ownerId !== context.userId) throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+    }
   };
   const send = () => {
     assertOwner();
@@ -136,6 +166,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     if (error instanceof AccountScopeChangedError) throw error;
     throw new ApiError(0, { statusCode: 0, code: 'INTERNAL', message: 'Server से connect नहीं हो पाया — internet check करें' } as ApiErrorBody);
   }
+  assertOwner();
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
   assertOwner();
   if (res.ok && opts.responseType === 'bytes') {
@@ -177,16 +208,13 @@ export const qs = (o: Record<string, unknown>) => {
 
 /** Direct upload (Cloudinary / S3) of a local file uri via a server signature. */
 export async function uploadUri(uri: string, kind: string, mime = 'image/jpeg'): Promise<{ url: string; publicId?: string }> {
-  const scope = () => {
-    const user = authStore.get()?.user;
-    return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
-  };
-  const owner = scope();
+  const context = captureAccountContext();
   const assertOwner = () => {
-    if (!owner || owner !== scope()) throw new Error('Account permissions changed. Please reopen the upload.');
+    assertAccountContext(context);
+    if (!context.userId) throw new AccountScopeChangedError('Sign in before uploading.');
   };
   assertOwner();
-  const sig = await post<any>('/me/uploads/sign', { kind, contentType: mime });
+  const sig = await api<any>('/me/uploads/sign', { body: { kind, contentType: mime }, ownerContext: context });
   assertOwner();
   if (sig.provider === 'cloudinary') {
     const fd = new FormData();

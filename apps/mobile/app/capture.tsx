@@ -1,3 +1,4 @@
+import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,7 +11,7 @@ import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { captureText, captureFile, editableDraft, decodeDraft, saveDraft, syncDrafts } from '@/launch/drafts';
 import { Input, Txt, Button, Segmented, Row } from '@/ui';
-import { errorMessage, authStore } from '@/lib/api';
+import { captureAccountContext, errorMessage, authStore } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 
 type Source = { uri: string; mime: string; name: string };
@@ -23,15 +24,16 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
+  const [startSeparate, setStartSeparate] = useState(false);
   const [status, setStatus] = useState('');
   const [sources, setSources] = useState<string[]>([]);
-  const owner = useRef(authStore.get()?.user.id ?? 'UNASSIGNED');
+  const owner = useRef(captureAccountContext());
   const draftId = useRef<string | undefined>(undefined);
   const writes = useRef(Promise.resolve());
   const pendingFiles = useRef<Source[]>([]);
   useEffect(() => {
     let live = true;
-    void editableDraft('CAPTURE_COMPOSE', 'message-composer', owner.current)
+    void editableDraft('CAPTURE_COMPOSE', 'message-composer', owner.current, startSeparate)
       .then((row) => {
         if (!live) return;
         if (row) {
@@ -48,7 +50,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     return () => {
       live = false;
     };
-  }, []);
+  }, [startSeparate]);
   useEffect(() => {
     if (!ready || (!text && !group && !draftId.current)) return;
     writes.current = writes.current
@@ -211,13 +213,20 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
               onPress={() =>
                 perform(async () => {
                   await writes.current;
-                  await captureText(text, 'WHATSAPP', group || undefined, target);
+                  await captureText(text, 'WHATSAPP', group || undefined, target, owner.current);
                   void syncDrafts().catch(() => undefined);
                   setStatus('Message saved. Open saved sources to review.');
                 })
               }
             />
           </NativeCard>
+          <LegacyDraftRecovery
+            error={error}
+            onStart={() => {
+              setError('');
+              setStartSeparate(true);
+            }}
+          />
           {!!error && (
             <NativeCard>
               <Txt color="danger">{error}</Txt>

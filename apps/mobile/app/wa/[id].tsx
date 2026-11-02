@@ -7,9 +7,9 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
 import { renderTemplate, type WaTemplate } from '@brokeriq/shared';
-import { readInboxDraft, saveInboxDraft } from '@/lib/inbox-drafts';
+import { readInboxDraft, saveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { useAuth } from '@/lib/auth';
-import { authStore, api, post } from '@/lib/api';
+import { authStore, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
@@ -21,6 +21,7 @@ export default function WaThread() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
   const { user } = useAuth();
+  const owner = useRef(captureAccountContext()).current;
   const qc = useQueryClient();
   const q = useInfiniteQuery({
     queryKey: ['wa-thread', id, user?.id],
@@ -35,14 +36,18 @@ export default function WaThread() {
   const [syncing, setSyncing] = useState(false);
   const [syncCursor, setSyncCursor] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const legacy = useQuery({ queryKey: ['legacy-inbox-draft', owner.scope, id], queryFn: () => hasLegacyInboxDraft(id, owner) });
   const edited = useRef(false);
   useEffect(() => {
     let cancelled = false;
     edited.current = false;
     setText('');
-    readInboxDraft(id, user?.id)
+    readInboxDraft(id, owner)
       .then((draft) => {
-        if (!cancelled && !edited.current && authStore.get()?.user.id === user?.id) setText(draft);
+        if (!cancelled && !edited.current) {
+          assertAccountContext(owner);
+          setText(draft);
+        }
       })
       .catch(showError);
     return () => {
@@ -64,7 +69,6 @@ export default function WaThread() {
   }, [thread, id, qc]);
   const send = async (body: Record<string, unknown>) => {
     if (sending) return false;
-    const owner = user?.id;
     setSending(true);
     try {
       if (['SMS', 'EMAIL'].includes(thread?.conversation?.channel)) {
@@ -92,11 +96,14 @@ export default function WaThread() {
             ...(thread?.conversation?.channel === 'EMAIL' ? { subject, ...(replyToId ? { replyToId } : {}) } : {}),
           };
         await saveInboxDraft(`sms-attempt:${id}`, JSON.stringify(attempt.current), owner);
-        await post(thread?.conversation?.channel === 'EMAIL' ? '/messaging/email/send' : '/messaging/sms/send', { conversationId: id, ...attempt.current });
+        await api(thread?.conversation?.channel === 'EMAIL' ? '/messaging/email/send' : '/messaging/sms/send', {
+          body: { conversationId: id, ...attempt.current },
+          ownerContext: owner,
+        });
         attempt.current = null;
         setReplyToId(undefined);
         await saveInboxDraft(`sms-attempt:${id}`, '', owner);
-      } else await post('/whatsapp/send', { conversationId: id, ...body });
+      } else await api('/whatsapp/send', { body: { conversationId: id, ...body }, ownerContext: owner });
       await saveInboxDraft(id, '', owner);
       setText('');
       q.refetch();
@@ -252,12 +259,17 @@ export default function WaThread() {
               <FileText size={21} color={c.muted} />
             </IconBtn>
           )}
+          {legacy.data && (
+            <Txt v="caption" color="muted">
+              An older message draft is preserved. Its firm and role need review before it can be restored; this composer creates a separate draft.
+            </Txt>
+          )}
           <TextInput
             value={text}
             onChangeText={(value) => {
               edited.current = true;
               setText(value);
-              saveInboxDraft(id, value, user?.id).catch(showError);
+              saveInboxDraft(id, value, owner).catch(showError);
             }}
             editable={windowOpen && !sending}
             placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')}

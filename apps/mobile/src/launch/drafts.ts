@@ -3,13 +3,15 @@ import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { File, Directory, Paths } from 'expo-file-system';
-import { api, ApiError, authStore } from '@/lib/api';
+import { api, ApiError, authStore, captureAccountContext, assertAccountContext, AccountScopeChangedError, type AccountContext } from '@/lib/api';
 
-export type DraftKind = 'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'REQUIREMENT_EDIT' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
+export type DraftKind =
+  'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'REQUIREMENT_EDIT' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
 export type DraftState = 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
 export interface LocalDraft {
   id: string;
   owner_id: string;
+  owner_scope: string | null;
   kind: DraftKind;
   draft_key: string;
   payload: string;
@@ -45,6 +47,9 @@ async function open() {
     );
     CREATE TABLE IF NOT EXISTS local_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS local_mutations_owner ON local_mutations(owner_id,state,updated_at);`);
+  const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(local_mutations)');
+  if (!columns.some((column) => column.name === 'owner_scope')) await db.execAsync('ALTER TABLE local_mutations ADD COLUMN owner_scope TEXT');
+  await db.execAsync('CREATE INDEX IF NOT EXISTS local_mutations_scope ON local_mutations(owner_id,owner_scope,state,updated_at,id)');
   await db.runAsync("UPDATE local_mutations SET state='QUEUED' WHERE state='SYNCING'");
   return db;
 }
@@ -53,20 +58,41 @@ const db = () =>
     database = null;
     throw error;
   }));
-export const ownerId = () => authStore.get()?.user.id ?? 'UNASSIGNED';
-export async function editableDraft(kind: DraftKind, key: string, owner = ownerId()) {
-  const row = await (
-    await db()
-  ).getFirstAsync<LocalDraft>(
-    "SELECT * FROM local_mutations WHERE owner_id=? AND kind=? AND draft_key=? AND state IN ('DRAFT','FAILED') ORDER BY updated_at DESC LIMIT 1",
-    owner,
+const draftOwnerId = (context: AccountContext) => context.userId ?? 'UNASSIGNED';
+const contextNow = captureAccountContext;
+function assertDraftScope(row: LocalDraft, context = contextNow()) {
+  assertAccountContext(context);
+  if (row.owner_id !== draftOwnerId(context) || row.owner_scope !== context.scope)
+    throw new AccountScopeChangedError('This draft has no verified ownership in this workspace. Its original data is preserved.');
+}
+export const LEGACY_DRAFT_REVIEW = 'Older draft ownership needs review. Its original is preserved; start a separate draft or contact support.';
+export async function editableDraft(kind: DraftKind, key: string, owner = contextNow(), startSeparate = false) {
+  assertAccountContext(owner);
+  const database = await db();
+  assertAccountContext(owner);
+  const row = await database.getFirstAsync<LocalDraft>(
+    "SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND kind=? AND draft_key=? AND state IN ('DRAFT','FAILED') ORDER BY updated_at DESC,id DESC LIMIT 1",
+    draftOwnerId(owner),
+    owner.scope,
     kind,
     key,
   );
-  if (row) decodeDraft(row); // An unreadable record must not silently become an empty editor.
+  if (!row && !startSeparate) {
+    const legacy = await database.getFirstAsync<{ id: string }>(
+      "SELECT id FROM local_mutations WHERE owner_id=? AND owner_scope IS NULL AND kind=? AND draft_key=? AND state IN ('DRAFT','FAILED','QUEUED','SYNCING') LIMIT 1",
+      draftOwnerId(owner),
+      kind,
+      key,
+    );
+    assertAccountContext(owner);
+    if (legacy) throw new Error(LEGACY_DRAFT_REVIEW);
+  }
+  assertAccountContext(owner);
+  if (row) decodeDraft(row, owner); // An unreadable record must not silently become an empty editor.
   return row;
 }
-export function decodeDraft(row: LocalDraft): Record<string, any> {
+export function decodeDraft(row: LocalDraft, owner = contextNow()): Record<string, any> {
+  assertDraftScope(row, owner);
   try {
     const value = JSON.parse(row.payload);
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
@@ -80,21 +106,24 @@ export async function saveDraft(
   key: string,
   payload: Record<string, any>,
   id = Crypto.randomUUID(),
-  owner = ownerId(),
+  owner = contextNow(),
   file?: { uri: string; mime: string },
 ) {
+  assertAccountContext(owner);
   if ('fileDataUrl' in payload) throw new Error('Binary files belong in private files, not draft JSON');
   const encoded = JSON.stringify(payload);
   if (encoded.length > 250_000) throw new Error('Use a text file for large imports. Your input was not discarded.');
   const database = await db();
+  assertAccountContext(owner);
   // A single guarded statement is atomic on the already-keyed SQLCipher connection.
   // Expo's exclusive transaction opens a second connection without its PRAGMA key.
   const result = await database.runAsync(
-    `INSERT INTO local_mutations(id,owner_id,kind,draft_key,payload,file_uri,mime,state,updated_at) VALUES(?,?,?,?,?,?,?,'DRAFT',?)
+    `INSERT INTO local_mutations(id,owner_id,owner_scope,kind,draft_key,payload,file_uri,mime,state,updated_at) VALUES(?,?,?,?,?,?,?,?,'DRAFT',?)
      ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,file_uri=COALESCE(excluded.file_uri,file_uri),mime=COALESCE(excluded.mime,mime),state='DRAFT',error=NULL,updated_at=excluded.updated_at
-     WHERE local_mutations.owner_id=excluded.owner_id AND local_mutations.kind=excluded.kind AND local_mutations.draft_key=excluded.draft_key AND local_mutations.state IN ('DRAFT','FAILED')`,
+     WHERE local_mutations.owner_id=excluded.owner_id AND local_mutations.owner_scope=excluded.owner_scope AND local_mutations.kind=excluded.kind AND local_mutations.draft_key=excluded.draft_key AND local_mutations.state IN ('DRAFT','FAILED')`,
     id,
-    owner,
+    draftOwnerId(owner),
+    owner.scope,
     kind,
     key,
     encoded,
@@ -102,27 +131,72 @@ export async function saveDraft(
     file?.mime ?? null,
     Date.now(),
   );
+  assertAccountContext(owner);
   if (!result.changes) throw new Error('This saved operation is already queued or belongs to another editor. Its data was preserved.');
   return id;
 }
-export async function queueDraft(id: string) {
-  const result = await (
-    await db()
-  ).runAsync(
-    "UPDATE local_mutations SET state='QUEUED',error=NULL,next_at=0,updated_at=? WHERE id=? AND owner_id=? AND state IN ('DRAFT','FAILED')",
+export async function queueDraft(id: string, owner = contextNow()) {
+  assertAccountContext(owner);
+  const database = await db();
+  assertAccountContext(owner);
+  const result = await database.runAsync(
+    "UPDATE local_mutations SET state='QUEUED',error=NULL,next_at=0,updated_at=? WHERE id=? AND owner_id=? AND owner_scope=? AND state IN ('DRAFT','FAILED')",
     Date.now(),
     id,
-    ownerId(),
+    draftOwnerId(owner),
+    owner.scope,
   );
-  if (!result.changes) throw new Error('Draft could not be queued');
+  assertAccountContext(owner);
+  if (!result.changes) throw new Error('Draft could not be queued in this workspace. Its original is preserved.');
 }
-export async function localDrafts() {
-  return (await db()).getAllAsync<Pick<LocalDraft, 'id' | 'kind' | 'state' | 'server_id' | 'error' | 'updated_at'>>(
-    'SELECT id,kind,state,server_id,error,updated_at FROM local_mutations WHERE owner_id=? ORDER BY updated_at DESC LIMIT 100',
-    ownerId(),
+export async function localDrafts(before?: { updated_at: number; id: string }) {
+  const owner = contextNow();
+  const database = await db();
+  assertAccountContext(owner);
+  const rows = await database.getAllAsync<Pick<LocalDraft, 'id' | 'kind' | 'state' | 'server_id' | 'error' | 'updated_at'>>(
+    `SELECT id,kind,state,server_id,error,updated_at FROM local_mutations WHERE owner_id=? AND owner_scope=?
+     ${before ? 'AND (updated_at < ? OR (updated_at = ? AND id < ?))' : ''} ORDER BY updated_at DESC,id DESC LIMIT 50`,
+    draftOwnerId(owner),
+    owner.scope,
+    ...(before ? [before.updated_at, before.updated_at, before.id] : []),
   );
+  assertAccountContext(owner);
+  return rows;
 }
-export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO', owner = ownerId()) {
+/** Metadata only: never expose old private payloads under a newly assigned role or firm. */
+export async function preservedDraftCounts() {
+  const owner = contextNow();
+  const database = await db();
+  assertAccountContext(owner);
+  const legacy = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM local_mutations WHERE owner_id IN (?,'UNASSIGNED') AND owner_scope IS NULL",
+    draftOwnerId(owner),
+  );
+  const guest = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM local_mutations WHERE owner_id='UNASSIGNED' AND owner_scope='UNASSIGNED' AND kind='CAPTURE' AND state IN ('DRAFT','QUEUED','FAILED')",
+  );
+  const hasInbox = await database.getFirstAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name='inbox_drafts'");
+  const inbox =
+    hasInbox && owner.userId
+      ? await database.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM inbox_drafts WHERE owner_id=?', owner.userId)
+      : null;
+  assertAccountContext(owner);
+  return { legacy: (legacy?.count ?? 0) + (inbox?.count ?? 0), guest: owner.userId ? (guest?.count ?? 0) : 0 };
+}
+/** Explicit workspace choice for NEW guest shares. Legacy unscoped rows are never guessed. */
+export async function claimGuestCaptures(owner = contextNow()) {
+  assertAccountContext(owner);
+  if (!owner.userId || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(authStore.get()!.user.role)) throw new Error('Open a broker workspace first.');
+  const database = await db();
+  assertAccountContext(owner);
+  await database.runAsync(
+    "UPDATE local_mutations SET owner_id=?,owner_scope=? WHERE owner_id='UNASSIGNED' AND owner_scope='UNASSIGNED' AND kind='CAPTURE' AND state IN ('DRAFT','QUEUED','FAILED')",
+    owner.userId,
+    owner.scope,
+  );
+  assertAccountContext(owner);
+}
+export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO', owner = contextNow()) {
   const id = Crypto.randomUUID();
   if (text.length > 100_000) {
     const directory = new Directory(Paths.document, 'captures');
@@ -132,10 +206,11 @@ export async function captureText(text: string, sourceType = 'TEXT', groupName?:
     return captureFile(file.uri, 'text/plain', 'message.txt', groupName, target, owner);
   }
   const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName, target }, id, owner);
-  await (await db()).runAsync("UPDATE local_mutations SET state='QUEUED' WHERE id=?", saved);
+  await queueDraft(saved, owner);
   return saved;
 }
-export async function captureFile(uri: string, mime: string, name?: string, groupName?: string, target = 'AUTO', owner = ownerId()) {
+export async function captureFile(uri: string, mime: string, name?: string, groupName?: string, target = 'AUTO', owner = contextNow()) {
+  assertAccountContext(owner);
   const id = Crypto.randomUUID();
   const directory = new Directory(Paths.document, 'captures');
   directory.create({ idempotent: true, intermediates: true });
@@ -165,29 +240,39 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
       mime,
     },
   );
-  await (await db()).runAsync("UPDATE local_mutations SET state='QUEUED' WHERE id=?", saved);
+  await queueDraft(saved, owner);
   return saved;
 }
-let syncing = false;
+const syncing = new Set<string>();
 export async function syncDrafts() {
   const session = authStore.get();
-  if (!session || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(session.user.role) || syncing) return;
-  syncing = true;
+  const owner = contextNow();
+  if (!session || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(session.user.role) || syncing.has(owner.scope)) return;
+  syncing.add(owner.scope);
   try {
     const database = await db();
-    await database.runAsync("UPDATE local_mutations SET owner_id=? WHERE owner_id='UNASSIGNED' AND kind='CAPTURE'", session.user.id);
-    while (authStore.get()?.user.id === session.user.id) {
+    assertAccountContext(owner);
+    while (true) {
+      assertAccountContext(owner);
       const rows = await database.getAllAsync<LocalDraft>(
-        "SELECT * FROM local_mutations WHERE owner_id=? AND state='QUEUED' AND next_at<=? ORDER BY updated_at ASC LIMIT 10",
+        "SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=? ORDER BY updated_at ASC LIMIT 10",
         session.user.id,
+        owner.scope,
         Date.now(),
       );
       if (!rows.length) break;
       for (const row of rows) {
-        if (authStore.get()?.user.id !== session.user.id) break;
-        await database.runAsync("UPDATE local_mutations SET state='SYNCING',updated_at=? WHERE id=? AND owner_id=?", Date.now(), row.id, session.user.id);
+        assertAccountContext(owner);
+        const claimed = await database.runAsync(
+          "UPDATE local_mutations SET state='SYNCING',updated_at=? WHERE id=? AND owner_id=? AND owner_scope=? AND state='QUEUED'",
+          Date.now(),
+          row.id,
+          session.user.id,
+          owner.scope,
+        );
+        if (!claimed.changes) continue;
         try {
-          let body = decodeDraft(row);
+          let body = decodeDraft(row, owner);
           let path = '';
           let method = 'POST';
           let uploaded: { id: string } | undefined;
@@ -202,7 +287,7 @@ export async function syncDrafts() {
                 const contentType = captureContentType(body.fileName ?? '', row.mime ?? '', handle.readBytes(Math.min(12, source.size)));
                 if (!contentType) throw new Error('Unsupported saved source type. Its original is preserved.');
                 uploaded = await uploadImport(
-                  (uploadPath, uploadBody) => api(uploadPath, { body: uploadBody, ownerId: session.user.id }),
+                  (uploadPath, uploadBody) => api(uploadPath, { body: uploadBody, ownerContext: owner }),
                   {
                     clientKey: row.id,
                     fileName: body.fileName ?? 'source',
@@ -244,25 +329,27 @@ export async function syncDrafts() {
           } else if (row.kind === 'REQUIREMENT_EDIT') {
             path = `/broker-requirements/${body.id}`;
             method = 'PATCH';
-            const {id:_id,...rest}=body;
-            body=rest;
+            const { id: _id, ...rest } = body;
+            body = rest;
           } else {
             throw new Error('This local draft must be opened and reviewed before sync. Its data was preserved.');
           }
-          const result = uploaded ?? (await api<any>(path, { method, body, ownerId: session.user.id }));
+          const result = uploaded ?? (await api<any>(path, { method, body, ownerContext: owner }));
           await database.runAsync(
-            "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=?",
+            "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=? AND owner_scope=?",
             result.id ?? body.id ?? null,
             Date.now(),
             row.id,
             session.user.id,
+            owner.scope,
           );
         } catch (error) {
-          const retry = error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500);
+          const scopeChanged = error instanceof AccountScopeChangedError;
+          const retry = scopeChanged || (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500));
           const attempts = row.attempts + 1;
           const delay = Math.min(15 * 60_000, 15_000 * 2 ** Math.min(attempts, 6));
           await database.runAsync(
-            'UPDATE local_mutations SET state=?,error=?,attempts=?,next_at=?,updated_at=? WHERE id=? AND owner_id=?',
+            'UPDATE local_mutations SET state=?,error=?,attempts=?,next_at=?,updated_at=? WHERE id=? AND owner_id=? AND owner_scope=?',
             retry ? 'QUEUED' : 'FAILED',
             (error as Error).message.slice(0, 500),
             attempts,
@@ -270,30 +357,45 @@ export async function syncDrafts() {
             Date.now(),
             row.id,
             session.user.id,
+            owner.scope,
           );
+          if (scopeChanged) return;
         }
       }
     }
+  } catch (error) {
+    if (!(error instanceof AccountScopeChangedError)) throw error;
   } finally {
-    syncing = false;
+    syncing.delete(owner.scope);
   }
 }
 
-export async function getLocalDraft(id: string) {
-  return (await db()).getFirstAsync<LocalDraft>('SELECT * FROM local_mutations WHERE id=? AND owner_id=?', id, ownerId());
+export async function getLocalDraft(id: string, owner = contextNow()) {
+  const database = await db();
+  assertAccountContext(owner);
+  const row = await database.getFirstAsync<LocalDraft>(
+    'SELECT * FROM local_mutations WHERE id=? AND owner_id=? AND owner_scope=?',
+    id,
+    draftOwnerId(owner),
+    owner.scope,
+  );
+  assertAccountContext(owner);
+  return row;
 }
 
 /** Mark a successfully approved review without discarding its local evidence. */
-export async function completeReviewDraft(id: string, entryId: string) {
-  await (
-    await db()
-  ).runAsync(
-    "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=? AND kind='IMPORT_REVIEW' AND state IN ('DRAFT','FAILED')",
+export async function completeReviewDraft(id: string, entryId: string, owner = contextNow()) {
+  const database = await db();
+  assertAccountContext(owner);
+  await database.runAsync(
+    "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=? AND owner_scope=? AND kind='IMPORT_REVIEW' AND state IN ('DRAFT','FAILED')",
     entryId,
     Date.now(),
     id,
-    ownerId(),
+    draftOwnerId(owner),
+    owner.scope,
   );
+  assertAccountContext(owner);
 }
 
 // Cache only public, last-known launch policy; server authorization still decides sync.

@@ -199,7 +199,8 @@
       "verification": "PENDING",
       "notes": [
         "Mobile account/role/firm change clears private query cache and rejects late response/report bytes; credential write/logout races tested. Web reset/cross-tab hooks inspected. Exhaustive browser/native private-draft coverage remains open.",
-        "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending."
+        "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending.",
+        "After Build49: AccountContext/epoch fences, firm+role scoped local mutation and Inbox storage, preserved legacy review/separate-draft flow, scope-keyed form remounts and per-chunk guards. Full mobile104 tests and workspace types pass. New APK and actual handset legacy recovery remain pending; see PRIVATE_DRAFT_SCOPE_20261102.md."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -214,7 +215,11 @@
         "apps/mobile/src/lib/local-reminders.ts",
         "apps/mobile/src/components/notification-navigation.tsx",
         "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
-        "apps/mobile/src/lib/__tests__/push-registration.test.ts"
+        "apps/mobile/src/lib/__tests__/push-registration.test.ts",
+        "apps/mobile/src/launch/drafts.ts",
+        "apps/mobile/src/lib/inbox-drafts.ts",
+        "apps/mobile/src/launch/module-gate.tsx",
+        "apps/mobile/src/launch/__tests__/draft-scope.test.ts"
       ],
       "commits": [],
       "database": "PENDING",

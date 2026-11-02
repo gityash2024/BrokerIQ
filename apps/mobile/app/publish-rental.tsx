@@ -1,3 +1,4 @@
+import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
 import { View, Switch } from 'react-native';
 import { Image } from 'expo-image';
@@ -6,7 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import { inventoryPublishSchema, RENTABLE_TYPES, PROPERTY_TYPES, type LedgerItem, type LocalityListItem } from '@brokeriq/shared';
-import { api, errorMessage } from '@/lib/api';
+import { captureAccountContext, api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Screen, Header, Input, Button, Chip, Txt, Card, ErrorView } from '@/ui';
 import { ChoiceField } from '@/launch/form';
@@ -15,9 +16,10 @@ export default function PublishRental() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const mutation = useRef(Crypto.randomUUID());
-  const owner = useRef(user!.id);
+  const owner = useRef(captureAccountContext());
+  const [startSeparate, setStartSeparate] = useState(false);
   const writes = useRef<Promise<unknown>>(Promise.resolve());
-  const item = useQuery({ queryKey: ['ledger-item', id], queryFn: () => api<LedgerItem>('/inventory/' + id) });
+  const item = useQuery({ queryKey: ['ledger-item', id], queryFn: () => api<LedgerItem>('/inventory/' + id, { ownerContext: owner.current }) });
   const locs = useQuery({ queryKey: ['localities-all'], queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }) });
   const [value, setValue] = useState<Record<string, any>>({
     title: '',
@@ -39,7 +41,7 @@ export default function PublishRental() {
   useEffect(() => {
     if (!item.data) return;
     let active = true;
-    editableDraft('PUBLIC_PUBLISH', id)
+    editableDraft('PUBLIC_PUBLISH', id, owner.current, startSeparate)
       .then(async (row) => {
         if (!active) return;
         if (row) {
@@ -47,7 +49,7 @@ export default function PublishRental() {
           const { inventoryId, confirmedAvailable, publicPreviewAccepted, expectedRevision, ...fields } = decodeDraft(row);
           setValue(fields);
         } else if (item.data?.publishedListingId) {
-          const current = await api<any>('/listings/' + item.data.publishedListingId, { ownerId: owner.current });
+          const current = await api<any>('/listings/' + item.data.publishedListingId, { ownerContext: owner.current });
           if (!active) return;
           const fields = Object.fromEntries(
             [
@@ -86,7 +88,7 @@ export default function PublishRental() {
     return () => {
       active = false;
     };
-  }, [id, item.data?.publishedListingId, !!item.data]);
+  }, [id, item.data?.publishedListingId, !!item.data, startSeparate]);
   useEffect(() => {
     if (!ready) return;
     writes.current = writes.current.then(() => saveDraft('PUBLIC_PUBLISH', id, value, mutation.current, owner.current)).catch((e) => setError(errorMessage(e)));
@@ -211,7 +213,7 @@ export default function PublishRental() {
                   try {
                     await writes.current;
                     await saveDraft('PUBLIC_PUBLISH', id, { ...parsed.data, inventoryId: id }, mutation.current, owner.current);
-                    await queueDraft(mutation.current);
+                    await queueDraft(mutation.current, owner.current);
                     await syncDrafts();
                     router.replace('/drafts');
                   } catch (e) {
@@ -225,6 +227,13 @@ export default function PublishRental() {
           )}
         </View>
       )}
+      <LegacyDraftRecovery
+        error={error}
+        onStart={() => {
+          setError('');
+          setStartSeparate(true);
+        }}
+      />
       {!!error && <Txt color="danger">{error}</Txt>}
     </Screen>
   );

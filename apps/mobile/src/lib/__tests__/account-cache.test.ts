@@ -1,5 +1,5 @@
 import * as storage from 'expo-secure-store';
-import { authStore, api, AccountScopeChangedError } from '../api';
+import { authStore, api, AccountScopeChangedError, captureAccountContext } from '../api';
 import { queryClient } from '../query';
 
 it('keeps same-account refresh data but clears private queries before switching accounts', async () => {
@@ -123,6 +123,83 @@ it('returns authenticated report bytes and rejects a late download after role ch
     await authStore.set({ ...original, user: { ...original.user, role: 'BROKER_AGENT' } });
     release(Uint8Array.from([80, 75, 3]).buffer);
     await rejected;
+  } finally {
+    request.mockRestore();
+  }
+});
+
+it('rejects both an old callback and an old response after A to B to A', async () => {
+  const a = { accessToken: 'a', refreshToken: 'a', user: { id: 'same', role: 'BROKER_ADMIN', organization: { id: 'a' } } } as any;
+  await authStore.set(a);
+  const context = captureAccountContext();
+  let release!: (response: any) => void;
+  const request = jest.spyOn(globalThis, 'fetch').mockReturnValueOnce(
+    new Promise((resolve) => {
+      release = resolve;
+    }),
+  );
+  try {
+    const pending = api('/inventory');
+    const rejected = expect(pending).rejects.toBeInstanceOf(AccountScopeChangedError);
+    await authStore.set({ ...a, user: { ...a.user, organization: { id: 'b' } } });
+    await authStore.set(a);
+    await expect(api('/inventory', { body: { private: true }, ownerContext: context })).rejects.toBeInstanceOf(AccountScopeChangedError);
+    expect(request).toHaveBeenCalledTimes(1);
+    release({ status: 401, ok: false });
+    await rejected;
+    expect(request).toHaveBeenCalledTimes(1); // A stale 401 must not trigger a refresh in the current session.
+  } finally {
+    request.mockRestore();
+  }
+});
+it('keeps an explicit operation context valid across transparent token rotation', async () => {
+  const user = { id: 'refresh-owner', role: 'BROKER_AGENT', organization: { id: 'a' } };
+  await authStore.set({ user, accessToken: 'old-access', refreshToken: 'old-refresh' } as any);
+  const ownerContext = captureAccountContext();
+  const request = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce({ status: 401, ok: false } as any)
+    .mockResolvedValueOnce({ status: 200, ok: true, json: async () => ({ user, accessToken: 'new-access', refreshToken: 'new-refresh' }) } as any)
+    .mockResolvedValueOnce({ status: 200, ok: true, text: async () => '{"id":"rotated"}' } as any);
+  try {
+    await expect(api('/inventory', { ownerContext })).resolves.toEqual({ id: 'rotated' });
+    expect(captureAccountContext()).toEqual(ownerContext);
+    expect(request.mock.calls[2][1]?.headers).toMatchObject({ Authorization: 'Bearer new-access' });
+  } finally {
+    request.mockRestore();
+  }
+});
+
+it('allows a new workspace refresh while an old refresh is still pending', async () => {
+  const user = (firm: string) => ({ id: 'refresh-switch', role: 'BROKER_ADMIN', organization: { id: firm } });
+  await authStore.set({ user: user('a'), accessToken: 'a', refreshToken: 'refresh-a' } as any);
+  let oldRefresh!: (response: any) => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const request = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce({ status: 401, ok: false } as any)
+    .mockImplementationOnce(() => {
+      started();
+      return new Promise((resolve) => {
+        oldRefresh = resolve;
+      });
+    })
+    .mockResolvedValueOnce({ status: 401, ok: false } as any)
+    .mockResolvedValueOnce({ status: 200, ok: true, json: async () => ({ user: user('b'), accessToken: 'b-new', refreshToken: 'refresh-b-new' }) } as any)
+    .mockResolvedValueOnce({ status: 200, ok: true, text: async () => '{"firm":"b"}' } as any);
+  try {
+    const pending = api('/inventory');
+    const rejected = expect(pending).rejects.toBeInstanceOf(AccountScopeChangedError);
+    await waiting;
+    await authStore.set({ user: user('b'), accessToken: 'b', refreshToken: 'refresh-b' } as any);
+    await expect(api('/inventory')).resolves.toEqual({ firm: 'b' });
+    oldRefresh({ status: 200, ok: true, json: async () => ({ user: user('a'), accessToken: 'a-late', refreshToken: 'refresh-a-late' }) });
+    await rejected;
+    expect(authStore.get()?.user.organization?.id).toBe('b');
+    expect(authStore.get()?.accessToken).toBe('b-new');
   } finally {
     request.mockRestore();
   }

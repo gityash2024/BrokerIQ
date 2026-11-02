@@ -1,3 +1,4 @@
+import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { SourceImage } from '@/launch/source-image';
@@ -6,7 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import { captureEntryTitle, type CapturedEntity } from '@brokeriq/shared';
-import { api, API_URL, authStore, errorMessage } from '@/lib/api';
+import { captureAccountContext, api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { EntityFields, prepareEntity } from '@/launch/entity-fields';
@@ -113,18 +114,19 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
   const [entities, setEntities] = useState<any[]>(entry.extracted ?? []);
   const [version, setVersion] = useState(entry.updatedAt);
   const [ready, setReady] = useState(false);
+  const [startSeparate, setStartSeparate] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const draftId = useRef(Crypto.randomUUID());
-  const owner = useRef(authStore.get()?.user.id ?? 'UNASSIGNED');
+  const owner = useRef(captureAccountContext());
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const row = await editableDraft('IMPORT_REVIEW', entry.id, owner.current);
+        const row = await editableDraft('IMPORT_REVIEW', entry.id, owner.current, startSeparate);
         if (row) {
           const saved = decodeDraft(row);
           draftId.current = row.id;
@@ -141,7 +143,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
     return () => {
       active = false;
     };
-  }, [entry.id]);
+  }, [entry.id, startSeparate]);
   function change(next: any[]) {
     setEntities(next);
     setStatus('Saving draft…');
@@ -172,7 +174,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
       await saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: version }, draftId.current, owner.current);
       const response = await api<any>(`/imports/entries/${entry.id}${approve ? '/approve' : ''}`, {
         method: approve ? 'POST' : 'PATCH',
-        ownerId: owner.current,
+        ownerContext: owner.current,
         body: { entities: next, ignore, expectedUpdatedAt: version },
       });
       if (response.updatedAt) {
@@ -185,7 +187,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
           owner.current,
         );
       }
-      if (approve || ignore) await completeReviewDraft(draftId.current, entry.id);
+      if (approve || ignore) await completeReviewDraft(draftId.current, entry.id, owner.current);
       setStatus(approve ? 'Reviewed and saved' : 'Review saved');
       await Promise.all(['import', 'ledger', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
     } catch (e) {
@@ -245,6 +247,13 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
           <Txt v="caption" color="muted">
             {status}
           </Txt>
+          <LegacyDraftRecovery
+            error={error}
+            onStart={() => {
+              setError('');
+              setStartSeparate(true);
+            }}
+          />
           {error && <Txt color="danger">{error}</Txt>}
           <Button title="Save review" loading={busy} onPress={() => save()} />
           <Button

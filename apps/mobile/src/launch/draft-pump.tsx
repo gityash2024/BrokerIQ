@@ -32,6 +32,6 @@ export function DraftPump() {
       clearInterval(interval);
       subscription.remove();
     };
-  }, [user?.id, qc]);
+  }, [user?.id, user?.role, user?.organization?.id, qc]);
   return null;
 }

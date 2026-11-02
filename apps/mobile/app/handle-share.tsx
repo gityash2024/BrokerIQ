@@ -5,7 +5,7 @@ import * as Sharing from 'expo-sharing';
 import { captureFile, captureText, syncDrafts } from '@/launch/drafts';
 import { BrokerScreen } from '@/launch/screen';
 import { Button, Txt } from '@/ui';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 export default function HandleShare() {
   const { user } = useAuth();
@@ -19,6 +19,7 @@ export default function HandleShare() {
     running.current = true;
     setError('');
     try {
+      const owner = captureAccountContext();
       const payloads = Sharing.getSharedPayloads();
       if (!payloads.length) return;
       const identity = JSON.stringify(payloads);
@@ -29,13 +30,14 @@ export default function HandleShare() {
       for (let i = 0; i < payloads.length; i++) {
         if (saved.current.has(i)) continue;
         const p = payloads[i];
-        if (p.shareType === 'text' || p.shareType === 'url') await captureText(p.value, 'WHATSAPP');
-        else await captureFile(p.value, p.mimeType ?? 'application/octet-stream');
+        if (p.shareType === 'text' || p.shareType === 'url') await captureText(p.value, 'WHATSAPP', undefined, 'AUTO', owner);
+        else await captureFile(p.value, p.mimeType ?? 'application/octet-stream', undefined, undefined, 'AUTO', owner);
         saved.current.add(i);
       }
       // A later share can arrive while file copying is in progress. Its payload
       // must remain available until that separate capture has also been saved.
       if (JSON.stringify(Sharing.getSharedPayloads()) !== identity) return;
+      assertAccountContext(owner);
       Sharing.clearSharedPayloads();
       fingerprint.current = '';
       saved.current.clear();
