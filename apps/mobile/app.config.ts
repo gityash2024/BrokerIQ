@@ -34,6 +34,7 @@ const config: ExpoConfig = {
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: [
       'CAMERA',
+      'RECORD_AUDIO',
       'POST_NOTIFICATIONS',
       'ACCESS_FINE_LOCATION',
       'ACCESS_COARSE_LOCATION',
@@ -45,7 +46,6 @@ const config: ExpoConfig = {
       'android.permission.SYSTEM_ALERT_WINDOW',
       'android.permission.READ_CONTACTS',
       'android.permission.WRITE_CONTACTS',
-      'android.permission.RECORD_AUDIO',
     ],
     intentFilters: [
       {
@@ -93,7 +93,7 @@ const config: ExpoConfig = {
     ['expo-splash-screen', { image: './assets/splash-logo.png', imageWidth: 220, resizeMode: 'contain', backgroundColor: '#4F46E5' }],
     'expo-font',
     // Voice input for the in-app AI assistant.
-    ['expo-audio', { microphonePermission: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।' }],
+    ['expo-audio', { microphonePermission: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।', recordAudioAndroid: true, enableBackgroundRecording: false, enableBackgroundPlayback: false }],
     // Google ML Kit document scanner (auto edge-detect, crop, clean-up, multi-page) for the broker listing-book scanner.
     'react-native-document-scanner-plugin',
   ],

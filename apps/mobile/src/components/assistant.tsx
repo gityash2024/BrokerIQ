@@ -74,7 +74,11 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   const [recording, setRecording] = useState(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const list = useRef<FlatList<Msg>>(null);
-  useEffect(() => () => void Speech.stop(), []);
+  useEffect(() => () => {
+    void Speech.stop();
+    if (recorder.isRecording) void recorder.stop().catch(() => undefined);
+    void setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+  }, [recorder]);
 
   const say = (t: string) => speak && Speech.speak(t.replace(/[*_#`]/g, ''), { language: languageOf(lang).speech });
   const append = (m: Msg) => setMsgs((x) => [...x, m]);
@@ -95,7 +99,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
         role: 'assistant',
         content:
           e instanceof ApiError && e.body?.code === 'INTEGRATION_NOT_CONFIGURED'
-            ? 'AI assistant अभी setup नहीं है — admin को Groq/Gemini key जोड़नी होगी।'
+            ? 'AI assistant के लिए सक्षम free provider अभी configured नहीं है। Admin → Settings → Integrations में connection जाँचें।'
             : `⚠️ ${errorMessage(e)}`,
       });
     } finally {
@@ -123,13 +127,14 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
     if (recording) {
       await recorder.stop();
       setRecording(false);
+      await setAudioModeAsync({ allowsRecording: false });
       if (!recorder.uri) return;
       setBusy(true);
       try {
         const b64 = await FileSystem.readAsStringAsync(recorder.uri, { encoding: FileSystem.EncodingType.Base64 });
         const r = await post<{ text: string }>('/assistant/transcribe', { audio: b64, mime: 'audio/m4a', lang });
         setBusy(false);
-        if (r.text) await send(r.text);
+        if (r.text) setText(r.text); // The user reviews/edits the transcript before sending it.
       } catch (e) {
         setBusy(false);
         append({ role: 'assistant', content: `⚠️ ${errorMessage(e)}` });

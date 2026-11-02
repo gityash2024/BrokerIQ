@@ -40,6 +40,10 @@ for(const entry of fs.readdirSync(path.join(root,'docs/evidence'),{recursive:tru
  if(release.android?.publishedAt&&Number.isInteger(release.android.versionCode)) previousCode=Math.max(previousCode,release.android.versionCode);
 }
 if(!m||m[1]!=='com.brokeriq.app'||Number(m[2])<=previousCode)throw Error('Android versionCode must exceed every recorded published release');
+const permissions=cp.execFileSync(aapt,['dump','permissions',apk],{encoding:'utf8'});
+for(const permission of ['CAMERA','RECORD_AUDIO','POST_NOTIFICATIONS','ACCESS_FINE_LOCATION','ACCESS_BACKGROUND_LOCATION','FOREGROUND_SERVICE_LOCATION']) {
+ if(!permissions.includes(`name='android.permission.${permission}'`))throw Error(`Signed APK is missing required ${permission} permission`);
+}
 const cert=cp.execFileSync(signer,['verify','--verbose','--print-certs',apk],{encoding:'utf8'});
 const sha=/Signer #1 certificate SHA-256 digest: ([a-f0-9]+)/i.exec(cert)?.[1]?.toLowerCase();
 if(sha!=='d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce')throw Error('Signing identity mismatch');
