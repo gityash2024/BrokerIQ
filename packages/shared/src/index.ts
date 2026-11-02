@@ -37,3 +37,4 @@ export * from './notification-links';
 export * from './private-media';
 export * from './release';
 export * from './inbox-drafts';
+export * from './follow-ups';

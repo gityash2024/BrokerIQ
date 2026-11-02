@@ -823,7 +823,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Nov2 query checkpoint: paginated whole-dataset web/native follow-ups, server counts, strict intersected date/status filters and IST snooze/boundaries.503-row real-PostgreSQL scope/pagination test passes. Source changes afterb58aac4 are not in Build42. Creation idempotency, live reminders and installed UI remain open; see FOLLOWUP_QUERIES_20261102.md."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],

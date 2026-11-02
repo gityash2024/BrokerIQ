@@ -2,7 +2,15 @@ import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, P
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { dealInputSchema, followUpInputSchema, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
+import {
+  dealInputSchema,
+  followUpInputSchema,
+  followUpQuerySchema,
+  followUpIstDayEnd,
+  type FollowUpQuery,
+  visitInputSchema,
+  visitUpdateSchema,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LeadsService } from './leads.service';
 import { EventsService } from '../../core/events/events.service';
@@ -18,10 +26,6 @@ const followUpUpdate = z.object({
   note: z.string().max(1000).nullable().optional(),
   outcomeNote: z.string().max(1000).optional(),
 });
-
-function range(q: { from?: string; to?: string }) {
-  return q.from || q.to ? { ...(q.from ? { gte: new Date(q.from) } : {}), ...(q.to ? { lte: new Date(q.to) } : {}) } : undefined;
-}
 
 @ApiTags('crm')
 @Roles('BROKER_ADMIN', 'BROKER_AGENT')
@@ -48,26 +52,59 @@ export class TasksController {
 
   // ------------------------------------------------------------------ follow-ups
   @Get('follow-ups')
-  async followUps(@CurrentUser() user: RequestUser, @Query() q: { status?: string; from?: string; to?: string; assignedToId?: string; view?: string }) {
+  async followUps(@CurrentUser() user: RequestUser, @Query(new ZodPipe(followUpQuerySchema)) q: FollowUpQuery) {
+    const where = this.followUpFilter(user, q);
+    const include = {
+      lead: { select: { id: true, name: true, phone: true, email: true, stage: true, source: true } },
+      assignedTo: { select: { id: true, name: true } },
+    };
+    const orderBy: Prisma.FollowUpOrderByWithRelationInput[] = [
+      q.sortBy === 'completedAt' ? { completedAt: { sort: q.sortOrder, nulls: 'last' } } : { [q.sortBy]: q.sortOrder },
+      { id: q.sortOrder },
+    ];
+    // Preserve the response shape for older installed clients. Upgraded clients always paginate.
+    if (q.paginated !== 'true') return this.prisma.followUp.findMany({ where, include, orderBy, take: 500 });
+    const [items, total] = await this.prisma.$transaction(
+      [this.prisma.followUp.findMany({ where, include, orderBy, skip: (q.page - 1) * q.pageSize, take: q.pageSize }), this.prisma.followUp.count({ where })],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    return { items, total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
+  }
+
+  @Get('follow-ups/summary')
+  async followUpSummary(@CurrentUser() user: RequestUser, @Query(new ZodPipe(followUpQuerySchema)) q: FollowUpQuery) {
+    const now = new Date();
+    const [today, overdue] = await this.prisma.$transaction(
+      [
+        this.prisma.followUp.count({ where: this.followUpFilter(user, { ...q, status: 'PENDING', view: 'today' }, now) }),
+        this.prisma.followUp.count({ where: this.followUpFilter(user, { ...q, status: 'PENDING', view: 'overdue' }, now) }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    return { today, overdue };
+  }
+
+  private followUpFilter(user: RequestUser, q: FollowUpQuery, now = new Date()): Prisma.FollowUpWhereInput {
     const orgId = requireOrg(user);
-    const where: Prisma.FollowUpWhereInput = {
+    const conditions: Prisma.FollowUpWhereInput[] = [this.mineFilter(user)];
+    if (q.assignedToId) conditions.push({ assignedToId: q.assignedToId });
+    if (q.status) conditions.push({ status: q.status });
+    if (q.from || q.to) conditions.push({ dueAt: { ...(q.from ? { gte: new Date(q.from) } : {}), ...(q.to ? { lte: new Date(q.to) } : {}) } });
+    if (q.view === 'overdue') conditions.push({ status: 'PENDING', dueAt: { lt: now } });
+    if (q.view === 'today') conditions.push({ status: 'PENDING', dueAt: { lte: followUpIstDayEnd(now) } });
+    if (q.view === 'upcoming') conditions.push({ status: 'PENDING', dueAt: { gt: followUpIstDayEnd(now) } });
+    if (q.search)
+      conditions.push({
+        OR: [
+          { note: { contains: q.search, mode: 'insensitive' } },
+          { lead: { OR: ['name', 'phone', 'email'].map((field) => ({ [field]: { contains: q.search, mode: 'insensitive' } })) } },
+        ],
+      });
+    return {
       organizationId: orgId,
-      AND: [this.mineFilter(user), ...(q.assignedToId ? [{ assignedToId: q.assignedToId }] : [])],
-      ...(q.status ? { status: q.status as any } : {}),
-      ...(range(q) ? { dueAt: range(q) } : {}),
-      ...(q.view === 'overdue' ? { status: 'PENDING', dueAt: { lt: new Date() } } : {}),
-      ...(q.view === 'today' ? { status: 'PENDING', dueAt: { lte: endOfDay() } } : {}),
+      AND: conditions,
       lead: { organizationId: orgId, deletedAt: null, ...this.mineFilter(user) },
     };
-    return this.prisma.followUp.findMany({
-      where,
-      orderBy: { dueAt: 'asc' },
-      take: 500,
-      include: {
-        lead: { select: { id: true, name: true, phone: true, email: true, stage: true, source: true } },
-        assignedTo: { select: { id: true, name: true } },
-      },
-    });
   }
 
   @Post('follow-ups')
@@ -246,10 +283,4 @@ export class TasksController {
     }
     return updated;
   }
-}
-
-function endOfDay() {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
 }

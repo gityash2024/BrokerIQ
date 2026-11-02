@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { followUpIstDayEnd } from '@brokeriq/shared';
 
 /** Real NestJS guards + isolated PostgreSQL; no contract simulator. */
 describe('Production agent/firm record boundaries', () => {
@@ -102,6 +103,75 @@ describe('Production agent/firm record boundaries', () => {
       .send({ status: 'PENDING', dueAt: '2026-12-10T10:00:00+05:30' })
       .expect(200);
     expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).completedAt).toBeNull();
+  });
+
+  it('pages every matching follow-up beyond500 and keeps counts/search scoped to current lead assignment', async () => {
+    const marker = 'paged-' + uid;
+    await db.followUp.createMany({
+      data: Array.from({ length: 503 }, () => ({
+        organizationId: org,
+        leadId: leadA,
+        assignedToId: a.id,
+        dueAt: new Date('2026-01-01T00:00:00Z'),
+        note: marker,
+      })),
+    });
+    await db.followUp.createMany({
+      data: [
+        { organizationId: org, leadId: leadB, assignedToId: b.id, dueAt: new Date('2026-01-01T00:00:00Z'), note: marker },
+        { organizationId: org, leadId: leadB, assignedToId: a.id, dueAt: new Date('2026-01-01T00:00:00Z'), note: marker },
+      ],
+    });
+    const ids = new Set<string>();
+    for (let page = 1; page <= 6; page++) {
+      const result = await request(app.getHttpServer())
+        .get('/api/follow-ups')
+        .query({ paginated: 'true', pageSize: 100, page, search: marker })
+        .set(headers(a))
+        .expect(200);
+      expect(result.body.total).toBe(503);
+      expect(result.body.totalPages).toBe(6);
+      result.body.items.forEach((row: { id: string }) => {
+        expect(ids.has(row.id)).toBe(false);
+        ids.add(row.id);
+      });
+    }
+    expect(ids.size).toBe(503);
+    const summary = await request(app.getHttpServer()).get('/api/follow-ups/summary').query({ search: marker }).set(headers(a)).expect(200);
+    expect(summary.body).toEqual({ today: 503, overdue: 503 });
+    expect(
+      (await request(app.getHttpServer()).get('/api/follow-ups').query({ paginated: 'true', search: marker }).set(headers(outsider)).expect(200)).body.total,
+    ).toBe(0);
+    expect(
+      (await request(app.getHttpServer()).get('/api/follow-ups/summary').query({ search: marker, assignedToId: b.id }).set(headers(a)).expect(200)).body,
+    ).toEqual({ today: 0, overdue: 0 });
+  });
+
+  it('intersects custom dates with views and uses an IST end-of-day independently of server timezone', async () => {
+    const marker = 'ist-boundary-' + uid;
+    const end = followUpIstDayEnd();
+    await db.followUp.createMany({
+      data: [end, new Date(end.getTime() + 1)].map((dueAt) => ({ organizationId: org, leadId: leadA, assignedToId: a.id, dueAt, note: marker })),
+    });
+    const base = { paginated: 'true', search: marker, view: 'today' };
+    const result = await request(app.getHttpServer()).get('/api/follow-ups').query(base).set(headers(a)).expect(200);
+    expect(result.body.total).toBe(1);
+    expect(result.body.items[0].dueAt).toBe(end.toISOString());
+    const outsideRange = await request(app.getHttpServer())
+      .get('/api/follow-ups')
+      .query({ ...base, from: new Date(end.getTime() + 1).toISOString() })
+      .set(headers(a))
+      .expect(200);
+    expect(outsideRange.body.total).toBe(0);
+    for (const query of [
+      { status: 'INVALID' },
+      { from: 'bad' },
+      { from: '2026-02-31T10:00:00Z' },
+      { page: 0 },
+      { pageSize: 101 },
+      { from: '2026-11-03T00:00:00Z', to: '2026-11-02T00:00:00Z' },
+    ])
+      await request(app.getHttpServer()).get('/api/follow-ups').query(query).set(headers(a)).expect(400);
   });
 
   it('search does not widen agent conversation ownership, and unlinked chats stay admin-only', async () => {

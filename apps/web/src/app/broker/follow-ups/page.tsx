@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlarmClock, CalendarPlus, Check, Clock, ListChecks, Mail, MessageCircle, Phone, Trash2, Users, X } from 'lucide-react';
-import { FollowUpType } from '@brokeriq/shared';
+import { FollowUpType, followUpDateBoundary, followUpIstDayEnd, followUpTomorrowAtTen } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
@@ -20,15 +20,12 @@ import { Avatar, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
-type View = 'today' | 'overdue' | 'upcoming' | 'done';
+type View = 'today' | 'overdue' | 'upcoming' | 'done' | 'all';
+type FollowUpPage = { items: any[]; total: number; page: number; totalPages: number };
 const TYPE_ICON = { CALL: Phone, WHATSAPP: MessageCircle, MEETING: Users, EMAIL: Mail, OTHER: ListChecks } as const;
 
 function dayKey(d: Date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  const diff = Math.round((x.getTime() - today.getTime()) / 86400_000);
+  const diff = Math.round((followUpIstDayEnd(d).getTime() - followUpIstDayEnd().getTime()) / 86400_000);
   if (diff < 0) return 'Overdue';
   if (diff === 0) return 'आज';
   if (diff === 1) return 'कल';
@@ -45,21 +42,34 @@ export default function FollowUpsPage() {
   const [outcome, setOutcome] = useState('');
   const [addOpen, setAddOpen] = useState(false);
 
-  const params =
-    view === 'today'
-      ? { view: 'today' }
-      : view === 'overdue'
-        ? { view: 'overdue' }
-        : view === 'done'
-          ? { status: 'DONE', from: new Date(Date.now() - 14 * 86400_000).toISOString() }
-          : { status: 'PENDING', from: new Date().toISOString() };
-  const q = useQuery({ queryKey: ['follow-ups', view, agent], queryFn: () => api<any[]>(`/follow-ups${qs({ ...params, assignedToId: agent })}`) });
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [status, setStatus] = useState('');
+  const fromDate = from ? followUpDateBoundary(from) : undefined;
+  const toDate = to ? followUpDateBoundary(to, true) : undefined;
+  const invalidDates = !!((from && !fromDate) || (to && !toDate) || (fromDate && toDate && fromDate > toDate));
+  const sharedParams = { search, assignedToId: agent, from: fromDate, to: toDate };
+  const params = {
+    ...sharedParams,
+    paginated: 'true',
+    page,
+    view: view === 'done' ? 'all' : view,
+    status: view === 'done' ? 'DONE' : view === 'all' ? status : undefined,
+    sortBy: view === 'done' ? 'completedAt' : 'dueAt',
+    sortOrder: view === 'done' ? 'desc' : 'asc',
+  };
+  const q = useQuery({
+    queryKey: ['follow-ups', view, agent, page, search, from, to, status],
+    queryFn: () => api<FollowUpPage>(`/follow-ups${qs(params)}`),
+    enabled: !invalidDates,
+  });
   const counts = useQuery({
-    queryKey: ['follow-ups', 'counts', agent],
-    queryFn: async () => ({
-      today: (await api<any[]>(`/follow-ups${qs({ view: 'today', assignedToId: agent })}`)).length,
-      overdue: (await api<any[]>(`/follow-ups${qs({ view: 'overdue', assignedToId: agent })}`)).length,
-    }),
+    queryKey: ['follow-ups', 'counts', agent, search, from, to],
+    queryFn: () => api<{ today: number; overdue: number }>(`/follow-ups/summary${qs(sharedParams)}`),
+    enabled: !invalidDates,
+    refetchInterval: 60000,
   });
   const inv = [['follow-ups'], ['broker-dashboard']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/follow-ups/${id}`, b), { invalidate: inv });
@@ -67,7 +77,7 @@ export default function FollowUpsPage() {
 
   const groups = useMemo(() => {
     const m = new Map<string, any[]>();
-    for (const f of view === 'done' ? [...(q.data ?? [])].reverse() : (q.data ?? [])) {
+    for (const f of q.data?.items ?? []) {
       const k = view === 'done' ? formatDate(f.completedAt ?? f.dueAt, { day: 'numeric', month: 'short', weekday: 'short' }) : dayKey(new Date(f.dueAt));
       m.set(k, [...(m.get(k) ?? []), f]);
     }
@@ -77,9 +87,7 @@ export default function FollowUpsPage() {
   const snooze = (f: any, ms: number | 'tomorrow') => {
     let d = new Date(Date.now() + (typeof ms === 'number' ? ms : 0));
     if (ms === 'tomorrow') {
-      d = new Date();
-      d.setDate(d.getDate() + 1);
-      d.setHours(10, 0, 0, 0);
+      d = followUpTomorrowAtTen();
     }
     update.mutate({ id: f.id, dueAt: d.toISOString() });
   };
@@ -98,16 +106,27 @@ export default function FollowUpsPage() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Segmented
           value={view}
-          onChange={setView}
+          onChange={(value) => {
+            setView(value);
+            setPage(1);
+          }}
           options={[
             { value: 'today', label: 'आज तक', count: counts.data?.today },
             { value: 'overdue', label: 'Overdue', count: counts.data?.overdue },
             { value: 'upcoming', label: 'Upcoming' },
-            { value: 'done', label: 'Done (14 दिन)' },
+            { value: 'done', label: 'Done' },
+            { value: 'all', label: 'All' },
           ]}
         />
         {admin && (
-          <Select value={agent} onChange={(e) => setAgent(e.target.value)} className="h-10 w-44">
+          <Select
+            value={agent}
+            onChange={(e) => {
+              setAgent(e.target.value);
+              setPage(1);
+            }}
+            className="h-10 w-44"
+          >
             <option value="">पूरी team</option>
             {(team.data?.members ?? []).map((m: any) => (
               <option key={m.id} value={m.id}>
@@ -118,7 +137,90 @@ export default function FollowUpsPage() {
         )}
       </div>
 
-      {q.isError ? (
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field label="Search lead / note">
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Name, phone, email or note"
+          />
+        </Field>
+        <Field label="Due from (IST)">
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(1);
+            }}
+          />
+        </Field>
+        <Field label="Due to (IST)">
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(1);
+            }}
+          />
+        </Field>
+        {view === 'all' ? (
+          <Field label="Status">
+            <Select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All statuses</option>
+              {['PENDING', 'DONE', 'MISSED', 'CANCELLED'].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSearch('');
+              setFrom('');
+              setTo('');
+              setAgent('');
+              setPage(1);
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
+      {view === 'all' && (
+        <Button
+          className="mb-4"
+          variant="secondary"
+          onClick={() => {
+            setSearch('');
+            setFrom('');
+            setTo('');
+            setAgent('');
+            setStatus('');
+            setPage(1);
+          }}
+        >
+          Clear filters
+        </Button>
+      )}
+      {invalidDates ? (
+        <p role="alert" className="mb-5 text-sm text-rose-600">
+          Valid start/end dates चुनें; end date start के बाद होनी चाहिए।
+        </p>
+      ) : q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
         <div className="space-y-3">
@@ -126,7 +228,7 @@ export default function FollowUpsPage() {
             <Skeleton key={i} className="h-20 rounded-2xl" />
           ))}
         </div>
-      ) : !q.data.length ? (
+      ) : !q.data.items.length ? (
         <Empty
           icon={<Check className="size-7" />}
           title={view === 'overdue' ? 'कोई overdue follow-up नहीं 🎉' : view === 'done' ? 'अभी कोई completed follow-up नहीं' : 'सब clear है'}
@@ -233,6 +335,22 @@ export default function FollowUpsPage() {
               </div>
             </section>
           ))}
+        </div>
+      )}
+
+      {!invalidDates && q.data && (
+        <div className="my-5 flex items-center justify-between gap-3 text-sm">
+          <p>
+            {q.data.total} matching follow-ups · Page {page} / {Math.max(1, q.data.totalPages)}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              Previous
+            </Button>
+            <Button variant="secondary" disabled={page >= q.data.totalPages} onClick={() => setPage(page + 1)}>
+              Next
+            </Button>
+          </div>
         </div>
       )}
 
