@@ -200,7 +200,8 @@
       "notes": [
         "Mobile account/role/firm change clears private query cache and rejects late response/report bytes; credential write/logout races tested. Web reset/cross-tab hooks inspected. Exhaustive browser/native private-draft coverage remains open.",
         "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending.",
-        "After Build49: AccountContext/epoch fences, firm+role scoped local mutation and Inbox storage, preserved legacy review/separate-draft flow, scope-keyed form remounts and per-chunk guards. Full mobile104 tests and workspace types pass. New APK and actual handset legacy recovery remain pending; see PRIVATE_DRAFT_SCOPE_20261102.md."
+        "After Build49: AccountContext/epoch fences, firm+role scoped local mutation and Inbox storage, preserved legacy review/separate-draft flow, scope-keyed form remounts and per-chunk guards. Full mobile104 tests and workspace types pass. New APK and actual handset legacy recovery remain pending; see PRIVATE_DRAFT_SCOPE_20261102.md.",
+        "After Build50: web persisted workspace context nonce, role/firm form remounts, scope-bound AES-GCM IndexedDB capture/Inbox drafts, verified non-destructive legacy plaintext quarantine and CAS moves.19 Node WebCrypto/fake-indexeddb contracts,104 mobile tests and workspace types pass; Chrome journeys/new release/historical ownership recovery pending. See WEB_PRIVATE_DRAFT_SCOPE_20261102.md."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -219,7 +220,12 @@
         "apps/mobile/src/launch/drafts.ts",
         "apps/mobile/src/lib/inbox-drafts.ts",
         "apps/mobile/src/launch/module-gate.tsx",
-        "apps/mobile/src/launch/__tests__/draft-scope.test.ts"
+        "apps/mobile/src/launch/__tests__/draft-scope.test.ts",
+        "apps/web/src/lib/private-drafts.ts",
+        "apps/web/src/lib/inbox-drafts.ts",
+        "apps/web/src/lib/use-inbox-draft.ts",
+        "apps/web/src/components/panel/module-access.tsx",
+        "apps/web/tests/private-scope.test.ts"
       ],
       "commits": [],
       "database": "PENDING",

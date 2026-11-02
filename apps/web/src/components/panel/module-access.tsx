@@ -5,6 +5,7 @@ import { moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES }
 import { Clock3, LockKeyhole, EyeOff } from 'lucide-react';
 import { useConfig, useConfigStatus } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
+import { captureAccountContext } from '@/lib/api';
 import { Fragment } from 'react';
 
 export function ModuleAccess({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,8 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
   const config = useConfig();
   const status = useConfigStatus();
   const user = useAuth().user;
+  const context = captureAccountContext();
+  const screenScope = `${context.scope}:${context.revision}`;
   const role = user?.role ?? 'PUBLIC';
   const key = moduleForPath(path);
   if (key && !status.loaded)
@@ -25,7 +28,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
         )}
       </div>
     );
-  if (!key || (!!config.modules && moduleAllowed(config.modules, key, role))) return <Fragment key={user?.id ?? 'guest'}>{children}</Fragment>;
+  if (!key || (!!config.modules && moduleAllowed(config.modules, key, role))) return <Fragment key={screenScope}>{children}</Fragment>;
   const policy = config.modules?.[key] ?? defaultModulePolicies()[key];
   const upcoming = policy?.state === 'COMING_SOON';
   const hidden = policy?.state === 'HIDDEN';

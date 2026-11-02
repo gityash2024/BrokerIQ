@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { AuthResponse, AuthUser } from '@brokeriq/shared';
-import { api, authStore, useSession } from './api';
+import { api, authStore, captureAccountContext, assertAccountContext, useSession } from './api';
 import { unregisterPush } from './push';
 
 export function homeFor(user: AuthUser | null | undefined) {
@@ -22,7 +22,9 @@ export function useAuth() {
     refreshMe: async () => {
       const cur = authStore.get();
       if (!cur) return;
-      const me = await api<AuthUser>('/auth/me');
+      const owner = captureAccountContext();
+      const me = await api<AuthUser>('/auth/me', { ownerContext: owner });
+      assertAccountContext(owner);
       if (authStore.get()?.user.id === cur.user.id) await authStore.set({ ...authStore.get()!, user: me });
     },
     logout: async () => {

@@ -28,6 +28,7 @@ export interface StoredAuth {
   accessToken: string;
   refreshToken: string;
   user: AuthResponse['user'];
+  scopeRevision?: string;
 }
 
 export const authStore = {
@@ -41,62 +42,84 @@ export const authStore = {
   },
   set(v: StoredAuth | null) {
     if (typeof window === 'undefined') return;
-    const previous = authStore.get()?.user;
-    if (!v || previous?.id !== v.user.id || previous?.role !== v.user.role || previous?.organization?.id !== v.user.organization?.id) {
+    const stored = authStore.get();
+    const previous = stored?.user;
+    const changed = !v || previous?.id !== v.user.id || previous?.role !== v.user.role || previous?.organization?.id !== v.user.organization?.id;
+    if (changed) {
+      guestEpoch++;
       cacheResets.forEach((reset) => reset());
-      if (typeof sessionStorage !== 'undefined')
-        for (const key of Object.keys(sessionStorage)) if (key.startsWith('biq.inbox-draft:')) sessionStorage.removeItem(key);
     }
-    if (v) localStorage.setItem(KEY, JSON.stringify(v));
+    // Preserve drafts. A fresh context nonce fences callbacks even across tabs and A → B → A.
+    if (v) localStorage.setItem(KEY, JSON.stringify({ ...v, scopeRevision: !changed ? (stored?.scopeRevision ?? 'legacy') : crypto.randomUUID() }));
     else localStorage.removeItem(KEY);
     document.cookie = v ? `biq_role=${v.user.role}; path=/; max-age=31536000; samesite=lax` : 'biq_role=; path=/; max-age=0';
     window.dispatchEvent(new Event('biq-auth'));
   },
 };
 
-let refreshing: Promise<boolean> | null = null;
-
+let guestEpoch = 0;
+export class AccountScopeChangedError extends Error {}
+export interface AccountContext {
+  userId: string | undefined;
+  scope: string;
+  revision: string;
+}
+export function captureAccountContext(): AccountContext {
+  const session = authStore.get(),
+    user = session?.user;
+  return {
+    userId: user?.id,
+    scope: user ? JSON.stringify([user.id, user.role, user.organization?.id ?? '']) : 'UNASSIGNED',
+    revision: session?.scopeRevision ?? (user ? 'legacy' : `guest:${guestEpoch}`),
+  };
+}
+export function assertAccountContext(context: AccountContext) {
+  const current = captureAccountContext();
+  if (current.userId !== context.userId || current.scope !== context.scope || current.revision !== context.revision)
+    throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+}
+let refreshing: { revision: string; task: Promise<boolean> } | null = null;
 async function refresh(): Promise<boolean> {
-  const cur = authStore.get();
+  const cur = authStore.get(),
+    context = captureAccountContext();
   if (!cur?.refreshToken) return false;
-  refreshing ??= (async () => {
+  if (refreshing?.revision === context.revision) return refreshing.task;
+  const task = (async () => {
     try {
       const res = await fetch(`${API_URL}/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: cur.refreshToken }),
       });
+      assertAccountContext(context);
       if (!res.ok) {
         if (res.status === 401 && authStore.get()?.refreshToken === cur.refreshToken) authStore.set(null);
         return false;
       }
       const data: AuthResponse = await res.json();
+      assertAccountContext(context);
       if (authStore.get()?.refreshToken !== cur.refreshToken) return false;
       authStore.set({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
       return true;
     } catch {
       return false;
     } finally {
-      setTimeout(() => (refreshing = null), 0);
+      if (refreshing?.revision === context.revision) refreshing = null;
     }
   })();
-  return refreshing;
+  refreshing = { revision: context.revision, task };
+  return task;
 }
-
-type Opts = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean; raw?: boolean; ownerId?: string };
-export class AccountScopeChangedError extends Error {}
-function currentScope() {
-  const user = authStore.get()?.user;
-  return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
-}
+type Opts = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean; raw?: boolean; ownerId?: string; ownerContext?: AccountContext };
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
-  const { body, auth = true, raw, headers, ownerId, ...rest } = opts;
-  const owner = auth ? (ownerId ?? authStore.get()?.user.id) : undefined;
-  const ownerScope = auth ? currentScope() : undefined;
+  const { body, auth = true, raw, headers, ownerId, ownerContext, ...rest } = opts;
+  const context = ownerContext ?? captureAccountContext();
   const assertOwner = () => {
-    if (auth && (authStore.get()?.user.id !== owner || currentScope() !== ownerScope))
-      throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+    if (auth) {
+      assertAccountContext(context);
+      if (ownerId !== undefined && ownerId !== context.userId) throw new AccountScopeChangedError('Account permissions changed. Reopen this screen.');
+    }
   };
   const send = async () => {
     assertOwner();
@@ -119,6 +142,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     if (error instanceof AccountScopeChangedError) throw error;
     throw new ApiError(0, { statusCode: 0, code: 'INTERNAL', message: 'Server से connect नहीं हो पाया — internet check करें' });
   }
+  assertOwner();
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
   assertOwner();
   if (raw) return res as unknown as T;
@@ -148,8 +172,11 @@ export function errorMessage(e: unknown): string {
 
 /** Direct upload to Cloudinary / S3 using a server signature. Returns the public URL. */
 export async function uploadFile(file: File | Blob, kind: string, onProgress?: (pct: number) => void): Promise<{ url: string; publicId?: string }> {
+  const context = captureAccountContext();
+  assertAccountContext(context);
   const contentType = (file as File).type || 'image/jpeg';
-  const sig = await api<any>('/me/uploads/sign', { method: 'POST', body: { kind, contentType } });
+  const sig = await api<any>('/me/uploads/sign', { method: 'POST', body: { kind, contentType }, ownerContext: context });
+  assertAccountContext(context);
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
@@ -160,6 +187,12 @@ export async function uploadFile(file: File | Blob, kind: string, onProgress?: (
       fd.append('file', file);
       xhr.open('POST', sig.uploadUrl);
       xhr.onload = () => {
+        try {
+          assertAccountContext(context);
+        } catch (error) {
+          reject(error);
+          return;
+        }
         const r = safeJson(xhr.responseText);
         if (xhr.status >= 300 || !r?.secure_url) return reject(new Error(r?.error?.message ?? 'Upload failed'));
         resolve({ url: r.secure_url, publicId: r.public_id });
@@ -168,7 +201,16 @@ export async function uploadFile(file: File | Blob, kind: string, onProgress?: (
     } else {
       xhr.open('PUT', sig.uploadUrl);
       Object.entries(sig.headers ?? {}).forEach(([k, v]) => xhr.setRequestHeader(k, v as string));
-      xhr.onload = () => (xhr.status < 300 ? resolve({ url: sig.publicUrl }) : reject(new Error('Upload failed')));
+      xhr.onload = () => {
+        try {
+          assertAccountContext(context);
+        } catch (error) {
+          reject(error);
+          return;
+        }
+        if (xhr.status < 300) resolve({ url: sig.publicUrl });
+        else reject(new Error('Upload failed'));
+      };
       xhr.send(file);
     }
   });
@@ -192,13 +234,10 @@ export async function apiBlob(path: string): Promise<Blob> {
   // Exports use relative API paths; absolute binary URLs must belong to this API.
   const safePath = path.startsWith('/') && !path.startsWith('//') && !path.includes('://') ? path : privateMediaPath(path, API_URL);
   if (!safePath) throw new Error('Untrusted private media URL');
-  const scope = () => {
-    const user = authStore.get()?.user;
-    return user ? `${user.id}:${user.role}:${user.organization?.id ?? ''}` : '';
-  };
-  const owner = scope();
+  const context = captureAccountContext();
   const assertOwner = () => {
-    if (!owner || scope() !== owner) throw new Error('Account permissions changed. Reload this document.');
+    assertAccountContext(context);
+    if (!context.userId) throw new AccountScopeChangedError('Sign in before opening a private document.');
   };
   const send = () => {
     assertOwner();
@@ -209,10 +248,12 @@ export async function apiBlob(path: string): Promise<Blob> {
     });
   };
   let response = await send();
+  assertOwner();
   if (response.status === 401 && (await refresh())) response = await send();
   assertOwner();
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: 'Source could not be loaded' }));
+    assertOwner();
     throw new ApiError(response.status, body);
   }
   const blob = await response.blob();

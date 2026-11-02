@@ -5,15 +5,17 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, ClipboardPaste, FileArchive, FileImage, ScanLine, ShieldCheck, ArrowUpRight, CheckCircle2 } from 'lucide-react';
-import { api, errorMessage } from '@/lib/api';
+import { api, errorMessage, captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { readPrivateDraft, writePrivateDraft } from '@/lib/private-drafts';
+import { readPrivateDraft, writePrivateDraft, LEGACY_WEB_DRAFT_REVIEW } from '@/lib/private-drafts';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 
 type Target = 'AUTO' | 'INVENTORY' | 'REQUIREMENT';
 export function CaptureWorkspace({ scanner = false }: { scanner?: boolean }) {
-  const account = useAuth().user?.id ?? 'guest';
+  useAuth();
+  const context = captureAccountContext();
+  const account = `${context.scope}:${context.revision}`;
   return (
     <Suspense>
       <Workspace key={account} scanner={scanner} />
@@ -24,7 +26,8 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const params = useSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const owner = user?.id;
+  const owner = useRef(captureAccountContext()).current;
+  const [startSeparate, setStartSeparate] = useState(false);
 
   useEffect(() => {
     if (scanner && user?.role === 'BROKER_AGENT') {
@@ -59,8 +62,8 @@ function Workspace({ scanner }: { scanner: boolean }) {
   useEffect(() => {
     let live = true;
     setReady(false);
-    if (owner)
-      void readPrivateDraft<{ text: string; group: string; target: Target; entryTarget?: string | null }>(owner, 'capture')
+    if (owner.userId)
+      void readPrivateDraft<{ text: string; group: string; target: Target; entryTarget?: string | null }>(owner, 'capture', startSeparate)
         .then((saved) => {
           if (!live) return;
           if (saved) {
@@ -77,9 +80,9 @@ function Workspace({ scanner }: { scanner: boolean }) {
     return () => {
       live = false;
     };
-  }, [owner]);
+  }, [owner, startSeparate]);
   useEffect(() => {
-    if (!owner || !ready) return;
+    if (!owner.userId || !ready) return;
     const version = ++revision.current;
     setStatus('Saving encrypted draft…');
     writes.current = writes.current
@@ -91,7 +94,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
       .catch((e) => setError(errorMessage(e)));
   }, [text, group, target, ready, owner]);
   async function capture(body: Record<string, unknown>, name: string) {
-    const result = await api<{ id: string }>('/imports', { ownerId: owner, body: { ...body, groupName: group || undefined, target } });
+    const result = await api<{ id: string }>('/imports', { ownerContext: owner, body: { ...body, groupName: group || undefined, target } });
     setCompleted((rows) => [...rows, { id: result.id, name }]);
     await qc.invalidateQueries({ queryKey: ['imports'] });
     return result.id;
@@ -112,7 +115,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
     }
   }
   async function upload(selected: File[]) {
-    if (!owner) throw new Error('Sign in again before uploading a private source.');
+    if (!owner.userId) throw new Error('Sign in again before uploading a private source.');
     remaining.current = selected;
     for (const file of selected) {
       if (!file.size || file.size > IMPORT_MAX_BYTES) throw new Error(`${file.name}: maximum 300 MB per source. Earlier successful sources remain saved.`);
@@ -130,13 +133,13 @@ function Workspace({ scanner }: { scanner: boolean }) {
         byte.toString(16).padStart(2, '0'),
       ).join('');
       const draftName = `capture-upload:${identityHash}`;
-      let upload = await readPrivateDraft<{ clientKey: string }>(owner, draftName);
+      let upload = await readPrivateDraft<{ clientKey: string }>(owner, draftName, startSeparate);
       if (!upload) {
         upload = { clientKey: crypto.randomUUID() };
         await writePrivateDraft(owner, draftName, upload);
       }
       const result = await uploadImport(
-        (path, body) => api(path, { ownerId: owner, body }),
+        (path, body) => api(path, { ownerContext: owner, body }),
         {
           clientKey: upload.clientKey,
           fileName: file.name,
@@ -193,15 +196,15 @@ function Workspace({ scanner }: { scanner: boolean }) {
               {(['AUTO', 'INVENTORY', 'REQUIREMENT'] as const)
                 .filter((v) => user?.role !== 'BROKER_AGENT' || v === 'REQUIREMENT')
                 .map((value) => (
-                <button
-                  key={value}
-                  aria-pressed={value === target}
-                  onClick={() => setTarget(value)}
-                  className={`min-h-11 rounded-xl border px-4 text-sm font-semibold ${target === value ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface-2'}`}
-                >
-                  {{ AUTO: 'Auto detect', INVENTORY: 'Inventory', REQUIREMENT: 'Requirements' }[value]}
-                </button>
-              ))}
+                  <button
+                    key={value}
+                    aria-pressed={value === target}
+                    onClick={() => setTarget(value)}
+                    className={`min-h-11 rounded-xl border px-4 text-sm font-semibold ${target === value ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface-2'}`}
+                  >
+                    {{ AUTO: 'Auto detect', INVENTORY: 'Inventory', REQUIREMENT: 'Requirements' }[value]}
+                  </button>
+                ))}
             </div>
             <label className="block text-xs font-semibold text-muted">
               Group / source name
@@ -313,6 +316,17 @@ function Workspace({ scanner }: { scanner: boolean }) {
               {status}
             </p>
           </section>
+          {error === LEGACY_WEB_DRAFT_REVIEW && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setError('');
+                setStartSeparate(true);
+              }}
+            >
+              Start a separate draft
+            </Button>
+          )}
           {!!error && (
             <div role="alert" className="rounded-2xl border border-rose-400/40 bg-rose-500/5 p-5">
               <p className="text-sm">{error}</p>

@@ -30,8 +30,9 @@ import {
 } from 'lucide-react';
 import { leadInboxDraftTarget, renderTemplate, timeAgo, type WaTemplate } from '@brokeriq/shared';
 import { ApiErrorState } from '@/components/ui/api-error';
-import { inboxDraftKey } from '@/lib/inbox-composer';
-import { ApiError, api, errorMessage } from '@/lib/api';
+import { moveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
+import { useInboxDraft } from '@/lib/use-inbox-draft';
+import { ApiError, api, errorMessage, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { post, useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -78,6 +79,7 @@ function InboxInner() {
   const pathname = usePathname();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const owner = useRef(captureAccountContext()).current;
   const channel: Channel = ['WHATSAPP', 'CHAT', 'SMS', 'EMAIL'].includes(sp.get('channel') || '') ? (sp.get('channel') as Channel) : 'WHATSAPP';
   const active = sp.get('c');
   const leadTarget = sp.get('lead');
@@ -86,25 +88,33 @@ function InboxInner() {
     enabled: !!user && !!leadTarget,
     retry: false,
     queryFn: () =>
-      post<{ conversationId: string }>(['SMS', 'EMAIL'].includes(channel) ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
-        leadId: leadTarget,
-        ...(['SMS', 'EMAIL'].includes(channel) ? { channel } : {}),
+      api<{ conversationId: string }>(['SMS', 'EMAIL'].includes(channel) ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
+        ownerContext: owner,
+        body: {
+          leadId: leadTarget,
+          ...(['SMS', 'EMAIL'].includes(channel) ? { channel } : {}),
+        },
       }),
   });
   useEffect(() => {
     if (!resolve.data || !user || !leadTarget) return;
-    const from = inboxDraftKey(user.id, leadInboxDraftTarget(leadTarget, channel === 'CHAT' ? 'WHATSAPP' : channel));
-    const draft = sessionStorage.getItem(from);
-    if (draft) {
-      const to = inboxDraftKey(user.id, resolve.data.conversationId);
-      const existing = sessionStorage.getItem(to);
-      if (!existing || existing === draft) {
-        sessionStorage.setItem(to, draft);
-        sessionStorage.removeItem(from);
-      } else toast.info('Inbox का मौजूदा draft सुरक्षित रखा है। नया shared draft भी इसी lead/channel के लिए saved है।');
-    }
-    router.replace(`${pathname}?channel=${channel}&c=${encodeURIComponent(resolve.data.conversationId)}`, { scroll: false });
-  }, [resolve.data, user?.id, leadTarget, channel, pathname, router]);
+    let active = true;
+    void (async () => {
+      const source = leadInboxDraftTarget(leadTarget, channel === 'CHAT' ? 'WHATSAPP' : channel);
+      const result = await moveInboxDraft(source, resolve.data.conversationId, owner);
+      const legacy = await hasLegacyInboxDraft(source, owner);
+      assertAccountContext(owner);
+      if (!active) return;
+      if (result === 'CONFLICT') toast.info('Inbox का मौजूदा draft और नया shared draft, दोनों सुरक्षित हैं।');
+      if (legacy) toast.info('पुराना shared draft सुरक्षित है। Firm और role की ownership review के बाद restore होगा।');
+      router.replace(`${pathname}?channel=${channel}&c=${encodeURIComponent(resolve.data.conversationId)}`, { scroll: false });
+    })().catch((error) => {
+      if (active) toast.error(errorMessage(error));
+    });
+    return () => {
+      active = false;
+    };
+  }, [resolve.data, user?.id, leadTarget, channel, pathname, router, owner]);
 
   const setParam = (p: Record<string, string | null>) => {
     const n = new URLSearchParams(sp.toString());
@@ -561,18 +571,9 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   const { user } = useAuth();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['wa-thread', id], queryFn: () => api<any>(`/whatsapp/conversations/${id}/messages`) });
-  const [text, setText] = useState(() => {
-    if (!user) return '';
-    const key = inboxDraftKey(user.id, id);
-    return sessionStorage.getItem(key) || '';
-  });
-  useEffect(() => {
-    if (user) {
-      const key = inboxDraftKey(user.id, id);
-      if (text) sessionStorage.setItem(key, text);
-      else sessionStorage.removeItem(key);
-    }
-  }, [text, id, user?.id]);
+  const draft = useInboxDraft(id);
+  const { text, setText, ready, legacy, owner } = draft;
+  const sendLock = useRef(false);
   const [sending, setSending] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -589,12 +590,14 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   }, [q.data?.items?.length]);
 
   const send = async (body: Record<string, unknown>) => {
-    if (sending) return false;
+    if (!ready || sendLock.current) return false;
+    sendLock.current = true;
     setSending(true);
     setNotConfigured(null);
     try {
-      await post('/whatsapp/send', { conversationId: id, ...body });
-      setText('');
+      await draft.flush();
+      await api('/whatsapp/send', { body: { conversationId: id, ...body }, ownerContext: owner });
+      await draft.clear();
       q.refetch();
       onReadRef.current();
       return true;
@@ -603,6 +606,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       else toast.error(errorMessage(e));
       return false;
     } finally {
+      sendLock.current = false;
       setSending(false);
     }
   };
@@ -764,10 +768,13 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               <FileText className="size-4" />
             </Button>
           </div>
+          {legacy && (
+            <p className="text-xs text-muted">An older message draft is preserved. Its firm and role need review; this composer creates a separate draft.</p>
+          )}
           <Textarea
             rows={1}
             value={text}
-            disabled={!windowOpen || !connected || sending}
+            disabled={!ready || !windowOpen || !connected || sending}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -785,7 +792,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             size="icon"
             variant="whatsapp"
             loading={sending}
-            disabled={!windowOpen || !text.trim() || sending}
+            disabled={!ready || !windowOpen || !text.trim() || sending}
             aria-label="Send"
             className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md active:scale-95 shrink-0"
           >

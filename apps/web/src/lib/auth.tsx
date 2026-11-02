@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AuthResponse, AuthUser } from '@brokeriq/shared';
-import { api, authStore } from './api';
+import { api, authStore, captureAccountContext, assertAccountContext } from './api';
 
 interface AuthCtx {
   user: AuthUser | null;
@@ -49,7 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshMe = useCallback(async () => {
     const cur = authStore.get();
     if (!cur) return;
-    const me = await api<AuthUser>('/auth/me');
+    const owner = captureAccountContext();
+    const me = await api<AuthUser>('/auth/me', { ownerContext: owner });
+    assertAccountContext(owner);
     if (authStore.get()?.user.id === cur.user.id) authStore.set({ ...authStore.get()!, user: me });
   }, []);
 

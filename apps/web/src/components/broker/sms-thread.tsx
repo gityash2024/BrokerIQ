@@ -4,7 +4,8 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useRealtime } from '@/lib/realtime';
-import { inboxDraftKey } from '@/lib/inbox-composer';
+import { readInboxDraft, saveInboxDraft } from '@/lib/inbox-drafts';
+import { useInboxDraft } from '@/lib/use-inbox-draft';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/field';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -34,47 +35,44 @@ export function SmsThread({ id, onRead, channel = 'SMS' }: { id: string; onRead:
       [history.data],
     ),
   };
-  const [text, setText] = useState(() => (user ? sessionStorage.getItem(inboxDraftKey(user.id, id)) || '' : ''));
+  const draft = useInboxDraft(id);
+  const { text, setText, ready, legacy, owner } = draft;
+  const sendLock = useRef(false);
   const [sending, setSending] = useState(false);
   const attempt = useRef<{ text: string; requestId: string; subject?: string; replyToId?: string } | null>(null);
   useRealtime<any>('wa:message', (data) => {
     if (data.conversationId === id) qc.invalidateQueries({ queryKey: ['provider-thread', channel, id] });
   });
-  useEffect(() => {
-    if (user) {
-      const key = inboxDraftKey(user.id, id);
-      if (text) sessionStorage.setItem(key, text);
-      else sessionStorage.removeItem(key);
-    }
-  }, [text, id, user?.id]);
   const send = async () => {
-    if (!text.trim() || sending) return;
-    const body = text.trim();
-    const attemptKey = user ? inboxDraftKey(user.id, `provider-attempt:${id}`) : '';
-    if (!attempt.current && attemptKey) {
-      try {
-        const stored = JSON.parse(sessionStorage.getItem(attemptKey) || 'null');
-        if (stored?.text === body && (!email || (stored?.subject === subject && stored?.replyToId === replyToId)) && typeof stored?.requestId === 'string')
-          attempt.current = stored;
-      } catch {
-        /* Ignore corrupt local drafts. */
-      }
-    }
-    if (attempt.current?.text !== body || (email && (attempt.current?.subject !== subject || attempt.current?.replyToId !== replyToId)))
-      attempt.current = { text: body, requestId: crypto.randomUUID(), ...(email ? { subject, ...(replyToId ? { replyToId } : {}) } : {}) };
-    if (attemptKey) sessionStorage.setItem(attemptKey, JSON.stringify(attempt.current));
+    if (!ready || !text.trim() || sendLock.current) return;
+    sendLock.current = true;
     setSending(true);
+    const body = text.trim(),
+      attemptKey = `provider-attempt:${id}`;
     try {
-      await api(email ? '/messaging/email/send' : '/messaging/sms/send', { body: { conversationId: id, ...attempt.current } });
+      await draft.flush();
+      if (!attempt.current) {
+        const raw = await readInboxDraft(attemptKey, owner);
+        if (raw) {
+          const stored = JSON.parse(raw);
+          if (stored?.text === body && (!email || (stored?.subject === subject && stored?.replyToId === replyToId)) && typeof stored?.requestId === 'string')
+            attempt.current = stored;
+        }
+      }
+      if (attempt.current?.text !== body || (email && (attempt.current?.subject !== subject || attempt.current?.replyToId !== replyToId)))
+        attempt.current = { text: body, requestId: crypto.randomUUID(), ...(email ? { subject, ...(replyToId ? { replyToId } : {}) } : {}) };
+      await saveInboxDraft(attemptKey, JSON.stringify(attempt.current), owner);
+      await api(email ? '/messaging/email/send' : '/messaging/sms/send', { body: { conversationId: id, ...attempt.current }, ownerContext: owner });
+      await saveInboxDraft(attemptKey, '', owner);
       attempt.current = null;
-      if (attemptKey) sessionStorage.removeItem(attemptKey);
-      setText('');
+      await draft.clear();
       setReplyToId(undefined);
       await thread.refetch();
       onRead();
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
+      sendLock.current = false;
       setSending(false);
     }
   };
@@ -161,14 +159,17 @@ export function SmsThread({ id, onRead, channel = 'SMS' }: { id: string; onRead:
         {email && (
           <Input aria-label="Email subject" placeholder="Subject" value={subject} maxLength={200} onChange={(event) => setSubject(event.target.value)} />
         )}
+        {legacy && (
+          <p className="text-xs text-muted">An older message draft is preserved. Its firm and role need review; this composer creates a separate draft.</p>
+        )}
         <Textarea
           value={text}
           maxLength={email ? 20_000 : 1600}
-          disabled={sending}
+          disabled={sending || !ready}
           onChange={(event) => setText(event.target.value)}
           placeholder={email ? 'Email लिखें…' : 'SMS लिखें…'}
         />
-        <Button type="submit" loading={sending} disabled={!text.trim() || sending}>
+        <Button type="submit" loading={sending} disabled={!ready || !text.trim() || sending}>
           {email ? 'Email भेजें' : 'SMS भेजें'}
         </Button>
       </form>
