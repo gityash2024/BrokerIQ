@@ -4,6 +4,10 @@ Baseline: feat/production, 93bb8a0. Existing live data is production data; never
 
 ## Latest connected staging checkpoint — 2 November 2026
 
+Build45 supersedes44: pinned `5cbd17279520c755a4e4afe0d0fbb45ae1143b17`, v2.3.4, published **18:25:50 IST**. Independent public/origin API and manifests, PM2 paths, full186,522,118-byte APK and embedded Expo identity match. SHA256 `9161b493ddb4a3cc214d588cd3828eeda3eeb1c9c6e0e13d92f2a6ba05d86cd1`. Native secure-window and all60 64-bit-library/16KB checks pass. Fresh isolated API361 passed/27 configuration skips. Actual encrypted base+delta scratch restore verifies101 table digests,626 media files and10 private KYC documents; eight unrelated services are unchanged. Admin Team routes/hierarchy and purpose-correct AI context are shipped. Follow-up atomic retries, recruitment classification and SMS follow-up source prepared AFTER this pin are not45. Browser visual acceptance, physical phone, remaining providers/AI quality/modules/performance/manuals and complete request reconciliation remain OPEN. See the Build45 section of STAGING_ACCEPTANCE_20261102.md.
+
+Historical checkpoints follow; they are not the current artifact identity.
+
 Build44 now supersedes43: pinned be21ed4/v2.3.3, published17:59:30 IST. Exact public/origin identities, full signed APK bytes and embedded Expo release identity match. Final full isolated API361 passed/27 skips; supported Broker-first37/37; native security/16KB checks pass. New encrypted base+delta actually restores101 tables/619 media/10 private KYC documents. Eight unrelated services are unchanged. Newly prepared Admin Team routes are later source, not44. Browser, physical device, providers, AI quality, remaining product work and final manuals remain OPEN. See the Build44 section of STAGING_ACCEPTANCE_20261102.md.
 
 

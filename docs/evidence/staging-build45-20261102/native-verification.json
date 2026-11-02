@@ -1,0 +1,16 @@
+{
+  "apk": "releases/build45-5cbd17279520/BrokerIQ-v2.3.4-build45.apk",
+  "checked64BitLibraries": 60,
+  "alignmentFailures": [],
+  "zipAlignmentExitCode": 0,
+  "secureActivityBytecode": {
+    "Class descriptor  : 'Lcom/brokeriq/app/MainActivity;'": {
+      "hasWindowFlagCall": true,
+      "hasSecure8192Constant": true
+    },
+    "Class descriptor  : 'Lcom/brokeriq/facecapture/FaceCaptureActivity;'": {
+      "hasWindowFlagCall": true,
+      "hasSecure8192Constant": true
+    }
+  }
+}

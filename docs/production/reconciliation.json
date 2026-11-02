@@ -4095,11 +4095,11 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "0d6c2bc273dcc6851501ee3cf5799a1415bae7f6",
-    "androidVersion": "2.3.2",
-    "androidVersionCode": 43,
-    "publishedAt": "2026-11-02T11:17:17.940Z",
-    "publicApkSha256": "27a2755f173a5cca923b86d4d4753ffa3b1c609f6cfced4b8c86d753310c0609",
+    "commit": "5cbd17279520c755a4e4afe0d0fbb45ae1143b17",
+    "androidVersion": "2.3.4",
+    "androidVersionCode": 45,
+    "publishedAt": "2026-11-02T12:55:50.835Z",
+    "publicApkSha256": "9161b493ddb4a3cc214d588cd3828eeda3eeb1c9c6e0e13d92f2a6ba05d86cd1",
     "evidence": "docs/production/STAGING_ACCEPTANCE_20261102.md",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
     "fullProductSignoff": false

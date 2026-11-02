@@ -1,0 +1,22 @@
+{
+  "archive": "production-20261102T124632Z.tar.age",
+  "archiveChain": [
+    {
+      "archive": "production-20261102T104109Z.tar.age",
+      "sha256": "f80064a10c5e3d469d4886364c6e076696f666b6101c5719d6b2e7e34be8a3ff"
+    },
+    {
+      "archive": "production-20261102T124632Z.tar.age",
+      "sha256": "81f6e54b818965989e73895afc8a3987b53c9809999cc4c898308807a58a85cc"
+    }
+  ],
+  "database": "brokeriq_restore_prebuild45_20261102_124632",
+  "snapshotStartedAt": "2026-11-02T12:46:33.101Z",
+  "verifiedAt": "2026-11-02T12:47:23.141955+00:00",
+  "privateKycDocuments": 10,
+  "tablesVerified": 101,
+  "mediaFilesVerified": 626,
+  "mediaBytesVerified": 2477380928,
+  "dumpSha256": "51125b5bbc057aaa85e1c0935cfe4f8376f6e6db1f46802e020a7ef64a4b93b9",
+  "result": "VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED"
+}
