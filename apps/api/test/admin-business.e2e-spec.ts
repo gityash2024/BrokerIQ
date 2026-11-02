@@ -27,11 +27,21 @@ describe('Super Admin business hierarchy', () => {
       const u = await db.user.create({
         data: { name: 'Business ' + role, email: role.toLowerCase() + uid + '@e2e.test', role, organizationId: role === 'SUPER_ADMIN' ? null : orgA },
       });
+      const unsupportedAtLaunch = process.env.BROKER_FIRST === 'true' && ['MODERATOR', 'SUPPORT'].includes(role);
+      if (unsupportedAtLaunch) {
+        await expect(app.get(AuthService).issue({ ...u, organization: await db.organization.findUnique({ where: { id: orgA } }) } as any)).rejects.toThrow(
+          'broker launch',
+        );
+      }
+      // Model a real pre-policy session, then change its stored role. The HTTP
+      // guard must enforce the current role rather than its old JWT claim.
+      const issuer = unsupportedAtLaunch ? await db.user.update({ where: { id: u.id }, data: { role: 'USER' } }) : u;
       const token = (
         await app
           .get(AuthService)
-          .issue({ ...u, organization: role === 'SUPER_ADMIN' ? null : await db.organization.findUnique({ where: { id: orgA } }) } as any)
+          .issue({ ...issuer, organization: role === 'SUPER_ADMIN' ? null : await db.organization.findUnique({ where: { id: orgA } }) } as any)
       ).accessToken;
+      if (unsupportedAtLaunch) await db.user.update({ where: { id: u.id }, data: { role } });
       if (role === 'SUPER_ADMIN') admin = token;
       else denied.push({ id: u.id, token });
       if (role === 'BROKER_AGENT') member = u.id;
