@@ -1,0 +1,37 @@
+{
+  "applicationPin": "256f508713e229bc9feed6c38eca3bc411823d14",
+  "fullApi": {
+    "freshDatabase": "brokeriq_test_release_256f508_20261102",
+    "passed": 392,
+    "skipped": 27,
+    "suitesPassed": 54,
+    "suitesSkipped": 4,
+    "seconds": 84.854
+  },
+  "brokerFirst": {
+    "freshDatabase": "brokeriq_test_release_256f508_bf_20261102",
+    "passed": 46,
+    "suites": 7,
+    "seconds": 41.333
+  },
+  "shared": {
+    "passed": 65
+  },
+  "mobile": {
+    "passed": 82
+  },
+  "workspaceTypechecks": "PASS",
+  "eslintReminders": {
+    "errors": 0,
+    "warnings": 36
+  },
+  "nativeBuild": {
+    "seconds": 382,
+    "tasksExecuted": 742,
+    "tasksUpToDate": 28
+  },
+  "stagingFixturesOrSeeds": false,
+  "browserVisualAcceptance": false,
+  "installedDeviceAcceptance": false,
+  "fullProductSignoff": false
+}

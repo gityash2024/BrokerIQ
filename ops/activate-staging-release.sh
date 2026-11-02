@@ -26,7 +26,12 @@ HASH="$(node -e 'console.log(require(process.argv[1]).android.sha256)' "$CANDIDA
 CODE="$(node -e 'console.log(require(process.argv[1]).android.versionCode)' "$CANDIDATE/release-manifest.json")"
 if ! node "$BASE/ops/prepublish-staging-apk.cjs" "$PIN" "$HASH"; then
  env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root pm2 reload brokeriq-web --update-env
- node "$BASE/ops/prepublish-staging-apk.cjs" "$PIN" "$HASH"
+ prepublished=false
+ for i in $(seq 1 20); do
+  if node "$BASE/ops/prepublish-staging-apk.cjs" "$PIN" "$HASH"; then prepublished=true; break; fi
+  sleep 2
+ done
+ [ "$prepublished" = true ] || { echo 'APK remained unavailable after the existing web process refreshed; current release retained' >&2; exit 1; }
 fi
 for name in api web; do
  PID=$(cat "$CANDIDATE/.$name-smoke.pid")

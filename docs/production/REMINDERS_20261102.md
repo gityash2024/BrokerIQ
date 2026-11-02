@@ -1,6 +1,6 @@
 # Reminder ownership and durable scheduling
 
-Prepared after Build47; not part of that published artifact.
+Shipped in verified Build48 (256f508), after Build47. Physical/provider delivery acceptance remains open.
 
 The old cron updated `reminderSentAt` before inserting a notification. A crash between those writes permanently lost the reminder. Two overlapping scans could also deliver twice, and a historical task assignee could receive client data after its lead moved to another Agent. Saved notification lists/counts/open operations only checked recipient identity, so old private lead details remained visible after reassignment/demotion.
 
