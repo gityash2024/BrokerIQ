@@ -3395,18 +3395,24 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
+      "backend": "BUSINESS_READ_WORKSPACE_REAL_DB_VERIFIED_REMAINING_ACTIONS_OPEN",
+      "web": "BUSINESS_WORKSPACE_TYPECHECKED_VISUAL_AND_STAGING_PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md."
+        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md.",
+        "New business-data workspace: all-firms current/archived records across18 fixed resources, explicit paginated hierarchy, safe details and complete-filter/selected summary CSV;6 real PostgreSQL/HTTP cases pass. Dedicated target/location/actions/full exports and browser/mobile/staging acceptance remain open. Source prepared AFTER Build46."
       ],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/admin/admin-business.controller.ts",
+        "apps/api/src/modules/admin/admin-business.service.ts",
+        "apps/web/src/components/admin/business-workspace.tsx",
+        "packages/shared/src/admin-business.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3418,24 +3424,29 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "INVENTORY_IMPLEMENTED_REAL_POSTGRES_VERIFIED_OTHER_MODULES_OPEN",
-      "web": "INVENTORY_SHIPPED_44_TEAM_ADMIN_ROUTES_SOURCE_VERIFIED_VISUAL_PENDING",
+      "backend": "BUSINESS_READ_WORKSPACE_REAL_DB_VERIFIED_REMAINING_ACTIONS_OPEN",
+      "web": "BUSINESS_WORKSPACE_TYPECHECKED_VISUAL_AND_STAGING_PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "Inventory all-firms/member pages, export privacy, locked same-firm assignment, reversible archive: 6 new real PostgreSQL cases; related regressions 29/29",
       "notes": [
         "Inventory old first-firm/first-member defaults, empty publish body, current-page CSV and cross-firm matching corrected. All other business module hierarchy coverage remains OPEN. See ADMIN_INVENTORY_20261102.md.",
-        "Admin Team/Details/Leaderboard/Time Logging now use protected Admin routes; strict decoder retains all-firms metadata and Super Admin location selection is explicit. These later source changes are NOT in Build44. Remaining business-module hierarchy is OPEN."
+        "Admin Team/Details/Leaderboard/Time Logging now use protected Admin routes; strict decoder retains all-firms metadata and Super Admin location selection is explicit. These later source changes are NOT in Build44. Remaining business-module hierarchy is OPEN.",
+        "New business-data workspace: all-firms current/archived records across18 fixed resources, explicit paginated hierarchy, safe details and complete-filter/selected summary CSV;6 real PostgreSQL/HTTP cases pass. Dedicated target/location/actions/full exports and browser/mobile/staging acceptance remain open. Source prepared AFTER Build46."
       ],
       "roles": [
         "SUPER_ADMIN"
       ],
       "sourceFiles": [
-        "apps/web/src/components/broker/launch/inventory-workspace.tsx",
+        "apps/api/src/modules/admin/admin-business.controller.ts",
+        "apps/api/src/modules/admin/admin-business.service.ts",
         "apps/api/src/modules/inventory/inventory.service.ts",
         "apps/api/test/inventory-admin.e2e-spec.ts",
         "apps/web/src/app/admin/team/page.tsx",
         "apps/web/src/app/broker/team/time-logging/page.tsx",
+        "apps/web/src/components/admin/business-workspace.tsx",
+        "apps/web/src/components/broker/launch/inventory-workspace.tsx",
+        "packages/shared/src/admin-business.ts",
         "packages/shared/src/team.ts"
       ],
       "commits": [],
@@ -3449,16 +3460,23 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
+      "backend": "BUSINESS_READ_WORKSPACE_REAL_DB_VERIFIED_REMAINING_ACTIONS_OPEN",
+      "web": "BUSINESS_WORKSPACE_TYPECHECKED_VISUAL_AND_STAGING_PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "New business-data workspace: all-firms current/archived records across18 fixed resources, explicit paginated hierarchy, safe details and complete-filter/selected summary CSV;6 real PostgreSQL/HTTP cases pass. Dedicated target/location/actions/full exports and browser/mobile/staging acceptance remain open. Source prepared AFTER Build46."
+      ],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/admin/admin-business.controller.ts",
+        "apps/api/src/modules/admin/admin-business.service.ts",
+        "apps/web/src/components/admin/business-workspace.tsx",
+        "packages/shared/src/admin-business.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3470,16 +3488,23 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
+      "backend": "BUSINESS_READ_WORKSPACE_REAL_DB_VERIFIED_REMAINING_ACTIONS_OPEN",
+      "web": "BUSINESS_WORKSPACE_TYPECHECKED_VISUAL_AND_STAGING_PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "New business-data workspace: all-firms current/archived records across18 fixed resources, explicit paginated hierarchy, safe details and complete-filter/selected summary CSV;6 real PostgreSQL/HTTP cases pass. Dedicated target/location/actions/full exports and browser/mobile/staging acceptance remain open. Source prepared AFTER Build46."
+      ],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/admin/admin-business.controller.ts",
+        "apps/api/src/modules/admin/admin-business.service.ts",
+        "apps/web/src/components/admin/business-workspace.tsx",
+        "packages/shared/src/admin-business.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

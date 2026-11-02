@@ -38,3 +38,4 @@ export * from './private-media';
 export * from './release';
 export * from './inbox-drafts';
 export * from './follow-ups';
+export * from './admin-business';

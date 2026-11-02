@@ -54,6 +54,11 @@ function Inner({ children }: { children: React.ReactNode }) {
           ],
         },
         {
+          href: '/admin/business',
+          label: 'Business records',
+          icon: Building2,
+        },
+        {
           href: '/admin/inventory',
           label: 'Inventory',
           icon: Building2,

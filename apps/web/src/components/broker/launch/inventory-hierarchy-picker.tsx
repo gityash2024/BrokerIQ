@@ -16,6 +16,8 @@ export function InventoryHierarchyPicker({
   organizationId,
   selectedLabel,
   allowAll = true,
+  endpoint = '/inventory/hierarchy',
+  pickerLabel,
 }: {
   kind: 'organizations' | 'members';
   value: string;
@@ -23,14 +25,16 @@ export function InventoryHierarchyPicker({
   organizationId?: string;
   selectedLabel?: string;
   allowAll?: boolean;
+  endpoint?: '/inventory/hierarchy' | '/admin/business/hierarchy';
+  pickerLabel?: string;
 }) {
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
-  const label = kind === 'organizations' ? 'Firm' : 'Assignee';
+  const label = pickerLabel ?? (kind === 'organizations' ? 'Firm' : 'Assignee');
   const query = useInfiniteQuery({
-    queryKey: ['inventory-hierarchy', kind, organizationId, term],
+    queryKey: [endpoint, kind, organizationId, term],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => api<Page>(`/inventory/hierarchy/${kind}${qs({ search: term, organizationId, page: pageParam })}`),
+    queryFn: ({ pageParam }) => api<Page>(`${endpoint}/${kind}${qs({ search: term, organizationId, page: pageParam })}`),
     getNextPageParam: (p) => (p.page < p.totalPages ? p.page + 1 : undefined),
   });
   const choices = [...new Map((query.data?.pages.flatMap((p) => p.items) ?? []).map((p) => [p.id, p])).values()];
