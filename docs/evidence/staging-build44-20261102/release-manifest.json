@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "environment": "staging",
+  "portals": {
+    "version": "2.3.3",
+    "commit": "be21ed4087e144a006851e192fdb16fa9ee3efc8",
+    "builtAt": "2026-11-02T12:26:59.871Z",
+    "publishedAt": "2026-11-02T12:29:30.072Z"
+  },
+  "android": {
+    "version": "2.3.3",
+    "versionCode": 44,
+    "commit": "be21ed4087e144a006851e192fdb16fa9ee3efc8",
+    "builtAt": "2026-11-02T12:22:33.105Z",
+    "url": "/downloads/BrokerIQ-v2.3.3-build44.apk",
+    "sha256": "194def48d3a019ba15ba849984c95e6b7fd3a2781ac0ab03a4603726ab2e028e",
+    "bytes": 186518390,
+    "certificateSha256": "d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce",
+    "publishedAt": "2026-11-02T12:29:30.072Z"
+  },
+  "screenshots": []
+}

@@ -4,6 +4,8 @@ Baseline: feat/production, 93bb8a0. Existing live data is production data; never
 
 ## Latest connected staging checkpoint — 2 November 2026
 
+Build44 now supersedes43: pinned be21ed4/v2.3.3, published17:59:30 IST. Exact public/origin identities, full signed APK bytes and embedded Expo release identity match. Final full isolated API361 passed/27 skips; supported Broker-first37/37; native security/16KB checks pass. New encrypted base+delta actually restores101 tables/619 media/10 private KYC documents. Eight unrelated services are unchanged. Newly prepared Admin Team routes are later source, not44. Browser, physical device, providers, AI quality, remaining product work and final manuals remain OPEN. See the Build44 section of STAGING_ACCEPTANCE_20261102.md.
+
 
 Build43 supersedes the preceding42 checkpoint: pinned0d6c2bc /v2.3.2, published2026-11-02T11:17:17.940Z (16:47:17 IST). Strict origin/public API, manifests, PM2 paths and full public APK hash match.354 real-PostgreSQL tests passed/27 configuration skips; separate Broker-first selection53/53 passes after the test-only stale revision correction. Shared61/61, workspace types and final native security checks pass. A standalone encrypted off-host backup actually restored101 tables/615 files/10 private KYC documents. Textbee existing device/SIM3 and outgoing-only signed webhook are saved encrypted; no diagnostic SMS or inbound acceptance yet. UI visual checks await browser access; installed phone checks remain user-deferred. Full goal remains OPEN. See STAGING_ACCEPTANCE_20261102.md.
 
