@@ -11,6 +11,7 @@ import { AlarmClock, Check, Clock, Phone } from 'lucide-react-native';
 import { LeadContactActions } from '@/components/lead-contact-actions';
 import { api, patch, qs } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
+import { reconcileLocalReminders } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
 import { StageBadge, useAssignees } from '@/components/crm';
 import { Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, Row, Screen, Segmented, Sheet, Skeleton, Txt } from '@/ui';
@@ -54,7 +55,12 @@ export default function FollowUps() {
     refetchInterval: 60000,
   });
   const rows = [...new Map((q.data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item])).values()];
-  const upd = useApiMutation(({ id, ...b }: any) => patch(`/follow-ups/${id}`, b), { invalidate: [['follow-ups'], ['broker-dashboard']] });
+  const upd = useApiMutation(({ id, ...b }: any) => patch(`/follow-ups/${id}`, b), {
+    invalidate: [['follow-ups'], ['broker-dashboard']],
+    onSuccess: () => {
+      void reconcileLocalReminders().catch(() => undefined);
+    },
+  });
   const snooze = (id: string, ms: number) => upd.mutate({ id, dueAt: new Date(Date.now() + ms).toISOString() });
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>

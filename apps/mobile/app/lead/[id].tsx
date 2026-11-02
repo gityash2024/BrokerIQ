@@ -28,7 +28,7 @@ import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, ti
 import { api, del, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
-import { scheduleReminder } from '@/lib/push';
+import { scheduleReminder, reconcileLocalReminders } from '@/lib/push';
 import { timePresets } from '@/lib/time';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
@@ -354,10 +354,8 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
     },
     {
       success: 'Follow-up scheduled ⏰',
-      onSuccess: () => {
-        scheduleReminder(`⏰ ${lead.name} को ${type === 'CALL' ? 'call' : type.toLowerCase()} करें`, note || lead.phone, at!, 15, lead.id).catch(
-          () => undefined,
-        );
+      onSuccess: (saved) => {
+        if (saved.status === 'PENDING') scheduleReminder({ id: saved.id, kind: 'FOLLOW_UP', leadId: saved.leadId, at: saved.dueAt }, 15).catch(() => undefined);
         submission.current = { fingerprint: '', id: '' };
         setNote('');
         setAt(null);
@@ -411,8 +409,9 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
     },
     {
       success: 'Site visit scheduled 🗓',
-      onSuccess: () => {
-        scheduleReminder(`🏠 Site visit: ${lead.name}`, address || 'Visit शुरू होने वाली है', at!, 30, lead.id).catch(() => undefined);
+      onSuccess: (saved) => {
+        if (['SCHEDULED', 'CONFIRMED'].includes(saved.status))
+          scheduleReminder({ id: saved.id, kind: 'VISIT', leadId: saved.leadId, at: saved.scheduledAt }, 30).catch(() => undefined);
         submission.current = { fingerprint: '', id: Crypto.randomUUID() };
         setProperty(null);
         setAddress('');
@@ -565,7 +564,13 @@ function DealSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: ()
 
 function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void; openSheet: (s: 'followup' | 'visit') => void }) {
   const { c } = useTheme();
-  const done = useApiMutation((fid: string) => patch(`/follow-ups/${fid}`, { status: 'DONE' }), { success: 'Done ✅', onSuccess: onChange });
+  const done = useApiMutation((fid: string) => patch(`/follow-ups/${fid}`, { status: 'DONE' }), {
+    success: 'Done ✅',
+    onSuccess: () => {
+      onChange();
+      void reconcileLocalReminders().catch(() => undefined);
+    },
+  });
   return (
     <>
       <Row gap={8}>

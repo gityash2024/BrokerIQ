@@ -81,7 +81,7 @@ export async function unregisterPush(accessToken?: string, ownerId?: string) {
     await api(`/me/push-tokens/${encodeURIComponent(token)}`, {
       method: 'DELETE',
       ...(accessToken ? { auth: false, headers: { Authorization: `Bearer ${accessToken}` } } : {}),
-    });
+    }).catch(() => undefined);
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(
     scheduled.filter((n) => n.content.data?.recipientUserId === ownerId).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
@@ -93,14 +93,4 @@ export async function unregisterPush(accessToken?: string, ownerId?: string) {
   await Notifications.setBadgeCountAsync(0);
 }
 
-/** Local reminder N minutes before a follow-up/visit (works offline). */
-export async function scheduleReminder(title: string, body: string, at: Date, minutesBefore = 15, leadId?: string) {
-  const recipientUserId = authStore.get()?.user.id;
-  if (!recipientUserId) return null;
-  const when = new Date(at.getTime() - minutesBefore * 60_000);
-  if (when.getTime() <= Date.now()) return null;
-  return Notifications.scheduleNotificationAsync({
-    content: { title, body, data: { localReminder: true, recipientUserId, leadId } },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
-  });
-}
+export { scheduleReminder, reconcileLocalReminders } from './local-reminders';

@@ -4,7 +4,8 @@ import { api, authStore } from '../api';
 import { registerPush, unregisterPush, scheduleReminder } from '../push';
 
 jest.mock('expo-device', () => ({ isDevice: true }));
-jest.mock('../api', () => ({ api: jest.fn(), authStore: { get: jest.fn() } }));
+jest.mock('../api', () => ({ api: jest.fn(), authStore: { get: jest.fn() }, registerSessionReset: jest.fn() }));
+jest.mock('../i18n', () => ({ tr: (s: string) => s }));
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   setNotificationChannelAsync: jest.fn(),
@@ -21,7 +22,7 @@ jest.mock('expo-notifications', () => ({
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
-const session = { user: { id: 'phone-owner' }, accessToken: 'isolated-local-test-token' } as any;
+const session = { user: { id: 'phone-owner', role: 'BROKER_AGENT' }, accessToken: 'isolated-local-test-token' } as any;
 beforeEach(() => {
   jest.clearAllMocks();
   (authStore.get as jest.Mock).mockReturnValue(session);
@@ -65,14 +66,32 @@ it('does not register a late token response under a different logged-in account'
   expect(api).not.toHaveBeenCalled();
 });
 
+it('still cancels local alerts and OS previews when token removal is offline', async () => {
+  jest.spyOn(SecureStore, 'getItemAsync').mockResolvedValueOnce(JSON.stringify({ userId: session.user.id, token: 'ExponentPushToken[offline]' }));
+  (api as jest.Mock).mockRejectedValueOnce(new Error('Offline'));
+  (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([
+    { identifier: 'own-offline', content: { data: { recipientUserId: session.user.id } } },
+  ]);
+  (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([
+    { request: { identifier: 'shown-offline', content: { data: { recipientUserId: session.user.id } } } },
+  ]);
+  await unregisterPush(session.accessToken, session.user.id);
+  expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('own-offline');
+  expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('shown-offline');
+});
+
 it('local reminders carry account and lead identity; logged-out scheduling creates nothing', async () => {
   const due = new Date(Date.now() + 3600_000);
-  await scheduleReminder('Follow-up', 'Local test', due, 15, 'lead-1');
+  await scheduleReminder({ id: 'task-1', kind: 'FOLLOW_UP', leadId: 'lead-1', at: due.toISOString() }, 15);
   expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
-    expect.objectContaining({ content: expect.objectContaining({ data: { localReminder: true, recipientUserId: session.user.id, leadId: 'lead-1' } }) }),
+    expect.objectContaining({
+      content: expect.objectContaining({
+        data: expect.objectContaining({ localReminder: true, recipientUserId: session.user.id, leadId: 'lead-1', taskId: 'task-1' }),
+      }),
+    }),
   );
   (Notifications.scheduleNotificationAsync as jest.Mock).mockClear();
   (authStore.get as jest.Mock).mockReturnValue(null);
-  await scheduleReminder('Follow-up', 'Local test', due, 15, 'lead-1');
+  await scheduleReminder({ id: 'task-1', kind: 'FOLLOW_UP', leadId: 'lead-1', at: due.toISOString() }, 15);
   expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
 });

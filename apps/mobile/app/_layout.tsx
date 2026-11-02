@@ -1,6 +1,6 @@
 import '@/lib/background-shift-tracking';
 import { useEffect } from 'react';
-import { Linking, View } from 'react-native';
+import { AppState, Linking, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -20,7 +20,7 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Download, Wrench } from 'lucide-react-native';
 import { authStore, useSession } from '@/lib/api';
 import { cmpVersion, useConfig } from '@/lib/config';
-import { registerPush } from '@/lib/push';
+import { registerPush, reconcileLocalReminders } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { Button, Toaster, Txt } from '@/ui';
@@ -97,6 +97,21 @@ export default function RootLayout() {
   }, [fontsLoaded, ready]);
   useEffect(() => {
     if (loggedInUserId) registerPush().catch(() => undefined);
+  }, [loggedInUserId]);
+  useEffect(() => {
+    if (!loggedInUserId) return;
+    const refresh = () => {
+      if (AppState.currentState === 'active') void reconcileLocalReminders().catch(() => undefined);
+    };
+    refresh();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    const timer = setInterval(refresh, 60_000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
   }, [loggedInUserId]);
   useRealtime<any>('notification', () => {
     qc.invalidateQueries({ queryKey: ['notifications'] });

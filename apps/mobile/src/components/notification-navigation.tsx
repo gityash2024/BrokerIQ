@@ -4,9 +4,9 @@ import * as Notifications from 'expo-notifications';
 import { authStore } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
-import { api } from '@/lib/api';
 import { queryClient } from '@/lib/query';
 import { openLink } from '@/lib/links';
+import { resolveLocalReminder } from '@/lib/local-reminders';
 
 /** Both cold-start and foreground taps wait for hydration and an authenticated navigator. */
 export function NotificationNavigation() {
@@ -65,12 +65,12 @@ export function NotificationNavigation() {
         /^[A-Za-z0-9_-]+$/.test(data.leadId)
       ) {
         try {
-          // A reassignment since scheduling must not grant access to the old agent.
-          await api(`/leads/${data.leadId}`, { ownerId: userId });
-          if (active && authStore.get()?.user.id === userId) openLink('/broker/leads/' + data.leadId);
+          const task = await resolveLocalReminder(data);
+          if (!task) throw new Error('Reminder task changed or no longer available');
+          if (active && authStore.get()?.user.id === userId) openLink('/broker/leads/' + task.leadId);
         } catch {
           if (active && authStore.get()?.user.id === userId) {
-            toast.info('Reminder की lead अब उपलब्ध नहीं है।');
+            toast.info('यह reminder बदल चुका है या अब उपलब्ध नहीं है।');
             router.push('/notifications');
           }
         }

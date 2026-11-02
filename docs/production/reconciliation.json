@@ -198,7 +198,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Mobile account/role/firm change clears private query cache and rejects late response/report bytes; credential write/logout races tested. Web reset/cross-tab hooks inspected. Exhaustive browser/native private-draft coverage remains open."
+        "Mobile account/role/firm change clears private query cache and rejects late response/report bytes; credential write/logout races tested. Web reset/cross-tab hooks inspected. Exhaustive browser/native private-draft coverage remains open.",
+        "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -209,7 +210,11 @@
         "apps/mobile/src/lib/__tests__/account-cache.test.ts",
         "apps/web/src/lib/api.ts",
         "apps/web/src/lib/auth.tsx",
-        "apps/web/src/app/providers.tsx"
+        "apps/web/src/app/providers.tsx",
+        "apps/mobile/src/lib/local-reminders.ts",
+        "apps/mobile/src/components/notification-navigation.tsx",
+        "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+        "apps/mobile/src/lib/__tests__/push-registration.test.ts"
       ],
       "commits": [],
       "database": "PENDING",
@@ -998,7 +1003,8 @@
       "verification": "PENDING",
       "notes": [
         "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open.",
-        "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open."
+        "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open.",
+        "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending."
       ],
       "roles": [
         "TO_RECONCILE"
@@ -1012,7 +1018,11 @@
         "apps/api/src/modules/leads/leads.service.ts",
         "apps/api/src/modules/organizations/organizations.controller.ts",
         "apps/api/src/modules/automation/automation.service.ts",
-        "apps/api/test/team-release.e2e-spec.ts"
+        "apps/api/test/team-release.e2e-spec.ts",
+        "apps/mobile/src/lib/local-reminders.ts",
+        "apps/mobile/src/components/notification-navigation.tsx",
+        "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+        "apps/mobile/src/lib/__tests__/push-registration.test.ts"
       ],
       "commits": [],
       "database": "PENDING",
@@ -2037,7 +2047,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open."
+        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open.",
+        "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending."
       ],
       "roles": [
         "TO_RECONCILE"
@@ -2047,7 +2058,11 @@
         "apps/api/src/core/notifications/notifications.service.ts",
         "apps/api/src/modules/me/me.controller.ts",
         "apps/api/test/reminders-production.e2e-spec.ts",
-        "apps/api/test/production-permissions.e2e-spec.ts"
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/mobile/src/lib/local-reminders.ts",
+        "apps/mobile/src/components/notification-navigation.tsx",
+        "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+        "apps/mobile/src/lib/__tests__/push-registration.test.ts"
       ],
       "commits": [],
       "database": "PENDING",
@@ -4065,7 +4080,8 @@
       "verification": "57 shared + 68 mobile source tests; 3 new PostgreSQL notification cases; full API 288 passed/25 configuration skips; real Chrome owned Lead navigation/read-count and Agent Admin-denial; Android export/types pass. Installed/provider acceptance pending.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
-        "Checkpoint only: physical push, delivery receipts/retries, reminder lifecycle dedupe and exhaustive destination parity remain open. No production artifact shipped."
+        "Checkpoint only: physical push, delivery receipts/retries, reminder lifecycle dedupe and exhaustive destination parity remain open. No production artifact shipped.",
+        "After Build48: exact-task local reminder identity, generic offline content, scoped serialized scheduling, foreground/state-change reconciliation and task-validating tap navigation. Mobile92/92; types pass. New signed APK and actual device/provider journeys still pending."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -4075,7 +4091,10 @@
         "apps/mobile/src/components/notification-navigation.tsx",
         "apps/mobile/src/components/notification-bell.tsx",
         "apps/api/src/modules/me/me.controller.ts",
-        "apps/web/src/app/(site)/notification/page.tsx"
+        "apps/web/src/app/(site)/notification/page.tsx",
+        "apps/mobile/src/lib/local-reminders.ts",
+        "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+        "apps/mobile/src/lib/__tests__/push-registration.test.ts"
       ],
       "commits": [
         "2c76251"

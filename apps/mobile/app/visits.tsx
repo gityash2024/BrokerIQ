@@ -10,6 +10,7 @@ import { CalendarCheck, Check, MapPin, Navigation, Phone, Star, X } from 'lucide
 import { VISIT_STATUS_LABELS, type VisitStatus } from '@brokeriq/shared';
 import { api, patch, qs } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
+import { reconcileLocalReminders } from '@/lib/push';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, PressableScale, Row, Screen, Sheet, Skeleton, Txt } from '@/ui';
@@ -32,7 +33,12 @@ export default function Visits() {
       ),
     getNextPageParam: (last, pages) => (pages.length < last.pages ? pages.length + 1 : undefined),
   });
-  const upd = useApiMutation(({ id, ...b }: any) => patch(`/visits/${id}`, b), { invalidate: [['visits'], ['broker-dashboard']] });
+  const upd = useApiMutation(({ id, ...b }: any) => patch(`/visits/${id}`, b), {
+    invalidate: [['visits'], ['broker-dashboard']],
+    onSuccess: () => {
+      void reconcileLocalReminders().catch(() => undefined);
+    },
+  });
   const [done, setDone] = useState<any>(null);
   const [reschedule, setReschedule] = useState<any>(null);
   const [rescheduleAt, setRescheduleAt] = useState<Date | null>(null);
