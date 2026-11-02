@@ -37,20 +37,30 @@ const str = (description: string, extra: Record<string, unknown> = {}) => ({ typ
 const num = (description: string) => ({ type: 'number', description });
 
 /** Compact listing shape for the model and the UI cards. */
-export const slimListing = (l: any) => ({
-  id: l.id,
-  slug: l.slug,
-  title: l.title,
-  rent: l.price,
-  rentText: l.price ? `${formatPriceShort(l.price)}/month` : null,
-  locality: l.locality?.name,
-  bedrooms: l.bedrooms,
-  furnishing: l.furnishing,
-  deposit: l.securityDeposit,
-  brokerage: l.brokerageType,
-  status: l.status,
-  url: l.slug ? `/property/${l.slug}` : undefined,
-});
+export const slimListing = (l: any) => {
+  const purpose = l.purpose === 'RENT' || l.purpose === 'SALE' ? l.purpose : null;
+  const price = l.price == null || l.price === '' ? null : Number(l.price);
+  const validPrice = price !== null && Number.isFinite(price) && price >= 0 ? price : null;
+  const priceText = validPrice === null ? null : `${formatPriceShort(validPrice)}${purpose === 'RENT' ? '/month' : ''}`;
+  return {
+    id: l.id,
+    slug: l.slug,
+    title: l.title,
+    purpose,
+    price: validPrice,
+    priceText,
+    // Old installed cards read these fields. Sale/unknown must never look like rent.
+    rent: purpose === 'RENT' ? validPrice : null,
+    rentText: purpose === 'RENT' ? priceText : null,
+    locality: l.locality?.name,
+    bedrooms: l.bedrooms,
+    furnishing: l.furnishing,
+    deposit: l.securityDeposit,
+    brokerage: l.brokerageType,
+    status: l.status,
+    url: l.slug ? `/property/${l.slug}` : undefined,
+  };
+};
 const slimLead = (l: any) => ({
   id: l.id,
   name: l.name,
@@ -81,9 +91,29 @@ export const TOOLS: Tool[] = [
     run: async (a, { call }) => {
       const r = await call({
         method: 'GET',
-        path: `/listings${qs({ q: a.q, localities: a.localities, bedrooms: a.bedrooms, maxPrice: a.maxRent, minPrice: a.minRent, furnishing: a.furnishing, types: a.types, pageSize: 8 })}`,
+        path: `/listings${qs({ purpose: 'RENT', q: a.q, localities: a.localities, bedrooms: a.bedrooms, maxPrice: a.maxRent, minPrice: a.minRent, furnishing: a.furnishing, types: a.types, pageSize: 8 })}`,
       });
       return { total: r.total, listings: (r.items ?? []).map(slimListing) };
+    },
+  },
+  {
+    name: 'search_properties',
+    description: 'Search published RENT or SALE properties. Choose the explicitly requested purpose; prices are monthly rent for RENT or total sale price for SALE. Do not assume a purpose.',
+    roles: ALL,
+    parameters: obj({
+      purpose: { type: 'string', enum: ['RENT', 'SALE'], description: 'Explicit requested transaction purpose' },
+      q: str('locality, sector, society or project'),
+      localities: str('comma separated locality slugs'),
+      bedrooms: str('comma separated BHK'),
+      minPrice: num('minimum INR, monthly for RENT or total for SALE'),
+      maxPrice: num('maximum INR, monthly for RENT or total for SALE'),
+      furnishing: str('UNFURNISHED | SEMI_FURNISHED | FULLY_FURNISHED'),
+      types: str('comma separated property types'),
+    }, ['purpose']),
+    run: async (a, { call }) => {
+      if (a.purpose !== 'RENT' && a.purpose !== 'SALE') throw new Error('Choose RENT or SALE before searching properties');
+      const r = await call({ method: 'GET', path: `/listings${qs({ purpose: a.purpose, q: a.q, localities: a.localities, bedrooms: a.bedrooms, minPrice: a.minPrice, maxPrice: a.maxPrice, furnishing: a.furnishing, types: a.types, pageSize: 8 })}` });
+      return { purpose: a.purpose, total: r.total, listings: (r.items ?? []).map(slimListing) };
     },
   },
   {

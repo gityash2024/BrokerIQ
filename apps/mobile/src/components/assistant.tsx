@@ -229,7 +229,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
                   </Txt>
                   <Txt v="caption" color="muted">
                     {(m.cards!.type === 'listings'
-                      ? [it.rentText, it.locality, it.bedrooms ? `${it.bedrooms} BHK` : null]
+                      ? [it.purpose, it.priceText ?? it.rentText, it.locality, it.bedrooms ? `${it.bedrooms} BHK` : null]
                       : [it.phone, it.stage, it.temperature]
                     )
                       .filter(Boolean)

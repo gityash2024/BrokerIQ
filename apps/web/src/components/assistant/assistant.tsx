@@ -267,7 +267,7 @@ export function AssistantWidget() {
                             >
                               <p className="truncate font-semibold">{l.title}</p>
                               <p className="text-xs text-muted">
-                                {[l.rentText, l.locality, l.bedrooms ? `${l.bedrooms} BHK` : null].filter(Boolean).join(' · ')}
+                                {[l.purpose, l.priceText ?? l.rentText, l.locality, l.bedrooms ? `${l.bedrooms} BHK` : null].filter(Boolean).join(' · ')}
                               </p>
                             </Link>
                           ))}
