@@ -343,23 +343,23 @@ export class AutomationService implements OnModuleInit {
           message = `Assigned to ${await this.leads.assignRoundRobin(leadId, lead.organizationId, p.memberIds)}`;
           break;
         case 'ASSIGN_TO':
-          await this.leads.assign(leadId, String(p.userId), null, { viaAutomation: true });
+          await this.leads.assign(leadId, String(p.userId), null, { orgId: lead.organizationId, viaAutomation: true });
           message = 'Assigned';
           break;
         case 'CREATE_FOLLOW_UP': {
-          const fresh = await this.prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
           const effectId = executionKey ? `auto_${createHash('sha256').update(executionKey).digest('hex').slice(0, 28)}` : undefined;
-          const followUp = {
-            organizationId: lead.organizationId,
-            leadId,
-            type: p.type ?? 'CALL',
-            dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000),
-            note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up',
-            assignedToId: fresh.assignedToId,
-          };
-          if (effectId) await this.prisma.followUp.upsert({ where: { id: effectId }, create: { ...followUp, id: effectId }, update: {} });
-          else await this.prisma.followUp.create({ data: followUp });
-          await this.leads.refreshNextFollowUp(leadId);
+          await this.prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${leadId} FOR UPDATE`;
+            const fresh = await tx.lead.findFirst({ where: { id: leadId, organizationId: lead.organizationId, deletedAt: null } });
+            if (!fresh) throw new Error('Lead is no longer active in this firm');
+            const followUp = { organizationId: fresh.organizationId, leadId, type: p.type ?? 'CALL',
+              dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000),
+              note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up', assignedToId: fresh.assignedToId };
+            if (effectId) await tx.followUp.upsert({ where: { id: effectId }, create: { ...followUp, id: effectId }, update: {} });
+            else await tx.followUp.create({ data: followUp });
+            const next = await tx.followUp.findFirst({ where: { leadId, status: 'PENDING' }, orderBy: [{ dueAt: 'asc' }, { id: 'asc' }] });
+            await tx.lead.update({ where: { id: leadId }, data: { nextFollowUpAt: next?.dueAt ?? null } });
+          });
           message = 'Follow-up created';
           break;
         }

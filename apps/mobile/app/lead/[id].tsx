@@ -344,16 +344,28 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   const [note, setNote] = useState('');
   const [at, setAt] = useState<Date | null>(null);
   const presets = timePresets();
-  const save = useApiMutation(() => post('/follow-ups', { leadId: lead.id, type, dueAt: at!.toISOString(), note: note || null }), {
-    success: 'Follow-up scheduled ⏰',
-    onSuccess: () => {
-      scheduleReminder(`⏰ ${lead.name} को ${type === 'CALL' ? 'call' : type.toLowerCase()} करें`, note || lead.phone, at!, 15, lead.id).catch(() => undefined);
-      setNote('');
-      setAt(null);
-      onClose();
-      onDone();
+  const submission = useRef({ fingerprint: '', id: '' });
+  const save = useApiMutation(
+    () => {
+      const payload = { leadId: lead.id, type, dueAt: at!.toISOString(), note: note || null };
+      const fingerprint = JSON.stringify(payload);
+      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: Crypto.randomUUID() };
+      return post('/follow-ups', { ...payload, clientMutationId: submission.current.id });
     },
-  });
+    {
+      success: 'Follow-up scheduled ⏰',
+      onSuccess: () => {
+        scheduleReminder(`⏰ ${lead.name} को ${type === 'CALL' ? 'call' : type.toLowerCase()} करें`, note || lead.phone, at!, 15, lead.id).catch(
+          () => undefined,
+        );
+        submission.current = { fingerprint: '', id: '' };
+        setNote('');
+        setAt(null);
+        onClose();
+        onDone();
+      },
+    },
+  );
   return (
     <Sheet open={open} onClose={onClose} title="Follow-up schedule करें">
       <Row wrap>

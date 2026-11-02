@@ -3,7 +3,7 @@ import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
 import { parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { use, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -495,10 +495,23 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
   const [visitSubmission, setVisitSubmission] = useState({ fingerprint: '', id: '' });
   const [vi, setVi] = useState({ scheduledAt: toLocalInput(tomorrow), listingId: '', address: '', note: '', mode: 'IN_PERSON' as 'IN_PERSON' | 'VIDEO' });
   const videoOn = useFlag('video_visits');
-  const addFu = useApiMutation(() => post('/follow-ups', { leadId: lead.id, type: fu.type, dueAt: new Date(fu.dueAt).toISOString(), note: fu.note || null }), {
-    success: 'Follow-up scheduled ⏰',
-    onSuccess: () => (setFu({ ...fu, note: '' }), onChange()),
-  });
+  const fuSubmission = useRef({ fingerprint: '', id: '' });
+  const addFu = useApiMutation(
+    () => {
+      const payload = { leadId: lead.id, type: fu.type, dueAt: new Date(fu.dueAt).toISOString(), note: fu.note || null };
+      const fingerprint = JSON.stringify(payload);
+      if (fuSubmission.current.fingerprint !== fingerprint) fuSubmission.current = { fingerprint, id: crypto.randomUUID() };
+      return post('/follow-ups', { ...payload, clientMutationId: fuSubmission.current.id });
+    },
+    {
+      success: 'Follow-up scheduled ⏰',
+      onSuccess: () => {
+        fuSubmission.current = { fingerprint: '', id: '' };
+        setFu({ ...fu, note: '' });
+        onChange();
+      },
+    },
+  );
   const doneFu = useApiMutation((id: string) => patch(`/follow-ups/${id}`, { status: 'DONE' }), { onSuccess: onChange });
   const addVisit = useApiMutation(
     () => {

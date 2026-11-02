@@ -1,4 +1,18 @@
-import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -109,30 +123,66 @@ export class TasksController {
 
   @Post('follow-ups')
   async createFollowUp(@CurrentUser() user: RequestUser, @Body(new ZodPipe(followUpInputSchema)) body: z.infer<typeof followUpInputSchema>) {
-    const lead = await this.leads.getScoped(body.leadId, user);
-    const assignedToId = await this.taskAssignee(user, lead.organizationId, body.assignedToId, lead.assignedToId);
-    const fu = await this.prisma.followUp.create({
-      data: {
-        organizationId: lead.organizationId,
-        leadId: lead.id,
-        type: body.type,
-        dueAt: new Date(body.dueAt),
-        note: body.note,
-        assignedToId,
-        createdById: user.id,
-      },
+    const organizationId = requireOrg(user);
+    const requestHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          actorId: user.id,
+          leadId: body.leadId,
+          type: body.type,
+          dueAt: new Date(body.dueAt).toISOString(),
+          note: body.note ?? null,
+          assignedToId: body.assignedToId ?? null,
+        }),
+      )
+      .digest('hex');
+    return this.prisma.$transaction(async (tx) => {
+      if (body.clientMutationId)
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`followup-submission:${organizationId}:${body.clientMutationId}`}))`;
+      // Serialize with assignment, completion and snooze; check current ownership after acquiring the lock.
+      await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${body.leadId} FOR UPDATE`;
+      const lead = await tx.lead.findFirst({ where: { id: body.leadId, organizationId, deletedAt: null, ...this.mineFilter(user) } });
+      if (!lead) throw new NotFoundException('Lead not found');
+      if (body.clientMutationId) {
+        const previous = await tx.followUp.findUnique({
+          where: { organizationId_clientMutationId: { organizationId, clientMutationId: body.clientMutationId } },
+        });
+        if (previous) {
+          if (previous.requestHash !== requestHash) throw new ConflictException('Submission already used for a different follow-up');
+          return previous;
+        }
+      }
+      const assignedToId = body.assignedToId ?? lead.assignedToId ?? user.id;
+      if (user.role === 'BROKER_AGENT' && assignedToId !== user.id) throw new ForbiddenException('Only Admin can assign another member');
+      const assignee = await tx.user.findFirst({
+        where: { id: assignedToId, organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
+      });
+      if (!assignee) throw new BadRequestException('Assignee must be an active firm member');
+      const fu = await tx.followUp.create({
+        data: {
+          organizationId,
+          leadId: lead.id,
+          type: body.type,
+          dueAt: new Date(body.dueAt),
+          note: body.note,
+          assignedToId,
+          createdById: user.id,
+          clientMutationId: body.clientMutationId,
+          requestHash,
+        },
+      });
+      await tx.activity.create({
+        data: {
+          organizationId,
+          leadId: lead.id,
+          userId: user.id,
+          type: 'FOLLOW_UP',
+          content: `Follow-up scheduled: ${new Date(body.dueAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${body.note ? ` — ${body.note}` : ''}`,
+        },
+      });
+      await this.refreshFollowUp(tx, lead.id);
+      return fu;
     });
-    await this.prisma.activity.create({
-      data: {
-        organizationId: lead.organizationId,
-        leadId: lead.id,
-        userId: user.id,
-        type: 'FOLLOW_UP',
-        content: `Follow-up scheduled: ${new Date(body.dueAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${body.note ? ` — ${body.note}` : ''}`,
-      },
-    });
-    await this.leads.refreshNextFollowUp(lead.id);
-    return fu;
   }
 
   @Patch('follow-ups/:id')

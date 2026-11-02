@@ -1,7 +1,7 @@
 'use client';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlarmClock, CalendarPlus, Check, Clock, ListChecks, Mail, MessageCircle, Phone, Trash2, Users, X } from 'lucide-react';
@@ -387,15 +387,25 @@ function AddFollowUp({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
   const [type, setType] = useState<string>('CALL');
   const [dueAt, setDueAt] = useState(() => toLocalInput(new Date(Date.now() + 3600_000)));
   const [note, setNote] = useState('');
-  const create = useApiMutation(() => post('/follow-ups', { leadId: lead.id, type, dueAt: new Date(dueAt).toISOString(), note: note || null }), {
-    success: 'Follow-up scheduled',
-    invalidate: [['follow-ups'], ['broker-dashboard']],
-    onSuccess: () => {
-      onOpenChange(false);
-      setLead(null);
-      setNote('');
+  const submission = useRef({ fingerprint: '', id: '' });
+  const create = useApiMutation(
+    () => {
+      const payload = { leadId: lead.id, type, dueAt: new Date(dueAt).toISOString(), note: note || null };
+      const fingerprint = JSON.stringify(payload);
+      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: crypto.randomUUID() };
+      return post('/follow-ups', { ...payload, clientMutationId: submission.current.id });
     },
-  });
+    {
+      success: 'Follow-up scheduled',
+      invalidate: [['follow-ups'], ['broker-dashboard']],
+      onSuccess: () => {
+        submission.current = { fingerprint: '', id: '' };
+        onOpenChange(false);
+        setLead(null);
+        setNote('');
+      },
+    },
+  );
   return (
     <Dialog
       open={open}

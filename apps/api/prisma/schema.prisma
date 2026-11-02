@@ -1229,6 +1229,8 @@ model Activity {
 }
 
 model FollowUp {
+  clientMutationId String?
+  requestHash String?
   id             String         @id @default(cuid())
   organizationId String
   leadId         String
@@ -1247,6 +1249,7 @@ model FollowUp {
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   assignedTo   User?        @relation("FollowUpAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  @@unique([organizationId, clientMutationId])
   @@index([organizationId, status, dueAt])
   @@index([assignedToId, status, dueAt])
 }

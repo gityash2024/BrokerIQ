@@ -289,9 +289,10 @@ export const activityInputSchema = z.object({
   durationSec: z.number().int().min(0).optional().nullable(),
 });
 export const followUpInputSchema = z.object({
-  leadId: z.string(),
+  leadId: z.string().min(1),
+  clientMutationId: z.string().min(8).max(100).optional(),
   type: enumOf(FollowUpType).default('CALL'),
-  dueAt: z.string(),
+  dueAt: z.string().datetime({ offset: true }),
   note: z.string().max(1000).optional().nullable(),
   assignedToId: z.string().optional().nullable(),
 });
