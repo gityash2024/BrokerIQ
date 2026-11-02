@@ -1,0 +1,22 @@
+{
+  "archive": "production-20261102T091700Z-delta.tar.age",
+  "archiveChain": [
+    {
+      "archive": "production-20261101T114118Z.tar.age",
+      "sha256": "d6cc986c8392d198af0a7f5abe4be7a1128f7f6230288c9b65b4173a5b6c189d"
+    },
+    {
+      "archive": "production-20261102T091700Z-delta.tar.age",
+      "sha256": "b67189c244166c5a06353c87b451652006a62e6427fee18495b857f6a43f8eec"
+    }
+  ],
+  "database": "brokeriq_restore_prebuild42_20261102_091700",
+  "snapshotStartedAt": "2026-11-02T09:22:20.135Z",
+  "verifiedAt": "2026-11-02T09:26:10.454676+00:00",
+  "privateKycDocuments": 10,
+  "tablesVerified": 101,
+  "mediaFilesVerified": 615,
+  "mediaBytesVerified": 2476164552,
+  "dumpSha256": "196b384595b558f227d3b49a7831dab54ff3617818929b3556409643ba930a7a",
+  "result": "VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED"
+}
