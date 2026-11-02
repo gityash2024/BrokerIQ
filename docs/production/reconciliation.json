@@ -134,16 +134,24 @@
         "2516",
         "3978"
       ],
-      "backend": "PENDING",
+      "backend": "ISOLATED_DATABASE_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Owned device revocation denies HTTP/refresh/realtime; member suspension/removal rejects old sessions in real PostgreSQL tests. Current physical clients and exhaustive cache journeys remain open."
+      ],
       "roles": [
         "ALL_AUTHENTICATED"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/api/src/modules/auth/auth.service.ts",
+        "apps/api/src/core/realtime/realtime.gateway.ts",
+        "apps/api/test/device-sessions.e2e-spec.ts",
+        "apps/api/test/team-release.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -161,11 +169,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Web confirmation Modal and native Alert confirmed in source. No new staging visual/installed-device interaction accepted."
+      ],
       "roles": [
         "ALL_AUTHENTICATED"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/components/panel/shell.tsx",
+        "apps/mobile/app/broker-settings.tsx",
+        "apps/mobile/app/(user)/profile.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -183,11 +197,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Mobile account/role/firm change clears private query cache and rejects late response/report bytes; credential write/logout races tested. Web reset/cross-tab hooks inspected. Exhaustive browser/native private-draft coverage remains open."
+      ],
       "roles": [
         "ALL_AUTHENTICATED"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/mobile/src/lib/api.ts",
+        "apps/mobile/src/lib/auth.ts",
+        "apps/mobile/src/lib/__tests__/account-cache.test.ts",
+        "apps/web/src/lib/api.ts",
+        "apps/web/src/lib/auth.tsx",
+        "apps/web/src/app/providers.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -384,7 +407,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Role/status updates revoke device rows/session version; guards use current DB role. Stale Super Admin and demoted notification privileges rejected; cache role/firm changes tested. Complete component/realtime coverage remains open."
+      ],
       "roles": [
         "GUEST",
         "USER",
@@ -392,7 +417,14 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/api/src/core/realtime/realtime.gateway.ts",
+        "apps/api/test/admin-business.e2e-spec.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/mobile/src/lib/__tests__/account-cache.test.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -405,12 +437,14 @@
         "2516",
         "7844"
       ],
-      "backend": "PENDING",
+      "backend": "ISOLATED_DATABASE_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Membership advisory transaction rejects even Super Admin demotion/removal of last active Broker Admin, without side-effect target-setting mutation. No live membership mutation performed."
+      ],
       "roles": [
         "GUEST",
         "USER",
@@ -418,7 +452,10 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2367,11 +2404,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Invite/member lifecycle and session revocation covered by isolated HTTP/PG suites. Complete web/mobile visual role/status journeys and concurrent administrative acceptance still open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/test/team-release.e2e-spec.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2394,11 +2437,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Inspected member removal clears assigned Lead, pending FollowUp, Inventory and Requirement. Pending SiteVisit assignee is not cleared by removal: newly identified source gap, not closed. Suspended legacy task assignees route reminders to permitted firm admins."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/src/modules/automation/reminders.service.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
