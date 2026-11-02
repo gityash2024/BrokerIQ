@@ -1,4 +1,5 @@
 import { getConfig } from '@/lib/server';
+import { getRelease } from '@/lib/release';
 import { BrokerIQLanding } from '@brokeriq/landing';
 import type { Metadata } from 'next';
 
@@ -12,45 +13,30 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const config = await getConfig();
-  const releaseApkUrl =
-    process.env.ANDROID_RELEASE_URL && !process.env.ANDROID_RELEASE_URL.includes('build26') && !process.env.ANDROID_RELEASE_URL.includes('build36') && !process.env.ANDROID_RELEASE_URL.includes('build37') && !process.env.ANDROID_RELEASE_URL.includes('build38') && !process.env.ANDROID_RELEASE_URL.includes('build39')
-      ? process.env.ANDROID_RELEASE_URL
-      : '/downloads/BrokerIQ-v2.2.4-build40.apk';
-  const releaseChecksum =
-    process.env.ANDROID_RELEASE_SHA256 && !process.env.ANDROID_RELEASE_URL?.includes('build26') && !process.env.ANDROID_RELEASE_URL?.includes('build36') && !process.env.ANDROID_RELEASE_URL?.includes('build37') && !process.env.ANDROID_RELEASE_URL?.includes('build38') && !process.env.ANDROID_RELEASE_URL?.includes('build39')
-      ? process.env.ANDROID_RELEASE_SHA256
-      : 'db10b604fc12406b9b94e341e2a2732e9ef5b5bab09ccf5e4be0040dba3bde30';
-
-  const envDate = process.env.RELEASE_UPDATED_AT;
-  const releaseDate = envDate && !envDate.startsWith('2026-10-30') ? envDate : '2026-11-01T04:45:00Z';
+  const release = await getRelease();
 
   return (
     <BrokerIQLanding
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
-      apkUrl={releaseApkUrl}
-      checksum={releaseChecksum}
-      builds={{
-        user: 'Build v2.2.4',
-        broker: 'Build v2.2.4',
-        android: 'Build 40 (v2.2.4)',
-      }}
-      releaseUpdates={{
-        user: releaseDate,
-        broker: releaseDate,
-        android: releaseDate,
-      }}
-      screenshots={[
-        {
-          src: '/product/android-inventory-build26.png',
-          label: 'Actual Android build 40 · Broker inventory with configuration, floor, pricing, availability and private source context.',
-          caption: 'Inventory workspace · Build 40',
-        },
-        {
-          src: '/product/android-capture-build26.png',
-          label: 'Actual Android build 40 · Scanner and import workspace for camera, multi-page scans, images and WhatsApp TXT or ZIP exports into inventory or requirement review.',
-          caption: 'Scanner & WhatsApp import · Build 40',
-        },
-      ]}
+      apkUrl={release?.android.url}
+      checksum={release?.android.sha256}
+      builds={
+        release
+          ? {
+              user: `Build v${release.portals.version} · ${release.portals.commit.slice(0, 7)}`,
+              broker: `Build v${release.portals.version} · ${release.portals.commit.slice(0, 7)}`,
+              android: `Build ${release.android.versionCode} (v${release.android.version})`,
+            }
+          : undefined
+      }
+      releaseUpdates={release ? { user: release.portals.publishedAt, broker: release.portals.publishedAt, android: release.android.publishedAt } : undefined}
+      screenshots={
+        release?.screenshots.map((screenshot) => ({
+          src: screenshot.src,
+          label: `${screenshot.description} · Android Build ${screenshot.versionCode}`,
+          caption: `${screenshot.description} · Captured Build ${screenshot.versionCode}`,
+        })) || []
+      }
     />
   );
 }

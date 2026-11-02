@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { compiledRelease } from '../../core/release';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobsService } from '../../core/jobs/jobs.service';
@@ -27,6 +28,7 @@ export class HealthController {
       db = 'down';
     }
     return {
+      release: compiledRelease(),
       status: db === 'ok' ? 'ok' : 'degraded',
       db,
       dbLatencyMs: Date.now() - t,

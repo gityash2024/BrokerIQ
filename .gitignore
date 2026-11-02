@@ -71,3 +71,8 @@ playwright-report/
 
 # Local signed releases, screenshots and verification bundles (private handoff artifacts)
 /releases/
+
+# Generated per-candidate artifact identity
+/release-manifest.json
+/android-release.json
+apps/api/dist/release.json

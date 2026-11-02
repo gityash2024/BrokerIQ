@@ -10,8 +10,13 @@ const workflows = [
 function ReleaseTimestamp({ updatedAt, build }: { updatedAt?: string; build?: string }) {
   if (!updatedAt) return null;
   const formatted = new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
   }).format(new Date(updatedAt));
   return (
     <time className="biq-release-updated" dateTime={updatedAt}>
@@ -21,6 +26,7 @@ function ReleaseTimestamp({ updatedAt, build }: { updatedAt?: string; build?: st
 }
 export function BrokerIQLanding({
   apkUrl,
+  checksum,
   contact,
   screenshots = [],
   releaseUpdates,
@@ -115,6 +121,11 @@ export function BrokerIQLanding({
               <h2>Android App</h2>
               <p>One app. User and Broker modes.</p>
               <ReleaseTimestamp updatedAt={releaseUpdates?.android} build={builds?.android} />
+              {checksum && (
+                <span className="biq-small" title={`SHA-256 ${checksum}`}>
+                  SHA-256: {checksum.slice(0, 12)}…
+                </span>
+              )}
             </div>
             <span aria-hidden>↗</span>
           </a>
@@ -226,7 +237,8 @@ export function BrokerIQLanding({
           </div>
           <div className="biq-wordmark" aria-hidden="true" data-biq-reveal>
             <span className="biq-wordmark-text">
-              <span className="biq-wordmark-name">Broker</span><span className="biq-wordmark-iq">IQ</span>
+              <span className="biq-wordmark-name">Broker</span>
+              <span className="biq-wordmark-iq">IQ</span>
               <span className="biq-wordmark-dot">↗</span>
             </span>
           </div>

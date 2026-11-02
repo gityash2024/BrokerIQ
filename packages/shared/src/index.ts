@@ -35,3 +35,4 @@ export * from './visits';
 export * from './workspace-navigation';
 export * from './notification-links';
 export * from './private-media';
+export * from './release';
