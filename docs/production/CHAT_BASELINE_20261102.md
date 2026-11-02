@@ -1,0 +1,11 @@
+# Rahul chat baseline — semantic acceptance still open
+
+The private original ZIP SHA256 is `8b17a3736af80d10d69f24d52f41b6c1df05894f39e5780d035425f66e899b08`. Correct source parsing separates1,354 user posts and543 WhatsApp system events.37 photos and2 videos remain preserved in the original. Nothing from this evaluation was imported/approved into the real CRM.
+
+Running the rule parser against every user post produced2,384 review entities:1,660 offers,40 demands,19 unknown requirements and665 unrelated entities. Zero failed the shared entity schema. These are parser output counts, NOT manually labelled truth or semantic precision/recall. Repeated posts and multiple records remain in this full-source baseline; do not call it the holdout benchmark.
+
+The source exposed95 fractional-layout cases. Previously the integer-only regex could match the trailing5 in3.5BHK, corrupting bedroom counts. Fractional layouts now retain exact `details.sourceLayout`; integer bhk remainsnull and a review warning requires confirmation of bedrooms/extra space. No bedroom/servant/study/bathroom interpretation is invented. The shared details catalogue makes the preserved notation editable/visible on web/mobile. `Required ... for rent` no longer falsely creates a mixed demand/offer just because it contains “for rent”; explicit available-property sections still require splitting.
+
+Source cards now use actual structured room/locality/project/unit facts as headings and keep the source row/page separately. Absent fields get an explicit review heading; no model-generated contact/title is invented. Invalid legacy extraction data produces a safe review heading rather than crashing presentation. Existing approved rows are not re-extracted/overwritten by this baseline.
+
+Shared63/63 and workspace typechecks pass. These fixes are after the Build43 product pin and are not yet shipped. The enabled local Qwen adapter has a real small-generation smoke; TXT/ZIP semantic understanding, associated-photo OCR,100 manually labelled real records and separate holdout thresholds still require implementation/evaluation. Raw posts/results remain under `~/.brokeriq-private/ai-evaluation/`, outside Git. No raw chat model training or outreach was started.

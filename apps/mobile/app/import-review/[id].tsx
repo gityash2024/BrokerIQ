@@ -5,7 +5,7 @@ import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
-import { type CapturedEntity } from '@brokeriq/shared';
+import { captureEntryTitle, type CapturedEntity } from '@brokeriq/shared';
 import { api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
@@ -96,11 +96,9 @@ function Entry({ batchId, entry, image }: { batchId: string; entry: any; image: 
   const [open, setOpen] = useState(false);
   return (
     <NativeCard>
-      <Txt v="h3">
-        {entry.pageNo ? `Page ${entry.pageNo} · ` : ''}Entry {entry.rowNo ?? ''}
-      </Txt>
+      <Txt v="h3">{captureEntryTitle(entry.extracted ?? [])}</Txt>
       <Txt v="caption" color="muted">
-        {entry.reviewState}
+        {entry.pageNo ? `Page ${entry.pageNo} · ` : ''}Source {entry.rowNo ?? ''} · {entry.reviewState}
       </Txt>
       <Txt v="small" numberOfLines={open ? undefined : 3}>
         {entry.rawText}
@@ -238,7 +236,10 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
             title="Add requirement"
             variant="secondary"
             onPress={() =>
-              change([...entities, { kind: 'REQUIREMENT', requirement: { intent:'DEMAND', localityNames: [], propertyTypes: [], bedrooms: [], status: 'OPEN' }, warnings: [] }])
+              change([
+                ...entities,
+                { kind: 'REQUIREMENT', requirement: { intent: 'DEMAND', localityNames: [], propertyTypes: [], bedrooms: [], status: 'OPEN' }, warnings: [] },
+              ])
             }
           />
           <Txt v="caption" color="muted">

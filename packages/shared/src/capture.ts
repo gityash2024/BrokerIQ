@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { inventoryInputSchema, brokerRequirementSchema, type InventoryInput, type BrokerRequirementInput } from './inventory';
+import { inventoryInputSchema, brokerRequirementSchema, offeredRequirement, type InventoryInput, type BrokerRequirementInput } from './inventory';
 import { normalizeIndianPhone } from './utils';
 
 export const capturedEntitySchema = z.object({
@@ -23,7 +23,8 @@ export function chatExportMessages(text: string): CapturedMessage[] {
   for (const line of lines) {
     const match = line.match(header);
     if (match) messages.push({ text: match[4], sender: match[3].trim(), timestamp: match[1] ?? match[2] });
-    else if (/^(?:\[[^\]]*\d{1,2}:\d{2}[^\]]*\]|\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}:\d{2}[^-]*?\s+-)\s*/.test(line)) messages.push({text:line,system:true});
+    else if (/^(?:\[[^\]]*\d{1,2}:\d{2}[^\]]*\]|\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}:\d{2}[^-]*?\s+-)\s*/.test(line))
+      messages.push({ text: line, system: true });
     else if (messages.length) messages[messages.length - 1].text += '\n' + line;
   }
   return messages.length ? messages : [{ text }];
@@ -65,23 +66,27 @@ export function extractCapture(text: string): CapturedEntity[] {
     const phones = contactPhones(raw);
     const localities = captureLocalities(raw);
     const hasRequirement = /requirement|required|looking\s+for|चाहिए|ज़रूरत|जरूरत/i.test(raw);
-    const hasSupply = /(?:available\s+(?:for\s+)?|for\s+)(?:sale|rent)|land\s+for\s+sale/i.test(raw);
-    const roomMentions = [...raw.matchAll(/\b\d{1,2}\s*(?:BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/gi)];
+    // "Required ... for rent" is a demand, not two contradictory records.
+    // An explicit "available for ..." section alongside a demand still needs splitting.
+    const hasSupply = /available\s+(?:for\s+)?(?:sale|rent)/i.test(raw) || (!hasRequirement && /for\s+(?:sale|rent)|land\s+for\s+sale/i.test(raw));
+    const roomMentions = [...raw.matchAll(/(?<![\d.])\b\d{1,2}(?:\.\d+)?\s*(?:BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/gi)];
     const sizeMentions = [...raw.matchAll(/\b\d[\d,]*(?:\.\d+)?\s*(?:sq\.?\s*ft\.?|sqft|sq\.?\s*yd\.?|acre?s?|hectare?s?)\b/gi)];
     // OCR of columns or several chat bubbles can interleave unrelated facts. Never
     // combine the first locality, another property's area and a third contact.
     if ((hasRequirement && hasSupply) || (!hasRequirement && localities.length > 1 && (roomMentions.length > 1 || sizeMentions.length > 1))) {
       return {
         kind: 'REQUIREMENT',
-        requirement: brokerRequirementSchema.parse({intent:'UNKNOWN',title:'Mixed property post — split and review',notes:raw}),
+        requirement: brokerRequirementSchema.parse({ intent: 'UNKNOWN', title: 'Mixed property post — split and review', notes: raw }),
         warnings: [
           'Several property/requirement sections may be interleaved. Split them into separate records using the original source; no combined property was inferred.',
         ],
       };
     }
-    const room = raw.match(/\b(\d{1,2})\s*(BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/i);
+    const room = raw.match(/(?<![\d.])\b(\d{1,2}(?:\.\d+)?)\s*(BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/i);
     const roomKind = room ? (/^rk$/i.test(room[2]) ? 'RK' : 'BHK') : /\bstudio\b/i.test(raw) ? 'STUDIO' : null;
-    const bhk = room ? Number(room[1]) : null;
+    // Marketing layouts such as3.5BHK are not five bedrooms and do not define the
+    // half-space's use. Preserve the exact source layout until a reviewer confirms.
+    const bhk = room && Number.isInteger(Number(room[1])) ? Number(room[1]) : null;
     const furnishing = /semi[-\s]*furnished|\bsfd\b/i.test(raw)
       ? 'SEMI_FURNISHED'
       : /fully[-\s]*furnished|\bffd\b/i.test(raw)
@@ -118,6 +123,7 @@ export function extractCapture(text: string): CapturedEntity[] {
                     ? 'APARTMENT'
                     : null;
     const warnings = ['Review source before approving. Availability is not confirmed.'];
+    if (room && bhk === null) warnings.push(`Fractional layout ${room[0]} retained as source; confirm bedroom count and extra space before assigning.`);
     if (!phones.length) warnings.push('Contact number absent or unreadable');
     if (!localities.length) warnings.push('Locality absent or unreadable');
     if (/read more|…|\.\.\./i.test(raw)) warnings.push('Content may be truncated');
@@ -137,7 +143,11 @@ export function extractCapture(text: string): CapturedEntity[] {
     if (hasRequirement) {
       const budget = raw.match(new RegExp(`budget\\s*[:=-]?\\s*₹?\\s*${amountPattern}(?:\\s*(?:to|[-–])\\s*₹?\\s*${amountPattern})?`, 'i'));
       const requirement: BrokerRequirementInput = {
-        intent:'DEMAND',
+        intent: 'DEMAND',
+        title: [room?.[0], purpose === 'SALE' ? 'purchase requirement' : purpose === 'RENT' ? 'rental requirement' : 'requirement', localities.join(', ')]
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 200),
         purpose,
         category,
         propertyTypes: propertyType ? [propertyType] : [],
@@ -163,6 +173,7 @@ export function extractCapture(text: string): CapturedEntity[] {
     // TF is broker-confirmed as top floor; its numeric level is not known.
     const floor = raw.match(/\b(basement|ground|GF|FF|SF|TF|top\s*floor|[1-9](?:st|nd|rd|th)\s*floor)\b/i);
     const details: Record<string, any> = {};
+    if (room && bhk === null) details.sourceLayout = room[0];
     // Broker-confirmed BHK+1 is an extra space (e.g. pooja/store); its use
     // stays unspecified. Explicit +1B/bathroom notation is handled separately.
     if (
@@ -245,4 +256,31 @@ export function extractCapture(text: string): CapturedEntity[] {
     };
     return { kind: 'INVENTORY', inventory, warnings };
   });
+}
+
+/** A source row keeps its row number as provenance, while its heading describes
+ * the actual reviewed fields. No model-generated name/contact is introduced. */
+export function captureEntryTitle(entities: CapturedEntity[]): string {
+  const relevant = entities.filter((entity) => entity.kind !== 'UNRELATED');
+  if (!relevant.length) return 'Source message · review';
+  const first = relevant[0];
+  const inventory = first.inventory ? inventoryInputSchema.safeParse(first.inventory) : null;
+  const title =
+    first.kind === 'INVENTORY'
+      ? inventory?.success
+        ? offeredRequirement(inventory.data).title
+        : 'Property details · review'
+      : first.requirement?.title ||
+        [
+          first.requirement?.bedrooms?.length ? `${first.requirement.bedrooms.join('/')} ${first.requirement.roomKind || 'BHK'}` : undefined,
+          first.requirement?.purpose === 'SALE'
+            ? 'Purchase requirement'
+            : first.requirement?.purpose === 'RENT'
+              ? 'Rental requirement'
+              : 'Requirement · review',
+          first.requirement?.localityNames?.join(', '),
+        ]
+          .filter(Boolean)
+          .join(' · ');
+  return `${title || 'Property details · review'}${relevant.length > 1 ? ` · +${relevant.length - 1} records` : ''}`.slice(0, 240);
 }

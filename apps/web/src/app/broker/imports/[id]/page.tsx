@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type CapturedEntity } from '@brokeriq/shared';
+import { captureEntryTitle, type CapturedEntity } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { PropertyForm } from '@/components/broker/launch/property-form';
@@ -155,10 +155,10 @@ function Entry({
     <section className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">
-            {entry.pageNo ? `Page ${entry.pageNo} · ` : ''}Entry {entry.rowNo ?? entry.entryKey}
+          <p className="font-semibold">{captureEntryTitle(entities)}</p>
+          <p className="mt-1 text-xs text-muted">
+            {entry.pageNo ? `Page ${entry.pageNo} · ` : ''}Source {entry.rowNo ?? entry.entryKey} · {entry.reviewState}
           </p>
-          <p className="mt-1 text-xs text-muted">{entry.reviewState}</p>
         </div>
         <button onClick={() => setExpanded(!expanded)} className="font-semibold text-brand-600">
           {expanded ? 'Collapse' : 'Review source & fields'}
@@ -227,7 +227,11 @@ function Entry({
                     onClick={() =>
                       setEntities([
                         ...entities,
-                        { kind: 'REQUIREMENT', requirement: { intent:'DEMAND', propertyTypes: [], localityNames: [], bedrooms: [], status: 'OPEN' }, warnings: [] },
+                        {
+                          kind: 'REQUIREMENT',
+                          requirement: { intent: 'DEMAND', propertyTypes: [], localityNames: [], bedrooms: [], status: 'OPEN' },
+                          warnings: [],
+                        },
                       ])
                     }
                   >

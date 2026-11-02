@@ -26,6 +26,7 @@ export const PROPERTY_FIELDS: PropertyField[] = [
   { key: 'areaBasis', label: 'Area measurement', group: 'Size & rooms', kind: 'select', options: ['CARPET', 'BUILT_UP', 'SUPER_BUILT_UP', 'PLOT'] },
   { key: 'bathrooms', label: 'Bathrooms', group: 'Size & rooms', kind: 'number', min: 0, max: 100 },
   { key: 'additionalRooms', label: 'Additional rooms (use unspecified)', group: 'Size & rooms', kind: 'number', min: 0, max: 20, integer: true },
+  { key: 'sourceLayout', label: 'Layout written in source (confirm rooms)', group: 'Size & rooms', kind: 'text' },
   { key: 'balconies', label: 'Balconies', group: 'Size & rooms', kind: 'number', min: 0, max: 100 },
   { key: 'totalFloors', label: 'Total floors', group: 'Size & rooms', kind: 'number', min: 0, max: 300 },
   {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { extractCapture, chatExportMessages } from '../capture';
+import { extractCapture, chatExportMessages, captureEntryTitle } from '../capture';
 import { ledgerMatch, inventoryInputSchema, prepareInventoryEditorInput, offeredRequirement } from '../inventory';
 
 test('requirements retain compound sectors and budget range', () => {
@@ -147,13 +147,57 @@ test('emoji property separators keep distinct rent and sale offers apart', () =>
   assert.equal(entries[1].inventory?.purpose, 'SALE');
 });
 
-test('property offers remain typed source records without inventing absent price or contact',()=>{
-  const offer=offeredRequirement({purpose:'SALE',sector:'Sector 93',area:8,areaUnit:'ACRE',ratePerArea:90000000,rateAreaUnit:'ACRE',availability:'UNKNOWN'});
-  assert.equal(offer.intent,'OFFER');assert.equal(offer.minBudget,undefined);assert.equal(offer.maxBudget,undefined);
-  assert.equal(offer.contactPhone,undefined);assert.equal(offer.offerDetails?.ratePerArea,90000000);
-  assert.equal(ledgerMatch(offer,{sector:'Sector 93',purpose:'SALE'}),null);
+test('property offers remain typed source records without inventing absent price or contact', () => {
+  const offer = offeredRequirement({
+    purpose: 'SALE',
+    sector: 'Sector 93',
+    area: 8,
+    areaUnit: 'ACRE',
+    ratePerArea: 90000000,
+    rateAreaUnit: 'ACRE',
+    availability: 'UNKNOWN',
+  });
+  assert.equal(offer.intent, 'OFFER');
+  assert.equal(offer.minBudget, undefined);
+  assert.equal(offer.maxBudget, undefined);
+  assert.equal(offer.contactPhone, undefined);
+  assert.equal(offer.offerDetails?.ratePerArea, 90000000);
+  assert.equal(ledgerMatch(offer, { sector: 'Sector 93', purpose: 'SALE' }), null);
 });
-test('WhatsApp system headers cannot become continuation text of a preceding property message',()=>{
- const rows=chatExportMessages('01/11/2026, 09:00 - Broker: 2 BHK for rent Sector 43\n01/11/2026, 09:01 - New member joined using an invite link\n01/11/2026, 09:02 - Broker: Rent 30k');
- assert.equal(rows.length,3);assert.equal(rows[1].system,true);assert.ok(!rows[0].text.includes('invite link'));
+test('WhatsApp system headers cannot become continuation text of a preceding property message', () => {
+  const rows = chatExportMessages(
+    '01/11/2026, 09:00 - Broker: 2 BHK for rent Sector 43\n01/11/2026, 09:01 - New member joined using an invite link\n01/11/2026, 09:02 - Broker: Rent 30k',
+  );
+  assert.equal(rows.length, 3);
+  assert.equal(rows[1].system, true);
+  assert.ok(!rows[0].text.includes('invite link'));
+});
+
+test('fractional source layouts never become the digits after their decimal point', () => {
+  for (const layout of ['3.5 BHK', '2.5BHK', '3.50 BHK']) {
+    const text = `${layout} for sale Sector 89 asking 1.6 cr`;
+    const entry = extractCapture(text)[0];
+    assert.equal(entry.kind, 'INVENTORY');
+    assert.equal(entry.inventory?.bhk, null);
+    assert.equal(entry.inventory?.details?.sourceLayout, layout);
+    assert.equal(entry.inventory?.details?.additionalRooms, undefined);
+    assert.ok(entry.warnings.some((w) => w.includes('Fractional layout')));
+    assert.ok(captureEntryTitle([entry]).includes(layout));
+    assert.equal(inventoryInputSchema.safeParse(entry.inventory).success, true);
+  }
+  const demand = extractCapture('Required 3.5 BHK for rent Sector 89 budget 50k')[0];
+  assert.deepEqual(demand.requirement?.bedrooms, []);
+  assert.ok(demand.requirement?.title?.includes('3.5 BHK'));
+  assert.equal(extractCapture('3 BHK for rent Sector 43')[0].inventory?.bhk, 3);
+});
+
+test('source cards describe known fields and keep record count without inventing titles', () => {
+  const rows = extractCapture('2 BHK for rent Sector 45 rent 40k\n\nFor sale 3 BHK Sector 57 price 2 cr');
+  const title = captureEntryTitle(rows);
+  assert.ok(title.includes('2 BHK'));
+  assert.ok(title.includes('Sector 45'));
+  assert.ok(title.includes('+1 records'));
+  assert.ok(captureEntryTitle(extractCapture('Required 2 BHK for rent Sector 43 budget 30k')).includes('rental requirement'));
+  assert.equal(captureEntryTitle([{ kind: 'UNRELATED', warnings: [] }]), 'Source message · review');
+  assert.ok(!title.includes('40000000'));
 });
