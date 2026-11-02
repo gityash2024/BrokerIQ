@@ -99,6 +99,8 @@ describe('Gmail firm OAuth authorization (real PostgreSQL)', () => {
     const payload = { conversationId: conv, requestId, subject: 'Isolated appointment', text: 'Isolated email body' };
     const sent = await Promise.all([1, 2, 3].map(() => api().post('/api/messaging/email/send').set(h(agent)).send(payload).expect(201)));
     expect(new Set(sent.map((value) => value.body.id)).size).toBe(1);
+    const queued = await db.job.findUniqueOrThrow({ where: { key: 'gmail-dispatch:' + sent[0].body.id } });
+    expect(Math.abs(queued.runAt.getTime() - Date.now())).toBeLessThan(10_000);
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/messages/send'))).toBe(false);
     fetch.mockImplementation(async () => new Response(JSON.stringify({ id: 'abc123', threadId: 'abc234' }), { status: 200 }));
     await Promise.all([gmail.dispatchEmail(sent[0].body.id), gmail.dispatchEmail(sent[0].body.id)]);

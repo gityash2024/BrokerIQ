@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { json } from 'express';
 import { AppModule } from '../src/app.module';
+import { AuthService } from '../src/modules/auth/auth.service';
+import { LocalStorageService } from '../src/core/media/local-storage.service';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JobsService } from '../src/core/jobs/jobs.service';
@@ -23,6 +25,7 @@ describe('BrokerIQ API (e2e)', () => {
   let prisma: PrismaService;
   let http: ReturnType<typeof request>;
   let admin: string;
+  let adminRefresh: string | undefined;
   let brokerA: { token: string; refresh: string; orgId: string };
   let brokerB: { token: string };
   let user: { token: string; id: string };
@@ -49,11 +52,14 @@ describe('BrokerIQ API (e2e)', () => {
       .send({ email: email('admin'), password: 'Admin@12345' })
       .expect(200);
     admin = a.body.accessToken;
+    adminRefresh = a.body.refreshToken;
     const loc = await prisma.locality.findFirstOrThrow({ where: { name: 'Sector 65' } });
     localityId = loc.id;
   });
 
   afterAll(async () => {
+    // Release only this suite's device session; preserve the real five-device limit.
+    if (adminRefresh) await app.get(AuthService).logout(adminRefresh);
     await app.close();
   });
 
@@ -323,8 +329,14 @@ describe('BrokerIQ API (e2e)', () => {
     expect(wa.body.integration.settingsPath).toBe('/broker/connectors?key=whatsapp');
     const ai = await http.post('/api/ai/scan').set(auth(brokerA.token)).send({ image: 'data:image/png;base64,iVBORw0KGgo=' }).expect(424);
     expect(ai.body.integration.fixBy).toBe('SUPER_ADMIN');
-    const up = await http.post('/api/me/uploads/sign').set(auth(user.token)).send({ kind: 'listing' }).expect(424);
-    expect(up.body.integration.key).toBe('cloudinary');
+    // This negative case requires every upload provider, including private disk storage, to be absent.
+    const disk = jest.spyOn(app.get(LocalStorageService), 'enabled', 'get').mockReturnValue(false);
+    try {
+      const up = await http.post('/api/me/uploads/sign').set(auth(user.token)).send({ kind: 'listing' }).expect(424);
+      expect(up.body.integration.key).toBe('cloudinary');
+    } finally {
+      disk.mockRestore();
+    }
   });
 
   it('credentials center encrypts and masks secrets', async () => {
@@ -373,8 +385,9 @@ describe('BrokerIQ API (e2e)', () => {
         where: { type: 'automation.action', status: 'PENDING', payload: { path: ['leadId'], equals: r.body.leadId } },
       });
       for (const job of queued) {
-        await (app.get(JobsService) as any).execute(job);
-        await (app.get(JobsService) as any).execute(job);
+        const claimed = await prisma.job.update({ where: { id: job.id }, data: { status: 'RUNNING', attempts: { increment: 1 }, lockedAt: new Date() } });
+        await (app.get(JobsService) as any).execute(claimed);
+        await (app.get(JobsService) as any).execute(claimed);
       }
       await sleep(150);
     }

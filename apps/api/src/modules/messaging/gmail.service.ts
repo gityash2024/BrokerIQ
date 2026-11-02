@@ -320,7 +320,9 @@ export class GmailService {
           },
         },
       });
-      await tx.job.create({ data: { type: 'gmail.dispatch', payload: { orgId, messageId: email.id }, key: `gmail-dispatch:${email.id}`, maxAttempts: 1 } });
+      await tx.job.create({
+        data: { runAt: new Date(), type: 'gmail.dispatch', payload: { orgId, messageId: email.id }, key: `gmail-dispatch:${email.id}`, maxAttempts: 1 },
+      });
       return email;
     });
   }
@@ -499,7 +501,9 @@ export class GmailService {
                 data: { emailMessageId: created.id, conversationId: id },
               },
             });
-          await tx.job.create({ data: { type: 'gmail.notify', payload: { orgId, messageId: created.id }, key: `gmail-notify:${created.id}`, maxAttempts: 3 } });
+          await tx.job.create({
+            data: { runAt: new Date(), type: 'gmail.notify', payload: { orgId, messageId: created.id }, key: `gmail-notify:${created.id}`, maxAttempts: 3 },
+          });
         }
         const latest = await tx.conversation.findUniqueOrThrow({ where: { id } });
         await tx.conversation.update({

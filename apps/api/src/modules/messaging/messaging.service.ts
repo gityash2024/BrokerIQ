@@ -100,7 +100,9 @@ export class MessagingService {
           meta: { dispatch: 'PENDING', deviceId: config.deviceId, simSubscriptionId: config.simSubscriptionId, senderPhone: config.senderPhone },
         },
       });
-      await tx.job.create({ data: { type: 'sms.dispatch', payload: { orgId, messageId: created.id }, key: `sms-dispatch:${created.id}`, maxAttempts: 1 } });
+      await tx.job.create({
+        data: { runAt: new Date(), type: 'sms.dispatch', payload: { orgId, messageId: created.id }, key: `sms-dispatch:${created.id}`, maxAttempts: 1 },
+      });
       return created;
     });
     return record;
@@ -306,7 +308,9 @@ export class MessagingService {
                   data: { smsMessageId: message.id, conversationId: conv.id },
                 },
               });
-            await tx.job.create({ data: { type: 'sms.notify', payload: { orgId, messageId: message.id }, key: `sms-notify:${message.id}`, maxAttempts: 3 } });
+            await tx.job.create({
+              data: { runAt: new Date(), type: 'sms.notify', payload: { orgId, messageId: message.id }, key: `sms-notify:${message.id}`, maxAttempts: 3 },
+            });
           }
         }
       } else if (event.smsBatchId) {

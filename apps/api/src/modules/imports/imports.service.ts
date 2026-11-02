@@ -276,7 +276,6 @@ export class ImportsService {
           });
         }
         i++;
-        if (i % 250 === 0) await this.prisma.job.updateMany({ where: { key: `import:${batchId}`, status: 'RUNNING' }, data: { lockedAt: new Date() } });
       }
       await this.prisma.importBatch.update({
         where: { id: batchId },

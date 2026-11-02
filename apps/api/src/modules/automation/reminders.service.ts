@@ -147,7 +147,9 @@ export class RemindersService implements OnModuleInit {
         });
         // A provider may have accepted a push before a process crashes: never
         // silently resend that uncertain attempt. The in-app reminder survives.
-        await tx.job.create({ data: { type: 'automation.reminder-push', key: notificationId, payload: payload as Prisma.InputJsonValue, maxAttempts: 1 } });
+        await tx.job.create({
+          data: { runAt: new Date(), type: 'automation.reminder-push', key: notificationId, payload: payload as Prisma.InputJsonValue, maxAttempts: 1 },
+        });
       }
       let legacySameSchedule = false;
       if (visit) {
@@ -166,6 +168,7 @@ export class RemindersService implements OnModuleInit {
           skipDuplicates: true,
           data: [
             {
+              runAt: new Date(),
               type: 'automation.visit-reminder',
               key: 'visit-reminder:' + id + ':' + visit.scheduledAt.toISOString(),
               payload: { orgId: lead.organizationId, leadId: lead.id, visitId: id, claimedAt: now.toISOString(), dueAt: visit.scheduledAt.toISOString() },

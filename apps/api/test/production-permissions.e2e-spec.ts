@@ -228,7 +228,8 @@ describe('Production agent/firm record boundaries', () => {
     const automation = app.get(AutomationService);
     await automation.trigger('LEAD_CREATED', org, lead.id);
     const job = await db.job.findFirstOrThrow({ where: { type: 'automation.action', payload: { path: ['ruleId'], equals: rule.id } } });
-    await (app.get(JobsService) as any).execute({ ...job, attempts: 1 });
+    const claimed = await db.job.update({ where: { id: job.id }, data: { status: 'RUNNING', attempts: 1, lockedAt: new Date() } });
+    await (app.get(JobsService) as any).execute(claimed);
     expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).assignedToId).toBe(b.id);
     await automation.runAction(rule.id, lead.id, 0, {}, job.id);
     expect(await db.activity.count({ where: { leadId: lead.id, type: 'ASSIGNMENT' } })).toBe(1);

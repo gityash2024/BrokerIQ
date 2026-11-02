@@ -66,7 +66,7 @@ describe('PostgreSQL job recovery', () => {
           expect(await tx.job.findUniqueOrThrow({ where: { id: exhausted.id } })).toMatchObject({ status: 'FAILED', attempts: 3, lockedAt: null });
           expect(await tx.job.findUniqueOrThrow({ where: { id: fresh.id } })).toMatchObject({ status: 'RUNNING', lockedAt: fresh.lockedAt });
           expect(await tx.job.findUniqueOrThrow({ where: { id: pending.id } })).toMatchObject({ status: 'PENDING', lastError: null });
-          expect(await tx.job.findUnique({ where: { id: oldDone.id } })).toBeNull();
+          expect(await tx.job.findUniqueOrThrow({ where: { id: oldDone.id } })).toMatchObject({ status: 'DONE' });
           expect(await tx.job.findUniqueOrThrow({ where: { id: recentDone.id } })).toMatchObject({ status: 'DONE' });
           throw rollback;
         }),

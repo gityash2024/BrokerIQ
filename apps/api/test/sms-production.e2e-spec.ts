@@ -58,20 +58,18 @@ describe('SMS production contracts (real PostgreSQL)', () => {
     return result;
   };
   const provider = () =>
-    jest
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(
-        async (url: any) =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => ({
-              data: String(url).endsWith('/send-sms')
-                ? { success: true, smsBatchId: '456789012345678901234567' }
-                : { _id: device, enabled: true, simInfo: { sims: [{ subscriptionId: 4 }] } },
-            }),
-          }) as Response,
-      );
+    jest.spyOn(globalThis, 'fetch').mockImplementation(
+      async (url: any) =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: String(url).endsWith('/send-sms')
+              ? { success: true, smsBatchId: '456789012345678901234567' }
+              : { _id: device, enabled: true, simInfo: { sims: [{ subscriptionId: 4 }] } },
+          }),
+        }) as Response,
+    );
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = module.createNestApplication();
@@ -137,6 +135,8 @@ describe('SMS production contracts (real PostgreSQL)', () => {
     expect(new Set(results.map((r) => r.id)).size).toBe(1);
     const id = results[0].id;
     expect(await db.job.count({ where: { key: 'sms-dispatch:' + id } })).toBe(1);
+    const queued = await db.job.findUniqueOrThrow({ where: { key: 'sms-dispatch:' + id } });
+    expect(Math.abs(queued.runAt.getTime() - Date.now())).toBeLessThan(10_000);
     const fetch = provider();
     await Promise.all([service.dispatch(id), service.dispatch(id)]);
     expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/send-sms'))).toHaveLength(1);
@@ -199,11 +199,24 @@ describe('SMS production contracts (real PostgreSQL)', () => {
   });
   it('pages the complete message trail including equal timestamps and rejects foreign cursors', async () => {
     const at = new Date('2026-10-01T10:00:00Z');
-    await db.message.createMany({ data: Array.from({ length: 123 }, (_, i) => ({ conversationId, direction: 'OUTBOUND' as const, body: `Isolated page ${i}`, createdAt: at })) });
-    const expected = await db.message.count({ where: { conversationId } }); const ids: string[] = []; let cursor = '';
-    do { const page = (await api().get(`/api/whatsapp/conversations/${conversationId}/messages${cursor ? '?cursor='+cursor : ''}`).set(h()).expect(200)).body; ids.push(...page.items.map((m: any) => m.id)); cursor = page.nextCursor; } while (cursor);
-    expect(ids).toHaveLength(expected); expect(new Set(ids).size).toBe(expected);
+    await db.message.createMany({
+      data: Array.from({ length: 123 }, (_, i) => ({ conversationId, direction: 'OUTBOUND' as const, body: `Isolated page ${i}`, createdAt: at })),
+    });
+    const expected = await db.message.count({ where: { conversationId } });
+    const ids: string[] = [];
+    let cursor = '';
+    do {
+      const page = (
+        await api()
+          .get(`/api/whatsapp/conversations/${conversationId}/messages${cursor ? '?cursor=' + cursor : ''}`)
+          .set(h())
+          .expect(200)
+      ).body;
+      ids.push(...page.items.map((m: any) => m.id));
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(ids).toHaveLength(expected);
+    expect(new Set(ids).size).toBe(expected);
     await api().get(`/api/whatsapp/conversations/${conversationId}/messages?cursor=unrelated`).set(h()).expect(400);
   });
-
 });

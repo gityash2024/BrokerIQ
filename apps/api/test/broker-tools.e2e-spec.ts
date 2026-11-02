@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { json, urlencoded } from 'express';
 import { AppModule } from '../src/app.module';
+import { AuthService } from '../src/modules/auth/auth.service';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { FeaturesService } from '../src/core/features/features.service';
@@ -30,6 +31,7 @@ describe('Broker growth tools (e2e)', () => {
   let prisma: PrismaService;
   let http: ReturnType<typeof request>;
   let admin: string;
+  let adminRefresh: string | undefined;
   let broker: { token: string; orgId: string; slug: string; userId: string };
   let other: { token: string; orgId: string };
   let localityId: string;
@@ -82,12 +84,12 @@ describe('Broker growth tools (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
     http = request(app.getHttpServer());
-    admin = (
-      await http
-        .post('/api/auth/login')
-        .send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' })
-        .expect(200)
-    ).body.accessToken;
+    const adminLogin = await http
+      .post('/api/auth/login')
+      .send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' })
+      .expect(200);
+    admin = adminLogin.body.accessToken;
+    adminRefresh = adminLogin.body.refreshToken;
     await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);
     await prisma.featureFlag.deleteMany({
       where: { key: { in: ['campaigns', 'photo_branding', 'visiting_card', 'social_autopost', 'comparison_pdf', 'broker_reports', 'owner_reports'] } },
@@ -110,6 +112,8 @@ describe('Broker growth tools (e2e)', () => {
   afterAll(async () => {
     global.fetch = realFetch;
     jest.restoreAllMocks();
+    // Release only this suite's device session; preserve the real five-device limit.
+    if (adminRefresh) await app.get(AuthService).logout(adminRefresh);
     await app.close();
   });
 

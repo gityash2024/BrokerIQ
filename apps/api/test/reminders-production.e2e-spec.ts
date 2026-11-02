@@ -38,6 +38,7 @@ describe('Production reminder delivery and current ownership', () => {
   });
   const followUp = (extra: Record<string, unknown> = {}) =>
     db.followUp.create({ data: { organizationId: org, leadId: lead, assignedToId: a, dueAt: new Date(Date.now() + 60_000), ...extra } });
+  const claim = (job: { id: string }) => db.job.update({ where: { id: job.id }, data: { status: 'RUNNING', attempts: 1, lockedAt: new Date() } });
   const queued = async (recordId: string) =>
     db.job.findMany({ where: { type: 'automation.reminder-push', payload: { path: ['recordId'], equals: recordId } } });
 
@@ -119,7 +120,7 @@ describe('Production reminder delivery and current ownership', () => {
     const restarted = new RemindersService(db, jobs, notifications, app.get(ModulesService));
     restarted.onModuleInit();
     jest.spyOn(notifications, 'dispatchSaved').mockRejectedValue(new Error('Isolated provider outage'));
-    await (jobs as any).execute({ ...job, attempts: 1 });
+    await (jobs as any).execute(await claim(job));
     expect((await db.job.findUniqueOrThrow({ where: { id: job.id } })).status).toBe('FAILED');
     expect(await db.notification.findUnique({ where: { id: (job.payload as any).notificationId } })).not.toBeNull();
     await restarted.enqueueOne('FOLLOW_UP', task.id);
@@ -137,7 +138,7 @@ describe('Production reminder delivery and current ownership', () => {
     const trigger = jest.spyOn(app.get(AutomationService), 'trigger').mockResolvedValue();
     await db.siteVisit.update({ where: { id: visit.id }, data: { status: 'CANCELLED' } });
     await reminders.deliver(push.payload);
-    await (jobs as any).execute({ ...triggers[0], attempts: 1 });
+    await (jobs as any).execute(await claim(triggers[0]));
     expect(dispatch).not.toHaveBeenCalled();
     expect(trigger).not.toHaveBeenCalled();
   });
@@ -149,7 +150,7 @@ describe('Production reminder delivery and current ownership', () => {
     const token = await db.pushToken.create({ data: { userId: a, platform: 'android', token: 'ExponentPushToken[isolated-' + uid + ']' } });
     const provider = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 429 } as Response);
     try {
-      await (jobs as any).execute({ ...job, attempts: 1 });
+      await (jobs as any).execute(await claim(job));
       expect(provider).toHaveBeenCalledTimes(1);
       const result = await db.job.findUniqueOrThrow({ where: { id: job.id } });
       expect(result.status).toBe('FAILED');
@@ -184,7 +185,7 @@ describe('Production reminder delivery and current ownership', () => {
       const sameSchedule = await db.job.findMany({ where: { type: 'automation.visit-reminder', payload: { path: ['visitId'], equals: visit.id } } });
       expect(sameSchedule).toHaveLength(1);
       const trigger = jest.spyOn(app.get(AutomationService), 'trigger').mockResolvedValue();
-      await (jobs as any).execute({ ...sameSchedule[0], attempts: 1 });
+      await (jobs as any).execute(await claim(sameSchedule[0]));
       expect(trigger).toHaveBeenCalledWith('VISIT_REMINDER', org, lead, expect.objectContaining({ reminderScheduledAt: visit.scheduledAt.toISOString() }));
       const later = new Date(Date.now() + 1_200_000);
       await db.siteVisit.update({ where: { id: visit.id }, data: { scheduledAt: later, reminderSentAt: null } });

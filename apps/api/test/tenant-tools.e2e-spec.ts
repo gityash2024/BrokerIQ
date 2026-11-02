@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { json, urlencoded } from 'express';
 import { AppModule } from '../src/app.module';
+import { AuthService } from '../src/modules/auth/auth.service';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { FeaturesService } from '../src/core/features/features.service';
@@ -31,6 +32,7 @@ describe('Tenant & owner tools (e2e)', () => {
   let prisma: PrismaService;
   let http: ReturnType<typeof request>;
   let admin: string;
+  let adminRefresh: string | undefined;
   let broker: { token: string; orgId: string };
   let tenant: { token: string; id: string; email: string };
   let localityId: string;
@@ -70,12 +72,12 @@ describe('Tenant & owner tools (e2e)', () => {
     prisma = app.get(PrismaService);
     http = request(app.getHttpServer());
     jest.spyOn(app.get(MailService), 'send').mockImplementation(async (m: any) => void mails.push(m));
-    admin = (
-      await http
-        .post('/api/auth/login')
-        .send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' })
-        .expect(200)
-    ).body.accessToken;
+    const adminLogin = await http
+      .post('/api/auth/login')
+      .send({ email: `admin.${process.env.E2E_UNIQ}@e2e.test`, password: 'Admin@12345' })
+      .expect(200);
+    admin = adminLogin.body.accessToken;
+    adminRefresh = adminLogin.body.refreshToken;
     await app.get(SettingsService).updateAppConfig({ auth: { allowBrokerSignup: true } } as any);
     await prisma.featureFlag.deleteMany({
       where: { key: { in: ['rent_tracker', 'inspections', 'fair_rent', 'video_visits', 'agreement_esign', 'compare_shortlist'] } },
@@ -96,6 +98,8 @@ describe('Tenant & owner tools (e2e)', () => {
 
   afterAll(async () => {
     jest.restoreAllMocks();
+    // Release only this suite's device session; preserve the real five-device limit.
+    if (adminRefresh) await app.get(AuthService).logout(adminRefresh);
     await app.close();
   });
 
