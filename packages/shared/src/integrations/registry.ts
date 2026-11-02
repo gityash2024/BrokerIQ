@@ -220,6 +220,15 @@ export const INTEGRATIONS: IntegrationDef[] = [
   },
   // ---------------------------------------------------------------- AI
   {
+    key: 'qwen_local', name: 'Local Qwen · text AI', category: 'ai', scope: 'platform',
+    description: 'इसी server के existing text-only Qwen से छोटे reviewed drafts और extraction. Vision/audio/tool execution उपलब्ध नहीं।',
+    freeTier: 'कोई provider शुल्क नहीं। Shared CPU capacity सीमित है; एक BrokerIQ generation, bounded timeout और busy cooldown लागू हैं।',
+    docsUrl: 'https://github.com/ggml-org/llama.cpp/tree/master/tools/server',
+    steps: ['Existing llama.cpp service की health और loaded model पहचानें; दूसरे products की service/config न बदलें।', 'Endpoint fixed loopback 127.0.0.1:18080 है; browser या बाहरी URL model endpoint नहीं बदल सकता।', 'Loaded model ID नीचे भरें। Local text provider पहले इस्तेमाल होगा; vision/audio/tools के लिए सक्षम अलग provider चाहिए।', 'Test connection छोटा text request भेजता है। सफल connection को Hindi/Hinglish extraction quality का प्रमाण न मानें; labelled evaluation और review जरूरी हैं।'],
+    fields: [{ key: 'textModel', label: 'Loaded local model ID', type: 'text', required: true, placeholder: 'qwen2.5-1.5b-instruct' }, { key: 'apiKey', label: 'Local service API key (if already required)', type: 'password', secret: true }],
+    usedFor: ['Reviewed text extraction', 'Lead summary', 'Reply drafts'], testable: true,
+  },
+  {
     key: 'openrouter',
     name: 'OpenRouter AI (free open-source models)',
     category: 'ai',

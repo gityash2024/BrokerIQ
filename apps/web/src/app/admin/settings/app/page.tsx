@@ -139,7 +139,7 @@ const SECTIONS: { id: string; title: string; desc: string; fields: CrudField[] }
         type: 'number',
         hint: 'Free AI providers की limit में रहने के लिए',
       },
-      { key: 'ai.providerOrder', label: 'AI provider क्रम', hint: 'openrouter,groq,gemini — पहला fail हो तो अगला' },
+      { key: 'ai.providerOrder', label: 'AI provider क्रम', hint: 'Configured Local Qwen text पहले; फिर इस क्रम में सक्षम providers. Launch में OpenRouter free models ही fallback हैं।' },
       { key: 'monetization.boostPricePerWeek', label: 'Listing boost price / week (₹)', type: 'number' },
       { key: 'monetization.gstPercent', label: 'GST %', type: 'number' },
       { key: 'monetization.invoicePrefix', label: 'Invoice prefix' },

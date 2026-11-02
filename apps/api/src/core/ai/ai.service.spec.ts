@@ -79,4 +79,75 @@ describe('AiService', () => {
     expect(parseJsonLoose('<think>let me see</think>\n{"a":1}')).toEqual({ a: 1 });
     expect(parseJsonLoose('Sure! {"a":2} hope this helps')).toEqual({ a: 2 });
   });
+
+  it('uses configured local Qwen first without inventing vision, tool or audio capability', async () => {
+    respond = () => ok('local answer');
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen2.5-1.5b-instruct', endpoint: 'https://untrusted.example' } }), prisma);
+    await expect(ai.chat([{ role: 'user', content: 'summarize' }], { feature: 'capture' })).resolves.toBe('local answer');
+    expect(calls[0]).toMatchObject({ url: 'http://127.0.0.1:18080/v1/chat/completions', model: 'qwen2.5-1.5b-instruct' });
+    await expect(ai.isAvailable('text')).resolves.toBe(true);
+    await expect(ai.isAvailable('vision')).resolves.toBe(false);
+    await expect(ai.chatWithTools([{ role: 'user', content: 'action' }], [], { feature: 'tools' })).rejects.toMatchObject({ status: 424 });
+    await expect(ai.transcribe('AAAA', 'audio/wav', undefined, {})).rejects.toMatchObject({ status: 424 });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('allows local text and only free OpenRouter fallback in broker-first mode', async () => {
+    const configuration = require('../../config/env');
+    const current = configuration.env();
+    const spy = jest.spyOn(configuration, 'env').mockReturnValue({ ...current, BROKER_FIRST: true });
+    try {
+      const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'paid-model', fallbackModels: 'a:free' }, groq: { apiKey: 'g', textModel: 'other' } }), prisma);
+      expect((await ai.providers()).map(p => ({ name: p.name, textModels: p.textModels }))).toEqual([
+        { name: 'qwen_local', textModels: ['qwen'] }, { name: 'openrouter', textModels: ['a:free'] },
+      ]);
+    } finally { spy.mockRestore(); }
+  });
+
+  it('falls through oversized local prompts without truncating their original text', async () => {
+    const prompt = 'x'.repeat(8000);
+    respond = (_url, body) => { expect(body.messages[0].content).toBe(prompt); return ok('hosted'); };
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    await expect(ai.chat([{ role: 'user', content: prompt }], { feature: 'capture' })).resolves.toBe('hosted');
+    expect(calls.map(c => c.model)).toEqual(['a:free']);
+  });
+
+  it('does not queue simultaneous local requests and releases its slot on completion', async () => {
+    let release!: (value: any) => void;
+    global.fetch = jest.fn(() => new Promise(resolve => { release = resolve; })) as any;
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    const first = ai.chat([{ role: 'user', content: 'one' }], { feature: 'capture' });
+    // Let the first provider resolution acquire its only local generation slot.
+    while (!release) await new Promise(resolve => setImmediate(resolve));
+    await expect(ai.chat([{ role: 'user', content: 'two' }], { feature: 'capture' })).rejects.toMatchObject({ status: 502 });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    release({ ok: true, status: 200, json: async () => ok('one').json });
+    await expect(first).resolves.toBe('one');
+    respond = () => ok('after');
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ok('after').json })) as any;
+    await expect(ai.chat([{ role: 'user', content: 'after' }], { feature: 'capture' })).resolves.toBe('after');
+  });
+
+  it('bounds Devanagari by UTF-8 bytes and caps output before the shared local request', async () => {
+    let sent: any;
+    respond = (_url, body) => { sent = body; return ok('bounded'); };
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    await ai.chat([{ role: 'user', content: 'छोटा संदेश' }], { feature: 'capture', maxTokens: 6000 });
+    expect(sent.max_tokens).toBe(768);
+    expect(sent.cache_prompt).toBe(false);
+    await expect(ai.chat([{ role: 'user', content: 'क'.repeat(900) }], { feature: 'capture' })).rejects.toMatchObject({ status: 502 });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('cools down a failed local service and keeps cached responses firm/user scoped', async () => {
+    let localCalls = 0;
+    respond = (url) => url.includes('127.0.0.1') ? (localCalls++, { status: 503, json: {} }) : ok('hosted');
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' }, openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    const messages = [{ role: 'user' as const, content: 'same' }];
+    await ai.chat(messages, { feature: 'capture', orgId: 'a', userId: 'a', cacheMs: 60000 });
+    await ai.chat(messages, { feature: 'capture', orgId: 'b', userId: 'b', cacheMs: 60000 });
+    await ai.chat(messages, { feature: 'capture', orgId: 'a', userId: 'a', cacheMs: 60000 });
+    expect(localCalls).toBe(1);
+    expect(calls.filter(c => c.model === 'a:free')).toHaveLength(2);
+  });
 });

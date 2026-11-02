@@ -11,7 +11,7 @@ export interface ChatMessage {
   content: string;
 }
 
-type ProviderName = 'openrouter' | 'groq' | 'gemini';
+type ProviderName = 'qwen_local' | 'openrouter' | 'groq' | 'gemini';
 
 /** One provider = one OpenAI-compatible endpoint + an ordered list of models to try. */
 interface Provider {
@@ -33,8 +33,9 @@ interface CallOpts {
   cacheMs?: number;
 }
 
-const PROVIDERS: ProviderName[] = ['openrouter', 'groq', 'gemini'];
+const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
 const URLS: Record<ProviderName, string> = {
+  qwen_local: 'http://127.0.0.1:18080/v1/chat/completions',
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   groq: 'https://api.groq.com/openai/v1/chat/completions',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
@@ -42,7 +43,7 @@ const URLS: Record<ProviderName, string> = {
 const TEXT_TIMEOUT_MS = 45_000;
 const VISION_TIMEOUT_MS = 90_000;
 const CACHE_MAX = 300;
-const NOT_CONFIGURED = 'AI configured नहीं है। Super Admin → Settings → Credentials में OpenRouter (free), Groq या Gemini की API key जोड़ें।';
+const NOT_CONFIGURED = 'AI configured नहीं है। Super Admin → Settings → Credentials में Local Qwen या सक्षम free AI provider configure करें।';
 
 const list = (v: unknown) =>
   String(v ?? '')
@@ -64,6 +65,8 @@ class ProviderError extends Error {}
 export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly cache = new Map<string, { at: number; ttl: number; text: string }>();
+  private localBusy = false;
+  private localRetryAt = 0;
   constructor(
     private readonly settings: SettingsService,
     private readonly prisma: PrismaService,
@@ -72,6 +75,8 @@ export class AiService {
   // ------------------------------------------------------------------ providers
   private toProvider(name: ProviderName, v: Record<string, unknown>): Provider {
     const apiKey = String(v.apiKey ?? '');
+    if (name === 'qwen_local')
+      return { name, apiKey, url: URLS[name], textModels: list(v.textModel).slice(0, 1), visionModels: [] };
     if (name === 'openrouter')
       return {
         name,
@@ -88,17 +93,19 @@ export class AiService {
   /** Configured providers in the admin-chosen order. */
   async providers(): Promise<Provider[]> {
     const app = await this.settings.getAppConfig();
-    const order = [...new Set([...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName => (PROVIDERS as string[]).includes(p));
+    const order = [...new Set(['qwen_local', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName => (PROVIDERS as string[]).includes(p));
     const out: Provider[] = [];
     for (const name of order) {
       const v = await this.settings.resolve(name).catch(() => null);
-      if (v?.apiKey) {
+      if (v && (v.apiKey || (name === 'qwen_local' && v.textModel))) {
         const provider = this.toProvider(name, v);
         // Paid fallback is never used by the broker-first launch.
         if (env().BROKER_FIRST) {
-          if (name !== 'openrouter') continue;
-          provider.textModels = provider.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
-          provider.visionModels = provider.visionModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+          if (name !== 'openrouter' && name !== 'qwen_local') continue;
+          if (name === 'openrouter') {
+            provider.textModels = provider.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+            provider.visionModels = provider.visionModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+          }
         }
         if (provider.textModels.length || provider.visionModels.length) out.push(provider);
       }
@@ -106,8 +113,8 @@ export class AiService {
     return out;
   }
 
-  async isAvailable() {
-    return (await this.providers()).length > 0;
+  async isAvailable(kind: 'text' | 'vision' | 'tools' = 'text') {
+    return (await this.providers()).some(p => kind === 'vision' ? p.visionModels.length > 0 : (kind !== 'tools' || p.name !== 'qwen_local') && p.textModels.length > 0);
   }
 
   // ------------------------------------------------------------------ public API
@@ -197,7 +204,7 @@ export class AiService {
    */
   async chatWithTools(messages: any[], tools: any[], opts: CallOpts) {
     let message: { content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] } = { content: '' };
-    await this.run(opts, 'text', async (p, model) => {
+    await this.run(opts, 'tools', async (p, model) => {
       const data = await this.post(
         p,
         {
@@ -221,7 +228,7 @@ export class AiService {
   /** Speech → text for the assistant's voice input (Groq Whisper, else Gemini audio). OpenRouter has no audio. */
   async transcribe(audioBase64: string, mime: string, lang: string | undefined, opts: { userId?: string; orgId?: string | null }) {
     const bytes = Buffer.from(audioBase64.replace(/^data:[^,]+,/, ''), 'base64');
-    const providers = (await this.providers()).filter((p) => p.name !== 'openrouter');
+    const providers = (await this.providers()).filter((p) => p.name === 'groq' || p.name === 'gemini');
     if (!providers.length)
       throw new IntegrationNotConfiguredException('groq', 'Voice input के लिए Groq या Gemini key चाहिए — तब तक phone का voice typing इस्तेमाल करें।');
     let lastError = '';
@@ -292,10 +299,10 @@ export class AiService {
   // ------------------------------------------------------------------ core loop
   private async run(
     opts: CallOpts,
-    kind: 'text' | 'vision',
+    kind: 'text' | 'vision' | 'tools',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = await this.providers();
+    const providers = (await this.providers()).filter(p => kind === 'vision' ? p.visionModels.length > 0 : (kind !== 'tools' || p.name !== 'qwen_local') && p.textModels.length > 0);
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     for (const p of providers) {
@@ -319,7 +326,7 @@ export class AiService {
   private async complete(p: Provider, model: string, messages: any[], opts: CallOpts, timeoutMs: number) {
     const key = opts.cacheMs
       ? createHash('sha256')
-          .update(JSON.stringify([opts.feature, opts.json, messages]))
+          .update(JSON.stringify([p.name, model, opts.orgId ?? null, opts.userId ?? null, opts.feature, opts.json, opts.maxTokens, opts.temperature, messages]))
           .digest('hex')
       : null;
     const hit = key ? this.cache.get(key) : undefined;
@@ -341,7 +348,27 @@ export class AiService {
   }
 
   private async post(p: Provider, body: Record<string, unknown>, timeoutMs: number): Promise<any> {
-    const headers: Record<string, string> = { Authorization: `Bearer ${p.apiKey}`, 'Content-Type': 'application/json' };
+    if (p.name === 'qwen_local') {
+      // No in-process queue: a busy shared CPU fails over, rather than holding CRM requests indefinitely.
+      if (this.localBusy || Date.now() < this.localRetryAt) throw new RetryableError('local generation busy/cooling down');
+      const messages = body.messages;
+      // UTF-8 bytes are a conservative upper bound on text tokens, including Hindi;
+      // reserve room for the 768-token answer and the4K model's chat template.
+      if (!Array.isArray(messages) || messages.some(m => typeof m?.content !== 'string') || Buffer.byteLength(JSON.stringify(messages), 'utf8') > 2500 || body.tools)
+        throw new RetryableError('local model supports bounded text only');
+      this.localBusy = true;
+      try {
+        return await this.postRequest(p, { ...body, max_tokens: Math.min(Number(body.max_tokens) || 512, 768), cache_prompt: false }, Math.min(timeoutMs, 30000));
+      } catch (error) {
+        this.localRetryAt = Date.now() + 60000;
+        throw error;
+      } finally { this.localBusy = false; }
+    }
+    return this.postRequest(p, body, timeoutMs);
+  }
+
+  private async postRequest(p: Provider, body: Record<string, unknown>, timeoutMs: number): Promise<any> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}) };
     if (p.name === 'openrouter') {
       headers['HTTP-Referer'] = env().PUBLIC_WEB_URL;
       headers['X-Title'] = 'BrokerIQ';
@@ -377,8 +404,8 @@ export class AiService {
   async test(key: ProviderName, values: Record<string, unknown>) {
     const p = this.toProvider(key, values);
     if (env().BROKER_FIRST) {
-      if (key !== 'openrouter') throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses OpenRouter free models only.');
-      p.textModels = p.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+      if (key !== 'openrouter' && key !== 'qwen_local') throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses local Qwen or OpenRouter free models only.');
+      if (key === 'openrouter') p.textModels = p.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
     }
     const errors: string[] = [];
     for (const model of p.textModels) {
