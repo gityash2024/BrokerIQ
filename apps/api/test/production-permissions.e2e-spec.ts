@@ -78,6 +78,41 @@ describe('Production agent/firm record boundaries', () => {
     expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).status).toBe('PENDING');
   });
 
+  it('applies current lead ownership to dashboard previews/KPIs and separates unread chats from messages', async () => {
+    const owned = await db.followUp.create({ data: { organizationId: org, leadId: leadA, assignedToId: a.id, dueAt: new Date(Date.now() - 60000) } });
+    const deleted = await db.lead.create({
+      data: { organizationId: org, name: 'Deleted dashboard lead', phone: '+919700008101', assignedToId: a.id, deletedAt: new Date() },
+    });
+    const hidden = await db.followUp.create({ data: { organizationId: org, leadId: deleted.id, assignedToId: a.id, dueAt: new Date(Date.now() - 60000) } });
+    const staleVisit = await db.siteVisit.create({ data: { organizationId: org, leadId: leadB, assignedToId: a.id, scheduledAt: new Date() } });
+    const ownVisit = await db.siteVisit.create({ data: { organizationId: org, leadId: leadA, assignedToId: a.id, scheduledAt: new Date() } });
+    const sms = await db.conversation.create({ data: { organizationId: org, channel: 'SMS', contactKey: 'sms-' + uid, leadId: leadA, unreadCount: 4 } });
+    await db.conversation.create({ data: { organizationId: org, channel: 'EMAIL', contactKey: 'email-' + uid, leadId: leadA, unreadCount: 3 } });
+    await db.conversation.create({ data: { organizationId: org, channel: 'WHATSAPP', contactKey: 'non-housing-' + uid, leadId: leadA, unreadCount: 8 } });
+    const today = (await request(app.getHttpServer()).get('/api/broker/today').set(headers(a)).expect(200)).body;
+    expect(today.followUps.some((x: any) => x.id === owned.id)).toBe(true);
+    expect(today.followUps.every((x: any) => x.lead.id === leadA && x.id !== hidden.id)).toBe(true);
+    expect(today.visits.some((x: any) => x.id === ownVisit.id)).toBe(true);
+    expect(today.visits.some((x: any) => x.id === staleVisit.id)).toBe(false);
+    const stats = (await request(app.getHttpServer()).get('/api/whatsapp/unread-stats').set(headers(a)).expect(200)).body;
+    expect(stats.sms).toEqual({ unreadConversations: 1, unreadMessages: 4 });
+    expect(stats.email).toEqual({ unreadConversations: 1, unreadMessages: 3 });
+    expect(stats.whatsapp.unreadConversations).toBe(0);
+    expect(today.unreadConversations).toBe(stats.total.unreadConversations);
+    expect(today.unreadMessages).toBe(stats.total.unreadMessages);
+    expect(today.unreadMessages).toBeGreaterThan(today.unreadConversations);
+    const legacy = (await request(app.getHttpServer()).get('/api/broker/dashboard').set(headers(a)).expect(200)).body;
+    expect(legacy.kpis.unreadMessages).toBe(today.unreadMessages);
+    expect(legacy.kpis.unreadConversations).toBe(today.unreadConversations);
+    expect(legacy.todayFollowUps.every((x: any) => x.lead.id === leadA)).toBe(true);
+    expect(legacy.todayVisits.some((x: any) => x.id === staleVisit.id)).toBe(false);
+    const metrics = (await request(app.getHttpServer()).get('/api/broker/dashboard/metrics').set(headers(a)).expect(200)).body;
+    expect(metrics.metrics.find((x: any) => x.key === 'overdue').value).toBe(1);
+    await request(app.getHttpServer()).post(`/api/whatsapp/conversations/${sms.id}/read`).set(headers(a)).expect(200);
+    const read = (await request(app.getHttpServer()).get('/api/broker/today').set(headers(a)).expect(200)).body;
+    expect(read.unreadMessages).toBe(today.unreadMessages - 4);
+  });
+
   it('completes one task atomically on retries and rejects invalid reschedule dates', async () => {
     const task = await db.followUp.create({ data: { organizationId: org, leadId: leadA, assignedToId: a.id, dueAt: new Date() } });
     const before = await db.activity.count({ where: { leadId: leadA, type: 'FOLLOW_UP' } });

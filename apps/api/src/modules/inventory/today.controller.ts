@@ -1,3 +1,4 @@
+import { inboxChannelWhere, liveTaskLeadWhere } from '../whatsapp/inbox-scope';
 import { Controller, Get } from '@nestjs/common';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -26,7 +27,7 @@ export class TodayController {
     const [followUps, visits, newLeads, requirements, inventory, pendingReview, unread] = await Promise.all([
       leadsOn
         ? this.prisma.followUp.findMany({
-            where: { organizationId, ...assigned, status: 'PENDING', dueAt: { lt: end } },
+            where: { organizationId, ...assigned, lead: liveTaskLeadWhere(organizationId, user), status: 'PENDING', dueAt: { lt: end } },
             orderBy: { dueAt: 'asc' },
             take: 20,
             include: { lead: { select: { id: true, name: true, phone: true } } },
@@ -34,7 +35,13 @@ export class TodayController {
         : [],
       leadsOn
         ? this.prisma.siteVisit.findMany({
-            where: { organizationId, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: { gte: start, lt: end } },
+            where: {
+              organizationId,
+              ...assigned,
+              lead: liveTaskLeadWhere(organizationId, user),
+              status: { in: ['SCHEDULED', 'CONFIRMED'] },
+              scheduledAt: { gte: start, lt: end },
+            },
             orderBy: { scheduledAt: 'asc' },
             take: 20,
             include: { lead: { select: { id: true, name: true, phone: true } } },
@@ -47,7 +54,7 @@ export class TodayController {
               organizationId,
               deletedAt: null,
               status: 'OPEN',
-              intent:'DEMAND',
+              intent: 'DEMAND',
               ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
             },
           })
@@ -59,26 +66,16 @@ export class TodayController {
           })
         : null,
       inboxOn
-        ? this.prisma.conversation.count({
+        ? this.prisma.conversation.aggregate({
             where: {
               organizationId,
               unreadCount: { gt: 0 },
-              OR: [
-                {
-                  channel: 'WHATSAPP',
-                  lead: {
-                    is: {
-                      source: 'HOUSING',
-                      ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
-                    },
-                  },
-                },
-                {
-                  channel: 'CHAT',
-                  ...(user.role === 'BROKER_AGENT' ? { lead: { is: { assignedToId: user.id } } } : {}),
-                },
-              ],
+              OR: ['WHATSAPP', 'CHAT', 'SMS', 'EMAIL'].map((channel) =>
+                inboxChannelWhere(organizationId, user, channel as 'WHATSAPP' | 'CHAT' | 'SMS' | 'EMAIL'),
+              ),
             },
+            _count: { _all: true },
+            _sum: { unreadCount: true },
           })
         : null,
     ]);
@@ -90,7 +87,8 @@ export class TodayController {
       requirements,
       inventory,
       pendingReview,
-      unreadMessages: unread ?? null,
+      unreadConversations: unread ? unread._count._all : null,
+      unreadMessages: unread ? (unread._sum.unreadCount ?? 0) : null,
     };
   }
 }

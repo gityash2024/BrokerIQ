@@ -1,3 +1,4 @@
+import { inboxChannelWhere, liveTaskLeadWhere } from '../whatsapp/inbox-scope';
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
@@ -57,10 +58,22 @@ export class InsightsController {
         ? Promise.resolve(0)
         : this.prisma.lead.count({ where: { organizationId: orgId, deletedAt: null, assignedToId: null, stage: { notIn: ['WON', 'LOST'] } } }),
       this.prisma.followUp.count({
-        where: { organizationId: orgId, status: 'PENDING', dueAt: { lt: new Date() }, ...(mine ? { assignedToId: user.id } : {}) },
+        where: {
+          organizationId: orgId,
+          lead: liveTaskLeadWhere(orgId, user),
+          status: 'PENDING',
+          dueAt: { lt: new Date() },
+          ...(mine ? { assignedToId: user.id } : {}),
+        },
       }),
       this.prisma.followUp.findMany({
-        where: { organizationId: orgId, status: 'PENDING', dueAt: { lte: today1 }, ...(mine ? { assignedToId: user.id } : {}) },
+        where: {
+          organizationId: orgId,
+          lead: liveTaskLeadWhere(orgId, user),
+          status: 'PENDING',
+          dueAt: { lte: today1 },
+          ...(mine ? { assignedToId: user.id } : {}),
+        },
         orderBy: { dueAt: 'asc' },
         take: 20,
         include: { lead: { select: { id: true, name: true, phone: true, stage: true, source: true } } },
@@ -70,6 +83,7 @@ export class InsightsController {
           organizationId: orgId,
           scheduledAt: { gte: today0, lte: today1 },
           status: { in: ['SCHEDULED', 'CONFIRMED'] },
+          lead: liveTaskLeadWhere(orgId, user),
           ...(mine ? { assignedToId: user.id } : {}),
         },
         orderBy: { scheduledAt: 'asc' },
@@ -89,26 +103,14 @@ export class InsightsController {
         _count: true,
       }),
       this.prisma.listing.count({ where: { organizationId: orgId, status: 'ACTIVE', deletedAt: null, ...(mine ? { postedById: user.id } : {}) } }),
-      this.prisma.conversation.count({
+      this.prisma.conversation.aggregate({
         where: {
           organizationId: orgId,
           unreadCount: { gt: 0 },
-          OR: [
-            {
-              channel: 'WHATSAPP',
-              lead: {
-                is: {
-                  source: 'HOUSING',
-                  ...(mine ? { assignedToId: user.id } : {}),
-                },
-              },
-            },
-            {
-              channel: 'CHAT',
-              ...(mine ? { lead: { is: { assignedToId: user.id } } } : {}),
-            },
-          ],
+          OR: (['WHATSAPP', 'CHAT', 'SMS', 'EMAIL'] as const).map((channel) => inboxChannelWhere(orgId, user, channel)),
         },
+        _sum: { unreadCount: true },
+        _count: { _all: true },
       }),
       this.prisma.inventoryItem.count({ where: inventoryScope }),
       this.prisma.inventoryItem.count({ where: { ...inventoryScope, status: 'ACTIVE' } }),
@@ -135,7 +137,8 @@ export class InsightsController {
         activeListings,
         totalInventory,
         activeInventory,
-        unreadMessages: unread,
+        unreadMessages: unread._sum.unreadCount ?? 0,
+        unreadConversations: unread._count._all,
         wonThisMonth: wonMonth._count,
         commissionThisMonth: wonMonth._sum.commissionAmount ?? 0,
         dealValueThisMonth: wonMonth._sum.dealValue ?? 0,

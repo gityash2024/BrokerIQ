@@ -1,3 +1,4 @@
+import { liveTaskLeadWhere } from '../whatsapp/inbox-scope';
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma, LeadSource, LeadStage, VisitStatus } from '@prisma/client';
 import {
@@ -219,28 +220,60 @@ export class DashboardService {
       const on = (key: string) => policies[key]?.state === 'ACTIVE' && policies[key].roles.includes(user.role);
       const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
         on('inventory')
-          ? this.db.inventoryItem.groupBy({ by: ['availability'], where: { organizationId: org, deletedAt: null }, _count: { _all: true } })
+          ? this.db.inventoryItem.groupBy({
+              by: ['availability'],
+              where: {
+                organizationId: org,
+                deletedAt: null,
+                ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+              },
+              _count: { _all: true },
+            })
           : null,
         on('inventory')
           ? this.db.inventoryItem.groupBy({
               by: ['sector'],
-              where: { organizationId: org, deletedAt: null },
+              where: {
+                organizationId: org,
+                deletedAt: null,
+                ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+              },
               _count: { _all: true },
               orderBy: { _count: { sector: 'desc' } },
               take: 8,
             })
           : null,
-        on('leads') ? this.db.brokerRequirement.count({ where: { organizationId: org, deletedAt: null, status: 'OPEN', intent: 'DEMAND' } }) : null,
-        on('leads') ? this.db.lead.count({ where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d } }) : null,
-        on('leads') ? this.db.followUp.count({ where: { organizationId: org, ...assigned, status: 'PENDING', dueAt: { lt: new Date() } } }) : null,
         on('leads')
-          ? this.db.siteVisit.count({ where: { organizationId: org, ...assigned, status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d } })
+          ? this.db.brokerRequirement.count({
+              where: {
+                organizationId: org,
+                deletedAt: null,
+                status: 'OPEN',
+                intent: 'DEMAND',
+                ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+              },
+            })
+          : null,
+        on('leads') ? this.db.lead.count({ where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d } }) : null,
+        on('leads')
+          ? this.db.followUp.count({
+              where: { organizationId: org, ...assigned, lead: liveTaskLeadWhere(org, user), status: 'PENDING', dueAt: { lt: new Date() } },
+            })
+          : null,
+        on('leads')
+          ? this.db.siteVisit.count({
+              where: { organizationId: org, ...assigned, lead: liveTaskLeadWhere(org, user), status: { in: ['SCHEDULED', 'CONFIRMED'] }, scheduledAt: d },
+            })
           : null,
         on('leads')
           ? this.db.lead.groupBy({ by: ['source'], where: { organizationId: org, ...assigned, deletedAt: null, createdAt: d }, _count: { _all: true } })
           : null,
         on('leads') ? this.db.lead.groupBy({ by: ['stage'], where: { organizationId: org, ...assigned, deletedAt: null }, _count: { _all: true } }) : null,
-        on('inbox') ? this.db.sourceEntry.count({ where: { batch: { organizationId: org }, reviewState: 'NEEDS_REVIEW' } }) : null,
+        on('inbox')
+          ? this.db.sourceEntry.count({
+              where: { batch: { organizationId: org, ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}) }, reviewState: 'NEEDS_REVIEW' },
+            })
+          : null,
       ]);
       const periodHref = '/broker/leads?' + new URLSearchParams({ from: p.from, to: p.to });
       const n = (key: string) => (availability ? (availability.find((r) => r.availability === key)?._count._all ?? 0) : null);

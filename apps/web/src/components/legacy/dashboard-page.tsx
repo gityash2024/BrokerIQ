@@ -402,8 +402,8 @@ export default function BrokerDashboard() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-black text-lg">{(d?.kpis?.unreadMessages || 0) + 24}</p>
-                <p className="text-[10px] text-muted">24h Messages</p>
+                <p className="font-black text-lg">{(d?.kpis?.unreadMessages || 0)}</p>
+                <p className="text-[10px] text-muted">Unread messages</p>
               </div>
             </div>
 

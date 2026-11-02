@@ -1,3 +1,4 @@
+import { inboxChannelWhere } from './inbox-scope';
 import {
   BadRequestException,
   Body,
@@ -56,25 +57,12 @@ export class WhatsAppController {
   async conversations(@CurrentUser() user: RequestUser, @Query() q: { q?: string; unread?: string; channel?: string }) {
     const orgId = requireOrg(user);
     const channel = z.enum(['WHATSAPP', 'CHAT', 'SMS', 'EMAIL']).parse(q.channel || 'WHATSAPP');
-    const isWhatsApp = channel === 'WHATSAPP';
 
     return this.prisma.conversation.findMany({
       where: {
         organizationId: orgId,
         channel,
-        ...(isWhatsApp
-          ? {
-              lead: {
-                is: {
-                  source: 'HOUSING',
-                  deletedAt: null,
-                  ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
-                },
-              },
-            }
-          : {
-              ...(user.role === 'BROKER_AGENT' ? { lead: { is: { assignedToId: user.id, deletedAt: null } } } : {}),
-            }),
+        ...inboxChannelWhere(orgId, user, channel),
         ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
         ...(q.q
           ? { AND: [{ OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] }] }
@@ -166,51 +154,33 @@ export class WhatsAppController {
   @Get('whatsapp/unread-stats')
   async unreadStats(@CurrentUser() user: RequestUser) {
     const orgId = requireOrg(user);
-    const mine = user.role === 'BROKER_AGENT';
-
-    const waWhere: Prisma.ConversationWhereInput = {
-      organizationId: orgId,
-      channel: 'WHATSAPP',
-      unreadCount: { gt: 0 },
-      lead: {
-        is: {
-          source: 'HOUSING',
-          deletedAt: null,
-          ...(mine ? { assignedToId: user.id } : {}),
-        },
-      },
-    };
-    const chatWhere: Prisma.ConversationWhereInput = {
-      organizationId: orgId,
-      channel: 'CHAT',
-      unreadCount: { gt: 0 },
-      ...(mine ? { lead: { is: { assignedToId: user.id, deletedAt: null } } } : {}),
-    };
-
-    const channelWhere = (channel: 'SMS' | 'EMAIL'): Prisma.ConversationWhereInput => ({
-      organizationId: orgId,
-      channel,
-      unreadCount: { gt: 0 },
-      ...(mine ? { lead: { is: { assignedToId: user.id, deletedAt: null } } } : {}),
-    });
-    const [waUnreadConvs, chatUnreadConvs, smsUnreadConvs, emailUnreadConvs] = await Promise.all([
-      this.prisma.conversation.count({ where: waWhere }),
-      this.prisma.conversation.count({ where: chatWhere }),
-      this.prisma.conversation.count({ where: channelWhere('SMS') }),
-      this.prisma.conversation.count({ where: channelWhere('EMAIL') }),
-    ]);
+    const channels = ['WHATSAPP', 'CHAT', 'SMS', 'EMAIL'] as const;
+    const stats = await this.prisma.$transaction(
+      channels.map((channel) =>
+        this.prisma.conversation.aggregate({
+          where: { ...inboxChannelWhere(orgId, user, channel), unreadCount: { gt: 0 } },
+          _count: { _all: true },
+          _sum: { unreadCount: true },
+        }),
+      ),
+    );
+    const [waUnreadConvs, chatUnreadConvs, smsUnreadConvs, emailUnreadConvs] = stats.map((x) => x._count._all);
+    const [waUnreadMessages, chatUnreadMessages, smsUnreadMessages, emailUnreadMessages] = stats.map((x) => x._sum.unreadCount ?? 0);
 
     return {
       whatsapp: {
         unreadConversations: waUnreadConvs,
+        unreadMessages: waUnreadMessages,
       },
       chat: {
         unreadConversations: chatUnreadConvs,
+        unreadMessages: chatUnreadMessages,
       },
-      sms: { unreadConversations: smsUnreadConvs },
-      email: { unreadConversations: emailUnreadConvs },
+      sms: { unreadConversations: smsUnreadConvs, unreadMessages: smsUnreadMessages },
+      email: { unreadConversations: emailUnreadConvs, unreadMessages: emailUnreadMessages },
       total: {
         unreadConversations: waUnreadConvs + chatUnreadConvs + smsUnreadConvs + emailUnreadConvs,
+        unreadMessages: waUnreadMessages + chatUnreadMessages + smsUnreadMessages + emailUnreadMessages,
       },
     };
   }
