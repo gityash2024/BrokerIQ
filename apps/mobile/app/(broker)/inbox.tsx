@@ -9,7 +9,7 @@ import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { Txt, ErrorView, Segmented } from '@/ui';
 
-type Channel = 'WHATSAPP' | 'CHAT' | 'SMS';
+type Channel = 'WHATSAPP' | 'CHAT' | 'SMS' | 'EMAIL';
 
 export default function Inbox() {
   const { c, isDark } = useTheme();
@@ -59,6 +59,7 @@ export default function Inbox() {
             { value: 'WHATSAPP', label: 'WhatsApp' },
             { value: 'CHAT', label: 'Website Chat' },
             { value: 'SMS', label: 'SMS' },
+            { value: 'EMAIL', label: 'Gmail' },
           ]}
         />
 
@@ -80,7 +81,7 @@ export default function Inbox() {
           >
             <Search size={16} color={c.muted} />
             <TextInput
-              placeholder={`Search ${channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Website'} conversations...`}
+              placeholder={`Search ${channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : channel === 'EMAIL' ? 'Gmail' : 'Website'} conversations...`}
               placeholderTextColor={c.subtle}
               value={search}
               onChangeText={setSearch}
@@ -132,7 +133,7 @@ export default function Inbox() {
           ) : (
             <NativeCard style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
               {channel === 'WHATSAPP' ? <MessageCircle size={38} color="#25D366" /> : <Globe size={38} color={c.brand} />}
-              <Txt v="title">No {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Website'} conversations</Txt>
+              <Txt v="title">No {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : channel === 'EMAIL' ? 'Gmail' : 'Website'} conversations</Txt>
               <Txt color="muted" style={{ textAlign: 'center', maxWidth: 280 }}>
                 {channel === 'WHATSAPP'
                   ? 'Incoming WhatsApp chats and client enquiries will appear here automatically.'

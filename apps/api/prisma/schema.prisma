@@ -1353,6 +1353,9 @@ model Conversation {
   userId         String?
   lastMessageAt  DateTime?
   lastInboundAt  DateTime?
+  lastEmailSyncAt DateTime?
+  emailSyncCursor String?
+  emailSyncError String?
   lastPreview    String?
   unreadCount    Int       @default(0)
   /// Set by an admin after a report: nobody can post in this chat any more
@@ -1367,6 +1370,7 @@ model Conversation {
 
   @@unique([organizationId, channel, contactKey])
   @@index([organizationId, lastMessageAt])
+  @@index([channel, lastEmailSyncAt])
 }
 
 model Message {
@@ -2767,4 +2771,19 @@ model AreaDirectoryEntry {
   @@index([city,category])
   @@index([sector])
   @@index([builderName])
+}
+
+// Short-lived, single-use server-side PKCE state. The raw authorization state is never stored.
+model MailboxAuthorization {
+  sessionId String?
+  id String @id
+  actorId String
+  organizationId String
+  sessionVersion Int
+  verifierEnc String
+  clientFingerprint String
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([expiresAt])
 }

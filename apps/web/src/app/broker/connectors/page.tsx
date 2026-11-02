@@ -136,6 +136,52 @@ function ConnectorsInner() {
 
       <div className="space-y-4">
         {(d.connectors as any[]).map((c) => {
+          if (c.key === 'gmail')
+            return (
+              <div key="gmail" className="card space-y-3 p-5">
+                <h2 className="font-bold">Gmail · client Inbox</h2>
+                <p className="text-sm text-muted">{c.description}</p>
+                <p className="text-sm">{c.config?.configured ? `Connected: ${c.config.fields?.mailboxEmail || ''}` : 'Business Gmail connect करें।'}</p>
+                {admin && (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const result = await post<{ authorizationUrl: string }>('/messaging/gmail/connect');
+                          const target = new URL(result.authorizationUrl);
+                          if (target.origin !== 'https://accounts.google.com') throw new Error('Invalid authorization destination');
+                          window.location.assign(target.toString());
+                        } catch (error) {
+                          toast.error(errorMessage(error));
+                        }
+                      }}
+                    >
+                      Connect Gmail
+                    </Button>
+                    {c.config?.configured && (
+                      <Button
+                        variant="secondary"
+                        onClick={async () => {
+                          try {
+                            await api('/messaging/gmail/connection', { method: 'DELETE' });
+                            q.refetch();
+                            toast.success('Gmail disconnected');
+                          } catch (error) {
+                            toast.error(errorMessage(error));
+                          }
+                        }}
+                      >
+                        Disconnect Gmail
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted">
+                  Google consent में read और send permissions आएँगी। केवल linked client conversations sync होंगी। Google account login का अर्थ यह connection
+                  अपने आप तैयार होना नहीं है।
+                </p>
+              </div>
+            );
           const def = c as IntegrationDef;
           const state = c.state;
           const extra = (
@@ -146,7 +192,9 @@ function ConnectorsInner() {
                   आएँगे।
                 </p>
               )}
-              {c.extra?.webhookUrl && <CopyField label={c.key === 'textbee' ? 'Callback URL (Textbee Webhooks)' : 'Callback URL (Meta में paste करें)'} value={c.extra.webhookUrl} />}
+              {c.extra?.webhookUrl && (
+                <CopyField label={c.key === 'textbee' ? 'Callback URL (Textbee Webhooks)' : 'Callback URL (Meta में paste करें)'} value={c.extra.webhookUrl} />
+              )}
               {c.extra?.verifyToken && <CopyField label="Verify token" value={c.extra.verifyToken} />}
               {c.extra?.connectUrl && (
                 <CopyField

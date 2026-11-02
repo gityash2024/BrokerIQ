@@ -205,8 +205,10 @@ export class MessagingService {
   async status(user: RequestUser) {
     const orgId = requireOrg(user);
     const values = await this.settings.resolveOrganizationOnly('textbee', orgId);
+    const gmail = await this.settings.resolveOrganizationOnly('gmail', orgId);
     const org = user.role === 'BROKER_ADMIN' ? await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } }) : null;
     return {
+      gmail: { configured: !!gmail, mailboxEmail: gmail?.mailboxEmail ?? null },
       sms: {
         configured: !!values,
         senderPhone: values?.senderPhone ?? null,

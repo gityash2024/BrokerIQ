@@ -193,6 +193,9 @@ export default function FollowUpsPage() {
                             <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'SMS')} aria-label="SMS">
                               SMS
                             </Button>
+                            <Button size="xs" variant="secondary" href={leadInboxUrl(f.lead.id, 'EMAIL')}>
+                              Email
+                            </Button>
                             <Select
                               className="h-8 w-28 rounded-lg text-xs"
                               value=""

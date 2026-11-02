@@ -30,6 +30,10 @@ export default function WaThread() {
     refetchInterval: 10_000,
   });
   const thread = useMemo(() => (q.data ? { ...q.data.pages[0], items: [...q.data.pages].reverse().flatMap((page) => page.items) } : undefined), [q.data]);
+  const [replyToId, setReplyToId] = useState<string | undefined>();
+  const [subject, setSubject] = useState('Property enquiry');
+  const [syncing, setSyncing] = useState(false);
+  const [syncCursor, setSyncCursor] = useState<string | null>(null);
   const [text, setText] = useState('');
   const edited = useRef(false);
   useEffect(() => {
@@ -45,7 +49,7 @@ export default function WaThread() {
       cancelled = true;
     };
   }, [id, user?.id]);
-  const attempt = useRef<{ text: string; requestId: string } | null>(null);
+  const attempt = useRef<{ text: string; requestId: string; subject?: string; replyToId?: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [tpl, setTpl] = useState(false);
   const list = useRef<FlatList>(null);
@@ -63,20 +67,34 @@ export default function WaThread() {
     const owner = user?.id;
     setSending(true);
     try {
-      if (thread?.conversation?.channel === 'SMS') {
+      if (['SMS', 'EMAIL'].includes(thread?.conversation?.channel)) {
         const content = String(body.text || '').trim();
         if (!attempt.current) {
           try {
             const stored = JSON.parse(await readInboxDraft(`sms-attempt:${id}`, owner));
-            if (stored?.text === content && typeof stored?.requestId === 'string') attempt.current = stored;
+            if (
+              stored?.text === content &&
+              (thread?.conversation?.channel !== 'EMAIL' || (stored?.subject === subject && stored?.replyToId === replyToId)) &&
+              typeof stored?.requestId === 'string'
+            )
+              attempt.current = stored;
           } catch {
             /* Ignore corrupt local drafts. */
           }
         }
-        if (attempt.current?.text !== content) attempt.current = { text: content, requestId: Crypto.randomUUID() };
+        if (
+          attempt.current?.text !== content ||
+          (thread?.conversation?.channel === 'EMAIL' && (attempt.current?.subject !== subject || attempt.current?.replyToId !== replyToId))
+        )
+          attempt.current = {
+            text: content,
+            requestId: Crypto.randomUUID(),
+            ...(thread?.conversation?.channel === 'EMAIL' ? { subject, ...(replyToId ? { replyToId } : {}) } : {}),
+          };
         await saveInboxDraft(`sms-attempt:${id}`, JSON.stringify(attempt.current), owner);
-        await post('/messaging/sms/send', { conversationId: id, ...attempt.current });
+        await post(thread?.conversation?.channel === 'EMAIL' ? '/messaging/email/send' : '/messaging/sms/send', { conversationId: id, ...attempt.current });
         attempt.current = null;
+        setReplyToId(undefined);
         await saveInboxDraft(`sms-attempt:${id}`, '', owner);
       } else await post('/whatsapp/send', { conversationId: id, ...body });
       await saveInboxDraft(id, '', owner);
@@ -98,8 +116,9 @@ export default function WaThread() {
       </SafeAreaView>
     );
   const conv = thread!.conversation;
+  const email = conv.channel === 'EMAIL';
   const sms = conv.channel === 'SMS';
-  const windowOpen = sms || thread!.windowOpen;
+  const windowOpen = sms || email || thread!.windowOpen;
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Header
@@ -113,6 +132,28 @@ export default function WaThread() {
           ) : undefined
         }
       />
+      {email && (
+        <View style={{ padding: 12, gap: 8 }}>
+          <Input label="Email subject" value={subject} onChangeText={setSubject} maxLength={200} />
+          <Button
+            title={syncCursor ? 'अगली emails sync करें' : 'Client emails sync करें'}
+            variant="secondary"
+            loading={syncing}
+            onPress={async () => {
+              setSyncing(true);
+              try {
+                const result = await post<any>(`/messaging/email/${id}/sync`, { ...(syncCursor ? { cursor: syncCursor } : {}) });
+                setSyncCursor(result.nextCursor);
+                await q.refetch();
+              } catch (error) {
+                showError(error);
+              } finally {
+                setSyncing(false);
+              }
+            }}
+          />
+        </View>
+      )}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {q.hasNextPage && <Button title="पुराने संदेश लोड करें" variant="secondary" loading={q.isFetchingNextPage} onPress={() => q.fetchNextPage()} />}
         <FlatList
@@ -159,6 +200,17 @@ export default function WaThread() {
                     </Txt>
                     {out && <Tick size={13} color={m.status === 'READ' ? '#7DD3FC' : m.status === 'FAILED' ? '#FECACA' : 'rgba(255,255,255,0.8)'} />}
                   </Row>
+                  {email && (
+                    <Button
+                      title="Reply"
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => {
+                        setReplyToId(m.id);
+                        setSubject(/^Re:/i.test(m.meta?.subject || '') ? m.meta.subject : `Re: ${m.meta?.subject || 'Property enquiry'}`);
+                      }}
+                    />
+                  )}
                   {!!m.error && (
                     <Txt v="caption" color="#FECACA">
                       {m.error}
@@ -195,7 +247,7 @@ export default function WaThread() {
           </PressableScale>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
-          {!sms && (
+          {!sms && !email && (
             <IconBtn onPress={() => setTpl(true)}>
               <FileText size={21} color={c.muted} />
             </IconBtn>
@@ -210,7 +262,7 @@ export default function WaThread() {
             editable={windowOpen && !sending}
             placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')}
             placeholderTextColor={c.subtle}
-            maxLength={sms ? 1600 : undefined}
+            maxLength={sms ? 1600 : email ? 20_000 : undefined}
             multiline
             style={{
               flex: 1,

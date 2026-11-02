@@ -206,7 +206,12 @@ export default function PipelinePage() {
                                 >
                                   <MessageCircle className="size-3.5" />
                                 </a>
-                                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')}>SMS</Button>
+                                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')}>
+                                  SMS
+                                </Button>
+                                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                                  Email
+                                </Button>
                               </div>
                             </div>
                           </div>

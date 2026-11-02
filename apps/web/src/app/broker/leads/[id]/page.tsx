@@ -151,6 +151,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
               SMS
             </Button>
+            <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+              Email
+            </Button>
             {admin && (
               <Select className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
                 <option value="">Unassigned</option>

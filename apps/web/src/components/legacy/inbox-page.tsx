@@ -45,7 +45,7 @@ import { Empty, PageLoader, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { IntegrationBanner } from '@/components/ui/api-error';
 
-type Channel = 'WHATSAPP' | 'CHAT' | 'SMS';
+type Channel = 'WHATSAPP' | 'CHAT' | 'SMS' | 'EMAIL';
 
 const CANNED_REPLIES = [
   '👋 नमस्ते! मैं आपकी किस प्रकार सहायता कर सकता हूँ?',
@@ -78,7 +78,7 @@ function InboxInner() {
   const pathname = usePathname();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const channel: Channel = ['WHATSAPP', 'CHAT', 'SMS'].includes(sp.get('channel') || '') ? (sp.get('channel') as Channel) : 'WHATSAPP';
+  const channel: Channel = ['WHATSAPP', 'CHAT', 'SMS', 'EMAIL'].includes(sp.get('channel') || '') ? (sp.get('channel') as Channel) : 'WHATSAPP';
   const active = sp.get('c');
   const leadTarget = sp.get('lead');
   const resolve = useQuery({
@@ -86,9 +86,9 @@ function InboxInner() {
     enabled: !!user && !!leadTarget,
     retry: false,
     queryFn: () =>
-      post<{ conversationId: string }>(channel === 'SMS' ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
+      post<{ conversationId: string }>(['SMS', 'EMAIL'].includes(channel) ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
         leadId: leadTarget,
-        ...(channel === 'SMS' ? { channel: 'SMS' } : {}),
+        ...(['SMS', 'EMAIL'].includes(channel) ? { channel } : {}),
       }),
   });
   useEffect(() => {
@@ -270,6 +270,13 @@ function InboxInner() {
             >
               SMS {unreadStats.data?.sms?.unreadConversations > 0 ? `(${unreadStats.data.sms.unreadConversations})` : ''}
             </button>
+            <button
+              type="button"
+              onClick={() => setParam({ channel: 'EMAIL', c: null, lead: null })}
+              className={cn('flex-1 rounded-xl px-3 py-2 text-xs font-bold', channel === 'EMAIL' ? 'bg-surface text-fg shadow-xs' : 'text-muted')}
+            >
+              Gmail
+            </button>
           </div>
 
           {/* Search & Filter Bar */}
@@ -333,7 +340,11 @@ function InboxInner() {
                   ? 'फ़िल्टर या खोज शब्द बदल कर देखें।'
                   : channel === 'WHATSAPP'
                     ? 'Client WhatsApp पर message करेगा तो यहाँ दिखेगा।'
-                    : channel === 'SMS' ? 'Lead के SMS action से business बातचीत खोलें।' : 'Website पर users chat शुरू करेंगे तो यहाँ दिखेगा।'
+                    : channel === 'SMS'
+                      ? 'Lead के SMS action से business बातचीत खोलें।'
+                      : channel === 'EMAIL'
+                        ? 'Lead के Email action से client conversation खोलें और Gmail sync करें।'
+                        : 'Website पर users chat शुरू करेंगे तो यहाँ दिखेगा।'
               }
             />
           )}
@@ -407,7 +418,7 @@ function InboxInner() {
               </div>
               <p className="mt-4 font-display text-xl font-bold text-fg">Team Messaging Hub</p>
               <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
-                WhatsApp और website chat — सभी ग्राहक संवाद एक जगह। किसी भी चैट पर क्लिक करके वार्तालाप शुरू करें।
+                WhatsApp, Website Chat, SMS और Gmail — ग्राहक संवाद एक जगह। किसी भी चैट पर क्लिक करके वार्तालाप शुरू करें।
               </p>
             </motion.div>
           </div>
@@ -442,7 +453,7 @@ function InboxInner() {
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40">
-                      {channel === 'SMS' ? 'SMS' : 'Website Chat'}
+                      {channel === 'SMS' ? 'SMS' : channel === 'EMAIL' ? 'Gmail' : 'Website Chat'}
                     </span>
                   )}
                 </div>
@@ -486,8 +497,8 @@ function InboxInner() {
             </header>
 
             {/* Conversation Stream */}
-            {channel === 'SMS' ? (
-              <SmsThread key={`${user?.id}:${active}`} id={active} onRead={refreshAll} />
+            {channel === 'SMS' || channel === 'EMAIL' ? (
+              <SmsThread key={`${user?.id}:${active}:${channel}`} id={active} channel={channel} onRead={refreshAll} />
             ) : channel === 'CHAT' ? (
               <div className="min-h-0 flex-1">
                 <ChatThread id={active} side="broker" onRead={refreshAll} />

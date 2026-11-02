@@ -346,6 +346,9 @@ function LeadsInner() {
                     <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
                       SMS
                     </Button>
+                    <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                      Email
+                    </Button>
                   </div>
                 </div>
               );

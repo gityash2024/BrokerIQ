@@ -165,7 +165,7 @@ export class SettingsService {
 
   /** Decrypted values for the integration in its own scope (or null when not configured / disabled). */
   async resolve(key: string, orgId?: string | null): Promise<IntegrationValues | null> {
-    if (key === 'textbee') return orgId ? this.resolveOrganizationOnly(key, orgId) : null;
+    if (key === 'textbee' || key === 'gmail') return orgId ? this.resolveOrganizationOnly(key, orgId) : null;
     const def = this.defOrThrow(key);
     const { stored } = await this.loadStored(key, orgId);
     if (stored && stored.enabled === false) return null;
@@ -234,7 +234,7 @@ export class SettingsService {
 
   async save(key: string, input: { enabled?: boolean; fields: Record<string, unknown> }, opts: { orgId?: string | null; userId?: string }) {
     const def = this.defOrThrow(key);
-    if (key === 'textbee' && !opts.orgId) throw new BadRequestException('Configure the physical SMS gateway for one firm, not as a shared platform sender.');
+    if (['textbee', 'gmail'].includes(key) && !opts.orgId) throw new BadRequestException('Configure this business mailbox/SMS gateway for one firm, not as a shared platform sender.');
     const { stored } = await this.loadStored(key, opts.orgId);
     const existing = stored?.fields ?? {};
     const next: Record<string, StoredValue> = {};

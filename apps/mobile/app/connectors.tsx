@@ -1,3 +1,4 @@
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -164,7 +165,7 @@ export default function Connectors() {
         </Row>
       )}
       {d.connectors
-        .filter((cn: any) => ['housing_api', 'whatsapp', 'textbee'].includes(cn.key))
+        .filter((cn: any) => ['housing_api', 'whatsapp', 'textbee', 'gmail'].includes(cn.key))
         .map((cn: any) => {
           const Icon = ICON[cn.key] ?? Webhook;
           const on = cn.config?.configured;
@@ -231,6 +232,39 @@ export default function Connectors() {
                 />
               )}
               {cn.key === 'housing_api' && admin && <HousingForm configured={!!on} />}
+              {cn.key === 'gmail' && admin && (
+                <View style={{ gap: 8 }}>
+                  <Txt>{cn.config?.fields?.mailboxEmail || 'Business Gmail connect करें'}</Txt>
+                  <Button
+                    title="Connect Gmail"
+                    onPress={async () => {
+                      try {
+                        const result = await post<{ authorizationUrl: string }>('/messaging/gmail/connect');
+                        if (new URL(result.authorizationUrl).origin !== 'https://accounts.google.com') throw new Error('Invalid authorization destination');
+                        await WebBrowser.openBrowserAsync(result.authorizationUrl);
+                        q.refetch();
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : 'Connection failed');
+                      }
+                    }}
+                  />
+                  {on && (
+                    <Button
+                      title="Disconnect Gmail"
+                      variant="secondary"
+                      onPress={async () => {
+                        try {
+                          await api('/messaging/gmail/connection', { method: 'DELETE' });
+                          q.refetch();
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : 'Disconnect failed');
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+              )}
+
               {admin && cn.key === 'textbee' && <SmsSetupForm connector={cn} />}
               {!on && (
                 <Button

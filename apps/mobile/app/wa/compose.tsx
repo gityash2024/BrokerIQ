@@ -9,15 +9,15 @@ import { showError } from '@/lib/hooks';
 
 export default function ComposeLead() {
   const { leadId, channel: requestedChannel } = useLocalSearchParams<{ leadId: string; channel?: string }>();
-  const channel = requestedChannel === 'SMS' ? 'SMS' : 'WHATSAPP';
+  const channel = requestedChannel === 'SMS' ? 'SMS' : requestedChannel === 'EMAIL' ? 'EMAIL' : 'WHATSAPP';
   const { user } = useAuth();
   const query = useQuery({
     queryKey: ['resolve-lead-inbox', user?.id, leadId, channel],
     retry: false,
     queryFn: () =>
-      post<{ conversationId: string }>(channel === 'SMS' ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
+      post<{ conversationId: string }>(channel !== 'WHATSAPP' ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
         leadId,
-        ...(channel === 'SMS' ? { channel } : {}),
+        ...(channel !== 'WHATSAPP' ? { channel } : {}),
       }),
     enabled: !!user && !!leadId,
   });

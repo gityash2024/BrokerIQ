@@ -3925,21 +3925,30 @@
       "sourceRequests": [
         "2026-11-01-three-addons-and-unmatched-route-screenshot"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_REAL_DB_VERIFIED_PROVIDER_PENDING",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_MISSING_CONNECTION_VERIFIED",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Gmail PKCE/device-bound OAuth and owned CRM send/sync/reply tests use actual PostgreSQL with stub Google HTTP; complete suites and local browser evidence in GMAIL_CHECKPOINT_20261102.md. No live OAuth grant/provider delivery or installed-device claim.",
       "notes": [
-        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled."
+        "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
+        "Separate organization-owned encrypted read/send grant; current Admin/device/session PKCE, no platform mailbox fallback, assigned-client-only sync, durable idempotent sends and generic owned notifications. Bounded 30/90-day sync window and no attachment import are explicit limitations. All applicable automated process integration, Google production verification/consent, actual send/reply and full release acceptance remain open."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/core/gmail/gmail.client.ts",
+        "apps/api/src/modules/messaging/gmail.service.ts",
+        "apps/api/test/gmail-authorization.e2e-spec.ts",
+        "apps/web/src/components/broker/sms-thread.tsx",
+        "apps/web/src/app/broker/connectors/page.tsx",
+        "apps/mobile/app/wa/[id].tsx",
+        "apps/mobile/app/connectors.tsx"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "ADDITIVE_MIGRATIONS_ISOLATED_VERIFIED_NOT_DEPLOYED",
+      "rootCause": "Gmail CRM channel did not exist; Google sign-in and transactional SMTP/Zoho do not grant client-mailbox Inbox access.",
       "releaseEvidence": null
     },
     {
@@ -3949,10 +3958,10 @@
         "2026-11-01-three-addons-and-unmatched-route-screenshot"
       ],
       "backend": "IMPLEMENTED_REAL_DB_VERIFIED_PROVIDER_PENDING",
-      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "web": "IMPLEMENTED_LOCAL_BROWSER_MISSING_CONNECTION_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "Full fresh isolated API325 passed/25 skips; subsequent SMS/Inbox/provider-boundary20 passed; mobile79/shared58/types; browser access disabled; no live BrokerIQ SMS/provider/device claim. See SMS_CHECKPOINT_20261101.md.",
+      "verification": "Prior full fresh API325 passed/25 skips and targeted20 passed; Nov2 Chrome verified Textbee form, Lead internal routing and correct missing-integration link. Full key/SIM/phone privacy filters/webhook and actual provider delivery remain open. See SMS_CHECKPOINT_20261101.md.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending.",
@@ -3969,7 +3978,9 @@
         "apps/mobile/app/wa/[id].tsx",
         "apps/mobile/app/connectors.tsx"
       ],
-      "commits": [],
+      "commits": [
+        "a5b6535"
+      ],
       "database": "ADDITIVE_MIGRATION_ISOLATED_VERIFIED_NOT_DEPLOYED",
       "rootCause": null,
       "releaseEvidence": null

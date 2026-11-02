@@ -25,7 +25,7 @@ User selected Rahul / Olive Estate's existing WhatsApp SIM +919899980802. Chrome
 
 ## Open production gates
 
-1. Restore Chrome access and verify actual form/navigation in browser. Do not put real API credentials into isolated QA databases.
+1. Nov2 Chrome restored and actual Textbee form, four Inbox tabs, Lead SMS action and missing-connection settings navigation verified. Evidence output/playwright/*-local-20261102.png. No real API credentials entered in isolated QA databases.
 2. Obtain the existing full API key through the authorized secure settings flow; if unrecoverable, user creates a dedicated new key and saves it directly. Never request a key in chat.
 3. Verify actual chosen physical SIM and current subscription ID. On the Android phone configure business-only incoming filters before enabling forwarding. An empty Textbee allowlist forwards everything; it is not safe isolation. Keep Receive SMS off until explicit rules are present.
 4. Configure production signed webhook after candidate API activation, authorize an exact diagnostic recipient, verify actual send/carrier callback/phone receipt/business reply, quota errors and background/phone-offline recovery. Manual provider-history reconciliation for ambiguous sends and missing/late webhooks remains an operational gate.

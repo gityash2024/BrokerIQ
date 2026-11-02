@@ -124,6 +124,23 @@ export const INTEGRATIONS: IntegrationDef[] = [
       { key: 'inboundEnabled', label: 'Inbound enabled after phone filters verified', type: 'boolean', default: false },
     ], usedFor: ['SMS Inbox', 'Lead communication trail', 'SMS reminders'], testable: true,
   },
+  {
+    key: 'gmail_oauth', name: 'Gmail CRM · Google OAuth client', category: 'email', scope: 'platform',
+    description: 'हर firm के अपने Gmail Inbox/read और send consent के लिए dedicated OAuth client. Google Sign-In और transactional OTP delivery से अलग।',
+    freeTier: 'Gmail API usage quotas लागू। Production Gmail read scope के लिए Google verification requirements पूरी करनी होंगी; Testing-mode token को production connection न मानें।',
+    docsUrl: 'https://developers.google.com/workspace/gmail/api/auth/scopes',
+    steps: ['Google Cloud project में Gmail API enable करें।', 'OAuth consent और production verification में gmail.readonly तथा gmail.send घोषित करें। Delete/modify या full-mail scope नहीं चाहिए।', 'Web application client में callback {API_URL}/api/webhooks/gmail/callback जोड़ें।', 'Client ID/secret नीचे encrypted save करें। हर Broker Admin अपनी firm में अलग Google consent करेगा।'],
+    fields: [{ key: 'clientId', label: 'Gmail OAuth client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Gmail OAuth client secret', type: 'password', secret: true, required: true }],
+    usedFor: ['Gmail CRM connection'], testable: false,
+  },
+  {
+    key: 'gmail', name: 'Gmail · client Inbox', category: 'messaging', scope: 'organization',
+    description: 'अपने business Gmail का client mail trail और replies. केवल linked client conversations sync होंगी; personal/OTP mail CRM में नहीं आएगा।',
+    freeTier: 'Existing Gmail account/API quotas. Paid fallback बंद।', docsUrl: 'https://developers.google.com/workspace/gmail/api/guides/sending',
+    steps: ['Broker Admin नीचे Connect Gmail से अपना business mailbox चुनें।', 'Google read/send consent स्वयं approve करें। अन्य firms को इस mailbox का access नहीं मिलेगा।', 'Lead की सही client email से conversation खोलें। Sync केवल उसी contact और configured time-window की mail पढ़ेगा; पूरा mailbox import नहीं होगा।', 'Disconnect करने पर आगे sync/send बंद होगा। पहले का business trail role permissions के अनुसार सुरक्षित रहेगा।'],
+    fields: [{ key: 'mailboxEmail', label: 'Connected mailbox', type: 'email', required: true }, { key: 'refreshToken', label: 'OAuth refresh token (connection-managed)', type: 'password', secret: true, required: true, setupOptional: true }, { key: 'clientFingerprint', label: 'OAuth client binding', type: 'text', required: true, setupOptional: true }],
+    usedFor: ['Gmail Inbox','Client email replies','Lead communication history'], testable: false,
+  },
   // ---------------------------------------------------------------- Auth
   {
     key: 'google_oauth',

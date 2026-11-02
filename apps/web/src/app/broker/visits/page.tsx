@@ -213,6 +213,9 @@ export default function VisitsPage() {
                   <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'SMS')} aria-label="SMS">
                     SMS
                   </Button>
+                  <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'EMAIL')}>
+                    Email
+                  </Button>
                   {loc && (
                     <Button
                       size="icon-sm"

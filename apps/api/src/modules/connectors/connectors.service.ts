@@ -137,6 +137,7 @@ export class ConnectorsService implements OnModuleInit {
   }
 
   async saveConnector(orgId: string, key: string, body: { enabled?: boolean; fields: Record<string, unknown> }, userId: string) {
+    if (key === 'gmail') throw new BadRequestException('Use Connect Gmail and the Google consent flow. Mailbox identity is server-managed.');
     if (key === 'textbee') return this.settings.save(key, body, { orgId, userId });
     if (!ORG_KEY_TO_TYPE[key]) throw new BadRequestException('Unknown connector');
     const wasConfigured = await this.settings.isConfigured(key, orgId);
