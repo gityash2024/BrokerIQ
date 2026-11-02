@@ -350,7 +350,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open."
+      ],
       "roles": [
         "GUEST",
         "USER",
@@ -358,7 +360,13 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/automation/reminders.service.ts",
+        "apps/api/src/core/notifications/notifications.service.ts",
+        "apps/api/src/modules/me/me.controller.ts",
+        "apps/api/test/reminders-production.e2e-spec.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -941,19 +949,27 @@
         "3978",
         "5380"
       ],
-      "backend": "PENDING",
+      "backend": "PARTIAL_ISOLATED_VERIFIED_RELEASE_PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/automation/reminders.service.ts",
+        "apps/api/src/core/notifications/notifications.service.ts",
+        "apps/api/src/modules/me/me.controller.ts",
+        "apps/api/test/reminders-production.e2e-spec.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
-      "rootCause": null,
+      "rootCause": "Reminder marker was committed before notification; overlapping cron scans and historical assignees could lose, duplicate or disclose reminders.",
       "releaseEvidence": null
     },
     {
@@ -1973,11 +1989,19 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/automation/reminders.service.ts",
+        "apps/api/src/core/notifications/notifications.service.ts",
+        "apps/api/src/modules/me/me.controller.ts",
+        "apps/api/test/reminders-production.e2e-spec.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

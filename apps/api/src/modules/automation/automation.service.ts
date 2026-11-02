@@ -14,6 +14,7 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { LeadsService } from '../leads/leads.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { env } from '../../config/env';
+import { RemindersService } from './reminders.service';
 
 interface Action {
   type: string;
@@ -50,6 +51,7 @@ export class AutomationService implements OnModuleInit {
     private readonly settings: SettingsService,
     private readonly leads: LeadsService,
     private readonly wa: WhatsAppService,
+    private readonly reminders: RemindersService,
   ) {}
 
   onModuleInit() {
@@ -57,6 +59,19 @@ export class AutomationService implements OnModuleInit {
     this.events.on('lead.stage_changed', (e) => this.trigger('STAGE_CHANGED', e.orgId, e.leadId, { toStage: e.to }));
     this.events.on('visit.scheduled', (e) => this.trigger('VISIT_SCHEDULED', e.orgId, e.leadId, { visitId: e.visitId }));
     this.jobs.register('automation.action', (p, job) => this.runAction(p.ruleId, p.leadId, p.index, p.context ?? {}, job.id));
+    this.jobs.register('automation.visit-reminder', async (p) => {
+      const visit = await this.prisma.siteVisit.findFirst({
+        where: {
+          id: p.visitId,
+          organizationId: p.orgId,
+          leadId: p.leadId,
+          status: { in: ['SCHEDULED', 'CONFIRMED'] },
+          reminderSentAt: new Date(p.claimedAt),
+          lead: { deletedAt: null },
+        },
+      });
+      if (visit) await this.trigger('VISIT_REMINDER', p.orgId, p.leadId, { visitId: visit.id, reminderKey: p.claimedAt });
+    });
   }
 
   // ------------------------------------------------------------------ CRUD
@@ -243,7 +258,11 @@ export class AutomationService implements OnModuleInit {
       await this.jobs.enqueue(
         'automation.action',
         { orgId: rule.organizationId, ruleId: rule.id, leadId, index: i, context: ctx },
-        { runAt, maxAttempts: actions[i].type.startsWith('SEND_') ? 1 : 5, key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}` },
+        {
+          runAt,
+          maxAttempts: actions[i].type.startsWith('SEND_') ? 1 : 5,
+          key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}${ctx.reminderKey ?? ''}`,
+        },
       );
     }
   }
@@ -267,6 +286,12 @@ export class AutomationService implements OnModuleInit {
     const visit = ctx.visitId
       ? await this.prisma.siteVisit.findFirst({ where: { id: ctx.visitId, organizationId: rule.organizationId, leadId }, include: { listing: true } })
       : null;
+    if (ctx.reminderKey && (!visit || !['SCHEDULED', 'CONFIRMED'].includes(visit.status) || visit.reminderSentAt?.toISOString() !== ctx.reminderKey)) {
+      await this.prisma.automationRun.create({
+        data: { ruleId, leadId, status: 'SKIPPED', log: { action: action.type, reason: 'visit reminder superseded' } },
+      });
+      return;
+    }
     const vars = {
       lead: { name: lead.name.split(' ')[0] || lead.name, fullName: lead.name, phone: lead.phone },
       org: { name: lead.organization.name, phone: lead.organization.phone },
@@ -348,13 +373,18 @@ export class AutomationService implements OnModuleInit {
           break;
         case 'CREATE_FOLLOW_UP': {
           const effectId = executionKey ? `auto_${createHash('sha256').update(executionKey).digest('hex').slice(0, 28)}` : undefined;
-          await this.prisma.$transaction(async tx => {
+          await this.prisma.$transaction(async (tx) => {
             await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${leadId} FOR UPDATE`;
             const fresh = await tx.lead.findFirst({ where: { id: leadId, organizationId: lead.organizationId, deletedAt: null } });
             if (!fresh) throw new Error('Lead is no longer active in this firm');
-            const followUp = { organizationId: fresh.organizationId, leadId, type: p.type ?? 'CALL',
+            const followUp = {
+              organizationId: fresh.organizationId,
+              leadId,
+              type: p.type ?? 'CALL',
               dueAt: new Date(Date.now() + Number(p.inMinutes ?? 0) * 60_000),
-              note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up', assignedToId: fresh.assignedToId };
+              note: p.note ? renderTemplate(String(p.note), vars) : 'Automation follow-up',
+              assignedToId: fresh.assignedToId,
+            };
             if (effectId) await tx.followUp.upsert({ where: { id: effectId }, create: { ...followUp, id: effectId }, update: {} });
             else await tx.followUp.create({ data: followUp });
             const next = await tx.followUp.findFirst({ where: { leadId, status: 'PENDING' }, orderBy: [{ dueAt: 'asc' }, { id: 'asc' }] });
@@ -423,50 +453,14 @@ export class AutomationService implements OnModuleInit {
   async followUpReminders() {
     if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
-    const soon = new Date(Date.now() + 10 * 60_000);
-    const due = await this.prisma.followUp.findMany({
-      where: { status: 'PENDING', reminderSentAt: null, dueAt: { lte: soon } },
-      include: { lead: true },
-      take: 200,
-    });
-    for (const f of due) {
-      await this.prisma.followUp.update({ where: { id: f.id }, data: { reminderSentAt: new Date() } });
-      if (f.dueAt.getTime() < Date.now() - 6 * 3600_000) continue; // don't spam very old ones
-      const who = f.assignedToId ?? f.lead.assignedToId;
-      const input = {
-        kind: 'FOLLOW_UP_DUE',
-        title: `⏰ Follow-up: ${f.lead.name}`,
-        body: `${f.type}${f.note ? ` — ${f.note}` : ''}`,
-        link: `/broker/leads/${f.leadId}`,
-        data: { leadId: f.leadId, phone: f.lead.phone },
-      };
-      if (who) await this.notifications.notify(who, input);
-      else await this.notifications.notifyOrg(f.organizationId, input, { adminsOnly: true });
-    }
+    await this.reminders.enqueueDue('FOLLOW_UP');
   }
 
   @Cron('0 */5 * * * *')
   async visitReminders() {
     if (!(await this.modulePolicy.enabled('automation'))) return;
     if (!env().JOBS_ENABLED) return;
-    const inHour = new Date(Date.now() + 60 * 60_000);
-    const visits = await this.prisma.siteVisit.findMany({
-      where: { status: { in: ['SCHEDULED', 'CONFIRMED'] }, reminderSentAt: null, scheduledAt: { lte: inHour, gte: new Date() } },
-      include: { lead: true, listing: true },
-    });
-    for (const v of visits) {
-      await this.prisma.siteVisit.update({ where: { id: v.id }, data: { reminderSentAt: new Date() } });
-      const who = v.assignedToId ?? v.lead.assignedToId;
-      const input = {
-        kind: 'VISIT_REMINDER',
-        title: v.mode === 'VIDEO' ? `🎥 Video visit 1 घंटे में: ${v.lead.name}` : `🏠 Site visit 1 घंटे में: ${v.lead.name}`,
-        body: v.meetingUrl ? `Video call: ${v.meetingUrl}` : (v.listing?.title ?? v.address ?? ''),
-        link: `/broker/leads/${v.leadId}`,
-      };
-      if (who) await this.notifications.notify(who, input);
-      else await this.notifications.notifyOrg(v.organizationId, input, { adminsOnly: true });
-      await this.trigger('VISIT_REMINDER', v.organizationId, v.leadId, { visitId: v.id });
-    }
+    await this.reminders.enqueueDue('VISIT');
   }
 }
 

@@ -44,12 +44,14 @@ export class WebPushService {
     body: string,
     data: Record<string, unknown> = {},
     recipients: Record<string, { notificationId: string; recipientUserId: string }> = {},
+    throwOnFailure = false,
   ) {
     const subs = await this.prisma.pushToken.findMany({ where: { userId: { in: userIds }, platform: 'web' } });
     if (!subs.length) return 0;
     const { publicKey, privateKey } = await this.vapid();
     const subject = env().PUBLIC_WEB_URL.startsWith('https://') ? env().PUBLIC_WEB_URL : 'mailto:support@brokeriq.in';
     let sent = 0;
+    let failed = false;
     for (const s of subs) {
       try {
         const payload = JSON.stringify({
@@ -59,16 +61,25 @@ export class WebPushService {
           kind: data.kind ?? null,
           ...recipients[s.userId],
         });
-        await webpush.sendNotification(JSON.parse(s.token), payload, { vapidDetails: { subject, publicKey, privateKey }, TTL: 24 * 3600, urgency: 'normal' });
+        await webpush.sendNotification(JSON.parse(s.token), payload, {
+          vapidDetails: { subject, publicKey, privateKey },
+          TTL: 24 * 3600,
+          urgency: 'normal',
+          timeout: 15000,
+        });
         sent++;
       } catch (e) {
         const status = (e as { statusCode?: number }).statusCode;
         // Gone / not found / bad subscription: the browser unsubscribed — forget it.
         if (status === 404 || status === 410 || status === 400 || e instanceof SyntaxError)
           await this.prisma.pushToken.delete({ where: { id: s.id } }).catch(() => undefined);
-        else this.logger.warn(`web push failed (${status ?? '-'}): ${(e as Error).message}`);
+        else {
+          failed = true;
+          this.logger.warn(`web push failed (${status ?? '-'}): ${(e as Error).message}`);
+        }
       }
     }
+    if (throwOnFailure && failed) throw new Error('Web push not fully accepted');
     return sent;
   }
 }

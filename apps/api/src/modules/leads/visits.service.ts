@@ -59,6 +59,7 @@ export class VisitsService {
   }
   private async lockLead(tx: Prisma.TransactionClient, user: RequestUser, id: string) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`visit-lead:${id}`}))`;
+    await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${id} FOR UPDATE`;
     const lead = await tx.lead.findFirst({
       where: { id, organizationId: requireOrg(user), deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) },
     });
@@ -208,6 +209,10 @@ export class VisitsService {
   async update(user: RequestUser, id: string, body: z.infer<typeof visitUpdateSchema>) {
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`visit:${id}`}))`;
+      const initial = await tx.siteVisit.findFirst({ where: { id, organizationId: requireOrg(user) }, select: { leadId: true } });
+      if (!initial) throw new NotFoundException();
+      await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${initial.leadId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "SiteVisit" WHERE id=${id} FOR UPDATE`;
       const visit = await tx.siteVisit.findFirst({ where: { id, ...this.scope(user) } });
       if (!visit) throw new NotFoundException();
       if (body.expectedUpdatedAt && new Date(body.expectedUpdatedAt).getTime() !== visit.updatedAt.getTime())

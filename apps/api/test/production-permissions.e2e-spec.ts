@@ -140,6 +140,38 @@ describe('Production agent/firm record boundaries', () => {
     expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).completedAt).toBeNull();
   });
 
+  it('hides stale lead notifications from list/count/open, including legacy URLs and unassigned leads', async () => {
+    const unassigned = await db.lead.create({ data: { organizationId: org, name: 'Unassigned reminder lead', phone: '+919700008201' } });
+    const foreign = await db.lead.create({ data: { organizationId: otherOrg, name: 'Other firm reminder lead', phone: '+919700008202' } });
+    const note = (leadId: string, legacy = false) =>
+      db.notification.create({
+        data: { userId: a.id, kind: 'VISIT_REMINDER', title: 'Private reminder', link: '/broker/leads/' + leadId, ...(legacy ? {} : { data: { leadId } }) },
+      });
+    const owned = await note(leadA);
+    const hidden = await Promise.all([note(leadB), note(unassigned.id, true), note(foreign.id), note('missing-lead', true)]);
+    const before = (await request(app.getHttpServer()).get('/api/me/notifications').set(headers(a)).expect(200)).body;
+    expect(before.items.some((x: any) => x.id === owned.id)).toBe(true);
+    for (const item of hidden) {
+      expect(before.items.some((x: any) => x.id === item.id)).toBe(false);
+      await request(app.getHttpServer())
+        .post('/api/me/notifications/' + item.id + '/open')
+        .set(headers(a))
+        .expect(404);
+    }
+    expect(before.unreadCount).toBe(await db.notification.count({ where: { userId: a.id, readAt: null, id: { notIn: hidden.map((x) => x.id) } } }));
+    await db.user.update({ where: { id: a.id }, data: { role: 'USER' } });
+    try {
+      const demoted = (await request(app.getHttpServer()).get('/api/me/notifications').set(headers(a)).expect(200)).body;
+      expect(demoted.items.some((x: any) => x.id === owned.id)).toBe(false);
+      await request(app.getHttpServer())
+        .post('/api/me/notifications/' + owned.id + '/open')
+        .set(headers(a))
+        .expect(404);
+    } finally {
+      await db.user.update({ where: { id: a.id }, data: { role: 'BROKER_AGENT' } });
+    }
+  });
+
   it('pages every matching follow-up beyond500 and keeps counts/search scoped to current lead assignment', async () => {
     const marker = 'paged-' + uid;
     await db.followUp.createMany({

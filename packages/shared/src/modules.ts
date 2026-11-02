@@ -109,7 +109,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'Inventory • इन्वेंटरी',
     'Property ledger, units, contacts and source review',
     '/broker/inventory',
-    ['/broker/inventory', '/broker/scanner', '/broker/listings','/broker/publications'],
+    ['/broker/inventory', '/broker/scanner', '/broker/listings', '/broker/publications'],
     ['/inventory', '/listings', '/ai/scan'],
     ['import.pdf'],
   ),
@@ -138,7 +138,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/automations',
     ['/broker/automations', '/broker/connectors'],
     ['/automations', '/broker/connectors', '/broker/portal-pack', '/broker/integrations', '/webhooks/leads', '/webhooks/meta-leads'],
-    ['automation.action', 'connector.'],
+    ['automation.action', 'automation.reminder-push', 'automation.visit-reminder', 'connector.'],
   ),
   future(
     'deals',
@@ -217,7 +217,9 @@ export const defaultModulePolicies = (): ModulePolicies =>
         roles: [
           'SUPER_ADMIN',
           'BROKER_ADMIN',
-          ...(['consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking', 'time_logging'].includes(m.key) ? ['BROKER_AGENT' as const] : []),
+          ...(['consumer', 'today', 'leads', 'inbox', 'inventory', 'kyc', 'tenant_requirements', 'slot_booking', 'time_logging'].includes(m.key)
+            ? ['BROKER_AGENT' as const]
+            : []),
           ...(['consumer', 'tenant_requirements', 'slot_booking'].includes(m.key) ? ['USER' as const] : []),
         ] as ModulePolicy['roles'],
       },

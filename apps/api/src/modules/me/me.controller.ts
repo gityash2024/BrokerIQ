@@ -8,6 +8,7 @@ import { AuthService } from '../auth/auth.service';
 import { CurrentUser, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { MediaService, type UploadKind } from '../../core/media/media.service';
+import { NotificationsService } from '../../core/notifications/notifications.service';
 import type { z } from 'zod';
 
 @ApiTags('me')
@@ -17,6 +18,7 @@ export class MeController {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly media: MediaService,
+    private readonly notices: NotificationsService,
   ) {}
 
   @Patch()
@@ -60,17 +62,19 @@ export class MeController {
 
   @Get('notifications')
   async notifications(@CurrentUser() user: RequestUser, @Query('unread') unread?: string, @Query('cursor') cursor?: string) {
+    const hidden = await this.notices.hiddenLeadNotifications(user.id);
+    const visible = { userId: user.id, id: { notIn: hidden } };
     // An opaque cursor must belong to the same account, including when read state changes.
-    if (cursor && !(await this.prisma.notification.findFirst({ where: { id: cursor, userId: user.id }, select: { id: true } })))
+    if (cursor && (hidden.includes(cursor) || !(await this.prisma.notification.findFirst({ where: { id: cursor, userId: user.id }, select: { id: true } }))))
       throw new BadRequestException('Invalid notification cursor');
     const [items, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
-        where: { userId: user.id, ...(unread === 'true' ? { readAt: null } : {}) },
+        where: { ...visible, ...(unread === 'true' ? { readAt: null } : {}) },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 51,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       }),
-      this.prisma.notification.count({ where: { userId: user.id, readAt: null } }),
+      this.prisma.notification.count({ where: { ...visible, readAt: null } }),
     ]);
     return { items: items.slice(0, 50), unreadCount, nextCursor: items.length > 50 ? items[49].id : null };
   }
@@ -88,6 +92,7 @@ export class MeController {
 
   @Post('notifications/:id/open')
   async openNotification(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    if ((await this.notices.hiddenLeadNotifications(user.id)).includes(id)) throw new NotFoundException('Notification unavailable for this account');
     const item = await this.prisma.notification.findFirst({ where: { id, userId: user.id } });
     if (!item) throw new NotFoundException('Notification unavailable for this account');
     await this.prisma.notification.updateMany({ where: { id, userId: user.id, readAt: null }, data: { readAt: new Date() } });
@@ -100,7 +105,7 @@ export class MeController {
     const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any)
       ? body.kind!
       : 'listing';
-    return this.media.sign(kind, body?.contentType ?? 'image/jpeg', kind === 'kyc' ? user.id : user.orgId ?? user.id);
+    return this.media.sign(kind, body?.contentType ?? 'image/jpeg', kind === 'kyc' ? user.id : (user.orgId ?? user.id));
   }
 
   @Get('saved-searches')

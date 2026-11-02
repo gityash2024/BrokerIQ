@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Notification } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { SettingsService } from '../settings/settings.service';
@@ -23,6 +23,20 @@ export class NotificationsService {
     private readonly settings: SettingsService,
     private readonly webPush: WebPushService,
   ) {}
+
+  /** Legacy reminders may only carry a lead URL; current database ownership wins. */
+  async hiddenLeadNotifications(userId: string) {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT n.id FROM "Notification" n
+      LEFT JOIN "Lead" l ON l.id = COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)'))
+      JOIN "User" u ON u.id = n."userId"
+      WHERE n."userId"=${userId}
+        AND COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)')) IS NOT NULL
+        AND NOT COALESCE((l.id IS NOT NULL AND l."deletedAt" IS NULL AND (
+          u.role='SUPER_ADMIN' OR (u."organizationId"=l."organizationId" AND
+          (u.role='BROKER_ADMIN' OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id))))), FALSE)`);
+    return rows.map((row) => row.id);
+  }
 
   async notify(userIds: string | string[], input: NotifyInput, opts: { excludeUserId?: string } = {}) {
     let ids = [...new Set(Array.isArray(userIds) ? userIds : [userIds])].filter(Boolean);
@@ -61,6 +75,19 @@ export class NotificationsService {
     await this.notify([...ids, ...(opts.include ?? [])], input, { excludeUserId: opts.excludeUserId });
   }
 
+  /** Dispatch a previously committed outbox notification without inserting it again. */
+  async dispatchSaved(note: Notification) {
+    const common = { ...((note.data as Record<string, unknown>) ?? {}), link: note.link, kind: note.kind };
+    const recipients = { [note.userId]: { notificationId: note.id, recipientUserId: note.userId } };
+    this.realtime.toUser(note.userId, 'notification', { ...common, ...recipients[note.userId], title: note.title, body: note.body });
+    const deliveries = await Promise.allSettled([
+      this.push([note.userId], note.title, note.body ?? '', common, recipients, true),
+      this.webPush.send([note.userId], note.title, note.body ?? '', common, recipients, true),
+    ]);
+    if (deliveries.some((result) => result.status === 'rejected'))
+      throw new Error('Reminder push was not fully accepted; in-app notification retained. Inspect delivery before retrying.');
+  }
+
   /** Expo push (free). Tokens that Expo reports as invalid are removed. */
   async push(
     userIds: string[],
@@ -68,6 +95,7 @@ export class NotificationsService {
     body: string,
     data: Record<string, unknown> = {},
     recipients: Record<string, { notificationId: string; recipientUserId: string }> = {},
+    throwOnFailure = false,
   ) {
     const tokens = await this.prisma.pushToken.findMany({ where: { userId: { in: userIds } } });
     const expo = tokens.filter((t) => t.token.startsWith('ExponentPushToken') || t.token.startsWith('ExpoPushToken'));
@@ -83,6 +111,7 @@ export class NotificationsService {
         const res = await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers,
+          signal: AbortSignal.timeout(15000),
           body: JSON.stringify(
             chunk.map((t) => ({
               to: t.token,
@@ -95,12 +124,16 @@ export class NotificationsService {
             })),
           ),
         });
+        if (!res.ok) throw new Error(`Expo push HTTP ${res.status}`);
         const json: any = await res.json().catch(() => ({}));
         const tickets: any[] = json?.data ?? [];
         const dead = tickets.map((t, idx) => (t?.details?.error === 'DeviceNotRegistered' ? chunk[idx]?.token : null)).filter(Boolean) as string[];
         if (dead.length) await this.prisma.pushToken.deleteMany({ where: { token: { in: dead } } });
+        if (throwOnFailure && (tickets.length !== chunk.length || tickets.some((t) => t.status !== 'ok' && t?.details?.error !== 'DeviceNotRegistered')))
+          throw new Error('Expo push did not accept every valid token');
       } catch (e) {
         this.logger.warn(`push failed: ${(e as Error).message}`);
+        if (throwOnFailure) throw e;
       }
     }
   }
