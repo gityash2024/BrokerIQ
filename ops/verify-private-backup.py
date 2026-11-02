@@ -18,6 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('archive', type=Path)
 parser.add_argument('--identity', type=Path, required=True)
 parser.add_argument('--database', required=True)
+parser.add_argument('--base-archive', type=Path, help='Previously verified encrypted base; fresh manifest/dump always come from the main archive')
 args = parser.parse_args()
 if not re.fullmatch(r'brokeriq_restore_[a-z0-9_]+', args.database):
     raise SystemExit('Only a new BrokerIQ scratch database is permitted')
@@ -33,45 +34,55 @@ with tempfile.TemporaryDirectory(prefix='brokeriq-restore-', dir=archive.parent)
     dump = Path(temporary) / 'database.dump'
     manifest = None
     media = {}
-    decrypt = subprocess.Popen(['age', '--decrypt', '-i', str(args.identity), str(archive)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-        with tarfile.open(fileobj=decrypt.stdout, mode='r|') as tar:
-            for item in tar:
-                if not item.isfile():
-                    continue
-                source = tar.extractfile(item)
-                digest = hashlib.sha256()
-                output = None
-                data = bytearray() if item.name.endswith('/manifest.json') else None
-                if item.name.endswith('/database.dump'):
-                    output = dump.open('xb')
-                    dump.chmod(0o600)
-                try:
-                    while chunk := source.read(1024 * 1024):
-                        digest.update(chunk)
+    archives = ([args.base_archive.resolve()] if args.base_archive else []) + [archive]
+    archive_hashes = []
+    for source_archive in archives:
+        if not source_archive.is_file() or not source_archive.name.endswith('.tar.age'):
+            raise RuntimeError('Encrypted backup chain is incomplete')
+        with source_archive.open('rb') as stream:
+            archive_hashes.append({'archive': source_archive.name, 'sha256': hashlib.file_digest(stream, 'sha256').hexdigest()})
+        current = source_archive == archive
+        decrypt = subprocess.Popen(['age', '--decrypt', '-i', str(args.identity), str(source_archive)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            with tarfile.open(fileobj=decrypt.stdout, mode='r|') as tar:
+                for item in tar:
+                    if not item.isfile():
+                        continue
+                    source = tar.extractfile(item)
+                    digest = hashlib.sha256()
+                    output = None
+                    data = bytearray() if current and item.name.endswith('/manifest.json') else None
+                    if current and item.name.endswith('/database.dump'):
+                        output = dump.open('xb')
+                        dump.chmod(0o600)
+                    try:
+                        while chunk := source.read(1024 * 1024):
+                            digest.update(chunk)
+                            if output:
+                                output.write(chunk)
+                            if data is not None:
+                                data.extend(chunk)
+                                if len(data) > 4 * 1024 * 1024:
+                                    raise RuntimeError('Manifest exceeds expected size')
+                    finally:
                         if output:
-                            output.write(chunk)
-                        if data is not None:
-                            data.extend(chunk)
-                            if len(data) > 4 * 1024 * 1024:
-                                raise RuntimeError('Manifest exceeds expected size')
-                finally:
-                    if output:
-                        output.close()
-                if item.name.startswith('storage/'):
-                    media[item.name] = {'sha256': digest.hexdigest(), 'bytes': item.size}
-                elif data is not None:
-                    manifest = json.loads(data)
-        # tar readers stop at end markers; drain age so its authenticated final chunk is checked.
-        for _ in iter(lambda: decrypt.stdout.read(1024 * 1024), b''):
-            pass
-        _, error = decrypt.communicate()
-        if decrypt.returncode:
-            raise RuntimeError('Encrypted backup authentication failed')
-    finally:
-        if decrypt.poll() is None:
-            decrypt.kill()
-            decrypt.wait()
+                            output.close()
+                    if item.name.startswith('storage/'):
+                        if '..' in Path(item.name).parts:
+                            raise RuntimeError('Unsafe media path')
+                        media[item.name] = {'sha256': digest.hexdigest(), 'bytes': item.size}
+                    elif data is not None:
+                        manifest = json.loads(data)
+            # Drain every age stream so its authenticated final chunk is checked.
+            for _ in iter(lambda: decrypt.stdout.read(1024 * 1024), b''):
+                pass
+            _, error = decrypt.communicate()
+            if decrypt.returncode:
+                raise RuntimeError('Encrypted backup authentication failed')
+        finally:
+            if decrypt.poll() is None:
+                decrypt.kill()
+                decrypt.wait()
     if not manifest or not dump.is_file():
         raise RuntimeError('Backup is incomplete')
     with dump.open('rb') as stream:
@@ -97,7 +108,7 @@ with tempfile.TemporaryDirectory(prefix='brokeriq-restore-', dir=archive.parent)
             raise RuntimeError('Restored table count/digest mismatch: ' + expected_table['table'])
     has_private = subprocess.run(['psql', '-XAt', '-c', "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='KycDocument' AND column_name='privateKey'"], env=env, capture_output=True, text=True, check=True).stdout.strip() == '1'
     private_count = int(subprocess.run(['psql', '-XAt', '-c', 'SELECT count(*) FROM "KycDocument" WHERE "privateKey" IS NOT NULL'], env=env, capture_output=True, text=True, check=True).stdout.strip()) if has_private else 0
-    report = {'archive': archive.name, 'database': args.database, 'snapshotStartedAt': manifest['startedAt'], 'verifiedAt': datetime.now(timezone.utc).isoformat(), 'privateKycDocuments': private_count, 'tablesVerified': len(manifest['database']), 'mediaFilesVerified': len(media), 'mediaBytesVerified': sum(f['bytes'] for f in media.values()), 'dumpSha256': actual_dump_hash, 'result': 'VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED'}
+    report = {'archive': archive.name, 'archiveChain': archive_hashes, 'database': args.database, 'snapshotStartedAt': manifest['startedAt'], 'verifiedAt': datetime.now(timezone.utc).isoformat(), 'privateKycDocuments': private_count, 'tablesVerified': len(manifest['database']), 'mediaFilesVerified': len(media), 'mediaBytesVerified': sum(f['bytes'] for f in media.values()), 'dumpSha256': actual_dump_hash, 'result': 'VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED'}
     output = archive.with_suffix('.verified.json')
     output.write_text(json.dumps(report, indent=2))
     output.chmod(0o600)

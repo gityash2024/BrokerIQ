@@ -35,7 +35,10 @@ export class JobsService implements OnModuleDestroy {
           where: { key: opts.key, status: { in: ['DONE', 'FAILED'] } },
           data: { ...data, status: 'PENDING', attempts: 0, lockedAt: null, lastError: null },
         });
-      return this.prisma.job.upsert({ where: { key: opts.key }, create: data, update: {} });
+      // Prisma's empty-update upsert can become SELECT + INSERT and race for a
+      // previously unseen key. PostgreSQL ON CONFLICT keeps concurrent scheduling atomic.
+      await this.prisma.job.createMany({ data: [data], skipDuplicates: true });
+      return this.prisma.job.findUniqueOrThrow({ where: { key: opts.key } });
     }
     return this.prisma.job.create({ data });
   }

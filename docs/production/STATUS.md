@@ -187,3 +187,11 @@ Separate encrypted firm mailbox OAuth with PKCE and originating Admin/device-ses
 ## Team detail/permissions and staging checkpoint — 2 November
 
 See TEAM_PARITY_20261102.md. Dedicated mobile member pages, current single-member web data, stale-edit conflicts, Admin/Agent picker scope, actual all-firm Super Admin aggregation, native filters/sort/selected exports and correct Time Logging member links implemented. Team16/16 and ownership/KYC/Team33/33 passed; mobile80/80/types pass. Remaining KYC/native management parity, full i18n, installed/browser/staging acceptance remain open. User clarified the connected mymultimeds instance is staging; Chrome Rahul/Olive Estate visibly confirms WhatsApp/Housing Connected. It contains real data, so all preservation/release gates remain mandatory.
+
+## Staging candidate build / fresh restore — 2 November
+
+Clean signed Android2.3.0/build41 from ef1ac65 compiled successfully, with the original upload certificate and real SHA256/bytes recorded in the private artifact sidecar. It is not installed or published. A subsequent full fresh API run passed340 tests/27 configuration skips but logged a concurrent Job key insert race from visit scheduling; that defect is being fixed before candidate publication. Do not call the passing suite evidence that its asynchronous errors were absent.
+
+Fresh connected-staging snapshot has99 tables/604 files. Encrypted off-host base+fresh delta were fully authenticated, every file hash matched, and actual scratch restore matched all table content digests. See BACKUP_RESTORE_20261101.md. User has no Android phone now and will connect one later; physical acceptance remains explicitly deferred while code/build/staging work continues. Poppler22.02.0 PDF tools were installed from official Ubuntu packages with no package upgrades/service restart requested, enabling required private PDF previews; unrelated service health must be compared at cutover.
+
+Concurrent reminder scheduling race corrected: atomic PostgreSQL conflict handling replaces the empty-update Prisma upsert;30 concurrent first-key requests produce one durable job and a running delivery is never reset. Queue/source-ledger/SMS/Gmail28/28 passed, API types/lint zero errors. See JOB_QUEUE_20261102.md. Rebuild the unpublished candidate from the fix commit before activation.
