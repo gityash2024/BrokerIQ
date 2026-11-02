@@ -6,21 +6,18 @@ COMMIT="${1:?pinned full Git commit required}"
 ARTIFACTS="${2:?verified Android artifact directory required}"
 [[ "$COMMIT" =~ ^[a-f0-9]{40}$ ]] || exit 2
 [[ "$ARTIFACTS" == "$BASE/artifacts/"* ]] && [ -f "$ARTIFACTS/android-release.json" ] || exit 2
+if [ ! -e "$BASE/releases/rc-${COMMIT:0:12}" ]; then
+ bash "$BASE/ops/prepare-staging-source.sh" "$COMMIT"
+fi
 export PATH="$BASE/runtime/node/bin:$PATH" COREPACK_HOME="$BASE/runtime/corepack"
 export CI=1 NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--max-old-space-size=1536
 exec 9>"$BASE/candidate-build.lock"
 flock -n 9 || { echo 'Another BrokerIQ candidate build is active' >&2; exit 1; }
-FREE=$(df -Pk "$BASE" | awk 'NR==2 {print $4}')
-[ "$FREE" -ge 20971520 ] || { echo 'At least20GiB free space required' >&2; exit 1; }
 CANDIDATE="$BASE/releases/rc-${COMMIT:0:12}"
-[ ! -e "$CANDIDATE" ] || { echo 'Candidate already exists; inspect it instead of overwriting' >&2; exit 1; }
-git clone --no-checkout --filter=blob:none https://github.com/gityash2024/BrokerIQ.git "$CANDIDATE"
-git -C "$CANDIDATE" checkout --detach "$COMMIT"
-[ "$(git -C "$CANDIDATE" rev-parse HEAD)" = "$COMMIT" ] || exit 1
+[ "$(cat "$CANDIDATE/.candidate-source-built")" = "$COMMIT" ]
+[ "$(git -C "$CANDIDATE" rev-parse HEAD)" = "$COMMIT" ]
+[ ! -e "$CANDIDATE/.candidate-build-complete" ] || { echo 'Candidate already complete; inspect it instead of rebuilding' >&2; exit 1; }
 cd "$CANDIDATE"
-nice -n 10 pnpm install --frozen-lockfile --network-concurrency=4 --child-concurrency=1
-nice -n 10 pnpm --filter @brokeriq/shared build
-( set -a; source "$BASE/secrets/api.env"; set +a; nice -n 10 pnpm --filter @brokeriq/api build )
 node - "$COMMIT" "$ARTIFACTS" <<'NODE'
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const [commit,dir]=process.argv.slice(2);
@@ -35,9 +32,14 @@ const manifest={schemaVersion:1,environment:'staging',portals,android:{...androi
 require('./packages/shared/dist').releaseManifestSchema.parse(manifest);
 fs.mkdirSync('apps/web/public/downloads',{recursive:true});
 fs.copyFileSync(path.join(dir,filename),path.join('apps/web/public/downloads',filename));
-// Current Build40 stays reachable for rollback; older APKs are not silently copied into each new release.
-const previous='/opt/brokeriq/current/apps/web/public/downloads/BrokerIQ-v2.2.4-build40.apk';
-if(fs.existsSync(previous))fs.copyFileSync(previous,'apps/web/public/downloads/BrokerIQ-v2.2.4-build40.apk');
+// Preserve the immediate accepted rollback APK, verified from its manifest.
+const previousManifest=JSON.parse(fs.readFileSync('/opt/brokeriq/current/release-manifest.json','utf8'));
+const previous=previousManifest.android;
+const previousName=path.basename(previous.url);
+if(previous.url!==`/downloads/${previousName}`||previous.versionCode>=android.versionCode)throw Error('Rollback/new Android identity mismatch');
+const previousBytes=fs.readFileSync(path.join('/opt/brokeriq/current/apps/web/public/downloads',previousName));
+if(previousBytes.length!==previous.bytes||crypto.createHash('sha256').update(previousBytes).digest('hex')!==previous.sha256)throw Error('Accepted rollback APK checksum mismatch');
+fs.copyFileSync(path.join('/opt/brokeriq/current/apps/web/public/downloads',previousName),path.join('apps/web/public/downloads',previousName));
 fs.writeFileSync('release-manifest.json',JSON.stringify(manifest,null,2)+'\n');
 fs.writeFileSync('apps/api/dist/release.json',JSON.stringify({commit,version:android.version,builtAt:now})+'\n');
 NODE
