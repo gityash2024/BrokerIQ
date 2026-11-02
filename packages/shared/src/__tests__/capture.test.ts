@@ -201,3 +201,15 @@ test('source cards describe known fields and keep record count without inventing
   assert.equal(captureEntryTitle([{ kind: 'UNRELATED', warnings: [] }]), 'Source message · review');
   assert.ok(!title.includes('40000000'));
 });
+
+
+test('group recruitment requirements never become property clients or salary-based budgets', () => {
+  const rows = extractCapture('WE ARE HIRING\nRequirement Below\nAssistant Manager 2\nReal Estate experience required\nSalary 30k to 70k\nShare Resume');
+  assert.equal(rows.length, 1); assert.equal(rows[0].kind, 'UNRELATED');
+  assert.equal(rows[0].requirement, undefined); assert.equal(rows[0].inventory, undefined);
+  assert.equal(extractCapture('Office boy required, Gurgaon. Send resume')[0].kind, 'UNRELATED');
+  // Genuine accommodation needs retain property meaning despite employment context.
+  const housing = extractCapture('Required 2 BHK for rent Sector 45 for our manager starting a new job, budget 45k')[0];
+  assert.equal(housing.kind, 'REQUIREMENT'); assert.equal(housing.requirement?.purpose, 'RENT');
+  assert.deepEqual(housing.requirement?.bedrooms, [2]);
+});

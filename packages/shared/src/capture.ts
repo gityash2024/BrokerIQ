@@ -63,6 +63,11 @@ export function extractCapture(text: string): CapturedEntity[] {
   const normalized = text.replace(/[०-९]/g, (n) => String('०१२३४५६७८९'.indexOf(n)));
   const blocks = normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/iu).filter((b) => b.trim());
   return blocks.map((raw): CapturedEntity => {
+    // Group exports include recruiting posts with “Requirement” and salary ranges.
+    // They are source evidence, not a customer's property demand or budget.
+    const recruiting = /\b(?:hiring|vacanc(?:y|ies)|resum[eé]|job\s+(?:opening|change)|office\s+boy)\b|नौकरी|भर्ती/iu.test(raw);
+    const explicitProperty = /\b\d+(?:\.\d+)?\s*(?:BHK|RK|sq\.?\s*(?:ft|yd)|sqft|acre?s?)\b|\b(?:flat|apartment|plot|shop|office|warehouse|property)\s+(?:available\s+)?for\s+(?:rent|sale)\b/iu.test(raw);
+    if (recruiting && !explicitProperty) return { kind: 'UNRELATED', warnings: ['Recruitment/job post; salary and applicant contacts are not a property requirement. Original retained for review.'] };
     const phones = contactPhones(raw);
     const localities = captureLocalities(raw);
     const hasRequirement = /requirement|required|looking\s+for|चाहिए|ज़रूरत|जरूरत/i.test(raw);
