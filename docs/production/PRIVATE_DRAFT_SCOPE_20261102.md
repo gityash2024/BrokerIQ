@@ -1,6 +1,6 @@
 # Private mobile draft ownership and transition fences
 
-Prepared after Build49; not yet shipped in an APK. Physical SQLCipher upgrade/recovery remains OPEN.
+Shipped in pinned Build50,7ce7194/v2.3.9, with independently matching public APK/landing/runtime identity. Physical SQLCipher upgrade/recovery and the WEB counterpart remain OPEN.
 
 Root cause: local mutation/message drafts used only user ID, the pump adopted anonymous rows automatically, and screen content was keyed only by user ID. A user moving firms or losing Admin privileges could retain a private form or replay old queued content using their new session. API requests checked the scope string but could accept an old response after A → B → A. A chunk callback captured only user ID, so its next request could use the new firm.
 

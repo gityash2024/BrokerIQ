@@ -1,0 +1,37 @@
+{
+  "applicationPin": "7ce71947cd92eeb3d6e2a509a29638e26da3a4ca",
+  "mobile": {
+    "passed": 104,
+    "suites": 12,
+    "seconds": 2.299,
+    "scope": "Fresh full native JS/unit suites; actual SQLite SQL, mocked OS/encryption/files"
+  },
+  "workspaceTypechecks": "PASS",
+  "changedFilesLint": {
+    "errors": 0,
+    "warnings": 103
+  },
+  "unchangedBackendRegression": {
+    "testedPin": "d70af6f4f4423070c9a1f429e3c01a7b40861d96",
+    "sourceTreesUnchanged": [
+      "apps/api",
+      "packages/shared",
+      "apps/web"
+    ],
+    "apiPassed": 398,
+    "apiSkipped": 27,
+    "brokerFirstPassed": 82,
+    "sharedPassed": 65,
+    "freshDatabaseSuiteRerunForBuild50": false
+  },
+  "nativeBuild": {
+    "seconds": 424,
+    "tasksExecuted": 742,
+    "tasksUpToDate": 28
+  },
+  "stagingFixturesOrSeeds": false,
+  "browserVisualAcceptance": false,
+  "installedDeviceAcceptance": false,
+  "legacyHandsetDraftRecoveryAcceptance": false,
+  "fullProductSignoff": false
+}

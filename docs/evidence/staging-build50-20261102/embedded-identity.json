@@ -1,0 +1,10 @@
+{
+  "asset": "assets/app.config",
+  "embeddedRelease": {
+    "commit": "7ce71947cd92eeb3d6e2a509a29638e26da3a4ca",
+    "builtAt": "2026-11-02T16:18:21Z",
+    "versionCode": 50
+  },
+  "version": "2.3.9",
+  "verified": true
+}
