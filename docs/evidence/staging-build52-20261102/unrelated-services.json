@@ -1,0 +1,33 @@
+{
+  "result": "UNRELATED_PROCESS_CHANGE_OBSERVED_NOT_ALL_UNCHANGED",
+  "compared": 8,
+  "unchanged": 7,
+  "changes": [
+    {
+      "before": {
+        "name": "mirsat-backend",
+        "pid": 2237761,
+        "status": "online",
+        "restarts": 24
+      },
+      "after": {
+        "name": "mirsat-backend",
+        "pid": 2240550,
+        "status": "online",
+        "restarts": 25
+      }
+    }
+  ],
+  "scopeOfBrokeriqMutations": [
+    "brokeriq-api",
+    "brokeriq-web"
+  ],
+  "mirsatReadOnlyMetadata": {
+    "online": true,
+    "watch": false,
+    "maxMemoryRestart": 943718400,
+    "autorestart": true,
+    "startedAt": "2026-11-02T18:02:05.573Z"
+  },
+  "logObservation": "Mirsat normal SIGINT/code0 stops observed at17:57:33,17:58:43 before BrokerIQ activation and18:02:05 after. No kernel OOM/killed-process entry in inspected interval. Actor/cause not established; no Mirsat mutation performed."
+}

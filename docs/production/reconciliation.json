@@ -16,7 +16,8 @@
       "shippedBuild": "PENDING",
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
-        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -30,7 +31,7 @@
       "commits": [
         "ea2b66b"
       ],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
       "releaseEvidence": null
     },
@@ -47,7 +48,8 @@
       "shippedBuild": "PENDING",
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
-        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -61,7 +63,7 @@
       "commits": [
         "ea2b66b"
       ],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
       "releaseEvidence": null
     },
@@ -78,7 +80,8 @@
       "shippedBuild": "PENDING",
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
-        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -92,7 +95,7 @@
       "commits": [
         "ea2b66b"
       ],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
       "releaseEvidence": null
     },
@@ -109,7 +112,8 @@
       "shippedBuild": "PENDING",
       "verification": "6 real PostgreSQL session scenarios + 12 related security/recovery cases; real Chrome replacement reached authenticated dashboard; installed APK pending",
       "notes": [
-        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens."
+        "Stable refresh row, encrypted bounded rotation replay, refresh-secret signed selection challenge, atomic five-session limit, session-bound HTTP/realtime access. Legacy refresh transparently upgrades access tokens.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_AUTHENTICATED"
@@ -123,7 +127,7 @@
       "commits": [
         "ea2b66b"
       ],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Refresh created new device rows and silently evicted old sessions; access JWTs lacked device-session identity.",
       "releaseEvidence": null
     },
@@ -495,7 +499,8 @@
       "shippedBuild": "PENDING",
       "verification": "8 real KYC PostgreSQL/encrypted-file/PDF cases; shared58/mobile68; workspace types; Android export; local authenticated blob preview. See KYC_PRIVATE_CHECKPOINT.md. Production and device gates remain open.",
       "notes": [
-        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed."
+        "Private uploads/proxy, current subject/firm RBAC, immutable uploads, exact-ID review, history, personal/firm separation, review retry protection. Existing public media migration not yet executed.",
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
       ],
       "roles": [
         "GUEST",
@@ -504,9 +509,14 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/core/media/kyc.service.ts",
+        "apps/api/src/core/media/local-storage.service.ts",
+        "apps/api/src/common/kyc-view.ts"
+      ],
       "commits": [
-        "fe70dd5"
+        "fe70dd5",
+        "fe70dd5a296f6dbcbb2e22e5cd3c15dddefe8399"
       ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": null,
@@ -1129,7 +1139,8 @@
       "shippedBuild": "PENDING",
       "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
       "notes": [
-        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "SUPER_ADMIN",
@@ -1144,7 +1155,7 @@
         "apps/mobile/app/requirements.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
@@ -1161,7 +1172,8 @@
       "shippedBuild": "PENDING",
       "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
       "notes": [
-        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "SUPER_ADMIN",
@@ -1176,7 +1188,7 @@
         "apps/mobile/app/requirements.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
@@ -1237,7 +1249,8 @@
       "shippedBuild": "PENDING",
       "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
       "notes": [
-        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "SUPER_ADMIN",
@@ -1252,7 +1265,7 @@
         "apps/mobile/app/requirements.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
@@ -1291,7 +1304,8 @@
       "shippedBuild": "PENDING",
       "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
       "notes": [
-        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "SUPER_ADMIN",
@@ -1306,7 +1320,7 @@
         "apps/mobile/app/requirements.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
@@ -1323,7 +1337,8 @@
       "shippedBuild": "PENDING",
       "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
       "notes": [
-        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "SUPER_ADMIN",
@@ -1338,7 +1353,7 @@
         "apps/mobile/app/requirements.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
@@ -1355,7 +1370,8 @@
       "shippedBuild": "PENDING",
       "verification": "27 real PostgreSQL/streaming/permission checks; 48 shared and 65 mobile tests; full API 277 passed / 25 configuration skips; Android bundle and types pass. Live browser currently disabled; no installed APK or production migration.",
       "notes": [
-        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue."
+        "Reviewed imports now create independent typed requirements. Only reviewed open offers convert atomically/idempotently; original source stays retained. Unknown interleaved posts stay reviewable. System export headers separate from message text. Comprehensive AI splitting/media evaluation remains M09; unapproved entries remain the private Imports review queue.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "SUPER_ADMIN",
@@ -1370,7 +1386,7 @@
         "apps/mobile/app/requirements.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Import approval directly created Inventory; BrokerRequirement had no typed offer/unknown or conversion identity.",
       "releaseEvidence": null
     },
@@ -2385,13 +2401,20 @@
       "notes": [
         "Original-preserving encrypted write is implemented; actual 10-public-document migration and old URL retirement remain PENDING. Off-host backup/scratch restore verified in fd96714.",
         "ETag was absent from Admin API metadata; corrected our migration assumption, kept stable identity/version plus two identical downloads and own SHA-256. No original/provider access was changed in production.",
-        "Historical not-deployed checkpoint superseded: ten unchanged originals privately copied and old public URLs404; full role/device preview acceptance remains open."
+        "Historical not-deployed checkpoint superseded: ten unchanged originals privately copied and old public URLs404; full role/device preview acceptance remains open.",
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/core/media/kyc-migration.ts",
+        "apps/api/src/ops/kyc-private-migration.ts",
+        "docs/production/KYC_MIGRATION_REHEARSAL.md"
+      ],
+      "commits": [
+        "e90cc8cfdba9ca0f67ddb2ce8f7acc4e7765fef6"
+      ],
       "database": "TEN_DOCUMENT_BYTES_PRESERVED_ACTUAL_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
@@ -2769,7 +2792,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+      ],
       "roles": [
         "BROKER_AGENT",
         "BROKER_ADMIN",
@@ -2781,7 +2806,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2798,7 +2823,8 @@
       "shippedBuild": "PENDING",
       "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
       "notes": [
-        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -2811,7 +2837,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2828,7 +2854,8 @@
       "shippedBuild": "PENDING",
       "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
       "notes": [
-        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -2841,7 +2868,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2857,7 +2884,9 @@
       "androidSource": "IMPLEMENTED_NATIVE_PREBUILD_VERIFIED",
       "shippedBuild": "PENDING",
       "verification": "Root-scoped Expo TaskManager registration + native Location updates and visible foreground notification configured. Installed APK/device verification PENDING.",
-      "notes": [],
+      "notes": [
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+      ],
       "roles": [
         "BROKER_AGENT",
         "BROKER_ADMIN",
@@ -2869,7 +2898,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2886,7 +2915,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Foreground health handling and encrypted durable queue implemented. Native GPS-off, battery restrictions, process restart and physical-device acceptance remain OPEN; no reliability sign-off."
+        "Foreground health handling and encrypted durable queue implemented. Native GPS-off, battery restrictions, process restart and physical-device acceptance remain OPEN; no reliability sign-off.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -2899,7 +2929,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2916,7 +2946,8 @@
       "shippedBuild": "PENDING",
       "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
       "notes": [
-        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -2929,7 +2960,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2946,7 +2977,8 @@
       "shippedBuild": "PENDING",
       "verification": "Six real PostgreSQL lifecycle/concurrency/provenance cases plus SQLite outbox checks; native device acceptance pending",
       "notes": [
-        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user."
+        "Serialized shift transitions, manual-pause immunity, original capture/receive timestamps and event ID acknowledgement. Historical active breadcrumbs can arrive after punch-out; paused-period captures are ignored. Old unowned offline rows are retained for review, never uploaded as the current user.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -2959,7 +2991,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -2975,7 +3007,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+      ],
       "roles": [
         "BROKER_AGENT",
         "BROKER_ADMIN",
@@ -2987,7 +3021,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -3003,7 +3037,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+      ],
       "roles": [
         "BROKER_AGENT",
         "BROKER_ADMIN",
@@ -3015,7 +3051,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -3031,7 +3067,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+      ],
       "roles": [
         "BROKER_AGENT",
         "BROKER_ADMIN",
@@ -3043,7 +3081,7 @@
         "apps/mobile/src/lib/shift-location-outbox.ts"
       ],
       "commits": [],
-      "database": "ADDITIVE_LOCATION_PROVENANCE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -3063,13 +3101,22 @@
       "shippedBuild": "PENDING",
       "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
       "notes": [
-        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules.",
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/web/src/components/panel/shell.tsx",
+        "apps/web/src/app/broker/layout.tsx",
+        "packages/shared/src/modules.ts"
+      ],
+      "commits": [
+        "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+        "6c2fa7fff0881ef7762a334382281475e5ddaff0",
+        "bef8cdea8f68872a214a60425de0dcc916e4f139"
+      ],
       "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
@@ -3090,13 +3137,20 @@
       "shippedBuild": "PENDING",
       "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
       "notes": [
-        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules.",
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/web/src/components/panel/shell.tsx",
+        "apps/web/src/app/broker/layout.tsx"
+      ],
+      "commits": [
+        "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+        "6c2fa7fff0881ef7762a334382281475e5ddaff0"
+      ],
       "database": "NO_NEW_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
@@ -3116,12 +3170,18 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/web/src/components/panel/shell.tsx"
+      ],
+      "commits": [
+        "2c762513e4bf6f85e8a26269f5f178bc9f1d1772"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -3141,12 +3201,22 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/web/src/components/panel/shell.tsx",
+        "packages/shared/src/modules.ts",
+        "apps/web/src/components/panel/module-access.tsx"
+      ],
+      "commits": [
+        "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+        "bef8cdea8f68872a214a60425de0dcc916e4f139",
+        "b9d12b3b7b6c2c67bbf29fbe30c0389d1cf43105"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -3166,12 +3236,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/mobile/src/ui/index.tsx",
+        "apps/mobile/src/components/notification-bell.tsx",
+        "apps/mobile/src/launch/screen.tsx"
+      ],
+      "commits": [
+        "2c762513e4bf6f85e8a26269f5f178bc9f1d1772"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -3338,12 +3416,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/core/jobs/jobs.service.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "docs/production/JOB_QUEUE_20261102.md"
+      ],
+      "commits": [
+        "c8becef1f23512d381b8f739721798d919c7c3aa"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -4266,7 +4352,8 @@
       "verification": "Gmail PKCE/device-bound OAuth and owned CRM send/sync/reply tests use actual PostgreSQL with stub Google HTTP; complete suites and local browser evidence in GMAIL_CHECKPOINT_20261102.md. No live OAuth grant/provider delivery or installed-device claim.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
-        "Separate organization-owned encrypted read/send grant; current Admin/device/session PKCE, no platform mailbox fallback, assigned-client-only sync, durable idempotent sends and generic owned notifications. Bounded 30/90-day sync window and no attachment import are explicit limitations. All applicable automated process integration, Google production verification/consent, actual send/reply and full release acceptance remain open."
+        "Separate organization-owned encrypted read/send grant; current Admin/device/session PKCE, no platform mailbox fallback, assigned-client-only sync, durable idempotent sends and generic owned notifications. Bounded 30/90-day sync window and no attachment import are explicit limitations. All applicable automated process integration, Google production verification/consent, actual send/reply and full release acceptance remain open.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -4281,7 +4368,7 @@
         "apps/mobile/app/connectors.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATIONS_ISOLATED_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Gmail CRM channel did not exist; Google sign-in and transactional SMTP/Zoho do not grant client-mailbox Inbox access.",
       "releaseEvidence": null
     },
@@ -4300,7 +4387,8 @@
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending.",
         "Textbee provider dashboard configured by user and read-only inspected. Single firm device binding, encrypted settings, idempotent single-attempt outbox, signed business-only inbound, complete pagination, Lead activities and owned notifications implemented. Actual SIM/full-key/webhook/delivery, all-process automation integration and provider-history recovery still open.",
-        "Build46 checkpoint: Textbee key/device3/outgoing-only signed webhook saved and readonly connection verified. SMS/Email task types ship46. No diagnostic send, inbound enablement, live delivery/reply or complete process acceptance."
+        "Build46 checkpoint: Textbee key/device3/outgoing-only signed webhook saved and readonly connection verified. SMS/Email task types ship46. No diagnostic send, inbound enablement, live delivery/reply or complete process acceptance.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -4320,7 +4408,7 @@
         "7672830",
         "a5b6535"
       ],
-      "database": "ADDITIVE_MIGRATION_ISOLATED_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -4337,7 +4425,8 @@
       "verification": "Actual Super Admin PASSWORD/EMAIL challenge sent and consumed, zero wrong attempts, verified email and authenticated dashboard. Other roles/client/device paths remain pending.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
-        "Explicit rollout gate defaults off for backward compatibility; final production activation is required after selected application mail delivery is tested. No production migration, live OTP send or installed APK claim."
+        "Explicit rollout gate defaults off for backward compatibility; final production activation is required after selected application mail delivery is tested. No production migration, live OTP send or installed APK claim.",
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -4349,7 +4438,7 @@
         "apps/mobile/src/components/login-otp-sheet.tsx"
       ],
       "commits": [],
-      "database": "ADDITIVE_MIGRATION_LOCAL_VERIFIED_NOT_DEPLOYED",
+      "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
       "rootCause": "Password, signup and verified Google login previously issued sessions without a mandatory second step; passwordless verify could independently issue one.",
       "releaseEvidence": null
     },
@@ -4406,13 +4495,22 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "e0442adbc140f93604f67246910c3c5a23daa7c4",
-    "androidVersion": "2.3.5",
-    "androidVersionCode": 46,
-    "publishedAt": "2026-11-02T13:34:50.640Z",
-    "publicApkSha256": "75ab7107fb82d278625acb66a25af25d7c761c2ea32398c00d8c1a84130ec789",
-    "evidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json",
+    "commit": "49c158f42c767cedb429545e86e8e510f4a24681",
+    "androidVersion": "2.3.11",
+    "androidVersionCode": 52,
+    "publishedAt": "2026-11-02T18:00:56.661Z",
+    "publicApkSha256": "192fa30099111b0a063ddd46516071e1281de16dc01e35be9bd0fc749679e600",
+    "evidence": "docs/evidence/staging-build52-20261102/strict-release-verification.json",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
+    "browserVisualAcceptance": false,
     "fullProductSignoff": false
+  },
+  "latestSourceAudit": {
+    "commit": "49c158f42c767cedb429545e86e8e510f4a24681",
+    "mappedRequests": 83,
+    "unmappedRequests": 71,
+    "totalRequests": 154,
+    "evidence": "docs/evidence/staging-build52-20261102/source-provenance-reviewed.json",
+    "sourcePresenceIsNotWorkflowAcceptance": true
   }
 }

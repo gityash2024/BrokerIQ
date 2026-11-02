@@ -1,0 +1,43 @@
+[
+  {
+    "reason": "Unpublished provisional APK duplicate; metadata retained",
+    "path": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build47-2c9241fa206f/BrokerIQ-v2.3.6-build47.apk",
+    "bytes": 186528786,
+    "sha256": "a1b8b1f8e2f3c3a2232ce84ad95e5f403465aab87edc66c72a579de18a4e54b3"
+  },
+  {
+    "local": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build48-256f508713e2/BrokerIQ-v2.3.7-build48.apk",
+    "remote": "/opt/brokeriq/artifacts/build48-256f508713e2/BrokerIQ-v2.3.7-build48.apk",
+    "sha256": "bd7a3af21293c676c493b887f00b656905f912b5378a117ab2fe936a521f0048",
+    "bytes": 186525958,
+    "reason": "Verified duplicate signed APK; server artifact and local metadata retained"
+  },
+  {
+    "local": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build49-d70af6f4f442/BrokerIQ-v2.3.8-build49.apk",
+    "remote": "/opt/brokeriq/artifacts/build49-d70af6f4f442/BrokerIQ-v2.3.8-build49.apk",
+    "sha256": "0289a4e7ec1d616a5d004a77a920aea04afae92f0a80e8ec9e102c1b32edcf12",
+    "bytes": 186540694,
+    "reason": "Verified duplicate signed APK; server artifact and local metadata retained"
+  },
+  {
+    "local": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build44-be21ed4087e1/BrokerIQ-v2.3.3-build44.apk",
+    "remote": "/opt/brokeriq/artifacts/build44-be21ed4087e1/BrokerIQ-v2.3.3-build44.apk",
+    "sha256": "194def48d3a019ba15ba849984c95e6b7fd3a2781ac0ab03a4603726ab2e028e",
+    "bytes": 186518390,
+    "reason": "Verified duplicate signed APK; server artifact and local metadata retained"
+  },
+  {
+    "local": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build43-0d6c2bc273dc/BrokerIQ-v2.3.2-build43.apk",
+    "remote": "/opt/brokeriq/artifacts/build43-0d6c2bc273dc/BrokerIQ-v2.3.2-build43.apk",
+    "sha256": "27a2755f173a5cca923b86d4d4753ffa3b1c609f6cfced4b8c86d753310c0609",
+    "bytes": 186523902,
+    "reason": "Verified duplicate signed APK; server artifact and local metadata retained"
+  },
+  {
+    "local": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build47-b7f1273db024/BrokerIQ-v2.3.6-build47.apk",
+    "remote": "/opt/brokeriq/artifacts/build47-b7f1273db024/BrokerIQ-v2.3.6-build47.apk",
+    "sha256": "56c3cc8c61d148515bac8e542cb6d73a931b070536c5a6824b5a724f5342740d",
+    "bytes": 186529454,
+    "reason": "Verified duplicate signed APK; server artifact and local metadata retained"
+  }
+]

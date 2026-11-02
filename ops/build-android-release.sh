@@ -4,6 +4,13 @@ TASK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$TASK_ROOT"
 git diff --quiet && git diff --cached --quiet || { echo 'Commit tracked changes before building a pinned release' >&2; exit 1; }
 test -z "$(git ls-files --others --exclude-standard apps packages)" || { echo 'Commit new application files before building a pinned release' >&2; exit 1; }
+# A clean native build temporarily duplicates CMake, DEX and packaging outputs.
+# Fail before touching the generated project rather than losing a late signed build.
+AVAILABLE_KIB="$(df -Pk "$TASK_ROOT" | awk 'NR==2 {print $4}')"
+[[ "$AVAILABLE_KIB" =~ ^[0-9]+$ ]] && [ "$AVAILABLE_KIB" -ge 8388608 ] || {
+  echo 'At least 8 GiB usable local disk is required for a clean Android release; review regenerable build files first.' >&2
+  exit 1
+}
 export BROKERIQ_RELEASE_COMMIT="$(git rev-parse HEAD)"
 export BROKERIQ_RELEASE_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export EXPO_PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com/api

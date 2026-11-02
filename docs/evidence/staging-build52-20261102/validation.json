@@ -1,0 +1,54 @@
+{
+  "applicationPin": "49c158f42c767cedb429545e86e8e510f4a24681",
+  "moduleCommit": "c8becef",
+  "fullApi": {
+    "freshDatabase": "brokeriq_test_r52full3_20261102",
+    "passed": 410,
+    "skipped": 27,
+    "suitesPassed": 55,
+    "suitesSkipped": 4,
+    "seconds": 79.674
+  },
+  "brokerFirst": {
+    "freshDatabase": "brokeriq_test_r52bf_20261102",
+    "passed": 96,
+    "suites": 13,
+    "seconds": 46.451
+  },
+  "shared": {
+    "passed": 65
+  },
+  "mobile": {
+    "passed": 104,
+    "suites": 12,
+    "seconds": 6.669
+  },
+  "webStorage": {
+    "passed": 19,
+    "runtime": "Node22 WebCrypto and fake-indexeddb; not real browser",
+    "milliseconds": 677.60575
+  },
+  "workspaceTypechecks": "PASS",
+  "changedSourceLint": {
+    "errors": 0,
+    "warnings": 160
+  },
+  "correctionsDuringVerification": [
+    "Invalid underscore in test-run domain replaced with DNS-safe suffix",
+    "Six historical suites now release only their own Admin device session",
+    "Missing-upload-provider negative test explicitly disables local disk provider",
+    "Initial mobile test command passed --runInBand as a filename; corrected exec jest run passed104"
+  ],
+  "stagingFixturesOrSeeds": false,
+  "browserVisualAcceptance": false,
+  "hostedCiAcceptance": false,
+  "installedDeviceAcceptance": false,
+  "fullProductSignoff": false,
+  "nativeBuild": {
+    "firstAttempt": "FAILED_DISK_FULL_NOT_PUBLISHED",
+    "retrySeconds": 370,
+    "tasksExecuted": 742,
+    "tasksUpToDate": 28,
+    "cleanPrebuild": true
+  }
+}

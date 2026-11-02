@@ -12,3 +12,7 @@ Removed only unused Docker build cache not used in the previous seven days, usin
 - Package/log cache deletion was unnecessary after recovering sufficient space. BrokerIQ's only release directory is active despite its historical directory name and was retained.
 
 Machine-readable before/after inventories: ../evidence/production-20261101/server-cleanup-before.json and server-cleanup-after.json.
+
+## 2 November: unpublished candidate only
+
+Build52 cleanup removed only `/opt/brokeriq/releases/rc-2c9241fa206f` after process/config/symlink reference checks. Apparent size1,845,742,754 bytes; measured available space increased407,183,360 bytes, from46,198,923,264 to46,606,106,624. Shared files explain the difference. Current Build51 remained healthy during cleanup; backups/uploads/secrets/models/published APKs and protected rollback dependencies were retained. Later Build52 publication and unrelated-service observations are separately recorded in staging-build52 evidence.

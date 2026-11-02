@@ -1,0 +1,14 @@
+{
+  "deleted": "/opt/brokeriq/releases/rc-2c9241fa206f",
+  "category": "Unpublished unreferenced generated release candidate",
+  "bytesReportedByDu": 1845742754,
+  "availableBytesBefore": 46198923264,
+  "availableBytesAfter": 46606106624,
+  "actualReclaimedBytes": 407183360,
+  "currentUnchanged": "/opt/brokeriq/releases/rc-a34015c4f54b",
+  "activeProcessReferences": [],
+  "configReferences": [],
+  "symlinkReferences": [],
+  "health": 200,
+  "backupsUploadsSecretsModelsAndPublishedArtifactsPreserved": true
+}

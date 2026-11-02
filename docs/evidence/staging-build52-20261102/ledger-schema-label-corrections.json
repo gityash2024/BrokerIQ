@@ -1,0 +1,30 @@
+{
+  "migrationProof": "docs/evidence/staging-build52-20261102/migration-proof.json",
+  "correctedStaleNotDeployedLabels": [
+    "AUTH-01",
+    "AUTH-02",
+    "AUTH-03",
+    "AUTH-04",
+    "IMPORTS-01",
+    "IMPORTS-02",
+    "IMPORTS-05",
+    "IMPORTS-07",
+    "IMPORTS-08",
+    "IMPORTS-09",
+    "TRACKING-01",
+    "TRACKING-02",
+    "TRACKING-03",
+    "TRACKING-04",
+    "TRACKING-05",
+    "TRACKING-06",
+    "TRACKING-07",
+    "TRACKING-08",
+    "TRACKING-09",
+    "TRACKING-10",
+    "ADD-CRM-EMAIL-01",
+    "ADD-CRM-SMS-01",
+    "ADD-AUTH-OTP-01"
+  ],
+  "count": 23,
+  "workflowStatusesPromoted": false
+}

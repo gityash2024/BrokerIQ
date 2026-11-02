@@ -1,0 +1,16 @@
+{
+  "databaseTimezone": "Etc/UTC",
+  "runningJobs": 0,
+  "failedEvents": {
+    "oversizedMedia": {
+      "count": 2,
+      "reason": "WhatsApp media exceeds12MB"
+    },
+    "unmatchedReceipts": {
+      "count": 20,
+      "reason": "No recorded outbound message; retained for retry/review"
+    }
+  },
+  "eventsDeleted": false,
+  "eventsReplayed": false
+}
