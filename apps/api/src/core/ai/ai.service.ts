@@ -330,7 +330,7 @@ export class AiService {
     let responseFormat: Record<string, unknown> | undefined = opts.json ? { type: 'json_object' } : undefined;
     if (p.name === 'qwen_local' && opts.responseSchema) {
       let schema;
-      try { schema = toJSONSchema(opts.responseSchema, { target: 'draft-7' }); }
+      try { schema = toJSONSchema(opts.responseSchema, { target: 'draft-7', io: 'input', reused: 'ref' }); }
       catch { throw new RetryableError('local JSON schema cannot be represented safely'); }
       if (Buffer.byteLength(JSON.stringify(schema), 'utf8') > 16000) throw new RetryableError('local JSON schema exceeds bounded grammar size');
       responseFormat = { type: 'json_object', schema };

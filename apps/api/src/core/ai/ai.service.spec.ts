@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { capturedEntitySchema } from '@brokeriq/shared';
 import { AiService, parseJsonLoose } from './ai.service';
 
 /** Fallback chain: busy models and rejected keys fall through; JSON is validated and repaired once. */
@@ -148,8 +149,32 @@ describe('AiService', () => {
     await expect(ai.json([{role:'user',content:'Required flat'}],{feature:'capture',schema})).resolves.toEqual({intent:'DEMAND'});
     expect(format.type).toBe('json_object');
     expect(format.schema.properties.intent.enum).toEqual(['DEMAND','OFFER']);
-    expect(format.schema.additionalProperties).toBe(false);
+    expect(format.schema.properties.intent.type).toBe('string');
     expect(attempts).toBe(2);
+  });
+
+  it('constrains transformed input without dropping independent output normalization or refinements', async () => {
+    let format: any;
+    respond = (_url, body) => { format = body.response_format; return ok('{"phone":" +91 98999 80802 "}'); };
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    const schema = z.object({ phone: z.string().transform(s => s.replace(/\D/g, '')) }).refine(x => x.phone.length === 12);
+    await expect(ai.json([{ role: 'user', content: 'Normalize supplied phone' }], { feature: 'capture', schema })).resolves.toEqual({ phone: '919899980802' });
+    const phoneSchema = format.schema.properties.phone;
+    const resolved = phoneSchema.$ref ? format.schema.definitions[phoneSchema.$ref.split('/').at(-1)] : phoneSchema;
+    expect(resolved.type).toBe('string');
+    respond = () => ok('{"phone":"short"}');
+    await expect(ai.json([{ role: 'user', content: 'Invalid phone' }], { feature: 'capture', schema })).rejects.toMatchObject({ status: 502 });
+  });
+
+  it('keeps the real capture grammar below its unchanged size budget using shared definitions', async () => {
+    let format: any;
+    respond = (_url, body) => { format = body.response_format; return ok('{"entities":[{"kind":"UNRELATED","warnings":[]}]}'); };
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    const schema = z.object({ entities: z.array(capturedEntitySchema).max(100) });
+    const value = await ai.json([{ role: 'user', content: 'A group system notice' }], { feature: 'capture', schema });
+    expect(value.entities[0].kind).toBe('UNRELATED');
+    expect(Buffer.byteLength(JSON.stringify(format.schema), 'utf8')).toBeLessThanOrEqual(16000);
+    expect(Object.keys(format.schema.definitions).length).toBeGreaterThan(0);
   });
 
   it('cools down a failed local service and keeps cached responses firm/user scoped', async () => {
