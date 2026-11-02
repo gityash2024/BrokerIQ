@@ -139,6 +139,19 @@ describe('AiService', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('constrains local JSON with the actual schema and still independently checks its answer', async () => {
+    let format: any;
+    let attempts = 0;
+    respond = (_url, body) => { format = body.response_format; return ok(attempts++ ? '{"intent":"DEMAND"}' : '{"intent":"INVENTED"}'); };
+    const ai = new AiService(settings({ qwen_local: { textModel: 'qwen' } }), prisma);
+    const schema = z.object({ intent: z.enum(['DEMAND','OFFER']) });
+    await expect(ai.json([{role:'user',content:'Required flat'}],{feature:'capture',schema})).resolves.toEqual({intent:'DEMAND'});
+    expect(format.type).toBe('json_object');
+    expect(format.schema.properties.intent.enum).toEqual(['DEMAND','OFFER']);
+    expect(format.schema.additionalProperties).toBe(false);
+    expect(attempts).toBe(2);
+  });
+
   it('cools down a failed local service and keeps cached responses firm/user scoped', async () => {
     let localCalls = 0;
     respond = (url) => url.includes('127.0.0.1') ? (localCalls++, { status: 503, json: {} }) : ok('hosted');

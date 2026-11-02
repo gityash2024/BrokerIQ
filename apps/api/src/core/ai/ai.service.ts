@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { ZodType } from 'zod';
+import { toJSONSchema, type ZodType } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationFailedException, IntegrationNotConfiguredException } from '../../common/exceptions';
@@ -31,6 +31,8 @@ interface CallOpts {
   temperature?: number;
   /** Reuse an identical earlier answer for this long (ms). Off by default. */
   cacheMs?: number;
+  /** Internal constrained-generation contract; output is still validated independently. */
+  responseSchema?: ZodType;
 }
 
 const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
@@ -151,8 +153,9 @@ export class AiService {
    */
   async json<T = any>(messages: ChatMessage[], opts: CallOpts & { schema?: ZodType<T> }): Promise<T> {
     let value: T | undefined;
-    await this.run({ ...opts, json: true }, 'text', async (p, model) => {
-      const first = await this.complete(p, model, messages, { ...opts, json: true }, TEXT_TIMEOUT_MS);
+    const generation = { ...opts, json: true, responseSchema: opts.schema };
+    await this.run(generation, 'text', async (p, model) => {
+      const first = await this.complete(p, model, messages, generation, TEXT_TIMEOUT_MS);
       const check = (text: string) => {
         const parsed = parseJsonLoose<T>(text);
         if (!opts.schema) return { ok: true as const, data: parsed };
@@ -182,7 +185,7 @@ export class AiService {
             { role: 'assistant', content: first.text },
             { role: 'user', content: `Your answer did not match the required JSON (${res.error}). Reply again with ONLY the corrected JSON object, no prose.` },
           ],
-          { ...opts, json: true },
+          generation,
           TEXT_TIMEOUT_MS,
         );
         try {
@@ -324,9 +327,17 @@ export class AiService {
   }
 
   private async complete(p: Provider, model: string, messages: any[], opts: CallOpts, timeoutMs: number) {
+    let responseFormat: Record<string, unknown> | undefined = opts.json ? { type: 'json_object' } : undefined;
+    if (p.name === 'qwen_local' && opts.responseSchema) {
+      let schema;
+      try { schema = toJSONSchema(opts.responseSchema, { target: 'draft-7' }); }
+      catch { throw new RetryableError('local JSON schema cannot be represented safely'); }
+      if (Buffer.byteLength(JSON.stringify(schema), 'utf8') > 16000) throw new RetryableError('local JSON schema exceeds bounded grammar size');
+      responseFormat = { type: 'json_object', schema };
+    }
     const key = opts.cacheMs
       ? createHash('sha256')
-          .update(JSON.stringify([p.name, model, opts.orgId ?? null, opts.userId ?? null, opts.feature, opts.json, opts.maxTokens, opts.temperature, messages]))
+          .update(JSON.stringify([p.name, model, opts.orgId ?? null, opts.userId ?? null, opts.feature, responseFormat, opts.maxTokens, opts.temperature, messages]))
           .digest('hex')
       : null;
     const hit = key ? this.cache.get(key) : undefined;
@@ -338,7 +349,7 @@ export class AiService {
         messages,
         temperature: opts.temperature ?? 0.3,
         max_tokens: opts.maxTokens ?? 1500,
-        ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
+        ...(responseFormat ? { response_format: responseFormat } : {}),
       },
       timeoutMs,
     );

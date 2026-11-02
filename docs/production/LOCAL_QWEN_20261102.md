@@ -13,3 +13,9 @@ Focused tests cover fixed endpoint, local-first ordering, free-only launch fallb
 The original Rahul ZIP was re-downloaded by the user and its Downloads access restored. Its checksum/private evaluation copy and counts are recorded in WORKSPACE_RECOVERY_20261102.md. The initial quick message grouping had joined system lines onto preceding posts; the corrected parser separates543 system events from1,354 user messages. Do not treat system phone-change/join records as property contacts.100 manually labelled real records and a separate holdout are still pending. The earlier legacy ai-eval script's three sample cases are not launch acceptance.
 
 Protocol reference: https://github.com/ggml-org/llama.cpp/tree/master/tools/server . This documents compatible chat endpoints and constrained JSON features; actual model capabilities were checked independently.
+
+## Real capture capability probes and constrained-output correction
+
+Two bounded real probes of the first manually inspected Rahul text sample did not complete extraction: the application schema-validation/repair path failed after56,547ms; a direct llama.cpp constrained-JSON probe timed out at30,011ms. Each probe stopped at its first failure. No CRM import, training, outreach or semantic-accuracy acceptance occurred. A successful tiny health completion is not evidence that this model can extract production group posts.
+
+The next adapter correction sends a representable Zod JSON schema to the local llama.cpp `response_format` contract, capped at16KB grammar size; unsupported schemas fail safely and independent Zod validation/repair remains mandatory. Cache identity includes the grammar. Focused adapter tests pass; this correction is NOT in public Build43 and has not passed a live structured-extraction probe. A capable configured free provider and the full independently labelled holdout remain release gates.
