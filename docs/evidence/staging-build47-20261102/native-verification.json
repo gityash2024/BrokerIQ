@@ -1,0 +1,26 @@
+{
+  "apk": "/Users/yashjangid/.brokeriq-worktrees/release43/releases/build47-b7f1273db024/BrokerIQ-v2.3.6-build47.apk",
+  "checked64BitLibraries": 60,
+  "alignmentFailures": [],
+  "zipAlignmentExitCode": 0,
+  "secureActivityBytecode": {
+    "Class descriptor  : 'Lcom/brokeriq/app/MainActivity;'": {
+      "hasWindowFlagCall": true,
+      "hasSecure8192Constant": true
+    },
+    "Class descriptor  : 'Lcom/brokeriq/facecapture/FaceCaptureActivity;'": {
+      "hasWindowFlagCall": true,
+      "hasSecure8192Constant": true
+    }
+  },
+  "requiredPermissions": [
+    "CAMERA",
+    "RECORD_AUDIO",
+    "POST_NOTIFICATIONS",
+    "ACCESS_FINE_LOCATION",
+    "ACCESS_BACKGROUND_LOCATION",
+    "FOREGROUND_SERVICE_LOCATION"
+  ],
+  "backgroundAudioServicesAbsent": true,
+  "installedDeviceAcceptance": false
+}

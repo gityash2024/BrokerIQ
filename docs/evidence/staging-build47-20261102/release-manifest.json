@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "environment": "staging",
+  "portals": {
+    "version": "2.3.6",
+    "commit": "b7f1273db0247c4360eb156d50546d459eab1c01",
+    "builtAt": "2026-11-02T14:44:58.416Z",
+    "publishedAt": "2026-11-02T14:46:22.003Z"
+  },
+  "android": {
+    "version": "2.3.6",
+    "versionCode": 47,
+    "commit": "b7f1273db0247c4360eb156d50546d459eab1c01",
+    "builtAt": "2026-11-02T14:42:43.485Z",
+    "url": "/downloads/BrokerIQ-v2.3.6-build47.apk",
+    "sha256": "56c3cc8c61d148515bac8e542cb6d73a931b070536c5a6824b5a724f5342740d",
+    "bytes": 186529454,
+    "certificateSha256": "d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce",
+    "publishedAt": "2026-11-02T14:46:22.003Z"
+  },
+  "screenshots": []
+}

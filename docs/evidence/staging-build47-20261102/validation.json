@@ -1,0 +1,40 @@
+{
+  "applicationPin": "b7f1273db0247c4360eb156d50546d459eab1c01",
+  "fullApi": {
+    "freshDatabase": "brokeriq_test_release_b7f1273_20261102",
+    "passed": 384,
+    "skipped": 27,
+    "suitesPassed": 53,
+    "suitesSkipped": 4,
+    "seconds": 213.056
+  },
+  "brokerFirst": {
+    "passed": 30,
+    "failed": 0,
+    "suites": 4,
+    "testCorrectionCommit": "f31e0c0",
+    "productionSourceChangedFromPin": false,
+    "initialFailure": "Unsupported MODERATOR/SUPPORT session creation was correctly rejected by launch policy; fixture now asserts this and tests a pre-policy session role change."
+  },
+  "shared": {
+    "passed": 65
+  },
+  "mobile": {
+    "passed": 82
+  },
+  "workspaceTypechecks": "PASS",
+  "eslintQualityGate": {
+    "errors": 0,
+    "warnings": 27
+  },
+  "nativeBuild": {
+    "seconds": 419,
+    "tasksExecuted": 742,
+    "tasksUpToDate": 28
+  },
+  "fixtureDatabaseOnly": true,
+  "stagingFixturesOrSeeds": false,
+  "browserVisualAcceptance": false,
+  "installedDeviceAcceptance": false,
+  "fullProductSignoff": false
+}
