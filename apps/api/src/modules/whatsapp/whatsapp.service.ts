@@ -23,6 +23,8 @@ export interface WaCreds {
   values: IntegrationValues;
 }
 
+class UnmatchedWhatsAppReceiptError extends Error {}
+
 const NOT_CONNECTED =
   'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। Integration configure होने तक draft सुरक्षित रखें; message भेजा नहीं गया है।';
 
@@ -238,15 +240,23 @@ export class WhatsAppService {
     const target = { orgId: event.organizationId };
     const body: any = event.payload;
     try {
+      let unmatchedReceipt: UnmatchedWhatsAppReceiptError | null = null;
       for (const entry of body?.entry ?? []) {
         for (const change of entry?.changes ?? []) {
           const value = change?.value ?? {};
           const businessPhone = value.metadata?.display_phone_number;
           const contacts: any[] = value.contacts ?? [];
           for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone);
-          for (const s of value.statuses ?? []) await this.onStatus(s, target.orgId);
+          for (const s of value.statuses ?? []) {
+            try { await this.onStatus(s, target.orgId); }
+            catch (error) {
+              if (!(error instanceof UnmatchedWhatsAppReceiptError)) throw error;
+              unmatchedReceipt = error;
+            }
+          }
         }
       }
+      if (unmatchedReceipt) throw unmatchedReceipt;
       await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { status: 'PROCESSED', processedAt: new Date(), error: null } });
     } catch (error) {
       await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { status: 'FAILED', error: (error as Error).message.slice(0, 500) } });
@@ -459,63 +469,29 @@ export class WhatsAppService {
   }
 
   private async onStatus(s: any, orgId: string | null) {
-    const map: Record<string, any> = { sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED' };
-    const status = map[s.status];
-    if (!status || !s.id) return;
-    const msg = await this.prisma.message.findUnique({ where: { externalId: s.id }, include: { conversation: true } });
-    if (!msg) {
-      if (!s.recipient_id) return;
-      const recipientPhone = `+${String(s.recipient_id).replace(/^\+/, '')}`;
-      let targetOrgId = orgId;
-      if (!targetOrgId) {
-        const existingConv = await this.prisma.conversation.findFirst({
-          where: { contactPhone: recipientPhone, channel: 'WHATSAPP' },
-        });
-        targetOrgId = existingConv?.organizationId ?? null;
-      }
-      if (!targetOrgId) {
-        const anyOrg = await this.prisma.organization.findFirst({ where: { status: 'ACTIVE' } });
-        targetOrgId = anyOrg?.id ?? null;
-      }
-      if (!targetOrgId) return;
-      const conv = await this.conversationFor(targetOrgId, recipientPhone, {});
-      const msgDate = s.timestamp ? new Date(Number(s.timestamp) * 1000) : new Date();
-      const bodyText = s.text?.body || 'WhatsApp message';
-      const created = await this.prisma.message
-        .upsert({
-          where: { externalId: s.id },
-          create: {
-            conversationId: conv.id,
-            direction: 'OUTBOUND',
-            type: 'TEXT',
-            body: bodyText,
-            status,
-            externalId: s.id,
-            createdAt: msgDate,
-            meta: { raw: s, source: 'coexistence' } as Prisma.InputJsonValue,
-          },
-          update: {
-            status,
-          },
-        })
-        .catch((err) => {
-          this.logger.warn(`Failed to upsert coexistence outbound message: ${err?.message}`);
-          return null;
-        });
-      if (created) {
-        await this.touchConversation(conv.id, created.body ?? 'WhatsApp message', false);
-        this.emit(conv.organizationId, 'wa:message', { conversationId: conv.id, message: created });
-      }
-      return;
-    }
-    if (msg.conversation.organizationId && orgId && msg.conversation.organizationId !== orgId) return;
-    const order = ['QUEUED', 'SENT', 'DELIVERED', 'READ'];
-    if (status !== 'FAILED' && order.indexOf(status) <= order.indexOf(msg.status)) return;
-    const updated = await this.prisma.message.update({
-      where: { id: msg.id },
-      data: { status, error: s.errors?.[0]?.title ?? (status === 'FAILED' ? 'Failed' : null) },
+    const map = { sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED' } as const;
+    const status = map[s.status as keyof typeof map];
+    if (!status || typeof s.id !== 'string' || !s.id) return;
+    // A receipt contains neither the message body nor proof of another firm's identity.
+    // Never create a conversation/message by matching a recipient or the first active firm.
+    const changed = await this.prisma.$transaction(async tx => {
+      const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Message" WHERE "externalId"=${s.id} FOR UPDATE`;
+      if (!rows.length) throw new UnmatchedWhatsAppReceiptError('WhatsApp receipt has no recorded outbound message; retained for retry');
+      const msg = await tx.message.findUnique({ where: { id: rows[0].id }, include: { conversation: true } });
+      if (!msg || msg.direction !== 'OUTBOUND' || msg.conversation.channel !== 'WHATSAPP') return null;
+      const scope = (msg.meta as { scope?: string } | null)?.scope;
+      if (orgId ? msg.conversation.organizationId !== orgId : msg.conversation.organizationId !== null && scope !== 'platform') return null;
+      const order = ['QUEUED', 'SENT', 'DELIVERED', 'READ'];
+      if (status === 'FAILED') {
+        if (['DELIVERED', 'READ', 'FAILED'].includes(msg.status)) return null;
+      } else if (order.indexOf(status) <= order.indexOf(msg.status)) return null;
+      const updated = await tx.message.update({
+        where: { id: msg.id },
+        data: { status, error: status === 'FAILED' ? String(s.errors?.[0]?.title ?? 'Failed').slice(0, 500) : null },
+      });
+      return { orgId: msg.conversation.organizationId, conversationId: msg.conversationId, messageId: msg.id, status: updated.status };
     });
-    this.emit(msg.conversation.organizationId, 'wa:status', { conversationId: msg.conversationId, messageId: msg.id, status: updated.status });
+    if (changed) this.emit(changed.orgId, 'wa:status', { conversationId: changed.conversationId, messageId: changed.messageId, status: changed.status });
   }
 
   // ------------------------------------------------------------------ templates

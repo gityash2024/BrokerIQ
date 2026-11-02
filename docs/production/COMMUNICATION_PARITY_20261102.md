@@ -9,3 +9,12 @@ An additional permission defect was found: an old follow-up could remain assigne
 Validation:82 mobile tests with real SQLite transfer/conflict/account-switch cases,59 shared tests,16 real API/PostgreSQL permission/visit cases including duplicate completion and stale-agent denial; workspace types pass; scoped ESLint0 errors (existing warnings remain). No fixtures were written to staging. Physical/native/provider acceptance remains open. These changes require a release newer than Build41 before they are considered shipped.
 
 This checkpoint does not complete channel automation: SEND_EMAIL/team actions are still restricted in Broker-first automation, SMS actions and complete reminder/property-sharing channel choices remain open, and live Gmail/Textbee acceptance is not inferred from UI actions or provider stubs.
+
+
+## WhatsApp receipt tenant isolation and ordering
+
+A further source audit found that an unknown status callback could search a recipient across firms, then fall back to the first active firm and create a fabricated outbound message. This fallback is removed. A receipt now changes only its recorded OUTBOUND WhatsApp message. Firm callbacks require exact organization ownership; platform callbacks for a firm require the original send's explicit platform scope. INBOUND and other-channel messages are untouched. Unknown receipts retain the raw durable webhook and enter bounded existing job retry rather than inventing message text or tenant ownership; other known receipts in the same payload still process. Replay can succeed once the in-flight send records its provider ID.
+
+The actual message row is locked while checking/updating status. Concurrent/delayed callbacks cannot regress READ or turn DELIVERED into FAILED; repeated status produces no extra change/event. This preserves existing Housing inbound filtering and does not alter credentials, subscriptions or provider settings.
+
+Four new real PostgreSQL cases cover unknown receipts with two firms sharing a contact, cross-firm/platform denial, explicit platform sends,20 mixed concurrent receipts, inbound exclusion, processing past an unmatched receipt and retained-event replay after late message registration. Combined receipt/composer/signature suites11/11 and API types pass. No real provider message was sent; live callbacks/browser/device acceptance remain open. Source is after Build45.
