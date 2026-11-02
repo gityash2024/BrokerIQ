@@ -28,6 +28,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
 }
 function Editor({ member }: { member: Member }) {
   const { user } = useAuth();
+  const teamBase = user?.role === 'SUPER_ADMIN' ? '/admin/team' : '/broker/team';
   const [baseline, setBaseline] = useState(member.updatedAt);
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phone || '');
@@ -63,13 +64,13 @@ function Editor({ member }: { member: Member }) {
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-12">
       <nav className="flex flex-wrap items-center gap-2 text-sm text-muted">
-        <Link href="/broker">Workspace</Link>
+        <Link href={user?.role === 'SUPER_ADMIN' ? '/admin' : '/broker'}>Workspace</Link>
         <span>/</span>
-        <Link href="/broker/team">Team & Agents</Link>
+        <Link href={teamBase}>Team & Agents</Link>
         <span>/</span>
         <span>{member.name}</span>
       </nav>
-      <Link href="/broker/team" className="inline-flex items-center gap-2 text-sm text-brand">
+      <Link href={teamBase} className="inline-flex items-center gap-2 text-sm text-brand">
         <ArrowLeft className="size-4" /> टीम सूची
       </Link>
       {removed ? (
@@ -133,10 +134,10 @@ function Editor({ member }: { member: Member }) {
               <Badge>{member.kycStatus}</Badge>
               <p className="text-sm text-muted">Documents और review KYC module में उपलब्ध हैं।</p>
               <div className="flex flex-wrap gap-3">
-                <Link className="text-brand" href={`/broker/kyc?member=${member.id}`}>
+                <Link className="text-brand" href={user?.role === 'SUPER_ADMIN' ? `/admin/kyc?agentId=${member.id}` : `/broker/kyc?member=${member.id}`}>
                   KYC खोलें →
                 </Link>
-                <Link className="text-brand" href={`/broker/team/time-logging?memberId=${member.id}`}>
+                <Link className="text-brand" href={`${teamBase}/time-logging?memberId=${member.id}`}>
                   Time logging →
                 </Link>
               </div>

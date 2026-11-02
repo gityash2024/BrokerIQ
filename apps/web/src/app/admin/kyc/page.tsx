@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { BadgeCheck, Building2, Check, User, X } from 'lucide-react';
@@ -14,12 +16,15 @@ import { Input } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
-export default function KycPage() {
-  const [status, setStatus] = useState<'PENDING' | 'VERIFIED' | 'REJECTED'>('PENDING');
+function KycContent() {
+  const params = useSearchParams();
+  const agentId = params.get('agentId') ?? '';
+  const [status, setStatus] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>(agentId ? 'ALL' : 'PENDING');
   const [archived, setArchived] = useState(false);
   const q = useQuery({
-    queryKey: ['admin-kyc', status, archived],
-    queryFn: () => api<any[]>(`/admin/kyc?status=${status}&history=${archived ? 'ARCHIVED' : 'CURRENT'}`),
+    queryKey: ['admin-kyc', status, archived, agentId],
+    queryFn: () =>
+      api<any[]>(`/admin/kyc?status=${status}&history=${archived ? 'ARCHIVED' : 'CURRENT'}${agentId ? `&agentId=${encodeURIComponent(agentId)}` : ''}`),
   });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const review = useApiMutation(
@@ -32,11 +37,20 @@ export default function KycPage() {
         title="KYC & verification"
         subtitle="Personal और firm documents की अलग review; सभी active firm documents approve होने पर firm verified होती है"
       />
+      {agentId && (
+        <p className="mb-3 text-sm text-muted">
+          Showing the selected team member’s documents.{' '}
+          <Link href="/admin/kyc" className="text-brand">
+            Show all people and firms
+          </Link>
+        </p>
+      )}
       <Segmented
         className="mb-5"
         value={status}
         onChange={setStatus}
         options={[
+          { value: 'ALL', label: 'All statuses' },
           { value: 'PENDING', label: 'Pending' },
           { value: 'VERIFIED', label: 'Verified' },
           { value: 'REJECTED', label: 'Rejected' },
@@ -118,5 +132,13 @@ export default function KycPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function KycPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-48 rounded-2xl" />}>
+      <KycContent />
+    </Suspense>
   );
 }

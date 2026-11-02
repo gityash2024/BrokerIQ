@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, CheckCircle2, Clock, LogIn, LogOut, MapPin, Navigation, Pause, PauseCircle, PlayCircle, RefreshCw, User, Users } from 'lucide-react';
+import { ApiErrorState } from '@/components/ui/api-error';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn, qs } from '@/lib/utils';
@@ -144,24 +145,17 @@ function TimeLoggingContent() {
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [punchLoading, setPunchLoading] = useState(false);
 
-  // 1. Fetch broker firms if Super Admin
-  const brokersQuery = useQuery({
-    queryKey: ['admin-organizations-time-logging'],
-    queryFn: () => api<{ items: Array<{ id: string; name: string }> }>('/admin/organizations?limit=100'),
-    enabled: isSuperAdmin,
-  });
-
-  // 2. Fetch team members (with optional orgId override for Super Admin, disabled for agent)
+  // The all-firms response includes the complete firm hierarchy; no first-page firm lookup.
   const teamQuery = useQuery({
-    queryKey: ['broker-team-time-logging', selectedBrokerId],
-    queryFn: () => api<BrokerTeamResponse>(`/broker/team${qs({ orgId: selectedBrokerId || undefined })}`),
+    queryKey: ['broker-team-time-logging', user?.id],
+    queryFn: () => api<BrokerTeamResponse>('/broker/team'),
     enabled: !isAgent,
   });
-
-  const members = teamQuery.data?.members ?? [];
-
-  // Active agent: for agents, strictly locked to their own id; for admins, selectable
-  const activeAgentId = isAgent ? user?.id || '' : selectedAgentId || (members.length > 0 ? members[0].id : user?.id || '');
+  const allMembers = teamQuery.data?.members ?? [];
+  const members =
+    isSuperAdmin && selectedBrokerId ? allMembers.filter((m) => (m.organization as { id?: string } | undefined)?.id === selectedBrokerId) : allMembers;
+  // Super Admin chooses a member explicitly; an unselected hierarchy never masquerades as the first agent.
+  const activeAgentId = isAgent ? user?.id || '' : selectedAgentId || (isSuperAdmin ? '' : members[0]?.id || user?.id || '');
   const activeAgent = isAgent ? user : members.find((m) => m.id === activeAgentId);
   const isMe = activeAgentId === user?.id;
 
@@ -213,6 +207,10 @@ function TimeLoggingContent() {
   const lastPunchOut = [...(timelineData?.events ?? [])].reverse().find((e) => e.type === 'PUNCH_OUT')?.timestamp;
 
   const handleRefresh = () => {
+    if (!activeAgentId) {
+      teamQuery.refetch();
+      return;
+    }
     timelineQuery.refetch();
     historyQuery.refetch();
     statusQuery.refetch();
@@ -312,7 +310,7 @@ function TimeLoggingContent() {
                 }}
               >
                 <option value="">All Broker Firms (Default)</option>
-                {(brokersQuery.data?.items ?? []).map((b) => (
+                {(teamQuery.data?.organizations ?? []).map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
@@ -330,12 +328,14 @@ function TimeLoggingContent() {
           ) : (
             <div className="w-60">
               <Select className="h-10 text-xs font-semibold" value={activeAgentId} onChange={(e) => setSelectedAgentId(e.target.value)}>
+                {isSuperAdmin && <option value="">Choose a member to inspect</option>}
                 {members.length === 0 ? (
                   <option value="">No agents found</option>
                 ) : (
                   members.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                      {isSuperAdmin && m.organization ? ` · ${(m.organization as { name: string }).name}` : ''}
                     </option>
                   ))
                 )}
@@ -374,293 +374,327 @@ function TimeLoggingContent() {
         </div>
 
         {/* Refresh Action */}
-        <Button variant="secondary" size="sm" onClick={handleRefresh} className="gap-2 text-xs" disabled={timelineQuery.isFetching || historyQuery.isFetching}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleRefresh}
+          className="gap-2 text-xs"
+          disabled={!activeAgentId || timelineQuery.isFetching || historyQuery.isFetching}
+        >
           <RefreshCw className={cn('size-3.5', (timelineQuery.isFetching || historyQuery.isFetching) && 'animate-spin')} />
           Refresh
         </Button>
       </div>
 
-      {/* Working Hours Summary Cards Deck */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: Duty Status */}
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted uppercase tracking-wider">Current Duty Status</span>
-            <div className="grid size-8 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10">
-              <User className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              {statusQuery.isLoading ? (
-                <Skeleton className="h-6 w-24 rounded-full" />
-              ) : statusData?.status === 'ACTIVE' ? (
-                <Badge tone="success" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-ping inline-block mr-1.5" />
-                  ON DUTY
-                </Badge>
-              ) : statusData?.status === 'PAUSED' ? (
-                <Badge tone="warning" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
-                  <Pause className="size-3 mr-1" />
-                  PAUSED ({statusData.activeShift?.pauseReason || 'GPS Lost'})
-                </Badge>
-              ) : (
-                <Badge tone="neutral" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
-                  OFF DUTY
-                </Badge>
-              )}
-            </div>
+      {(teamQuery.error || statusQuery.error || timelineQuery.error || historyQuery.error) && (
+        <ApiErrorState error={teamQuery.error || statusQuery.error || timelineQuery.error || historyQuery.error} onRetry={handleRefresh} />
+      )}
+      {activeAgentId ? (
+        <>
+          {/* Working Hours Summary Cards Deck */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Card 1: Duty Status */}
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted uppercase tracking-wider">Current Duty Status</span>
+                <div className="grid size-8 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10">
+                  <User className="size-4" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {statusQuery.isLoading ? (
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                  ) : statusData?.status === 'ACTIVE' ? (
+                    <Badge tone="success" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
+                      <span className="size-2 rounded-full bg-emerald-500 animate-ping inline-block mr-1.5" />
+                      ON DUTY
+                    </Badge>
+                  ) : statusData?.status === 'PAUSED' ? (
+                    <Badge tone="warning" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
+                      <Pause className="size-3 mr-1" />
+                      PAUSED ({statusData.activeShift?.pauseReason || 'GPS Lost'})
+                    </Badge>
+                  ) : (
+                    <Badge tone="neutral" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
+                      OFF DUTY
+                    </Badge>
+                  )}
+                </div>
 
-            {/* Quick Web Actions for logged-in user */}
-            {isMe && !statusQuery.isLoading && (
-              <div className="flex items-center gap-1.5">
-                {statusData?.status === 'ACTIVE' ? (
-                  <Button size="sm" variant="danger" loading={punchLoading} onClick={handleWebPunchOut} className="h-7 text-[11px] font-bold gap-1 rounded-lg">
-                    <LogOut className="size-3" /> Punch Out
-                  </Button>
-                ) : statusData?.status === 'PAUSED' ? (
-                  <>
-                    <Button size="sm" variant="primary" loading={punchLoading} onClick={handleWebResume} className="h-7 text-[11px] font-bold gap-1 rounded-lg">
-                      <PlayCircle className="size-3" /> Resume
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      loading={punchLoading}
-                      onClick={handleWebPunchOut}
-                      className="h-7 text-[11px] font-bold gap-1 rounded-lg"
-                    >
-                      <LogOut className="size-3" /> Punch Out
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="whatsapp"
-                    loading={punchLoading}
-                    onClick={handleWebPunchIn}
-                    className="h-7 text-[11px] font-bold gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    <LogIn className="size-3" /> Punch In
-                  </Button>
+                {/* Quick Web Actions for logged-in user */}
+                {isMe && !statusQuery.isLoading && (
+                  <div className="flex items-center gap-1.5">
+                    {statusData?.status === 'ACTIVE' ? (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        loading={punchLoading}
+                        onClick={handleWebPunchOut}
+                        className="h-7 text-[11px] font-bold gap-1 rounded-lg"
+                      >
+                        <LogOut className="size-3" /> Punch Out
+                      </Button>
+                    ) : statusData?.status === 'PAUSED' ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          loading={punchLoading}
+                          onClick={handleWebResume}
+                          className="h-7 text-[11px] font-bold gap-1 rounded-lg"
+                        >
+                          <PlayCircle className="size-3" /> Resume
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          loading={punchLoading}
+                          onClick={handleWebPunchOut}
+                          className="h-7 text-[11px] font-bold gap-1 rounded-lg"
+                        >
+                          <LogOut className="size-3" /> Punch Out
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="whatsapp"
+                        loading={punchLoading}
+                        onClick={handleWebPunchIn}
+                        className="h-7 text-[11px] font-bold gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <LogIn className="size-3" /> Punch In
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-          <p className="mt-2 text-xs text-subtle truncate">{activeAgent?.name ? `${activeAgent.name}` : 'Selected Agent'}</p>
-        </div>
+              <p className="mt-2 text-xs text-subtle truncate">{activeAgent?.name ? `${activeAgent.name}` : 'Selected Agent'}</p>
+            </div>
 
-        {/* Card 2: Total Active Hours */}
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted uppercase tracking-wider">Active Working Hours</span>
-            <div className="grid size-8 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-500/10">
-              <Clock className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            {timelineQuery.isLoading ? (
-              <Skeleton className="h-7 w-20" />
-            ) : (
-              <p className="text-2xl font-bold font-display text-fg">{formatMinutes(timelineData?.summary?.activeMinutes ?? 0)}</p>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-subtle">Total accumulated active shift time</p>
-        </div>
-
-        {/* Card 3: Total Paused Duration */}
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted uppercase tracking-wider">Paused / Suspended</span>
-            <div className="grid size-8 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10">
-              <PauseCircle className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            {timelineQuery.isLoading ? (
-              <Skeleton className="h-7 w-20" />
-            ) : (
-              <p className="text-2xl font-bold font-display text-amber-600 dark:text-amber-400">{formatMinutes(timelineData?.summary?.pausedMinutes ?? 0)}</p>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-subtle">Interruption / GPS lost duration</p>
-        </div>
-
-        {/* Card 4: Punch In & Out Timestamps */}
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted uppercase tracking-wider">Punches & GPS Points</span>
-            <div className="grid size-8 place-items-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-500/10">
-              <MapPin className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-xs">
-            <div>
-              <span className="text-subtle block">Punch In</span>
-              <span className="font-bold text-fg">{formatTimeOnly(firstPunchIn)}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-subtle block">Punch Out</span>
-              <span className="font-bold text-fg">{lastPunchOut ? formatTimeOnly(lastPunchOut) : statusData?.status === 'ACTIVE' ? 'In Progress' : '—'}</span>
-            </div>
-          </div>
-          <div className="mt-2 text-xs font-medium text-brand-600 dark:text-brand-400">{historyData?.count ?? 0} breadcrumbs captured</div>
-        </div>
-      </div>
-
-      {/* 2-Column Split Dashboard (Timeline + Leaflet Map) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Column: Daily Chronological Timeline (5 of 12 cols) */}
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm lg:col-span-5 flex flex-col">
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <div>
-              <h3 className="font-display font-bold text-fg">Daily Timeline</h3>
-              <p className="text-xs text-muted">Chronological shift events & breadcrumbs</p>
-            </div>
-            <Badge tone="brand" className="text-[11px]">
-              {timelineData?.events?.length ?? 0} events
-            </Badge>
-          </div>
-
-          <div className="mt-4 flex-1 overflow-y-auto max-h-[640px] pr-2">
-            {timelineQuery.isLoading ? (
-              <div className="space-y-4 p-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
-                ))}
+            {/* Card 2: Total Active Hours */}
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted uppercase tracking-wider">Active Working Hours</span>
+                <div className="grid size-8 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-500/10">
+                  <Clock className="size-4" />
+                </div>
               </div>
-            ) : !timelineData?.events || timelineData.events.length === 0 ? (
-              <Empty
-                icon={<Clock className="size-6 text-muted" />}
-                title="No timeline events"
-                text="No shift activity or GPS breadcrumbs recorded for this agent on the selected date."
-                className="my-8"
-              />
-            ) : (
-              <div className="relative border-l-2 border-line/80 ml-4 space-y-6 py-2">
-                {timelineData.events.map((evt) => {
-                  const isCheckpoint = evt.type === 'CHECKPOINT';
-                  const isPunchIn = evt.type === 'PUNCH_IN';
-                  const isPunchOut = evt.type === 'PUNCH_OUT';
-                  const isPause = evt.type === 'PAUSE';
-                  const isResume = evt.type === 'RESUME';
+              <div className="mt-3">
+                {timelineQuery.isLoading ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className="text-2xl font-bold font-display text-fg">{formatMinutes(timelineData?.summary?.activeMinutes ?? 0)}</p>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-subtle">Total accumulated active shift time</p>
+            </div>
 
-                  return (
-                    <div
-                      key={evt.id}
-                      onClick={() => isCheckpoint && setSelectedPointId(evt.id.replace('loc-', ''))}
-                      className={cn('relative pl-6 transition-colors group', isCheckpoint && 'cursor-pointer')}
-                    >
-                      {/* Node Circle Icon */}
-                      <span
-                        className={cn(
-                          'absolute -left-[17px] top-1 grid size-8 place-items-center rounded-full border-2 border-surface shadow-sm transition-transform group-hover:scale-110',
-                          isPunchIn && 'bg-emerald-600 text-white',
-                          isCheckpoint && 'bg-sky-600 text-white',
-                          isPause && 'bg-amber-600 text-white',
-                          isResume && 'bg-indigo-600 text-white',
-                          isPunchOut && 'bg-rose-600 text-white',
-                        )}
-                      >
-                        {isPunchIn && <LogIn className="size-3.5" />}
-                        {isCheckpoint && <MapPin className="size-3.5" />}
-                        {isPause && <Pause className="size-3.5" />}
-                        {isResume && <PlayCircle className="size-3.5" />}
-                        {isPunchOut && <LogOut className="size-3.5" />}
-                      </span>
+            {/* Card 3: Total Paused Duration */}
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted uppercase tracking-wider">Paused / Suspended</span>
+                <div className="grid size-8 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10">
+                  <PauseCircle className="size-4" />
+                </div>
+              </div>
+              <div className="mt-3">
+                {timelineQuery.isLoading ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className="text-2xl font-bold font-display text-amber-600 dark:text-amber-400">
+                    {formatMinutes(timelineData?.summary?.pausedMinutes ?? 0)}
+                  </p>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-subtle">Interruption / GPS lost duration</p>
+            </div>
 
-                      {/* Event Details Card */}
-                      <div
-                        className={cn(
-                          'rounded-xl border border-line/70 bg-surface-2/40 p-3 transition hover:bg-surface-2',
-                          selectedPointId && evt.id.includes(selectedPointId) && 'ring-2 ring-brand-500 bg-brand-50/20',
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-fg">{evt.label}</span>
-                          <span className="text-[11px] font-semibold text-subtle">{formatTimeOnly(evt.timestamp)}</span>
+            {/* Card 4: Punch In & Out Timestamps */}
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted uppercase tracking-wider">Punches & GPS Points</span>
+                <div className="grid size-8 place-items-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-500/10">
+                  <MapPin className="size-4" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-subtle block">Punch In</span>
+                  <span className="font-bold text-fg">{formatTimeOnly(firstPunchIn)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-subtle block">Punch Out</span>
+                  <span className="font-bold text-fg">
+                    {lastPunchOut ? formatTimeOnly(lastPunchOut) : statusData?.status === 'ACTIVE' ? 'In Progress' : '—'}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 text-xs font-medium text-brand-600 dark:text-brand-400">{historyData?.count ?? 0} breadcrumbs captured</div>
+            </div>
+          </div>
+
+          {/* 2-Column Split Dashboard (Timeline + Leaflet Map) */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* Left Column: Daily Chronological Timeline (5 of 12 cols) */}
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm lg:col-span-5 flex flex-col">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div>
+                  <h3 className="font-display font-bold text-fg">Daily Timeline</h3>
+                  <p className="text-xs text-muted">Chronological shift events & breadcrumbs</p>
+                </div>
+                <Badge tone="brand" className="text-[11px]">
+                  {timelineData?.events?.length ?? 0} events
+                </Badge>
+              </div>
+
+              <div className="mt-4 flex-1 overflow-y-auto max-h-[640px] pr-2">
+                {timelineQuery.isLoading ? (
+                  <div className="space-y-4 p-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : !timelineData?.events || timelineData.events.length === 0 ? (
+                  <Empty
+                    icon={<Clock className="size-6 text-muted" />}
+                    title="No timeline events"
+                    text="No shift activity or GPS breadcrumbs recorded for this agent on the selected date."
+                    className="my-8"
+                  />
+                ) : (
+                  <div className="relative border-l-2 border-line/80 ml-4 space-y-6 py-2">
+                    {timelineData.events.map((evt) => {
+                      const isCheckpoint = evt.type === 'CHECKPOINT';
+                      const isPunchIn = evt.type === 'PUNCH_IN';
+                      const isPunchOut = evt.type === 'PUNCH_OUT';
+                      const isPause = evt.type === 'PAUSE';
+                      const isResume = evt.type === 'RESUME';
+
+                      return (
+                        <div
+                          key={evt.id}
+                          onClick={() => isCheckpoint && setSelectedPointId(evt.id.replace('loc-', ''))}
+                          className={cn('relative pl-6 transition-colors group', isCheckpoint && 'cursor-pointer')}
+                        >
+                          {/* Node Circle Icon */}
+                          <span
+                            className={cn(
+                              'absolute -left-[17px] top-1 grid size-8 place-items-center rounded-full border-2 border-surface shadow-sm transition-transform group-hover:scale-110',
+                              isPunchIn && 'bg-emerald-600 text-white',
+                              isCheckpoint && 'bg-sky-600 text-white',
+                              isPause && 'bg-amber-600 text-white',
+                              isResume && 'bg-indigo-600 text-white',
+                              isPunchOut && 'bg-rose-600 text-white',
+                            )}
+                          >
+                            {isPunchIn && <LogIn className="size-3.5" />}
+                            {isCheckpoint && <MapPin className="size-3.5" />}
+                            {isPause && <Pause className="size-3.5" />}
+                            {isResume && <PlayCircle className="size-3.5" />}
+                            {isPunchOut && <LogOut className="size-3.5" />}
+                          </span>
+
+                          {/* Event Details Card */}
+                          <div
+                            className={cn(
+                              'rounded-xl border border-line/70 bg-surface-2/40 p-3 transition hover:bg-surface-2',
+                              selectedPointId && evt.id.includes(selectedPointId) && 'ring-2 ring-brand-500 bg-brand-50/20',
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-fg">{evt.label}</span>
+                              <span className="text-[11px] font-semibold text-subtle">{formatTimeOnly(evt.timestamp)}</span>
+                            </div>
+
+                            {/* Coordinates or Address */}
+                            {(evt.address || evt.coordinates) && (
+                              <p className="mt-1 text-[11px] text-muted line-clamp-2">
+                                {evt.address || `${evt.coordinates?.latitude.toFixed(5)}, ${evt.coordinates?.longitude.toFixed(5)}`}
+                                {evt.coordinates?.accuracy ? ` (±${Math.round(evt.coordinates.accuracy)}m)` : ''}
+                              </p>
+                            )}
+
+                            {/* Duration or Reason Badges */}
+                            {isPause && evt.reason && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                                  Reason: {evt.reason}
+                                </span>
+                                {evt.durationMinutes ? <span className="text-[10px] text-subtle">Duration: {evt.durationMinutes}m</span> : null}
+                              </div>
+                            )}
+
+                            {isPunchOut && evt.durationMinutes ? (
+                              <div className="mt-2">
+                                <span className="rounded bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:text-rose-300">
+                                  Shift duration: {formatMinutes(evt.durationMinutes)}
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
 
-                        {/* Coordinates or Address */}
-                        {(evt.address || evt.coordinates) && (
-                          <p className="mt-1 text-[11px] text-muted line-clamp-2">
-                            {evt.address || `${evt.coordinates?.latitude.toFixed(5)}, ${evt.coordinates?.longitude.toFixed(5)}`}
-                            {evt.coordinates?.accuracy ? ` (±${Math.round(evt.coordinates.accuracy)}m)` : ''}
-                          </p>
-                        )}
+            {/* Right Column: 15-Minute Location History Map (7 of 12 cols) */}
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm lg:col-span-7 flex flex-col">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div>
+                  <h3 className="font-display font-bold text-fg">15-Minute Location History Map</h3>
+                  <p className="text-xs text-muted">Chronological route trace & numbered waypoint markers</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-subtle">
+                    <span className="size-2 rounded-full bg-brand-600" />
+                    Route Polyline
+                  </span>
+                  <Badge tone="info" className="text-[11px]">
+                    {mapPoints.length} Waypoints
+                  </Badge>
+                </div>
+              </div>
 
-                        {/* Duration or Reason Badges */}
-                        {isPause && evt.reason && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                              Reason: {evt.reason}
-                            </span>
-                            {evt.durationMinutes ? <span className="text-[10px] text-subtle">Duration: {evt.durationMinutes}m</span> : null}
-                          </div>
-                        )}
-
-                        {isPunchOut && evt.durationMinutes ? (
-                          <div className="mt-2">
-                            <span className="rounded bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:text-rose-300">
-                              Shift duration: {formatMinutes(evt.durationMinutes)}
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
+              <div className="mt-4 flex-1 min-h-[500px] w-full overflow-hidden rounded-xl border border-line relative">
+                {historyQuery.isLoading ? (
+                  <div className="flex h-full w-full min-h-[500px] items-center justify-center bg-surface-2 text-muted">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <span className="size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+                      Loading GPS breadcrumbs...
                     </div>
-                  );
-                })}
+                  </div>
+                ) : mapPoints.length === 0 ? (
+                  <div className="flex h-full w-full min-h-[500px] flex-col items-center justify-center bg-surface-2/60 p-6 text-center">
+                    <div className="grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 mb-3">
+                      <Navigation className="size-6" />
+                    </div>
+                    <h4 className="font-display font-bold text-fg">No GPS breadcrumbs recorded</h4>
+                    <p className="mt-1 max-w-sm text-xs text-muted">No 15-minute location history points were logged for this agent on {selectedDate}.</p>
+                  </div>
+                ) : (
+                  <DynamicMap
+                    points={mapPoints}
+                    polyline={polylineCoords}
+                    activeId={selectedPointId}
+                    onSelect={(p) => setSelectedPointId(p.id)}
+                    className="h-full min-h-[500px] w-full"
+                  />
+                )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: 15-Minute Location History Map (7 of 12 cols) */}
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm lg:col-span-7 flex flex-col">
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <div>
-              <h3 className="font-display font-bold text-fg">15-Minute Location History Map</h3>
-              <p className="text-xs text-muted">Chronological route trace & numbered waypoint markers</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-subtle">
-                <span className="size-2 rounded-full bg-brand-600" />
-                Route Polyline
-              </span>
-              <Badge tone="info" className="text-[11px]">
-                {mapPoints.length} Waypoints
-              </Badge>
             </div>
           </div>
-
-          <div className="mt-4 flex-1 min-h-[500px] w-full overflow-hidden rounded-xl border border-line relative">
-            {historyQuery.isLoading ? (
-              <div className="flex h-full w-full min-h-[500px] items-center justify-center bg-surface-2 text-muted">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
-                  Loading GPS breadcrumbs...
-                </div>
-              </div>
-            ) : mapPoints.length === 0 ? (
-              <div className="flex h-full w-full min-h-[500px] flex-col items-center justify-center bg-surface-2/60 p-6 text-center">
-                <div className="grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 mb-3">
-                  <Navigation className="size-6" />
-                </div>
-                <h4 className="font-display font-bold text-fg">No GPS breadcrumbs recorded</h4>
-                <p className="mt-1 max-w-sm text-xs text-muted">No 15-minute location history points were logged for this agent on {selectedDate}.</p>
-              </div>
-            ) : (
-              <DynamicMap
-                points={mapPoints}
-                polyline={polylineCoords}
-                activeId={selectedPointId}
-                onSelect={(p) => setSelectedPointId(p.id)}
-                className="h-full min-h-[500px] w-full"
-              />
-            )}
-          </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <Empty
+          title="Choose a member"
+          text="Select a firm or keep all firms, then explicitly choose the member whose shifts and location history you want to inspect."
+        />
+      )}
     </div>
   );
 }

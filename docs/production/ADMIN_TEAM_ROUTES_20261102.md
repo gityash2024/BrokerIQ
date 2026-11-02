@@ -1,0 +1,11 @@
+# Super Admin team route and hierarchy correction — source checkpoint
+
+The Admin sidebar linked to `/broker/team` and `/broker/team/time-logging`. Although the child pages/API had Super Admin branches, the parent Broker layout accepted only Broker Admin/Agent, so the UI could not reach those branches. Separately, the strict shared team decoder stripped the all-firms `organizations`/`organizationId` fields. Time Logging used a first-page firm query and silently displayed the first returned member.
+
+Admin now has its own protected `/admin/team`, member-detail, leaderboard and time-logging routes. They reuse the existing page behavior inside the Admin layout; Broker layout roles are unchanged. Sidebar, member details, back/breadcrumbs, leaderboard, KYC and history links preserve the current role's route family. Inventory and KYC are directly discoverable in Admin navigation.
+
+The decoded response retains explicit all-firms metadata. Team exposes an all-firms/default or explicit-firm filter, displays firm identity, and applies firm scope to top cards, members, invitations and exports. Broker-only invite/cancel controls do not appear for Super Admin when their APIs do not authorize it. Quick role/status changes send the member's observed revision timestamp. Agents receive self-profile wording and no administrative invitation controls; existing backend record/role guards remain authoritative.
+
+Time Logging uses the complete returned hierarchy, with no first30 firm cap. Super Admin must explicitly choose a member before any history/status requests, summary or map is displayed. No member means a selection prompt rather than first-agent data or fabricated zeros. Network/authorization failures render errors. Member links retain their ID; agents stay locked to self. KYC deep links pass the actual `agentId` filter and initially include all statuses for that selected member.
+
+Validation:64 shared cases, including hierarchy decode regression; seven real PostgreSQL team-release cases, including decoding the actual all-firms response; nine location/performance cases; workspace typechecks pass. Scoped ESLint has no errors; existing warnings remain. Browser visuals and signed-device journeys remain open. This source correction is AFTER published Build44; no claim it is already deployed.

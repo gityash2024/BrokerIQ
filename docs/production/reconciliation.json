@@ -3374,12 +3374,13 @@
         "latest-approved-plan"
       ],
       "backend": "INVENTORY_IMPLEMENTED_REAL_POSTGRES_VERIFIED_OTHER_MODULES_OPEN",
-      "web": "INVENTORY_SHARED_WORKSPACE_TYPECHECKED_VISUAL_PENDING",
+      "web": "INVENTORY_SHIPPED_44_TEAM_ADMIN_ROUTES_SOURCE_VERIFIED_VISUAL_PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "Inventory all-firms/member pages, export privacy, locked same-firm assignment, reversible archive: 6 new real PostgreSQL cases; related regressions 29/29",
       "notes": [
-        "Inventory old first-firm/first-member defaults, empty publish body, current-page CSV and cross-firm matching corrected. All other business module hierarchy coverage remains OPEN. See ADMIN_INVENTORY_20261102.md."
+        "Inventory old first-firm/first-member defaults, empty publish body, current-page CSV and cross-firm matching corrected. All other business module hierarchy coverage remains OPEN. See ADMIN_INVENTORY_20261102.md.",
+        "Admin Team/Details/Leaderboard/Time Logging now use protected Admin routes; strict decoder retains all-firms metadata and Super Admin location selection is explicit. These later source changes are NOT in Build44. Remaining business-module hierarchy is OPEN."
       ],
       "roles": [
         "SUPER_ADMIN"
@@ -3387,7 +3388,10 @@
       "sourceFiles": [
         "apps/web/src/components/broker/launch/inventory-workspace.tsx",
         "apps/api/src/modules/inventory/inventory.service.ts",
-        "apps/api/test/inventory-admin.e2e-spec.ts"
+        "apps/api/test/inventory-admin.e2e-spec.ts",
+        "apps/web/src/app/admin/team/page.tsx",
+        "apps/web/src/app/broker/team/time-logging/page.tsx",
+        "packages/shared/src/team.ts"
       ],
       "commits": [],
       "database": "NO_MIGRATION",

@@ -17,6 +17,8 @@ export function agentTargets(raw: unknown): AgentTargets {
   return result;
 }
 export const brokerTeamResponseSchema = z.object({
+  organizationId: z.string().nullable().optional(),
+  organizations: z.array(z.object({ id: z.string(), name: z.string(), status: z.enum(['ACTIVE', 'SUSPENDED']) })).optional(),
   members: z.array(
     z
       .object({

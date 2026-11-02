@@ -29,24 +29,39 @@ function Inner({ children }: { children: React.ReactNode }) {
           iconShadow: 'shadow-emerald-500/25',
         },
         {
-          href: '/broker/team',
+          href: '/admin/team',
           label: 'Team & Agents',
           icon: Users,
           iconGradient: 'from-sky-600 to-indigo-600',
           iconShadow: 'shadow-sky-500/25',
           children: [
             {
-              href: '/broker/team',
+              href: '/admin/team',
               label: 'Team Members',
               exact: true,
               icon: Users,
             },
             {
-              href: '/broker/team/time-logging',
+              href: '/admin/team/leaderboard',
+              label: 'Leaderboard',
+              icon: Users,
+            },
+            {
+              href: '/admin/team/time-logging',
               label: 'Time Logging',
               icon: Clock,
             },
           ],
+        },
+        {
+          href: '/admin/inventory',
+          label: 'Inventory',
+          icon: Building2,
+        },
+        {
+          href: '/admin/kyc',
+          label: 'KYC',
+          icon: Users,
         },
         {
           href: '/admin/modules',

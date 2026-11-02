@@ -95,6 +95,9 @@ function IndeterminateCheckbox({
 export default function TeamPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const isSuper = user?.role === 'SUPER_ADMIN';
+  const teamBase = isSuper ? '/admin/team' : '/broker/team';
+  const [firmFilter, setFirmFilter] = useState('');
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const q = useTeam();
   const [invite, setInvite] = useState(false);
@@ -132,13 +135,15 @@ export default function TeamPage() {
 
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   const members = q.data?.members ?? [];
+  const visibleInvites = (q.data?.invites ?? []).filter((i: any) => !isSuper || !firmFilter || i.organization?.id === firmFilter);
   const ranked = [...members]
-    .filter((m) => m.status === 'ACTIVE')
+    .filter((m) => m.status === 'ACTIVE' && (!isSuper || !firmFilter || (m.organization as { id?: string } | undefined)?.id === firmFilter))
     .sort((a, b) => b.stats.won30d - a.stats.won30d || b.stats.activities30d - a.stats.activities30d);
 
   // Filter & Sort members
   const filteredMembers = members
     .filter((m: any) => {
+      if (isSuper && firmFilter && m.organization?.id !== firmFilter) return false;
       // 1. Role filter
       if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
 
@@ -244,6 +249,7 @@ export default function TeamPage() {
   };
 
   const handleResetFilters = () => {
+    setFirmFilter('');
     setSearchQuery('');
     setRoleFilter('ALL');
     setStatusFilter('ALL');
@@ -256,6 +262,7 @@ export default function TeamPage() {
   };
 
   const hasActiveFilters =
+    !!firmFilter ||
     searchQuery.trim().length > 0 ||
     roleFilter !== 'ALL' ||
     statusFilter !== 'ALL' ||
@@ -282,21 +289,23 @@ export default function TeamPage() {
   return (
     <>
       <PageHeader
-        title="Team & Agents"
-        subtitle="एजेंट्स को इनवाइट करें, रोल्स दें, टारगेट्स सेट करें व लाइव लोकेशन ट्रैक करें"
+        title={admin ? 'Team & Agents' : 'My team profile'}
+        subtitle={admin ? 'सदस्य, roles, targets और working history देखें' : 'अपना profile, targets और performance देखें'}
         actions={
           <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => router.push('/broker/team/leaderboard')}
+              onClick={() => router.push(`${teamBase}/leaderboard`)}
               className="border-amber-300/40 hover:border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold"
             >
               <Trophy className="size-4 mr-1.5 text-amber-500" /> Leaderboard
             </Button>
-            <Button size="sm" onClick={() => setInvite(true)}>
-              <UserPlus className="size-4 mr-1.5" /> Member invite करें
-            </Button>
+            {user?.role === 'BROKER_ADMIN' && (
+              <Button size="sm" onClick={() => setInvite(true)}>
+                <UserPlus className="size-4 mr-1.5" /> Member invite करें
+              </Button>
+            )}
           </div>
         }
       />
@@ -326,6 +335,7 @@ export default function TeamPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-sm">{m.name}</p>
+                  {isSuper && <p className="text-xs text-muted">{(m as any).organization?.name}</p>}
                   <p className="text-xs text-muted">
                     {m.stats.won30d} won · {m.stats.activities30d} activities (30 दिन)
                   </p>
@@ -337,6 +347,28 @@ export default function TeamPage() {
         </div>
       )}
 
+      {isSuper && (
+        <label className="mb-4 block max-w-sm text-xs font-semibold">
+          Firm
+          <Select
+            aria-label="Team firm"
+            value={firmFilter}
+            onChange={(e) => {
+              setFirmFilter(e.target.value);
+              setAgentFilter('ALL');
+              setSelectedIds(new Set());
+            }}
+          >
+            <option value="">All firms</option>
+            {(q.data?.organizations ?? []).map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+                {org.status !== 'ACTIVE' ? ` (${org.status})` : ''}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
       {/* Filter Toolbar for Teams & Agents */}
       <div className="card mb-3.5 p-3 space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -432,6 +464,7 @@ export default function TeamPage() {
               endpoint="/broker/team/export"
               selectedIds={filteredMembers.filter((member) => !selectedIds.size || selectedIds.has(member.id)).map((member) => member.id)}
               filters={{
+                orgId: isSuper && firmFilter ? firmFilter : undefined,
                 role: roleFilter !== 'ALL' ? roleFilter : undefined,
                 status: statusFilter !== 'ALL' ? statusFilter : undefined,
                 search: searchQuery.trim() || undefined,
@@ -523,7 +556,7 @@ export default function TeamPage() {
                 return (
                   <tr
                     key={m.id}
-                    onClick={() => router.push(`/broker/team/${m.id}`)}
+                    onClick={() => router.push(`${teamBase}/${m.id}`)}
                     className={cn(
                       'border-b border-line last:border-0 cursor-pointer hover:bg-surface-2/50 transition-colors',
                       isSelected && 'bg-brand/5 dark:bg-brand/10',
@@ -550,6 +583,7 @@ export default function TeamPage() {
                             {m.name} {m.id === user?.id && <span className="text-xs font-normal text-muted">(आप)</span>}
                           </p>
                           <p className="truncate text-xs text-muted">{m.email ?? m.phone}</p>
+                          {isSuper && <p className="text-xs text-brand-600">{(m.organization as { name?: string } | undefined)?.name}</p>}
                         </div>
                       </div>
                     </td>
@@ -619,7 +653,7 @@ export default function TeamPage() {
                     {/* Actions */}
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="xs" variant="ghost" onClick={() => router.push(`/broker/team/${m.id}`)}>
+                        <Button size="xs" variant="ghost" onClick={() => router.push(`${teamBase}/${m.id}`)}>
                           Details & Target
                         </Button>
                         {admin && m.id !== user?.id && (
@@ -633,6 +667,7 @@ export default function TeamPage() {
                                   onSelect={() =>
                                     update.mutate({
                                       id: m.id,
+                                      expectedUpdatedAt: m.updatedAt,
                                       role: m.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN',
                                     })
                                   }
@@ -641,7 +676,9 @@ export default function TeamPage() {
                                   <Crown className="size-4 text-brand" /> {m.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
                                 </DM.Item>
                                 <DM.Item
-                                  onSelect={() => update.mutate({ id: m.id, status: m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })}
+                                  onSelect={() =>
+                                    update.mutate({ id: m.id, expectedUpdatedAt: m.updatedAt, status: m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })
+                                  }
                                   className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
                                 >
                                   <X className="size-4 text-amber-500" /> {m.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate करें'}
@@ -666,11 +703,11 @@ export default function TeamPage() {
         </div>
       )}
 
-      {admin && (q.data?.invites ?? []).length > 0 && (
+      {admin && visibleInvites.length > 0 && (
         <div className="mt-6">
           <p className="mb-3 text-sm font-bold">लंबित इनवाइट्स (Pending invites)</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {(q.data?.invites ?? []).map((i: any) => (
+            {visibleInvites.map((i: any) => (
               <div key={i.id} className="card flex min-w-0 items-center gap-3 p-4">
                 <div className="grid size-10 place-items-center rounded-xl bg-surface-2 text-muted">
                   <Mail className="size-4" />
@@ -681,9 +718,11 @@ export default function TeamPage() {
                     {i.email} · {i.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'} · expires {formatDate(i.expiresAt, { day: 'numeric', month: 'short' })}
                   </p>
                 </div>
-                <Button size="xs" variant="ghost" className="shrink-0" onClick={() => cancel.mutate(i.id)}>
-                  रद्द करें
-                </Button>
+                {user?.role === 'BROKER_ADMIN' && (
+                  <Button size="xs" variant="ghost" className="shrink-0" onClick={() => cancel.mutate(i.id)}>
+                    रद्द करें
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -763,7 +802,10 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
       description="प्रोफाइल, रोल्स, मासिक टारगेट्स एवं एजेंट की लाइव लोकेशन प्रबंधित करें"
       footer={
         <div className="flex items-center justify-between w-full">
-          <Link href="/broker/kyc" className="text-xs text-brand font-semibold hover:underline flex items-center gap-1">
+          <Link
+            href={user?.role === 'SUPER_ADMIN' ? '/admin/kyc' : '/broker/kyc'}
+            className="text-xs text-brand font-semibold hover:underline flex items-center gap-1"
+          >
             <ShieldCheck className="size-4" /> KYC मॉड्यूल में देखें
           </Link>
           <div className="flex items-center gap-2">
