@@ -1,4 +1,4 @@
-import { All, Body, Controller, Delete, ForbiddenException, Get, HttpCode, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { All, Body, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -12,6 +12,7 @@ import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { requireOrg } from '../../common/utils';
 import { parsePortalEmail } from './portal-parsers';
 import { AccessService } from '../../core/access/access.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 const saveSchema = z.object({ enabled: z.boolean().optional(), fields: z.record(z.string(), z.unknown()).default({}) });
 
@@ -23,7 +24,60 @@ export class ConnectorsController {
     private readonly connectors: ConnectorsService,
     private readonly tester: IntegrationTesterService,
     private readonly audit: AuditService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  private async targetFirm(orgId: string) {
+    const firm = await this.prisma.organization.findUnique({ where: { id: orgId }, select: { id: true, name: true, slug: true, status: true } });
+    if (!firm) throw new NotFoundException('Firm not found');
+    return firm;
+  }
+
+  @Roles('SUPER_ADMIN')
+  @Get('admin/organizations/:orgId/connectors')
+  async firmOverview(@Param('orgId') orgId: string) {
+    const firm = await this.targetFirm(orgId);
+    const { connectors, platformWhatsappFallback } = await this.connectors.overview(firm.id, true);
+    return { firm, connectors, platformWhatsappFallback };
+  }
+
+  @Roles('SUPER_ADMIN')
+  @Patch('admin/organizations/:orgId/connectors/:key')
+  async saveFirmConnector(
+    @CurrentUser() user: RequestUser,
+    @Param('orgId') orgId: string,
+    @Param('key') key: string,
+    @Body(new ZodPipe(saveSchema)) body: z.infer<typeof saveSchema>,
+  ) {
+    await this.targetFirm(orgId);
+    const result = await this.connectors.saveConnector(orgId, key, body, user.id);
+    await this.audit.log({ ...user, orgId }, 'connector.update', 'Connector', key, {
+      source: 'explicit-super-admin-firm',
+      fields: Object.keys(body.fields ?? {}),
+      enabled: body.enabled,
+    });
+    return result;
+  }
+
+  @Roles('SUPER_ADMIN')
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @Post('admin/organizations/:orgId/connectors/:key/test')
+  async testFirmConnector(@CurrentUser() user: RequestUser, @Param('orgId') orgId: string, @Param('key') key: string) {
+    await this.targetFirm(orgId);
+    this.connectors.assertOrganizationConnector(key);
+    const result = await this.tester.test(key, orgId, user.email);
+    await this.audit.log({ ...user, orgId }, 'connector.test', 'Connector', key, { ok: result.ok, source: 'explicit-super-admin-firm' });
+    return result;
+  }
+
+  @Roles('SUPER_ADMIN')
+  @Delete('admin/organizations/:orgId/connectors/:key')
+  async removeFirmConnector(@CurrentUser() user: RequestUser, @Param('orgId') orgId: string, @Param('key') key: string) {
+    await this.targetFirm(orgId);
+    await this.connectors.removeConnector(orgId, key);
+    await this.audit.log({ ...user, orgId }, 'connector.delete', 'Connector', key, { source: 'explicit-super-admin-firm' });
+    return { ok: true };
+  }
 
   @Roles('BROKER_ADMIN')
   @Get('broker/connectors')
@@ -43,6 +97,7 @@ export class ConnectorsController {
   @Roles('BROKER_ADMIN')
   @Post('broker/connectors/:key/test')
   test(@CurrentUser() user: RequestUser, @Param('key') key: string) {
+    this.connectors.assertOrganizationConnector(key);
     return this.tester.test(key, requireOrg(user), user.email);
   }
 

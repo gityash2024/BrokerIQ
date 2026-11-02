@@ -172,7 +172,7 @@ export class SettingsService {
     let values = this.decode(stored);
     if (def.scope === 'organization' && orgId) {
       const platform = await this.loadStored(key);
-      if (platform.stored?.enabled !== false) values = {...this.decode(platform.stored), ...values};
+      if (platform.stored?.enabled !== false) values = { ...this.decode(platform.stored), ...values };
     }
     if (!this.isComplete(def, values)) values = { ...this.envValues(def), ...values };
     values = this.withDefaults(def, values);
@@ -234,7 +234,10 @@ export class SettingsService {
 
   async save(key: string, input: { enabled?: boolean; fields: Record<string, unknown> }, opts: { orgId?: string | null; userId?: string }) {
     const def = this.defOrThrow(key);
-    if (['textbee', 'gmail'].includes(key) && !opts.orgId) throw new BadRequestException('Configure this business mailbox/SMS gateway for one firm, not as a shared platform sender.');
+    if (opts.orgId != null && def.scope !== 'organization')
+      throw new BadRequestException('Platform credentials cannot be changed through a firm settings scope.');
+    if (['textbee', 'gmail'].includes(key) && !opts.orgId)
+      throw new BadRequestException('Configure this business mailbox/SMS gateway for one firm, not as a shared platform sender.');
     const { stored } = await this.loadStored(key, opts.orgId);
     const existing = stored?.fields ?? {};
     const next: Record<string, StoredValue> = {};
@@ -280,6 +283,7 @@ export class SettingsService {
 
   async remove(key: string, orgId?: string | null) {
     const def = this.defOrThrow(key);
+    if (orgId != null && def.scope !== 'organization') throw new BadRequestException('Platform credentials cannot be removed through a firm settings scope.');
     if (def.scope === 'organization' && orgId) {
       await this.prisma.orgSetting.deleteMany({ where: { organizationId: orgId!, key: integrationKey(key) } });
       this.invalidate(`org:${orgId}:${key}`);

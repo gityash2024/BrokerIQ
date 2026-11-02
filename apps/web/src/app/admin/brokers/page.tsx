@@ -184,6 +184,11 @@ function OrgSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
               </div>
             ))}
           </div>
+          {isSuper && (
+            <Link className="mt-4 inline-block text-sm font-semibold text-brand-600" href={`/admin/brokers/${o.id}/connectors`}>
+              Firm integrations →
+            </Link>
+          )}
 
           <div className="mt-6 flex flex-wrap gap-2">
             <Badge tone={VTONE[o.verification]}>{o.verification}</Badge>

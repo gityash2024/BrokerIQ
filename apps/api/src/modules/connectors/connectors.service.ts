@@ -137,6 +137,7 @@ export class ConnectorsService implements OnModuleInit {
   }
 
   async saveConnector(orgId: string, key: string, body: { enabled?: boolean; fields: Record<string, unknown> }, userId: string) {
+    this.assertOrganizationConnector(key);
     if (key === 'gmail') throw new BadRequestException('Use Connect Gmail and the Google consent flow. Mailbox identity is server-managed.');
     if (key === 'textbee') return this.settings.save(key, body, { orgId, userId });
     if (!ORG_KEY_TO_TYPE[key]) throw new BadRequestException('Unknown connector');
@@ -159,8 +160,15 @@ export class ConnectorsService implements OnModuleInit {
   }
 
   async removeConnector(orgId: string, key: string) {
+    this.assertOrganizationConnector(key);
+    if (key === 'gmail') throw new BadRequestException('Use the Gmail disconnect flow for this firm.');
     await this.settings.remove(key, orgId);
     if (ORG_KEY_TO_TYPE[key]) await this.prisma.connectorState.deleteMany({ where: { organizationId: orgId, type: ORG_KEY_TO_TYPE[key] } });
+  }
+
+  assertOrganizationConnector(key: string) {
+    if (!INTEGRATIONS.some((def) => def.key === key && def.scope === 'organization'))
+      throw new BadRequestException('Only firm-scoped connectors are available here.');
   }
 
   private async setError(orgId: string, type: ConnectorType, message: string) {

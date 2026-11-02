@@ -3,6 +3,7 @@ set -euo pipefail
 TASK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$TASK_ROOT"
 git diff --quiet && git diff --cached --quiet || { echo 'Commit tracked changes before building a pinned release' >&2; exit 1; }
+test -z "$(git ls-files --others --exclude-standard apps packages)" || { echo 'Commit new application files before building a pinned release' >&2; exit 1; }
 export BROKERIQ_RELEASE_COMMIT="$(git rev-parse HEAD)"
 export BROKERIQ_RELEASE_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export EXPO_PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com/api
@@ -23,6 +24,7 @@ NODE
 cd android
 ./gradlew :app:assembleRelease --console=plain --max-workers=2 --no-parallel -Dorg.gradle.jvmargs='-Xmx1536m -XX:MaxMetaspaceSize=384m' -DCMAKE_BUILD_PARALLEL_LEVEL=2
 cd "$TASK_ROOT"
+test "$(git rev-parse HEAD)" = "$BROKERIQ_RELEASE_COMMIT" && git diff --quiet && git diff --cached --quiet || { echo 'Pinned source changed during Android build' >&2; exit 1; }
 node - <<'NODE'
 const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
 const root=process.cwd();
@@ -31,7 +33,13 @@ const signer=path.join(process.env.ANDROID_HOME,'build-tools/36.0.0/apksigner');
 const apk=path.join(root,'apps/mobile/android/app/build/outputs/apk/release/app-release.apk');
 const badging=cp.execFileSync(aapt,['dump','badging',apk],{encoding:'utf8'});
 const m=/package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'/.exec(badging);
-if(!m||m[1]!=='com.brokeriq.app'||Number(m[2])<=40)throw Error('Unexpected package/version');
+let previousCode=40;
+for(const entry of fs.readdirSync(path.join(root,'docs/evidence'),{recursive:true})) {
+ if(!entry.endsWith('release-manifest.json'))continue;
+ const release=JSON.parse(fs.readFileSync(path.join(root,'docs/evidence',entry),'utf8'));
+ if(release.android?.publishedAt&&Number.isInteger(release.android.versionCode)) previousCode=Math.max(previousCode,release.android.versionCode);
+}
+if(!m||m[1]!=='com.brokeriq.app'||Number(m[2])<=previousCode)throw Error('Android versionCode must exceed every recorded published release');
 const cert=cp.execFileSync(signer,['verify','--verbose','--print-certs',apk],{encoding:'utf8'});
 const sha=/Signer #1 certificate SHA-256 digest: ([a-f0-9]+)/i.exec(cert)?.[1]?.toLowerCase();
 if(sha!=='d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce')throw Error('Signing identity mismatch');

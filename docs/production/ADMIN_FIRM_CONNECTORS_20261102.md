@@ -1,0 +1,11 @@
+# Explicit firm integration management
+
+Super Admin can select a broker firm and open its dedicated integrations page. Read/save/test/remove endpoints require SUPER_ADMIN and an existing explicit organization ID. No first-firm fallback, impersonated Broker session or shared Textbee mailbox was added. Saved secrets remain encrypted/masked; mutation/test audits identify both the actual operator and target firm. Gmail remains controlled by the firm Broker Admin's OAuth consent/disconnect flow; arbitrary mailbox identities or tokens cannot be saved through the generic connector form.
+
+Audit found a pre-existing scope defect in `removeConnector`: passing a platform key such as `smtp` through the Broker Admin firm endpoint could reach `SettingsService.remove`, whose platform branch ignored the organization scope. No destructive live reproduction was performed. The service now rejects non-organization connector keys, tests reject them too, and SettingsService independently rejects platform credential save/remove when an organization scope is supplied. Shared platform resolution for server operations is preserved.
+
+Real PostgreSQL tests cover all five non-Super roles denied on four management actions, explicit firm separation, encrypted/masked Textbee values, target-firm audit ownership, missing firm404, legacy broker SMTP delete/test denial, storage-layer scope rejection and Gmail identity/consent protection. No live provider message is sent by these tests.
+
+A broad diagnostic API run passed346 tests with27 configuration skips. An earlier stalled broad attempt was interrupted and is not acceptance. Freeze the final commit and rerun on a fresh isolated database before publication; final web/UI, provider and installed-device checks remain separate. These controls are not in the currently published Build41 until the new pinned v2.3.1/Build42 candidate is activated.
+
+The Android builder now rejects uncommitted new application files, detects changes to the pinned source during the build and requires its actual versionCode to exceed every recorded published manifest. Build identity/version/timestamp/checksum must still be verified on the final signed APK and downloaded bytes.
