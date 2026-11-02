@@ -1,6 +1,6 @@
 # Lead, task and member assignment lifecycle
 
-Prepared after published Build48; requires a new pinned release.
+Shipped in pinned Build49, d70af6f/v2.3.8, with matching public APK and landing identity. Actual phone and full workflow acceptance remain OPEN.
 
 The previous assignment transaction transferred pending follow-ups but omitted scheduled/confirmed Site Visits. Removing a member likewise left their pending visits attached to an account that could no longer access them. Repeating assignment to the same member created duplicate assignment activity/notification. Round-robin included active customer/deleted accounts, although final assignment correctly rejected those accounts. A historical Broker-first guard also labelled all assignment automation as upcoming even though the Team module and normal assignment controls were active.
 

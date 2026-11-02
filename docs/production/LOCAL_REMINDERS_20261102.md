@@ -1,6 +1,6 @@
 # Native local reminder lifecycle
 
-Prepared after Build48; new pinned APK and actual phone acceptance still required.
+Shipped in pinned Build49, d70af6f/v2.3.8, with matching public APK and landing identity. Actual phone and full workflow acceptance remain OPEN.
 
 Old local notifications held only Lead ID and client text. Completing/rescheduling a task did not cancel its OS alert, and tapping verified only the Lead rather than the task. Logout token-removal failure could also exit cleanup before cancelling scheduled/displayed alerts.
 
