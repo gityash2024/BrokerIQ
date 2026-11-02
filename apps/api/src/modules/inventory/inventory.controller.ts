@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { inventoryInputSchema, inventoryFilterSchema, availabilitySchema, inventoryPublishSchema, type InventoryPublishInput } from '@brokeriq/shared';
@@ -14,6 +15,38 @@ export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
   @Get() findAll(@Query(new ZodPipe(inventoryFilterSchema)) query: InventoryFilterQuery, @CurrentUser() user: RequestUser) {
     return this.inventory.findAll(query, user);
+  }
+  @Get('export')
+  async exportCsv(
+    @Query(new ZodPipe(inventoryFilterSchema.extend({ ids: z.string().max(200000).optional() }))) q: InventoryFilterQuery & { ids?: string },
+    @CurrentUser() user: RequestUser,
+    @Res() res: Response,
+  ) {
+    const ids = q.ids === undefined ? undefined : q.ids.split(',').filter(Boolean);
+    if (ids && (ids.length === 0 || ids.length > 2000)) throw new BadRequestException('Select between 1 and 2,000 records');
+    const csv = await this.inventory.exportCsv(q, user, ids);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="brokeriq-inventory.csv"');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(csv);
+  }
+  @Roles('SUPER_ADMIN')
+  @Get('hierarchy/:kind')
+  hierarchy(
+    @Param('kind', new ZodPipe(z.enum(['organizations', 'members']))) kind: 'organizations' | 'members',
+    @Query(
+      new ZodPipe(
+        z.object({
+          search: z.string().max(200).optional(),
+          organizationId: z.string().min(1).max(100).optional(),
+          page: z.coerce.number().int().positive().default(1),
+        }),
+      ),
+    )
+    q: { search?: string; organizationId?: string; page: number },
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.inventory.hierarchy(kind, q, user);
   }
   @Get('stats') getStats(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getStats(user, orgId);
@@ -48,6 +81,11 @@ export class InventoryController {
   }
   @Delete(':id') delete(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.inventory.delete(id, user);
+  }
+  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+  @Post(':id/restore')
+  restore(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.inventory.restore(id, user);
   }
   @Post(':id/publish') publish(
     @Param('id') id: string,

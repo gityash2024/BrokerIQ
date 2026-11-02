@@ -81,6 +81,8 @@ describe('Multi-Format Export Utilities', () => {
       expect(csvCell('+cmd|calc')).toBe("'+cmd|calc");
       expect(csvCell('-2+3')).toBe("'-2+3");
       expect(csvCell('@SUM(A1:A10)')).toBe("'@SUM(A1:A10)");
+      expect(csvCell('  =1+1')).toBe("'  =1+1");
+      expect(csvCell('\ufeff@SUM(A1:A10)')).toBe("'\ufeff@SUM(A1:A10)");
       expect(csvCell('\t=cmd')).toBe("'\t=cmd");
       expect(csvCell('\r=cmd')).toBe('"\'\r=cmd"');
       expect(csvCell('=HYPERLINK("http://evil.com","Click")')).toBe('"\'=HYPERLINK(""http://evil.com"",""Click"")"');

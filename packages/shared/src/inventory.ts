@@ -91,6 +91,7 @@ export const inventoryInputSchema = z
   });
 export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const inventoryFilterSchema = z.object({
+  archived: z.enum(['exclude', 'only', 'include']).optional(),
   review: z.enum(['publication']).optional(),
   detailFilters: z.string().max(12000).optional(),
   amenities: z.string().max(2000).optional(),
@@ -222,6 +223,7 @@ export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
   isPublished?: boolean;
   id: string;
   organizationId: string;
+  organization?: { id: string; name: string; slug: string };
   createdById?: string | null;
   assignedToId?: string | null;
   assignedTo?: {
@@ -239,6 +241,7 @@ export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
   matchingLeadsCount?: number;
   revision: number;
   sourceType: string;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   contacts: z.infer<typeof inventoryContactSchema>[];

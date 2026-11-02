@@ -1,10 +1,17 @@
 'use client';
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, prepareInventoryEditorInput, inventoryEditorPatch, type InventoryInput, type LedgerItem } from '@brokeriq/shared';
+import {
+  INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
+  prepareInventoryEditorInput,
+  inventoryEditorPatch,
+  type InventoryInput,
+  type LedgerItem,
+} from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
+import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { PropertyExtras, readPropertyExtras } from './property-extras';
 
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -20,6 +27,8 @@ const inputs = [
   ['totalSalePrice', 'Total sale price ₹'],
   ['ratePerArea', 'Rate per area ₹'],
   ['securityDeposit', 'Deposit ₹'],
+  ['brokerage', 'Brokerage terms'],
+  ['tenantPreference', 'Tenant preference'],
 ];
 const options: Record<string, string[]> = {
   purpose: ['RENT', 'SALE'],
@@ -45,7 +54,9 @@ export function PropertyForm({
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'BROKER_ADMIN';
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team'),enabled:isAdmin });
+  const isSuper = user?.role === 'SUPER_ADMIN';
+  const [superAssignee, setSuperAssignee] = useState(initial.assignedToId ?? '');
+  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team'), enabled: isAdmin });
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
   const mutationId = useRef(initial.clientMutationId ?? (typeof crypto !== 'undefined' ? crypto.randomUUID() : undefined));
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>(() => {
@@ -60,12 +71,20 @@ export function PropertyForm({
     setBusy(true);
     setError('');
     const values: Record<string, any> = Object.fromEntries(new FormData(event.currentTarget));
+    const originalDate = initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : '';
+    if (values.date) values.date = values.date === originalDate ? initial.date : new Date(`${values.date}T00:00:00+05:30`).toISOString();
     for (const key of Object.keys(values))
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
     Object.assign(values, readPropertyExtras(event.currentTarget));
     // Keep source amenities which have no checkbox in the current taxonomy.
-    values.amenities = [...new Set([...(initial.amenities ?? []).filter((a) => !event.currentTarget.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)), ...values.amenities])];
+    values.amenities = [
+      ...new Set([
+        ...(initial.amenities ?? []).filter((a) => !event.currentTarget.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)),
+        ...values.amenities,
+      ]),
+    ];
+    if (isSuper) values.assignedToId = superAssignee || null;
     values.contacts = contacts.filter((c) => c.name || c.phone || c.note || c.role !== 'UNKNOWN');
     Object.assign(values, prepareInventoryEditorInput(values));
     if ('revision' in initial) values.expectedRevision = initial.revision;
@@ -97,6 +116,15 @@ export function PropertyForm({
               />
             </label>
           ))}
+        <label className="text-xs font-semibold text-muted">
+          Record date · IST
+          <input
+            type="date"
+            name="date"
+            defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
+            className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+          />
+        </label>
         {Object.entries(options).map(([name, choices]) => (
           <label key={name} className="text-xs font-semibold text-muted">
             {(
@@ -127,12 +155,23 @@ export function PropertyForm({
             </select>
           </label>
         ))}
-        {isAdmin ? (
+        {isSuper ? (
+          <InventoryHierarchyPicker
+            kind="members"
+            organizationId={initial.organizationId}
+            value={superAssignee}
+            onChange={(id) => {
+              setSuperAssignee(id);
+              onDirty?.();
+            }}
+            selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
+          />
+        ) : isAdmin ? (
           <label className="text-xs font-semibold text-muted">
             Assignee (Agent / Admin)
             <select
               name="assignedToId"
-              defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? (user?.id ?? '')}
+              defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
               className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
             >
               <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
@@ -147,9 +186,9 @@ export function PropertyForm({
           <div className="text-xs font-semibold text-muted">
             Assignee
             <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
-              {((initial as any).assignedTo?.name || user?.name || 'You')} (Assigned) · Only Admin can re-assign
+              {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
             </div>
-            <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? (user?.id ?? '')} />
+            <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
           </div>
         )}
       </div>

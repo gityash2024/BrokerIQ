@@ -1,6 +1,6 @@
 export function csvCell(v: unknown): string {
   let s = String(v ?? '');
-  if (/^[=+\-@\t\r]/.test(s)) {
+  if (/^(?:[\t\r\n]|[\s\uFEFF]*[=+\-@])/.test(s)) {
     s = `'${s}`;
   }
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

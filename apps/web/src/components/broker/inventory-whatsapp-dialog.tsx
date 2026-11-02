@@ -1,23 +1,25 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Copy, MessageCircle, Send, Check, User, Share2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Copy, Send, Check, User, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { formatINR } from '@brokeriq/shared';
+import { formatINR, normalizeIndianPhone, floorLabel } from '@brokeriq/shared';
 import { cn } from '@/lib/utils';
 
 export interface InventoryItemForWhatsApp {
   id: string;
-  sector: string;
-  houseNo: string;
+  sector?: string | null;
+  houseNo?: string | null;
   ownerName?: string | null;
   ownerPhone?: string | null;
   bhk?: number | null;
   floor?: string | null;
   furnishing?: string | null;
   rent?: number | null;
-  purpose: string;
+  purpose?: string | null;
+  monthlyRent?: number | null;
+  totalSalePrice?: number | null;
   tenantPreference?: string | null;
   notes?: string | null;
 }
@@ -30,41 +32,43 @@ interface InventoryWhatsAppDialogProps {
   brokerFirm?: string;
 }
 
-export function InventoryWhatsAppDialog({
-  open,
-  onOpenChange,
-  item,
-  brokerName = 'Broker',
-  brokerFirm = 'Real Estate Firm',
-}: InventoryWhatsAppDialogProps) {
+export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName = 'Broker', brokerFirm = '' }: InventoryWhatsAppDialogProps) {
   const [templateType, setTemplateType] = useState<'owner' | 'client'>('owner');
   const [customText, setCustomText] = useState('');
   const [copied, setCopied] = useState(false);
   const [clientPhone, setClientPhone] = useState('');
 
-  const generateMessage = (type: 'owner' | 'client') => {
-    if (!item) return '';
-    const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : 'Sir/Ma\'am';
-    const bhkStr = item.bhk ? `${item.bhk} BHK` : '';
-    const floorStr = item.floor ? `${item.floor} Floor` : '';
-    const configStr = [bhkStr, floorStr].filter(Boolean).join(' ');
-    const priceStr = item.rent ? formatINR(item.rent) : 'Price on request';
-    const houseStr = item.houseNo && item.houseNo !== '--' ? `House No. ${item.houseNo}` : 'Property';
-    const furnStr = item.furnishing ? item.furnishing.replace('_', ' ').toLowerCase() : 'standard';
+  const generateMessage = useCallback(
+    (type: 'owner' | 'client') => {
+      if (!item) return '';
+      const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : "Sir/Ma'am";
+      const bhkStr = item.bhk ? `${item.bhk} BHK` : '';
+      const floorStr = item.floor ? floorLabel(item.floor) : '';
+      const configStr = [bhkStr, floorStr].filter(Boolean).join(' ');
+      const price = item.purpose === 'SALE' ? item.totalSalePrice : item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : null;
+      const priceStr = price != null ? formatINR(price) : 'Price not recorded';
+      const transaction = item.purpose === 'SALE' ? 'Sale' : item.purpose === 'RENT' ? 'Rent' : 'Transaction not recorded';
+      const identity = [brokerName, brokerFirm].filter(Boolean).join(' · ');
+      const houseStr = item.houseNo && item.houseNo !== '--' ? `House No. ${item.houseNo}` : 'Property';
+      const furnStr = item.furnishing ? item.furnishing.replace(/_/g, ' ').toLowerCase() : 'standard';
 
-    if (type === 'owner') {
-      return `Namaste ${owner}, I am ${brokerName} from ${brokerFirm}. Regarding your property in ${item.sector} ${houseStr} (${configStr}, ${item.purpose === 'SALE' ? 'Sale' : 'Rent'}: ₹${priceStr}), is it currently available for deal/visit? Please let me know suitable time for client site visit.`;
-    } else {
-      return `🏠 *Verified Property in ${item.sector}*\n` +
-        `• Unit: ${houseStr}\n` +
-        (configStr ? `• Configuration: ${configStr}\n` : '') +
-        (item.furnishing ? `• Furnishing: ${furnStr}\n` : '') +
-        `• ${item.purpose === 'SALE' ? 'Demand' : 'Rent'}: ₹${priceStr}\n` +
-        (item.tenantPreference ? `• Suitable for: ${item.tenantPreference}\n` : '') +
-        `• Contact: ${brokerName} (${brokerFirm})\n\n` +
-        `Interested in scheduling a site visit? Reply to this message or call directly.`;
-    }
-  };
+      if (type === 'owner') {
+        return `Namaste ${owner}, I am ${identity}. Regarding your property in ${item.sector} ${houseStr} (${configStr}, ${transaction}: ${priceStr}), is it currently available for deal/visit? Please let me know suitable time for client site visit.`;
+      } else {
+        return (
+          `🏠 *Property in ${item.sector || 'locality not recorded'}*\n` +
+          `• Unit: ${houseStr}\n` +
+          (configStr ? `• Configuration: ${configStr}\n` : '') +
+          (item.furnishing ? `• Furnishing: ${furnStr}\n` : '') +
+          `• ${transaction}: ${priceStr}\n` +
+          (item.tenantPreference ? `• Suitable for: ${item.tenantPreference}\n` : '') +
+          `• Contact: ${identity}\n\n` +
+          `Interested in scheduling a site visit? Reply to this message or call directly.`
+        );
+      }
+    },
+    [item, brokerName, brokerFirm],
+  );
 
   useEffect(() => {
     if (item) {
@@ -72,7 +76,7 @@ export function InventoryWhatsAppDialog({
       setCopied(false);
       setClientPhone('');
     }
-  }, [item, templateType]);
+  }, [item, templateType, generateMessage]);
 
   if (!item) return null;
 
@@ -81,16 +85,19 @@ export function InventoryWhatsAppDialog({
     let targetUrl = '';
 
     if (templateType === 'owner') {
-      const cleanPhone = (item.ownerPhone || '').replace(/\D/g, '');
+      const cleanPhone = normalizeIndianPhone(item.ownerPhone || '')?.replace(/\D/g, '') || '';
       if (!cleanPhone || cleanPhone.length < 10) {
         toast.error('Owner ka valid phone number available nahi hai.');
         return;
       }
-      targetUrl = `https://wa.me/91${cleanPhone}?text=${text}`;
+      targetUrl = `https://wa.me/${cleanPhone}?text=${text}`;
     } else {
-      const cleanClient = clientPhone.replace(/\D/g, '');
+      const cleanClient = normalizeIndianPhone(clientPhone)?.replace(/\D/g, '') || '';
       if (cleanClient && cleanClient.length >= 10) {
-        targetUrl = `https://wa.me/91${cleanClient}?text=${text}`;
+        targetUrl = `https://wa.me/${cleanClient}?text=${text}`;
+      } else if (clientPhone.trim()) {
+        toast.error('Enter a valid Indian client phone number.');
+        return;
       } else {
         // Generic WhatsApp share (opens WhatsApp contact selector)
         targetUrl = `https://api.whatsapp.com/send?text=${text}`;
@@ -136,7 +143,7 @@ export function InventoryWhatsAppDialog({
             onClick={() => setTemplateType('owner')}
             className={cn(
               'flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition',
-              templateType === 'owner' ? 'bg-surface shadow text-brand-600' : 'text-muted hover:text-fg'
+              templateType === 'owner' ? 'bg-surface shadow text-brand-600' : 'text-muted hover:text-fg',
             )}
           >
             <User className="size-3.5" /> Owner Availability Check
@@ -146,7 +153,7 @@ export function InventoryWhatsAppDialog({
             onClick={() => setTemplateType('client')}
             className={cn(
               'flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition',
-              templateType === 'client' ? 'bg-surface shadow text-brand-600' : 'text-muted hover:text-fg'
+              templateType === 'client' ? 'bg-surface shadow text-brand-600' : 'text-muted hover:text-fg',
             )}
           >
             <Share2 className="size-3.5" /> Client Sharing Pitch
@@ -170,9 +177,7 @@ export function InventoryWhatsAppDialog({
         {/* Message preview and editor */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs font-bold text-muted uppercase tracking-wider">
-              {templateType === 'owner' ? 'Message to Owner' : 'Message to Client'}
-            </span>
+            <span className="text-xs font-bold text-muted uppercase tracking-wider">{templateType === 'owner' ? 'Message to Owner' : 'Message to Client'}</span>
             <span className="text-[11px] text-subtle">Editable text</span>
           </div>
           <textarea

@@ -34,7 +34,9 @@ describe('Growth features (e2e)', () => {
     app.use(json({ verify: (req: any, _res, buf) => (req.rawBody = buf) }));
     app.use(urlencoded({ extended: true })); // as in main.ts (Exotel posts form data)
     configureApp(app);
-    await app.init();
+    // Reuse one real loopback listener; do not repeatedly close/rebind Supertest's
+    // ephemeral server between dependent marketplace requests in this suite.
+    await app.listen(0, '127.0.0.1');
     prisma = app.get(PrismaService);
     settings = app.get(SettingsService);
     http = request(app.getHttpServer());

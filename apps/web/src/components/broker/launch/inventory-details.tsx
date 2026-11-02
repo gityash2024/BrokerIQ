@@ -4,7 +4,23 @@ import { Building2, FileCheck2, MapPin, Phone, MessageCircle, ShieldCheck } from
 import { inventoryFactGroups, inventoryPrice, inventoryTitle, readableValue, type LedgerItem } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { PrivateSource } from './private-source';
-export function InventoryDetails({ item, onEdit, onPublish }: { item: LedgerItem; onEdit: () => void; onPublish: () => void }) {
+export function InventoryDetails({
+  item,
+  onEdit,
+  onPublish,
+  sourceHref,
+  onMessage,
+  onArchive,
+  onRestore,
+}: {
+  sourceHref?: string | null;
+  onMessage?: () => void;
+  onArchive?: () => void;
+  onRestore?: () => void;
+  item: LedgerItem;
+  onEdit: () => void;
+  onPublish: () => void;
+}) {
   return (
     <div className="space-y-6">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-800 to-brand-600 p-6 text-white">
@@ -35,12 +51,28 @@ export function InventoryDetails({ item, onEdit, onPublish }: { item: LedgerItem
           </span>
         )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Button onClick={onEdit}>Edit property</Button>
-        <Button variant="secondary" onClick={onPublish}>
-          Publish / review property
-        </Button>
-      </div>
+      {item.deletedAt ? (
+        <div className="rounded-xl border border-line p-4 text-sm">
+          Archived property · retained privately. {onRestore && <Button onClick={onRestore}>Restore private property</Button>}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Button onClick={onEdit}>Edit property</Button>
+          <Button variant="secondary" onClick={onPublish}>
+            Publish / review property
+          </Button>
+          {onMessage && (
+            <Button variant="secondary" onClick={onMessage}>
+              Prepare WhatsApp message
+            </Button>
+          )}
+          {onArchive && (
+            <Button variant="secondary" onClick={onArchive}>
+              Archive property
+            </Button>
+          )}
+        </div>
+      )}
       {!!item.photoUrls?.length && (
         <section>
           <h3 className="mb-3 font-bold">Property photographs</h3>
@@ -144,8 +176,11 @@ export function InventoryDetails({ item, onEdit, onPublish }: { item: LedgerItem
             <PrivateSource path={`/imports/${item.sourceEntry.batch.id}/source?${item.pageNo ? `pageNo=${item.pageNo}&` : ''}entryId=${item.sourceEntry.id}`} />
           )}
           {item.sourceEntry.rawText !== item.notes && <p className="my-4 whitespace-pre-wrap text-xs leading-6 text-muted">{item.sourceEntry.rawText}</p>}
-          {item.sourceEntry.batch?.id && (
-            <Link href={`/broker/imports/${item.sourceEntry.batch.id}`} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-brand-600">
+          {item.sourceEntry.batch?.id && sourceHref !== null && (
+            <Link
+              href={sourceHref ?? `/broker/imports/${item.sourceEntry.batch.id}`}
+              className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-brand-600"
+            >
               Open source review →
             </Link>
           )}

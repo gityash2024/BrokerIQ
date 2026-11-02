@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { generateCsv } from '../../common/csv';
 import { Prisma, PropertyType } from '@prisma/client';
 import {
   type InventoryInput,
@@ -26,6 +27,7 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import type { InventoryFilterQuery } from './inventory.dto';
 
 const include = {
+  organization: { select: { id: true, name: true, slug: true } },
   contacts: true,
   publishedListing: {
     select: { id: true, slug: true, title: true, status: true, purpose: true, reviewRequiredRole: true, rejectionReason: true, updatedAt: true },
@@ -63,11 +65,16 @@ export class InventoryService {
     }
     return base;
   }
-  async findAll(q: InventoryFilterQuery, user: RequestUser) {
+  private filterWhere(q: InventoryFilterQuery, user: RequestUser): Prisma.InventoryItemWhereInput {
     const where: Prisma.InventoryItemWhereInput = {
       organizationId: this.orgId(user, q.organizationId, false),
       deletedAt: null,
     };
+    if (q.archived && q.archived !== 'exclude') {
+      if (user.role === 'BROKER_AGENT') throw new ForbiddenException('Admin required for archived inventory');
+      where.deletedAt = q.archived === 'only' ? { not: null } : undefined;
+    }
+    if (q.dateFrom && q.dateTo && new Date(q.dateFrom) > new Date(q.dateTo)) throw new BadRequestException('From date must precede through date');
     const and: Prisma.InventoryItemWhereInput[] = [];
     if (q.review === 'publication')
       and.push({ publishedListing: { is: { status: 'PENDING_REVIEW', ...(user.role === 'BROKER_ADMIN' ? { reviewRequiredRole: 'BROKER_ADMIN' } : {}) } } });
@@ -163,21 +170,28 @@ export class InventoryService {
     } else if (q.areaUnit) where.areaUnit = q.areaUnit;
     if (and.length) where.AND = and;
     if (q.dateFrom || q.dateTo) where.date = { ...(q.dateFrom ? { gte: new Date(q.dateFrom) } : {}), ...(q.dateTo ? { lte: new Date(q.dateTo) } : {}) };
+    return where;
+  }
+  private orderBy(q: InventoryFilterQuery): Prisma.InventoryItemOrderByWithRelationInput[] {
     if (q.sort && !INVENTORY_SORTS.some((s) => s.value === q.sort)) throw new BadRequestException('Invalid sort');
     const [sortField, sortDirection] = q.sort?.split(':') ?? [];
     const order = sortField ?? (q.sortBy === 'rent' ? 'monthlyRent' : q.sortBy);
+    return [
+      {
+        [order]: ['price', 'ratePerSqft', 'monthlyRent', 'totalSalePrice'].includes(order)
+          ? { sort: sortDirection ?? q.sortOrder, nulls: 'last' }
+          : (sortDirection ?? q.sortOrder),
+      },
+      { id: 'asc' },
+    ];
+  }
+  async findAll(q: InventoryFilterQuery, user: RequestUser) {
+    const where = this.filterWhere(q, user);
     const [items, total] = await Promise.all([
       this.prisma.inventoryItem.findMany({
         where,
         include,
-        orderBy: [
-          {
-            [order]: ['price', 'ratePerSqft', 'monthlyRent', 'totalSalePrice'].includes(order)
-              ? { sort: sortDirection ?? q.sortOrder, nulls: 'last' }
-              : (sortDirection ?? q.sortOrder),
-          },
-          { id: 'asc' },
-        ],
+        orderBy: this.orderBy(q),
         take: q.pageSize,
         skip: (q.page - 1) * q.pageSize,
       }),
@@ -185,20 +199,22 @@ export class InventoryService {
     ]);
 
     // Fast lead matching calculation for items
-    let requirements: { purpose: string | null; bedrooms: number[]; minBudget: number | null; maxBudget: number | null }[] = [];
-    const orgIdForLeads = (where.organizationId as string) || (items[0]?.organizationId as string | undefined);
-    if (orgIdForLeads && items.length > 0) {
+    let requirements: { lead: { organizationId: string }; purpose: string | null; bedrooms: number[]; minBudget: number | null; maxBudget: number | null }[] =
+      [];
+    const organizationIds = [...new Set(items.map((item) => item.organizationId))];
+    if (organizationIds.length > 0) {
       try {
         requirements = await this.prisma.leadRequirement.findMany({
           where: {
             lead: {
-              organizationId: orgIdForLeads,
+              organizationId: { in: organizationIds },
               ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
               stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION'] },
               deletedAt: null,
             },
           },
           select: {
+            lead: { select: { organizationId: true } },
             purpose: true,
             bedrooms: true,
             minBudget: true,
@@ -216,6 +232,7 @@ export class InventoryService {
         const itemPrice = item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : item.totalSalePrice;
         let matchCount = 0;
         for (const req of requirements) {
+          if (req.lead.organizationId !== r.organizationId) continue;
           if (req.purpose && item.purpose && req.purpose !== item.purpose) continue;
           if (req.bedrooms && req.bedrooms.length > 0 && item.bhk && !req.bedrooms.includes(item.bhk)) continue;
           if (itemPrice != null) {
@@ -232,6 +249,134 @@ export class InventoryService {
     });
 
     return { items: itemsWithMatches, total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
+  }
+  /** All filtered rows in one consistent snapshot; never silently export only the UI page. */
+  async exportCsv(q: InventoryFilterQuery, user: RequestUser, ids?: string[]) {
+    const where = this.filterWhere(q, user);
+    if (ids) where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), { id: { in: ids } }];
+    const rows = await this.prisma.$transaction(
+      async (tx) => {
+        const total = await tx.inventoryItem.count({ where });
+        if (total > 50000) throw new BadRequestException('Export exceeds 50,000 records. Narrow the firm/date filters; no partial file was generated.');
+        return tx.inventoryItem.findMany({
+          where,
+          orderBy: this.orderBy(q),
+          select: {
+            id: true,
+            organization: { select: { name: true } },
+            sector: true,
+            houseNo: true,
+            unitLabel: true,
+            floor: true,
+            purpose: true,
+            propertyType: true,
+            bhk: true,
+            monthlyRent: true,
+            totalSalePrice: true,
+            area: true,
+            areaUnit: true,
+            availability: true,
+            status: true,
+            verificationStatus: true,
+            date: true,
+            deletedAt: true,
+            sourceType: true,
+            pageNo: true,
+            assignedTo: { select: { name: true } },
+            ownerName: true,
+            ownerPhone: true,
+            contacts: { select: { name: true, phone: true, role: true } },
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 30000 },
+    );
+    await this.audit.log(user, 'inventory.export', 'InventoryItem', undefined, {
+      count: rows.length,
+      organizationId: q.organizationId ?? user.orgId ?? null,
+      selected: !!ids,
+    });
+    return generateCsv(
+      [
+        'ID',
+        'Firm',
+        'Sector',
+        'House',
+        'Unit',
+        'Floor',
+        'Transaction',
+        'Property type',
+        'BHK',
+        'Monthly rent INR',
+        'Sale price INR',
+        'Area',
+        'Area unit',
+        'Availability',
+        'Status',
+        'Verification',
+        'Date',
+        'Source',
+        'Page',
+        'Assignee',
+        'Owner',
+        'Owner phone',
+        'Contacts',
+        'Archived at',
+      ],
+      rows.map((r) => [
+        r.id,
+        r.organization.name,
+        r.sector,
+        r.houseNo,
+        r.unitLabel,
+        r.floor,
+        r.purpose,
+        r.propertyType,
+        r.bhk,
+        r.monthlyRent?.toString(),
+        r.totalSalePrice?.toString(),
+        r.area?.toString(),
+        r.areaUnit,
+        r.availability,
+        r.status,
+        r.verificationStatus,
+        r.date?.toISOString(),
+        r.sourceType,
+        r.pageNo,
+        r.assignedTo?.name,
+        r.ownerName,
+        r.ownerPhone,
+        r.contacts.map((c) => [c.name, c.phone, c.role].filter(Boolean).join(' · ')).join(' | '),
+        r.deletedAt?.toISOString(),
+      ]),
+    );
+  }
+  async hierarchy(kind: 'organizations' | 'members', q: { search?: string; organizationId?: string; page: number }, user: RequestUser) {
+    if (user.role !== 'SUPER_ADMIN') throw new ForbiddenException('Super Admin required');
+    const paging = { take: 30, skip: (q.page - 1) * 30, orderBy: [{ name: 'asc' as const }, { id: 'asc' as const }] };
+    if (kind === 'organizations') {
+      const where = q.search ? { name: { contains: q.search, mode: 'insensitive' as const } } : {};
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.organization.findMany({ where, ...paging, select: { id: true, name: true, status: true } }),
+        this.prisma.organization.count({ where }),
+      ]);
+      return { items, total, page: q.page, totalPages: Math.ceil(total / 30) };
+    }
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null,
+      organizationId: q.organizationId ?? { not: null },
+      role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+      ...(q.search ? { name: { contains: q.search, mode: 'insensitive' } } : {}),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        ...paging,
+        select: { id: true, name: true, role: true, status: true, organization: { select: { id: true, name: true } } },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    return { items, total, page: q.page, totalPages: Math.ceil(total / 30) };
   }
   async get(id: string, user: RequestUser) {
     const item = await this.prisma.inventoryItem.findFirst({ where: { ...this.scope(user), id }, include });
@@ -328,7 +473,7 @@ export class InventoryService {
     const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
     if (assignedToId) {
       const assignee = await db.user.findFirst({
-        where: { id: assignedToId, organizationId },
+        where: { id: assignedToId, organizationId, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] }, status: 'ACTIVE', deletedAt: null },
       });
       if (!assignee) throw new BadRequestException('Assigned user not found in organization');
     }
@@ -357,24 +502,25 @@ export class InventoryService {
     return ledgerJson(item);
   }
   async update(id: string, input: InventoryInput, user: RequestUser) {
-    if (input.assignedToId !== undefined) {
-      if (input.assignedToId && input.assignedToId !== '') {
-        if (user.role === 'BROKER_AGENT' && input.assignedToId !== user.id) {
-          throw new ForbiddenException('Only Broker Admins can re-assign properties');
-        }
-        const organizationId = this.orgId(user, input.organizationId, false);
-        const assignee = await this.prisma.user.findFirst({
-          where: { id: input.assignedToId, ...(organizationId ? { organizationId } : {}) },
-        });
-        if (!assignee) throw new BadRequestException('Assigned user not found in organization');
-      } else if (user.role === 'BROKER_AGENT') {
-        throw new ForbiddenException('Only Broker Admins can unassign properties');
-      }
-    }
     const item = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
       if (!current) throw new NotFoundException('Inventory item not found');
+      if (input.organizationId && input.organizationId !== current.organizationId) throw new BadRequestException('Property firm cannot be changed');
+      if (input.assignedToId !== undefined) {
+        if (user.role === 'BROKER_AGENT' && input.assignedToId !== user.id) throw new ForbiddenException('Only Admins can re-assign properties');
+        if (input.assignedToId) {
+          const assignee = await tx.user.findFirst({
+            where: {
+              id: input.assignedToId,
+              organizationId: current.organizationId,
+              role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+              ...(input.assignedToId !== current.assignedToId ? { status: 'ACTIVE', deletedAt: null } : {}),
+            },
+          });
+          if (!assignee) throw new BadRequestException('Assigned user not found in property firm');
+        }
+      }
       const changed = await tx.inventoryItem.updateMany({
         where: { id, deletedAt: null, revision: input.expectedRevision ?? current.revision },
         data: { ...this.fields(input, current), revision: { increment: 1 } },
@@ -406,14 +552,27 @@ export class InventoryService {
     return ledgerJson(item);
   }
   async delete(id: string, user: RequestUser) {
-    await this.get(id, user);
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
+      if (!current) throw new NotFoundException('Inventory item not found');
       const item = await tx.inventoryItem.update({ where: { id }, data: { deletedAt: new Date(), revision: { increment: 1 } } });
       await this.withdrawLinked(tx, item);
     });
     await this.audit.log(user, 'inventory.archive', 'InventoryItem', id);
     return { ok: true };
+  }
+  async restore(id: string, user: RequestUser) {
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'BROKER_ADMIN') throw new ForbiddenException('Admin required');
+    const item = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), deletedAt: { not: null }, id } });
+      if (!current) throw new NotFoundException('Archived property not found');
+      // Restoration preserves private data but requires a new explicit public preview.
+      return tx.inventoryItem.update({ where: { id }, data: { deletedAt: null, revision: { increment: 1 } }, include });
+    });
+    await this.audit.log(user, 'inventory.restore', 'InventoryItem', id);
+    return ledgerJson(item);
   }
   async publishToListing(id: string, input: InventoryPublishInput, user: RequestUser) {
     await this.modules.assertPath('/listings', user.role);

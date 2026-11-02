@@ -3,7 +3,13 @@ import { useState } from 'react';
 import { INVENTORY_SORTS, PROPERTY_AMENITIES, visiblePropertyFields } from '@brokeriq/shared';
 export function AdvancedFilters({ filters, onChange }: { filters: Record<string, string>; onChange: (filters: any) => void }) {
   const [tab, setTab] = useState('Location');
-  const extra = filters.detailFilters ? JSON.parse(filters.detailFilters) : {};
+  let extra: Record<string, any> = {};
+  try {
+    const parsed = filters.detailFilters ? JSON.parse(filters.detailFilters) : {};
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) extra = parsed;
+  } catch {
+    /* Invalid deep-link filters are reported by the API, without crashing the dialog. */
+  }
   const fields = visiblePropertyFields(filters.category);
   const groups = ['Sort & source', ...new Set(fields.map((f) => f.group)), 'Amenities & media'];
   const set = (key: string, value: any) => {
