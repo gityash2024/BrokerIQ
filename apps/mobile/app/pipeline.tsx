@@ -10,6 +10,7 @@ import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, TempBadge } from '@/components/crm';
+import { LeadContactActions } from '@/components/lead-contact-actions';
 import { Chip, ErrorView, Header, Loader, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
 
 const W = Dimensions.get('window').width;
@@ -92,6 +93,9 @@ export default function Pipeline() {
                           <Txt v="caption" color="subtle">
                             {timeAgo(l.lastActivityAt ?? l.createdAt)}
                           </Txt>
+                        </Row>
+                        <Row wrap gap={6}>
+                          <LeadContactActions lead={l} />
                         </Row>
                       </PressableScale>
                     </Animated.View>

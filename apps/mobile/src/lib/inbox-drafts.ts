@@ -33,3 +33,35 @@ export function saveInboxDraft(target: string, text: string, owner = authStore.g
   writes = next;
   return next;
 }
+
+/** Move only when the destination is empty or identical; preserve both drafts on conflict. */
+export function moveInboxDraft(source: string, target: string, owner: string) {
+  const next = writes
+    .catch(() => undefined)
+    .then(async () => {
+      const db = await database();
+      let result: 'EMPTY' | 'MOVED' | 'CONFLICT' | 'CANCELLED' = 'EMPTY';
+      await db.withTransactionAsync(async () => {
+        const from = await db.getFirstAsync<{ body: string }>('SELECT body FROM inbox_drafts WHERE owner_id=? AND target=?', owner, source);
+        if (!from?.body) return;
+        const to = await db.getFirstAsync<{ body: string }>('SELECT body FROM inbox_drafts WHERE owner_id=? AND target=?', owner, target);
+        if (authStore.get()?.user.id !== owner) {
+          result = 'CANCELLED';
+          return;
+        }
+        if (to?.body && to.body !== from.body) {
+          result = 'CONFLICT';
+          return;
+        }
+        await db.runAsync('INSERT INTO inbox_drafts(owner_id,target,body) VALUES(?,?,?) ON CONFLICT(owner_id,target) DO NOTHING', owner, target, from.body);
+        await db.runAsync('DELETE FROM inbox_drafts WHERE owner_id=? AND target=?', owner, source);
+        result = 'MOVED';
+      });
+      return result as 'EMPTY' | 'MOVED' | 'CONFLICT' | 'CANCELLED';
+    });
+  writes = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}

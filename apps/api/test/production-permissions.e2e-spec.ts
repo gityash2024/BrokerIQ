@@ -29,7 +29,7 @@ describe('Production agent/firm record boundaries', () => {
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = mod.createNestApplication();
     configureApp(app);
-    await app.listen(0,'127.0.0.1');
+    await app.listen(0, '127.0.0.1');
     db = app.get(PrismaService);
     org = (await db.organization.create({ data: { name: 'Isolated permissions fixture', slug: 'permissions-' + uid, restrictions: [] } })).id;
     otherOrg = (await db.organization.create({ data: { name: 'Isolated other firm', slug: 'permissions-other-' + uid, restrictions: [] } })).id;
@@ -57,6 +57,51 @@ describe('Production agent/firm record boundaries', () => {
   });
   afterAll(async () => {
     await app?.close();
+  });
+
+  it('does not expose or mutate a legacy follow-up after its lead belongs to another agent', async () => {
+    const task = await db.followUp.create({ data: { organizationId: org, leadId: leadB, assignedToId: a.id, dueAt: new Date() } });
+    const own = await request(app.getHttpServer()).get('/api/follow-ups').set(headers(a)).expect(200);
+    expect(own.body.map((row: any) => row.id)).not.toContain(task.id);
+    const managed = await request(app.getHttpServer()).get('/api/follow-ups').set(headers(admin)).expect(200);
+    expect(managed.body.map((row: any) => row.id)).toContain(task.id);
+    await request(app.getHttpServer())
+      .patch('/api/follow-ups/' + task.id)
+      .set(headers(a))
+      .send({ status: 'DONE' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .delete('/api/follow-ups/' + task.id)
+      .set(headers(a))
+      .expect(404);
+    expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).status).toBe('PENDING');
+  });
+
+  it('completes one task atomically on retries and rejects invalid reschedule dates', async () => {
+    const task = await db.followUp.create({ data: { organizationId: org, leadId: leadA, assignedToId: a.id, dueAt: new Date() } });
+    const before = await db.activity.count({ where: { leadId: leadA, type: 'FOLLOW_UP' } });
+    await Promise.all(
+      [1, 2, 3].map(() =>
+        request(app.getHttpServer())
+          .patch('/api/follow-ups/' + task.id)
+          .set(headers(a))
+          .send({ status: 'DONE', outcomeNote: 'client reached' })
+          .expect(200),
+      ),
+    );
+    expect(await db.activity.count({ where: { leadId: leadA, type: 'FOLLOW_UP' } })).toBe(before + 1);
+    expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).completedAt).not.toBeNull();
+    await request(app.getHttpServer())
+      .patch('/api/follow-ups/' + task.id)
+      .set(headers(a))
+      .send({ dueAt: '2026-02-31T10:00:00Z' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch('/api/follow-ups/' + task.id)
+      .set(headers(a))
+      .send({ status: 'PENDING', dueAt: '2026-12-10T10:00:00+05:30' })
+      .expect(200);
+    expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).completedAt).toBeNull();
   });
 
   it('search does not widen agent conversation ownership, and unlinked chats stay admin-only', async () => {

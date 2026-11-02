@@ -2,6 +2,10 @@
 
 Baseline: feat/production, 93bb8a0. Existing live data is production data; never seed test records into it.
 
+## Latest connected staging checkpoint — 2 November 2026
+
+See [actual staging release evidence](STAGING_ACCEPTANCE_20261102.md): product commit4b521ad is deployed, signed v2.3.0/Build41 and its full public-download checksum match, additive migrations and post-copy off-host restore passed, all10 legacy public KYC URLs are blocked, Zoho application delivery and actual Admin password/email-OTP sign-in were verified. Three user-requested account email corrections preserved all business records/passwords. Unused previous builds were cleaned while preserving active/rollback artifacts. The user deferred physical phone acceptance until a phone is available. The complete original product audit, remaining providers/modules, new UI screenshots/manuals and performance gates are still OPEN. Historical checkpoint statements below describe their time of execution, not the latest deployment state.
+
 ## Accepted decisions
 
 - Preserve every existing enabled capability and language; coming-soon modules stay disabled.

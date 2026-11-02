@@ -1,0 +1,23 @@
+{
+  "documents": {
+    "total": 10,
+    "remaining": 0,
+    "copied": 10
+  },
+  "originalBytesVerified": 6776237,
+  "oldUrlsChecked": 10,
+  "allOldPublicUrlsBlocked": true,
+  "publicHttpStatuses": [
+    404,
+    404,
+    404,
+    404,
+    404,
+    404,
+    404,
+    404,
+    404,
+    404
+  ],
+  "originalsRetainedAsAuthenticatedAssets": true
+}

@@ -28,7 +28,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { renderTemplate, timeAgo, type WaTemplate } from '@brokeriq/shared';
+import { leadInboxDraftTarget, renderTemplate, timeAgo, type WaTemplate } from '@brokeriq/shared';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { inboxDraftKey } from '@/lib/inbox-composer';
 import { ApiError, api, errorMessage } from '@/lib/api';
@@ -93,11 +93,15 @@ function InboxInner() {
   });
   useEffect(() => {
     if (!resolve.data || !user || !leadTarget) return;
-    const from = inboxDraftKey(user.id, `lead:${leadTarget}`);
+    const from = inboxDraftKey(user.id, leadInboxDraftTarget(leadTarget, channel === 'CHAT' ? 'WHATSAPP' : channel));
     const draft = sessionStorage.getItem(from);
     if (draft) {
-      sessionStorage.setItem(inboxDraftKey(user.id, resolve.data.conversationId), draft);
-      sessionStorage.removeItem(from);
+      const to = inboxDraftKey(user.id, resolve.data.conversationId);
+      const existing = sessionStorage.getItem(to);
+      if (!existing || existing === draft) {
+        sessionStorage.setItem(to, draft);
+        sessionStorage.removeItem(from);
+      } else toast.info('Inbox का मौजूदा draft सुरक्षित रखा है। नया shared draft भी इसी lead/channel के लिए saved है।');
     }
     router.replace(`${pathname}?channel=${channel}&c=${encodeURIComponent(resolve.data.conversationId)}`, { scroll: false });
   }, [resolve.data, user?.id, leadTarget, channel, pathname, router]);

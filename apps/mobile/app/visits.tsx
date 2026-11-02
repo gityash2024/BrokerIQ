@@ -1,4 +1,5 @@
 import { DateTimeField } from '@/components/date-time-field';
+import { LeadContactActions } from '@/components/lead-contact-actions';
 import { useState } from 'react';
 import { FlatList, Linking } from 'react-native';
 import { router } from 'expo-router';
@@ -108,6 +109,7 @@ export default function Visits() {
                     </Txt>
                   )}
                   <Row wrap gap={6}>
+                    <LeadContactActions lead={v.lead} />
                     <IconBtn onPress={() => Linking.openURL(`tel:${v.lead.phone}`)} style={{ backgroundColor: c.surface2 }}>
                       <Phone size={17} color={c.brand} />
                     </IconBtn>

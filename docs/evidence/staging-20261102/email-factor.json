@@ -1,0 +1,12 @@
+{
+  "role": "SUPER_ADMIN",
+  "emailVerified": true,
+  "factor": {
+    "method": "PASSWORD",
+    "channel": "EMAIL",
+    "sentAt": "2026-11-02T08:38:10.015Z",
+    "consumedAt": "2026-11-02T08:38:28.989Z",
+    "attempts": 0
+  },
+  "oldAdminAccountRecreated": 0
+}

@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { leadInboxDraftTarget } from '@brokeriq/shared';
 import { authStore, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { readInboxDraft, saveInboxDraft } from '@/lib/inbox-drafts';
+import { moveInboxDraft } from '@/lib/inbox-drafts';
 import { ErrorView, Header, Loader, Screen } from '@/ui';
 import { showError } from '@/lib/hooks';
 
@@ -25,17 +26,19 @@ export default function ComposeLead() {
     if (!query.data || !user) return;
     let cancelled = false;
     const open = async () => {
-      const text = await readInboxDraft(`lead:${leadId}`, user.id);
-      if (text) await saveInboxDraft(query.data!.conversationId, text, user.id);
+      const target = leadInboxDraftTarget(leadId, channel);
       if (cancelled || authStore.get()?.user.id !== user.id) return;
-      await saveInboxDraft(`lead:${leadId}`, '', user.id);
+      const result = await moveInboxDraft(target, query.data!.conversationId, user.id);
+      if (cancelled || authStore.get()?.user.id !== user.id) return;
+      if (result === 'CANCELLED') return;
+      if (result === 'CONFLICT') showError(new Error('Inbox का मौजूदा draft सुरक्षित रखा है। नया shared draft भी इसी lead/channel के लिए saved है।'));
       router.replace(`/wa/${query.data!.conversationId}`);
     };
     open().catch(showError);
     return () => {
       cancelled = true;
     };
-  }, [query.data, user?.id, leadId]);
+  }, [query.data, user?.id, leadId, channel]);
   return (
     <Screen>
       <Header title={`${channel} Inbox`} />

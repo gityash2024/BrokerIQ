@@ -10,7 +10,7 @@ import { RequestUser } from '../../common/decorators';
 import { randomToken, requireOrg } from '../../common/utils';
 
 const include = {
-  lead: { select: { id: true, name: true, phone: true, stage: true } },
+  lead: { select: { id: true, name: true, phone: true, email: true, stage: true } },
   listing: { select: { id: true, title: true, slug: true, coverUrl: true, latitude: true, longitude: true, address: true } },
   assignedTo: { select: { id: true, name: true } },
 } as const;

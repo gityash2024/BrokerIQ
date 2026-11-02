@@ -14,7 +14,7 @@ import { FeaturesService } from '../../core/features/features.service';
 
 const followUpUpdate = z.object({
   status: z.enum(['PENDING', 'DONE', 'MISSED', 'CANCELLED']).optional(),
-  dueAt: z.string().optional(),
+  dueAt: z.string().datetime({ offset: true }).optional(),
   note: z.string().max(1000).nullable().optional(),
   outcomeNote: z.string().max(1000).optional(),
 });
@@ -57,13 +57,16 @@ export class TasksController {
       ...(range(q) ? { dueAt: range(q) } : {}),
       ...(q.view === 'overdue' ? { status: 'PENDING', dueAt: { lt: new Date() } } : {}),
       ...(q.view === 'today' ? { status: 'PENDING', dueAt: { lte: endOfDay() } } : {}),
-      lead: { deletedAt: null },
+      lead: { organizationId: orgId, deletedAt: null, ...this.mineFilter(user) },
     };
     return this.prisma.followUp.findMany({
       where,
       orderBy: { dueAt: 'asc' },
       take: 500,
-      include: { lead: { select: { id: true, name: true, phone: true, stage: true, source: true } }, assignedTo: { select: { id: true, name: true } } },
+      include: {
+        lead: { select: { id: true, name: true, phone: true, email: true, stage: true, source: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
     });
   }
 
@@ -97,41 +100,66 @@ export class TasksController {
 
   @Patch('follow-ups/:id')
   async updateFollowUp(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(followUpUpdate)) body: z.infer<typeof followUpUpdate>) {
-    const fu = await this.prisma.followUp.findFirst({ where: { id, organizationId: requireOrg(user), ...this.mineFilter(user) } });
-    if (!fu) throw new NotFoundException();
-    const updated = await this.prisma.followUp.update({
-      where: { id },
-      data: {
-        status: body.status,
-        dueAt: body.dueAt ? new Date(body.dueAt) : undefined,
-        note: body.note,
-        completedAt: body.status === 'DONE' ? new Date() : undefined,
-        reminderSentAt: body.dueAt ? null : undefined,
-      },
-    });
-    if (body.status === 'DONE') {
-      await this.prisma.activity.create({
+    return this.prisma.$transaction(async (tx) => {
+      const fu = await this.lockFollowUp(tx, user, id);
+      const updated = await tx.followUp.update({
+        where: { id },
         data: {
-          organizationId: fu.organizationId,
-          leadId: fu.leadId,
-          userId: user.id,
-          type: 'FOLLOW_UP',
-          content: `Follow-up done${body.outcomeNote ? `: ${body.outcomeNote}` : ''}`,
+          status: body.status,
+          dueAt: body.dueAt ? new Date(body.dueAt) : undefined,
+          note: body.note,
+          completedAt: body.status === 'DONE' ? (fu.completedAt ?? new Date()) : body.status === 'PENDING' ? null : undefined,
+          reminderSentAt: body.dueAt || body.status === 'PENDING' ? null : undefined,
         },
       });
-      await this.prisma.lead.update({ where: { id: fu.leadId }, data: { lastActivityAt: new Date() } });
-    }
-    await this.leads.refreshNextFollowUp(fu.leadId);
-    return updated;
+      if (body.status === 'DONE' && fu.status !== 'DONE') {
+        await tx.activity.create({
+          data: {
+            organizationId: fu.organizationId,
+            leadId: fu.leadId,
+            userId: user.id,
+            type: 'FOLLOW_UP',
+            content: `Follow-up done${body.outcomeNote ? `: ${body.outcomeNote}` : ''}`,
+          },
+        });
+        await tx.lead.update({ where: { id: fu.leadId }, data: { lastActivityAt: new Date() } });
+      }
+      await this.refreshFollowUp(tx, fu.leadId);
+      return updated;
+    });
+  }
+
+  private async lockFollowUp(tx: Prisma.TransactionClient, user: RequestUser, id: string) {
+    const candidate = await tx.followUp.findFirst({ where: { id, organizationId: requireOrg(user) }, select: { leadId: true } });
+    if (!candidate) throw new NotFoundException();
+    // Lead assignment writes acquire the same PostgreSQL row lock before updating tasks.
+    await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${candidate.leadId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM "FollowUp" WHERE id=${id} FOR UPDATE`;
+    const fu = await tx.followUp.findFirst({
+      where: {
+        id,
+        organizationId: requireOrg(user),
+        ...this.mineFilter(user),
+        lead: { organizationId: requireOrg(user), deletedAt: null, ...this.mineFilter(user) },
+      },
+    });
+    if (!fu) throw new NotFoundException();
+    return fu;
+  }
+
+  private async refreshFollowUp(tx: Prisma.TransactionClient, leadId: string) {
+    const next = await tx.followUp.findFirst({ where: { leadId, status: 'PENDING' }, orderBy: [{ dueAt: 'asc' }, { id: 'asc' }] });
+    await tx.lead.update({ where: { id: leadId }, data: { nextFollowUpAt: next?.dueAt ?? null } });
   }
 
   @Delete('follow-ups/:id')
   async deleteFollowUp(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    const fu = await this.prisma.followUp.findFirst({ where: { id, organizationId: requireOrg(user), ...this.mineFilter(user) } });
-    if (!fu) throw new NotFoundException();
-    await this.prisma.followUp.delete({ where: { id } });
-    await this.leads.refreshNextFollowUp(fu.leadId);
-    return { ok: true };
+    return this.prisma.$transaction(async (tx) => {
+      const fu = await this.lockFollowUp(tx, user, id);
+      await tx.followUp.delete({ where: { id } });
+      await this.refreshFollowUp(tx, fu.leadId);
+      return { ok: true };
+    });
   }
 
   // ------------------------------------------------------------------ site visits

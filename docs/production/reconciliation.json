@@ -3605,8 +3605,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD41_NATIVE_APK_INSPECTED_DEVICE_PENDING",
+      "verification": "Clean tracked prebuild; actual signed APK MainActivity/FaceCaptureActivity secure flags and60 native library16KB alignments inspected. Signed/public hashes match. Physical recording/recents/upgrade deferred by user.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
@@ -4007,11 +4007,11 @@
       "sourceRequests": [
         "2026-11-01-three-addons-and-unmatched-route-screenshot"
       ],
-      "backend": "IMPLEMENTED_LOCAL_VERIFIED",
-      "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
+      "backend": "STAGING_POLICY_ENABLED",
+      "web": "SUPER_ADMIN_PASSWORD_EMAIL_OTP_LIVE_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED",
-      "shippedBuild": "PENDING",
-      "verification": "9 real PostgreSQL factor scenarios; full API 296 passed/25 configuration skips before final rate-bound test; shared 57/mobile 68; local Chrome password/OTP/Agent dashboard; provider/device release pending.",
+      "shippedBuild": "BUILD41_SOURCE_INCLUDED",
+      "verification": "Actual Super Admin PASSWORD/EMAIL challenge sent and consumed, zero wrong attempts, verified email and authenticated dashboard. Other roles/client/device paths remain pending.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "Explicit rollout gate defaults off for backward compatibility; final production activation is required after selected application mail delivery is tested. No production migration, live OTP send or installed APK claim."
@@ -4081,5 +4081,15 @@
       "rootCause": "A user route prefix was present inside an external script URL, creating hostname user instead of accounts.google.com.",
       "releaseEvidence": null
     }
-  ]
+  ],
+  "latestStagingRelease": {
+    "commit": "4b521ad7e53d1716e866fc03ed5e600189ee8a2f",
+    "androidVersion": "2.3.0",
+    "androidVersionCode": 41,
+    "publishedAt": "2026-11-02T07:51:52.909Z",
+    "publicApkSha256": "4dd3efac1da78d5728611ffca6d39097f5cba0723c88f22e134d9f57b19bb02f",
+    "evidence": "docs/production/STAGING_ACCEPTANCE_20261102.md",
+    "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
+    "fullProductSignoff": false
+  }
 }

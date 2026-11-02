@@ -3,8 +3,8 @@ import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Animated, { FadeInDown, FadeOutRight } from 'react-native-reanimated';
-import { AlarmClock, Check, Clock, MessageCircle, Phone } from 'lucide-react-native';
-import { openLeadInbox } from '@/lib/inbox-composer';
+import { AlarmClock, Check, Clock, Phone } from 'lucide-react-native';
+import { LeadContactActions } from '@/components/lead-contact-actions';
 import { api, patch, qs } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -78,9 +78,7 @@ export default function FollowUps() {
                       <IconBtn onPress={() => Linking.openURL(`tel:${f.lead.phone}`)} style={{ backgroundColor: c.surface2 }}>
                         <Phone size={17} color={c.brand} />
                       </IconBtn>
-                      <IconBtn onPress={() => openLeadInbox(f.lead.id)} style={{ backgroundColor: '#25D36622' }}>
-                        <MessageCircle size={17} color="#16A34A" />
-                      </IconBtn>
+                      <LeadContactActions lead={f.lead} />
                       <Chip label="+1h" onPress={() => snooze(f.id, 3600_000)} icon={<AlarmClock size={13} color={c.muted} />} />
                       <Chip label="कल" onPress={() => snooze(f.id, 86400_000)} />
                       <Chip label="✓ Done" color={c.success} active onPress={() => upd.mutate({ id: f.id, status: 'DONE' })} />
