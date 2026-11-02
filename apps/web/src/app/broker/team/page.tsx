@@ -430,7 +430,7 @@ export default function TeamPage() {
           <div className="flex items-center gap-2 shrink-0">
             <ExportToolbar
               endpoint="/broker/team/export"
-              selectedIds={selectedIds.size > 0 ? Array.from(selectedIds) : undefined}
+              selectedIds={filteredMembers.filter((member) => !selectedIds.size || selectedIds.has(member.id)).map((member) => member.id)}
               filters={{
                 role: roleFilter !== 'ALL' ? roleFilter : undefined,
                 status: statusFilter !== 'ALL' ? statusFilter : undefined,

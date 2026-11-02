@@ -99,3 +99,31 @@ it('preserves existing guest access for public listing requests', async () => {
     request.mockRestore();
   }
 });
+
+it('returns authenticated report bytes and rejects a late download after role change', async () => {
+  const original = {
+    accessToken: 'fixture',
+    refreshToken: 'fixture',
+    user: { id: 'report-owner', role: 'BROKER_ADMIN', organization: { id: 'firm-a' } },
+  } as any;
+  await authStore.set(original);
+  let release!: (bytes: ArrayBuffer) => void;
+  const pendingBytes = new Promise<ArrayBuffer>((resolve) => {
+    release = resolve;
+  });
+  const request = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce({ status: 200, ok: true, headers: { get: () => '3' }, arrayBuffer: async () => Uint8Array.from([80, 75, 3]).buffer } as any);
+  try {
+    await expect(api('/broker/team/export?format=xlsx', { responseType: 'bytes' })).resolves.toEqual(Uint8Array.from([80, 75, 3]));
+    request.mockResolvedValueOnce({ status: 200, ok: true, headers: { get: () => '3' }, arrayBuffer: () => pendingBytes } as any);
+    const download = api('/broker/team/export?format=xlsx', { responseType: 'bytes' });
+    const rejected = expect(download).rejects.toBeInstanceOf(AccountScopeChangedError);
+    await Promise.resolve();
+    await authStore.set({ ...original, user: { ...original.user, role: 'BROKER_AGENT' } });
+    release(Uint8Array.from([80, 75, 3]).buffer);
+    await rejected;
+  } finally {
+    request.mockRestore();
+  }
+});

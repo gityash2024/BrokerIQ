@@ -1,4 +1,19 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -26,6 +41,7 @@ import { generateCsv } from '../../common/csv';
 const memberUpdateSchema = z
   .object({
     agentId: z.string().optional(),
+    expectedUpdatedAt: z.string().datetime().optional(),
     name: z.string().trim().min(2).max(100).optional(),
     phone: z
       .string()
@@ -429,49 +445,17 @@ export class OrganizationsController {
   @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
   @Get('broker/team/:userId')
   async getMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
-    const isSuper = user.role === 'SUPER_ADMIN';
-    const member = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        status: true,
-        avatarUrl: true,
-        createdAt: true,
-        organizationId: true,
-      },
+    const member = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] }, organizationId: { not: null } },
+      select: { id: true, organizationId: true, organization: { select: { id: true, name: true, status: true } } },
     });
-    if (!member || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Member not found');
-    if ((user.role === 'BROKER_AGENT' && member.id !== user.id) || (!isSuper && member.organizationId !== user.orgId)) {
+    if (!member) throw new NotFoundException('Member not found');
+    if ((user.role === 'BROKER_AGENT' && member.id !== user.id) || (user.role !== 'SUPER_ADMIN' && member.organizationId !== user.orgId))
       throw new ForbiddenException();
-    }
-    const loc = await this.prisma.shiftLocation.findFirst({
-      where: { userId: member.id, ...(isSuper ? {} : { shift: { organizationId: user.orgId! } }) },
-      orderBy: { capturedAt: 'desc' },
-    });
-    let targets = null;
-    if (member.organizationId) {
-      const setting = await this.prisma.orgSetting.findUnique({
-        where: { organizationId_key: { organizationId: member.organizationId, key: 'agent_targets' } },
-      });
-      const allTargets = (setting?.value as Record<string, any>) || {};
-      targets = allTargets[member.id] || null;
-    }
-    const docs = await this.prisma.kycDocument.findMany({
-      where: { userId: member.id, organizationId: member.organizationId, supersededAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
-    return {
-      member: {
-        ...member,
-        lastLocation: loc,
-        targets,
-      },
-      kyc: user.role === 'SUPER_ADMIN' || member.id === user.id || member.role === 'BROKER_AGENT' ? docs.map(kycView) : [],
-    };
+    const result = await readBrokerTeam(this.prisma, user, false, member.organizationId!, { agentId: member.id });
+    const detail = result.members.find((row) => row.id === member.id);
+    if (!detail) throw new NotFoundException('Member not found');
+    return { member: { ...detail, organization: member.organization }, kyc: detail.kycDocuments };
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN')
@@ -488,6 +472,7 @@ export class OrganizationsController {
     @Body(new ZodPipe(memberUpdateSchema))
     body: {
       agentId?: string;
+      expectedUpdatedAt?: string;
       name?: string;
       phone?: string | null;
       role?: 'BROKER_ADMIN' | 'BROKER_AGENT';
@@ -523,6 +508,8 @@ export class OrganizationsController {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
+      if (body.expectedUpdatedAt && latest.updatedAt.toISOString() !== body.expectedUpdatedAt)
+        throw new ConflictException('Member changed. Reload and review before saving.');
       if (
         latest.role === 'BROKER_ADMIN' &&
         latest.status === 'ACTIVE' &&
@@ -534,6 +521,7 @@ export class OrganizationsController {
         if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
       }
       if (body.targets) {
+        userUpdateData.updatedAt = new Date();
         const setting = await tx.orgSetting.findUnique({ where: { organizationId_key: { organizationId: orgId, key: 'agent_targets' } } });
         const current = (setting?.value as Record<string, any>) || {};
         current[userId] = { ...(current[userId] || {}), ...body.targets };
@@ -552,7 +540,15 @@ export class OrganizationsController {
     if (body.status === 'SUSPENDED' || body.role) await this.auth.revokeAll(userId);
 
     await this.audit.log(user, 'team.update', 'User', userId, body);
-    return { id: updated.id, name: updated.name, phone: updated.phone, role: updated.role, status: updated.status, targets: body.targets };
+    return {
+      id: updated.id,
+      name: updated.name,
+      phone: updated.phone,
+      role: updated.role,
+      status: updated.status,
+      targets: body.targets,
+      updatedAt: updated.updatedAt,
+    };
   }
 
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')

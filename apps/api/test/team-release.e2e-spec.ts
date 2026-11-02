@@ -10,6 +10,7 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
   let app: INestApplication;
   let db: PrismaService;
   let owner: string;
+  let superToken: string;
   let other: string;
   let org: string;
   let agent: string;
@@ -28,6 +29,7 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
     await db.systemSetting.deleteMany({ where: { key: 'platform.modules' } });
     const admin = (await api().post('/api/auth/login').send({ email: process.env.SUPER_ADMIN_EMAIL, password: process.env.SUPER_ADMIN_PASSWORD }).expect(200))
       .body.accessToken;
+    superToken = admin;
     for (const name of ['owner', 'other']) {
       const input = { name: 'Team fixture', firmName: `Team ${name} ${uid}`, email: `${name}.${uid}@e2e.test`, password };
       const firm = (await api().post('/api/admin/organizations').set(h(admin)).send(input).expect(201)).body;
@@ -160,6 +162,47 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
         .send({ leadId: mine.id, ...timing, assignedToId: otherId })
         .expect(400);
     }
+  });
+  it('returns actual all-firm hierarchy, preserves firm filters and rejects role/date escalation', async () => {
+    const all = (await api().get('/api/broker/team').set(h(superToken)).expect(200)).body;
+    expect(all.organizationId).toBeNull();
+    expect(all.organizations.some((firm: any) => firm.id === org)).toBe(true);
+    expect(all.members.some((member: any) => member.id === agentId && member.organization.id === org)).toBe(true);
+    const foreign = all.members.find((member: any) => member.email === `other.${uid}@e2e.test`);
+    expect(foreign).toBeDefined();
+    expect(
+      (await api().get(`/api/broker/team?orgId=${org}`).set(h(superToken)).expect(200)).body.members.every((member: any) => member.organizationId === org),
+    ).toBe(true);
+    expect(
+      (await api().get(`/api/broker/team?orgId=${foreign.organizationId}`).set(h(owner)).expect(200)).body.members.every(
+        (member: any) => member.organizationId === org,
+      ),
+    ).toBe(true);
+    await api().get('/api/broker/team?role=SUPER_ADMIN').set(h(owner)).expect(400);
+    await api().get('/api/broker/team?from=2026-02-30').set(h(owner)).expect(400);
+    await api().get('/api/broker/team?from=2026-11-02&to=2026-11-01').set(h(owner)).expect(400);
+    const picker = (await api().get('/api/leads/assignees').set(h(agent)).expect(200)).body;
+    expect(picker.members.map((member: any) => member.id)).toEqual([agentId]);
+    expect(picker.invites).toEqual([]);
+    await api().get(`/api/broker/team/${foreign.id}`).set(h(owner)).expect(403);
+    const none = await api().get(`/api/broker/team/export?ids=${foreign.id}&format=csv`).set(h(owner)).expect(200);
+    expect(none.text).not.toContain(foreign.email);
+  });
+  it('returns dedicated detail metrics and prevents stale parallel member/target saves', async () => {
+    const before = (await api().get(`/api/broker/team/${agentId}`).set(h(owner)).expect(200)).body.member;
+    expect(before.organization.id).toBe(org);
+    expect(before.stats.openLeads).toBeGreaterThan(0);
+    const saved = await api()
+      .patch(`/api/broker/team/${agentId}`)
+      .set(h(owner))
+      .send({ name: 'Updated isolated member', targets: { monthlyDeals: 0 }, expectedUpdatedAt: before.updatedAt })
+      .expect(200);
+    expect(saved.body.updatedAt).not.toBe(before.updatedAt);
+    await api().patch(`/api/broker/team/${agentId}`).set(h(owner)).send({ name: 'Stale overwrite', expectedUpdatedAt: before.updatedAt }).expect(409);
+    const after = (await api().get(`/api/broker/team/${agentId}`).set(h(owner)).expect(200)).body.member;
+    expect(after.name).toBe('Updated isolated member');
+    expect(after.targets.monthlyDeals).toBe(0);
+    expect(after.targets.monthlyLeads).toBeUndefined();
   });
   it('suspends, reactivates and removes a member while revoking old sessions', async () => {
     await api().patch(`/api/broker/team/${agentId}`).set(h(owner)).send({ status: 'SUSPENDED' }).expect(200);

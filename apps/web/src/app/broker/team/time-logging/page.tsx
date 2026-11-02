@@ -1,23 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  LogIn,
-  LogOut,
-  MapPin,
-  Navigation,
-  Pause,
-  PauseCircle,
-  PlayCircle,
-  RefreshCw,
-  User,
-  Users,
-} from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, LogIn, LogOut, MapPin, Navigation, Pause, PauseCircle, PlayCircle, RefreshCw, User, Users } from 'lucide-react';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn, qs } from '@/lib/utils';
@@ -31,20 +18,17 @@ import type { MapPoint } from '@/components/site/map';
 import type { BrokerTeamResponse } from '@brokeriq/shared';
 
 // Dynamic Leaflet map import with { ssr: false } to eliminate window reference exceptions
-const DynamicMap = dynamic(
-  () => import('@/components/site/map').then((mod) => mod.Map),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full w-full min-h-[460px] items-center justify-center rounded-2xl bg-surface-2 text-muted">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <span className="size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
-          Loading location history map...
-        </div>
+const DynamicMap = dynamic(() => import('@/components/site/map').then((mod) => mod.Map), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full min-h-[460px] items-center justify-center rounded-2xl bg-surface-2 text-muted">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <span className="size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+        Loading location history map...
       </div>
-    ),
-  }
-);
+    </div>
+  ),
+});
 
 /** Helper to obtain current date string in IST format (YYYY-MM-DD) */
 function getTodayIst(): string {
@@ -152,9 +136,10 @@ function TimeLoggingContent() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isAgent = user?.role === 'BROKER_AGENT';
 
+  const params = useSearchParams();
   // Filters State
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>('');
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(params.get('memberId') || '');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIst());
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [punchLoading, setPunchLoading] = useState(false);
@@ -176,9 +161,7 @@ function TimeLoggingContent() {
   const members = teamQuery.data?.members ?? [];
 
   // Active agent: for agents, strictly locked to their own id; for admins, selectable
-  const activeAgentId = isAgent
-    ? (user?.id || '')
-    : (selectedAgentId || (members.length > 0 ? members[0].id : user?.id || ''));
+  const activeAgentId = isAgent ? user?.id || '' : selectedAgentId || (members.length > 0 ? members[0].id : user?.id || '');
   const activeAgent = isAgent ? user : members.find((m) => m.id === activeAgentId);
   const isMe = activeAgentId === user?.id;
 
@@ -264,7 +247,7 @@ function TimeLoggingContent() {
         setPunchLoading(false);
         toast.error('Location permission is required to punch in: ' + err.message);
       },
-      { enableHighAccuracy: true, timeout: 15000 }
+      { enableHighAccuracy: true, timeout: 15000 },
     );
   };
 
@@ -303,7 +286,7 @@ function TimeLoggingContent() {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-      }).format(yesterday)
+      }).format(yesterday),
     );
   };
 
@@ -346,11 +329,7 @@ function TimeLoggingContent() {
             </div>
           ) : (
             <div className="w-60">
-              <Select
-                className="h-10 text-xs font-semibold"
-                value={activeAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
-              >
+              <Select className="h-10 text-xs font-semibold" value={activeAgentId} onChange={(e) => setSelectedAgentId(e.target.value)}>
                 {members.length === 0 ? (
                   <option value="">No agents found</option>
                 ) : (
@@ -378,9 +357,7 @@ function TimeLoggingContent() {
                 onClick={setPresetToday}
                 className={cn(
                   'rounded-lg px-2.5 py-1.5 text-xs font-semibold transition',
-                  selectedDate === getTodayIst()
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-surface-2 text-muted hover:text-fg'
+                  selectedDate === getTodayIst() ? 'bg-brand-600 text-white' : 'bg-surface-2 text-muted hover:text-fg',
                 )}
               >
                 Today
@@ -397,13 +374,7 @@ function TimeLoggingContent() {
         </div>
 
         {/* Refresh Action */}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleRefresh}
-          className="gap-2 text-xs"
-          disabled={timelineQuery.isFetching || historyQuery.isFetching}
-        >
+        <Button variant="secondary" size="sm" onClick={handleRefresh} className="gap-2 text-xs" disabled={timelineQuery.isFetching || historyQuery.isFetching}>
           <RefreshCw className={cn('size-3.5', (timelineQuery.isFetching || historyQuery.isFetching) && 'animate-spin')} />
           Refresh
         </Button>
@@ -444,24 +415,12 @@ function TimeLoggingContent() {
             {isMe && !statusQuery.isLoading && (
               <div className="flex items-center gap-1.5">
                 {statusData?.status === 'ACTIVE' ? (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    loading={punchLoading}
-                    onClick={handleWebPunchOut}
-                    className="h-7 text-[11px] font-bold gap-1 rounded-lg"
-                  >
+                  <Button size="sm" variant="danger" loading={punchLoading} onClick={handleWebPunchOut} className="h-7 text-[11px] font-bold gap-1 rounded-lg">
                     <LogOut className="size-3" /> Punch Out
                   </Button>
                 ) : statusData?.status === 'PAUSED' ? (
                   <>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      loading={punchLoading}
-                      onClick={handleWebResume}
-                      className="h-7 text-[11px] font-bold gap-1 rounded-lg"
-                    >
+                    <Button size="sm" variant="primary" loading={punchLoading} onClick={handleWebResume} className="h-7 text-[11px] font-bold gap-1 rounded-lg">
                       <PlayCircle className="size-3" /> Resume
                     </Button>
                     <Button
@@ -488,9 +447,7 @@ function TimeLoggingContent() {
               </div>
             )}
           </div>
-          <p className="mt-2 text-xs text-subtle truncate">
-            {activeAgent?.name ? `${activeAgent.name}` : 'Selected Agent'}
-          </p>
+          <p className="mt-2 text-xs text-subtle truncate">{activeAgent?.name ? `${activeAgent.name}` : 'Selected Agent'}</p>
         </div>
 
         {/* Card 2: Total Active Hours */}
@@ -505,9 +462,7 @@ function TimeLoggingContent() {
             {timelineQuery.isLoading ? (
               <Skeleton className="h-7 w-20" />
             ) : (
-              <p className="text-2xl font-bold font-display text-fg">
-                {formatMinutes(timelineData?.summary?.activeMinutes ?? 0)}
-              </p>
+              <p className="text-2xl font-bold font-display text-fg">{formatMinutes(timelineData?.summary?.activeMinutes ?? 0)}</p>
             )}
           </div>
           <p className="mt-1 text-xs text-subtle">Total accumulated active shift time</p>
@@ -525,9 +480,7 @@ function TimeLoggingContent() {
             {timelineQuery.isLoading ? (
               <Skeleton className="h-7 w-20" />
             ) : (
-              <p className="text-2xl font-bold font-display text-amber-600 dark:text-amber-400">
-                {formatMinutes(timelineData?.summary?.pausedMinutes ?? 0)}
-              </p>
+              <p className="text-2xl font-bold font-display text-amber-600 dark:text-amber-400">{formatMinutes(timelineData?.summary?.pausedMinutes ?? 0)}</p>
             )}
           </div>
           <p className="mt-1 text-xs text-subtle">Interruption / GPS lost duration</p>
@@ -548,14 +501,10 @@ function TimeLoggingContent() {
             </div>
             <div className="text-right">
               <span className="text-subtle block">Punch Out</span>
-              <span className="font-bold text-fg">
-                {lastPunchOut ? formatTimeOnly(lastPunchOut) : statusData?.status === 'ACTIVE' ? 'In Progress' : '—'}
-              </span>
+              <span className="font-bold text-fg">{lastPunchOut ? formatTimeOnly(lastPunchOut) : statusData?.status === 'ACTIVE' ? 'In Progress' : '—'}</span>
             </div>
           </div>
-          <div className="mt-2 text-xs font-medium text-brand-600 dark:text-brand-400">
-            {historyData?.count ?? 0} breadcrumbs captured
-          </div>
+          <div className="mt-2 text-xs font-medium text-brand-600 dark:text-brand-400">{historyData?.count ?? 0} breadcrumbs captured</div>
         </div>
       </div>
 
@@ -600,10 +549,7 @@ function TimeLoggingContent() {
                     <div
                       key={evt.id}
                       onClick={() => isCheckpoint && setSelectedPointId(evt.id.replace('loc-', ''))}
-                      className={cn(
-                        'relative pl-6 transition-colors group',
-                        isCheckpoint && 'cursor-pointer'
-                      )}
+                      className={cn('relative pl-6 transition-colors group', isCheckpoint && 'cursor-pointer')}
                     >
                       {/* Node Circle Icon */}
                       <span
@@ -613,7 +559,7 @@ function TimeLoggingContent() {
                           isCheckpoint && 'bg-sky-600 text-white',
                           isPause && 'bg-amber-600 text-white',
                           isResume && 'bg-indigo-600 text-white',
-                          isPunchOut && 'bg-rose-600 text-white'
+                          isPunchOut && 'bg-rose-600 text-white',
                         )}
                       >
                         {isPunchIn && <LogIn className="size-3.5" />}
@@ -627,14 +573,12 @@ function TimeLoggingContent() {
                       <div
                         className={cn(
                           'rounded-xl border border-line/70 bg-surface-2/40 p-3 transition hover:bg-surface-2',
-                          selectedPointId && evt.id.includes(selectedPointId) && 'ring-2 ring-brand-500 bg-brand-50/20'
+                          selectedPointId && evt.id.includes(selectedPointId) && 'ring-2 ring-brand-500 bg-brand-50/20',
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-fg">{evt.label}</span>
-                          <span className="text-[11px] font-semibold text-subtle">
-                            {formatTimeOnly(evt.timestamp)}
-                          </span>
+                          <span className="text-[11px] font-semibold text-subtle">{formatTimeOnly(evt.timestamp)}</span>
                         </div>
 
                         {/* Coordinates or Address */}
@@ -651,11 +595,7 @@ function TimeLoggingContent() {
                             <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                               Reason: {evt.reason}
                             </span>
-                            {evt.durationMinutes ? (
-                              <span className="text-[10px] text-subtle">
-                                Duration: {evt.durationMinutes}m
-                              </span>
-                            ) : null}
+                            {evt.durationMinutes ? <span className="text-[10px] text-subtle">Duration: {evt.durationMinutes}m</span> : null}
                           </div>
                         )}
 
@@ -707,9 +647,7 @@ function TimeLoggingContent() {
                   <Navigation className="size-6" />
                 </div>
                 <h4 className="font-display font-bold text-fg">No GPS breadcrumbs recorded</h4>
-                <p className="mt-1 max-w-sm text-xs text-muted">
-                  No 15-minute location history points were logged for this agent on {selectedDate}.
-                </p>
+                <p className="mt-1 max-w-sm text-xs text-muted">No 15-minute location history points were logged for this agent on {selectedDate}.</p>
               </div>
             ) : (
               <DynamicMap
@@ -730,7 +668,9 @@ function TimeLoggingContent() {
 export default function TimeLoggingPage() {
   return (
     <RequireAuth roles={['BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN']}>
-      <TimeLoggingContent />
+      <Suspense fallback={<Skeleton className="h-32" />}>
+        <TimeLoggingContent />
+      </Suspense>
     </RequireAuth>
   );
 }

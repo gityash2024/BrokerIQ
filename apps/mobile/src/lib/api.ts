@@ -100,7 +100,7 @@ async function refresh(): Promise<boolean> {
   return refreshing;
 }
 
-type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string>; ownerId?: string };
+type Opts = { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string>; ownerId?: string; responseType?: 'bytes' };
 export class AccountScopeChangedError extends Error {}
 function currentScope() {
   const user = authStore.get()?.user;
@@ -138,6 +138,13 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   }
   if (res.status === 401 && auth && authStore.get()?.refreshToken && (await refresh())) res = await send();
   assertOwner();
+  if (res.ok && opts.responseType === 'bytes') {
+    if (Number(res.headers.get('Content-Length')) > 20_000_000) throw new Error('Report is too large. Narrow the filters.');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    assertOwner();
+    if (bytes.byteLength > 20_000_000) throw new Error('Report is too large. Narrow the filters.');
+    return bytes as T;
+  }
   const text = await res.text();
   assertOwner();
   let data: any = null;

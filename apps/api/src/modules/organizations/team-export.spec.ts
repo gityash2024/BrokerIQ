@@ -58,10 +58,15 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
         findMany: jest.fn().mockResolvedValue([
           { id: 'kyc_1', docType: 'AADHAAR', docNumber: '111122223333', status: 'VERIFIED' },
           { id: 'kyc_2', docType: 'PAN', docNumber: 'ABCDE1234F', status: 'VERIFIED' },
-          ...['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'].map((docNumber, i) => ({ id: `face_${i}`, docType: 'OTHER', docNumber, status: 'VERIFIED' })),
+          ...['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'].map((docNumber, i) => ({
+            id: `face_${i}`,
+            docType: 'OTHER',
+            docNumber,
+            status: 'VERIFIED',
+          })),
         ]),
       },
-      userLocation: {
+      shiftLocation: {
         findFirst: jest.fn().mockResolvedValue({
           latitude: 28.45,
           longitude: 77.05,
@@ -80,17 +85,7 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
     mockFeatures = {};
     mockAccess = {};
 
-    controller = new OrganizationsController(
-      mockAccess,
-      mockPrisma,
-      mockAuth,
-      mockUsage,
-      mockMail,
-      mockAudit,
-      mockNotifications,
-      mockFeatures,
-      {} as never,
-    );
+    controller = new OrganizationsController(mockAccess, mockPrisma, mockAuth, mockUsage, mockMail, mockAudit, mockNotifications, mockFeatures, {} as never);
   });
 
   describe('team query filtering', () => {
@@ -100,15 +95,7 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
       expect(result.members[0].kycStatus).toBe('UNVERIFIED');
     });
     it('passes filters down to readBrokerTeam', async () => {
-      const res = await controller.team(
-        mockAdminUser,
-        undefined,
-        'BROKER_AGENT',
-        'ACTIVE',
-        'Deepak',
-        'agent_1',
-        'last_7_days',
-      );
+      const res = await controller.team(mockAdminUser, undefined, 'BROKER_AGENT', 'ACTIVE', 'Deepak', 'agent_1', 'last_7_days');
 
       expect(res.organizationId).toBe('org_1');
       expect(res.members.length).toBe(1);
@@ -120,7 +107,7 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
             organizationId: 'org_1',
             role: 'BROKER_AGENT',
             status: 'ACTIVE',
-            id: 'agent_1',
+            AND: [{ id: 'agent_1' }, expect.any(Object)],
             createdAt: expect.any(Object),
           }),
         }),
@@ -142,16 +129,23 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
     });
 
     it('exports team roster as XLSX spreadsheet', async () => {
-      await controller.exportTeam(mockAdminUser, 'xlsx', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes);
+      await controller.exportTeam(
+        mockAdminUser,
+        'xlsx',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        mockRes,
+      );
 
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        expect.stringContaining('.xlsx'),
-      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('.xlsx'));
       expect(mockRes.send).toHaveBeenCalled();
       const buffer = mockRes.send.mock.calls[0][0];
       expect(Buffer.isBuffer(buffer)).toBe(true);
@@ -159,13 +153,23 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
     });
 
     it('exports team roster as PDF report', async () => {
-      await controller.exportTeam(mockAdminUser, 'pdf', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes);
+      await controller.exportTeam(
+        mockAdminUser,
+        'pdf',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        mockRes,
+      );
 
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        expect.stringContaining('.pdf'),
-      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('.pdf'));
       expect(mockRes.send).toHaveBeenCalled();
       const buffer = mockRes.send.mock.calls[0][0];
       expect(Buffer.isBuffer(buffer)).toBe(true);
@@ -173,13 +177,23 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
     });
 
     it('exports team roster as CSV with UTF-8 BOM', async () => {
-      await controller.exportTeam(mockAdminUser, 'csv', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes);
+      await controller.exportTeam(
+        mockAdminUser,
+        'csv',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        mockRes,
+      );
 
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        expect.stringContaining('.csv'),
-      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('.csv'));
       expect(mockRes.send).toHaveBeenCalled();
       const csvStr = mockRes.send.mock.calls[0][0];
       expect(csvStr.startsWith('\ufeff')).toBe(true);
@@ -187,7 +201,20 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
     });
 
     it('filters specifically by ids when provided', async () => {
-      await controller.exportTeam(mockAdminUser, 'csv', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'agent_1', mockRes);
+      await controller.exportTeam(
+        mockAdminUser,
+        'csv',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'agent_1',
+        mockRes,
+      );
 
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -227,7 +254,14 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
         mockAdminUser, // orgId: 'org_1'
         'csv',
         'org_competing_firm', // Attempted cross-tenant IDOR
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
         mockRes,
       );
 
@@ -248,10 +282,7 @@ describe('OrganizationsController - Team Filtering & Multi-Format Export', () =>
         email: 'super@brokeriq.test',
       };
 
-      const res = await controller.team(
-        superAdminUser,
-        'org_target_firm',
-      );
+      const res = await controller.team(superAdminUser, 'org_target_firm');
 
       expect(res.organizationId).toBe('org_target_firm');
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(

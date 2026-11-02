@@ -1,31 +1,12 @@
 import { useState } from 'react';
-import { Alert, FlatList, Linking, ScrollView, Share, TextInput, TouchableOpacity, View } from 'react-native';
+import { ChoiceField } from '@/launch/form';
+import { ManagementExport } from '@/components/management-export';
+import { FlatList, Share, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import {
-  Compass,
-  Crown,
-  Eye,
-  Mail,
-  MapPin,
-  Navigation,
-  Percent,
-  Phone,
-  Save,
-  Search,
-  Send,
-  Shield,
-  ShieldCheck,
-  Target,
-  Trophy,
-  User,
-  UserMinus,
-  UserPlus,
-  Users,
-  X,
-} from 'lucide-react-native';
+import { Crown, Search, Send, Trophy, UserPlus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { timeAgo } from '@brokeriq/shared';
-import { patch, post, del } from '@/lib/api';
+import { post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -40,7 +21,6 @@ export default function Team() {
   const inv = [['team']];
 
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<any | null>(null);
 
   // Invite form state
   const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
@@ -54,43 +34,53 @@ export default function Team() {
     },
   });
 
-  // Action mutations
-  const updateMember = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
-    invalidate: inv,
-    success: 'सदस्य का विवरण अपडेट हो गया ✅',
-    onSuccess: () => {
-      setSelectedMember(null);
-    },
-  });
-
-  const removeMember = useApiMutation((id: string) => del(`/broker/team/${id}`), {
-    invalidate: inv,
-    success: 'सदस्य को टीम से हटा दिया गया',
-    onSuccess: () => {
-      setSelectedMember(null);
-    },
-  });
-
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'VERIFIED'>('ALL');
-
-  const members = [...(q.data?.members ?? [])].sort((a, b) => (b.stats?.won30d ?? 0) - (a.stats?.won30d ?? 0));
-
-  const filteredMembers = members.filter((m: any) => {
-    if (roleFilter !== 'ALL' && m.role !== roleFilter) return false;
-    const isLive = m.lastLocation && Date.now() - new Date(m.lastLocation.updatedAt).getTime() <= 30 * 60 * 1000;
-    if (statusFilter === 'LIVE' && !isLive) return false;
-    if (statusFilter === 'VERIFIED' && m.kycStatus !== 'VERIFIED') return false;
-    if (search.trim()) {
-      const query = search.toLowerCase().trim();
-      const matchName = m.name?.toLowerCase().includes(query);
-      const matchEmail = m.email?.toLowerCase().includes(query);
-      const matchPhone = m.phone?.includes(query);
-      if (!matchName && !matchEmail && !matchPhone) return false;
-    }
-    return true;
-  });
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [kycFilter, setKycFilter] = useState<string | null>(null);
+  const [memberFilter, setMemberFilter] = useState<string | null>(null);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [sort, setSort] = useState<string | null>('NAME');
+  const [descending, setDescending] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const members = q.data?.members ?? [];
+  const day = (date: string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(date));
+  const validDate = (date: string) =>
+    !date || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date);
+  const invalidDates = !validDate(from) || !validDate(to) || !!(from && to && from > to);
+  const filteredMembers = members
+    .filter((member) => {
+      if (
+        invalidDates ||
+        (roleFilter !== 'ALL' && member.role !== roleFilter) ||
+        (statusFilter !== 'ALL' && member.status !== statusFilter) ||
+        (kycFilter && member.kycStatus !== kycFilter) ||
+        (memberFilter && member.id !== memberFilter)
+      )
+        return false;
+      if ((from && day(member.createdAt) < from) || (to && day(member.createdAt) > to)) return false;
+      const text = search.trim().toLowerCase();
+      return !text || [member.name, member.email, member.phone].some((value) => value?.toLowerCase().includes(text));
+    })
+    .sort((a, b) => {
+      const diff =
+        sort === 'WON'
+          ? (a.fulfillment?.dealsWonMonth ?? 0) - (b.fulfillment?.dealsWonMonth ?? 0)
+          : sort === 'LEADS'
+            ? a.stats.openLeads - b.stats.openLeads
+            : sort === 'JOINED'
+              ? Date.parse(a.createdAt) - Date.parse(b.createdAt)
+              : sort === 'ROLE'
+                ? a.role.localeCompare(b.role)
+                : sort === 'KYC'
+                  ? a.kycStatus.localeCompare(b.kycStatus)
+                  : a.name.localeCompare(b.name);
+      return (descending ? -diff : diff) || a.id.localeCompare(b.id);
+    });
+  const exportIds = filteredMembers.filter((member) => !selected.size || selected.has(member.id)).map((member) => member.id);
 
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
@@ -115,24 +105,16 @@ export default function Team() {
           style={{ minHeight: 40 }}
         />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-          <Chip
-            label={`सभी (${members.length})`}
-            active={roleFilter === 'ALL' && statusFilter === 'ALL'}
-            onPress={() => {
-              setRoleFilter('ALL');
-              setStatusFilter('ALL');
-            }}
+        <Row gap={8}>
+          <Button title={`Filters / Sort · ${filteredMembers.length}`} variant="secondary" size="sm" onPress={() => setFilterOpen(true)} />
+          <Button
+            title={selected.size ? 'Selection हटाएँ' : 'दिखे records चुनें'}
+            variant="ghost"
+            size="sm"
+            onPress={() => setSelected(selected.size ? new Set() : new Set(filteredMembers.map((member) => member.id)))}
           />
-          <Chip label="👑 Admin" active={roleFilter === 'BROKER_ADMIN'} onPress={() => setRoleFilter(roleFilter === 'BROKER_ADMIN' ? 'ALL' : 'BROKER_ADMIN')} />
-          <Chip label="👤 Agent" active={roleFilter === 'BROKER_AGENT'} onPress={() => setRoleFilter(roleFilter === 'BROKER_AGENT' ? 'ALL' : 'BROKER_AGENT')} />
-          <Chip label="🟢 Live Now" active={statusFilter === 'LIVE'} onPress={() => setStatusFilter(statusFilter === 'LIVE' ? 'ALL' : 'LIVE')} />
-          <Chip
-            label="✅ KYC Verified"
-            active={statusFilter === 'VERIFIED'}
-            onPress={() => setStatusFilter(statusFilter === 'VERIFIED' ? 'ALL' : 'VERIFIED')}
-          />
-        </ScrollView>
+        </Row>
+        {invalidDates && <Txt color="danger">सही date range भरें: YYYY-MM-DD</Txt>}
       </View>
 
       {q.isError ? (
@@ -163,13 +145,24 @@ export default function Team() {
           renderItem={({ item: m, index }) => {
             const memberAny = m as any;
             const loc = memberAny.lastLocation;
-            const dealsTarget = memberAny.targets?.monthlyDeals ?? 0;
+            const dealsTarget = memberAny.targets?.monthlyDeals;
             const dealsWon = memberAny.fulfillment?.dealsWonMonth ?? m.stats?.won30d ?? 0;
             const dealsPct = memberAny.fulfillment?.dealsPercent ?? (dealsTarget > 0 ? Math.min(100, Math.round((dealsWon / dealsTarget) * 100)) : 0);
 
             return (
               <Animated.View entering={FadeInDown.delay(index * 40)}>
-                <TouchableOpacity activeOpacity={0.75} onPress={() => setSelectedMember(m)}>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => router.push(`/team-member/${encodeURIComponent(m.id)}` as any)}
+                  onLongPress={() =>
+                    setSelected((old) => {
+                      const next = new Set(old);
+                      if (next.has(m.id)) next.delete(m.id);
+                      else next.add(m.id);
+                      return next;
+                    })
+                  }
+                >
                   <Card
                     style={{
                       padding: 14,
@@ -192,7 +185,10 @@ export default function Team() {
                         </View>
                         <View style={{ gap: 2 }}>
                           <Row gap={6} align="center">
-                            <Txt v="bodyStrong">{m.name}</Txt>
+                            <Txt v="bodyStrong">
+                              {selected.has(m.id) ? '✓ ' : ''}
+                              {m.name}
+                            </Txt>
                             {m.id === user?.id && (
                               <Txt v="caption" color="muted">
                                 (आप)
@@ -230,7 +226,7 @@ export default function Team() {
                           <Row gap={6} align="center">
                             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
                             <Txt v="caption" style={{ fontWeight: '700', color: '#10B981' }}>
-                              Live ({timeAgo(loc.capturedAt)})
+                              पिछली लोकेशन: {timeAgo(loc.capturedAt)}
                             </Txt>
                           </Row>
                         ) : (
@@ -261,7 +257,7 @@ export default function Team() {
                             मासिक डील्स लक्ष्य:
                           </Txt>
                           <Txt v="caption" style={{ fontWeight: '800' }}>
-                            {dealsWon} / {dealsTarget} won ({dealsPct}%)
+                            {dealsWon} won · {dealsTarget == null ? 'Target not set' : `${dealsTarget} target (${dealsPct}%)`}
                           </Txt>
                         </Row>
                         <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? '#232A42' : '#E2E8F0', overflow: 'hidden' }}>
@@ -294,17 +290,58 @@ export default function Team() {
         />
       )}
 
-      {/* Member Detail & Edit Sheet */}
-      <MemberDetailSheet
-        member={selectedMember}
-        open={!!selectedMember}
-        onClose={() => setSelectedMember(null)}
-        isBrokerAdmin={isBrokerAdmin}
-        currentUserId={user?.id}
-        onUpdate={(data) => updateMember.mutate({ id: selectedMember?.id, ...data })}
-        onRemove={(id) => removeMember.mutate(id)}
-      />
-
+      <Sheet open={filterOpen} onClose={() => setFilterOpen(false)} title="Team filters / exports">
+        <ChoiceField
+          label="Role"
+          value={roleFilter === 'ALL' ? null : roleFilter}
+          choices={['BROKER_ADMIN', 'BROKER_AGENT']}
+          emptyLabel="All roles"
+          onChange={(value) => setRoleFilter((value || 'ALL') as any)}
+        />
+        <ChoiceField
+          label="Account status"
+          value={statusFilter === 'ALL' ? null : statusFilter}
+          choices={['ACTIVE', 'SUSPENDED']}
+          emptyLabel="All statuses"
+          onChange={(value) => setStatusFilter(value || 'ALL')}
+        />
+        <ChoiceField
+          label="KYC status"
+          value={kycFilter}
+          choices={['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED']}
+          emptyLabel="All KYC"
+          onChange={setKycFilter}
+        />
+        <ChoiceField
+          label="Member"
+          value={memberFilter}
+          choices={members.map((member) => member.id)}
+          labels={Object.fromEntries(members.map((member) => [member.id, member.name]))}
+          emptyLabel="All members"
+          onChange={setMemberFilter}
+        />
+        <Input label="Joined from (IST)" placeholder="YYYY-MM-DD" value={from} onChangeText={setFrom} />
+        <Input label="Joined to (IST)" placeholder="YYYY-MM-DD" value={to} onChangeText={setTo} />
+        <ChoiceField label="Sort by" value={sort} choices={['NAME', 'ROLE', 'KYC', 'JOINED', 'WON', 'LEADS']} onChange={setSort} />
+        <Button title={descending ? 'Descending ↓' : 'Ascending ↑'} variant="secondary" onPress={() => setDescending(!descending)} />
+        <ManagementExport endpoint="/broker/team/export" ids={exportIds} label={selected.size ? 'Selected + filtered' : 'Filtered'} />
+        <Txt color="muted">किसी card को long press करके अलग records चुनें।</Txt>
+        <Button
+          title="Filters reset"
+          variant="ghost"
+          onPress={() => {
+            setRoleFilter('ALL');
+            setStatusFilter('ALL');
+            setKycFilter(null);
+            setMemberFilter(null);
+            setFrom('');
+            setTo('');
+            setSearch('');
+            setSelected(new Set());
+          }}
+        />
+        <Button title="सूची देखें" onPress={() => setFilterOpen(false)} />
+      </Sheet>
       {/* Invite Member Sheet */}
       <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)} title="Team member invite करें">
         <Input label="नाम" value={f.name} onChangeText={(v) => setF({ ...f, name: v })} />
@@ -322,216 +359,5 @@ export default function Team() {
         />
       </Sheet>
     </Screen>
-  );
-}
-
-function MemberDetailSheet({
-  member,
-  open,
-  onClose,
-  isBrokerAdmin,
-  currentUserId,
-  onUpdate,
-  onRemove,
-}: {
-  member: any | null;
-  open: boolean;
-  onClose: () => void;
-  isBrokerAdmin: boolean;
-  currentUserId?: string;
-  onUpdate: (data: any) => void;
-  onRemove: (id: string) => void;
-}) {
-  const { c, isDark } = useTheme();
-  const router = useRouter();
-
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [deals, setDeals] = useState('0');
-  const [leads, setLeads] = useState('0');
-  const [revenue, setRevenue] = useState('0');
-  const [commission, setCommission] = useState('0');
-
-  // Initialize values when member opened
-  useState(() => {
-    if (member) {
-      setName(member.name || '');
-      setPhone(member.phone || '');
-      setDeals(String(member.targets?.monthlyDeals ?? 0));
-      setLeads(String(member.targets?.monthlyLeads ?? 0));
-      setRevenue(String(member.targets?.monthlyRevenue ?? 0));
-      setCommission(String(member.targets?.commissionPct ?? 0));
-    }
-  });
-
-  if (!member) return null;
-
-  const loc = member.lastLocation;
-  const isSelf = member.id === currentUserId;
-
-  const handleSave = () => {
-    onUpdate({
-      name: name.trim(),
-      phone: phone.trim() || null,
-      targets: {
-        monthlyDeals: Number(deals) || 0,
-        monthlyRevenue: Number(revenue) || 0,
-        monthlyLeads: Number(leads) || 0,
-        commissionPct: Number(commission) || 0,
-      },
-    });
-  };
-
-  const openGoogleMaps = () => {
-    if (!loc) return;
-    const url = `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`;
-    Linking.openURL(url).catch(() => {});
-  };
-
-  return (
-    <Sheet open={open} onClose={onClose} title={`${member.name} • सदस्य विवरण`}>
-      <ScrollView contentContainerStyle={{ gap: 14, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <Row gap={12} align="center" style={{ padding: 12, backgroundColor: isDark ? '#141829' : '#F1F5F9', borderRadius: 14 }}>
-          <Avatar name={member.name} uri={member.avatarUrl} size={48} />
-          <View style={{ flex: 1 }}>
-            <Txt v="bodyStrong" style={{ fontSize: 16 }}>
-              {member.name}
-            </Txt>
-            <Txt v="caption" color="muted">
-              {member.email}
-            </Txt>
-            <Row gap={6} style={{ marginTop: 4 }}>
-              <Badge label={member.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'} color={member.role === 'BROKER_ADMIN' ? c.brand : '#3B82F6'} />
-              <Badge label={member.kycStatus || 'UNVERIFIED'} color={member.kycStatus === 'VERIFIED' ? '#10B981' : '#F59E0B'} />
-            </Row>
-          </View>
-        </Row>
-
-        {/* 1. Live Location Section */}
-        <Card style={{ padding: 14, gap: 8 }}>
-          <Row justify="space-between" align="center">
-            <Row gap={6} align="center">
-              <Compass size={16} color="#10B981" />
-              <Txt v="bodyStrong">लाइव लोकेशन (Live Location)</Txt>
-            </Row>
-            {loc ? (
-              <Txt v="caption" style={{ color: '#10B981', fontWeight: '800' }}>
-                🟢 {timeAgo(loc.capturedAt)}
-              </Txt>
-            ) : (
-              <Txt v="caption" color="muted">
-                Offline
-              </Txt>
-            )}
-          </Row>
-
-          {loc ? (
-            <View style={{ gap: 8 }}>
-              <Txt v="caption" color="muted">
-                GPS: {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)} · Accuracy: ±{Math.round(loc.accuracy || 10)}m
-              </Txt>
-              <Button
-                title="Google Maps पर खोलें"
-                icon={<Navigation size={15} color="#fff" />}
-                style={{ backgroundColor: '#10B981' }}
-                onPress={openGoogleMaps}
-              />
-            </View>
-          ) : (
-            <Txt v="caption" color="muted">
-              एजेंट ने अभी तक लोकेशन शेयर नहीं की है। जब वे ऐप इस्तेमाल करेंगे, लोकेशन स्वतः अपडेट होगी।
-            </Txt>
-          )}
-        </Card>
-
-        {/* 2. Target Management & Fulfillment */}
-        <Card style={{ padding: 14, gap: 10 }}>
-          <Row gap={6} align="center">
-            <Target size={16} color="#F59E0B" />
-            <Txt v="bodyStrong">मासिक लक्ष्य (Monthly Targets)</Txt>
-          </Row>
-
-          <Row gap={10}>
-            <View style={{ flex: 1 }}>
-              <Input label="Deals Target" value={deals} onChangeText={setDeals} keyboardType="numeric" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Input label="Leads Target" value={leads} onChangeText={setLeads} keyboardType="numeric" />
-            </View>
-          </Row>
-
-          <Row gap={10}>
-            <View style={{ flex: 1 }}>
-              <Input label="Revenue (₹)" value={revenue} onChangeText={setRevenue} keyboardType="numeric" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Input label="Commission %" value={commission} onChangeText={setCommission} keyboardType="numeric" />
-            </View>
-          </Row>
-        </Card>
-
-        {/* 3. Editable Profile Details */}
-        {isBrokerAdmin && (
-          <Card style={{ padding: 14, gap: 10 }}>
-            <Txt v="bodyStrong">प्रोफाइल विवरण (Edit Profile)</Txt>
-            <Input label="नाम" value={name} onChangeText={setName} />
-            <Input label="फ़ोन नंबर" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          </Card>
-        )}
-
-        {/* 4. Role & Team Actions */}
-        {isBrokerAdmin && !isSelf && (
-          <Card style={{ padding: 14, gap: 10 }}>
-            <Txt v="bodyStrong">त्वरित कार्यवाहियाँ (Quick Actions)</Txt>
-            <Row gap={8}>
-              <Button
-                title={member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
-                variant="secondary"
-                style={{ flex: 1 }}
-                onPress={() =>
-                  onUpdate({
-                    role: member.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN',
-                  })
-                }
-              />
-              <Button
-                title={member.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate'}
-                variant="secondary"
-                style={{ flex: 1 }}
-                onPress={() =>
-                  onUpdate({
-                    status: member.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE',
-                  })
-                }
-              />
-            </Row>
-
-            <Button
-              title="Team से हटाएँ"
-              variant="secondary"
-              icon={<UserMinus size={15} color="#EF4444" />}
-              style={{ borderColor: '#EF4444' }}
-              onPress={() => {
-                Alert.alert('Team से हटाएँ?', `क्या आप ${member.name} को टीम से हटाना चाहते हैं? उनकी सभी leads unassigned हो जाएँगी।`, [
-                  { text: 'रद्द करें', style: 'cancel' },
-                  { text: 'हटाएँ', style: 'destructive', onPress: () => onRemove(member.id) },
-                ]);
-              }}
-            />
-          </Card>
-        )}
-
-        {/* Save button */}
-        {isBrokerAdmin && (
-          <Button
-            title="बदलाव सेव करें (Save Changes)"
-            icon={<Save size={16} color="#fff" />}
-            onPress={handleSave}
-            style={{ backgroundColor: c.brand, marginTop: 4 }}
-          />
-        )}
-      </ScrollView>
-    </Sheet>
   );
 }

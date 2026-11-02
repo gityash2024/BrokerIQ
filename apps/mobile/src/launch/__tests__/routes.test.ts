@@ -19,6 +19,8 @@ describe('native module routes', () => {
     expect(nativeModuleKey('/time-logging')).toBe('time_logging');
     expect(nativeModuleKey('/import-review/[id]')).toBe('inbox');
     expect(nativeModuleKey('/wa/[id]')).toBe('inbox');
+    expect(nativeModuleKey('/team-member/[id]')).toBe('team');
+    expect(moduleAllowed(defaultModulePolicies(), nativeModuleKey('/team-member/[id]'), 'BROKER_AGENT')).toBe(false);
   });
   it('does not grant customer accounts broker Inbox access', () => {
     expect(moduleAllowed(defaultModulePolicies(), nativeModuleKey('/inbox'), 'USER')).toBe(false);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { moduleAllowed } from '@brokeriq/shared';
@@ -14,7 +15,8 @@ import { Card, Txt, ErrorView } from '@/ui';
 export default function TimeLogging() {
   const { user } = useAuth();
   const { modules } = useConfig();
-  const [member, setMember] = useState<string | null>(null);
+  const params = useLocalSearchParams<{ memberId?: string }>();
+  const [member, setMember] = useState<string | null>(params.memberId || null);
   const [date, setDate] = useState<Date | null>(new Date());
   const canReadTeam = user?.role === 'BROKER_ADMIN' && moduleAllowed(modules, 'team', user.role);
   const team = useQuery({ queryKey: ['team-time-picker', user?.id], queryFn: () => api<any>('/broker/team'), enabled: canReadTeam });
