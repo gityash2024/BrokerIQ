@@ -22,7 +22,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 
 type View = 'today' | 'overdue' | 'upcoming' | 'done' | 'all';
 type FollowUpPage = { items: any[]; total: number; page: number; totalPages: number };
-const TYPE_ICON = { CALL: Phone, WHATSAPP: MessageCircle, MEETING: Users, EMAIL: Mail, OTHER: ListChecks } as const;
+const TYPE_ICON = { CALL: Phone, WHATSAPP: MessageCircle, MEETING: Users, EMAIL: Mail, SMS: MessageCircle, OTHER: ListChecks } as const;
 
 function dayKey(d: Date) {
   const diff = Math.round((followUpIstDayEnd(d).getTime() - followUpIstDayEnd().getTime()) / 86400_000);

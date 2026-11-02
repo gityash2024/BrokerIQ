@@ -560,7 +560,7 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Select value={fu.type} onChange={(e) => setFu({ ...fu, type: e.target.value })}>
-            {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'OTHER'].map((t) => (
+            {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS', 'OTHER'].map((t) => (
               <option key={t}>{t}</option>
             ))}
           </Select>

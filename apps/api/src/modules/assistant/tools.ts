@@ -411,7 +411,7 @@ export const TOOLS: Tool[] = [
       {
         leadId: str('lead id'),
         dueAt: str('ISO date-time, e.g. 2026-10-02T11:00:00+05:30'),
-        type: str('CALL | WHATSAPP | MEETING | EMAIL'),
+        type: str('CALL | WHATSAPP | MEETING | EMAIL | SMS | OTHER'),
         note: str('note'),
       },
       ['leadId', 'dueAt'],

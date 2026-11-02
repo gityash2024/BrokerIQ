@@ -73,6 +73,13 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
       await db.$executeRawUnsafe(`DROP FUNCTION IF EXISTS "${functionName}"()`);
     }
   });
+  it('schedules explicit SMS and Email tasks without provider dispatch or fabricated delivery', async () => {
+    for (const type of ['SMS', 'EMAIL']) {
+      const saved = await post({ ...payload(), type, clientMutationId: `${type}-${uid}`, dueAt: '2026-12-07T10:00:00Z' }).expect(201);
+      expect(saved.body.type).toBe(type); expect(saved.body.status).toBe('PENDING');
+    }
+    expect(await db.message.count({ where: { conversation: { organizationId: org } } })).toBe(0);
+  });
   it('serializes reassignment with creation and transfers every pending task to the current owner', async () => {
     const service = app.get(LeadsService);
     const results = await Promise.all([

@@ -215,7 +215,7 @@ export const CallOutcome = {
 } as const;
 export type CallOutcome = (typeof CallOutcome)[keyof typeof CallOutcome];
 
-export const FollowUpType = { CALL: 'CALL', WHATSAPP: 'WHATSAPP', MEETING: 'MEETING', EMAIL: 'EMAIL', OTHER: 'OTHER' } as const;
+export const FollowUpType = { CALL: 'CALL', WHATSAPP: 'WHATSAPP', MEETING: 'MEETING', EMAIL: 'EMAIL', SMS: 'SMS', OTHER: 'OTHER' } as const;
 export type FollowUpType = (typeof FollowUpType)[keyof typeof FollowUpType];
 export const FollowUpStatus = { PENDING: 'PENDING', DONE: 'DONE', MISSED: 'MISSED', CANCELLED: 'CANCELLED' } as const;
 export type FollowUpStatus = (typeof FollowUpStatus)[keyof typeof FollowUpStatus];

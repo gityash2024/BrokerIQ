@@ -459,7 +459,7 @@ function Builder({ rule, onClose }: { rule: any; onClose: () => void }) {
                       {a.type === 'CREATE_FOLLOW_UP' && (
                         <div className="grid gap-2 sm:grid-cols-3">
                           <Select value={p.type ?? 'CALL'} onChange={(e) => setA(a._k, { params: { type: e.target.value } })}>
-                            {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL'].map((t) => (
+                            {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS'].map((t) => (
                               <option key={t} value={t}>
                                 {t}
                               </option>

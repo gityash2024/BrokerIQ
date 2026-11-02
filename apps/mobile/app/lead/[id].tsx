@@ -369,7 +369,7 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   return (
     <Sheet open={open} onClose={onClose} title="Follow-up schedule करें">
       <Row wrap>
-        {['CALL', 'WHATSAPP', 'MEETING'].map((t) => (
+        {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS', 'OTHER'].map((t) => (
           <Chip key={t} label={t[0] + t.slice(1).toLowerCase()} active={type === t} onPress={() => setType(t)} />
         ))}
       </Row>

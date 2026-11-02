@@ -236,6 +236,7 @@ enum FollowUpType {
   WHATSAPP
   MEETING
   EMAIL
+  SMS
   OTHER
 }
 
