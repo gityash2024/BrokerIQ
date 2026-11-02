@@ -12,3 +12,12 @@ The connected staging contains real business records. Never seed it, run fixture
 8. Update runtime update-link/latest-version settings without altering OTP or minimum supported version accidentally. Observe landing in Chrome and capture its actual labels. Save manifest, restore proof and verification output as evidence. Do not relabel older screenshots. This operational checkpoint does not close device/provider/performance/product gates.
 
 Build42 exposed a defect in the temporary activation probe: it accepted API/web/APK mutual consistency while all three still answered Build41 during process handover. Independent exact-commit and full-download checks subsequently passed for Build42. Use the tracked strict verifier above for every future switch. A first canonical request during handover also returned404; prepublication prevents advertising a new artifact before both workers can serve it.
+
+
+## Build46 activation and recovery correction
+
+PM2 online/reload success does not prove new executable paths. Use the reviewed `/opt/brokeriq/ops/start-pinned-processes.cjs /opt/brokeriq/ecosystem.config.js` after candidate/symlink checks; it recreates only brokeriq-api/web registrations with absolute scripts, retains Node22 and verifies cwd/script. Capture/compare unrelated processes before/after. Do not use startOrReload as acceptance, and do not assume PM2 CLI parses a .cjs file because Node require succeeds.
+
+Keep activation, strict exact-pin/public-full-APK verification and runtime latest-version update sequential and fail-fast. Update version/link only after the awaited verification succeeds; on failure restore both release identity and effective runtime link before continuing. Build46's first failed attempt and correction are documented in STAGING_ACCEPTANCE.
+
+Build46 adds nullable follow-up identities and SMS enum (43 total migrations). Old45 Prisma cannot read SMS. Incident rollback45 must use `/opt/brokeriq/ops/rollback-ecosystem-build45.cjs` through start-pinned-processes.cjs, with ops/rollback-api-build45-db43.cjs and BOTH immutable45/46 directories retained. Wrapper uses45 code + generated46 client, stops jobs and blocks follow-up create/lead assignment/bulk/assistant. It preserves data/private KYC/email OTP; never reverse migrations or remove the generated-client dependency directory. Resolve incident with a tested forward fix before resuming paused work. This containment smoke is separate from a complete functional incident drill.

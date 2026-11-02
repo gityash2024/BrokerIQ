@@ -1,0 +1,59 @@
+{
+  "result": "STAGING_ADDITIVE_SCHEMA_AND_COUNTS_VERIFIED",
+  "migrations": 43,
+  "newColumnsNullable": true,
+  "smsEnumPresent": true,
+  "noSeedOrFixtures": true,
+  "coreCounts": [
+    {
+      "table": "User",
+      "beforeCount": 10,
+      "afterCount": 10
+    },
+    {
+      "table": "Organization",
+      "beforeCount": 1,
+      "afterCount": 1
+    },
+    {
+      "table": "Lead",
+      "beforeCount": 198,
+      "afterCount": 198
+    },
+    {
+      "table": "InventoryItem",
+      "beforeCount": 897,
+      "afterCount": 897
+    },
+    {
+      "table": "BrokerRequirement",
+      "beforeCount": 1,
+      "afterCount": 1
+    },
+    {
+      "table": "ImportBatch",
+      "beforeCount": 7,
+      "afterCount": 7
+    },
+    {
+      "table": "SourceEntry",
+      "beforeCount": 7293,
+      "afterCount": 7293
+    },
+    {
+      "table": "Conversation",
+      "beforeCount": 90,
+      "afterCount": 90
+    },
+    {
+      "table": "Message",
+      "beforeCount": 564,
+      "afterCount": 564
+    },
+    {
+      "table": "KycDocument",
+      "beforeCount": 10,
+      "afterCount": 10
+    }
+  ]
+}

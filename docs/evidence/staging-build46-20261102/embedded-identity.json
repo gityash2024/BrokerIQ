@@ -1,0 +1,12 @@
+{
+  "asset": "assets/app.config",
+  "embeddedRelease": {
+    "commit": "e0442adbc140f93604f67246910c3c5a23daa7c4",
+    "builtAt": "2026-11-02T13:16:47Z",
+    "versionCode": 46
+  },
+  "version": "2.3.5",
+  "verified": true,
+  "requiredMicrophonePermissionPresent": true,
+  "backgroundAudioServicesAbsent": true
+}

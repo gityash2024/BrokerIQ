@@ -824,13 +824,21 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Nov2 query checkpoint: paginated whole-dataset web/native follow-ups, server counts, strict intersected date/status filters and IST snooze/boundaries.503-row real-PostgreSQL scope/pagination test passes. Source changes afterb58aac4 are not in Build42. Creation idempotency, live reminders and installed UI remain open; see FOLLOWUP_QUERIES_20261102.md."
+        "Nov2 query checkpoint: paginated whole-dataset web/native follow-ups, server counts, strict intersected date/status filters and IST snooze/boundaries.503-row real-PostgreSQL scope/pagination test passes. Source changes afterb58aac4 are not in Build42. Creation idempotency, live reminders and installed UI remain open; see FOLLOWUP_QUERIES_20261102.md.",
+        "Build46 checkpoint: Atomic request-key follow-up creation/assignment and SMS/Email scheduled types ship in46; full pipeline/reminder/provider/offline acceptance remains open."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/src/modules/leads/tasks.controller.ts",
+        "apps/mobile/app/lead/[id].tsx",
+        "apps/web/src/app/broker/follow-ups/page.tsx"
+      ],
+      "commits": [
+        "bfba3a1"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -984,12 +992,19 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build46 checkpoint: Foreground native microphone permission restored; transcript is editable before send. Actual free transcription provider and physical microphone acceptance remain open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/mobile/app.config.ts",
+        "apps/mobile/src/components/assistant.tsx"
+      ],
+      "commits": [
+        "a99406d"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -1798,12 +1813,19 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build46 checkpoint: Firm-safe serialized WhatsApp receipt ordering is in46; no live provider callback/delivery claim."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.service.ts",
+        "apps/api/test/whatsapp-receipts.e2e-spec.ts"
+      ],
+      "commits": [
+        "2e091d1"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -1872,12 +1894,19 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build46 checkpoint: Unknown status cannot invent a message/first firm; durable unmatched receipt retry and non-regressing status covered by real PostgreSQL tests. Full webhook/echo/provider acceptance remains open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.service.ts",
+        "apps/api/test/whatsapp-receipts.e2e-spec.ts"
+      ],
+      "commits": [
+        "2e091d1"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -2251,21 +2280,22 @@
         "9918",
         "10489"
       ],
-      "backend": "REHEARSED_ON_REAL_PRODUCTION_RESTORE_NOT_DEPLOYED",
+      "backend": "STAGING_PRIVATE_COPY_AND_ORIGINAL_PUBLIC_BLOCK_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "Ten actual Cloudinary originals: byte-identical original/delivery reads, encrypted local copies and SHA-256 re-read, unchanged original-field whole-table snapshot digest. Verified supplemental age archive. Four tests use stubbed provider mutations; actual production retirement/CDN blocking pending.",
       "notes": [
         "Original-preserving encrypted write is implemented; actual 10-public-document migration and old URL retirement remain PENDING. Off-host backup/scratch restore verified in fd96714.",
-        "ETag was absent from Admin API metadata; corrected our migration assumption, kept stable identity/version plus two identical downloads and own SHA-256. No original/provider access was changed in production."
+        "ETag was absent from Admin API metadata; corrected our migration assumption, kept stable identity/version plus two identical downloads and own SHA-256. No original/provider access was changed in production.",
+        "Historical not-deployed checkpoint superseded: ten unchanged originals privately copied and old public URLs404; full role/device preview acceptance remains open."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
       "sourceFiles": [],
       "commits": [],
-      "database": "PENDING",
+      "database": "TEN_DOCUMENT_BYTES_PRESERVED_ACTUAL_RESTORE_VERIFIED",
       "rootCause": null,
       "releaseEvidence": null
     },
@@ -3145,12 +3175,19 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build46 checkpoint: Existing local Qwen is configured and bounded; tiny health generation succeeded, structured extraction probes failed. Capability is not production semantic acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/core/ai/ai.service.spec.ts",
+        "apps/api/src/core/ai/ai.service.ts"
+      ],
+      "commits": [
+        "e00f46b"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -3229,12 +3266,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Build46 checkpoint: Meaningful deterministic draft headings/fractional rooms/recruitment exclusion and purpose-aware cards exist; real AI holdout/semantic extraction is still open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
-      "commits": [],
+      "sourceFiles": [
+        "apps/api/src/modules/assistant/tools.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "packages/shared/src/capture.ts"
+      ],
+      "commits": [
+        "cc1fb7f"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -3488,14 +3533,15 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "IMPLEMENTED_LOCAL_VERIFIED_PROVIDER_PENDING",
+      "backend": "ZOHO_HTTPS_TRANSACTIONAL_SEND_AND_GMAIL_RECEIPT_VERIFIED",
       "web": "IMPLEMENTED_LOCAL_BROWSER_VERIFIED",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "Zoho minimum-scope grant encrypted in production SystemSetting (disabled pending release). Authorized server → gityash216@gmail.com diagnostic from hello@yarvixhq.com visibly received in Gmail, 2026-11-01 14:43 IST. Application OTP/invitation delivery remains pending.",
       "notes": [
         "User superseded Gmail with hello@yarvixhq.com via Zoho HTTPS. Production Gmail SMTP disabled due host port block. Dedicated client created by user; no live Zoho token or delivery yet. See EMAIL_INTEGRATION.md.",
-        "Gmail SMTP TCP egress was blocked on hosting; user selected YARVIX Zoho HTTPS. No secrets committed; no application release/provider switch yet."
+        "Gmail SMTP TCP egress was blocked on hosting; user selected YARVIX Zoho HTTPS. No secrets committed; no application release/provider switch yet.",
+        "User chose Zoho HTTPS hello@yarvixhq.com after blocked SMTP ports. SMTP remains disabled; this does not connect the firm Gmail CRM mailbox."
       ],
       "roles": [
         "SUPER_ADMIN"
@@ -3617,7 +3663,7 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "BUILD43_NATIVE_APK_INSPECTED_DEVICE_PENDING",
+      "shippedBuild": "BUILD46_ARTIFACT_VERIFIED_DEVICE_PENDING",
       "verification": "Clean tracked prebuild; actual signed APK MainActivity/FaceCaptureActivity secure flags and60 native library16KB alignments inspected. Signed/public hashes match. Physical recording/recents/upgrade deferred by user.",
       "notes": [],
       "roles": [
@@ -3627,7 +3673,7 @@
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-20261102/release43-verification.json"
+      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json"
     },
     {
       "id": "RELEASE-04",
@@ -3642,7 +3688,7 @@
       "backend": "PINNED_STAGING_RELEASE_VERIFIED",
       "web": "PINNED_STAGING_RELEASE_VERIFIED",
       "androidSource": "PINNED_SIGNED_APK_VERIFIED",
-      "shippedBuild": "BUILD43_PUBLIC_BYTES_VERIFIED_DEVICE_PENDING",
+      "shippedBuild": "BUILD46_ARTIFACT_VERIFIED_DEVICE_PENDING",
       "verification": "Pinned0d6c2bc:354 real PostgreSQL tests/27 configuration skips. Broker-first selection53/53 after correcting stale-revision test expectation; unchanged app sources. Signed43 native/security/identity and full public bytes verified. Device/provider/full-product acceptance remains open.",
       "notes": [],
       "roles": [
@@ -3652,7 +3698,7 @@
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-20261102/release43-verification.json"
+      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json"
     },
     {
       "id": "RELEASE-05",
@@ -3993,20 +4039,25 @@
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending.",
-        "Textbee provider dashboard configured by user and read-only inspected. Single firm device binding, encrypted settings, idempotent single-attempt outbox, signed business-only inbound, complete pagination, Lead activities and owned notifications implemented. Actual SIM/full-key/webhook/delivery, all-process automation integration and provider-history recovery still open."
+        "Textbee provider dashboard configured by user and read-only inspected. Single firm device binding, encrypted settings, idempotent single-attempt outbox, signed business-only inbound, complete pagination, Lead activities and owned notifications implemented. Actual SIM/full-key/webhook/delivery, all-process automation integration and provider-history recovery still open.",
+        "Build46 checkpoint: Textbee key/device3/outgoing-only signed webhook saved and readonly connection verified. SMS/Email task types ship46. No diagnostic send, inbound enablement, live delivery/reply or complete process acceptance."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
       ],
       "sourceFiles": [
-        "apps/api/src/modules/messaging",
-        "apps/api/src/core/sms",
         "apps/api/prisma/migrations/20261101152000_multichannel_messages",
-        "apps/web/src/components/broker/sms-thread.tsx",
+        "apps/api/src/core/sms",
+        "apps/api/src/modules/leads/tasks.controller.ts",
+        "apps/api/src/modules/messaging",
+        "apps/mobile/app/connectors.tsx",
+        "apps/mobile/app/lead/[id].tsx",
         "apps/mobile/app/wa/[id].tsx",
-        "apps/mobile/app/connectors.tsx"
+        "apps/web/src/components/broker/sms-thread.tsx",
+        "packages/shared/src/enums.ts"
       ],
       "commits": [
+        "7672830",
         "a5b6535"
       ],
       "database": "ADDITIVE_MIGRATION_ISOLATED_VERIFIED_NOT_DEPLOYED",
@@ -4095,12 +4146,12 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "5cbd17279520c755a4e4afe0d0fbb45ae1143b17",
-    "androidVersion": "2.3.4",
-    "androidVersionCode": 45,
-    "publishedAt": "2026-11-02T12:55:50.835Z",
-    "publicApkSha256": "9161b493ddb4a3cc214d588cd3828eeda3eeb1c9c6e0e13d92f2a6ba05d86cd1",
-    "evidence": "docs/production/STAGING_ACCEPTANCE_20261102.md",
+    "commit": "e0442adbc140f93604f67246910c3c5a23daa7c4",
+    "androidVersion": "2.3.5",
+    "androidVersionCode": 46,
+    "publishedAt": "2026-11-02T13:34:50.640Z",
+    "publicApkSha256": "75ab7107fb82d278625acb66a25af25d7c761c2ea32398c00d8c1a84130ec789",
+    "evidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
     "fullProductSignoff": false
   }

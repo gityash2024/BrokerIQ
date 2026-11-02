@@ -14,3 +14,6 @@ Validation: targeted21/21; full isolated API367 passed/27 configuration skips,50
 ## SMS and Email scheduled-task parity
 
 FollowUpType now includes SMS via additive enum migration20261102133000; web Lead/follow-up/automation forms and native Lead sheet expose CALL/WHATSAPP/MEETING/EMAIL/SMS/OTHER consistently. This only schedules a task; it never sends a message or enables provider/inbound access. Existing enum values and old clients remain compatible. A new real-PostgreSQL case verifies SMS and EMAIL create PENDING tasks while creating zero conversation messages. The two focused API suites pass9/9; workspace typechecks pass; native tests82/82; scoped ESLint has zero errors (98 existing warnings). The first mobile command passed an extra separator and discovered no tests; the corrected direct Jest invocation ran all82 successfully. Source is after Build45 and not yet deployed. Real SMS delivery/reply, channel automation dispatch and durable offline task-form recovery remain open.
+
+
+Release inclusion checkpoint: the above source is included in pinned Build46/e0442ad and its exact public bytes are verified. This supersedes historical not-yet-deployed wording only; unresolved provider/semantic/visual/device/flow gates remain open. See STAGING_ACCEPTANCE_20261102.md.

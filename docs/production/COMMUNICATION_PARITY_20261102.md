@@ -18,3 +18,6 @@ A further source audit found that an unknown status callback could search a reci
 The actual message row is locked while checking/updating status. Concurrent/delayed callbacks cannot regress READ or turn DELIVERED into FAILED; repeated status produces no extra change/event. This preserves existing Housing inbound filtering and does not alter credentials, subscriptions or provider settings.
 
 Four new real PostgreSQL cases cover unknown receipts with two firms sharing a contact, cross-firm/platform denial, explicit platform sends,20 mixed concurrent receipts, inbound exclusion, processing past an unmatched receipt and retained-event replay after late message registration. Combined receipt/composer/signature suites11/11 and API types pass. No real provider message was sent; live callbacks/browser/device acceptance remain open. Source is after Build45.
+
+
+Release inclusion checkpoint: the above source is included in pinned Build46/e0442ad and its exact public bytes are verified. This supersedes historical not-yet-deployed wording only; unresolved provider/semantic/visual/device/flow gates remain open. See STAGING_ACCEPTANCE_20261102.md.

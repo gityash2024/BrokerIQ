@@ -1,0 +1,10 @@
+{
+  "result": "ADDITIVE_MIGRATIONS_REHEARSED_ON_ACTUAL_RESTORE",
+  "database": "brokeriq_restore_prebuild46_20261102_131647",
+  "originalBusinessTablesUnchanged": 100,
+  "followUpOriginalColumnsAndCountsPreserved": true,
+  "newColumnsNullable": true,
+  "smsEnumAdded": true,
+  "noApplicationOrWorkerStarted": true,
+  "noSeedOrFixtureExecuted": true
+}
