@@ -166,10 +166,20 @@ const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
     expect(row.alertedAt).toBeNull();
   });
   it('withdraws public listing when availability is removed, and review cannot revive it', async () => {
+    // Publish/moderation increment the inventory revision. A pre-publication editor
+    // must conflict; refresh the real resource before the intended availability edit.
     await request(app.getHttpServer())
       .patch(`/api/inventory/${item.id}`)
       .set(headers(broker))
       .send({ availability: 'UNKNOWN', expectedRevision: item.revision })
+      .expect(409);
+    const current = (await request(app.getHttpServer()).get(`/api/inventory/${item.id}`).set(headers(broker)).expect(200)).body;
+    expect(current.revision).toBeGreaterThan(item.revision);
+    expect(current.availability).toBe('AVAILABLE');
+    await request(app.getHttpServer())
+      .patch(`/api/inventory/${item.id}`)
+      .set(headers(broker))
+      .send({ availability: 'UNKNOWN', expectedRevision: current.revision })
       .expect(200);
     expect((await db.listing.findUniqueOrThrow({ where: { id: listingId } })).status).toBe('ARCHIVED');
     // Defense in depth: even a stale ACTIVE record cannot bypass the source availability.

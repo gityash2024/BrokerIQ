@@ -1,5 +1,21 @@
 # Connected staging release checkpoint — not final production sign-off
 
+## Build43 current checkpoint
+
+Published pinned `0d6c2bc273dcc6851501ee3cf5799a1415bae7f6` / **v2.3.2, Build43** at2026-11-02T11:17:17.940Z (**2 November,16:47:17 IST**). Active candidate `/opt/brokeriq/releases/rc-0d6c2bc273dc`. Canonical download https://brokeriq.mymultimeds.com/downloads/BrokerIQ-v2.3.2-build43.apk ,186,523,902 bytes, SHA256 `27a2755f173a5cca923b86d4d4753ffa3b1c609f6cfced4b8c86d753310c0609`. Certificate unchanged. Strict origin/public API, portal/APK identities, PM2 paths and complete public bytes passed. Runtime latest/update URL43, minimum2.3.0 and required email OTP retained. Eight unrelated services' PID/status/restart counters matched baseline; no nginx/global reload. No database migration was needed for43.
+
+Final APK embedded commit/version43 match. MainActivity/FaceCaptureActivity secure calls/8192 flags and all60 64-bit libraries/16KB alignment pass. Clean Gradle build completed770 tasks. Its final copy step initially failed because the fresh checkout had no `releases/` parent; the already signed APK was independently rechecked and copied, and the builder now creates that parent. No stale APK was substituted.
+
+Fresh isolated full API suite:354 passed/27 configuration skips. The separate Broker-first selection initially failed one test using a revision from before publication; the application correctly returned409. The test now asserts that stale write is denied, GETs the current resource and edits its new revision. Rerun53/53 passed. This was a test/ops-only correction after the product pin; candidate application source is unchanged. Shared61/61, workspace typechecks and changed-source ESLint zero errors pass.
+
+New standalone encrypted off-host archive `production-20261102T104109Z.tar.age`, SHA256 `f80064a10c5e3d469d4886364c6e076696f666b6101c5719d6b2e7e34be8a3ff`,2,481,481,412 bytes. Actual scratch restore verified101 tables,615 storage files,2,476,164,552 media bytes and10 private KYC documents. This archive is independently complete; earlier accepted base/delta chains remain protected. See prebuild43-restore.json. The host had no `age` binary; archive encryption was performed on the Mac from the SSH tar stream, with pipeline status checked. No plaintext archive was saved locally.
+
+Textbee was saved for Olive Estate using the user's existing authorized key/device. The real API returned one enabled SIM subscription3; it does not report a phone number, so9899980802 binding relies on the user's explicit device confirmation. Actual connection test passed. The user created an outgoing-only signed webhook for sent/delivered/failed events. API key/signing secret encrypted, webhook subscription bound, wrong signature403 and valid signature/malformed event400 verified without creating a business event or sending SMS. Inbound remainsOFF; no live SMS delivery/reply claim. See textbee-signed-setup.json. Browser access became disabled again; final43 visual checks are open, as are deferred installed-phone tests and every outstanding product/provider/manual/performance gate.
+
+Build42 is retained as the immediate rollback through `/opt/brokeriq/ops/rollback-ecosystem-build42.cjs`; its jobs-disabled API smoke passed. Additive data is not reversed/restored away. Before switch43's exact public APK was verified from the old serving release. The first added-file request returned404 because Next.js had indexed public files at startup; refreshing **only** the existing BrokerIQ web process made the immutable download available. Old manifest/time remained42 until activation. Strict post-switch checks waited through old-process handover and only accepted expected0d6/43.
+
+## Historical Build42 checkpoint
+
 ## Published identity
 
 The existing connected staging runs pinned product commit `b58aac46a5fe39b01085afdae5d3f95ab74d9aae` from `/opt/brokeriq/releases/rc-b58aac46a5fe`. Origin/public API health, web release manifests, PM2 executing paths and embedded Android identity were checked against that independently expected commit. Publication: **2 November 2026, 15:05:19 IST**. The landing and runtime latest-version/download settings are42; minimum supported version2.3.0 and required email OTP were preserved.

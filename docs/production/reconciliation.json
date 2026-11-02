@@ -3607,7 +3607,7 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "BUILD42_NATIVE_APK_INSPECTED_DEVICE_PENDING",
+      "shippedBuild": "BUILD43_NATIVE_APK_INSPECTED_DEVICE_PENDING",
       "verification": "Clean tracked prebuild; actual signed APK MainActivity/FaceCaptureActivity secure flags and60 native library16KB alignments inspected. Signed/public hashes match. Physical recording/recents/upgrade deferred by user.",
       "notes": [],
       "roles": [
@@ -3617,7 +3617,7 @@
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-20261102/release42-verification.json"
+      "releaseEvidence": "docs/evidence/staging-20261102/release43-verification.json"
     },
     {
       "id": "RELEASE-04",
@@ -3632,8 +3632,8 @@
       "backend": "PINNED_STAGING_RELEASE_VERIFIED",
       "web": "PINNED_STAGING_RELEASE_VERIFIED",
       "androidSource": "PINNED_SIGNED_APK_VERIFIED",
-      "shippedBuild": "BUILD42_PUBLIC_BYTES_VERIFIED_DEVICE_PENDING",
-      "verification": "Pinned b58aac4: fresh real PostgreSQL suite346 passed/27 configuration skips; clean signed APK; strict origin/public API/web/PM2 paths and full186515510-byte public APK match expected commit/code/hash. Installed phone, live channel providers and full product gates remain open.",
+      "shippedBuild": "BUILD43_PUBLIC_BYTES_VERIFIED_DEVICE_PENDING",
+      "verification": "Pinned0d6c2bc:354 real PostgreSQL tests/27 configuration skips. Broker-first selection53/53 after correcting stale-revision test expectation; unchanged app sources. Signed43 native/security/identity and full public bytes verified. Device/provider/full-product acceptance remains open.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
@@ -3642,7 +3642,7 @@
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-20261102/release42-verification.json"
+      "releaseEvidence": "docs/evidence/staging-20261102/release43-verification.json"
     },
     {
       "id": "RELEASE-05",
@@ -4085,11 +4085,11 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "b58aac46a5fe39b01085afdae5d3f95ab74d9aae",
-    "androidVersion": "2.3.1",
-    "androidVersionCode": 42,
-    "publishedAt": "2026-11-02T09:35:19.173Z",
-    "publicApkSha256": "04cbc95f9e6b93ad3ebf02d7d32da06d0d2160040f4be61ba9912889e8c966e1",
+    "commit": "0d6c2bc273dcc6851501ee3cf5799a1415bae7f6",
+    "androidVersion": "2.3.2",
+    "androidVersionCode": 43,
+    "publishedAt": "2026-11-02T11:17:17.940Z",
+    "publicApkSha256": "27a2755f173a5cca923b86d4d4753ffa3b1c609f6cfced4b8c86d753310c0609",
     "evidence": "docs/production/STAGING_ACCEPTANCE_20261102.md",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
     "fullProductSignoff": false

@@ -44,6 +44,7 @@ const cert=cp.execFileSync(signer,['verify','--verbose','--print-certs',apk],{en
 const sha=/Signer #1 certificate SHA-256 digest: ([a-f0-9]+)/i.exec(cert)?.[1]?.toLowerCase();
 if(sha!=='d10762404de54b82b672efce4dedcb8d0ef5c39adb195b3444d52d49be8b35ce')throw Error('Signing identity mismatch');
 const bytes=fs.readFileSync(apk), hash=crypto.createHash('sha256').update(bytes).digest('hex');
+fs.mkdirSync(path.join(root,'releases'),{recursive:true,mode:0o700});
 const folder=path.join(root,'releases',`build${m[2]}-${process.env.BROKERIQ_RELEASE_COMMIT.slice(0,12)}`);fs.mkdirSync(folder,{recursive:false,mode:0o700});
 const filename=`BrokerIQ-v${m[3]}-build${m[2]}.apk`;fs.copyFileSync(apk,path.join(folder,filename));
 const result={version:m[3],versionCode:Number(m[2]),commit:process.env.BROKERIQ_RELEASE_COMMIT,builtAt:new Date().toISOString(),url:`/downloads/${filename}`,sha256:hash,bytes:bytes.length,certificateSha256:sha};

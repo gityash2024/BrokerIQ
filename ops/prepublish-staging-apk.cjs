@@ -29,7 +29,7 @@ async function main() {
   catch (error) { if (error.code !== 'EEXIST') throw error; }
   assert(fs.lstatSync(target).isFile() && fs.statSync(target).size === artifact.bytes && sha(target) === expectedHash, 'Existing artifact collision; no file was overwritten');
   const response = await fetch('https://brokeriq.mymultimeds.com' + artifact.url, { redirect: 'error', signal: AbortSignal.timeout(120000) });
-  assert(response.ok && response.body, 'Public candidate APK is not reachable from the active web release');
+  assert(response.ok && response.body, 'Public candidate APK is not reachable. Next.js may index public files at startup: refresh only brokeriq-web on its existing release, then rerun this check before switching.');
   const hash = crypto.createHash('sha256'); let bytes = 0;
   for await (const part of response.body) { hash.update(part); bytes += part.byteLength; }
   assert(hash.digest('hex') === expectedHash && bytes === artifact.bytes, 'Public prepublished APK differs');
