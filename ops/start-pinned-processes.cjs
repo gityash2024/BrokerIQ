@@ -1,7 +1,7 @@
 // BrokerIQ-only immutable activation. PM2 reload can retain an older absolute script path.
 const fs=require('node:fs');const path=require('node:path');
 const file=process.argv[2];
-if(!file||!/^\/opt\/brokeriq\/(?:ecosystem\.config\.js|ops\/rollback-ecosystem-build\d+\.cjs)$/.test(file))throw Error('Scoped reviewed configuration required');
+if(!file||!/^\/opt\/brokeriq\/(?:ecosystem\.config\.js|ops\/rollback-ecosystem-(?:build\d+|rc-[a-f0-9]{12})\.cjs)$/.test(file))throw Error('Scoped reviewed configuration required');
 const config=require(file);const names=['brokeriq-api','brokeriq-web'];
 const apps=config?.apps?.filter(a=>names.includes(a.name)).map(a=>({...a,script:path.resolve(a.cwd,a.script)}));
 if(!apps||apps.length!==2||new Set(apps.map(a=>a.name)).size!==2)throw Error('Only the two BrokerIQ services are allowed');
