@@ -42,7 +42,30 @@ export class NotificationsService {
     let ids = [...new Set(Array.isArray(userIds) ? userIds : [userIds])].filter(Boolean);
     if (opts.excludeUserId) ids = ids.filter((id) => id !== opts.excludeUserId);
     if (!ids.length) return;
-    ids = (await this.prisma.user.findMany({ where: { id: { in: ids }, status: 'ACTIVE', deletedAt: null }, select: { id: true } })).map((u) => u.id);
+    const leadId = typeof input.data?.leadId === 'string' ? input.data.leadId : /^\/broker\/leads\/([^/?#]+)/.exec(input.link ?? '')?.[1];
+    const lead = leadId
+      ? await this.prisma.lead.findFirst({ where: { id: leadId, deletedAt: null }, select: { organizationId: true, assignedToId: true } })
+      : null;
+    if (leadId && !lead) return;
+    ids = (
+      await this.prisma.user.findMany({
+        where: {
+          id: { in: ids },
+          status: 'ACTIVE',
+          deletedAt: null,
+          ...(lead
+            ? {
+                OR: [
+                  { role: 'SUPER_ADMIN' },
+                  { role: 'BROKER_ADMIN', organizationId: lead.organizationId },
+                  { role: 'BROKER_AGENT', organizationId: lead.organizationId, id: lead.assignedToId ?? '' },
+                ],
+              }
+            : {}),
+        },
+        select: { id: true },
+      })
+    ).map((u) => u.id);
     if (!ids.length) return;
     const notes = await this.prisma.notification.createManyAndReturn({
       data: ids.map((userId) => ({

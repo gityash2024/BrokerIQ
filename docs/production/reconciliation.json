@@ -374,7 +374,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open."
+        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open.",
+        "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open."
       ],
       "roles": [
         "GUEST",
@@ -388,7 +389,11 @@
         "apps/api/src/core/notifications/notifications.service.ts",
         "apps/api/src/modules/me/me.controller.ts",
         "apps/api/test/reminders-production.e2e-spec.ts",
-        "apps/api/test/production-permissions.e2e-spec.ts"
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/automation/automation.service.ts",
+        "apps/api/test/team-release.e2e-spec.ts"
       ],
       "commits": [],
       "database": "PENDING",
@@ -992,7 +997,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open."
+        "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open.",
+        "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open."
       ],
       "roles": [
         "TO_RECONCILE"
@@ -1002,7 +1008,11 @@
         "apps/api/src/core/notifications/notifications.service.ts",
         "apps/api/src/modules/me/me.controller.ts",
         "apps/api/test/reminders-production.e2e-spec.ts",
-        "apps/api/test/production-permissions.e2e-spec.ts"
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/automation/automation.service.ts",
+        "apps/api/test/team-release.e2e-spec.ts"
       ],
       "commits": [],
       "database": "PENDING",
@@ -2432,13 +2442,14 @@
         "10892",
         "11527"
       ],
-      "backend": "PENDING",
+      "backend": "CORRECTED_ISOLATED_VERIFIED_RELEASE_PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Inspected member removal clears assigned Lead, pending FollowUp, Inventory and Requirement. Pending SiteVisit assignee is not cleared by removal: newly identified source gap, not closed. Suspended legacy task assignees route reminders to permitted firm admins."
+        "Inspected member removal clears assigned Lead, pending FollowUp, Inventory and Requirement. Pending SiteVisit assignee is not cleared by removal: newly identified source gap, not closed. Suspended legacy task assignees route reminders to permitted firm admins.",
+        "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open."
       ],
       "roles": [
         "TO_RECONCILE"
@@ -2446,7 +2457,11 @@
       "sourceFiles": [
         "apps/api/src/modules/organizations/organizations.controller.ts",
         "apps/api/src/modules/leads/leads.service.ts",
-        "apps/api/src/modules/automation/reminders.service.ts"
+        "apps/api/src/modules/automation/reminders.service.ts",
+        "apps/api/src/modules/automation/automation.service.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/api/test/team-release.e2e-spec.ts",
+        "apps/api/test/reminders-production.e2e-spec.ts"
       ],
       "commits": [],
       "database": "PENDING",
@@ -3410,11 +3425,21 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/automation/automation.service.ts",
+        "apps/api/src/modules/automation/reminders.service.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/api/test/team-release.e2e-spec.ts",
+        "apps/api/test/reminders-production.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

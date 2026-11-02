@@ -395,24 +395,28 @@ export class LeadsService {
   }
 
   async assertMember(orgId: string, userId: string) {
-    const m = await this.prisma.user.findFirst({ where: { id: userId, organizationId: orgId, status: 'ACTIVE' } });
+    const m = await this.prisma.user.findFirst({
+      where: { id: userId, organizationId: orgId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
+    });
     if (!m) throw new BadRequestException('यह user आपकी team में नहीं है');
     return m;
   }
 
   async assign(id: string, assigneeId: string | null, user: RequestUser | null, opts: { orgId?: string; viaAutomation?: boolean } = {}) {
     if (user && user.role === 'BROKER_AGENT') throw new ForbiddenException('सिर्फ admin leads assign कर सकते हैं');
-    const { lead, assignee } = await this.prisma.$transaction(async (tx) => {
+    const { lead, assignee, changed } = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${id} FOR UPDATE`;
       const lead = await tx.lead.findFirst({ where: { id, organizationId: user ? requireOrg(user) : opts.orgId, deletedAt: null } });
       if (!lead) throw new NotFoundException('Lead not found');
       if (!user && (!opts.orgId || lead.organizationId !== opts.orgId)) throw new ForbiddenException('Explicit firm required for automated assignment');
+      if (assigneeId) await tx.$queryRaw`SELECT id FROM "User" WHERE id=${assigneeId} FOR UPDATE`;
       const assignee = assigneeId
         ? await tx.user.findFirst({
             where: { id: assigneeId, organizationId: lead.organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
           })
         : null;
       if (assigneeId && !assignee) throw new BadRequestException('Assigned member is not active in this firm');
+      if (lead.assignedToId === assigneeId) return { lead, assignee, changed: false };
       await tx.lead.update({
         where: { id },
         data: {
@@ -427,10 +431,17 @@ export class LeadsService {
           },
         },
       });
-      await tx.followUp.updateMany({ where: { leadId: id, status: 'PENDING' }, data: { assignedToId: assigneeId } });
-      return { lead, assignee };
+      await tx.followUp.updateMany({
+        where: { leadId: id, organizationId: lead.organizationId, status: 'PENDING' },
+        data: { assignedToId: assigneeId, reminderSentAt: null },
+      });
+      await tx.siteVisit.updateMany({
+        where: { leadId: id, organizationId: lead.organizationId, status: { in: ['SCHEDULED', 'CONFIRMED'] } },
+        data: { assignedToId: assigneeId, reminderSentAt: null },
+      });
+      return { lead, assignee, changed: true };
     });
-    if (assignee && assignee.id !== user?.id) {
+    if (changed && assignee && assignee.id !== user?.id) {
       await this.notifications.notify(assignee.id, {
         kind: 'LEAD_ASSIGNED',
         title: `Lead assigned: ${lead.name}`,
@@ -445,7 +456,14 @@ export class LeadsService {
   /** Round-robin across active team members (optionally limited to a subset). */
   async assignRoundRobin(leadId: string, orgId: string, memberIds?: string[]) {
     const members = await this.prisma.user.findMany({
-      where: { organizationId: orgId, status: 'ACTIVE', ...(memberIds?.length ? { id: { in: memberIds } } : {}) },
+      where: {
+        organizationId: orgId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+        organization: { status: 'ACTIVE' },
+        ...(memberIds?.length ? { id: { in: memberIds } } : {}),
+      },
       orderBy: { createdAt: 'asc' },
       select: { id: true },
     });

@@ -1,12 +1,16 @@
 import { Test } from '@nestjs/testing';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { LeadsService } from '../src/modules/leads/leads.service';
+import { NotificationsService } from '../src/core/notifications/notifications.service';
+import { AutomationService } from '../src/modules/automation/automation.service';
+import { JobsService } from '../src/core/jobs/jobs.service';
 import type { INestApplication } from '@nestjs/common';
 import type { Role } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { followUpIstDayEnd } from '@brokeriq/shared';
+import { followUpIstDayEnd, defaultModulePolicies } from '@brokeriq/shared';
 
 /** Real NestJS guards + isolated PostgreSQL; no contract simulator. */
 describe('Production agent/firm record boundaries', () => {
@@ -138,6 +142,112 @@ describe('Production agent/firm record boundaries', () => {
       .send({ status: 'PENDING', dueAt: '2026-12-10T10:00:00+05:30' })
       .expect(200);
     expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).completedAt).toBeNull();
+  });
+
+  it('moves pending visits and follow-ups with the lead once, preserving completed attribution', async () => {
+    const lead = await db.lead.create({ data: { organizationId: org, name: 'Transfer tasks', phone: '+919700008301', assignedToId: a.id } });
+    const at = new Date(Date.now() + 600_000);
+    const task = await db.followUp.create({ data: { organizationId: org, leadId: lead.id, assignedToId: a.id, dueAt: at, reminderSentAt: new Date() } });
+    const visit = await db.siteVisit.create({
+      data: { organizationId: org, leadId: lead.id, assignedToId: a.id, scheduledAt: at, reminderSentAt: new Date() },
+    });
+    const historical = await db.siteVisit.create({ data: { organizationId: org, leadId: lead.id, assignedToId: a.id, scheduledAt: at, status: 'COMPLETED' } });
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        request(app.getHttpServer())
+          .patch('/api/leads/' + lead.id + '/assign')
+          .set(headers(admin))
+          .send({ assignedToId: b.id })
+          .expect(200),
+      ),
+    );
+    expect(await db.activity.count({ where: { leadId: lead.id, type: 'ASSIGNMENT' } })).toBe(1);
+    expect(await db.notification.count({ where: { userId: b.id, kind: 'LEAD_ASSIGNED', data: { path: ['leadId'], equals: lead.id } } })).toBe(1);
+    expect(await db.followUp.findUnique({ where: { id: task.id } })).toMatchObject({ assignedToId: b.id, reminderSentAt: null });
+    expect(await db.siteVisit.findUnique({ where: { id: visit.id } })).toMatchObject({ assignedToId: b.id, reminderSentAt: null });
+    expect((await db.siteVisit.findUniqueOrThrow({ where: { id: historical.id } })).assignedToId).toBe(a.id);
+    expect((await request(app.getHttpServer()).get('/api/visits').set(headers(b)).expect(200)).body.some((x: any) => x.id === visit.id)).toBe(true);
+    expect((await request(app.getHttpServer()).get('/api/visits').set(headers(a)).expect(200)).body.some((x: any) => x.id === visit.id)).toBe(false);
+    const claim = new Date();
+    await db.followUp.update({ where: { id: task.id }, data: { reminderSentAt: claim } });
+    await request(app.getHttpServer())
+      .patch('/api/leads/' + lead.id + '/assign')
+      .set(headers(admin))
+      .send({ assignedToId: b.id })
+      .expect(200);
+    expect((await db.followUp.findUniqueOrThrow({ where: { id: task.id } })).reminderSentAt).toEqual(claim);
+  });
+
+  it('excludes non-broker/deleted/suspended members from round-robin and filters private lead recipients', async () => {
+    const unrelated = await db.user.create({
+      data: { organizationId: org, role: 'USER', name: 'Customer is not an assignee', email: 'customer-rr.' + uid + '@e2e.test' },
+    });
+    const deleted = await db.user.create({
+      data: { organizationId: org, role: 'BROKER_AGENT', name: 'Deleted assignee', email: 'deleted-rr.' + uid + '@e2e.test', deletedAt: new Date() },
+    });
+    const suspended = await db.user.create({
+      data: { organizationId: org, role: 'BROKER_AGENT', name: 'Suspended assignee', email: 'suspended-rr.' + uid + '@e2e.test', status: 'SUSPENDED' },
+    });
+    const lead = await db.lead.create({ data: { organizationId: org, name: 'Round robin boundary', phone: '+919700008302' } });
+    expect(await app.get(LeadsService).assignRoundRobin(lead.id, org, [unrelated.id, deleted.id, suspended.id, b.id])).toBe(b.id);
+    await app
+      .get(NotificationsService)
+      .notify([a.id, b.id, admin.id, outsider.id, unrelated.id], { kind: 'SYSTEM', title: 'Lead recipient scope', data: { leadId: leadA }, push: false });
+    const rows = await db.notification.findMany({
+      where: { title: 'Lead recipient scope', data: { path: ['leadId'], equals: leadA } },
+      select: { userId: true },
+    });
+    expect(rows.map((x) => x.userId).sort()).toEqual([a.id, admin.id].sort());
+  });
+
+  it('does not create invisible tasks for an Agent who does not own the lead', async () => {
+    const at = new Date(Date.now() + 600_000).toISOString();
+    await request(app.getHttpServer()).post('/api/follow-ups').set(headers(admin)).send({ leadId: leadA, assignedToId: b.id, dueAt: at }).expect(400);
+    await request(app.getHttpServer()).post('/api/visits').set(headers(admin)).send({ leadId: leadA, assignedToId: b.id, scheduledAt: at }).expect(400);
+    expect(await db.followUp.count({ where: { leadId: leadA, assignedToId: b.id } })).toBe(0);
+    expect(await db.siteVisit.count({ where: { leadId: leadA, assignedToId: b.id } })).toBe(0);
+  });
+
+  it('allows explicit firm-admin assignment rules and rechecks module/member permission at execution', async () => {
+    const input = {
+      name: 'Isolated scoped assignment',
+      trigger: 'LEAD_CREATED',
+      isActive: true,
+      respectBusinessHours: false,
+      conditions: { sources: [], stages: [] },
+      actions: [{ type: 'ASSIGN_TO', delayMinutes: 0, params: { userId: b.id } }],
+    };
+    await request(app.getHttpServer()).post('/api/automations').set(headers(a)).send(input).expect(403);
+    await request(app.getHttpServer())
+      .post('/api/automations')
+      .set(headers(admin))
+      .send({ ...input, actions: [{ ...input.actions[0], params: { userId: outsider.id } }] })
+      .expect(400);
+    const rule = (await request(app.getHttpServer()).post('/api/automations').set(headers(admin)).send(input).expect(201)).body;
+    const lead = await db.lead.create({ data: { organizationId: org, name: 'Automatic assignment boundary', phone: '+919700008304' } });
+    const automation = app.get(AutomationService);
+    await automation.trigger('LEAD_CREATED', org, lead.id);
+    const job = await db.job.findFirstOrThrow({ where: { type: 'automation.action', payload: { path: ['ruleId'], equals: rule.id } } });
+    await (app.get(JobsService) as any).execute({ ...job, attempts: 1 });
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).assignedToId).toBe(b.id);
+    await automation.runAction(rule.id, lead.id, 0, {}, job.id);
+    expect(await db.activity.count({ where: { leadId: lead.id, type: 'ASSIGNMENT' } })).toBe(1);
+    if (process.env.BROKER_FIRST === 'true') {
+      const previous = await db.systemSetting.findUnique({ where: { key: 'platform.modules' } });
+      const policies = defaultModulePolicies();
+      policies.team.state = 'HIDDEN';
+      await db.systemSetting.upsert({
+        where: { key: 'platform.modules' },
+        create: { key: 'platform.modules', value: policies as any },
+        update: { value: policies as any },
+      });
+      try {
+        await expect(automation.runAction(rule.id, lead.id, 0, {}, job.id)).rejects.toThrow('disabled');
+      } finally {
+        if (previous) await db.systemSetting.update({ where: { key: previous.key }, data: { value: previous.value as any } });
+        else await db.systemSetting.delete({ where: { key: 'platform.modules' } });
+      }
+    }
   });
 
   it('hides stale lead notifications from list/count/open, including legacy URLs and unassigned leads', async () => {

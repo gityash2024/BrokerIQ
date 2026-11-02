@@ -154,10 +154,13 @@ export class TasksController {
       }
       const assignedToId = body.assignedToId ?? lead.assignedToId ?? user.id;
       if (user.role === 'BROKER_AGENT' && assignedToId !== user.id) throw new ForbiddenException('Only Admin can assign another member');
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id=${assignedToId} FOR UPDATE`;
       const assignee = await tx.user.findFirst({
         where: { id: assignedToId, organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
       });
       if (!assignee) throw new BadRequestException('Assignee must be an active firm member');
+      if (assignee.role === 'BROKER_AGENT' && lead.assignedToId !== assignee.id)
+        throw new BadRequestException('पहले lead इस Agent को assign करें, फिर उसका follow-up बनाएँ।');
       const fu = await tx.followUp.create({
         data: {
           organizationId,

@@ -208,6 +208,13 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
     expect(after.targets.monthlyLeads).toBeUndefined();
   });
   it('suspends, reactivates and removes a member while revoking old sessions', async () => {
+    const retainedLead = await db.lead.create({ data: { organizationId: org, name: 'Removal visit fixture', phone: '+919700008303', assignedToId: agentId } });
+    const pendingVisit = await db.siteVisit.create({
+      data: { organizationId: org, leadId: retainedLead.id, assignedToId: agentId, scheduledAt: new Date(Date.now() + 86_400_000), reminderSentAt: new Date() },
+    });
+    const closedVisit = await db.siteVisit.create({
+      data: { organizationId: org, leadId: retainedLead.id, assignedToId: agentId, scheduledAt: new Date(), status: 'COMPLETED' },
+    });
     await api().patch(`/api/broker/team/${agentId}`).set(h(owner)).send({ status: 'SUSPENDED' }).expect(200);
     const all = (await api().get('/api/broker/team').set(h(owner)).expect(200)).body;
     expect(all.members.find((m: any) => m.id === agentId).status).toBe('SUSPENDED');
@@ -219,5 +226,7 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
     await api().delete(`/api/broker/team/${agentId}`).set(h(owner)).expect(200);
     await api().get('/api/leads').set(h(agent)).expect(401);
     expect((await db.user.findUniqueOrThrow({ where: { id: agentId } })).organizationId).toBeNull();
+    expect(await db.siteVisit.findUnique({ where: { id: pendingVisit.id } })).toMatchObject({ assignedToId: null, reminderSentAt: null });
+    expect((await db.siteVisit.findUniqueOrThrow({ where: { id: closedVisit.id } })).assignedToId).toBe(agentId);
   });
 });

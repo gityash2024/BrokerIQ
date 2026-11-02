@@ -18,6 +18,23 @@ const deliverySchema = z.object({
   dueAt: z.string().datetime(),
 });
 
+/** Build48 recorded a claim key; recover its exact schedule from its push outbox. */
+export async function legacyVisitReminderSchedule(db: Pick<Prisma.TransactionClient, 'job'>, visitId: string, claim: string): Promise<string | null> {
+  const job = await db.job.findFirst({
+    where: {
+      type: 'automation.reminder-push',
+      AND: [
+        { payload: { path: ['recordId'], equals: visitId } },
+        { payload: { path: ['recordType'], equals: 'VISIT' } },
+        { payload: { path: ['claimedAt'], equals: claim } },
+      ],
+    },
+    select: { payload: true },
+  });
+  const parsed = z.object({ dueAt: z.string().datetime() }).safeParse(job?.payload);
+  return parsed.success ? parsed.data.dueAt : null;
+}
+
 /** The in-app reminder, marker and single-attempt push outbox commit together. */
 @Injectable()
 export class RemindersService implements OnModuleInit {
@@ -132,14 +149,29 @@ export class RemindersService implements OnModuleInit {
         // silently resend that uncertain attempt. The in-app reminder survives.
         await tx.job.create({ data: { type: 'automation.reminder-push', key: notificationId, payload: payload as Prisma.InputJsonValue, maxAttempts: 1 } });
       }
-      if (visit)
-        await tx.job.create({
-          data: {
-            type: 'automation.visit-reminder',
-            key: 'visit-reminder:' + id + ':' + now.toISOString(),
-            payload: { orgId: lead.organizationId, leadId: lead.id, visitId: id, claimedAt: now.toISOString() },
-            maxAttempts: 5,
-          },
+      let legacySameSchedule = false;
+      if (visit) {
+        const previous = await tx.job.findMany({
+          where: { type: 'automation.visit-reminder', payload: { path: ['visitId'], equals: id } },
+          select: { payload: true },
+        });
+        for (const job of previous) {
+          const p = job.payload as Record<string, unknown>;
+          if (!p.dueAt && typeof p.claimedAt === 'string' && (await legacyVisitReminderSchedule(tx, id, p.claimedAt)) === visit.scheduledAt.toISOString())
+            legacySameSchedule = true;
+        }
+      }
+      if (visit && !legacySameSchedule)
+        await tx.job.createMany({
+          skipDuplicates: true,
+          data: [
+            {
+              type: 'automation.visit-reminder',
+              key: 'visit-reminder:' + id + ':' + visit.scheduledAt.toISOString(),
+              payload: { orgId: lead.organizationId, leadId: lead.id, visitId: id, claimedAt: now.toISOString(), dueAt: visit.scheduledAt.toISOString() },
+              maxAttempts: 5,
+            },
+          ],
         });
       await mark();
     });

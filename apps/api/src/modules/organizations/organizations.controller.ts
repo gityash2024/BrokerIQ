@@ -583,7 +583,14 @@ export class OrganizationsController {
         if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
       }
       await tx.lead.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
-      await tx.followUp.updateMany({ where: { organizationId: orgId!, assignedToId: userId, status: 'PENDING' }, data: { assignedToId: null } });
+      await tx.followUp.updateMany({
+        where: { organizationId: orgId!, assignedToId: userId, status: 'PENDING' },
+        data: { assignedToId: null, reminderSentAt: null },
+      });
+      await tx.siteVisit.updateMany({
+        where: { organizationId: orgId!, assignedToId: userId, status: { in: ['SCHEDULED', 'CONFIRMED'] } },
+        data: { assignedToId: null, reminderSentAt: null },
+      });
       await tx.inventoryItem.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
       await tx.brokerRequirement.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
       await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', sessionVersion: { increment: 1 } } });

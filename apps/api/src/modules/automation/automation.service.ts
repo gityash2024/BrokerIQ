@@ -14,7 +14,7 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { LeadsService } from '../leads/leads.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { env } from '../../config/env';
-import { RemindersService } from './reminders.service';
+import { RemindersService, legacyVisitReminderSchedule } from './reminders.service';
 
 interface Action {
   type: string;
@@ -60,17 +60,23 @@ export class AutomationService implements OnModuleInit {
     this.events.on('visit.scheduled', (e) => this.trigger('VISIT_SCHEDULED', e.orgId, e.leadId, { visitId: e.visitId }));
     this.jobs.register('automation.action', (p, job) => this.runAction(p.ruleId, p.leadId, p.index, p.context ?? {}, job.id));
     this.jobs.register('automation.visit-reminder', async (p) => {
+      const dueAt = p.dueAt ?? (await legacyVisitReminderSchedule(this.prisma, p.visitId, p.claimedAt));
+      if (!dueAt) return; // Missing legacy evidence must not invent/repeat customer outreach.
       const visit = await this.prisma.siteVisit.findFirst({
         where: {
           id: p.visitId,
           organizationId: p.orgId,
           leadId: p.leadId,
           status: { in: ['SCHEDULED', 'CONFIRMED'] },
-          reminderSentAt: new Date(p.claimedAt),
+          scheduledAt: new Date(dueAt),
           lead: { deletedAt: null },
         },
       });
-      if (visit) await this.trigger('VISIT_REMINDER', p.orgId, p.leadId, { visitId: visit.id, reminderKey: p.claimedAt });
+      if (visit)
+        await this.trigger('VISIT_REMINDER', p.orgId, p.leadId, {
+          visitId: visit.id,
+          reminderScheduledAt: dueAt,
+        });
     });
   }
 
@@ -122,10 +128,21 @@ export class AutomationService implements OnModuleInit {
     });
   }
 
-  private async checkOutbound(orgId: string, actions: { type: string }[]) {
+  private async checkOutbound(orgId: string, actions: { type: string; params?: Record<string, unknown> }[]) {
     if (actions.some((a) => a.type.startsWith('SEND_WHATSAPP'))) await this.wa.requireCreds(orgId);
-    if (env().BROKER_FIRST && actions.some((a) => a.type === 'SEND_EMAIL' || a.type.startsWith('ASSIGN_')))
-      throw new BadRequestException('Email and team automation are upcoming features');
+    if (env().BROKER_FIRST && actions.some((a) => a.type === 'SEND_EMAIL'))
+      throw new BadRequestException('Firm Gmail automation is not connected to this rule engine yet');
+    for (const action of actions.filter((a) => a.type.startsWith('ASSIGN_'))) {
+      if (!(await this.modulePolicy.enabled('team')) || !(await this.modulePolicy.enabled('leads')))
+        throw new BadRequestException('Team or Leads module is disabled');
+      if (action.type === 'ASSIGN_TO') await this.leads.assertMember(orgId, String(action.params?.userId ?? ''));
+      if (action.type === 'ASSIGN_ROUND_ROBIN' && action.params?.memberIds !== undefined) {
+        const ids = action.params.memberIds;
+        if (!Array.isArray(ids) || ids.length > 200 || ids.some((id) => typeof id !== 'string' || !id || id.length > 100))
+          throw new BadRequestException('Invalid round-robin members');
+        for (const id of new Set(ids as string[])) await this.leads.assertMember(orgId, id);
+      }
+    }
   }
 
   private validate(input: Pick<AutomationRuleInput, 'actions'>) {
@@ -261,7 +278,7 @@ export class AutomationService implements OnModuleInit {
         {
           runAt,
           maxAttempts: actions[i].type.startsWith('SEND_') ? 1 : 5,
-          key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}${ctx.reminderKey ?? ''}`,
+          key: `auto:${rule.id}:${leadId}:${i}:${ctx.visitId ?? ''}${ctx.toStage ?? ''}${ctx.reminderScheduledAt ?? ctx.reminderKey ?? ''}`,
         },
       );
     }
@@ -276,6 +293,8 @@ export class AutomationService implements OnModuleInit {
     if (lead.organization.status !== 'ACTIVE') throw new BadRequestException('Firm is inactive');
     const action = ((rule.actions ?? []) as unknown as Action[])[index];
     if (!action) return;
+    if (action.type.startsWith('ASSIGN_') && (!(await this.modulePolicy.enabled('team')) || !(await this.modulePolicy.enabled('leads'))))
+      throw new BadRequestException('Team or Leads module is disabled');
     if (['CREATE_FOLLOW_UP', 'SET_STAGE', 'ADD_TAG', 'NOTIFY_TEAM'].includes(action.type) && !(await this.modulePolicy.enabled('leads')))
       throw new BadRequestException('Leads module is disabled');
     // Delayed drip steps stop once the lead is closed.
@@ -286,7 +305,12 @@ export class AutomationService implements OnModuleInit {
     const visit = ctx.visitId
       ? await this.prisma.siteVisit.findFirst({ where: { id: ctx.visitId, organizationId: rule.organizationId, leadId }, include: { listing: true } })
       : null;
-    if (ctx.reminderKey && (!visit || !['SCHEDULED', 'CONFIRMED'].includes(visit.status) || visit.reminderSentAt?.toISOString() !== ctx.reminderKey)) {
+    const reminderSchedule =
+      ctx.reminderScheduledAt ?? (ctx.reminderKey && ctx.visitId ? await legacyVisitReminderSchedule(this.prisma, ctx.visitId, ctx.reminderKey) : null);
+    if (
+      (ctx.reminderKey || ctx.reminderScheduledAt) &&
+      (!visit || !['SCHEDULED', 'CONFIRMED'].includes(visit.status) || !reminderSchedule || visit.scheduledAt.toISOString() !== reminderSchedule)
+    ) {
       await this.prisma.automationRun.create({
         data: { ruleId, leadId, status: 'SKIPPED', log: { action: action.type, reason: 'visit reminder superseded' } },
       });
@@ -359,14 +383,19 @@ export class AutomationService implements OnModuleInit {
           });
           message = 'Email sent';
           break;
-        case 'ASSIGN_ROUND_ROBIN':
+        case 'ASSIGN_ROUND_ROBIN': {
           if (lead.assignedToId && !p.reassign) {
             status = 'SKIPPED';
             message = 'already assigned';
             break;
           }
-          message = `Assigned to ${await this.leads.assignRoundRobin(leadId, lead.organizationId, p.memberIds)}`;
+          const assigned = await this.leads.assignRoundRobin(leadId, lead.organizationId, p.memberIds);
+          if (!assigned) {
+            status = 'SKIPPED';
+            message = 'No active eligible firm member';
+          } else message = `Assigned to ${assigned}`;
           break;
+        }
         case 'ASSIGN_TO':
           await this.leads.assign(leadId, String(p.userId), null, { orgId: lead.organizationId, viaAutomation: true });
           message = 'Assigned';

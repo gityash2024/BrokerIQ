@@ -7,6 +7,7 @@ import { NotificationsService } from '../src/core/notifications/notifications.se
 import { JobsService } from '../src/core/jobs/jobs.service';
 import { AutomationService } from '../src/modules/automation/automation.service';
 import { ModulesService } from '../src/core/features/modules.service';
+import { LeadsService } from '../src/modules/leads/leads.service';
 
 /** Real transactions/locks/outbox; no provider call, production fixture or simulator. */
 describe('Production reminder delivery and current ownership', () => {
@@ -156,6 +157,56 @@ describe('Production reminder delivery and current ownership', () => {
       expect(await db.notification.findUnique({ where: { id: (job.payload as any).notificationId } })).not.toBeNull();
     } finally {
       await db.pushToken.delete({ where: { id: token.id } });
+    }
+  });
+
+  it.each([false, true])('renews staff reminders without repeating client outreach (legacy Build48 job: %s)', async (legacy) => {
+    const visit = await db.siteVisit.create({ data: { organizationId: org, leadId: lead, assignedToId: a, scheduledAt: new Date(Date.now() + 600_000) } });
+    await reminders.enqueueOne('VISIT', visit.id);
+    if (legacy) {
+      const original = await db.job.findFirstOrThrow({ where: { type: 'automation.visit-reminder', payload: { path: ['visitId'], equals: visit.id } } });
+      const payload = { ...(original.payload as any) };
+      delete payload.dueAt;
+      await db.job.update({ where: { id: original.id }, data: { key: 'visit-reminder:' + visit.id + ':' + payload.claimedAt, payload } });
+    }
+    const [oldPush] = await queued(visit.id);
+    const dispatch = jest.spyOn(notifications, 'dispatchSaved').mockResolvedValue();
+    await app.get(LeadsService).assign(lead, b, null, { orgId: org });
+    try {
+      await reminders.enqueueOne('VISIT', visit.id);
+      const pushes = await queued(visit.id);
+      expect(pushes).toHaveLength(2);
+      await reminders.deliver(oldPush.payload);
+      expect(dispatch).not.toHaveBeenCalled();
+      const current = pushes.find((j) => j.id !== oldPush.id)!;
+      await reminders.deliver(current.payload);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const sameSchedule = await db.job.findMany({ where: { type: 'automation.visit-reminder', payload: { path: ['visitId'], equals: visit.id } } });
+      expect(sameSchedule).toHaveLength(1);
+      const trigger = jest.spyOn(app.get(AutomationService), 'trigger').mockResolvedValue();
+      await (jobs as any).execute({ ...sameSchedule[0], attempts: 1 });
+      expect(trigger).toHaveBeenCalledWith('VISIT_REMINDER', org, lead, expect.objectContaining({ reminderScheduledAt: visit.scheduledAt.toISOString() }));
+      const later = new Date(Date.now() + 1_200_000);
+      await db.siteVisit.update({ where: { id: visit.id }, data: { scheduledAt: later, reminderSentAt: null } });
+      await reminders.enqueueOne('VISIT', visit.id);
+      expect(await db.job.count({ where: { type: 'automation.visit-reminder', payload: { path: ['visitId'], equals: visit.id } } })).toBe(2);
+      trigger.mockRestore();
+      const rule = await db.automationRule.create({
+        data: {
+          organizationId: org,
+          name: 'Isolated delayed reminder',
+          trigger: 'VISIT_REMINDER',
+          conditions: {},
+          actions: [{ type: 'ADD_TAG', delayMinutes: 1, params: { tag: 'must-not-apply' } }],
+        },
+      });
+      await app
+        .get(AutomationService)
+        .runAction(rule.id, lead, 0, { visitId: visit.id, reminderScheduledAt: visit.scheduledAt.toISOString() }, 'isolated-old-schedule');
+      expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).tags).not.toContain('must-not-apply');
+      expect((await db.automationRun.findFirstOrThrow({ where: { ruleId: rule.id } })).status).toBe('SKIPPED');
+    } finally {
+      await app.get(LeadsService).assign(lead, a, null, { orgId: org });
     }
   });
 });
