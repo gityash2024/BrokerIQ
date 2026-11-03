@@ -1,0 +1,9 @@
+# Property sharing through the client Inbox
+
+The web Inventory message dialog previously sent its client pitch through an arbitrary external WhatsApp phone URL. Native property-card and detail sharing used the system share sheet, and the matching-leads sheet did not prepare a CRM conversation. Those actions did not retain the intended client channel trail.
+
+Broker Admin/Agent can now choose an authorized CRM lead and WHATSAPP/SMS/EMAIL in the web client-sharing dialog or native property-share sheet. Native lead choices are searched and paginated. The main card/detail Share action opens this sheet. The existing encrypted per-lead/channel draft path passes text into the internal composer, where the user reviews before sending. Missing integration and ownership errors remain on the existing authenticated resolver path; no arbitrary-phone messaging endpoint or automatic send is added. An existing different conversation draft remains protected by the draft conflict behavior.
+
+The property summary preserves unknown room-kind/area-unit values and labels recorded availability as requiring reconfirmation. Owner WhatsApp contact remains an explicitly separate owner action. Native external sharing remains available as an explicitly labelled secondary action. Super Admin does not inherit a firm CRM composer or silently select a firm for client sharing. Session context is checked before opening/copying a web draft and around native lead selection requests.
+
+Web/native typechecks and seven native SQLite draft channel/conflict/account-boundary tests pass. Scoped lint has zero errors/16 existing warnings. Actual browser layout, handset navigation and provider send/reply acceptance remain open. Source is after the Build53 pin and requires a subsequent signed/API/web release; it must not be advertised as part of Build53.

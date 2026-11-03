@@ -1,6 +1,6 @@
 import { floorLabel, inventoryTitle, inventoryPrice, readableValue, formatINR, type LedgerItem } from '@brokeriq/shared';
 import { Image } from 'expo-image';
-import { View, Pressable, Linking, Share } from 'react-native';
+import { View, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -30,13 +30,13 @@ export function propertyShare(item: LedgerItem) {
     `🏠 ${inventoryTitle(item)}`,
     item.sector ? `📍 Location: ${item.sector}` : '',
     item.purpose ? `🏷️ Transaction: ${readableValue(item.purpose)}` : '',
-    item.bhk ? `🛏️ Config: ${item.bhk} ${item.roomKind || 'BHK'}` : '',
+    item.bhk ? `🛏️ Config: ${item.bhk} ${item.roomKind || 'rooms'}` : '',
     item.floor ? `🏢 Floor: ${floorLabel(item.floor)}` : '',
-    item.area ? `📐 Area: ${item.area} ${item.areaUnit || 'SQ_FT'}` : '',
+    item.area ? `📐 Area: ${item.area} ${item.areaUnit || 'unit not recorded'}` : '',
     item.furnishing ? `🛋️ Furnishing: ${readableValue(item.furnishing)}` : '',
     `💰 Price: ${inventoryPrice(item)}`,
     item.assignedTo?.name ? `👤 Managed by: ${item.assignedTo.name}` : '',
-    item.availability === 'AVAILABLE' ? '✅ Verified Available' : '⚠️ Availability to be confirmed',
+    item.availability === 'AVAILABLE' ? 'Availability recorded as available · reconfirm before visit' : '⚠️ Availability to be confirmed',
   ];
   return parts.filter(Boolean).join('\n');
 }
@@ -427,8 +427,8 @@ export function PropertyCard({
 
         {/* Standard Share */}
         <Pressable
-          accessibilityLabel="Share property"
-          onPress={() => Share.share({ message: propertyShare(item) }).catch((error) => toast.error(errorMessage(error)))}
+          accessibilityLabel="Share property in CRM Inbox"
+          onPress={() => router.push(`/inventory/${item.id}?share=1` as any)}
           style={{
             padding: 9,
             borderRadius: 10,

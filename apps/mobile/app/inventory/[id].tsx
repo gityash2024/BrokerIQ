@@ -19,6 +19,7 @@ import { toast } from '@/lib/toast';
 import { propertyShare } from '@/launch/property-card';
 import { SourceImage } from '@/launch/source-image';
 import { useAuth } from '@/lib/auth';
+import { InventoryLeadShare } from '@/components/inventory-lead-share';
 import {
   Phone,
   MessageCircle,
@@ -37,7 +38,7 @@ import {
 } from 'lucide-react-native';
 
 export default function PropertyDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, share } = useLocalSearchParams<{ id: string; share?: string }>();
   const { c, isDark } = useTheme();
   const { user } = useAuth();
   const isAdmin = user?.role === 'BROKER_ADMIN';
@@ -45,6 +46,7 @@ export default function PropertyDetail() {
 
   const [reassignOpen, setReassignOpen] = useState(false);
   const [matchLeadsOpen, setMatchLeadsOpen] = useState(false);
+  const [shareWithLead, setShareWithLead] = useState(share === '1');
   const [updatingAssignee, setUpdatingAssignee] = useState(false);
   const [confirmingAvail, setConfirmingAvail] = useState(false);
 
@@ -493,6 +495,7 @@ export default function PropertyDetail() {
             ))}
 
             {/* Notes */}
+            <Button title="Share using another app" variant="secondary" onPress={() => Share.share({ message: propertyShare(item) }).catch((e) => toast.error(errorMessage(e)))} />
             {item.notes && (
               <NativeCard style={{ gap: 8 }}>
                 <Txt v="h3">Notes</Txt>
@@ -607,7 +610,7 @@ export default function PropertyDetail() {
             title="Share"
             variant="secondary"
             style={{ flex: 1, height: 48, borderRadius: 16 }}
-            onPress={() => Share.share({ message: propertyShare(item) }).catch((e) => toast.error(errorMessage(e)))}
+            onPress={() => setShareWithLead(true)}
           />
 
           <Button
@@ -676,6 +679,9 @@ export default function PropertyDetail() {
       </Sheet>
 
       {/* Matching Leads Sheet */}
+      <Sheet open={shareWithLead} onClose={() => setShareWithLead(false)} title="Share with CRM lead">
+        {shareWithLead && item && <InventoryLeadShare message={propertyShare(item)} />}
+      </Sheet>
       <Sheet open={matchLeadsOpen} onClose={() => setMatchLeadsOpen(false)} title="Matching Buyer Leads">
         <View style={{ gap: 14, paddingBottom: 20 }}>
           <Txt color="muted">
@@ -693,12 +699,11 @@ export default function PropertyDetail() {
           />
 
           <Button
-            title="Share Property Card to WhatsApp"
+            title="Prepare property in CRM Inbox"
             variant="secondary"
             onPress={() => {
-              if (item) {
-                Share.share({ message: propertyShare(item) }).catch((e) => toast.error(errorMessage(e)));
-              }
+              setMatchLeadsOpen(false);
+              setShareWithLead(true);
             }}
           />
         </View>
