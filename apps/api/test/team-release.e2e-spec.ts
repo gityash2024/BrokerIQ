@@ -207,6 +207,53 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
     expect(after.targets.monthlyDeals).toBe(0);
     expect(after.targets.monthlyLeads).toBeUndefined();
   });
+  it('batch-computes roster metrics and preserves latest firm location with zero-data members', async () => {
+    const many = await db.user.createManyAndReturn({
+      data: Array.from({ length: 40 }, (_, index) => ({
+        organizationId: org,
+        role: 'BROKER_AGENT' as const,
+        email: `batch-${index}.${uid}@e2e.test`,
+        name: `Batch member ${index}`,
+      })),
+      select: { id: true },
+    });
+    const memberId = many[0].id;
+    const now = new Date();
+    const lead = await db.lead.create({
+      data: { organizationId: org, assignedToId: memberId, name: 'Batched statistics', phone: '+919700008304', stage: 'WON', stageChangedAt: now },
+    });
+    await db.activity.create({ data: { organizationId: org, userId: memberId, leadId: lead.id, type: 'NOTE', content: 'Batch metric fixture' } });
+    const shift = await db.agentShift.create({ data: { organizationId: org, userId: memberId } });
+    await db.shiftLocation.createMany({
+      data: [
+        { userId: memberId, shiftId: shift.id, latitude: 28.4, longitude: 77.0, capturedAt: new Date(now.getTime() - 10000), address: 'Older position' },
+        { userId: memberId, shiftId: shift.id, latitude: 28.5, longitude: 77.1, capturedAt: now, address: 'Latest position' },
+      ],
+    });
+    const raw = jest.spyOn(db, '$queryRaw');
+    const activity = jest.spyOn(db.activity, 'groupBy');
+    const documents = jest.spyOn(db.kycDocument, 'findMany');
+    try {
+      const team = (await api().get('/api/broker/team').set(h(owner)).expect(200)).body;
+      const populated = team.members.find((member: any) => member.id === memberId);
+      expect(populated.stats).toMatchObject({ openLeads: 0, won30d: 1, activities30d: 1 });
+      expect(populated.fulfillment).toMatchObject({ dealsWonMonth: 1, leadsReceivedMonth: 1 });
+      expect(populated.lastLocation).toMatchObject({ latitude: 28.5, longitude: 77.1, address: 'Latest position' });
+      expect(team.members.find((member: any) => member.id === many[1].id)).toMatchObject({
+        stats: { openLeads: 0, won30d: 0, activities30d: 0 },
+        lastLocation: null,
+        kycStatus: 'UNVERIFIED',
+      });
+      expect(raw).toHaveBeenCalledTimes(2);
+      expect(activity).toHaveBeenCalledTimes(1);
+      expect(documents).toHaveBeenCalledTimes(1);
+    } finally {
+      raw.mockRestore();
+      activity.mockRestore();
+      documents.mockRestore();
+    }
+  });
+
   it('suspends, reactivates and removes a member while revoking old sessions', async () => {
     const retainedLead = await db.lead.create({ data: { organizationId: org, name: 'Removal visit fixture', phone: '+919700008303', assignedToId: agentId } });
     const pendingVisit = await db.siteVisit.create({

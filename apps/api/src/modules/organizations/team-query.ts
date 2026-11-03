@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, type ShiftLocation } from '@prisma/client';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { agentTargets, dashboardMonthPeriod } from '@brokeriq/shared';
 import type { RequestUser } from '../../common/decorators';
@@ -49,7 +49,6 @@ export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, a
 async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, activeOnly: boolean, organizationId: string, filters?: BrokerTeamQueryFilters) {
   const since = new Date(Date.now() - 30 * 86400_000);
   const month = dashboardMonthPeriod(new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10));
-  const monthly = { gte: month.start, lt: month.end };
 
   const userWhere: Prisma.UserWhereInput = {
     organizationId,
@@ -145,68 +144,90 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
 
   const allTargets = (targetsSetting?.value as Record<string, any>) || {};
 
+  if (!members.length) return { organizationId, members: [], invites };
+  const memberIds = members.map((member) => member.id);
+  type LeadStats = { memberId: string; openLeads: number; won30d: number; wonThisMonth: number; leadsThisMonth: number };
+  type LastLocation = Pick<ShiftLocation, 'latitude' | 'longitude' | 'accuracy' | 'address' | 'source' | 'capturedAt' | 'receivedAt'> & { userId: string };
+  const [leadStats, activityStats, documents, locations] = await Promise.all([
+    prisma.$queryRaw<LeadStats[]>`
+      SELECT "assignedToId" AS "memberId",
+        COUNT(*) FILTER (WHERE stage NOT IN ('WON', 'LOST'))::int AS "openLeads",
+        COUNT(*) FILTER (WHERE stage = 'WON' AND "stageChangedAt" >= ${since})::int AS "won30d",
+        COUNT(*) FILTER (WHERE stage = 'WON' AND "stageChangedAt" >= ${month.start} AND "stageChangedAt" < ${month.end})::int AS "wonThisMonth",
+        COUNT(*) FILTER (WHERE "createdAt" >= ${month.start} AND "createdAt" < ${month.end})::int AS "leadsThisMonth"
+      FROM "Lead" WHERE "organizationId" = ${organizationId} AND "deletedAt" IS NULL AND "assignedToId" IN (${Prisma.join(memberIds)})
+      GROUP BY "assignedToId"`,
+    prisma.activity.groupBy({
+      by: ['userId'],
+      where: { organizationId, userId: { in: memberIds }, createdAt: { gte: since } },
+      _count: { _all: true },
+    }),
+    prisma.kycDocument.findMany({
+      where: { userId: { in: memberIds }, organizationId, supersededAt: null },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { userId: true, id: true, docType: true, docNumber: true, fileUrl: true, status: true, reviewNote: true, reviewedAt: true },
+    }),
+    prisma.$queryRaw<LastLocation[]>`
+      SELECT DISTINCT ON (l."userId") l."userId", l.latitude, l.longitude, l.accuracy, l.address, l.source, l."capturedAt", l."receivedAt"
+      FROM "ShiftLocation" l JOIN "AgentShift" s ON s.id = l."shiftId"
+      WHERE s."organizationId" = ${organizationId} AND l."userId" IN (${Prisma.join(memberIds)})
+      ORDER BY l."userId", l."capturedAt" DESC, l.id DESC`,
+  ]);
+  const statsByMember = new Map(leadStats.map((row) => [row.memberId, row]));
+  const activityByMember = new Map(activityStats.map((row) => [row.userId, row._count._all]));
+  const locationByMember = new Map(locations.map(({ userId, ...location }) => [userId, location]));
+  const documentsByMember = new Map<string, Omit<(typeof documents)[number], 'userId'>[]>();
+  for (const { userId, ...document } of documents) {
+    if (!userId) continue;
+    const previous = documentsByMember.get(userId) ?? [];
+    previous.push(document);
+    documentsByMember.set(userId, previous);
+  }
+
   return {
     organizationId,
-    members: await Promise.all(
-      members.map(async (member) => {
-        const [openLeads, won30d, wonThisMonth, activities30d, kycDocs, lastLocation, leadsThisMonth] = await Promise.all([
-          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: { notIn: ['WON', 'LOST'] } } }),
-          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: 'WON', stageChangedAt: { gte: since } } }),
-          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, stage: 'WON', stageChangedAt: monthly } }),
-          prisma.activity.count({ where: { organizationId, userId: member.id, createdAt: { gte: since } } }),
-          prisma.kycDocument.findMany({
-            where: { userId: member.id, organizationId, supersededAt: null },
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, docType: true, docNumber: true, fileUrl: true, status: true, reviewNote: true, reviewedAt: true },
-          }),
-          prisma.shiftLocation.findFirst({
-            where: { userId: member.id, shift: { organizationId } },
-            orderBy: { capturedAt: 'desc' },
-            select: { latitude: true, longitude: true, accuracy: true, address: true, source: true, capturedAt: true, receivedAt: true },
-          }),
-          prisma.lead.count({ where: { organizationId, assignedToId: member.id, deletedAt: null, createdAt: monthly } }),
-        ]);
+    members: members.map((member) => {
+      const { openLeads = 0, won30d = 0, wonThisMonth = 0, leadsThisMonth = 0 } = statsByMember.get(member.id) ?? {};
+      const activities30d = activityByMember.get(member.id) ?? 0;
+      const kycDocs = documentsByMember.get(member.id) ?? [];
+      const lastLocation = locationByMember.get(member.id) ?? null;
+      let kycStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' = 'UNVERIFIED';
+      if (kycDocs.length > 0) {
+        if (kycDocs.some((d) => d.status === 'REJECTED')) kycStatus = 'REJECTED';
+        else if (kycDocs.some((d) => d.status === 'PENDING')) kycStatus = 'PENDING';
+        else if (
+          kycDocs.length === 5 &&
+          kycDocs.some((d) => d.docType === 'AADHAAR') &&
+          kycDocs.some((d) => d.docType === 'PAN') &&
+          ['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'].every((pose) => kycDocs.some((d) => d.docType === 'OTHER' && d.docNumber === pose)) &&
+          kycDocs.every((d) => d.status === 'VERIFIED')
+        )
+          kycStatus = 'VERIFIED';
+      }
 
-        let kycStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' = 'UNVERIFIED';
-        if (kycDocs.length > 0) {
-          if (kycDocs.some((d) => d.status === 'REJECTED')) kycStatus = 'REJECTED';
-          else if (kycDocs.some((d) => d.status === 'PENDING')) kycStatus = 'PENDING';
-          else if (
-            kycDocs.length === 5 &&
-            kycDocs.some((d) => d.docType === 'AADHAAR') &&
-            kycDocs.some((d) => d.docType === 'PAN') &&
-            ['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'].every((pose) =>
-              kycDocs.some((d) => d.docType === 'OTHER' && d.docNumber === pose),
-            ) &&
-            kycDocs.every((d) => d.status === 'VERIFIED')
-          )
-            kycStatus = 'VERIFIED';
-        }
+      const targets = agentTargets(allTargets[member.id]);
+      const targetDeals = targets.monthlyDeals;
+      const targetLeads = targets.monthlyLeads;
+      const dealsPercent = targetDeals ? Math.min(100, Math.round((wonThisMonth / targetDeals) * 100)) : undefined;
+      const leadsPercent = targetLeads ? Math.min(100, Math.round((leadsThisMonth / targetLeads) * 100)) : undefined;
 
-        const targets = agentTargets(allTargets[member.id]);
-        const targetDeals = targets.monthlyDeals;
-        const targetLeads = targets.monthlyLeads;
-        const dealsPercent = targetDeals ? Math.min(100, Math.round((wonThisMonth / targetDeals) * 100)) : undefined;
-        const leadsPercent = targetLeads ? Math.min(100, Math.round((leadsThisMonth / targetLeads) * 100)) : undefined;
-
-        return {
-          ...member,
-          kycStatus,
-          kycDocuments: user.role === 'SUPER_ADMIN' || member.id === user.id || member.role === 'BROKER_AGENT' ? kycDocs.map(kycView) : [],
-          lastLocation: lastLocation || null,
-          targets,
-          fulfillment: {
-            dealsWonMonth: wonThisMonth,
-            dealsPercent,
-            leadsOpen: openLeads,
-            leadsReceivedMonth: leadsThisMonth,
-            leadsPercent,
-            revenueTarget: targets.monthlyRevenue,
-          },
-          stats: { openLeads, won30d, activities30d },
-        };
-      }),
-    ),
+      return {
+        ...member,
+        kycStatus,
+        kycDocuments: user.role === 'SUPER_ADMIN' || member.id === user.id || member.role === 'BROKER_AGENT' ? kycDocs.map(kycView) : [],
+        lastLocation: lastLocation || null,
+        targets,
+        fulfillment: {
+          dealsWonMonth: wonThisMonth,
+          dealsPercent,
+          leadsOpen: openLeads,
+          leadsReceivedMonth: leadsThisMonth,
+          leadsPercent,
+          revenueTarget: targets.monthlyRevenue,
+        },
+        stats: { openLeads, won30d, activities30d },
+      };
+    }),
     invites,
   };
 }

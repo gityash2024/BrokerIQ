@@ -22,3 +22,9 @@
 User reconfirmed existing `brokeriq.mymultimeds.com` is staging and requested connected-account testing there. Repository DEPLOYMENT.md agrees; live inspection found only one BrokerIQ service pair/API3100/web3101, database brokeriq_b2b_20261015. Chrome was logged into Rahul/Olive Estate and visibly showed WhatsApp and Housing Connected plus current lead counts. No settings changed and no outbound message or manual synchronization was triggered by this inspection.
 
 This environment contains real business data: do not seed fixtures, reset it, copy credentials into local QA, or run destructive/concurrency tests there. Builds must be made in a new candidate directory and current services changed only after backups, migrations, coordinated client compatibility and rollback checks. Production launch is still the final objective; staging acceptance does not itself close APK/device/provider/manual/performance gates.
+
+## Batched roster metrics
+
+Team reads now fetch per-member lead metrics, activity counts, KYC documents and latest firm-shift positions in four batch queries after resolving the visible roster. Empty counts and missing targets retain their previous meaning. The latest-position query breaks timestamp ties by record ID and returns one position per member within the selected firm. All-firm hierarchy still applies each firm's scope.
+
+Seventeen Team source and actual PostgreSQL cases passed, including a 40-member roster case verifying the populated and zero-data metrics and the fixed batch query count. API typecheck and scoped lint passed with zero errors. This reduces query growth but does not replace the required 20-session load and two-hour soak tests. Source is after Build52 and awaits release acceptance.
