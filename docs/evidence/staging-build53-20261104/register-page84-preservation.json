@@ -1,0 +1,13 @@
+{
+  "source": "fresh encrypted backup restored into isolated scratch PostgreSQL",
+  "readOnlyInspection": true,
+  "page": 84,
+  "sourceRowsByReviewState": {
+    "IGNORED": 23
+  },
+  "activeInventoryRows": 0,
+  "recoverablyArchivedInventoryRows": 1,
+  "historicalVisualGroups": 15,
+  "sourceRowsAreNotVisualGroupCount": true,
+  "allRegisterReconciliationComplete": false
+}

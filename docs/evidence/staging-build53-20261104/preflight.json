@@ -1,0 +1,26 @@
+{
+  "commit": "127f9b51d22f4f9e4cd9f194662987453ab1547c",
+  "version": "2.3.12",
+  "versionCode": 53,
+  "apiPostgreSQL": {
+    "passed": 435,
+    "skipped": 28,
+    "suitesPassed": 58,
+    "suitesSkipped": 4
+  },
+  "nativeSourceTests": {
+    "passed": 111
+  },
+  "webStorageTests": {
+    "passed": 22
+  },
+  "published": false,
+  "installedDeviceAcceptance": false,
+  "googleBrowserAccess": "DISABLED_BY_WORK_SETTINGS",
+  "brokerFirstIsolatedPostgreSQL": {
+    "sourceLedgerAuthorizationAndTeamPassed": 22,
+    "consumerPublicationAndDashboardPassed": 6,
+    "skipped": 0
+  },
+  "apiDistinctCasesAcrossModes": 463
+}
