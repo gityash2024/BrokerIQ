@@ -455,51 +455,51 @@ export class InventoryService {
     );
   }
   async create(input: InventoryInput, user: RequestUser, transaction?: Prisma.TransactionClient) {
-    const db = transaction ?? this.prisma;
     const organizationId = this.orgId(user, input.organizationId)!;
-    if (input.clientMutationId) {
-      const existing = await db.inventoryItem.findUnique({
-        where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
+    const persist = async (db: Prisma.TransactionClient) => {
+      if (input.clientMutationId) {
+        // Nested contact writes make an empty-update Prisma upsert race on first creation.
+        // Every keyed reader/writer takes the same transaction-scoped lock before lookup.
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`inventory-create:${organizationId}:${input.clientMutationId}`}))`;
+        const existing = await db.inventoryItem.findUnique({
+          where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
+          include,
+        });
+        if (existing) {
+          if (user.role === 'BROKER_AGENT' && existing.createdById !== user.id && existing.assignedToId !== user.id)
+            throw new ForbiddenException('Inventory belongs to another member');
+          return { item: existing, created: false };
+        }
+      }
+      if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
+      const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
+      const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
+      if (assignedToId) {
+        const assignee = await db.user.findFirst({
+          where: { id: assignedToId, organizationId, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] }, status: 'ACTIVE', deletedAt: null },
+        });
+        if (!assignee) throw new BadRequestException('Assigned user not found in organization');
+      }
+      const item = await db.inventoryItem.create({
+        data: {
+          ...this.fields(input),
+          organizationId,
+          createdById: user.id,
+          assignedToId,
+          verificationStatus: input.verificationStatus ?? 'VERIFIED',
+          contacts: { create: this.contacts(input) },
+        },
         include,
       });
-      if (existing) {
-        if (user.role === 'BROKER_AGENT' && existing.createdById !== user.id && existing.assignedToId !== user.id)
-          throw new ForbiddenException('Inventory belongs to another member');
-        return ledgerJson(existing);
-      }
-    }
-    if (!input.sector && !input.address) throw new BadRequestException('Sector/locality or address required');
-    const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
-    const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
-    if (assignedToId) {
-      const assignee = await db.user.findFirst({
-        where: { id: assignedToId, organizationId, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] }, status: 'ACTIVE', deletedAt: null },
-      });
-      if (!assignee) throw new BadRequestException('Assigned user not found in organization');
-    }
-    const creation = {
-      data: {
-        ...this.fields(input),
-        organizationId,
-        createdById: user.id,
-        assignedToId,
-        verificationStatus: input.verificationStatus ?? 'VERIFIED',
-        contacts: { create: this.contacts(input) },
-      },
-      include,
+      return { item, created: true };
     };
-    const item = input.clientMutationId
-      ? await db.inventoryItem.upsert({
-          where: { organizationId_clientMutationId: { organizationId, clientMutationId: input.clientMutationId } },
-          create: creation.data,
-          update: {},
-          include,
-        })
-      : await db.inventoryItem.create(creation);
-    if (user.role === 'BROKER_AGENT' && item.createdById !== user.id && item.assignedToId !== user.id)
-      throw new ForbiddenException('Inventory belongs to another member');
-    if (!transaction) await this.audit.log(user, 'inventory.create', 'InventoryItem', item.id);
-    return ledgerJson(item);
+    const result = transaction
+      ? await persist(transaction)
+      : input.clientMutationId
+        ? await this.prisma.$transaction(persist, { timeout: 30_000 })
+        : await persist(this.prisma);
+    if (!transaction && result.created) await this.audit.log(user, 'inventory.create', 'InventoryItem', result.item.id);
+    return ledgerJson(result.item);
   }
   async update(id: string, input: InventoryInput, user: RequestUser) {
     const item = await this.prisma.$transaction(async (tx) => {

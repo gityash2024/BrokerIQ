@@ -21,7 +21,8 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = mod.createNestApplication();
     configureApp(app);
-    await app.init();
+    // Reuse one loopback listener for the twenty simultaneous requests.
+    await app.listen(0, '127.0.0.1');
     db = app.get(PrismaService);
     org = (await db.organization.create({ data: { name: 'Inventory firm ' + uid, slug: 'inventory-admin-' + uid } })).id;
     other = (await db.organization.create({ data: { name: 'Other inventory firm ' + uid, slug: 'inventory-other-' + uid } })).id;
@@ -78,6 +79,29 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
   });
   afterAll(async () => {
     await app?.close();
+  });
+
+  it('creates one inventory record and contact across twenty simultaneous first-save retries', async () => {
+    const input = { sector: 'Sector 45', houseNo: 'Concurrent save ' + uid, purpose: 'RENT', monthlyRent: 24000, clientMutationId: 'concurrent-' + uid, contacts: [{ name: 'Owner from reviewed input', phone: '+919899980802', role: 'OWNER' }] };
+    try {
+      const results = await Promise.all(Array.from({ length: 20 }, () => request(app.getHttpServer()).post('/api/inventory').set(h(agent)).send(input)));
+      expect(results.map((result) => result.status)).toEqual(Array(20).fill(201));
+      const ids = new Set(results.map((result) => result.body.id));
+      expect(ids.size).toBe(1);
+      const createdId = results[0].body.id;
+      expect(await db.inventoryItem.count({ where: { organizationId: org, clientMutationId: input.clientMutationId } })).toBe(1);
+      expect(await db.inventoryContact.count({ where: { inventoryId: createdId } })).toBe(1);
+      expect(await db.auditLog.count({ where: { action: 'inventory.create', entityId: createdId } })).toBe(1);
+      await request(app.getHttpServer()).post('/api/inventory').set(h(outsider)).send({ ...input, organizationId: org }).expect(201);
+      // A foreign firm's identical key creates only its own scoped record, never reads ours.
+      const foreignSaved = await db.inventoryItem.findUniqueOrThrow({ where: { organizationId_clientMutationId: { organizationId: other, clientMutationId: input.clientMutationId } } });
+      expect(foreignSaved.id).not.toBe(createdId);
+      expect(foreignSaved.assignedToId).toBe(foreignId);
+    } finally {
+      const rows = await db.inventoryItem.findMany({ where: { organizationId: { in: [org, other] }, clientMutationId: input.clientMutationId }, select: { id: true } });
+      await db.inventoryContact.deleteMany({ where: { inventoryId: { in: rows.map((row) => row.id) } } });
+      await db.inventoryItem.deleteMany({ where: { id: { in: rows.map((row) => row.id) } } });
+    }
   });
 
   it('shows every authorized firm without selecting one and keeps match counts within each firm', async () => {

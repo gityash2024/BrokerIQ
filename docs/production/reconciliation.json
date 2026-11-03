@@ -602,7 +602,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "4 November source review maps the current scoped API, shared inventory schema/presentation and relevant clients. Source-backed inventory cases passed in the explicit Broker-first isolated PostgreSQL run (22 tests across three suites). This is source/test provenance, not browser, installed-device or complete field-by-field acceptance."
+        "4 November source review maps the current scoped API, shared inventory schema/presentation and relevant clients. Source-backed inventory cases passed in the explicit Broker-first isolated PostgreSQL run (22 tests across three suites). This is source/test provenance, not browser, installed-device or complete field-by-field acceptance.",
+        "4 November concurrent first-save probe exposed false409 responses from nested-contact empty-update upsert. Firm/key transaction lock now makes all20 retries return one authorized record, one contact and one creation audit. Separate firm key scope tested. Full API436 pass/30 skip, explicit Broker-first28 pass; source awaits the next release after the Build53 pin. Existing first-write-wins body compatibility is preserved; see INVENTORY_RETRY_20261104.md."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -633,7 +634,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "4 November source review maps the current scoped API, shared inventory schema/presentation and relevant clients. Source-backed inventory cases passed in the explicit Broker-first isolated PostgreSQL run (22 tests across three suites). This is source/test provenance, not browser, installed-device or complete field-by-field acceptance."
+        "4 November source review maps the current scoped API, shared inventory schema/presentation and relevant clients. Source-backed inventory cases passed in the explicit Broker-first isolated PostgreSQL run (22 tests across three suites). This is source/test provenance, not browser, installed-device or complete field-by-field acceptance.",
+        "4 November concurrent first-save probe exposed false409 responses from nested-contact empty-update upsert. Firm/key transaction lock now makes all20 retries return one authorized record, one contact and one creation audit. Separate firm key scope tested. Full API436 pass/30 skip, explicit Broker-first28 pass; source awaits the next release after the Build53 pin. Existing first-write-wins body compatibility is preserved; see INVENTORY_RETRY_20261104.md."
       ],
       "roles": [
         "BROKER_AGENT",
