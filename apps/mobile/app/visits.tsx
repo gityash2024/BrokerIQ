@@ -3,12 +3,12 @@ import { LeadContactActions } from '@/components/lead-contact-actions';
 import { useState } from 'react';
 import { FlatList, Linking } from 'react-native';
 import { router } from 'expo-router';
-import * as Location from 'expo-location';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CalendarCheck, Check, MapPin, Navigation, Phone, Star, X } from 'lucide-react-native';
 import { VISIT_STATUS_LABELS, type VisitStatus } from '@brokeriq/shared';
-import { api, patch, qs } from '@/lib/api';
+import { api, assertAccountContext, captureAccountContext, errorMessage, patch, qs } from '@/lib/api';
+import { checkInVisit } from '@/lib/visit-check-in';
 import { useApiMutation } from '@/lib/hooks';
 import { reconcileLocalReminders } from '@/lib/push';
 import { toast } from '@/lib/toast';
@@ -19,6 +19,7 @@ const TONE: Record<string, string> = { SCHEDULED: '#4F46E5', CONFIRMED: '#0EA5E9
 
 export default function Visits() {
   const { c } = useTheme();
+  const queryClient = useQueryClient();
   const [days, setDays] = useState(0);
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -44,10 +45,16 @@ export default function Visits() {
   const [rescheduleAt, setRescheduleAt] = useState<Date | null>(null);
   const [fb, setFb] = useState({ feedback: '', rating: 0 });
   const checkIn = async (v: any) => {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (!perm.granted) return toast.error('Location permission दें');
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-    upd.mutate({ id: v.id, checkInLat: pos.coords.latitude, checkInLng: pos.coords.longitude }, { onSuccess: () => toast.success('Check-in हो गया 📍') });
+    const owner = captureAccountContext();
+    try {
+      await checkInVisit(v.id, owner);
+      assertAccountContext(owner);
+      await queryClient.invalidateQueries({ queryKey: ['visits'] });
+      assertAccountContext(owner);
+      toast.success('Check-in हो गया 📍');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
   };
   return (
     <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
