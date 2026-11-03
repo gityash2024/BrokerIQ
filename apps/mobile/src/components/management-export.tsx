@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { api, authStore, qs } from '@/lib/api';
+import { api, assertAccountContext, captureAccountContext, qs } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { Button, Row, Txt } from '@/ui';
 
@@ -11,18 +11,14 @@ export function ManagementExport({ endpoint, ids, label = 'Filtered' }: { endpoi
   const tooMany = ids.length > 500;
   const download = async (format: string) => {
     if (busy || !ids.length || tooMany) return;
-    const user = authStore.get()?.user;
-    const scope = () => {
-      const current = authStore.get()?.user;
-      return `${current?.id}:${current?.role}:${current?.organization?.id}`;
-    };
-    const owner = scope();
+    const owner = captureAccountContext();
     let file: File | undefined;
     setBusy(format);
     try {
-      if (!user || !(await Sharing.isAvailableAsync())) throw new Error('इस device पर file sharing उपलब्ध नहीं है');
-      const bytes = await api<Uint8Array>(`${endpoint}${qs({ format, ids: ids.join(',') })}`, { responseType: 'bytes' });
-      if (scope() !== owner) throw new Error('Account permissions changed. Reopen this screen.');
+      if (!owner.userId || !(await Sharing.isAvailableAsync())) throw new Error('इस device पर file sharing उपलब्ध नहीं है');
+      assertAccountContext(owner);
+      const bytes = await api<Uint8Array>(`${endpoint}${qs({ format, ids: ids.join(',') })}`, { responseType: 'bytes', ownerContext: owner });
+      assertAccountContext(owner);
       file = new File(Paths.cache, `brokeriq-report-${Date.now()}.${format}`);
       file.create();
       file.write(bytes);

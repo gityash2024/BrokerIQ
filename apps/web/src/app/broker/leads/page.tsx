@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, Filter, Inbox, MessageCircle, Phone, Search, Trash2, Upload, UserPlus, X } from 'lucide-react';
 import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
-import { api, errorMessage } from '@/lib/api';
+import { api, apiBlob, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { post, useApiMutation } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -50,12 +50,13 @@ function LeadsInner() {
 
   const exportCsv = async () => {
     try {
-      const res = await api<Response>(`/leads/export${qs(f)}`, { raw: true });
-      const blob = await res.blob();
+      const blob = await apiBlob(`/leads/export${qs(f)}`);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      a.href = url;
       a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       toast.error(errorMessage(e));
     }

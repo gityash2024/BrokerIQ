@@ -183,8 +183,8 @@ function AdminKycManagementView({ user }: { user: any }) {
   };
 
   // Map selected team member IDs to their submitted KYC document IDs for /admin/kyc/export
-  const selectedDocIds = members
-    .filter((m: any) => selectedIds.has(m.id))
+  const selectedDocIds = filteredMembers
+    .filter((m: any) => !selectedIds.size || selectedIds.has(m.id))
     .flatMap((m: any) => (m.kycDocuments || []).map((d: any) => d.id))
     .filter(Boolean);
 
@@ -410,8 +410,8 @@ function AdminKycManagementView({ user }: { user: any }) {
                 <ExportToolbar
                   endpoint="/admin/kyc/export"
                   baseFilename="kyc-verification-report"
-                  selectedIds={selectedIds.size > 0 ? (selectedDocIds.length > 0 ? selectedDocIds : ['__NONE__']) : undefined}
-                  disabled={selectedIds.size > 0 && selectedDocIds.length === 0}
+                  selectedIds={selectedDocIds}
+                  disabled={selectedDocIds.length === 0}
                   totalCount={members.length}
                   filteredCount={filteredMembers.length}
                   filters={{
@@ -1492,7 +1492,11 @@ function AgentKycSubmissionView() {
                         <span className="truncate text-xs font-semibold">Aadhaar document</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <KycPreviewButton src={currentAadhaarPhoto} title="Aadhaar document" className="text-xs text-brand hover:underline flex items-center gap-1">
+                        <KycPreviewButton
+                          src={currentAadhaarPhoto}
+                          title="Aadhaar document"
+                          className="text-xs text-brand hover:underline flex items-center gap-1"
+                        >
                           <Eye className="size-3" /> देखें
                         </KycPreviewButton>
                         {!isVerified && (

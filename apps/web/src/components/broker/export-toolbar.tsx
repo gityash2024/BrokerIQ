@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import * as DM from '@radix-ui/react-dropdown-menu';
 import { ChevronDown, Download, FileSpreadsheet, FileText, Loader2, Table } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
+import { apiBlob } from '@/lib/api';
 import { cn, qs } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -85,18 +85,7 @@ export function ExportToolbar({
 
       const queryString = qs(params);
       const targetUrl = `${endpoint}${queryString}`;
-      const res = await api<Response>(targetUrl, { raw: true });
-
-      if (!res.ok) {
-        let errorMsg = `Export failed (${res.status})`;
-        try {
-          const errBody = await res.json();
-          if (errBody?.message) errorMsg = errBody.message;
-        } catch {}
-        throw new Error(errorMsg);
-      }
-
-      const blob = await res.blob();
+      const blob = await apiBlob(targetUrl);
       const ext = format === 'xlsx' ? 'xlsx' : format === 'pdf' ? 'pdf' : 'csv';
       const dateSlug = new Date().toISOString().slice(0, 10);
       const filename = `${effectiveBaseFilename}-${dateSlug}.${ext}`;
@@ -158,11 +147,7 @@ export function ExportToolbar({
     );
   }
 
-  const displayCount = isSelectionActive
-    ? selectedCount
-    : filteredCount != null
-      ? filteredCount
-      : totalCount;
+  const displayCount = isSelectionActive ? selectedCount : filteredCount != null ? filteredCount : totalCount;
 
   const isButtonDisabled = disabled || busyFormat !== null || isSelectionEmpty;
 
@@ -176,18 +161,8 @@ export function ExportToolbar({
           title={isSelectionEmpty ? 'चयनित रिकॉर्ड्स में कोई एक्सपोर्ट योग्य डेटा नहीं है' : undefined}
           className={cn('h-9 text-xs gap-1.5', className)}
         >
-          {busyFormat ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Download className="size-3.5 text-muted" />
-          )}
-          <span>
-            {isSelectionActive
-              ? `Export Selected (${selectedCount})`
-              : displayCount != null
-                ? `Export (${displayCount})`
-                : 'Export Data'}
-          </span>
+          {busyFormat ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5 text-muted" />}
+          <span>{isSelectionActive ? `Export Selected (${selectedCount})` : displayCount != null ? `Export (${displayCount})` : 'Export Data'}</span>
           <ChevronDown className="size-3 text-muted" />
         </Button>
       </DM.Trigger>

@@ -165,7 +165,7 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
     prisma.kycDocument.findMany({
       where: { userId: { in: memberIds }, organizationId, supersededAt: null },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { userId: true, id: true, docType: true, docNumber: true, fileUrl: true, status: true, reviewNote: true, reviewedAt: true },
+      select: { userId: true, id: true, docType: true, docNumber: true, fileUrl: true, status: true, reviewNote: true, reviewedAt: true, createdAt: true },
     }),
     prisma.$queryRaw<LastLocation[]>`
       SELECT DISTINCT ON (l."userId") l."userId", l.latitude, l.longitude, l.accuracy, l.address, l.source, l."capturedAt", l."receivedAt"

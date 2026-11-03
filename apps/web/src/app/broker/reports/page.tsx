@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FileDown, FileSpreadsheet, IndianRupee, Receipt, Users } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
-import { api, errorMessage } from '@/lib/api';
+import { api, apiBlob, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
@@ -42,8 +42,7 @@ export default function ReportsPage() {
   const download = async (path: string, name: string) => {
     setBusy(name);
     try {
-      const res = await api<Response>(path, { raw: true });
-      const url = URL.createObjectURL(await res.blob());
+      const url = URL.createObjectURL(await apiBlob(path));
       const a = Object.assign(document.createElement('a'), { href: url, download: name });
       a.click();
       URL.revokeObjectURL(url);

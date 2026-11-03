@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, IndianRupee } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
-import { api, errorMessage } from '@/lib/api';
+import { api, apiBlob, errorMessage } from '@/lib/api';
 import { formatDateTime, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
@@ -23,8 +23,10 @@ export default function Page() {
   });
   const invoice = async (p: any) => {
     try {
-      const res = await api<Response>(`/billing/payments/${p.id}/invoice`, { raw: true });
-      window.open(URL.createObjectURL(await res.blob()), '_blank');
+      const url = URL.createObjectURL(await apiBlob(`/billing/payments/${p.id}/invoice`));
+      const anchor = Object.assign(document.createElement('a'), { href: url, download: `${p.number || 'invoice'}.pdf` });
+      anchor.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       toast.error(errorMessage(e));
     }

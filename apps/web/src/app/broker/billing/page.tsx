@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { Check, Crown, Download, FileText, Rocket, Sparkles, TicketPercent } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
-import { ApiError, api, errorMessage } from '@/lib/api';
+import { ApiError, api, apiBlob, errorMessage } from '@/lib/api';
 import { post, useApiMutation } from '@/lib/hooks';
 import { payWithRazorpay } from '@/lib/razorpay';
 import { cn, formatDate } from '@/lib/utils';
@@ -82,12 +82,12 @@ function PaidBilling() {
 
   const invoice = async (id: string, number: string) => {
     try {
-      const res = await api<Response>(`/billing/payments/${id}/invoice`, { raw: true });
-      const url = URL.createObjectURL(await res.blob());
+      const url = URL.createObjectURL(await apiBlob(`/billing/payments/${id}/invoice`));
       const a = document.createElement('a');
       a.href = url;
       a.download = `${number}.pdf`;
       a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       toast.error(errorMessage(e));
     }
