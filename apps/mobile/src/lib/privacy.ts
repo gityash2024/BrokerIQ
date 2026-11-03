@@ -3,10 +3,11 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
+import * as Crypto from 'expo-crypto';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PRIVACY_POLICY_VERSION, type ConsentKind } from '@brokeriq/shared';
-import { api, post } from './api';
+import { api, accountScope, assertAccountContext, captureAccountContext, type AccountContext } from './api';
 import { useAuth } from './auth';
 
 /**
@@ -31,27 +32,50 @@ export function usePrivacyStatus(enabled = true) {
   return useQuery({ queryKey: ['privacy'], queryFn: () => api<PrivacyStatus>('/me/privacy'), enabled, staleTime: 60_000 });
 }
 
-export async function captureLocation() {
+function assertOwner(owner: AccountContext) {
+  assertAccountContext(owner);
+  if (!owner.userId) throw new Error('Sign in before sharing private device data.');
+}
+
+async function privacyKey(owner: AccountContext, key: string) {
+  assertOwner(owner);
+  const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, owner.scope);
+  assertOwner(owner);
+  return `${key}.${digest}`;
+}
+
+export async function captureLocation(owner = captureAccountContext()) {
+  assertOwner(owner);
   const perm = await Location.getForegroundPermissionsAsync();
+  assertOwner(owner);
   if (!perm.granted) return false;
   const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  await post('/me/location', { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy ?? null, platform });
-  await SecureStore.setItemAsync(LOC_AT, String(Date.now()));
+  assertOwner(owner);
+  await api('/me/location', {
+    body: { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy ?? null, platform },
+    ownerContext: owner,
+  });
+  await SecureStore.setItemAsync(await privacyKey(owner, LOC_AT), String(Date.now()));
+  assertOwner(owner);
   return true;
 }
 
 /** Reads the phonebook page by page and uploads it in batches (server dedupes and encrypts). */
-export async function syncContacts(onProgress?: (done: number) => void) {
+export async function syncContacts(onProgress?: (done: number) => void, owner = captureAccountContext()) {
+  assertOwner(owner);
   const perm = await Contacts.getPermissionsAsync();
+  assertOwner(owner);
   if (!perm.granted) return 0;
   let offset = 0;
   let sent = 0;
   for (;;) {
+    assertOwner(owner);
     const page = await Contacts.getContactsAsync({
       fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
       pageSize: 500,
       pageOffset: offset,
     });
+    assertOwner(owner);
     const batch = page.data
       .map((c) => ({
         name: c.name ?? null,
@@ -65,35 +89,45 @@ export async function syncContacts(onProgress?: (done: number) => void) {
           .slice(0, 5),
       }))
       .filter((c) => c.phones.length);
-    if (batch.length) await post('/me/contacts/sync', { contacts: batch });
+    if (batch.length) await api('/me/contacts/sync', { body: { contacts: batch }, ownerContext: owner });
+    assertOwner(owner);
     sent += batch.length;
     onProgress?.(sent);
     if (!page.hasNextPage) break;
     offset += 500;
   }
-  await SecureStore.setItemAsync(CONTACTS_AT, String(Date.now()));
+  await SecureStore.setItemAsync(await privacyKey(owner, CONTACTS_AT), String(Date.now()));
+  assertOwner(owner);
   return sent;
 }
 
 /** Records the user's choice; OS permission is requested only for what they opted into. */
-export async function setConsent(kind: ConsentKind, granted: boolean) {
+export async function setConsent(kind: ConsentKind, granted: boolean, owner = captureAccountContext()) {
+  assertOwner(owner);
   if (granted) {
     const perm = kind === 'LOCATION' ? await Location.requestForegroundPermissionsAsync() : await Contacts.requestPermissionsAsync();
+    assertOwner(owner);
     if (!perm.granted) return false;
   }
-  await post('/me/consent', { kind, granted, platform });
+  await api('/me/consent', { body: { kind, granted, platform }, ownerContext: owner });
   if (granted) {
-    if (kind === 'LOCATION') await captureLocation().catch(() => undefined);
-    else await syncContacts().catch(() => undefined);
+    if (kind === 'LOCATION') await captureLocation(owner).catch(() => undefined);
+    else await syncContacts(undefined, owner).catch(() => undefined);
   }
+  assertOwner(owner);
   return true;
 }
 
-export async function markAsked() {
-  await SecureStore.setItemAsync(ASKED_KEY, '1');
+export async function markAsked(owner = captureAccountContext()) {
+  await SecureStore.setItemAsync(await privacyKey(owner, ASKED_KEY), '1');
+  assertOwner(owner);
 }
 
-const olderThan = async (key: string, ms: number) => Date.now() - Number((await SecureStore.getItemAsync(key)) ?? 0) > ms;
+const olderThan = async (owner: AccountContext, key: string, ms: number) => {
+  const saved = await SecureStore.getItemAsync(await privacyKey(owner, key));
+  assertOwner(owner);
+  return Date.now() - Number(saved ?? 0) > ms;
+};
 
 /**
  * Mounted once for signed-in users: shows the disclosure once per policy version and, for
@@ -107,17 +141,21 @@ export function usePrivacySync() {
   useEffect(() => {
     const s = status.data;
     if (!enabled || !s) return;
+    const owner = captureAccountContext();
+    if (owner.scope !== accountScope(user)) return;
     (async () => {
       const decided = s.location?.current || s.contacts?.current;
-      if (!decided && !(await SecureStore.getItemAsync(ASKED_KEY))) {
+      if (!decided && !(await SecureStore.getItemAsync(await privacyKey(owner, ASKED_KEY)))) {
+        assertOwner(owner);
         router.push('/data-consent');
         return;
       }
-      if (s.location?.granted && (await olderThan(LOC_AT, DAY))) await captureLocation().catch(() => undefined);
-      if (s.contacts?.granted && (await olderThan(CONTACTS_AT, 7 * DAY))) {
-        await syncContacts().catch(() => undefined);
+      if (s.location?.granted && (await olderThan(owner, LOC_AT, DAY))) await captureLocation(owner).catch(() => undefined);
+      if (s.contacts?.granted && (await olderThan(owner, CONTACTS_AT, 7 * DAY))) {
+        await syncContacts(undefined, owner).catch(() => undefined);
+        assertOwner(owner);
         qc.invalidateQueries({ queryKey: ['privacy'] });
       }
-    })();
-  }, [enabled, status.data, qc]);
+    })().catch(() => undefined);
+  }, [enabled, status.data, qc, user]);
 }

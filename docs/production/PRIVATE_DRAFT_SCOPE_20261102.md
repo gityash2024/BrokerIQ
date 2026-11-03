@@ -13,3 +13,9 @@ Legacy unscoped rows are not assigned an invented role or firm. Metadata-only wa
 Inbox moves copy before deleting and verify the exact destination body. Interruption or a conflicting destination preserves the source. No asynchronous connection-wide SQLite transaction is used, because unrelated saves on that connection could otherwise join and be rolled back. Moving a draft onto itself does not delete it. The Saved drafts list now uses stable50-row keyset pages instead of hiding all rows after100.
 
 Validation: full mobile104/104 across12 suites; all workspace typechecks pass. Changed-file ESLint has zero errors with existing/style warnings retained. Real SQLite tests cover additive legacy preservation, same-user firm/role separation, A → B → A rejection, guest adoption boundaries, mid-queue/mid-chunk scope changes,121-row pagination, non-destructive Inbox conflicts/interruption/self-move and transparent/concurrent refresh. OS/file/encryption boundaries remain mocked: this does not prove installed upgrade, latest unsaved keystrokes during a process kill, physical SQLCipher behavior or full product acceptance. Follow-up/visit form restart persistence remains separate unfinished work.
+
+## Device privacy operations
+
+Location reads, contacts pages, consent and disclosure acknowledgements now carry their initiating account/firm/role context. Permission dialogs and device reads are followed by context checks before any upload. Contact pagination stops when that context changes. Disclosure and sync timestamps use workspace-specific hashed SecureStore keys, preserving the earlier global entries. This does not enable the dormant automatic privacy-sync hook.
+
+All 111 native tests passed, including five new permission/read/firm-switch/storage boundary cases. Device APIs are stubbed in those cases. Physical permission dialogs, phonebook and GPS acceptance remain open. Source is after Build52.

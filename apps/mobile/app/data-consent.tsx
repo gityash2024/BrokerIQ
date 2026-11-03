@@ -7,6 +7,7 @@ import { Check, Contact, Lock, MapPin, ShieldCheck } from 'lucide-react-native';
 import { DATA_CONSENT_TEXT as T } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { showError } from '@/lib/hooks';
+import { assertAccountContext, captureAccountContext, type AccountContext } from '@/lib/api';
 import { markAsked, setConsent } from '@/lib/privacy';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
@@ -21,20 +22,23 @@ export default function DataConsent() {
   const [contacts, setContacts] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const close = async () => {
-    await markAsked();
+  const close = async (owner: AccountContext) => {
+    await markAsked(owner);
+    assertAccountContext(owner);
     qc.invalidateQueries({ queryKey: ['privacy'] });
     if (router.canGoBack()) router.back();
   };
   const allow = async () => {
+    const owner = captureAccountContext();
     setBusy(true);
     try {
       const results: string[] = [];
-      if (loc && !(await setConsent('LOCATION', true))) results.push('location');
-      if (contacts && !(await setConsent('CONTACTS', true))) results.push('contacts');
+      if (loc && !(await setConsent('LOCATION', true, owner))) results.push('location');
+      if (contacts && !(await setConsent('CONTACTS', true, owner))) results.push('contacts');
+      assertAccountContext(owner);
       if (results.length) toast.info(`Phone settings में ${results.join(' और ')} permission नहीं मिली — Profile → Privacy से बाद में चालू कर सकते हैं`);
       else toast.success('धन्यवाद 🙏 — आप Profile → Privacy से कभी भी बदल सकते हैं');
-      await close();
+      await close(owner);
     } catch (e) {
       showError(e);
     } finally {
@@ -139,7 +143,7 @@ export default function DataConsent() {
       </ScrollView>
       <View style={{ padding: 16, gap: 10, borderTopWidth: 1, borderColor: c.line }}>
         <Button title={T.allow} disabled={!loc && !contacts} loading={busy} onPress={allow} />
-        <Button title={T.notNow} variant="secondary" disabled={busy} onPress={close} />
+        <Button title={T.notNow} variant="secondary" disabled={busy} onPress={() => close(captureAccountContext()).catch(showError)} />
       </View>
     </SafeAreaView>
   );
