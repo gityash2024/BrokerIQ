@@ -879,7 +879,7 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": ["Nov4 source checkpoint validates list/pipeline/export filters, uses stable page tie-breaking and IST due-day boundaries. CSV uses the shared spreadsheet cell guard and one scoped query instead of a silent 5,000-row truncation. Up to20,000 matching rows export; a larger result fails with a request to narrow filters. Source is after Build52."],
       "roles": [
         "TO_RECONCILE"
       ],
@@ -903,6 +903,7 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
+        "Nov4 source checkpoint adds mobile navigation to remaining stage records, retains web search/source/owner filters, excludes Not interested from active totals, labels the displayed-card budget and collects a Not interested reason. Stage/activity/pending-task cancellation commit together; retries lock the Lead and recheck ownership. Browser/device and complete workflow parity remain open.",
         "Nov2 query checkpoint: paginated whole-dataset web/native follow-ups, server counts, strict intersected date/status filters and IST snooze/boundaries.503-row real-PostgreSQL scope/pagination test passes. Source changes afterb58aac4 are not in Build42. Creation idempotency, live reminders and installed UI remain open; see FOLLOWUP_QUERIES_20261102.md.",
         "Build46 checkpoint: Atomic request-key follow-up creation/assignment and SMS/Email scheduled types ship in46; full pipeline/reminder/provider/offline acceptance remains open."
       ],

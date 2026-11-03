@@ -33,3 +33,11 @@ Validation: 22 storage/HTTP contract tests and web typecheck passed. Scoped lint
 ## Visit retry ownership
 
 The visit API now verifies the original actor through the creation activity committed with the visit. A second actor in the same firm cannot claim another person's submission ID. The request hash and schema are unchanged so existing records still replay for their original actor. The real PostgreSQL visit suite passed all five cases, including same-firm cross-actor rejection and an exact retry with one creation activity. Staging remains on the previous release.
+
+## Lead stage closure and export queries
+
+Lead stage, stage-change activity, next-follow-up pointer and pending-follow-up cancellation now commit in one transaction under the same Lead row lock used by assignment and task creation. An injected cancellation failure rolled back all changes. Ten concurrent retries then created one stage activity. Related follow-up tests passed 11 cases. Lead detail reads apply record ownership in the data query itself.
+
+List, pipeline and CSV validate filter input. Sorting uses record ID to resolve ties. Due-today uses the existing shared IST day boundary. CSV uses shared formula-safe escaping and a single scoped result instead of repeated count/page queries with a silent 5,000-row limit. Up to 20,000 matching rows export. Larger results return an explicit filter request. The real 5,001-row case retained every authorized row and excluded peers. The separate general and Broker-first checks passed before the stage follow-up; final release acceptance remains open.
+
+Pipeline now links mobile users to remaining stage cards and keeps web search/source/owner filters in that link. Not interested is excluded from the active total and has a reason prompt. The displayed-card budget is labelled accordingly. A late web drag failure cannot restore old-account data to the global query cache. These UI changes await browser/device inspection.

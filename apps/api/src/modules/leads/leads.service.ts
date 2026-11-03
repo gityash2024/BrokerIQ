@@ -1,6 +1,16 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { parseLeadQuery } from './lead-query';
+import { csvCell } from '../../common/csv';
 import { Prisma, type LeadSource, type LeadStage } from '@prisma/client';
-import { LEAD_SOURCE_LABELS, LEAD_STAGE_LABELS, formatPriceShort, normalizeIndianPhone, type LeadInput, type LeadRequirementInput } from '@brokeriq/shared';
+import {
+  LEAD_SOURCE_LABELS,
+  LEAD_STAGE_LABELS,
+  followUpIstDayEnd,
+  formatPriceShort,
+  normalizeIndianPhone,
+  type LeadInput,
+  type LeadRequirementInput,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -191,17 +201,15 @@ export class LeadsService {
   }
 
   // ------------------------------------------------------------------ queries
-  async list(user: RequestUser, q: LeadListQuery) {
-    const page = Math.max(1, Number(q.page) || 1);
-    const pageSize = Math.min(100, Number(q.pageSize) || 30);
+  private listQuery(user: RequestUser, input: LeadListQuery) {
+    const q = parseLeadQuery(input);
     const and: Prisma.LeadWhereInput[] = [this.scope(user)];
     if (q.stage) and.push({ stage: { in: q.stage.split(',') as LeadStage[] } });
     if (q.source) and.push({ source: { in: q.source.split(',') as LeadSource[] } });
     if (q.assignedToId) and.push({ assignedToId: q.assignedToId === 'none' ? null : q.assignedToId });
-    if (q.temperature) and.push({ temperature: q.temperature as any });
+    if (q.temperature) and.push({ temperature: q.temperature });
     if (q.tag) and.push({ tags: { has: q.tag } });
     const dateField = q.dateField ?? 'createdAt';
-    if (!['createdAt', 'stageChangedAt'].includes(dateField)) throw new BadRequestException('Invalid reporting date field');
     const parseBound = (value: string, end: boolean) => {
       const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
       const date = new Date(dateOnly ? value + 'T00:00:00+05:30' : value);
@@ -215,7 +223,6 @@ export class LeadsService {
     if (from) and.push({ [dateField]: { gte: from } });
     if (to) and.push({ [dateField]: /^\d{4}-\d{2}-\d{2}$/.test(q.to!) ? { lt: to } : { lte: to } });
     if (q.responseSla) {
-      if (q.responseSla !== 'eligible') throw new BadRequestException('Invalid response filter');
       and.push({ OR: [{ firstResponseAt: { not: null } }, { createdAt: { lte: new Date(Date.now() - 15 * 60_000) } }] });
     }
     if (q.q) {
@@ -237,7 +244,7 @@ export class LeadsService {
         and.push({ assignedToId: user.id });
         break;
       case 'due':
-        and.push({ nextFollowUpAt: { lte: endOfToday() } });
+        and.push({ nextFollowUpAt: { lte: followUpIstDayEnd() } });
         break;
       case 'new':
         and.push({ stage: 'NEW' });
@@ -254,7 +261,12 @@ export class LeadsService {
           : q.sort === 'followup'
             ? [{ nextFollowUpAt: { sort: 'asc', nulls: 'last' } }]
             : [{ lastActivityAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
-    const where = { AND: and };
+    orderBy.push({ id: 'desc' });
+    return { where: { AND: and }, orderBy, page: q.page, pageSize: q.pageSize };
+  }
+
+  async list(user: RequestUser, q: LeadListQuery) {
+    const { where, orderBy, page, pageSize } = this.listQuery(user, q);
     const [items, total] = await Promise.all([
       this.prisma.lead.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: LEAD_LIST_INCLUDE }),
       this.prisma.lead.count({ where }),
@@ -262,7 +274,8 @@ export class LeadsService {
     return paged(items, total, page, pageSize);
   }
 
-  async kanban(user: RequestUser, q: { source?: string; assignedToId?: string; q?: string }) {
+  async kanban(user: RequestUser, input: { source?: string; assignedToId?: string; q?: string }) {
+    const q = parseLeadQuery(input);
     const base: Prisma.LeadWhereInput = {
       AND: [this.scope(user), ...(q.assignedToId ? [{ assignedToId: q.assignedToId }] : [])],
       ...(q.source ? { source: { in: q.source.split(',') as LeadSource[] } } : {}),
@@ -277,7 +290,7 @@ export class LeadsService {
           ...(stage === 'WON' || stage === 'LOST' || stage === 'NOT_INTERESTED' ? { stageChangedAt: { gte: new Date(Date.now() - 30 * 86400_000) } } : {}),
         };
         const [items, count] = await Promise.all([
-          this.prisma.lead.findMany({ where, orderBy: [{ stageChangedAt: 'desc' }], take: 50, include: LEAD_LIST_INCLUDE }),
+          this.prisma.lead.findMany({ where, orderBy: [{ stageChangedAt: 'desc' }, { id: 'desc' }], take: 50, include: LEAD_LIST_INCLUDE }),
           this.prisma.lead.count({ where }),
         ]);
         return { stage, label: LEAD_STAGE_LABELS[stage], count, items };
@@ -287,9 +300,8 @@ export class LeadsService {
   }
 
   async detail(id: string, user: RequestUser) {
-    await this.getScoped(id, user);
-    const lead = await this.prisma.lead.findUniqueOrThrow({
-      where: { id },
+    const lead = await this.prisma.lead.findFirst({
+      where: { id, ...this.scope(user) },
       include: {
         ...LEAD_LIST_INCLUDE,
         activities: { orderBy: { createdAt: 'desc' }, take: 100, include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
@@ -300,6 +312,7 @@ export class LeadsService {
         shareLinks: { orderBy: { createdAt: 'desc' }, take: 20, include: { listing: { select: { id: true, title: true, slug: true } } } },
       },
     });
+    if (!lead) throw new NotFoundException('Lead नहीं मिली');
     const { rawPayload, ...rest } = lead;
     return { ...rest, hasRawPayload: !!rawPayload };
   }
@@ -364,34 +377,40 @@ export class LeadsService {
   }
 
   async changeStage(id: string, stage: LeadStage, user: RequestUser, lostReason?: string | null) {
-    const lead = await this.getScoped(id, user);
-    if (lead.stage === stage) return lead;
-    const isClosedReasonStage = stage === 'LOST' || stage === 'NOT_INTERESTED';
-    const updated = await this.prisma.lead.update({
-      where: { id },
-      data: {
-        stage,
-        stageChangedAt: new Date(),
-        lostReason: isClosedReasonStage ? (lostReason ?? null) : null,
-        lastActivityAt: new Date(),
-        firstResponseAt: lead.firstResponseAt ?? (stage !== 'NEW' ? new Date() : null),
-        activities: {
-          create: {
-            organizationId: lead.organizationId,
-            userId: user.id,
-            type: 'STAGE_CHANGE',
-            content: `${LEAD_STAGE_LABELS[lead.stage]} → ${LEAD_STAGE_LABELS[stage]}${isClosedReasonStage && lostReason ? ` (${lostReason})` : ''}`,
-            meta: { from: lead.stage, to: stage } as Prisma.InputJsonValue,
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Lead" WHERE id = ${id} FOR UPDATE`;
+      const lead = await tx.lead.findFirst({ where: { id, ...this.scope(user) } });
+      if (!lead) throw new NotFoundException('Lead नहीं मिली');
+      if (lead.stage === stage) return { lead, from: lead.stage, changed: false };
+      const isClosedReasonStage = stage === 'LOST' || stage === 'NOT_INTERESTED';
+      const closing = ['WON', 'LOST', 'NOT_INTERESTED'].includes(stage);
+      const updated = await tx.lead.update({
+        where: { id },
+        data: {
+          stage,
+          stageChangedAt: new Date(),
+          lostReason: isClosedReasonStage ? (lostReason ?? null) : null,
+          lastActivityAt: new Date(),
+          firstResponseAt: lead.firstResponseAt ?? (stage !== 'NEW' ? new Date() : null),
+          ...(closing ? { nextFollowUpAt: null } : {}),
+          activities: {
+            create: {
+              organizationId: lead.organizationId,
+              userId: user.id,
+              type: 'STAGE_CHANGE',
+              content: `${LEAD_STAGE_LABELS[lead.stage]} → ${LEAD_STAGE_LABELS[stage]}${isClosedReasonStage && lostReason ? ` (${lostReason})` : ''}`,
+              meta: { from: lead.stage, to: stage } as Prisma.InputJsonValue,
+            },
           },
         },
-      },
+      });
+      if (closing)
+        await tx.followUp.updateMany({ where: { leadId: id, organizationId: lead.organizationId, status: 'PENDING' }, data: { status: 'CANCELLED' } });
+      return { lead: updated, from: lead.stage, changed: true };
     });
-    if (['WON', 'LOST', 'NOT_INTERESTED'].includes(stage)) {
-      await this.prisma.followUp.updateMany({ where: { leadId: id, status: 'PENDING' }, data: { status: 'CANCELLED' } });
-      await this.refreshNextFollowUp(id);
-    }
-    this.events.emit('lead.stage_changed', { leadId: id, orgId: lead.organizationId, from: lead.stage, to: stage, userId: user.id });
-    return updated;
+    if (result.changed)
+      this.events.emit('lead.stage_changed', { leadId: id, orgId: result.lead.organizationId, from: result.from, to: stage, userId: user.id });
+    return result.lead;
   }
 
   async assertMember(orgId: string, userId: string) {
@@ -606,15 +625,9 @@ export class LeadsService {
 
   // ------------------------------------------------------------------ CSV
   async exportCsv(user: RequestUser, q: LeadListQuery) {
-    const { items } = await this.list(user, { ...q, page: 1, pageSize: 100 });
-    const all = [...items];
-    let page = 2;
-    while (all.length < 5000) {
-      const next = await this.list(user, { ...q, page, pageSize: 100 });
-      if (!next.items.length) break;
-      all.push(...next.items);
-      page++;
-    }
+    const { where, orderBy } = this.listQuery(user, q);
+    const all = await this.prisma.lead.findMany({ where, orderBy, take: 20001, include: LEAD_LIST_INCLUDE });
+    if (all.length > 20000) throw new BadRequestException('एक export में अधिकतम 20,000 leads हैं। Date या source filter लगाकर export करें।');
     const header = ['Name', 'Phone', 'Email', 'Source', 'Stage', 'Temperature', 'Assigned to', 'Tags', 'Created', 'Last activity', 'Notes'];
     const rows = all.map((l) => [
       l.name,
@@ -666,15 +679,4 @@ export class LeadsService {
     }
     return { created, merged, failed: errors.length, errors: errors.slice(0, 50) };
   }
-}
-
-function csvCell(v: unknown) {
-  const s = String(v ?? '');
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function endOfToday() {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
 }

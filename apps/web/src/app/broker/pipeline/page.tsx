@@ -7,9 +7,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import { KanbanSquare, MessageCircle, Phone, Search } from 'lucide-react';
 import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, formatPriceShort, timeAgo, type LeadStage } from '@brokeriq/shared';
-import { api, errorMessage } from '@/lib/api';
+import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { patch, useDebounced } from '@/lib/hooks';
+import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { cn, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
@@ -41,16 +41,17 @@ export default function PipelinePage() {
   useRealtime('notification', (n: any) => n?.kind === 'NEW_LEAD' && q.refetch());
   const [dragId, setDragId] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  const [lost, setLost] = useState<{ id: string; from: LeadStage } | null>(null);
+  const [lost, setLost] = useState<{ id: string; from: LeadStage; to: 'LOST' | 'NOT_INTERESTED' } | null>(null);
   const [reason, setReason] = useState('');
 
   const move = async (id: string, to: LeadStage, lostReason?: string) => {
+    const owner = captureAccountContext();
     const cols = qc.getQueryData<Column[]>(key);
     if (!cols) return;
     const from = cols.find((c) => c.items.some((i) => i.id === id));
     if (!from || from.stage === to) return;
-    if (to === 'LOST' && !lostReason) {
-      setLost({ id, from: from.stage });
+    if ((to === 'LOST' || to === 'NOT_INTERESTED') && !lostReason) {
+      setLost({ id, from: from.stage, to });
       return;
     }
     const lead = from.items.find((i) => i.id === id)!;
@@ -64,27 +65,29 @@ export default function PipelinePage() {
       ),
     );
     try {
-      await patch(`/leads/${id}/stage`, { stage: to, lostReason });
+      await api(`/leads/${id}/stage`, { body: { stage: to, lostReason }, method: 'PATCH', ownerContext: owner });
+      if (captureAccountContext().revision !== owner.revision) return;
       toast.success(`${lead.name ?? 'Lead'} → ${cols.find((c) => c.stage === to)?.label}`);
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
     } catch (e) {
+      if (captureAccountContext().revision !== owner.revision) return;
       toast.error(errorMessage(e));
       qc.setQueryData(key, cols);
     }
   };
 
-  const total = q.data?.reduce((s, c) => s + (c.stage === 'WON' || c.stage === 'LOST' ? 0 : c.count), 0) ?? 0;
+  const total = q.data?.reduce((s, c) => s + (['WON', 'LOST', 'NOT_INTERESTED'].includes(c.stage) ? 0 : c.count), 0) ?? 0;
   const value =
     q.data
-      ?.filter((c) => !['WON', 'LOST'].includes(c.stage))
+      ?.filter((c) => !['WON', 'LOST', 'NOT_INTERESTED'].includes(c.stage))
       .reduce((s, c) => s + c.items.reduce((a, l) => a + (Number(l.requirement?.maxBudget ?? l.requirement?.minBudget) || 0), 0), 0) ?? 0;
 
   return (
     <>
       <PageHeader
         title="Pipeline"
-        subtitle={q.data ? `${total} active leads · budget pipeline ${value ? formatPriceShort(value) : '—'} · cards को drag करके stage बदलें` : ' '}
+        subtitle={q.data ? `${total} active leads · दिखे cards का budget ${value ? formatPriceShort(value) : '—'} · cards को drag करके stage बदलें` : ' '}
       />
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="w-full sm:w-72">
@@ -224,7 +227,10 @@ export default function PipelinePage() {
                       </div>
                     )}
                     {col.count > col.items.length && (
-                      <Link href={`/broker/leads?stage=${col.stage}`} className="py-1 text-center text-xs font-semibold text-brand-600">
+                      <Link
+                        href={`/broker/leads${qs({ stage: col.stage, q: dq, source, assignedToId: agent })}`}
+                        className="py-1 text-center text-xs font-semibold text-brand-600"
+                      >
                         +{col.count - col.items.length} और देखें
                       </Link>
                     )}
@@ -239,7 +245,7 @@ export default function PipelinePage() {
       <Dialog
         open={!!lost}
         onOpenChange={(v) => !v && setLost(null)}
-        title="Lead lost क्यों हुई?"
+        title={lost?.to === 'NOT_INTERESTED' ? 'Client interested क्यों नहीं है?' : 'Lead lost क्यों हुई?'}
         description="Reason से analytics में पता चलता है कि leads कहाँ छूट रही हैं।"
         size="sm"
         footer={
@@ -251,12 +257,12 @@ export default function PipelinePage() {
               variant="danger"
               disabled={!reason.trim()}
               onClick={() => {
-                if (lost) move(lost.id, 'LOST', reason.trim());
+                if (lost) move(lost.id, lost.to, reason.trim());
                 setLost(null);
                 setReason('');
               }}
             >
-              Mark lost
+              {lost?.to === 'NOT_INTERESTED' ? 'Not interested' : 'Mark lost'}
             </Button>
           </>
         }

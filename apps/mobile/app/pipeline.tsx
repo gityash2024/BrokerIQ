@@ -11,7 +11,7 @@ import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, TempBadge } from '@/components/crm';
 import { LeadContactActions } from '@/components/lead-contact-actions';
-import { Chip, ErrorView, Header, Loader, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
+import { Button, Chip, ErrorView, Header, Loader, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
 
 const W = Dimensions.get('window').width;
 
@@ -100,6 +100,15 @@ export default function Pipeline() {
                       </PressableScale>
                     </Animated.View>
                   )}
+                  ListFooterComponent={
+                    col.count > col.items.length ? (
+                      <Button
+                        title={`+${col.count - col.items.length} और देखें`}
+                        variant="secondary"
+                        onPress={() => router.push({ pathname: '/(broker)/leads', params: { stage: col.stage } })}
+                      />
+                    ) : null
+                  }
                   ListEmptyComponent={
                     <Txt v="small" color="subtle" style={{ padding: 16, textAlign: 'center' }}>
                       खाली
