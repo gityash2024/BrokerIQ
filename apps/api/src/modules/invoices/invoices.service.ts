@@ -1,9 +1,9 @@
 import { ModulesService } from '../../core/features/modules.service';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import type { ClientInvoice, Organization, Prisma } from '@prisma/client';
+import { InvoiceStatus, Prisma, type ClientInvoice, type Organization } from '@prisma/client';
 import { formatINR, normalizeIndianPhone } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../core/mail/mail.service';
@@ -96,40 +96,74 @@ export class InvoicesService {
   }
 
   // ------------------------------------------------------------------ CRUD
+  private agentScope(user: RequestUser) {
+    return user.role === 'BROKER_AGENT'
+      ? Prisma.sql`AND i."createdById" = ${user.id} AND (
+          i."leadId" IS NULL OR EXISTS (
+            SELECT 1 FROM "Lead" l
+            WHERE l.id = i."leadId" AND l."organizationId" = i."organizationId"
+              AND l."assignedToId" = ${user.id} AND l."deletedAt" IS NULL
+          )
+        )`
+      : Prisma.empty;
+  }
+
   list(user: RequestUser, status?: string) {
-    return this.prisma.clientInvoice.findMany({
-      where: { organizationId: requireOrg(user), ...(status ? { status: status as any } : {}) },
-      orderBy: { createdAt: 'desc' },
-      take: 300,
-    });
+    const orgId = requireOrg(user);
+    const invoiceStatus = Object.values(InvoiceStatus).find((value) => value === status);
+    if (status && !invoiceStatus) throw new BadRequestException('Invalid invoice status');
+    return this.prisma.$queryRaw<ClientInvoice[]>`
+      SELECT i.* FROM "ClientInvoice" i WHERE i."organizationId" = ${orgId}
+      ${invoiceStatus ? Prisma.sql`AND i.status = ${invoiceStatus}::"InvoiceStatus"` : Prisma.empty}
+      ${this.agentScope(user)}
+      ORDER BY i."createdAt" DESC, i.id DESC LIMIT 300`;
+  }
+
+  private async findInvoice(user: RequestUser, id: string, db: Prisma.TransactionClient = this.prisma, lock = false) {
+    const [inv] = await db.$queryRaw<ClientInvoice[]>`
+      SELECT i.* FROM "ClientInvoice" i WHERE i.id = ${id} AND i."organizationId" = ${requireOrg(user)}
+      ${this.agentScope(user)}
+      ${lock ? Prisma.sql`FOR UPDATE OF i` : Prisma.empty}`;
+    if (!inv) throw new NotFoundException();
+    if (lock && user.role === 'BROKER_AGENT' && inv.leadId) {
+      const [lead] = await db.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Lead" WHERE id = ${inv.leadId} AND "organizationId" = ${inv.organizationId}
+        AND "assignedToId" = ${user.id} AND "deletedAt" IS NULL FOR SHARE`;
+      if (!lead) throw new NotFoundException();
+    }
+    return inv;
   }
 
   async get(user: RequestUser, id: string) {
-    const inv = await this.prisma.clientInvoice.findFirst({ where: { id, organizationId: requireOrg(user) } });
-    if (!inv) throw new NotFoundException();
+    const inv = await this.findInvoice(user, id);
     return { ...inv, link: this.publicLink(inv) };
   }
 
   async create(user: RequestUser, input: InvoiceInput) {
     const orgId = requireOrg(user);
     if (!input.items.length) throw new BadRequestException('कम से कम एक item डालें');
-    let clientName = input.clientName;
-    let clientPhone = input.clientPhone ?? null;
-    if (input.dealId) {
-      const d = await this.prisma.deal.findFirst({
-        where: { id: input.dealId, organizationId: orgId },
-        include: { lead: { select: { id: true, name: true, phone: true, email: true } } },
-      });
-      if (!d) throw new BadRequestException('Deal नहीं मिली');
-      input.leadId = input.leadId ?? d.leadId;
-      clientName = clientName || d.lead.name;
-      clientPhone = clientPhone ?? d.lead.phone;
-      input.clientEmail = input.clientEmail ?? d.lead.email;
-    }
     const subtotal = Math.round(input.items.reduce((s, i) => s + i.amount, 0) * 100) / 100;
     const gstPct = input.gstPct ?? 0;
     const total = Math.round(subtotal * (1 + gstPct / 100) * 100) / 100;
     const inv = await this.prisma.$transaction(async (tx) => {
+      const isAgent = user.role === 'BROKER_AGENT';
+      const deal = input.dealId
+        ? await tx.deal.findFirst({ where: { id: input.dealId, organizationId: orgId, ...(isAgent ? { agentId: user.id } : {}) }, select: { leadId: true } })
+        : null;
+      if (input.dealId && !deal) throw new BadRequestException('Deal नहीं मिली');
+      if (deal && input.leadId && input.leadId !== deal.leadId) throw new BadRequestException('Invoice का lead और deal मेल नहीं खाते');
+      const leadId = deal?.leadId ?? input.leadId ?? null;
+      if (leadId) await tx.$queryRaw`SELECT id FROM "Lead" WHERE id = ${leadId} AND "organizationId" = ${orgId} FOR UPDATE`;
+      const lead = leadId
+        ? await tx.lead.findFirst({
+            where: { id: leadId, organizationId: orgId, deletedAt: null, ...(isAgent ? { assignedToId: user.id } : {}) },
+            select: { name: true, phone: true, email: true },
+          })
+        : null;
+      if (leadId && !lead) throw new BadRequestException('Lead नहीं मिला');
+      const clientName = input.clientName || lead?.name;
+      if (!clientName) throw new BadRequestException('Client name ज़रूरी है');
+      const clientPhone = input.clientPhone ?? lead?.phone;
       const org = await tx.organization.update({
         where: { id: orgId },
         data: { invoiceSeq: { increment: 1 } },
@@ -140,11 +174,11 @@ export class InvoicesService {
         data: {
           organizationId: orgId,
           dealId: input.dealId ?? null,
-          leadId: input.leadId ?? null,
+          leadId,
           number,
           clientName,
           clientPhone: clientPhone ? (normalizeIndianPhone(clientPhone) ?? clientPhone) : null,
-          clientEmail: input.clientEmail || null,
+          clientEmail: (input.clientEmail ?? lead?.email) || null,
           items: input.items as unknown as Prisma.InputJsonValue,
           subtotal,
           gstPct,
@@ -172,19 +206,26 @@ export class InvoicesService {
       notes?: string | null;
     },
   ) {
-    const inv = await this.get(user, id);
-    const data: Prisma.ClientInvoiceUpdateInput = { ...patch };
-    if (patch.status === 'PAID' && inv.status !== 'PAID') {
-      data.paidAt = patch.paidAt ?? new Date();
-      if (inv.dealId) {
-        const d = await this.prisma.deal.findUnique({ where: { id: inv.dealId } });
-        if (d) {
-          const next = d.commissionReceived + inv.subtotal;
-          await this.prisma.deal.update({ where: { id: d.id }, data: { commissionReceived: d.commissionAmount ? Math.min(d.commissionAmount, next) : next } });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const inv = await this.findInvoice(user, id, tx, true);
+      const data: Prisma.ClientInvoiceUpdateInput = { ...patch };
+      if (inv.status === 'PAID' && patch.status && patch.status !== 'PAID') throw new ConflictException('Paid invoice status cannot be changed');
+      if (patch.status === 'PAID' && inv.status !== 'PAID') {
+        data.paidAt = patch.paidAt ?? new Date();
+        if (inv.dealId) {
+          await tx.$queryRaw`SELECT id FROM "Deal" WHERE id = ${inv.dealId} AND "organizationId" = ${inv.organizationId} FOR UPDATE`;
+          const deal = await tx.deal.findFirst({ where: { id: inv.dealId, organizationId: inv.organizationId } });
+          if (deal) {
+            const next = deal.commissionReceived + inv.subtotal;
+            await tx.deal.update({
+              where: { id: deal.id },
+              data: { commissionReceived: deal.commissionAmount ? Math.min(deal.commissionAmount, next) : next },
+            });
+          }
         }
       }
-    }
-    const updated = await this.prisma.clientInvoice.update({ where: { id }, data });
+      return tx.clientInvoice.update({ where: { id }, data });
+    });
     await this.audit.log(user, `invoice.${patch.status?.toLowerCase() ?? 'update'}`, 'ClientInvoice', id);
     return updated;
   }

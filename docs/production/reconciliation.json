@@ -3761,19 +3761,27 @@
       "sourceRequests": [
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
+      "backend": "PARTIAL_REAL_POSTGRESQL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "SUPER_ADMIN"
+      "verification": "Growth suite 30/30 on isolated PostgreSQL. Invoice role and lead/deal association, sequence allocation, paid concurrency, UPI and PDF exercised. Staging, end-to-end UI and complete export coverage remain open.",
+      "notes": [
+        "Broker Agents see their own invoices and retain access to a linked invoice only while its lead remains assigned to them. Broker Admin has its firm scope. Paid invoices reject a status change that would allow commission to be applied again.",
+        "Legacy broker invoice lists still have a 300-record cap. Upcoming billing module flags and permissions remain unchanged. No live client email or WhatsApp send was tested."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "SUPER_ADMIN",
+        "BROKER_ADMIN",
+        "BROKER_AGENT"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/invoices/invoices.service.ts",
+        "apps/api/test/growth.e2e-spec.ts"
+      ],
       "commits": [],
-      "database": "PENDING",
-      "rootCause": null,
+      "database": "NO_SCHEMA_CHANGE",
+      "rootCause": "Invoice reads were firm-only, direct Lead IDs were unchecked, and invoice payment and deal commission were updated separately.",
       "releaseEvidence": null
     },
     {

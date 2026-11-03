@@ -371,6 +371,68 @@ describe('Growth features (e2e)', () => {
     await http.get(`/api/broker/invoices/${inv.body.id}`).set(auth(referred.token)).expect(404);
   });
 
+  it('scopes invoice actions to authorized leads and commits payment and commission exactly once', async () => {
+    const makeAgent = async (name: string) => {
+      const user = await prisma.user.create({
+        data: { name, role: 'BROKER_AGENT', organizationId: broker.orgId, email: email(name) },
+        include: { organization: true },
+      });
+      return { id: user.id, headers: auth((await app.get(AuthService).issue(user)).accessToken) };
+    };
+    const agent = await makeAgent('invoice-agent');
+    const peer = await makeAgent('invoice-peer');
+    const createLead = (organizationId: string, phone: string, assignedToId?: string) =>
+      prisma.lead.create({ data: { organizationId, phone, assignedToId, name: 'Invoice client', scoreReasons: [], tags: [] } });
+    const lead = await createLead(broker.orgId, '+919700001101', agent.id);
+    const peerLead = await createLead(broker.orgId, '+919700001102', peer.id);
+    const foreignLead = await createLead(referred.orgId, '+919700001103');
+    const deal = await prisma.deal.create({
+      data: { organizationId: broker.orgId, leadId: lead.id, agentId: agent.id, title: 'Invoice deal', dealValue: 10000, commissionAmount: 5000 },
+    });
+    const items = [{ description: 'Brokerage', amount: 1000 }];
+    const create = (headers: { Authorization: string }, body: Record<string, unknown>) =>
+      http
+        .post('/api/broker/invoices')
+        .set(headers)
+        .send({ items, ...body });
+    const invalidSequence = (await prisma.organization.findUniqueOrThrow({ where: { id: broker.orgId } })).invoiceSeq;
+    await create(auth(broker.token), { leadId: foreignLead.id }).expect(400);
+    await create(agent.headers, { leadId: peerLead.id }).expect(400);
+    await create(peer.headers, { dealId: deal.id }).expect(400);
+    await create(auth(broker.token), { dealId: deal.id, leadId: peerLead.id }).expect(400);
+    expect((await prisma.organization.findUniqueOrThrow({ where: { id: broker.orgId } })).invoiceSeq).toBe(invalidSequence);
+
+    const [invoice, separate] = await Promise.all([
+      create(agent.headers, { dealId: deal.id }).expect(201),
+      create(auth(broker.token), { clientName: 'Another client' }).expect(201),
+    ]);
+    expect(invoice.body.leadId).toBe(lead.id);
+    expect(invoice.body.clientName).toBe(lead.name);
+    expect(invoice.body.number).not.toBe(separate.body.number);
+    const path = '/api/broker/invoices/' + invoice.body.id;
+    const list = await http.get('/api/broker/invoices?status=SENT').set(agent.headers).expect(200);
+    expect(list.body.map((row: { id: string }) => row.id)).toEqual([invoice.body.id]);
+    await http.get('/api/broker/invoices?status=unknown').set(agent.headers).expect(400);
+    await http.get(path).set(peer.headers).expect(404);
+    await http.patch(path).set(peer.headers).send({ status: 'PAID' }).expect(404);
+    await http
+      .post(path + '/send')
+      .set(peer.headers)
+      .expect(404);
+    await http.get(path).set(auth(referred.token)).expect(404);
+    await http.get(path).set(auth(broker.token)).expect(200);
+
+    const payment = () => http.patch(path).set(agent.headers).send({ status: 'PAID' }).expect(200);
+    const results = await Promise.all([payment(), payment()]);
+    expect(results[0].body.paidAt).toBe(results[1].body.paidAt);
+    expect((await prisma.deal.findUniqueOrThrow({ where: { id: deal.id } })).commissionReceived).toBe(1000);
+    await http.patch(path).set(auth(broker.token)).send({ status: 'SENT' }).expect(409);
+    await prisma.lead.update({ where: { id: lead.id }, data: { assignedToId: peer.id } });
+    await http.get(path).set(agent.headers).expect(404);
+    await http.get(path).set(peer.headers).expect(404);
+    await http.get(path).set(auth(broker.token)).expect(200);
+  });
+
   it('Exotel click-to-call, status callback and incoming-call leads', async () => {
     const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9876543299' } } });
     const r0 = await http
