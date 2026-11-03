@@ -1,0 +1,36 @@
+{
+  "kind": "CRM_LOAD",
+  "environment": "ISOLATED_LOCAL_NEST_POSTGRESQL",
+  "concurrentSessions": 20,
+  "rounds": 5,
+  "elapsedSeconds": 0.6795102909999998,
+  "summary": {
+    "list": {
+      "requests": 200,
+      "p50Ms": 34.27012500000001,
+      "p95Ms": 48.10874999999987,
+      "maxMs": 55.41320900000005
+    },
+    "detail": {
+      "requests": 100,
+      "p50Ms": 22.710959000000003,
+      "p95Ms": 30.364416999999776,
+      "maxMs": 39.362292000000025
+    },
+    "mutation": {
+      "requests": 100,
+      "p50Ms": 31.782124999999724,
+      "p95Ms": 37.88420800000017,
+      "maxMs": 40.98091599999998
+    },
+    "refresh": {
+      "requests": 20,
+      "p50Ms": 46.86629199999993,
+      "p95Ms": 60.29841699999997,
+      "maxMs": 62.04870800000003
+    }
+  },
+  "stagingAcceptance": false,
+  "providerOrDeviceAcceptance": false,
+  "applicationSourcePin": "127f9b51d22f4f9e4cd9f194662987453ab1547c"
+}
