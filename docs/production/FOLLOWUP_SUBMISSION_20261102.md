@@ -17,3 +17,9 @@ FollowUpType now includes SMS via additive enum migration20261102133000; web Lea
 
 
 Release inclusion checkpoint: the above source is included in pinned Build46/e0442ad and its exact public bytes are verified. This supersedes historical not-yet-deployed wording only; unresolved provider/semantic/visual/device/flow gates remain open. See STAGING_ACCEPTANCE_20261102.md.
+
+## Native retry after restart
+
+Native Lead forms now store the validated submission and its mutation ID in the encrypted account/firm/role SQLite queue before sending. Saved Drafts shows failed or queued tasks. A corrected submission can start after setting a failed original aside. An interrupted send reuses its original payload and ID. The client schedules a local reminder only after server confirmation in the active account scope.
+
+Validation covered an interrupted send and replay, scope isolation, immutable failure recovery and the active-slot constraint using SQLite. All 106 native tests and the native typecheck passed. Scoped lint reported zero errors. This change is after the Build 52 pin and awaits a signed release and installed-device acceptance.

@@ -1,12 +1,14 @@
-import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport, prepareInventoryEditorInput, captureContentType } from '@brokeriq/shared';
+import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport, prepareInventoryEditorInput, captureContentType, followUpInputSchema, visitInputSchema } from '@brokeriq/shared';
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
+import { scheduleReminder } from '@/lib/local-reminders';
 import { File, Directory, Paths } from 'expo-file-system';
 import { api, ApiError, authStore, captureAccountContext, assertAccountContext, AccountScopeChangedError, type AccountContext } from '@/lib/api';
 
+export type TaskDraftKind = 'FOLLOW_UP_CREATE' | 'SITE_VISIT_CREATE';
 export type DraftKind =
-  'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'REQUIREMENT_EDIT' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH';
+  'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'REQUIREMENT_EDIT' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH' | TaskDraftKind;
 export type DraftState = 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
 export interface LocalDraft {
   id: string;
@@ -140,7 +142,14 @@ export async function queueDraft(id: string, owner = contextNow()) {
   const database = await db();
   assertAccountContext(owner);
   const result = await database.runAsync(
-    "UPDATE local_mutations SET state='QUEUED',error=NULL,next_at=0,updated_at=? WHERE id=? AND owner_id=? AND owner_scope=? AND state IN ('DRAFT','FAILED')",
+    `UPDATE local_mutations SET state='QUEUED',error=NULL,next_at=0,updated_at=?
+     WHERE id=? AND owner_id=? AND owner_scope=? AND state IN ('DRAFT','FAILED')
+     AND (kind NOT IN ('FOLLOW_UP_CREATE','SITE_VISIT_CREATE') OR NOT EXISTS (
+       SELECT 1 FROM local_mutations active WHERE active.id <> local_mutations.id
+       AND active.owner_id=local_mutations.owner_id AND active.owner_scope=local_mutations.owner_scope
+       AND active.kind=local_mutations.kind AND active.draft_key=local_mutations.draft_key
+       AND active.state IN ('QUEUED','SYNCING','FAILED')
+     ))`,
     Date.now(),
     id,
     draftOwnerId(owner),
@@ -149,12 +158,25 @@ export async function queueDraft(id: string, owner = contextNow()) {
   assertAccountContext(owner);
   if (!result.changes) throw new Error('Draft could not be queued in this workspace. Its original is preserved.');
 }
+export async function holdFailedTask(id: string, owner = contextNow()) {
+  assertAccountContext(owner);
+  const database = await db();
+  assertAccountContext(owner);
+  const result = await database.runAsync(
+    `UPDATE local_mutations SET state='DRAFT',updated_at=?
+     WHERE id=? AND owner_id=? AND owner_scope=? AND state='FAILED' AND kind IN ('FOLLOW_UP_CREATE','SITE_VISIT_CREATE')`,
+    Date.now(), id, draftOwnerId(owner), owner.scope,
+  );
+  assertAccountContext(owner);
+  if (!result.changes) throw new Error('Task could not be set aside. Refresh Saved drafts.');
+}
+
 export async function localDrafts(before?: { updated_at: number; id: string }) {
   const owner = contextNow();
   const database = await db();
   assertAccountContext(owner);
-  const rows = await database.getAllAsync<Pick<LocalDraft, 'id' | 'kind' | 'state' | 'server_id' | 'error' | 'updated_at'>>(
-    `SELECT id,kind,state,server_id,error,updated_at FROM local_mutations WHERE owner_id=? AND owner_scope=?
+  const rows = await database.getAllAsync<Pick<LocalDraft, 'id' | 'kind' | 'draft_key' | 'state' | 'server_id' | 'error' | 'updated_at'>>(
+    `SELECT id,kind,draft_key,state,server_id,error,updated_at FROM local_mutations WHERE owner_id=? AND owner_scope=?
      ${before ? 'AND (updated_at < ? OR (updated_at = ? AND id < ?))' : ''} ORDER BY updated_at DESC,id DESC LIMIT 50`,
     draftOwnerId(owner),
     owner.scope,
@@ -243,12 +265,54 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
   await queueDraft(saved, owner);
   return saved;
 }
+/** Save a submitted task and its idempotency key together before the first request. */
+export async function submitTask(kind: TaskDraftKind, input: unknown, owner = contextNow()) {
+  assertAccountContext(owner);
+  if (!owner.userId) throw new Error('Sign in before scheduling a task.');
+  const schema = kind === 'FOLLOW_UP_CREATE' ? followUpInputSchema : visitInputSchema;
+  const { clientMutationId: _providedId, ...body } = schema.parse(input);
+  const payload = JSON.stringify(body);
+  const id = Crypto.randomUUID();
+  const database = await db();
+  assertAccountContext(owner);
+
+  // This single SQLite statement serializes duplicate taps against the active task slot.
+  const inserted = await database.runAsync(
+    `INSERT INTO local_mutations(id,owner_id,owner_scope,kind,draft_key,payload,state,updated_at)
+     SELECT ?,?,?,?,?,?,'QUEUED',?
+     WHERE NOT EXISTS (
+       SELECT 1 FROM local_mutations WHERE owner_id=? AND owner_scope=? AND kind=? AND draft_key=?
+       AND state IN ('QUEUED','SYNCING','FAILED')
+     )`,
+    id, owner.userId, owner.scope, kind, body.leadId, payload, Date.now(),
+    owner.userId, owner.scope, kind, body.leadId,
+  );
+  assertAccountContext(owner);
+  let savedId = id;
+  if (!inserted.changes) {
+    const existing = await database.getFirstAsync<LocalDraft>(
+      "SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND kind=? AND draft_key=? AND state IN ('QUEUED','SYNCING','FAILED') LIMIT 1",
+      owner.userId, owner.scope, kind, body.leadId,
+    );
+    assertAccountContext(owner);
+    if (!existing || existing.payload !== payload || existing.state === 'FAILED') {
+      throw new Error('A previous task submission is saved on this device. Check Saved drafts before scheduling again.');
+    }
+    savedId = existing.id;
+  }
+  await syncDrafts();
+  const saved = await getLocalDraft(savedId, owner);
+  if (!saved) throw new Error('Saved task could not be read. Check Saved drafts before retrying.');
+  return saved;
+}
+
 const syncing = new Set<string>();
 export async function syncDrafts() {
   const session = authStore.get();
   const owner = contextNow();
   if (!session || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(session.user.role) || syncing.has(owner.scope)) return;
   syncing.add(owner.scope);
+  const completedTaskLeads = new Set<string>();
   try {
     const database = await db();
     assertAccountContext(owner);
@@ -306,6 +370,9 @@ export async function syncDrafts() {
                 handle.close();
               }
             }
+          } else if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') {
+            path = row.kind === 'FOLLOW_UP_CREATE' ? '/follow-ups' : '/visits';
+            body = { ...body, clientMutationId: row.id };
           } else if (row.kind === 'PROPERTY_CREATE') {
             path = '/inventory';
             body = { ...prepareInventoryEditorInput(body), clientMutationId: row.id };
@@ -343,6 +410,14 @@ export async function syncDrafts() {
             session.user.id,
             owner.scope,
           );
+          if (captureAccountContext().epoch !== owner.epoch) return;
+          if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') completedTaskLeads.add(row.draft_key);
+          if (row.kind === 'FOLLOW_UP_CREATE' && result.status === 'PENDING') {
+            await scheduleReminder({ id: result.id, kind: 'FOLLOW_UP', leadId: result.leadId, at: result.dueAt }, 15).catch(() => undefined);
+          }
+          if (row.kind === 'SITE_VISIT_CREATE' && ['SCHEDULED', 'CONFIRMED'].includes(result.status)) {
+            await scheduleReminder({ id: result.id, kind: 'VISIT', leadId: result.leadId, at: result.scheduledAt }, 30).catch(() => undefined);
+          }
         } catch (error) {
           const scopeChanged = error instanceof AccountScopeChangedError;
           const retry = scopeChanged || (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500));
@@ -368,6 +443,7 @@ export async function syncDrafts() {
   } finally {
     syncing.delete(owner.scope);
   }
+  return [...completedTaskLeads];
 }
 
 export async function getLocalDraft(id: string, owner = contextNow()) {

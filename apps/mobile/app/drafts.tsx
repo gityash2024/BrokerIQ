@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { localDrafts, getLocalDraft, queueDraft, decodeDraft, syncDrafts, preservedDraftCounts, claimGuestCaptures } from '@/launch/drafts';
+import { localDrafts, getLocalDraft, queueDraft, decodeDraft, syncDrafts, preservedDraftCounts, claimGuestCaptures, holdFailedTask } from '@/launch/drafts';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { Button, Txt, ErrorView } from '@/ui';
 import { errorMessage } from '@/lib/api';
@@ -116,6 +116,8 @@ export default function Drafts() {
                         ? `/property/${item.server_id}`
                         : item.kind === 'IMPORT_REVIEW'
                           ? '/inbox'
+                          : item.kind === 'FOLLOW_UP_CREATE' || item.kind === 'SITE_VISIT_CREATE'
+                            ? `/lead/${item.draft_key}`
                           : item.kind.startsWith('PROPERTY')
                             ? `/inventory/${item.server_id}`
                             : ('/requirements' as any),
@@ -123,8 +125,19 @@ export default function Drafts() {
                 }
               />
             )}
-            {item.state === 'FAILED' && <Button title="Retry" size="sm" onPress={() => retry(item.id)} />}
-            {['DRAFT', 'FAILED'].includes(item.state) && <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />}
+            {(item.state === 'FAILED' || (item.state === 'DRAFT' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind))) &&
+              <Button title="Retry" size="sm" onPress={() => retry(item.id)} />}
+            {item.state === 'FAILED' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && (
+              <Button title="Set aside and keep draft" variant="secondary" size="sm" onPress={async () => {
+                try {
+                  await holdFailedTask(item.id);
+                  await list.refetch();
+                } catch (failure) {
+                  setError(errorMessage(failure));
+                }
+              }} />
+            )}
+            {['DRAFT', 'FAILED'].includes(item.state) && !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />}
           </NativeCard>
         )}
       />

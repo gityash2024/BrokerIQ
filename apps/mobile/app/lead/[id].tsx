@@ -1,6 +1,6 @@
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
-import * as Crypto from 'expo-crypto';
+import { submitTask } from '@/launch/drafts';
 import { VisitPropertyPicker } from '@/components/visit-property-picker';
 import { visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { useEffect, useRef, useState } from 'react';
@@ -28,7 +28,7 @@ import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, ti
 import { api, del, patch, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
-import { scheduleReminder, reconcileLocalReminders } from '@/lib/push';
+import { reconcileLocalReminders } from '@/lib/push';
 import { timePresets } from '@/lib/time';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
@@ -344,19 +344,15 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   const [note, setNote] = useState('');
   const [at, setAt] = useState<Date | null>(null);
   const presets = timePresets();
-  const submission = useRef({ fingerprint: '', id: '' });
   const save = useApiMutation(
     () => {
       const payload = { leadId: lead.id, type, dueAt: at!.toISOString(), note: note || null };
-      const fingerprint = JSON.stringify(payload);
-      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: Crypto.randomUUID() };
-      return post('/follow-ups', { ...payload, clientMutationId: submission.current.id });
+      return submitTask('FOLLOW_UP_CREATE', payload);
     },
     {
-      success: 'Follow-up scheduled ⏰',
       onSuccess: (saved) => {
-        if (saved.status === 'PENDING') scheduleReminder({ id: saved.id, kind: 'FOLLOW_UP', leadId: saved.leadId, at: saved.dueAt }, 15).catch(() => undefined);
-        submission.current = { fingerprint: '', id: '' };
+        if (saved.state === 'FAILED') toast.error(saved.error ?? 'Task needs attention. Open Saved drafts.');
+        else toast.success(saved.state === 'SYNCED' ? 'Follow-up scheduled' : 'Follow-up saved on this device. It will sync when connected.');
         setNote('');
         setAt(null);
         onClose();
@@ -396,23 +392,18 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
   const [at, setAt] = useState<Date | null>(null);
   const [isCustomDate, setIsCustomDate] = useState(false);
   const [property, setProperty] = useState<LedgerItem | null>(null);
-  const submission = useRef({ fingerprint: '', id: Crypto.randomUUID() });
   const [address, setAddress] = useState('');
 
   const save = useApiMutation(
     () => {
       if (!at) throw new Error('Enter a valid date and time');
       const payload = { leadId: lead.id, inventoryId: property?.id ?? null, scheduledAt: at.toISOString(), address: address || null };
-      const fingerprint = JSON.stringify(payload);
-      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: Crypto.randomUUID() };
-      return post('/visits', { ...payload, clientMutationId: submission.current.id });
+      return submitTask('SITE_VISIT_CREATE', payload);
     },
     {
-      success: 'Site visit scheduled 🗓',
       onSuccess: (saved) => {
-        if (['SCHEDULED', 'CONFIRMED'].includes(saved.status))
-          scheduleReminder({ id: saved.id, kind: 'VISIT', leadId: saved.leadId, at: saved.scheduledAt }, 30).catch(() => undefined);
-        submission.current = { fingerprint: '', id: Crypto.randomUUID() };
+        if (saved.state === 'FAILED') toast.error(saved.error ?? 'Task needs attention. Open Saved drafts.');
+        else toast.success(saved.state === 'SYNCED' ? 'Site visit scheduled' : 'Site visit saved on this device. It will sync when connected.');
         setProperty(null);
         setAddress('');
         setAt(null);

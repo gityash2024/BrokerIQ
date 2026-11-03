@@ -13,8 +13,12 @@ export function DraftPump() {
     let active = true;
     const pump = async () => {
       try {
-        await syncDrafts();
-        if (active) await Promise.all(['local-drafts', 'ledger', 'imports'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+        const completed = await syncDrafts();
+        if (active) {
+          const keys = ['local-drafts', 'ledger', 'imports'].map((key) => [key]);
+          if (completed?.length) keys.push(['follow-ups'], ['visits'], ['broker-dashboard'], ...completed.map((id) => ['lead', id]));
+          await Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
+        }
       } catch (e) {
         if (active && lastError.current !== (e as Error).message) {
           lastError.current = (e as Error).message;

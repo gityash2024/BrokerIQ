@@ -34,6 +34,8 @@ jest.mock('expo-crypto', () => ({
   randomUUID: () => process.getBuiltinModule('node:crypto').randomUUID(),
   getRandomBytesAsync: async () => new Uint8Array(32).fill(1),
 }));
+jest.mock('@/lib/local-reminders', () => ({ scheduleReminder: jest.fn(async () => undefined) }));
+import { scheduleReminder } from '@/lib/local-reminders';
 import { authStore, captureAccountContext, AccountScopeChangedError } from '@/lib/api';
 import {
   privateDraftDatabase,
@@ -47,6 +49,8 @@ import {
   preservedDraftCounts,
   claimGuestCaptures,
   captureText,
+  submitTask,
+  holdFailedTask,
 } from '../drafts';
 const login = (id = 'scoped-owner', firm = 'firm-a', role = 'BROKER_ADMIN') =>
   authStore.set({ accessToken: 'test', refreshToken: 'test', user: { id, role, organization: { id: firm } } } as any);
@@ -211,4 +215,55 @@ it('does not silently replace a legacy editor with a blank form; separate work r
     owner_scope: null,
     state: 'DRAFT',
   });
+});
+
+it('retains the original task identity and payload after a lost response and replays it from SQLite', async () => {
+  await login('task-retry-owner');
+  jest.mocked(scheduleReminder).mockClear();
+  const body = { leadId: 'lead-retry', type: 'SMS', dueAt: '2026-11-06T09:00:00.000Z', note: 'Call after lunch' };
+  const request = jest.spyOn(globalThis, 'fetch')
+    .mockRejectedValueOnce(new Error('Network disconnected after write'))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'task-saved', leadId: body.leadId, status: 'PENDING', dueAt: body.dueAt })));
+  try {
+    const saved = await submitTask('FOLLOW_UP_CREATE', body);
+    expect(saved.state).toBe('QUEUED');
+    expect(decodeDraft(saved)).toEqual(body);
+    expect(scheduleReminder).not.toHaveBeenCalled();
+    await expect(submitTask('FOLLOW_UP_CREATE', { ...body, note: 'Changed after submit' })).rejects.toThrow('previous task submission');
+    await login('task-retry-owner', 'another-firm');
+    await syncDrafts();
+    expect(request).toHaveBeenCalledTimes(1);
+    await login('task-retry-owner');
+    const db = await privateDraftDatabase();
+    await db.runAsync('UPDATE local_mutations SET next_at=0 WHERE id=?', saved.id);
+    await expect(syncDrafts()).resolves.toEqual([body.leadId]);
+    expect((await getLocalDraft(saved.id))?.server_id).toBe('task-saved');
+    const requests = request.mock.calls.map(([url, opts]) => ({ url, body: JSON.parse(String(opts?.body)) }));
+    expect(requests[0]).toEqual(requests[1]);
+    expect(requests[1].body.clientMutationId).toBe(saved.id);
+    expect(scheduleReminder).toHaveBeenCalledWith({ id: 'task-saved', kind: 'FOLLOW_UP', leadId: body.leadId, at: body.dueAt }, 15);
+  } finally {
+    request.mockRestore();
+  }
+});
+
+it('keeps failed visit evidence when set aside and refuses to retry into an occupied task slot', async () => {
+  await login('task-hold-owner');
+  const body = { leadId: 'lead-hold', scheduledAt: '2026-11-06T09:00:00.000Z', inventoryId: 'selected-property', address: 'Original address' };
+  const request = jest.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Property was archived' }), { status: 400 }))
+    .mockRejectedValueOnce(new Error('Offline'));
+  try {
+    const failed = await submitTask('SITE_VISIT_CREATE', body);
+    expect(failed.state).toBe('FAILED');
+    await holdFailedTask(failed.id);
+    const corrected = await submitTask('SITE_VISIT_CREATE', { ...body, inventoryId: null, address: 'New address' });
+    expect(corrected.state).toBe('QUEUED');
+    await expect(queueDraft(failed.id)).rejects.toThrow('could not be queued');
+    expect(decodeDraft((await getLocalDraft(failed.id))!)).toMatchObject(body);
+    expect((await getLocalDraft(failed.id))?.state).toBe('DRAFT');
+    expect(corrected.id).not.toBe(failed.id);
+  } finally {
+    request.mockRestore();
+  }
 });
