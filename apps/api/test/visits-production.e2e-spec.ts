@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { visitInputSchema } from '@brokeriq/shared';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -107,6 +109,16 @@ describe('Production visit association, permissions and retry safety (PostgreSQL
       .set(h())
       .send({ ...payload, inventoryId: own })
       .expect(409);
+    const retry = () => req().post('/api/visits');
+    await retry().set(h(admin)).send(payload).expect(409);
+    const existing = await db.siteVisit.findUniqueOrThrow({ where: { id: visitId } });
+    expect(existing.requestHash).toBe(
+      createHash('sha256')
+        .update(JSON.stringify(visitInputSchema.parse(payload)))
+        .digest('hex'),
+    );
+    expect((await retry().set(h()).send(payload).expect(201)).body.id).toBe(visitId);
+    expect(await db.activity.count({ where: { leadId: lead, type: 'SITE_VISIT' } })).toBe(1);
     await db.inventoryItem.update({ where: { id: otherUnit }, data: { monthlyRent: 25000, floor: 'Edited floor' } });
     const history = (await req().get('/api/visits?paginated=true&pageSize=1').set(h()).expect(200)).body;
     expect(history.total).toBe(1);

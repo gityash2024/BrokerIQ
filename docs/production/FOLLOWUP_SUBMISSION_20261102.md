@@ -29,3 +29,7 @@ Validation covered an interrupted send and replay, scope isolation, immutable fa
 The two Lead task forms, Follow-ups dialog and Visits dialog now persist the shared-schema payload in encrypted IndexedDB before submission. Select the same lead and choose **Retry saved** to resend the original payload and ID. Account, firm and role are checked during storage and the HTTP request. Concurrent claims share the active draft and an earlier acknowledgement cannot delete a newer draft. A validation rejection releases the slot after retaining the rejected payload in encrypted storage. The original input remains visible in the current form for correction.
 
 Validation: 22 storage/HTTP contract tests and web typecheck passed. Scoped lint reported zero errors. Browser UI and staging verification for this change remain open.
+
+## Visit retry ownership
+
+The visit API now verifies the original actor through the creation activity committed with the visit. A second actor in the same firm cannot claim another person's submission ID. The request hash and schema are unchanged so existing records still replay for their original actor. The real PostgreSQL visit suite passed all five cases, including same-firm cross-actor rejection and an exact retry with one creation activity. Staging remains on the previous release.

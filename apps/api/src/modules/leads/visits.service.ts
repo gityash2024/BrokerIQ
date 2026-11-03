@@ -81,6 +81,18 @@ export class VisitsService {
         if (previous) {
           if (previous.leadId !== lead.id || previous.requestHash !== requestHash)
             throw new ConflictException('This submission ID was already used for a different visit');
+          // The creation activity is committed with the visit and identifies the original actor on old and new records.
+          const originalActor = await tx.activity.findFirst({
+            where: {
+              organizationId: lead.organizationId,
+              leadId: lead.id,
+              userId: user.id,
+              type: 'SITE_VISIT',
+              meta: { equals: { visitId: previous.id } },
+            },
+            select: { id: true },
+          });
+          if (!originalActor) throw new ConflictException('This submission ID was already used for a different visit');
           return { visit: previous, created: false, from: lead.stage };
         }
       }
