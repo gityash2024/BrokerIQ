@@ -18,7 +18,8 @@ export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 # A separate Kotlin daemon inherits Gradle's heap and can nearly double peak RAM.
-# Keep compilation in the bounded Gradle JVM and native compilation serial by default.
+# Keep Kotlin in the bounded Gradle JVM and default to one Gradle worker.
+# AGP can still supply its own Ninja parallelism; Linux builds also need a memory-limited unit.
 ANDROID_WORKERS="${BROKERIQ_ANDROID_WORKERS:-1}"
 [[ "$ANDROID_WORKERS" =~ ^[12]$ ]] || { echo 'Android workers must be 1 or 2' >&2; exit 1; }
 export CI=1 CMAKE_BUILD_PARALLEL_LEVEL="$ANDROID_WORKERS"
