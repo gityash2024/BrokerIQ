@@ -86,7 +86,9 @@ import { AuthService } from '../src/modules/auth/auth.service';
       await round(elapsed >= nextWrite, elapsed >= nextRefresh);
       if (elapsed >= nextWrite) nextWrite = elapsed + 60_000;
       if (elapsed >= nextRefresh) nextRefresh = elapsed + 600_000;
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      // Preserve the real per-IP rate limit: all twenty test sessions share loopback.
+      // Ten-second polling also leaves headroom for the initial five-journey burst.
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
     }
     report('CRM_TWO_HOUR_SOAK', (performance.now() - started) / 1000);
   }, 7320_000);
