@@ -852,11 +852,19 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source review records the exact implementation and isolated regression locations; it does not infer end-to-end browser/device/provider completion. Current role and firm scope remain enforced by the API. Lead validated queries, complete bounded export and atomic stage closure were added after Build52 and are included in the pinned Build53 candidate, which is not published yet."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/leads/leads.controller.ts",
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/web/src/components/broker/add-lead.tsx",
+        "apps/mobile/app/add-lead.tsx",
+        "apps/api/test/production-permissions.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -875,11 +883,18 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source review records the exact implementation and isolated regression locations; it does not infer end-to-end browser/device/provider completion. Current role and firm scope remain enforced by the API. Lead validated queries, complete bounded export and atomic stage closure were added after Build52 and are included in the pinned Build53 candidate, which is not published yet."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/web/src/components/broker/add-lead.tsx",
+        "apps/mobile/app/add-lead.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -898,11 +913,18 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source review records the exact implementation and isolated regression locations; it does not infer end-to-end browser/device/provider completion. Current role and firm scope remain enforced by the API. Lead validated queries, complete bounded export and atomic stage closure were added after Build52 and are included in the pinned Build53 candidate, which is not published yet."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/test/lead-export.e2e-spec.ts",
+        "apps/web/src/app/broker/pipeline/page.tsx",
+        "apps/mobile/app/pipeline.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -950,12 +972,19 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Nov4 source checkpoint validates list/pipeline/export filters, uses stable page tie-breaking and IST due-day boundaries. CSV uses the shared spreadsheet cell guard and one scoped query instead of a silent 5,000-row truncation. Up to20,000 matching rows export; a larger result fails with a request to narrow filters. Source is after Build52."
+        "Nov4 source checkpoint validates list/pipeline/export filters, uses stable page tie-breaking and IST due-day boundaries. CSV uses the shared spreadsheet cell guard and one scoped query instead of a silent 5,000-row truncation. Up to20,000 matching rows export; a larger result fails with a request to narrow filters. Source is after Build52.",
+        "4 November source review records the exact implementation and isolated regression locations; it does not infer end-to-end browser/device/provider completion. Current role and firm scope remain enforced by the API. Lead validated queries, complete bounded export and atomic stage closure were added after Build52 and are included in the pinned Build53 candidate, which is not published yet."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/leads/lead-query.ts",
+        "apps/api/src/modules/leads/leads.service.ts",
+        "apps/api/test/lead-export.e2e-spec.ts",
+        "apps/web/src/app/broker/leads/page.tsx",
+        "apps/mobile/app/(broker)/leads.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2139,11 +2168,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source review confirms per-token deduplication and per-recipient notification IDs. Expo API acceptance and actual handset delivery/navigation remain distinct pending gates; no live push was sent during this review."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/core/notifications/notifications.service.ts",
+        "apps/api/test/notifications-production.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

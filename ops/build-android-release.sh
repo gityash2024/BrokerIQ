@@ -17,7 +17,11 @@ export EXPO_PUBLIC_API_URL=https://brokeriqapi.mymultimeds.com/api
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-export CI=1 CMAKE_BUILD_PARALLEL_LEVEL=2
+# A separate Kotlin daemon inherits Gradle's heap and can nearly double peak RAM.
+# Keep compilation in the bounded Gradle JVM and native compilation serial by default.
+ANDROID_WORKERS="${BROKERIQ_ANDROID_WORKERS:-1}"
+[[ "$ANDROID_WORKERS" =~ ^[12]$ ]] || { echo 'Android workers must be 1 or 2' >&2; exit 1; }
+export CI=1 CMAKE_BUILD_PARALLEL_LEVEL="$ANDROID_WORKERS"
 pnpm --filter @brokeriq/shared build
 cd apps/mobile
 pnpm exec expo prebuild --clean --platform android --no-install
@@ -29,7 +33,7 @@ const props=fs.readFileSync('android/gradle.properties','utf8');
 if(!main.includes('FLAG_SECURE')||!gradle.includes('refusing a debug-signed release')||!props.includes('expo.sqlite.useSQLCipher=true')) throw Error('Native protection/signing/SQLCipher configuration missing');
 NODE
 cd android
-./gradlew :app:assembleRelease --console=plain --max-workers=2 --no-parallel -Dorg.gradle.jvmargs='-Xmx1536m -XX:MaxMetaspaceSize=384m' -DCMAKE_BUILD_PARALLEL_LEVEL=2
+./gradlew :app:assembleRelease -Pkotlin.compiler.execution.strategy=in-process --console=plain --max-workers="$ANDROID_WORKERS" --no-parallel -Dorg.gradle.jvmargs='-Xmx1536m -XX:MaxMetaspaceSize=640m' -DCMAKE_BUILD_PARALLEL_LEVEL="$ANDROID_WORKERS"
 cd "$TASK_ROOT"
 test "$(git rev-parse HEAD)" = "$BROKERIQ_RELEASE_COMMIT" && git diff --quiet && git diff --cached --quiet || { echo 'Pinned source changed during Android build' >&2; exit 1; }
 node - <<'NODE'
