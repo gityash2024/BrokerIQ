@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { captureEntryTitle, type CapturedEntity } from '@brokeriq/shared';
+import { captureEntryTitle, capturePreviewFacts, type CapturedEntity } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { PropertyForm } from '@/components/broker/launch/property-form';
@@ -12,6 +12,8 @@ import { PrivateSource } from '@/components/broker/launch/private-source';
 import { toast } from 'sonner';
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [openingPreview, setOpeningPreview] = useState(false);
   const [page, setPage] = useState(1);
   const [sourcePage, setSourcePage] = useState('');
   const [pendingOnly, setPendingOnly] = useState(true);
@@ -24,6 +26,18 @@ export default function ReviewPage() {
   useEffect(() => {
     if (query.data && page > Math.max(1, query.data.totalPages)) setPage(Math.max(1, query.data.totalPages));
   }, [query.data, page]);
+  const previewOfImportId = query.data?.previewOfImportId as string | undefined;
+  async function openPreview() {
+    setOpeningPreview(true);
+    try {
+      const preview = await api<{ id: string }>(`/imports/${id}/preview`, { body: {} });
+      router.push(`/broker/imports/${preview.id}`);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setOpeningPreview(false);
+    }
+  }
   async function approve(entry: any, entities: CapturedEntity[], ignore = false, version?: string) {
     await api(`/imports/entries/${entry.id}/approve`, { body: { entities, ignore, expectedUpdatedAt: version ?? entry.updatedAt } });
     await Promise.all(['import', 'ledger', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
@@ -33,13 +47,23 @@ export default function ReviewPage() {
     <>
       <PageHeader
         title={query.data?.fileName || 'Source review'}
-        subtitle={query.data ? `${query.data.total} entries · ${query.data.pending} need review` : 'Loading source…'}
+        subtitle={query.data ? `${query.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${query.data.pending} need review`}` : 'Loading source…'}
         actions={
           <Link href="/broker/imports" className="text-sm text-brand-600">
             All captures
           </Link>
         }
       />
+      {previewOfImportId && (
+        <p className="mb-4 rounded-xl bg-surface-2 p-3 text-sm">
+          Review what the latest extraction found. To update business records, open the <Link className="font-semibold text-brand-600" href={`/broker/imports/${previewOfImportId}`}>original import</Link>.
+        </p>
+      )}
+      {query.data?.canPreview && (
+        <button type="button" disabled={openingPreview} onClick={openPreview} className="mb-4 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-brand-600">
+          {openingPreview ? 'Opening preview…' : 'Preview latest extraction'}
+        </button>
+      )}
       {query.data?.metadata?.requestedTarget && (
         <p className="mb-4 rounded-xl bg-brand-500/10 p-3 text-sm">
           Requested review destination:{' '}
@@ -47,7 +71,7 @@ export default function ReviewPage() {
           Confirm each extracted entry before approval.
         </p>
       )}
-      <div className="mb-5 flex gap-2" role="group" aria-label="Review status">
+      {!previewOfImportId && <div className="mb-5 flex gap-2" role="group" aria-label="Review status">
         {[true, false].map((pending) => (
           <button
             key={String(pending)}
@@ -61,7 +85,7 @@ export default function ReviewPage() {
             {pending ? 'Pending only' : 'All entries'}
           </button>
         ))}
-      </div>
+      </div>}
       {query.data?.metadata?.pages?.length > 0 && (
         <label className="mb-5 block text-sm">
           Register page
@@ -205,6 +229,13 @@ function Entry({
                     {warning}
                   </p>
                 ))}
+                {entry.reviewState === 'PREVIEW' && (
+                  <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 text-sm">
+                    {capturePreviewFacts(entity).map(({ label, value }) => (
+                      <div key={label} className="min-w-0"><dt className="text-muted">{label}</dt><dd className="break-words">{value}</dd></div>
+                    ))}
+                  </dl>
+                )}
                 {!done &&
                   (entity.kind === 'INVENTORY' ? (
                     <PropertyForm

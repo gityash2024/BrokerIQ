@@ -50,6 +50,10 @@ export class ImportsController {
   @Post() capture(@Body(new ZodPipe(captureInputSchema)) input: z.infer<typeof captureInputSchema>, @CurrentUser() user: RequestUser) {
     return this.imports.capture(input, user);
   }
+  @Post(':id/preview')
+  createPreview(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.imports.createPreview(id, user);
+  }
   @Post(':id/retry') retry(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.imports.retry(id, user);
   }

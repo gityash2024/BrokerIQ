@@ -507,6 +507,38 @@ describe('Production agent/firm record boundaries', () => {
       await app.get(ImportsService).extract(id);
       expect(await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } })).toEqual(approved);
 
+      const previewUrl = '/api/imports/' + id + '/preview';
+      const previewStart = () => request(app.getHttpServer()).post(previewUrl).set(headers(a)).expect(201);
+      await request(app.getHttpServer()).post(previewUrl).set(headers(b)).expect(404);
+      await request(app.getHttpServer()).post(previewUrl).set(headers(outsider)).expect(404);
+      const attempts = await Promise.all(Array.from({ length: 4 }, previewStart));
+      const previewId = attempts[0].body.id as string;
+      expect(previewId).not.toBe(id);
+      expect(attempts.every((attempt) => attempt.body.id === previewId)).toBe(true);
+      expect(await db.job.count({ where: { key: 'import:' + previewId } })).toBe(1);
+      await app.get(ImportsService).extract(previewId);
+      const preview = await request(app.getHttpServer())
+        .get('/api/imports/' + previewId + '?reviewState=NEEDS_REVIEW').set(headers(a)).expect(200);
+      expect(preview.body).toMatchObject({ previewOfImportId: id, status: 'COMPLETE', pending: 0, canPreview: false });
+      const previewEntry = preview.body.entries.find((item: { rawText: string }) => item.rawText === caption);
+      expect(previewEntry).toMatchObject({ reviewState: 'PREVIEW', messageIdentity: null, duplicateOfId: null });
+      expect(previewEntry.extracted).toEqual(entry.extracted);
+      const previewAttachment = `/api/imports/${previewId}/entries/${previewEntry.id}/attachments/${photo.index}`;
+      const previewFile = await request(app.getHttpServer()).get(previewAttachment).set(headers(admin)).expect(200);
+      expect(previewFile.body.equals(original)).toBe(true);
+      await request(app.getHttpServer()).get(previewAttachment).set(headers(b)).expect(404);
+      const requirementsBefore = await db.brokerRequirement.count();
+      await request(app.getHttpServer()).patch('/api/imports/entries/' + previewEntry.id)
+        .set(headers(a)).send({ entities: [] }).expect(403);
+      await request(app.getHttpServer()).post('/api/imports/entries/' + previewEntry.id + '/approve')
+        .set(headers(admin)).send({ entities: previewEntry.extracted }).expect(403);
+      await request(app.getHttpServer()).post('/api/imports/entries/' + previewEntry.id + '/approve')
+        .set(headers(a)).send({ entities: [], ignore: true }).expect(403);
+      await request(app.getHttpServer()).post('/api/imports/' + previewId + '/preview').set(headers(a)).expect(400);
+      expect(await db.brokerRequirement.count()).toBe(requirementsBefore);
+      expect(await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } })).toEqual(approved);
+
+
       const repeated = await capture(source(original, { 'irrelevant.txt': strToU8('another chat export segment') }));
       const distinct = await capture(source(other));
       const first = await db.sourceEntry.findFirstOrThrow({ where: { batchId: repeated, rawText: caption } });

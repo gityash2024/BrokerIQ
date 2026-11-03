@@ -51,6 +51,18 @@ function reviewProvenance(value: Prisma.JsonValue) {
   };
 }
 
+function previewParent(metadata: Prisma.JsonValue) {
+  const parent = (metadata as { previewOfImportId?: unknown } | null)?.previewOfImportId;
+  return typeof parent === 'string' ? parent : null;
+}
+
+function canPreview(batch: { status: string; sourceType: string; mediaRef: string | null; metadata: Prisma.JsonValue; fileName: string | null }) {
+  const type = (batch.metadata as { contentType?: string } | null)?.contentType;
+  return !previewParent(batch.metadata) && ['NEEDS_REVIEW', 'COMPLETE'].includes(batch.status) &&
+    batch.sourceType === 'CHAT_EXPORT' && !!batch.mediaRef &&
+    (type === 'application/zip' || (!type && /\.zip$/i.test(batch.fileName ?? '')));
+}
+
 const arraySchema = z.array(capturedEntitySchema).max(100);
 const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 
@@ -92,6 +104,7 @@ export class ImportsService {
           fileName: true,
           sourceType: true,
           groupName: true,
+          metadata: true,
           status: true,
           lastError: true,
           createdAt: true,
@@ -100,15 +113,19 @@ export class ImportsService {
       }),
       this.prisma.importBatch.count({ where }),
     ]);
-    return { items, total, page, pageSize: 30, totalPages: Math.ceil(total / 30) };
+    return {
+      items: items.map(({ metadata, ...item }) => ({ ...item, previewOfImportId: previewParent(metadata) })),
+      total, page, pageSize: 30, totalPages: Math.ceil(total / 30),
+    };
   }
   async get(id: string, user: RequestUser, page = 1, sourcePage?: number, reviewState?: string) {
     const batch = await this.prisma.importBatch.findFirst({ where: { id, ...this.scope(user) } });
     if (!batch) throw new NotFoundException('Import not found');
+    const previewOfImportId = previewParent(batch.metadata);
     const visible = {
       batchId: id,
       ...(sourcePage ? { pageNo: sourcePage } : {}),
-      ...(reviewState ? { reviewState } : {}),
+      ...(reviewState && !previewOfImportId ? { reviewState } : {}),
       OR: [{ reviewNote: null }, { reviewNote: { not: 'SUPERSEDED_BY_VISUAL_REVIEW' } }],
     };
     const [entries, total, pending] = await Promise.all([
@@ -124,6 +141,8 @@ export class ImportsService {
     ]);
     return {
       ...batch,
+      previewOfImportId,
+      canPreview: canPreview(batch),
       rawText: batch.rawText?.slice(0, 20000),
       entries: entries.map((entry) => ({ ...entry, ocr: reviewProvenance(entry.ocr) })),
       total, pending, page, pageSize: 50, totalPages: Math.ceil(total / 50),
@@ -174,6 +193,41 @@ export class ImportsService {
       throw new ForbiddenException('This source is already captured by another firm member. Ask your firm administrator to review it.');
     if (batch.status === 'PENDING') await this.jobs.enqueue('import.extract', { batchId: batch.id }, { key: `import:${batch.id}` });
     return { id: batch.id, status: batch.status };
+  }
+  async createPreview(id: string, user: RequestUser) {
+    const parent = await this.prisma.importBatch.findFirst({ where: { id, ...this.scope(user) } });
+    if (!parent) throw new NotFoundException('Import not found');
+    if (!canPreview(parent) || !parent.mediaRef) throw new BadRequestException('Only a completed WhatsApp ZIP extraction can be previewed.');
+    const source = await openCaptureSource(this.storage, parent.mediaRef);
+    if (source.contentType !== 'application/zip') throw new BadRequestException('Original WhatsApp ZIP is unavailable.');
+
+    const sourceHash = sha(`zip-photo-preview-v1\0${parent.id}\0${parent.sourceHash}`);
+    const identity = { organizationId: parent.organizationId, sourceType: parent.sourceType, sourceHash };
+    const preview = await this.prisma.$transaction(async (tx) => {
+      const inserted = await tx.importBatch.createMany({
+        data: {
+          ...identity,
+          createdById: parent.createdById,
+          mediaRef: parent.mediaRef,
+          fileName: parent.fileName,
+          senderName: parent.senderName,
+          senderPhone: parent.senderPhone,
+          groupName: parent.groupName,
+          metadata: { contentType: 'application/zip', previewOfImportId: parent.id },
+        },
+        skipDuplicates: true,
+      });
+      const batch = await tx.importBatch.findUniqueOrThrow({ where: { organizationId_sourceType_sourceHash: identity } });
+      if (batch.status === 'PENDING') {
+        await tx.job.createMany({
+          data: { type: 'import.extract', key: `import:${batch.id}`, payload: { batchId: batch.id }, runAt: new Date() },
+          skipDuplicates: true,
+        });
+      }
+      return { id: batch.id, status: batch.status, created: inserted.count === 1 };
+    });
+    if (preview.created) await this.audit.log(user, 'import.preview', 'ImportBatch', preview.id, { parentId: id });
+    return { id: preview.id, status: preview.status };
   }
   async retry(id: string, user: RequestUser) {
     const batch = await this.get(id, user);
@@ -268,6 +322,7 @@ export class ImportsService {
           streamed = archive.messages;
         } else streamed = textMessages(source.bytes);
       }
+      const preview = !!previewParent(batch.metadata);
       const messages: AsyncIterable<CapturedMessage & { sourceFile?: string }> | Iterable<CapturedMessage & { sourceFile?: string }> =
         streamed ?? (batch.sourceType === 'CHAT_EXPORT' ? chatExportMessages(text) : [{ text }]);
       let i = 0;
@@ -289,7 +344,7 @@ export class ImportsService {
         const originalIdentity = `${message.sender ?? ''}\0${message.timestamp ?? ''}\0${message.text}`;
         const entryKey = `${i}:${sha(originalIdentity)}`;
         const messageIdentity =
-          batch.sourceType === 'CHAT_EXPORT' && batch.groupName && message.sender && message.timestamp
+          !preview && batch.sourceType === 'CHAT_EXPORT' && batch.groupName && message.sender && message.timestamp
             ? sha(`${batch.groupName}\0${originalIdentity}${evidence.identity ? '\0' + evidence.identity : ''}`)
             : null;
         const create = {
@@ -317,6 +372,7 @@ export class ImportsService {
           },
           organizationId: batch.organizationId,
           messageIdentity,
+          ...(preview ? { reviewState: 'PREVIEW' } : {}),
         };
         try {
           await this.prisma.sourceEntry.upsert({ where: { batchId_entryKey: { batchId, entryKey } }, create, update: {} });
@@ -370,6 +426,7 @@ export class ImportsService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${entryId}))`;
       const entry = await tx.sourceEntry.findFirst({ where: { id: entryId, batch: this.scope(user) }, include: { batch: true } });
       if (!entry) throw new NotFoundException('Source entry not found');
+      if (previewParent(entry.batch.metadata)) throw new ForbiddenException('Extraction previews are read-only.');
       if (['APPROVED', 'IGNORED', 'DUPLICATE'].includes(entry.reviewState)) return { state: entry.reviewState, duplicate: true };
       if (input.expectedUpdatedAt && new Date(input.expectedUpdatedAt).getTime() !== entry.updatedAt.getTime())
         throw new ConflictException('Entry changed. Reload review.');

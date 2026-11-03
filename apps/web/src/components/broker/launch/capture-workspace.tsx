@@ -404,7 +404,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
                   {new Date(item.createdAt).toLocaleString('en-IN')} · {item._count?.entries ?? 0} source entries
                 </p>
               </div>
-              <span className="shrink-0 rounded-lg bg-surface-2 px-3 py-2 text-xs font-semibold">{item.status.replaceAll('_', ' ')}</span>
+              <span className="shrink-0 rounded-lg bg-surface-2 px-3 py-2 text-xs font-semibold">{item.previewOfImportId ? 'PREVIEW · ' : ''}{item.status.replaceAll('_', ' ')}</span>
             </Link>
           ))}
           {query.data?.total === 0 && (

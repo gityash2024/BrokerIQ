@@ -289,3 +289,18 @@ export function captureEntryTitle(entities: CapturedEntity[]): string {
           .join(' · ');
   return `${title || 'Property details · review'}${relevant.length > 1 ? ` · +${relevant.length - 1} records` : ''}`.slice(0, 240);
 }
+
+/** Display extracted values in a read-only review, preserving numbers and explicit false values. */
+export function capturePreviewFacts(entity: CapturedEntity): { label: string; value: string }[] {
+  const source = entity.kind === 'INVENTORY' ? entity.inventory : entity.kind === 'REQUIREMENT' ? entity.requirement : undefined;
+  if (!source) return [];
+  const fields = { ...source, ...('details' in source ? source.details : undefined) };
+  return Object.entries(fields).flatMap(([key, value]) => {
+    if (/Id$|Revision$|MutationId$/.test(key)) return [];
+    const scalar = (item: unknown) => typeof item === 'number' || typeof item === 'string' || typeof item === 'boolean';
+    const text = Array.isArray(value) ? value.filter(scalar).join(', ') : scalar(value) ? String(value) : '';
+    if (!text.trim()) return [];
+    const label = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (first) => first.toUpperCase());
+    return [{ label, value: text }];
+  });
+}

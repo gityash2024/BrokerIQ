@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { SourceImage } from '@/launch/source-image';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { captureEntryTitle, type CapturedEntity } from '@brokeriq/shared';
+import { captureEntryTitle, capturePreviewFacts, type CapturedEntity } from '@brokeriq/shared';
 import { assertAccountContext, captureAccountContext, api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
@@ -17,6 +17,7 @@ import { editableDraft, decodeDraft, saveDraft, completeReviewDraft } from '@/la
 import { Button, Txt, ErrorView, Chip } from '@/ui';
 export default function ImportReview() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [openingPreview, setOpeningPreview] = useState(false);
   const [page, setPage] = useState(1);
   const [sourcePage, setSourcePage] = useState<string | null>(null);
   const [pendingOnly, setPendingOnly] = useState(true);
@@ -29,18 +30,35 @@ export default function ImportReview() {
   useEffect(() => {
     if (q.data && page > Math.max(1, q.data.totalPages)) setPage(Math.max(1, q.data.totalPages));
   }, [q.data, page]);
+  const previewOfImportId = q.data?.previewOfImportId as string | undefined;
+  async function openPreview() {
+    setOpeningPreview(true);
+    setError('');
+    try {
+      const preview = await api<{ id: string }>(`/imports/${id}/preview`, { body: {} });
+      router.push({ pathname: '/import-review/[id]', params: { id: preview.id } });
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setOpeningPreview(false);
+    }
+  }
   return (
-    <BrokerScreen title="Review capture" subtitle={q.data ? `${q.data.total} entries · ${q.data.pending} need review` : 'Source saved, loading…'} back>
+    <BrokerScreen title="Review capture" subtitle={q.data ? `${q.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${q.data.pending} need review`}` : 'Source saved, loading…'} back>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 50 }}>
-        <WorkspaceHero
+        {previewOfImportId ? <NativeCard>
+          <Txt>Review what the latest extraction found.</Txt>
+          <Button title="Open original import" variant="secondary" onPress={() => router.replace({ pathname: '/import-review/[id]', params: { id: previewOfImportId } })} />
+        </NativeCard> : <WorkspaceHero
           label="SOURCE REVIEW"
           title="Check every fact before saving."
           description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve independent requirement records. Property offers require a separate conversion into Inventory."
-        />
+        />}
+        {q.data?.canPreview && <Button title="Preview latest extraction" variant="secondary" loading={openingPreview} onPress={openPreview} />}
         {q.data?.metadata?.requestedTarget && q.data.metadata.requestedTarget !== 'AUTO' && (
           <WorkspaceTag label={`Requested destination: ${q.data.metadata.requestedTarget === 'INVENTORY' ? 'Inventory' : 'Requirements'}`} />
         )}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        {!previewOfImportId && <View style={{ flexDirection: 'row', gap: 8 }}>
           {[true, false].map((pending) => (
             <Chip
               key={String(pending)}
@@ -52,7 +70,7 @@ export default function ImportReview() {
               }}
             />
           ))}
-        </View>
+        </View>}
         {q.data?.metadata?.pages?.length > 0 && (
           <ChoiceField
             label="Register page"
@@ -126,6 +144,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   useEffect(() => {
+    if (entry.reviewState === 'PREVIEW') { setReady(true); return; }
     let active = true;
     (async () => {
       try {
@@ -146,7 +165,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
     return () => {
       active = false;
     };
-  }, [entry.id, startSeparate]);
+  }, [entry.id, entry.reviewState, startSeparate]);
   function change(next: any[]) {
     setEntities(next);
     setStatus('Saving draft…');
@@ -237,6 +256,9 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
               <Txt key={i} v="small" color="warning">
                 {warning}
               </Txt>
+            ))}
+            {entry.reviewState === 'PREVIEW' && capturePreviewFacts(e).map(({ label, value }) => (
+              <Txt key={label} v="small" selectable>{label} · {value}</Txt>
             ))}
             {!done && e.kind !== 'UNRELATED' && (
               <EntityFields

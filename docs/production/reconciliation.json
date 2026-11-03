@@ -1441,16 +1441,21 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_ISOLATED_POSTGRES_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Read-only preview for completed ZIP extraction. Concurrent submissions create one preview and one job, preserve originals and approved entries, and deny cross-firm access and all preview mutations. Fresh API 428 passed, 27 configuration skips.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/imports.service.ts",
+        "apps/api/src/modules/imports/imports.controller.ts",
+        "apps/web/src/app/broker/imports/[id]/page.tsx",
+        "apps/mobile/app/import-review/[id].tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
