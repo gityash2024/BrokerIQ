@@ -23,3 +23,9 @@ Release inclusion checkpoint: the above source is included in pinned Build46/e04
 Native Lead forms now store the validated submission and its mutation ID in the encrypted account/firm/role SQLite queue before sending. Saved Drafts shows failed or queued tasks. A corrected submission can start after setting a failed original aside. An interrupted send reuses its original payload and ID. The client schedules a local reminder only after server confirmation in the active account scope.
 
 Validation covered an interrupted send and replay, scope isolation, immutable failure recovery and the active-slot constraint using SQLite. All 106 native tests and the native typecheck passed. Scoped lint reported zero errors. This change is after the Build 52 pin and awaits a signed release and installed-device acceptance.
+
+## Web retry after refresh
+
+The two Lead task forms, Follow-ups dialog and Visits dialog now persist the shared-schema payload in encrypted IndexedDB before submission. Select the same lead and choose **Retry saved** to resend the original payload and ID. Account, firm and role are checked during storage and the HTTP request. Concurrent claims share the active draft and an earlier acknowledgement cannot delete a newer draft. A validation rejection releases the slot after retaining the rejected payload in encrypted storage. The original input remains visible in the current form for correction.
+
+Validation: 22 storage/HTTP contract tests and web typecheck passed. Scoped lint reported zero errors. Browser UI and staging verification for this change remain open.

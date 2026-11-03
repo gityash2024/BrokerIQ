@@ -1,14 +1,15 @@
 'use client';
+import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { CalendarCheck, CalendarPlus, Check, ChevronLeft, ChevronRight, Clock, MapPin, MessageCircle, Navigation, Phone, Star, X } from 'lucide-react';
 import { VISIT_STATUS_LABELS, parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem, type VisitStatus } from '@brokeriq/shared';
 import { api } from '@/lib/api';
-import { patch, post, useApiMutation } from '@/lib/hooks';
+import { patch, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { VisitSlotsButton } from '@/components/broker/visit-slots';
@@ -355,7 +356,6 @@ function CompleteVisit({
 function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [lead, setLead] = useState<any>(null);
   const [property, setProperty] = useState<LedgerItem | null>(null);
-  const submission = useRef({ fingerprint: '', id: '' });
   const [at, setAt] = useState(() => {
     const d = new Date(Date.now() + 86400_000);
     d.setHours(11, 0, 0, 0);
@@ -364,13 +364,12 @@ function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
   const create = useApiMutation(
-    () => {
+    (retry?: boolean) => {
+      if (retry) return submitTask('/visits', lead.id);
       const date = parseVisitLocalDateTime(at);
       if (!date) throw new Error('Enter a valid date and time');
       const payload = { leadId: lead.id, inventoryId: property?.id ?? null, scheduledAt: date.toISOString(), address: address || null, note: note || null };
-      const fingerprint = JSON.stringify(payload);
-      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: crypto.randomUUID() };
-      return post('/visits', { ...payload, clientMutationId: submission.current.id });
+      return submitTask('/visits', lead.id, payload);
     },
     {
       success: 'Visit scheduled — lead stage "Site visit" पर गया',
@@ -379,7 +378,6 @@ function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
         onOpenChange(false);
         setLead(null);
         setProperty(null);
-        submission.current = { fingerprint: '', id: '' };
         setNote('');
       },
     },
@@ -390,9 +388,14 @@ function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
       onOpenChange={onOpenChange}
       title="Site visit schedule करें"
       footer={
-        <Button disabled={!lead || !parseVisitLocalDateTime(at)} loading={create.isPending} onClick={() => create.mutate(undefined)}>
-          <Clock className="size-4" /> Schedule
-        </Button>
+        <>
+          <Button variant="secondary" disabled={!lead || create.isPending} onClick={() => create.mutate(true)}>
+            Retry saved
+          </Button>
+          <Button disabled={!lead || !parseVisitLocalDateTime(at)} loading={create.isPending} onClick={() => create.mutate(undefined)}>
+            <Clock className="size-4" /> Schedule
+          </Button>
+        </>
       }
     >
       <div className="space-y-4">

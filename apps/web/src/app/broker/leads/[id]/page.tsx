@@ -1,9 +1,10 @@
 'use client';
+import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
 import { parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import Link from 'next/link';
-import { use, useRef, useState } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -492,21 +493,17 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
   tomorrow.setHours(11, 0, 0, 0);
   const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
   const [visitProperty, setVisitProperty] = useState<LedgerItem | null>(null);
-  const [visitSubmission, setVisitSubmission] = useState({ fingerprint: '', id: '' });
   const [vi, setVi] = useState({ scheduledAt: toLocalInput(tomorrow), listingId: '', address: '', note: '', mode: 'IN_PERSON' as 'IN_PERSON' | 'VIDEO' });
   const videoOn = useFlag('video_visits');
-  const fuSubmission = useRef({ fingerprint: '', id: '' });
   const addFu = useApiMutation(
-    () => {
+    (retry?: boolean) => {
+      if (retry) return submitTask('/follow-ups', lead.id);
       const payload = { leadId: lead.id, type: fu.type, dueAt: new Date(fu.dueAt).toISOString(), note: fu.note || null };
-      const fingerprint = JSON.stringify(payload);
-      if (fuSubmission.current.fingerprint !== fingerprint) fuSubmission.current = { fingerprint, id: crypto.randomUUID() };
-      return post('/follow-ups', { ...payload, clientMutationId: fuSubmission.current.id });
+      return submitTask('/follow-ups', lead.id, payload);
     },
     {
       success: 'Follow-up scheduled ⏰',
       onSuccess: () => {
-        fuSubmission.current = { fingerprint: '', id: '' };
         setFu({ ...fu, note: '' });
         onChange();
       },
@@ -514,7 +511,8 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
   );
   const doneFu = useApiMutation((id: string) => patch(`/follow-ups/${id}`, { status: 'DONE' }), { onSuccess: onChange });
   const addVisit = useApiMutation(
-    () => {
+    (retry?: boolean) => {
+      if (retry) return submitTask('/visits', lead.id);
       const date = parseVisitLocalDateTime(vi.scheduledAt);
       if (!date) throw new Error('Enter a valid date and time');
       const payload = {
@@ -525,15 +523,11 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         note: vi.note || null,
         mode: vi.mode,
       };
-      const fingerprint = JSON.stringify(payload);
-      const id = visitSubmission.fingerprint === fingerprint ? visitSubmission.id : crypto.randomUUID();
-      setVisitSubmission({ fingerprint, id });
-      return post('/visits', { ...payload, clientMutationId: id });
+      return submitTask('/visits', lead.id, payload);
     },
     {
       success: vi.mode === 'VIDEO' ? 'Video visit scheduled 🎥 — link visit पर है' : 'Site visit scheduled 🏠',
       onSuccess: () => {
-        setVisitSubmission({ fingerprint: '', id: '' });
         onChange();
       },
     },
@@ -569,6 +563,9 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         <Input placeholder="Note" value={fu.note} onChange={(e) => setFu({ ...fu, note: e.target.value })} />
         <Button onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
           Schedule
+        </Button>
+        <Button variant="secondary" className="ml-2" disabled={addFu.isPending} onClick={() => addFu.mutate(true)}>
+          Retry saved
         </Button>
         <div className="space-y-2 pt-2">
           {lead.followUps.map((f: any) => (
@@ -623,6 +620,9 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         <Input placeholder="Note" value={vi.note} onChange={(e) => setVi({ ...vi, note: e.target.value })} />
         <Button disabled={!parseVisitLocalDateTime(vi.scheduledAt)} onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
           Schedule visit
+        </Button>
+        <Button variant="secondary" className="ml-2" disabled={addVisit.isPending} onClick={() => addVisit.mutate(true)}>
+          Retry saved
         </Button>
         <div className="space-y-2 pt-2">
           {lead.visits.map((v: any) => (

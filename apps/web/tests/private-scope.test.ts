@@ -377,3 +377,58 @@ test('an unfinished old-workspace encryption does not block a new-workspace Inbo
   login('independent-queue');
   assert.equal(await readInboxDraft('thread'), 'Prior A');
 });
+
+test('reuses the saved task payload after an interrupted send and isolates it by firm', async () => {
+  const { submitTask } = await import('../src/lib/task-submissions');
+  login('task-replay');
+  const input = { leadId: 'lead-replay', type: 'CALL', dueAt: '2026-11-05T06:30:00Z', note: 'Confirm visit' };
+  const sent: unknown[] = [];
+  mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    sent.push(JSON.parse(init.body as string));
+    if (sent.length === 1) throw new Error('Connection interrupted');
+    return response({ id: 'task-1' });
+  });
+  await assert.rejects(submitTask('/follow-ups', input.leadId, input));
+  login('task-replay', 'b');
+  await assert.rejects(submitTask('/follow-ups', input.leadId), /कोई अधूरी submission/);
+  login('task-replay');
+  await assert.rejects(submitTask('/follow-ups', input.leadId, { ...input, note: 'Different' }), /पहले से सहेजी/);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(await submitTask('/follow-ups', input.leadId), { id: 'task-1' });
+  assert.deepEqual(sent[0], sent[1]);
+  await assert.rejects(submitTask('/follow-ups', input.leadId), /कोई अधूरी submission/);
+});
+
+test('concurrent draft claims share one payload and a late confirmation cannot clear a newer draft', async () => {
+  const { claimPrivateDraft } = await import('../src/lib/private-drafts');
+  login('task-claim');
+  const owner = captureAccountContext();
+  const name = 'task-submission:/visits:lead-claim';
+  const claims = await Promise.all(Array.from({ length: 8 }, (_, index) => claimPrivateDraft(owner, name, { id: index })));
+  const first = claims[0]!;
+  assert.ok(claims.every((claim) => claim?.payload.id === first.payload.id));
+  assert.equal(await first.settle(), true);
+  await claimPrivateDraft(owner, name, { id: 10 });
+  assert.equal(await first.settle(), false);
+  assert.deepEqual(await readPrivateDraft(owner, name), { id: 10 });
+});
+
+test('archives validation-rejected task input and allows a corrected submission', async () => {
+  const { submitTask } = await import('../src/lib/task-submissions');
+  login('task-rejected');
+  const owner = captureAccountContext();
+  const input = { scheduledAt: '2026-11-05T06:30:00Z', address: 'Original address' };
+  const sent: Record<string, unknown>[] = [];
+  mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    sent.push(JSON.parse(init.body as string));
+    return sent.length === 1 ? response({ message: 'Rejected by server' }, 400) : response({ id: 'task-2' });
+  });
+  await assert.rejects(submitTask('/visits', 'lead-rejected', input));
+  const archived = await readPrivateDraft<{ payload: { address: string } }>(
+    owner,
+    `task-submission:/visits:lead-rejected:rejected:${sent[0].clientMutationId}`,
+  );
+  assert.equal(archived?.payload.address, input.address);
+  await submitTask('/visits', 'lead-rejected', { ...input, address: 'Corrected address' });
+  assert.notEqual(sent[0].clientMutationId, sent[1].clientMutationId);
+});

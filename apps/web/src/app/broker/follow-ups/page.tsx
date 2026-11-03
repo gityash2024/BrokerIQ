@@ -1,14 +1,15 @@
 'use client';
+import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlarmClock, CalendarPlus, Check, Clock, ListChecks, Mail, MessageCircle, Phone, Trash2, Users, X } from 'lucide-react';
 import { FollowUpType, followUpDateBoundary, followUpIstDayEnd, followUpTomorrowAtTen } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { del, patch, post, useApiMutation } from '@/lib/hooks';
+import { del, patch, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { StageBadge, useAssignees } from '@/components/broker/bits';
@@ -387,19 +388,16 @@ function AddFollowUp({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
   const [type, setType] = useState<string>('CALL');
   const [dueAt, setDueAt] = useState(() => toLocalInput(new Date(Date.now() + 3600_000)));
   const [note, setNote] = useState('');
-  const submission = useRef({ fingerprint: '', id: '' });
   const create = useApiMutation(
-    () => {
+    (retry?: boolean) => {
+      if (retry) return submitTask('/follow-ups', lead.id);
       const payload = { leadId: lead.id, type, dueAt: new Date(dueAt).toISOString(), note: note || null };
-      const fingerprint = JSON.stringify(payload);
-      if (submission.current.fingerprint !== fingerprint) submission.current = { fingerprint, id: crypto.randomUUID() };
-      return post('/follow-ups', { ...payload, clientMutationId: submission.current.id });
+      return submitTask('/follow-ups', lead.id, payload);
     },
     {
       success: 'Follow-up scheduled',
       invalidate: [['follow-ups'], ['broker-dashboard']],
       onSuccess: () => {
-        submission.current = { fingerprint: '', id: '' };
         onOpenChange(false);
         setLead(null);
         setNote('');
@@ -412,9 +410,14 @@ function AddFollowUp({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
       onOpenChange={onOpenChange}
       title="नया follow-up"
       footer={
-        <Button disabled={!lead} loading={create.isPending} onClick={() => create.mutate(undefined)}>
-          <AlarmClock className="size-4" /> Schedule
-        </Button>
+        <>
+          <Button variant="secondary" disabled={!lead || create.isPending} onClick={() => create.mutate(true)}>
+            Retry saved
+          </Button>
+          <Button disabled={!lead} loading={create.isPending} onClick={() => create.mutate(undefined)}>
+            <AlarmClock className="size-4" /> Schedule
+          </Button>
+        </>
       }
     >
       <div className="space-y-4">

@@ -102,6 +102,9 @@ export async function readPrivateDraft<T>(owner: AccountContext, name: string, s
     if (!startSeparate && (await hasLegacyPrivateDraft(owner, name))) throw new Error(LEGACY_WEB_DRAFT_REVIEW);
     return null;
   }
+  return openPrivateDraft<T>(owner, path, sealed);
+}
+async function openPrivateDraft<T>(owner: AccountContext, path: string, sealed: SealedDraft): Promise<T> {
   const key = await get<CryptoKey>('keys', namespace(owner));
   assertOwner(owner);
   if (!key) throw new Error('Draft key is unavailable. Existing encrypted data has been preserved.');
@@ -109,7 +112,7 @@ export async function readPrivateDraft<T>(owner: AccountContext, name: string, s
   assertOwner(owner);
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-export async function writePrivateDraft(owner: AccountContext, name: string, payload: unknown) {
+async function sealPrivateDraft(owner: AccountContext, name: string, payload: unknown) {
   assertOwner(owner);
   if ((await hasPrefix(`${namespace(owner)}:`)) && !(await get<CryptoKey>('keys', namespace(owner))))
     throw new Error('Draft key is unavailable. Existing encrypted data has been preserved.');
@@ -123,8 +126,63 @@ export async function writePrivateDraft(owner: AccountContext, name: string, pay
     new TextEncoder().encode(JSON.stringify(payload)),
   );
   assertOwner(owner);
-  await put('drafts', path, { iv, ciphertext });
+  return { iv, ciphertext };
+}
+export async function writePrivateDraft(owner: AccountContext, name: string, payload: unknown) {
+  const sealed = await sealPrivateDraft(owner, name, payload);
+  await put('drafts', storageKey(owner, name), sealed);
   assertOwner(owner);
+}
+
+async function transactDraft<T>(owner: AccountContext, path: string, update: (store: IDBObjectStore, current: SealedDraft | undefined) => T): Promise<T> {
+  const connection = await db();
+  assertOwner(owner);
+  const result = await new Promise<T>((resolve, reject) => {
+    const transaction = connection.transaction('drafts', 'readwrite');
+    const store = transaction.objectStore('drafts');
+    const request = store.get(path);
+    let outcome: T;
+    let failure: unknown;
+    request.onsuccess = () => {
+      try {
+        assertOwner(owner);
+        outcome = update(store, request.result);
+      } catch (error) {
+        failure = error;
+        transaction.abort();
+      }
+    };
+    transaction.oncomplete = () => resolve(outcome);
+    transaction.onabort = () => reject(failure ?? transaction.error ?? new Error('Private draft update was interrupted.'));
+  });
+  assertOwner(owner);
+  return result;
+}
+
+/** Returns the first submission saved by any tab and clears only that exact submission. */
+export async function claimPrivateDraft<T>(owner: AccountContext, name: string, candidate?: T) {
+  assertOwner(owner);
+  const path = storageKey(owner, name);
+  const proposed = candidate === undefined ? undefined : await sealPrivateDraft(owner, name, candidate);
+  const sealed = await transactDraft(owner, path, (store, current) => {
+    if (current || !proposed) return current;
+    store.add(proposed, path);
+    return proposed;
+  });
+  if (!sealed) return null;
+  const payload = await openPrivateDraft<T>(owner, path, sealed);
+  return {
+    payload,
+    settle: async (archiveName?: string) => {
+      const archived = archiveName ? await sealPrivateDraft(owner, archiveName, payload) : undefined;
+      return transactDraft(owner, path, (store, current) => {
+        if (!sameSealed(sealed, current)) return false;
+        if (archiveName && archived) store.add(archived, storageKey(owner, archiveName));
+        store.delete(path);
+        return true;
+      });
+    },
+  };
 }
 
 function sameSealed(a?: SealedDraft, b?: SealedDraft) {
