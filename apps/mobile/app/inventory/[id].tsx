@@ -149,7 +149,7 @@ export default function PropertyDetail() {
                       color: item.purpose === 'RENT' ? c.success : c.brand,
                     }}
                   >
-                    FOR {item.purpose ?? 'RENT'}
+                    {item.purpose ? `FOR ${item.purpose}` : 'Transaction not recorded'}
                   </Txt>
                 </View>
 
@@ -197,13 +197,13 @@ export default function PropertyDetail() {
                 {item.bhk != null && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2 }}>
                     <Layers size={14} color={c.brand} />
-                    <Txt v="small" style={{ fontWeight: '600' }}>{item.bhk} {item.roomKind || 'BHK'}</Txt>
+                    <Txt v="small" style={{ fontWeight: '600' }}>{item.bhk} {item.roomKind || 'rooms'}</Txt>
                   </View>
                 )}
                 {item.area != null && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2 }}>
                     <Maximize2 size={14} color={c.brand} />
-                    <Txt v="small" style={{ fontWeight: '600' }}>{item.area} {item.areaUnit || 'SQ_FT'}</Txt>
+                    <Txt v="small" style={{ fontWeight: '600' }}>{item.area} {item.areaUnit || 'unit not recorded'}</Txt>
                   </View>
                 )}
                 {item.floor != null && (
@@ -226,6 +226,7 @@ export default function PropertyDetail() {
               {/* Assignee Card with 1-Tap Quick Change */}
               <TouchableOpacity
                 activeOpacity={0.75}
+                disabled={!isAdmin}
                 onPress={() => (isAdmin ? setReassignOpen(true) : toast.info('Only Broker Admin can re-assign properties'))}
                 style={{
                   flex: 1,
@@ -619,7 +620,7 @@ export default function PropertyDetail() {
 
       {item&&<View style={{padding:16,gap:8}}><Txt v="caption" color="muted">Publication: {item.publishedListing?.status || 'Not submitted'}{item.publishedListing?.reviewRequiredRole?' · '+item.publishedListing.reviewRequiredRole:''}</Txt><Button title={isAdmin&&item.publishedListing?.reviewRequiredRole==='BROKER_ADMIN'?'Review publication':'Public preview / publish'} variant="secondary" onPress={()=>router.push(`/publish-rental?id=${id}` as any)}/></View>}
       {/* 1-Tap Quick Assignee Selection Sheet */}
-      <Sheet open={reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
+      <Sheet open={isAdmin && reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
         <View style={{ gap: 8, paddingBottom: 20 }}>
           <TouchableOpacity
             onPress={() => handleAssign(null)}
@@ -680,7 +681,7 @@ export default function PropertyDetail() {
           <Txt color="muted">
             {item?.matchingLeadsCount
               ? `Found ${item.matchingLeadsCount} active leads looking for ${item.bhk ? `${item.bhk} BHK` : 'property'} within this budget.`
-              : 'No auto-matching leads found for current criteria.'}
+              : 'Open Leads to review clients before sharing this property. An automatic match count is not available here.'}
           </Txt>
 
           <Button

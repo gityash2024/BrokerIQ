@@ -569,7 +569,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "4 November source review maps the current scoped API, shared inventory schema/presentation and relevant clients. Source-backed inventory cases passed in the explicit Broker-first isolated PostgreSQL run (22 tests across three suites). This is source/test provenance, not browser, installed-device or complete field-by-field acceptance. Current native additional-media editing still uses URL fields; unknown purpose is rendered as RENT by the detail header and needs correction. Do not mark native parity accepted."
+        "4 November source review maps the current scoped API, shared inventory schema/presentation and relevant clients. Source-backed inventory cases passed in the explicit Broker-first isolated PostgreSQL run (22 tests across three suites). This is source/test provenance, not browser, installed-device or complete field-by-field acceptance. Current native additional-media editing still uses URL fields; unknown purpose is rendered as RENT by the detail header and needs correction. Do not mark native parity accepted.",
+        "Follow-up correction removes invented RENT/BHK/SQ_FT header defaults, adds editable contact notes, prevents Agent reassignment-sheet opening and no longer equates absent matching count with zero. Mobile types pass, lint0 errors/28 existing warnings. Source is after the Build53 candidate; another signed release and device inspection are required. See INVENTORY_DETAIL_20261104.md."
       ],
       "roles": [
         "BROKER_AGENT",

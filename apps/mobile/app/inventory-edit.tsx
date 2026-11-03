@@ -255,6 +255,14 @@ export default function InventoryEditor() {
                     )
                   }
                 />
+                <Input
+                  label="Contact note"
+                  multiline
+                  value={contact.note ?? ''}
+                  onChangeText={(note) =>
+                    change('contacts', form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)))
+                  }
+                />
                 <Button
                   title="Remove contact"
                   variant="ghost"
