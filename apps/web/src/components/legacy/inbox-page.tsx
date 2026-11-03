@@ -3,7 +3,7 @@ import { SmsThread } from '@/components/broker/sms-thread';
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import {
@@ -28,7 +28,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { leadInboxDraftTarget, renderTemplate, timeAgo, type WaTemplate } from '@brokeriq/shared';
+import { leadInboxDraftTarget, renderTemplate, timeAgo, type WaTemplate, type InboxPage } from '@brokeriq/shared';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { moveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { useInboxDraft } from '@/lib/use-inbox-draft';
@@ -136,11 +136,20 @@ function InboxInner() {
     refetchInterval: 10_000,
   });
 
-  const convs = useQuery({
-    queryKey: ['conversations', channel, dq, unreadOnly],
-    queryFn: () => api<any[]>(`/whatsapp/conversations${qs({ channel, q: dq, unread: unreadOnly ? 'true' : '' })}`),
+  const convs = useInfiniteQuery({
+    queryKey: ['conversations', 'pages', channel, dq, unreadOnly],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => api<InboxPage<any>>(`/whatsapp/conversations${qs({ channel, q: dq, unread: unreadOnly ? 'true' : '', paginated: 'true', page: pageParam, pageSize: 50 })}`),
+    getNextPageParam: (last, pages) => pages.length < last.totalPages ? pages.length + 1 : undefined,
     refetchInterval: 20_000,
   });
+  const conversationItems = useMemo(() => {
+    const seen = new Set<string>();
+    return (convs.data?.pages.flatMap((page) => page.items) ?? []).filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id); return true;
+    });
+  }, [convs.data]);
 
   const refreshAll = useCallback(() => {
     convs.refetch();
@@ -158,9 +167,9 @@ function InboxInner() {
   const handleSelectChat = (c: any) => {
     setParam({ c: c.id });
     if (c.unreadCount > 0) {
-      qc.setQueryData(['conversations', channel, dq, unreadOnly], (old: any[] | undefined) => {
+      qc.setQueryData(['conversations', 'pages', channel, dq, unreadOnly], (old: InfiniteData<InboxPage<any>> | undefined) => {
         if (!old) return old;
-        return old.map((item) => (item.id === c.id ? { ...item, unreadCount: 0 } : item));
+        return { ...old, pages: old.pages.map((page) => ({ ...page, items: page.items.map((item) => item.id === c.id ? { ...item, unreadCount: 0 } : item) })) };
       });
       api(`/whatsapp/conversations/${c.id}/read`, { method: 'POST', body: {} })
         .then(() => refreshAll())
@@ -177,11 +186,11 @@ function InboxInner() {
   // Current conversation resolution (searches list first, fallbacks to thread query data)
   const current = useMemo(() => {
     if (!active) return null;
-    const found = convs.data?.find((c) => c.id === active);
+    const found = conversationItems.find((c) => c.id === active);
     if (found) return found;
     if (activeThreadQuery.data?.conversation) return activeThreadQuery.data.conversation;
     return null;
-  }, [active, convs.data, activeThreadQuery.data]);
+  }, [active, conversationItems, activeThreadQuery.data]);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -204,7 +213,7 @@ function InboxInner() {
   const waUnreadCount = unreadStats.data?.whatsapp?.unreadConversations ?? 0;
   const chatUnreadCount = unreadStats.data?.chat?.unreadConversations ?? 0;
   const totalUnreadCount = unreadStats.data?.total?.unreadConversations ?? waUnreadCount + chatUnreadCount;
-  const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : channel === 'SMS' ? (unreadStats.data?.sms?.unreadConversations ?? 0) : chatUnreadCount;
+  const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : channel === 'SMS' ? (unreadStats.data?.sms?.unreadConversations ?? 0) : channel === 'EMAIL' ? (unreadStats.data?.email?.unreadConversations ?? 0) : chatUnreadCount;
 
   if (leadTarget && resolve.isError) return <ApiErrorState error={resolve.error} onRetry={() => resolve.refetch()} />;
   if (leadTarget) return <PageLoader />;
@@ -343,8 +352,9 @@ function InboxInner() {
 
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto divide-y divide-line/60">
-          {!convs.data && [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="m-3 h-16 rounded-xl" />)}
-          {convs.data && !convs.data.length && (
+          {convs.isPending && [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="m-3 h-16 rounded-xl" />)}
+          {convs.error && <ApiErrorState error={convs.error} onRetry={() => convs.refetch()} />}
+          {convs.data && !conversationItems.length && (
             <Empty
               className="mt-12"
               icon={<MessagesSquare className="size-8 text-subtle" />}
@@ -362,8 +372,8 @@ function InboxInner() {
               }
             />
           )}
-          {convs.data?.map((c) => {
-            const displayName = c.contactName || c.lead?.name || c.contactPhone || 'Housing Client';
+          {conversationItems.map((c) => {
+            const displayName = c.contactName || c.lead?.name || c.contactPhone || (channel === 'CHAT' ? 'Visitor' : 'Client');
             const gradient = getAvatarGradient(displayName);
             const isSelected = c.id === active;
             return (
@@ -419,6 +429,8 @@ function InboxInner() {
               </div>
             );
           })}
+          {convs.data && <p className="p-3 text-center text-xs text-muted">{conversationItems.length} / {convs.data.pages[0]?.total ?? 0} conversations</p>}
+          {convs.hasNextPage && <div className="p-3"><Button variant="secondary" loading={convs.isFetchingNextPage} onClick={() => convs.fetchNextPage()}>Load more conversations</Button></div>}
         </div>
       </aside>
 

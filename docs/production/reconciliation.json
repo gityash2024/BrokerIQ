@@ -1915,11 +1915,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source/test follow-up: opt-in complete conversation paging and global search replace the upgraded-client200-row blind spot. Exact firm/Agent/Housing predicates are shared with counters. Email unread badge is channel-specific. Real PostgreSQL pagination/composer9 cases and all component typechecks pass; browser/device/provider acceptance remains open. Source is after Build53, not shipped by that pin. See INBOX_PAGINATION_20261104.md."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/api/src/modules/whatsapp/inbox-scope.ts",
+        "packages/shared/src/inbox-query.ts",
+        "apps/api/test/inbox-pagination.e2e-spec.ts",
+        "apps/web/src/components/legacy/inbox-page.tsx",
+        "apps/mobile/app/(broker)/inbox.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1939,11 +1948,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source/test follow-up: opt-in complete conversation paging and global search replace the upgraded-client200-row blind spot. Exact firm/Agent/Housing predicates are shared with counters. Email unread badge is channel-specific. Real PostgreSQL pagination/composer9 cases and all component typechecks pass; browser/device/provider acceptance remains open. Source is after Build53, not shipped by that pin. See INBOX_PAGINATION_20261104.md."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/api/src/modules/whatsapp/inbox-scope.ts",
+        "packages/shared/src/inbox-query.ts",
+        "apps/api/test/inbox-pagination.e2e-spec.ts",
+        "apps/web/src/components/legacy/inbox-page.tsx",
+        "apps/mobile/app/(broker)/inbox.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1963,11 +1981,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source/test follow-up: opt-in complete conversation paging and global search replace the upgraded-client200-row blind spot. Exact firm/Agent/Housing predicates are shared with counters. Email unread badge is channel-specific. Real PostgreSQL pagination/composer9 cases and all component typechecks pass; browser/device/provider acceptance remains open. Source is after Build53, not shipped by that pin. See INBOX_PAGINATION_20261104.md."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/api/src/modules/whatsapp/inbox-scope.ts",
+        "packages/shared/src/inbox-query.ts",
+        "apps/api/test/inbox-pagination.e2e-spec.ts",
+        "apps/web/src/components/legacy/inbox-page.tsx",
+        "apps/mobile/app/(broker)/inbox.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1987,11 +2014,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source/test follow-up: opt-in complete conversation paging and global search replace the upgraded-client200-row blind spot. Exact firm/Agent/Housing predicates are shared with counters. Email unread badge is channel-specific. Real PostgreSQL pagination/composer9 cases and all component typechecks pass; browser/device/provider acceptance remains open. Source is after Build53, not shipped by that pin. See INBOX_PAGINATION_20261104.md."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/api/src/modules/whatsapp/inbox-scope.ts",
+        "packages/shared/src/inbox-query.ts",
+        "apps/api/test/inbox-pagination.e2e-spec.ts",
+        "apps/web/src/components/legacy/inbox-page.tsx",
+        "apps/mobile/app/(broker)/inbox.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2011,11 +2047,20 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "4 November source/test follow-up: opt-in complete conversation paging and global search replace the upgraded-client200-row blind spot. Exact firm/Agent/Housing predicates are shared with counters. Email unread badge is channel-specific. Real PostgreSQL pagination/composer9 cases and all component typechecks pass; browser/device/provider acceptance remains open. Source is after Build53, not shipped by that pin. See INBOX_PAGINATION_20261104.md."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/api/src/modules/whatsapp/inbox-scope.ts",
+        "packages/shared/src/inbox-query.ts",
+        "apps/api/test/inbox-pagination.e2e-spec.ts",
+        "apps/web/src/components/legacy/inbox-page.tsx",
+        "apps/mobile/app/(broker)/inbox.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

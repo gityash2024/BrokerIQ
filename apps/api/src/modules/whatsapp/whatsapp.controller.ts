@@ -7,6 +7,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -18,7 +19,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Prisma } from '@prisma/client';
-import { whatsappSendSchema, renderTemplate, formatPriceShort, phoneForWhatsApp, normalizeIndianPhone } from '@brokeriq/shared';
+import { whatsappSendSchema, renderTemplate, formatPriceShort, phoneForWhatsApp, normalizeIndianPhone, inboxListQuerySchema, type InboxListQuery } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
@@ -54,27 +55,31 @@ export class WhatsAppController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('whatsapp/conversations')
-  async conversations(@CurrentUser() user: RequestUser, @Query() q: { q?: string; unread?: string; channel?: string }) {
+  @Header('Cache-Control', 'private, no-store')
+  async conversations(@CurrentUser() user: RequestUser, @Query(new ZodPipe(inboxListQuerySchema)) q: InboxListQuery) {
     const orgId = requireOrg(user);
-    const channel = z.enum(['WHATSAPP', 'CHAT', 'SMS', 'EMAIL']).parse(q.channel || 'WHATSAPP');
-
-    return this.prisma.conversation.findMany({
-      where: {
-        organizationId: orgId,
-        channel,
-        ...inboxChannelWhere(orgId, user, channel),
-        ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
-        ...(q.q
-          ? { AND: [{ OR: [{ contactName: { contains: q.q, mode: 'insensitive' } }, { contactKey: { contains: q.q.replace(/\D/g, '') || q.q } }] }] }
-          : {}),
-      },
-      orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
-      take: 200,
-      include: {
-        lead: { select: { id: true, name: true, stage: true, source: true, assignedTo: { select: { id: true, name: true } } } },
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
-    });
+    const contactSearch = q.q && /\d/.test(q.q) && /^[+\d\s().-]+$/.test(q.q) ? q.q.replace(/\D/g, '') : q.q;
+    const where: Prisma.ConversationWhereInput = {
+      ...inboxChannelWhere(orgId, user, q.channel),
+      ...(q.unread === 'true' ? { unreadCount: { gt: 0 } } : {}),
+      ...(q.q ? { AND: [{ OR: [
+        { contactName: { contains: q.q, mode: 'insensitive' } },
+        { contactKey: { contains: contactSearch, mode: 'insensitive' } },
+        { contactPhone: { contains: contactSearch } },
+        { lastPreview: { contains: q.q, mode: 'insensitive' } },
+      ] }] } : {}),
+    };
+    const include = {
+      lead: { select: { id: true, name: true, stage: true, source: true, assignedTo: { select: { id: true, name: true } } } },
+      user: { select: { id: true, name: true, avatarUrl: true } },
+    } as const;
+    const orderBy: Prisma.ConversationOrderByWithRelationInput[] = [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }];
+    if (q.paginated !== 'true') return this.prisma.conversation.findMany({ where, orderBy, include, take: 200 });
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.conversation.findMany({ where, orderBy, include, take: q.pageSize, skip: (q.page - 1) * q.pageSize }),
+      this.prisma.conversation.count({ where }),
+    ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    return { items, total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
   }
 
   /** Resolve an internal composer without sending a message or broadening the Housing inbox list. */
