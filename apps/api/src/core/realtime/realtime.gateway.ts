@@ -79,15 +79,29 @@ export class RealtimeGateway implements OnGatewayConnection {
     try {
       const conversation = await this.prisma.conversation.findFirst({
         where: { id: conversationId, organizationId: orgId },
-        select: { lead: { select: { assignedToId: true } } },
+        select: {
+          lead: {
+            select: {
+              organizationId: true,
+              deletedAt: true,
+              assignedTo: { select: { id: true, organizationId: true, role: true, status: true, deletedAt: true } },
+            },
+          },
+        },
       });
       if (!conversation) return;
       this.toOrg(orgId, event, data);
-      if (conversation.lead?.assignedToId) {
-        const agent = await this.prisma.user.findFirst({
-          where: { id: conversation.lead.assignedToId, organizationId: orgId, role: 'BROKER_AGENT', status: 'ACTIVE', deletedAt: null },
-        });
-        if (agent) this.toUser(agent.id, event, data);
+      const lead = conversation.lead;
+      const agent = lead?.assignedTo;
+      if (
+        lead?.organizationId === orgId &&
+        !lead.deletedAt &&
+        agent?.organizationId === orgId &&
+        agent.role === 'BROKER_AGENT' &&
+        agent.status === 'ACTIVE' &&
+        !agent.deletedAt
+      ) {
+        this.toUser(agent.id, event, data);
       }
     } catch {
       this.logger.warn('Conversation realtime delivery failed; clients can recover through authorized polling');

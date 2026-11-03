@@ -6,6 +6,7 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
+import { RealtimeGateway } from '../src/core/realtime/realtime.gateway';
 import { IntegrationNotConfiguredException } from '../src/common/exceptions';
 
 /** Real guards and PostgreSQL; provider credentials are stubbed. No outbound provider acceptance claim. */
@@ -63,6 +64,43 @@ describe('Internal lead composer and conversation ownership', () => {
     await db.lead.update({ where: { id: lead }, data: { deletedAt: new Date() } });
     await req().get(`/api/whatsapp/conversations/${conversationId}/messages`).set(h()).expect(403);
     await db.lead.update({ where: { id: lead }, data: { deletedAt: null } });
+  });
+  it('dispatches realtime messages only to the firm and current active Agent of an active lead', async () => {
+    const gateway = app.get(RealtimeGateway);
+    const toUser = jest.spyOn(gateway, 'toUser');
+    const toOrg = jest.spyOn(gateway, 'toOrg');
+    const event = 'wa:message';
+    const payload = { conversationId };
+    try {
+      await gateway.toConversation(org, conversationId, event, payload);
+      expect(toOrg).toHaveBeenCalledWith(org, event, payload);
+      expect(toUser).toHaveBeenCalledWith(agent.id, event, payload);
+      toUser.mockClear();
+
+      await db.lead.update({ where: { id: lead }, data: { assignedToId: peer.id } });
+      await gateway.toConversation(org, conversationId, event, payload);
+      expect(toUser.mock.calls).toEqual([[peer.id, event, payload]]);
+      toUser.mockClear();
+
+      await db.lead.update({ where: { id: lead }, data: { deletedAt: new Date() } });
+      await gateway.toConversation(org, conversationId, event, payload);
+      expect(toUser).not.toHaveBeenCalled();
+
+      await db.lead.update({ where: { id: lead }, data: { deletedAt: null } });
+      await db.user.update({ where: { id: peer.id }, data: { status: 'SUSPENDED' } });
+      await gateway.toConversation(org, conversationId, event, payload);
+      expect(toUser).not.toHaveBeenCalled();
+
+      toOrg.mockClear();
+      await gateway.toConversation('wrong-firm', conversationId, event, payload);
+      expect(toOrg).not.toHaveBeenCalled();
+      expect(toUser).not.toHaveBeenCalled();
+    } finally {
+      await db.user.update({ where: { id: peer.id }, data: { status: 'ACTIVE' } });
+      await db.lead.update({ where: { id: lead }, data: { assignedToId: agent.id, deletedAt: null } });
+      toUser.mockRestore();
+      toOrg.mockRestore();
+    }
   });
   it('returns a settings-linked integration error and creates no fake success', async () => {
     creds.mockRejectedValueOnce(new IntegrationNotConfiguredException('whatsapp'));

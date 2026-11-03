@@ -388,12 +388,13 @@
         "2516",
         "7844"
       ],
-      "backend": "PENDING",
+      "backend": "PARTIAL_REAL_POSTGRESQL_VERIFIED",
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "verification": "Current Inbox/realtime and notification PostgreSQL suites 9/9. Tests exercise reassignment, deleted leads, suspended assignees and wrong firms. Socket transport, full permission matrix and provider/device delivery remain open.",
       "notes": [
+        "After Build52, realtime delivery now selects the active lead and its current eligible firm Agent together. The HTTP denial for deleted leads also applies to Agent message events.",
         "After Build47: durable transactional reminder/outbox, current ownership before push, and legacy notification list/count/open privacy. Targeted30 and Broker-first34 real-PostgreSQL cases pass. Not published yet; complete notification/device/realtime/AI/export coverage is still open.",
         "After Build48: pending visits transfer/remove with Lead/member, assignment retries are idempotent, active-role round-robin and explicit Admin assignment rules use current module/firm/member checks. Client reminders deduplicate by visit/time with Build48 compatibility. Six isolated Broker-first suites47/47; new release pending. Complete AI autonomy/process/native/provider coverage remains open."
       ],
@@ -405,6 +406,8 @@
         "SUPER_ADMIN"
       ],
       "sourceFiles": [
+        "apps/api/src/core/realtime/realtime.gateway.ts",
+        "apps/api/test/inbox-composer.e2e-spec.ts",
         "apps/api/src/modules/automation/reminders.service.ts",
         "apps/api/src/core/notifications/notifications.service.ts",
         "apps/api/src/modules/me/me.controller.ts",
