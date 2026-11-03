@@ -1,0 +1,22 @@
+{
+  "result": "ISOLATED_REAL_EXPORT_OCR_IMPORT_VERIFIED",
+  "batchStatus": "NEEDS_REVIEW",
+  "elapsedMs": 51449,
+  "messages": 1897,
+  "systemEvents": 543,
+  "photos": 37,
+  "videos": 2,
+  "photosWithNonEmptyOcr": 37,
+  "attachmentLinks": 133,
+  "attachmentWarnings": 0,
+  "verifiedAttachmentHashes": 39,
+  "originalUnchanged": true,
+  "requirementsCreated": 0,
+  "inventoryCreated": 0,
+  "stagingWrites": false,
+  "semanticPrecisionRecallMeasured": false,
+  "uniquePhotoHashes": 35,
+  "uniquePhotosBelow70Confidence": 35,
+  "meanOcrConfidence": 50.6,
+  "reviewThreshold": 70
+}

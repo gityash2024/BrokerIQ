@@ -1,0 +1,28 @@
+{
+  "api": {
+    "passed": 428,
+    "skipped": 27,
+    "suitesPassed": 57,
+    "suitesSkipped": 4,
+    "isolatedDatabase": "brokeriq_test_photo53_full"
+  },
+  "targetedBrokerFirst": {
+    "passed": 42,
+    "suites": 4
+  },
+  "mobile": {
+    "passed": 104,
+    "suites": 12
+  },
+  "webStorage": {
+    "passed": 19
+  },
+  "workspaceTypechecks": "PASS",
+  "scopedLint": {
+    "errors": 0,
+    "warnings": 49
+  },
+  "browserAcceptance": false,
+  "installedAndroidAcceptance": false,
+  "stagingPublication": false
+}

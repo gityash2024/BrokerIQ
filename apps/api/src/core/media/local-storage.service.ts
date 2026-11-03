@@ -171,6 +171,17 @@ export class LocalStorageService {
     return key;
   }
 
+  /** Derived attachment key is stable across import retries and can only be read via the import ACL. */
+  async putImportAttachment(data: Buffer, contentType: string, batchId: string, createdAt: Date): Promise<string> {
+    if (!this.enabled) throw new IntegrationNotConfiguredException('private_storage');
+    const month = createdAt.toISOString().slice(0, 7).replace('-', '');
+    const id = createHmac('sha256', this.fileKey).update(contentType).update('\0').update(data).digest('hex').slice(0, 20);
+    const key = `importattachment/${batchId}/${month}/${id}`;
+    if (!KEY_RE.test(key)) throw new BadRequestException('Invalid attachment key');
+    await this.store(key, contentType, data, true);
+    return key;
+  }
+
   /** Checksum-preserving KYC migration; caller performs authorization and records the hash. */
   async putKyc(data: Buffer, contentType: string, ownerId: string): Promise<string> {
     if (!this.enabled) throw new IntegrationNotConfiguredException('private_storage');
@@ -192,7 +203,8 @@ export class LocalStorageService {
   }
 
   isPrivate(key: string) {
-    return PRIVATE_KINDS.includes(key.split('/')[0] as UploadKind);
+    const kind = key.split('/')[0];
+    return kind === 'importattachment' || PRIVATE_KINDS.includes(kind as UploadKind);
   }
 
   private newKey(kind: UploadKind, ownerId: string) {

@@ -138,6 +138,7 @@ function Entry({
 }) {
   const [entities, setEntities] = useState<CapturedEntity[]>(entry.extracted ?? []);
   const [expanded, setExpanded] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<number | null>(null);
   const [error, setError] = useState('');
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   const [version, setVersion] = useState(entry.updatedAt);
@@ -171,6 +172,26 @@ function Entry({
             {(image || entry.pageNo) && (
               <PrivateSource path={`/imports/${batchId}/source${entry.pageNo ? `?pageNo=${entry.pageNo}&entryId=${entry.id}` : ''}`} />
             )}
+            {entry.ocr?.attachments?.map((attachment: { index: number; name: string; contentType: string; available: boolean; text?: string; warning?: string }) => (
+              <div key={attachment.index} className="mt-3 space-y-2 rounded-xl border border-line p-3">
+                <p className="break-all text-xs font-semibold">{attachment.name}</p>
+                {attachment.available && (
+                  <button type="button" className="text-xs font-semibold text-brand-600"
+                    onClick={() => setPreviewAttachment((active) => active === attachment.index ? null : attachment.index)}>
+                    {previewAttachment === attachment.index ? 'Hide attachment' : 'Preview attachment'}
+                  </button>
+                )}
+                {attachment.available && previewAttachment === attachment.index && (
+                  <PrivateSource
+                    path={`/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`}
+                    videoType={attachment.contentType.startsWith('video/') ? attachment.contentType : undefined}
+                  />
+                )}
+                {attachment.warning && <p className="text-xs text-muted">{attachment.warning}</p>}
+                {attachment.text && <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs">{attachment.text}</pre>}
+              </div>
+            ))}
+            {entry.ocr?.attachmentWarnings?.map((warning: string) => <p key={warning} className="mt-2 text-xs text-muted">{warning}</p>)}
             <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-xs">{entry.rawText}</pre>
           </div>
           <div className="space-y-5">

@@ -1,0 +1,9 @@
+# WhatsApp ZIP photo review
+
+New ZIP imports match explicit WhatsApp attachment markers against the archive basename. Missing and ambiguous names are flagged for review. The reader limits entry count, file size, total decompressed bytes and image dimensions. It preserves the source archive and retains associated media as checksum-verified private evidence.
+
+The import uses local English and Hindi Tesseract in a dedicated process. A timeout terminates that process before a later retry starts another. The importer retains captions as the original text and presents photo-derived fields as separate suggestions. Low-confidence reads show a review warning. Video remains evidence, with browser playback where supported and an explicit Android open action through the system share sheet. The authenticated attachment route applies the same firm and Agent ownership checks as source review.
+
+A real PostgreSQL permission test covers unchanged captions, successful same-firm retrieval, denial for other Agents and firms, generic-media route denial, retries preserving approved records, and repeat imports with matching or different photo bytes. That test substitutes OCR output to exercise the permission and persistence contract deterministically. The original export was separately run through compiled OCR in an isolated local database. It retained 1,897 messages, 543 system events, and 39 attachment files with matching hashes. OCR produced text for all 37 photo files. All 35 unique photo hashes had confidence below 70, with a mean of 50.6. Confidence is an engine score. Field precision and recall require separately labelled records. The run created zero Requirements and Inventory items.
+
+The change applies to new extraction jobs. Historical completed imports still require an explicit re-extraction preview workflow. Physical Android playback, browser visual review, staging publication of this change and labelled semantic acceptance remain open.

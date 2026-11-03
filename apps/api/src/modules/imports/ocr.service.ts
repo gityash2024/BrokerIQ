@@ -1,32 +1,46 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { createWorker, type Worker } from 'tesseract.js';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { env } from '../../config/env';
+import { OcrProcessClient } from './ocr-process-client';
+
+export class OcrInputError extends Error {}
 
 @Injectable()
 export class OcrService implements OnModuleDestroy {
-  private worker: Worker | null = null;
+  private readonly engine = new OcrProcessClient();
+  private stopped = false;
   private serial: Promise<unknown> = Promise.resolve();
   recognize(bytes: Buffer): Promise<{ text: string; confidence: number }> {
     const next = this.serial
       .catch(() => undefined)
       .then(async () => {
+        if (this.stopped) throw new Error('OCR is stopping; original source preserved.');
         const cachePath = join(env().MEDIA_ROOT ?? process.cwd(), 'ocr-cache');
         await fs.mkdir(cachePath, { recursive: true });
-        const metadata = await sharp(bytes).metadata();
-        if (!metadata.width || !metadata.height || metadata.width * metadata.height > 40_000_000) throw new Error('Image dimensions exceed OCR limit');
-        this.worker ??= await createWorker(['eng', 'hin'], 1, { cachePath });
-        const image = await sharp(bytes).rotate().resize({ width: 2400, height: 3200, fit: 'inside', withoutEnlargement: true }).normalize().png().toBuffer();
-        const { data } = await this.worker.recognize(image);
-        return { text: data.text, confidence: data.confidence };
+        let image: Buffer;
+        try {
+          const metadata = await sharp(bytes, { limitInputPixels: 40_000_000 }).metadata();
+          if (!metadata.width || !metadata.height || metadata.width * metadata.height > 40_000_000) throw new Error();
+          image = await sharp(bytes, { limitInputPixels: 40_000_000 })
+            .timeout({ seconds: 30 })
+            .rotate()
+            .resize({ width: 2400, height: 3200, fit: 'inside', withoutEnlargement: true })
+            .normalize()
+            .png()
+            .toBuffer();
+        } catch {
+          throw new OcrInputError('Image is invalid or exceeds the OCR processing limit; original source preserved.');
+        }
+        return this.engine.recognize(image, cachePath);
       });
     this.serial = next;
     return next;
   }
   async onModuleDestroy() {
+    this.stopped = true;
+    await this.engine.close();
     await this.serial.catch(() => undefined);
-    await this.worker?.terminate();
   }
 }

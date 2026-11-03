@@ -74,7 +74,7 @@ export class MediaController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    if (!this.store.enabled) throw new NotFoundException();
+    if (!this.store.enabled || p.kind === 'importattachment') throw new NotFoundException();
     const key = `${p.kind}/${p.owner}/${p.month}/${p.id}`;
     const width = p.kind === 'kyc' ? undefined : RESIZE_WIDTHS.find((x) => String(x) === w);
     const etag = `"${p.id}${width ? `-${width}` : ''}"`;

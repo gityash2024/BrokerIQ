@@ -6,8 +6,10 @@ import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { captureEntryTitle, type CapturedEntity } from '@brokeriq/shared';
-import { captureAccountContext, api, API_URL, authStore, errorMessage } from '@/lib/api';
+import { assertAccountContext, captureAccountContext, api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { EntityFields, prepareEntity } from '@/launch/entity-fields';
@@ -110,6 +112,7 @@ function Entry({ batchId, entry, image }: { batchId: string; entry: any; image: 
   );
 }
 function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; image: boolean }) {
+  const [previewAttachment, setPreviewAttachment] = useState<number | null>(null);
   const qc = useQueryClient();
   const [entities, setEntities] = useState<any[]>(entry.extracted ?? []);
   const [version, setVersion] = useState(entry.updatedAt);
@@ -204,6 +207,26 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
           token={authStore.get()?.accessToken}
         />
       )}
+      {entry.ocr?.attachments?.map((attachment: { index: number; name: string; contentType: string; available: boolean; text?: string; warning?: string }) => (
+        <View key={attachment.index} style={{ gap: 8 }}>
+          <Txt v="caption">{attachment.name}</Txt>
+          {attachment.available && attachment.contentType.startsWith('image/') && (
+            <>
+              <Button title={previewAttachment === attachment.index ? 'Hide photo' : 'Preview photo'} size="sm" variant="secondary"
+                onPress={() => setPreviewAttachment((active) => active === attachment.index ? null : attachment.index)} />
+              {previewAttachment === attachment.index && (
+                <SourceImage uri={`${API_URL}/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`} token={authStore.get()?.accessToken} />
+              )}
+            </>
+          )}
+          {attachment.available && attachment.contentType.startsWith('video/') && (
+            <SourceVideo path={`/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`} contentType={attachment.contentType} />
+          )}
+          {attachment.warning && <Txt v="caption" color="muted">{attachment.warning}</Txt>}
+          {attachment.text && <Txt v="caption" selectable>{attachment.text}</Txt>}
+        </View>
+      ))}
+      {entry.ocr?.attachmentWarnings?.map((warning: string) => <Txt key={warning} v="caption" color="muted">{warning}</Txt>)}
       {ready &&
         entities.map((e, index) => (
           <View key={index} style={{ gap: 12 }}>
@@ -267,5 +290,47 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
         </>
       )}
     </View>
+  );
+}
+
+const videoExtensions: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/webm': 'webm',
+  'video/3gpp': '3gp',
+};
+
+function SourceVideo({ path, contentType }: { path: string; contentType: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const extension = videoExtensions[contentType];
+  if (!extension) return null;
+
+  async function open() {
+    const context = captureAccountContext();
+    let file: File | undefined;
+    setBusy(true);
+    setError('');
+    try {
+      if (!(await Sharing.isAvailableAsync())) throw new Error('No app is available to open this video.');
+      const bytes = await api<Uint8Array>(path, { responseType: 'bytes', ownerContext: context });
+      assertAccountContext(context);
+      file = new File(Paths.cache, `brokeriq-source-${Crypto.randomUUID()}.${extension}`);
+      file.create();
+      file.write(bytes);
+      await Sharing.shareAsync(file.uri, { mimeType: contentType, dialogTitle: 'Open source video' });
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      if (file?.exists) file.delete();
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Button title="Open source video" size="sm" variant="secondary" loading={busy} onPress={open} />
+      {!!error && <Txt v="caption" color="muted">{error}</Txt>}
+    </>
   );
 }

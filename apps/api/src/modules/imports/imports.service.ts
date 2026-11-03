@@ -22,7 +22,8 @@ import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
 import sharp from 'sharp';
 import { ModulesService } from '../../core/features/modules.service';
-import { openCaptureSource, textMessages, zipMessages, type ArchiveSummary } from './capture-stream';
+import { openCaptureSource, textMessages, type ArchiveSummary } from './capture-stream';
+import { archiveEvidence, prepareArchiveReview, type ReviewAttachment } from './archive-review';
 
 export const captureInputSchema = z
   .object({
@@ -41,6 +42,15 @@ export const reviewSchema = z.object({
   ignore: z.boolean().optional(),
   expectedUpdatedAt: z.string().datetime().optional(),
 });
+function reviewProvenance(value: Prisma.JsonValue) {
+  const ocr = value as { attachments?: ReviewAttachment[] } | null;
+  if (!Array.isArray(ocr?.attachments)) return value;
+  return {
+    ...ocr,
+    attachments: ocr.attachments.map(({ mediaRef, ...attachment }) => ({ ...attachment, available: !!mediaRef })),
+  };
+}
+
 const arraySchema = z.array(capturedEntitySchema).max(100);
 const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 
@@ -112,7 +122,12 @@ export class ImportsService {
       this.prisma.sourceEntry.count({ where: visible }),
       this.prisma.sourceEntry.count({ where: { batchId: id, reviewState: 'NEEDS_REVIEW' } }),
     ]);
-    return { ...batch, rawText: batch.rawText?.slice(0, 20000), entries, total, pending, page, pageSize: 50, totalPages: Math.ceil(total / 50) };
+    return {
+      ...batch,
+      rawText: batch.rawText?.slice(0, 20000),
+      entries: entries.map((entry) => ({ ...entry, ocr: reviewProvenance(entry.ocr) })),
+      total, pending, page, pageSize: 50, totalPages: Math.ceil(total / 50),
+    };
   }
   async capture(input: z.infer<typeof captureInputSchema>, user: RequestUser) {
     const orgId = this.org(user);
@@ -173,6 +188,18 @@ export class ImportsService {
     await this.jobs.enqueue('import.extract', { batchId: id }, { key: `import:${id}` });
     return { ok: true };
   }
+  async attachment(id: string, entryId: string, index: number, user: RequestUser) {
+    const entry = await this.prisma.sourceEntry.findFirst({
+      where: { id: entryId, batchId: id, batch: this.scope(user) },
+      select: { ocr: true },
+    });
+    const attachments = (entry?.ocr as { attachments?: ReviewAttachment[] } | null)?.attachments;
+    const item = attachments?.find((attachment) => attachment.index === index);
+    if (!item?.mediaRef?.startsWith(`importattachment/${id}/`) || !item.sha256) throw new NotFoundException('Attachment not available');
+    const file = await this.storage.read(item.mediaRef);
+    if (sha(file.body) !== item.sha256) throw new ConflictException('Attachment integrity check failed');
+    return file;
+  }
   async source(id: string, user: RequestUser, pageNo?: number, entryId?: string) {
     const batch = await this.prisma.importBatch.findFirst({ where: { id, ...this.scope(user) } });
     if (!batch) throw new NotFoundException('Import not found');
@@ -209,7 +236,8 @@ export class ImportsService {
       let text = batch.rawText ?? '';
       let entities: CapturedEntity[] | null = null;
       let streamed: AsyncIterable<CapturedMessage & { sourceFile?: string }> | undefined;
-      const archiveSummary: ArchiveSummary = { textFiles: 0, attachmentFiles: 0, expandedTextBytes: 0 };
+      let archiveSummary: ArchiveSummary = { textFiles: 0, attachmentFiles: 0, expandedTextBytes: 0 };
+      let archiveFiles: ReviewAttachment[] = [];
       if (batch.mediaRef) {
         const source = await openCaptureSource(this.storage, batch.mediaRef);
         if (source.contentType.startsWith('image/')) {
@@ -233,18 +261,36 @@ export class ImportsService {
               entities = null;
             }
           }
-        } else if (source.contentType === 'application/zip') streamed = zipMessages(source.bytes, archiveSummary);
-        else streamed = textMessages(source.bytes);
+        } else if (source.contentType === 'application/zip') {
+          const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef });
+          archiveSummary = archive.archive;
+          archiveFiles = archive.files;
+          streamed = archive.messages;
+        } else streamed = textMessages(source.bytes);
       }
       const messages: AsyncIterable<CapturedMessage & { sourceFile?: string }> | Iterable<CapturedMessage & { sourceFile?: string }> =
         streamed ?? (batch.sourceType === 'CHAT_EXPORT' ? chatExportMessages(text) : [{ text }]);
       let i = 0;
       for await (const message of messages) {
-        const extracted:CapturedEntity[] = message.system ? [{kind:'UNRELATED',warnings:['WhatsApp system event; retained only as source evidence']}] : entities ?? extractCapture(message.text);
-        const entryKey = `${i}:${sha(`${message.sender ?? ''}\0${message.timestamp ?? ''}\0${message.text}`)}`;
+        const evidence = archiveEvidence(message, archiveFiles);
+        const extracted: CapturedEntity[] = message.system
+          ? [{ kind: 'UNRELATED', warnings: ['WhatsApp system event; retained only as source evidence'] }]
+          : (entities ?? extractCapture(message.text));
+        // Keep each photo separate so an OCR fragment cannot alter the caption's proposed facts.
+        const photoHashes = new Set<string>();
+        for (const photo of evidence.attachments) {
+          if (!photo.text || !photo.sha256 || photoHashes.has(photo.sha256)) continue;
+          photoHashes.add(photo.sha256);
+          for (const entity of extractCapture(photo.text)) {
+            if (entity.kind === 'UNRELATED' || extracted.length >= 100) continue;
+            extracted.push({ ...entity, warnings: [...entity.warnings, 'From photo OCR. Verify all fields against the original photo.'] });
+          }
+        }
+        const originalIdentity = `${message.sender ?? ''}\0${message.timestamp ?? ''}\0${message.text}`;
+        const entryKey = `${i}:${sha(originalIdentity)}`;
         const messageIdentity =
           batch.sourceType === 'CHAT_EXPORT' && batch.groupName && message.sender && message.timestamp
-            ? sha(`${batch.groupName}\0${message.sender}\0${message.timestamp}\0${message.text}`)
+            ? sha(`${batch.groupName}\0${originalIdentity}${evidence.identity ? '\0' + evidence.identity : ''}`)
             : null;
         const create = {
           batchId,
@@ -252,7 +298,23 @@ export class ImportsService {
           rowNo: i + 1,
           rawText: message.text,
           extracted: extracted as Prisma.InputJsonValue,
-          ocr: { sender: message.sender ?? null, timestamp: message.timestamp ?? null, sourceFile: message.sourceFile ?? null,system:message.system===true },
+          ocr: {
+            sender: message.sender ?? null,
+            timestamp: message.timestamp ?? null,
+            sourceFile: message.sourceFile ?? null,
+            system: message.system === true,
+            attachments: evidence.attachments.map((item) => ({
+              index: item.index,
+              name: item.name,
+              contentType: item.contentType,
+              mediaRef: item.mediaRef ?? null,
+              sha256: item.sha256 ?? null,
+              text: item.text ?? null,
+              confidence: item.confidence ?? null,
+              warning: item.warning ?? null,
+            })),
+            attachmentWarnings: evidence.warnings,
+          },
           organizationId: batch.organizationId,
           messageIdentity,
         };
@@ -288,7 +350,7 @@ export class ImportsService {
             ...(archiveSummary.attachmentFiles
               ? {
                   attachmentNote:
-                    'ZIP attachments are retained in the private original download. Chat TXT messages are extracted; embedded media is not automatically OCR processed. Import images separately for OCR.',
+                    'Matching photos and their OCR appear beside the message. Review all extracted details. Videos and unmatched files remain source evidence.',
                 }
               : {}),
           },
@@ -331,7 +393,7 @@ export class ImportsService {
               createdById:entry.batch.createdById,
               assignedToId:user.role==='BROKER_AGENT'?user.id:null,
               sourceEntryId:entry.id, sourceUnitKey,
-              provenance:{rawText:entry.rawText, sourceType:entry.batch.sourceType, fileName:entry.batch.fileName, groupName:entry.batch.groupName, senderName:entry.batch.senderName, senderPhone:entry.batch.senderPhone, message:entry.ocr, reviewedAt:new Date().toISOString(), reviewedById:user.id} as Prisma.InputJsonValue,
+              provenance:{rawText:entry.rawText, sourceType:entry.batch.sourceType, fileName:entry.batch.fileName, groupName:entry.batch.groupName, senderName:entry.batch.senderName, senderPhone:entry.batch.senderPhone, message:reviewProvenance(entry.ocr), reviewedAt:new Date().toISOString(), reviewedById:user.id} as Prisma.InputJsonValue,
             },
             update:{},
           });

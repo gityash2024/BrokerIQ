@@ -1,3 +1,11 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { LocalStorageService } from '../src/core/media/local-storage.service';
+import sharp from 'sharp';
+import { zipSync, strToU8 } from 'fflate';
+import { ImportsService } from '../src/modules/imports/imports.service';
+import { OcrService } from '../src/modules/imports/ocr.service';
 import { Test } from '@nestjs/testing';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { LeadsService } from '../src/modules/leads/leads.service';
@@ -444,6 +452,73 @@ describe('Production agent/firm record boundaries', () => {
       .get('/api/imports/' + source.id)
       .set(headers(admin))
       .expect(200);
+  });
+
+  it('imports ZIP photo evidence with private record scope and keeps a reviewed entry across retries', async () => {
+    const original = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#cccccc' } }).png().toBuffer();
+    const other = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#dddddd' } }).png().toBuffer();
+    const caption = '<attached: property.png>';
+    const source = (image: Buffer, extra = {}) => zipSync({
+      'chat.txt': strToU8(`02/11/2026, 10:00 - Sender: ${caption}\n02/11/2026, 10:01 - Sender: <attached: missing.png>`),
+      'images/property.png': image,
+      ...extra,
+    });
+    const capture = async (file: Uint8Array) => {
+      const response = await request(app.getHttpServer()).post('/api/imports').set(headers(a)).send({
+        sourceType: 'CHAT_EXPORT',
+        groupName: 'zip-photo-permissions-' + uid,
+        fileDataUrl: 'data:application/zip;base64,' + Buffer.from(file).toString('base64'),
+      }).expect(201);
+      await app.get(ImportsService).extract(response.body.id);
+      return response.body.id as string;
+    };
+
+    const root = await mkdtemp(join(tmpdir(), 'brokeriq-photo-permissions-'));
+    const storage = jest.replaceProperty(app.get(LocalStorageService) as unknown as { root: string | undefined }, 'root', root);
+    const ocr = jest.spyOn(app.get(OcrService), 'recognize').mockResolvedValue({
+      text: 'Available 2 BHK for rent in Sector 45, rent 35000',
+      confidence: 58,
+    });
+    try {
+      const id = await capture(source(original));
+      const review = await request(app.getHttpServer()).get('/api/imports/' + id).set(headers(a)).expect(200);
+      const [entry, missing] = review.body.entries;
+      expect(entry.rawText).toBe(caption);
+      expect(entry.ocr).toMatchObject({ sender: 'Sender', timestamp: '02/11/2026, 10:00', sourceFile: 'chat.txt' });
+      const [photo] = entry.ocr.attachments;
+      expect(photo).toMatchObject({ available: true, confidence: 58, name: 'images/property.png' });
+      expect(photo).not.toHaveProperty('mediaRef');
+      expect(entry.extracted.some((entity: { warnings: string[] }) => entity.warnings.some((warning) => warning.includes('From photo OCR')))).toBe(true);
+      expect(missing.ocr.attachmentWarnings).toEqual(['Attachment missing from archive: missing.png']);
+      expect(ocr).toHaveBeenCalledTimes(1);
+
+      const path = `/api/imports/${id}/entries/${entry.id}/attachments/${photo.index}`;
+      await request(app.getHttpServer()).get(path).expect(401);
+      await request(app.getHttpServer()).get(path).set(headers(b)).expect(404);
+      await request(app.getHttpServer()).get(path).set(headers(outsider)).expect(404);
+      const file = await request(app.getHttpServer()).get(path).set(headers(admin)).expect(200).expect('Cache-Control', 'private, no-store');
+      expect(file.body.equals(original)).toBe(true);
+      const persisted = await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } });
+      const key = (persisted.ocr as unknown as { attachments: { mediaRef: string }[] }).attachments[0].mediaRef;
+      await request(app.getHttpServer()).get('/api/media/f/' + key).set(headers(a)).expect(404);
+      await db.sourceEntry.update({ where: { id: entry.id }, data: { reviewState: 'APPROVED', reviewNote: 'Reviewed by agent' } });
+      const approved = await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } });
+      await db.importBatch.update({ where: { id }, data: { status: 'FAILED' } });
+      await app.get(ImportsService).extract(id);
+      expect(await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } })).toEqual(approved);
+
+      const repeated = await capture(source(original, { 'irrelevant.txt': strToU8('another chat export segment') }));
+      const distinct = await capture(source(other));
+      const first = await db.sourceEntry.findFirstOrThrow({ where: { batchId: repeated, rawText: caption } });
+      const second = await db.sourceEntry.findFirstOrThrow({ where: { batchId: distinct, rawText: caption } });
+      expect(first.duplicateOfId).toBe(entry.id);
+      expect(second.reviewState).toBe('NEEDS_REVIEW');
+      expect(second.messageIdentity).not.toBe(approved.messageIdentity);
+    } finally {
+      ocr.mockRestore();
+      storage.restore();
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it('dashboard totals and unread counts exclude another agent’s inventory and unlinked conversations', async () => {

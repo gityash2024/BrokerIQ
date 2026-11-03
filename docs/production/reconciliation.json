@@ -1463,16 +1463,25 @@
         "initial",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "IMPLEMENTED_ISOLATED_REAL_EXPORT_VERIFIED",
+      "web": "IMPLEMENTED_TYPECHECKED_BROWSER_PENDING",
+      "androidSource": "IMPLEMENTED_TYPECHECKED_DEVICE_PENDING",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
+      "verification": "Isolated compiled import with actual local OCR verified 39 attachments, including 37 photo files with OCR text, with 1,897 source entries and no approved records created. Authorization and retry exercised by PostgreSQL regression. All 35 unique photo hashes had confidence below 70. Semantic quality remains open.",
+      "notes": [
+        "See docs/evidence/zip-photo-ocr-20261104/isolated-real-export.json. Build 52 source audit and evidence remain tied to its own published pin."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/archive-media.ts",
+        "apps/api/src/modules/imports/archive-review.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "apps/api/src/modules/imports/ocr-process-client.ts",
+        "apps/web/src/app/broker/imports/[id]/page.tsx",
+        "apps/mobile/app/import-review/[id].tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,

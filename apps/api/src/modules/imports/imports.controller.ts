@@ -53,6 +53,22 @@ export class ImportsController {
   @Post(':id/retry') retry(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.imports.retry(id, user);
   }
+  @Get(':id/entries/:entryId/attachments/:index')
+  async attachment(
+    @Param('id') id: string,
+    @Param('entryId') entryId: string,
+    @Param('index', new ZodPipe(z.coerce.number().int().min(0).max(9999))) index: number,
+    @CurrentUser() user: RequestUser,
+    @Res() response: Response,
+  ) {
+    const file = await this.imports.attachment(id, entryId, index, user);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    if (!file.contentType.startsWith('image/')) response.setHeader('Content-Disposition', 'attachment');
+    response.end(file.body);
+  }
   @Get(':id/source') async source(
     @Param('id') id: string,
     @CurrentUser() user: RequestUser,
