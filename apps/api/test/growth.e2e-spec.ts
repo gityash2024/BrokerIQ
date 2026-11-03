@@ -433,6 +433,47 @@ describe('Growth features (e2e)', () => {
     await http.get(path).set(auth(broker.token)).expect(200);
   });
 
+  it('pages the full scoped invoice dataset and totals beyond the legacy 300-record window', async () => {
+    const organization = await prisma.organization.create({ data: { name: 'Invoice pagination fixture', slug: 'invoice-pages-' + uniq } });
+    const actor = await prisma.user.create({
+      data: { organizationId: organization.id, role: 'BROKER_AGENT', email: email('invoice-pages-agent'), name: 'Invoice pagination Agent' },
+      include: { organization: true },
+    });
+    const headers = auth((await app.get(AuthService).issue(actor)).accessToken);
+    await prisma.clientInvoice.createMany({
+      data: Array.from({ length: 305 }, (_, index) => ({
+        organizationId: organization.id,
+        createdById: index < 301 ? actor.id : null,
+        number: 'P-' + index,
+        clientName: 'Pagination client',
+        publicToken: 'invoice-pages-' + uniq + '-' + index,
+        items: [{ description: 'Brokerage', amount: 100 }],
+        subtotal: 100,
+        total: 100,
+      })),
+    });
+    const ids: string[] = [];
+    for (let page = 1; page <= 4; page++) {
+      const result = await http.get(`/api/broker/invoices?paginated=true&pageSize=100&page=${page}&status=SENT`).set(headers).expect(200);
+      expect(result.body.total).toBe(301);
+      expect(result.body.pendingTotal).toBe(30100);
+      expect(result.body.totalPages).toBe(4);
+      ids.push(...result.body.items.map((row: { id: string }) => row.id));
+    }
+    expect(ids.length).toBe(301);
+    expect(new Set(ids).size).toBe(301);
+    expect((await http.get('/api/broker/invoices').set(headers).expect(200)).body.length).toBe(300);
+    for (const suffix of ['page=0', 'pageSize=101', 'paginated=unknown'])
+      await http
+        .get('/api/broker/invoices?' + suffix)
+        .set(headers)
+        .expect(400);
+    const empty = await http.get('/api/broker/invoices?paginated=true&status=PAID').set(headers).expect(200);
+    expect(empty.body).toMatchObject({ total: 0, pendingTotal: 0, items: [] });
+    const adminList = await http.get('/api/broker/invoices?paginated=true').set(auth(broker.token)).expect(200);
+    expect(adminList.body.items.every((row: { organizationId: string }) => row.organizationId === broker.orgId)).toBe(true);
+  });
+
   it('Exotel click-to-call, status callback and incoming-call leads', async () => {
     const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: broker.orgId, phone: { contains: '9876543299' } } });
     const r0 = await http

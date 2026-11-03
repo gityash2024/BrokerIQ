@@ -3771,7 +3771,7 @@
       "verification": "Growth suite 30/30 on isolated PostgreSQL. Invoice role and lead/deal association, sequence allocation, paid concurrency, UPI and PDF exercised. Staging, end-to-end UI and complete export coverage remain open.",
       "notes": [
         "Broker Agents see their own invoices and retain access to a linked invoice only while its lead remains assigned to them. Broker Admin has its firm scope. Paid invoices reject a status change that would allow commission to be applied again.",
-        "Legacy broker invoice lists still have a 300-record cap. Upcoming billing module flags and permissions remain unchanged. No live client email or WhatsApp send was tested."
+        "New web/mobile queries page the complete authorized invoice list; legacy array responses retain their 300-record window. Pending totals cover the full selected status. PostgreSQL pagination test verifies 301 visible records, four hidden records, no repeated page IDs and exact totals. Module flags and remaining exports/UI/provider acceptance remain open."
       ],
       "roles": [
         "SUPER_ADMIN",

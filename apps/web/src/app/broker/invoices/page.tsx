@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, Copy, FileText, Plus, Send, Settings2, Trash2 } from 'lucide-react';
 import { formatINR, whatsappLink } from '@brokeriq/shared';
+import { ApiErrorState } from '@/components/ui/api-error';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { patch, post, useApiMutation } from '@/lib/hooks';
@@ -23,10 +24,17 @@ function InvoicesInner() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
   const [create, setCreate] = useState<boolean>(!!sp.get('deal'));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paying, setPaying] = useState<any>(null);
-  const list = useQuery({ queryKey: ['invoices', status], queryFn: () => api<any[]>(`/broker/invoices${status ? `?status=${status}` : ''}`) });
+  const list = useQuery({
+    queryKey: ['invoices', status, page],
+    queryFn: () =>
+      api<{ items: any[]; total: number; pendingTotal: number; totalPages: number }>(
+        `/broker/invoices?paginated=true&page=${page}&pageSize=50${status ? `&status=${status}` : ''}`,
+      ),
+  });
   const settings = useQuery({ queryKey: ['payment-settings'], queryFn: () => api<any>('/broker/payment-settings') });
   const send = async (id: string) => {
     try {
@@ -37,7 +45,7 @@ function InvoicesInner() {
       toast.error(errorMessage(e));
     }
   };
-  const total = (list.data ?? []).filter((i) => i.status === 'SENT').reduce((s, i) => s + i.total, 0);
+  const total = list.data?.pendingTotal ?? 0;
   return (
     <>
       <PageHeader
@@ -69,7 +77,10 @@ function InvoicesInner() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented
           value={status}
-          onChange={setStatus}
+          onChange={(value) => {
+            setStatus(value);
+            setPage(1);
+          }}
           options={[
             { value: '', label: 'All' },
             { value: 'SENT', label: 'Pending' },
@@ -83,9 +94,11 @@ function InvoicesInner() {
           </span>
         )}
       </div>
-      {list.isLoading ? (
+      {list.isError ? (
+        <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
+      ) : list.isLoading ? (
         <Skeleton className="h-48" />
-      ) : !list.data?.length ? (
+      ) : !list.data?.items.length ? (
         <Empty
           icon={<FileText className="size-6" />}
           title="अभी कोई invoice नहीं"
@@ -94,7 +107,7 @@ function InvoicesInner() {
         />
       ) : (
         <div className="space-y-3">
-          {list.data.map((i) => (
+          {list.data.items.map((i) => (
             <div key={i.id} className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -140,6 +153,19 @@ function InvoicesInner() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {list.data && list.data.totalPages > 1 && (
+        <div className="my-4 flex items-center justify-between gap-3">
+          <Button variant="secondary" disabled={page <= 1 || list.isFetching} onClick={() => setPage(page - 1)}>
+            Previous
+          </Button>
+          <span className="text-sm text-muted">
+            Page {page} / {list.data.totalPages} · {list.data.total} invoices
+          </span>
+          <Button variant="secondary" disabled={page >= list.data.totalPages || list.isFetching} onClick={() => setPage(page + 1)}>
+            Next
+          </Button>
         </div>
       )}
       <CreateInvoice open={create} dealId={sp.get('deal')} onClose={() => setCreate(false)} />

@@ -2,6 +2,7 @@ import { ModulesService } from '../../core/features/modules.service';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
+import { z } from 'zod';
 import QRCode from 'qrcode';
 import { InvoiceStatus, Prisma, type ClientInvoice, type Organization } from '@prisma/client';
 import { formatINR, normalizeIndianPhone } from '@brokeriq/shared';
@@ -108,15 +109,36 @@ export class InvoicesService {
       : Prisma.empty;
   }
 
-  list(user: RequestUser, status?: string) {
-    const orgId = requireOrg(user);
-    const invoiceStatus = Object.values(InvoiceStatus).find((value) => value === status);
-    if (status && !invoiceStatus) throw new BadRequestException('Invalid invoice status');
-    return this.prisma.$queryRaw<ClientInvoice[]>`
-      SELECT i.* FROM "ClientInvoice" i WHERE i."organizationId" = ${orgId}
-      ${invoiceStatus ? Prisma.sql`AND i.status = ${invoiceStatus}::"InvoiceStatus"` : Prisma.empty}
-      ${this.agentScope(user)}
+  async list(user: RequestUser, query: unknown) {
+    const q = z
+      .object({
+        status: z.nativeEnum(InvoiceStatus).optional(),
+        paginated: z.enum(['true', 'false']).optional(),
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(1).max(100).default(50),
+      })
+      .safeParse(query);
+    if (!q.success) throw new BadRequestException(q.error.flatten());
+    const { status, page, pageSize, paginated } = q.data;
+    const where = Prisma.sql`i."organizationId" = ${requireOrg(user)}
+      ${status ? Prisma.sql`AND i.status = ${status}::"InvoiceStatus"` : Prisma.empty}
+      ${this.agentScope(user)}`;
+    if (paginated !== 'true')
+      return this.prisma.$queryRaw<ClientInvoice[]>`
+      SELECT i.* FROM "ClientInvoice" i WHERE ${where}
       ORDER BY i."createdAt" DESC, i.id DESC LIMIT 300`;
+    return this.prisma.$transaction(
+      async (tx) => {
+        const items = await tx.$queryRaw<ClientInvoice[]>`
+        SELECT i.* FROM "ClientInvoice" i WHERE ${where}
+        ORDER BY i."createdAt" DESC, i.id DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
+        const [summary] = await tx.$queryRaw<{ total: number; pendingTotal: number }[]>`
+        SELECT COUNT(*)::int AS total, COALESCE(SUM(i.total) FILTER (WHERE i.status = 'SENT'), 0)::float8 AS "pendingTotal"
+        FROM "ClientInvoice" i WHERE ${where}`;
+        return { items, ...summary, page, pageSize, totalPages: Math.ceil(summary.total / pageSize) };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   private async findInvoice(user: RequestUser, id: string, db: Prisma.TransactionClient = this.prisma, lock = false) {

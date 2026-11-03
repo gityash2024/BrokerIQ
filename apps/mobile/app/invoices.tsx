@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Linking, Share, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { FileText, Plus, Send } from 'lucide-react-native';
 import { formatINR } from '@brokeriq/shared';
 import { api, patch, post } from '@/lib/api';
@@ -19,7 +19,16 @@ export default function Invoices() {
   const [status, setStatus] = useState('');
   const [create, setCreate] = useState(false);
   const [upi, setUpi] = useState(false);
-  const list = useQuery({ queryKey: ['invoices', status], queryFn: () => api<any[]>(`/broker/invoices${status ? `?status=${status}` : ''}`) });
+  const list = useInfiniteQuery({
+    queryKey: ['invoices', status],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      api<{ items: any[]; total: number; pendingTotal: number; totalPages: number }>(
+        `/broker/invoices?paginated=true&page=${pageParam}&pageSize=50${status ? `&status=${status}` : ''}`,
+      ),
+    getNextPageParam: (last, _pages, current) => (current < last.totalPages ? current + 1 : undefined),
+  });
+  const invoices = list.data?.pages.flatMap((p) => p.items) ?? [];
   const settings = useQuery({ queryKey: ['payment-settings'], queryFn: () => api<any>('/broker/payment-settings') });
   const paid = useApiMutation((id: string) => patch(`/broker/invoices/${id}`, { status: 'PAID', paidMode: 'UPI' }), {
     success: 'Paid mark हुआ',
@@ -54,18 +63,21 @@ export default function Invoices() {
           { value: '', label: 'All' },
           { value: 'SENT', label: 'Pending' },
           { value: 'PAID', label: 'Paid' },
+          { value: 'CANCELLED', label: 'Cancelled' },
         ]}
       />
-      {list.isLoading ? (
+      {list.isError ? (
+        <Empty title="Invoices लोड नहीं हुए" action={<Button title="Retry" onPress={() => list.refetch()} />} />
+      ) : list.isLoading ? (
         <Loader />
-      ) : !list.data?.length ? (
+      ) : !invoices.length ? (
         <Empty
           icon={<FileText size={26} color={c.brand} />}
           title="अभी कोई invoice नहीं"
           action={<Button title="Invoice बनाएँ" onPress={() => setCreate(true)} />}
         />
       ) : (
-        list.data.map((i) => (
+        invoices.map((i) => (
           <Card key={i.id} style={{ padding: 14, gap: 6, marginTop: 10 }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Txt v="bodyStrong">{i.number}</Txt>
@@ -90,6 +102,7 @@ export default function Invoices() {
           </Card>
         ))
       )}
+      {list.hasNextPage && <Button title="Load more" loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} />}
       <CreateSheet open={create} onClose={() => setCreate(false)} />
       <UpiSheet open={upi} data={settings.data} onClose={() => setUpi(false)} />
     </Screen>

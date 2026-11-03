@@ -49,8 +49,8 @@ export class InvoicesController {
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Get('broker/invoices')
-  list(@CurrentUser() user: RequestUser, @Query('status') status?: string) {
-    return this.svc.list(user, status);
+  list(@CurrentUser() user: RequestUser, @Query() query: unknown) {
+    return this.svc.list(user, query);
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
