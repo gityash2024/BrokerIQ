@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { Alert, ScrollView, View, Linking, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, View, Linking, TouchableOpacity, Share } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { tr } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
-import { brokerUpcomingModules, defaultModulePolicies, moduleAllowed, languageOf } from '@brokeriq/shared';
-import { Txt, Button } from '@/ui';
+import { brokerUpcomingModules, defaultModulePolicies, moduleAllowed, languageOf, type MicrositeShare } from '@brokeriq/shared';
+import { Txt, Button, ErrorView, Loader } from '@/ui';
+import { api } from '@/lib/api';
+import { showError } from '@/lib/hooks';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { LanguageSheet } from '@/components/language';
 import { useTheme, useThemeMode } from '@/lib/theme';
@@ -141,6 +145,7 @@ export default function BrokerSettings() {
         {moduleAllowed(modules, 'time_logging', user?.role ?? '') && (
           <Button title="Time Logging" variant="secondary" onPress={() => router.push('/time-logging' as any)} />
         )}
+        {user?.role === 'BROKER_ADMIN' && user.organizationId && <MicrositeQr key={`${user.id}:${user.organizationId}`} />}
 
         {/* Agent KYC Verification Card */}
         <TouchableOpacity
@@ -538,5 +543,31 @@ export default function BrokerSettings() {
       {/* Language Selection Sheet */}
       <LanguageSheet open={langSheetOpen} onClose={() => setLangSheetOpen(false)} />
     </BrokerScreen>
+  );
+}
+
+function MicrositeQr() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const query = useQuery({
+    queryKey: ['microsite-qr', user?.id, user?.organizationId],
+    queryFn: () => api<MicrositeShare>('/broker/profile/microsite-qr'),
+    enabled: open && user?.role === 'BROKER_ADMIN' && !!user.organizationId,
+  });
+  const share = query.data;
+  return (
+    <NativeCard>
+      <View style={{ gap: 12 }}>
+        <Button title={open ? 'Hide QR' : 'Microsite QR'} variant="secondary" onPress={() => setOpen(!open)} />
+        {open && query.isPending && <Loader />}
+        {open && query.isError && <ErrorView error={query.error} onRetry={() => query.refetch()} />}
+        {open && share && (
+          <>
+            <Image source={share.qrPngDataUrl} accessibilityLabel={tr('Microsite QR')} style={{ width: 192, height: 192, alignSelf: 'center' }} />
+            <Button title="Share microsite link" onPress={() => Share.share({ message: share.url }).catch(showError)} />
+          </>
+        )}
+      </View>
+    </NativeCard>
   );
 }

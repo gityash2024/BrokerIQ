@@ -6,6 +6,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   NotFoundException,
   Param,
   Patch,
@@ -16,8 +17,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
+import QRCode from 'qrcode';
 import { Prisma } from '@prisma/client';
-import { brokerOnboardingSchema, inviteMemberSchema, kycSubmitSchema, normalizeIndianPhone, reviewSchema } from '@brokeriq/shared';
+import { brokerOnboardingSchema, inviteMemberSchema, kycSubmitSchema, normalizeIndianPhone, reviewSchema, type MicrositeShare } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { UsageService } from '../../core/usage/usage.service';
@@ -152,6 +154,20 @@ export class OrganizationsController {
       plan: usage,
       usage: { agents, activeListings, leadsThisMonth, aiThisMonth },
     };
+  }
+
+  @Roles('BROKER_ADMIN')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('broker/profile/microsite-qr')
+  async micrositeQr(@CurrentUser() user: RequestUser): Promise<MicrositeShare> {
+    if (user.role !== 'BROKER_ADMIN') throw new ForbiddenException('Broker Admin access required');
+    const org = await this.prisma.organization.findFirst({ where: { id: requireOrg(user), status: 'ACTIVE' }, select: { slug: true } });
+    if (!org) throw new NotFoundException('Broker firm unavailable');
+    const target = new URL(`/brokers/${encodeURIComponent(org.slug)}`, env().PUBLIC_WEB_URL);
+    target.searchParams.set('via', 'qr');
+    const url = target.toString();
+    const qrPngDataUrl = await QRCode.toDataURL(url, { width: 512, margin: 4 });
+    return { url, qrPngDataUrl };
   }
 
   @Roles('BROKER_ADMIN')

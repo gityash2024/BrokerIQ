@@ -216,9 +216,10 @@ export const enquirySchema = z.object({
   message: z.string().trim().max(1000).optional(),
   wantsVisit: z.boolean().default(false),
   visitDate: z.string().optional().nullable(),
-  source: z.enum(['WEBSITE', 'MICROSITE', 'APP']).default('WEBSITE'),
+  source: z.enum(['WEBSITE', 'MICROSITE', 'MICROSITE_QR', 'APP']).default('WEBSITE'),
 });
 export type EnquiryInput = z.infer<typeof enquirySchema>;
+export type MicrositeShare = { url: string; qrPngDataUrl: string };
 
 export const CONTENT_REPORT_REASONS = ['SPAM', 'ABUSE', 'FRAUD', 'OTHER'] as const;
 /** Report an in-app chat (by the user or the broker firm in it). */

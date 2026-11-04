@@ -47,6 +47,7 @@ function LoginInner() {
         !next.includes('\\') &&
         (next.startsWith('/notification?notification=') ||
           next.startsWith('/user') ||
+          /^\/brokers\/[a-z0-9-]+(?:\?via=qr)?$/i.test(next) ||
           next.startsWith('/invite/') ||
           (r.user.role === 'SUPER_ADMIN' && next.startsWith('/admin')) ||
           (['BROKER_ADMIN', 'BROKER_AGENT'].includes(r.user.role) && next.startsWith('/broker')))

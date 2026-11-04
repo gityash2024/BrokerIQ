@@ -62,7 +62,7 @@ export default async function BrokerPage({ params }: Props) {
               )}
             </div>
           </div>
-          <MicrositeActions org={{ id: b.id, name: b.name, phone: b.phone, whatsapp: b.whatsapp }} />
+          <MicrositeActions org={{ id: b.id, slug, name: b.name, phone: b.phone, whatsapp: b.whatsapp }} />
         </div>
       </div>
       <div className="container-x mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">

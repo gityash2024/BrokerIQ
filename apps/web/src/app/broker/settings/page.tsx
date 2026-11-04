@@ -17,7 +17,7 @@ import { Avatar, Badge, PageLoader, Switch } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { BrandingSettings, VisitingCardPanel } from '@/components/broker/growth-tools';
 import { useFlag, useFreeMode } from '@/lib/config';
-import type { LocalityListItem } from '@brokeriq/shared';
+import type { LocalityListItem, MicrositeShare } from '@brokeriq/shared';
 
 const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
 
@@ -37,8 +37,8 @@ function FirmSettingsPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me'>(user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
   const cardOn = useFlag('visiting_card');
-  const q = useQuery({ queryKey: ['broker-profile'], queryFn: () => api<any>('/broker/profile') });
-  if (q.isLoading) return <PageLoader />;
+  const q = useQuery({ queryKey: ['broker-profile', user?.id, user?.organizationId], queryFn: () => api<any>('/broker/profile'), enabled: !!user });
+  if (!user || q.isLoading) return <PageLoader />;
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   const org = q.data;
   const microsite = `${typeof window !== 'undefined' ? window.location.origin : SITE_URL}/brokers/${org.slug}`;
@@ -114,7 +114,7 @@ function FirmSettingsPage() {
 }
 
 function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; onSaved: () => void }) {
-  const { setSession } = useAuth();
+  const { user, setSession } = useAuth();
   const freeMode = useFreeMode();
   const { data: locs } = useQuery({
     queryKey: ['localities-all'],
@@ -251,6 +251,7 @@ function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; on
             enquiry सीधे आपके CRM में आएगी।
           </p>
           <CopyField label="Microsite link" value={microsite} />
+          {user?.role === 'BROKER_ADMIN' && <MicrositeQr key={`${user.id}:${org.id}`} organizationId={org.id} />}
           <Button size="sm" variant="whatsapp" external href={`https://wa.me/?text=${encodeURIComponent(`हमारी सारी properties यहाँ देखें: ${microsite}`)}`}>
             WhatsApp पर share करें
           </Button>
@@ -288,6 +289,35 @@ function FirmForm({ org, microsite, onSaved }: { org: any; microsite: string; on
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function MicrositeQr({ organizationId }: { organizationId: string }) {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const query = useQuery({
+    queryKey: ['microsite-qr', user?.id, organizationId],
+    queryFn: () => api<MicrositeShare>('/broker/profile/microsite-qr'),
+    enabled: open && user?.role === 'BROKER_ADMIN' && user.organizationId === organizationId,
+  });
+  if (user?.role !== 'BROKER_ADMIN' || user.organizationId !== organizationId) return null;
+  return (
+    <div className="space-y-3">
+      <Button type="button" size="sm" variant="secondary" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? 'Hide QR' : 'Microsite QR'}
+      </Button>
+      {open && query.isPending && <PageLoader />}
+      {open && query.isError && <ApiErrorState error={query.error} onRetry={() => query.refetch()} compact />}
+      {open && query.data && (
+        <div className="space-y-3">
+          <img alt="Microsite QR" src={query.data.qrPngDataUrl} width={192} height={192} className="rounded-lg border border-line bg-white" />
+          <CopyField label="Share microsite link" value={query.data.url} />
+          <a href={query.data.qrPngDataUrl} download="BrokerIQ-microsite-qr.png" className="text-sm font-semibold text-brand">
+            Download QR
+          </a>
+        </div>
+      )}
     </div>
   );
 }

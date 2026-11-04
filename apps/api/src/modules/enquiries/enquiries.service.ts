@@ -25,6 +25,10 @@ export class EnquiriesService {
    *  - project → super admins
    */
   async create(input: EnquiryInput, user?: RequestUser) {
+    const fromMicrositeQr = input.source === 'MICROSITE_QR';
+    if (fromMicrositeQr && (!input.organizationId || input.listingId || input.projectId)) {
+      throw new BadRequestException('Microsite QR enquiries require a broker firm');
+    }
     await this.access.assertNotBlocked({ email: input.email ?? user?.email, phone: input.phone });
     await this.access.assertAllowed(user, 'enquire');
     const phone = normalizeIndianPhone(input.phone);
@@ -72,9 +76,15 @@ export class EnquiriesService {
         name: input.name,
         phone,
         email: input.email || null,
-        source: input.source === 'MICROSITE' ? 'MICROSITE' : 'WEBSITE',
+        source: input.source === 'MICROSITE' || fromMicrositeQr ? 'MICROSITE' : 'WEBSITE',
         sourceRef: enquiry.id,
-        sourceDetail: listing ? listing.title : input.source === 'MICROSITE' ? 'Microsite contact form' : 'Website enquiry',
+        sourceDetail: listing
+          ? listing.title
+          : fromMicrositeQr
+            ? 'Microsite QR contact form'
+            : input.source === 'MICROSITE'
+              ? 'Microsite contact form'
+              : 'Website enquiry',
         listingId: listing?.id,
         message:
           [

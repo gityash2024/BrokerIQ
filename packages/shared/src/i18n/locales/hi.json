@@ -3727,5 +3727,10 @@
  "Search your workspace": "अपने कार्यक्षेत्र में खोजें",
  "Search leads, inventory, requirements…": "लीड, इन्वेंटरी, आवश्यकताएँ खोजें…",
  "BrokerIQ reminder": "BrokerIQ रिमाइंडर",
- "Open BrokerIQ to review the current task.": "मौजूदा काम देखने के लिए BrokerIQ खोलें।"
+ "Open BrokerIQ to review the current task.": "मौजूदा काम देखने के लिए BrokerIQ खोलें।",
+ "Microsite QR": "माइक्रोसाइट QR",
+ "Hide QR": "QR छिपाएँ",
+ "Download QR": "QR डाउनलोड करें",
+ "Share microsite link": "माइक्रोसाइट लिंक साझा करें",
+ "Sign in to contact": "संपर्क के लिए लॉगिन करें"
 }

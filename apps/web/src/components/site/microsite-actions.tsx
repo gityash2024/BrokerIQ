@@ -11,22 +11,33 @@ import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { Field, Input, Textarea } from '../ui/field';
 
-export function MicrositeActions({ org }: { org: { id: string; name: string; phone?: string | null; whatsapp?: string | null } }) {
+export function MicrositeActions({ org }: { org: { id: string; slug: string; name: string; phone?: string | null; whatsapp?: string | null } }) {
   const { user } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState<'contact' | 'review' | null>(null);
-  const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', message: '' });
-  useEffect(() => {
-    if (user) setF((x) => ({ ...x, name: x.name || user.name || '', phone: x.phone || user.phone || '' }));
-  }, [user]);
+  const { id: accountId, name = '', phone = '' } = user ?? {};
+  const [f, setF] = useState({ name, phone: phone ?? '', message: '' });
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  useEffect(() => {
+    setF({ name, phone: phone ?? '', message: '' });
+    setOpen(null);
+    setRating(5);
+    setComment('');
+  }, [accountId, name, phone]);
   const [loading, setLoading] = useState(false);
   const wa = org.whatsapp ?? org.phone;
+  const viaQr = () => new URLSearchParams(window.location.search).get('via') === 'qr';
+  const signIn = () => {
+    const base = window.location.pathname.startsWith('/user/brokers/') ? '/user/brokers' : '/brokers';
+    const next = `${base}/${encodeURIComponent(org.slug)}${viaQr() ? '?via=qr' : ''}`;
+    router.push(`/login?next=${encodeURIComponent(next)}`);
+  };
   const send = async () => {
+    if (!user) return signIn();
     setLoading(true);
     try {
-      await api('/enquiries', { method: 'POST', body: { organizationId: org.id, ...f, source: 'MICROSITE' } });
+      await api('/enquiries', { method: 'POST', body: { organizationId: org.id, ...f, source: viaQr() ? 'MICROSITE_QR' : 'MICROSITE' } });
       toast.success(`${org.name} को आपकी enquiry भेज दी गई`);
       setOpen(null);
     } catch (e) {
@@ -36,7 +47,7 @@ export function MicrositeActions({ org }: { org: { id: string; name: string; pho
     }
   };
   const review = async () => {
-    if (!user) return router.push(`/login?next=${location.pathname}`);
+    if (!user) return signIn();
     setLoading(true);
     try {
       await api(`/brokers/${org.id}/reviews`, { method: 'POST', body: { rating, comment } });
@@ -56,8 +67,8 @@ export function MicrositeActions({ org }: { org: { id: string; name: string; pho
           <MessageCircle className="size-4" /> WhatsApp
         </Button>
       )}
-      <Button onClick={() => setOpen('contact')}>
-        <Send className="size-4" /> Contact
+      <Button onClick={() => (user ? setOpen('contact') : signIn())}>
+        <Send className="size-4" /> {user ? 'Contact' : 'Sign in to contact'}
       </Button>
       <Button variant="secondary" onClick={() => setOpen('review')}>
         <Star className="size-4" /> Review

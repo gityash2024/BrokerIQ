@@ -1172,18 +1172,29 @@
         "3978",
         "5380"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "SOURCE_PRESENT",
+      "web": "SOURCE_PRESENT",
+      "androidSource": "SOURCE_PRESENT",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "POSTGRES_HTTP_VERIFIED",
+      "notes": [
+        "Real broker-first PostgreSQL HTTP coverage verifies PNG generation, firm isolation, denied roles and authenticated enquiry-to-lead attribution.",
+        "Web login return and mobile QR sharing pass typechecking. Browser journey, physical QR scan and signed release verification are pending. Source follows Build 53."
       ],
-      "sourceFiles": [],
+      "roles": [
+        "USER",
+        "BROKER_ADMIN"
+      ],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/enquiries/enquiries.service.ts",
+        "apps/web/src/components/site/microsite-actions.tsx",
+        "apps/web/src/app/broker/settings/page.tsx",
+        "apps/mobile/app/broker-settings.tsx",
+        "apps/api/test/microsite-qr.e2e-spec.ts"
+      ],
       "commits": [],
-      "database": "PENDING",
+      "database": "NO_MIGRATION",
       "rootCause": null,
       "releaseEvidence": null
     },
