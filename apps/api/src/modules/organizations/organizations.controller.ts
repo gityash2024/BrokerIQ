@@ -403,24 +403,31 @@ export class OrganizationsController {
   @Post('broker/team/invite')
   async invite(@CurrentUser() user: RequestUser, @Body(new ZodPipe(inviteMemberSchema)) body: z.infer<typeof inviteMemberSchema>) {
     const orgId = requireOrg(user);
-    const [members, pending] = await Promise.all([
-      this.prisma.user.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
-      this.prisma.invite.count({ where: { organizationId: orgId, acceptedAt: null, expiresAt: { gt: new Date() } } }),
-    ]);
-    await this.usage.assert(orgId, 'agents', members + pending);
-    const existing = await this.prisma.user.findUnique({ where: { email: body.email } });
-    if (existing?.organizationId) throw new BadRequestException('यह user पहले से किसी broker team में है');
     const token = randomToken(24);
-    const invite = await this.prisma.invite.create({
-      data: {
-        organizationId: orgId,
-        email: body.email,
-        name: body.name,
-        role: body.role,
-        tokenHash: sha256(token),
-        expiresAt: new Date(Date.now() + 7 * 86400_000),
-        invitedById: user.id,
-      },
+    const invite = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
+      const existing = await tx.user.findUnique({ where: { email: body.email } });
+      if (existing?.organizationId) throw new BadRequestException('यह user पहले से किसी broker team में है');
+      const now = new Date();
+      const active = { organizationId: orgId, acceptedAt: null, expiresAt: { gt: now } };
+      const [members, pending] = await Promise.all([
+        tx.user.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
+        tx.invite.count({ where: { ...active, email: { not: body.email } } }),
+      ]);
+      await this.usage.assert(orgId, 'agents', members + pending);
+      // Resending rotates the grant, so a previous link cannot apply an older role.
+      await tx.invite.updateMany({ where: { ...active, email: body.email }, data: { expiresAt: now } });
+      return tx.invite.create({
+        data: {
+          organizationId: orgId,
+          email: body.email,
+          name: body.name,
+          role: body.role,
+          tokenHash: sha256(token),
+          expiresAt: new Date(now.getTime() + 7 * 86400_000),
+          invitedById: user.id,
+        },
+      });
     });
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const inviter = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
@@ -433,7 +440,7 @@ export class OrganizationsController {
   @Roles('BROKER_ADMIN')
   @Delete('broker/team/invites/:id')
   async cancelInvite(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    await this.prisma.invite.deleteMany({ where: { id, organizationId: requireOrg(user) } });
+    await this.prisma.invite.deleteMany({ where: { id, organizationId: requireOrg(user), acceptedAt: null } });
     return { ok: true };
   }
 
@@ -638,7 +645,7 @@ export class OrganizationsController {
       where: { tokenHash: sha256(token) },
       include: { organization: { select: { name: true, logoUrl: true } } },
     });
-    if (!inv || inv.acceptedAt || inv.expiresAt < new Date()) throw new NotFoundException('Invite expire हो गया है');
+    if (!inv || inv.acceptedAt || inv.expiresAt <= new Date()) throw new NotFoundException('Invite expire हो गया है');
     return { email: inv.email, name: inv.name, role: inv.role, organization: inv.organization };
   }
 
@@ -648,11 +655,13 @@ export class OrganizationsController {
       const tokenHash = sha256(token);
       await tx.$queryRaw`SELECT id FROM "Invite" WHERE "tokenHash" = ${tokenHash} FOR UPDATE`;
       const invitation = await tx.invite.findUnique({ where: { tokenHash } });
-      if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) throw new NotFoundException('Invite expire हो गया है');
+      if (!invitation || invitation.acceptedAt || invitation.expiresAt <= new Date()) throw new NotFoundException('Invite expire हो गया है');
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR UPDATE`;
       const member = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
+      if (member.status !== 'ACTIVE' || member.deletedAt) throw new ForbiddenException('Account no longer active');
       if (invitation.email.toLowerCase() !== member.email.toLowerCase()) throw new ForbiddenException('Log in with the invited email address');
       if (!['USER', 'BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new ForbiddenException('Platform staff cannot join a broker firm');
-      if (member.organizationId && member.organizationId !== invitation.organizationId) throw new BadRequestException('आप पहले से किसी दूसरी team में हैं');
+      if (member.organizationId) throw new BadRequestException('आप पहले से एक broker team में हैं');
       const firm = await tx.organization.findUniqueOrThrow({ where: { id: invitation.organizationId } });
       if (firm.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
       await tx.user.update({ where: { id: user.id }, data: { organizationId: invitation.organizationId, role: invitation.role, emailVerified: true } });

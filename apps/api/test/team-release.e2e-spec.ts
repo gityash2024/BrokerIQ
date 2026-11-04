@@ -124,6 +124,31 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
       .get(`/api/invites/${cancel.link.split('/').pop()}`)
       .expect(404);
   });
+  it('rotates resends and permits exactly one membership when different firms invite the same account', async () => {
+    const address = `invite-race.${uid}@e2e.test`;
+    const send = async (actor: string, role: 'BROKER_ADMIN' | 'BROKER_AGENT') =>
+      (await api().post('/api/broker/team/invite').set(h(actor)).send({ name: 'Invite race', email: address, role }).expect(201)).body;
+    const stale = await send(owner, 'BROKER_ADMIN');
+    const replacement = await send(owner, 'BROKER_AGENT');
+    const competing = await send(other, 'BROKER_AGENT');
+    const tokenFrom = (invite: { link: string }) => invite.link.split('/').pop();
+    await api()
+      .get(`/api/invites/${tokenFrom(stale)}`)
+      .expect(404);
+    const account = (await api().post('/api/auth/register').send({ name: 'Invite race', email: address, password, accountType: 'USER' }).expect(201)).body;
+    const accept = (invite: { link: string }) =>
+      api()
+        .post(`/api/invites/${tokenFrom(invite)}/accept`)
+        .set(h(account.accessToken))
+        .send({});
+    const results = await Promise.all([accept(replacement), accept(competing)]);
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    expect([400, 401]).toContain(results.find((r) => r.status !== 201)?.status);
+    const accepted = await db.invite.findMany({ where: { email: address, acceptedAt: { not: null } } });
+    expect(accepted).toHaveLength(1);
+    expect(await db.user.findUniqueOrThrow({ where: { email: address } })).toMatchObject({ organizationId: accepted[0].organizationId, role: 'BROKER_AGENT' });
+  });
+
   it('keeps agent list filters and task assignments inside their access scope', async () => {
     const ownerId = (await db.user.findFirstOrThrow({ where: { organizationId: org, role: 'BROKER_ADMIN' } })).id;
     const otherId = (await db.user.findFirstOrThrow({ where: { organizationId: { not: org }, email: `other.${uid}@e2e.test` } })).id;
