@@ -1,4 +1,4 @@
-import { ForbiddenException, HttpStatus, Injectable, Logger, OnApplicationBootstrap, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, HttpStatus, Injectable, Logger, OnApplicationBootstrap, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
@@ -19,6 +19,7 @@ import { ModulesService } from '../../core/features/modules.service';
 import { CryptoService } from '../../core/settings/crypto.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 import { LoginVerificationService } from './login-verification.service';
+import { hasAnotherActiveBrokerAdmin, releaseFirmAssignments } from '../../common/firm-membership';
 
 type UserWithOrg = User & { organization: Organization | null };
 interface ClientMeta {
@@ -513,40 +514,57 @@ export class AuthService implements OnApplicationBootstrap {
    * user row stays anonymised so brokers' enquiries, deals and invoices remain consistent.
    */
   async deleteAccount(id: string) {
-    await this.prisma.$transaction([
-      this.prisma.userLocation.deleteMany({ where: { userId: id } }),
-      this.prisma.userContact.deleteMany({ where: { userId: id } }),
-      this.prisma.pushToken.deleteMany({ where: { userId: id } }),
-      this.prisma.loginVerification.deleteMany({ where: { userId: id } }),
-      this.prisma.savedListing.deleteMany({ where: { userId: id } }),
-      this.prisma.recentView.deleteMany({ where: { userId: id } }),
-      this.prisma.savedSearch.deleteMany({ where: { userId: id } }),
-      this.prisma.notification.deleteMany({ where: { userId: id } }),
-      this.prisma.tenantRequirement.deleteMany({ where: { userId: id } }),
-      this.prisma.flatmateConnect.deleteMany({ where: { OR: [{ fromUserId: id }, { toUserId: id }] } }),
-      this.prisma.flatmateProfile.deleteMany({ where: { userId: id } }),
-      this.prisma.kycDocument.deleteMany({ where: { userId: id } }),
-      this.prisma.listing.updateMany({ where: { postedById: id, organizationId: null, deletedAt: null }, data: { status: 'ARCHIVED' } }),
-      this.prisma.user.update({
-        where: { id },
-        data: {
-          status: 'DELETED',
-          deletedAt: new Date(),
-          name: 'Deleted user',
-          email: `deleted+${id}@brokeriq.invalid`,
-          phone: null,
-          googleId: null,
-          passwordHash: null,
-          avatarUrl: null,
-          occupation: null,
-          employer: null,
-          workEmail: null,
-          workEmailVerifiedAt: null,
-          tenantVerifiedAt: null,
-        },
-      }),
-    ]);
-    await this.revokeAll(id);
+    await this.prisma.$transaction(async (tx) => {
+      const before = await tx.user.findUniqueOrThrow({ where: { id }, select: { organizationId: true } });
+      if (before.organizationId) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${before.organizationId + ':membership'}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id + ':sessions'}))`;
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.user.findUniqueOrThrow({ where: { id } });
+      if (current.deletedAt) return;
+      if (current.role === 'SUPER_ADMIN') throw new ForbiddenException('Super Admin account delete नहीं हो सकता');
+      if (current.organizationId !== before.organizationId) throw new ConflictException('Membership changed. Reload your account.');
+      if (current.organizationId) {
+        if (current.role === 'BROKER_ADMIN' && current.status === 'ACTIVE' && !(await hasAnotherActiveBrokerAdmin(tx, current.organizationId, id)))
+          throw new ConflictException('Firm must retain at least one active Broker Admin');
+        await releaseFirmAssignments(tx, current.organizationId, id);
+      }
+      await Promise.all([
+        tx.userLocation.deleteMany({ where: { userId: id } }),
+        tx.userContact.deleteMany({ where: { userId: id } }),
+        tx.pushToken.deleteMany({ where: { userId: id } }),
+        tx.loginVerification.deleteMany({ where: { userId: id } }),
+        tx.savedListing.deleteMany({ where: { userId: id } }),
+        tx.recentView.deleteMany({ where: { userId: id } }),
+        tx.savedSearch.deleteMany({ where: { userId: id } }),
+        tx.notification.deleteMany({ where: { userId: id } }),
+        tx.tenantRequirement.deleteMany({ where: { userId: id } }),
+        tx.flatmateConnect.deleteMany({ where: { OR: [{ fromUserId: id }, { toUserId: id }] } }),
+        tx.flatmateProfile.deleteMany({ where: { userId: id } }),
+        tx.kycDocument.deleteMany({ where: { userId: id } }),
+        tx.listing.updateMany({ where: { postedById: id, organizationId: null, deletedAt: null }, data: { status: 'ARCHIVED' } }),
+        tx.user.update({
+          where: { id },
+          data: {
+            status: 'DELETED',
+            deletedAt: new Date(),
+            name: 'Deleted user',
+            email: `deleted+${id}@brokeriq.invalid`,
+            phone: null,
+            googleId: null,
+            passwordHash: null,
+            avatarUrl: null,
+            occupation: null,
+            employer: null,
+            workEmail: null,
+            workEmailVerifiedAt: null,
+            tenantVerifiedAt: null,
+            sessionVersion: { increment: 1 },
+          },
+        }),
+        tx.refreshToken.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } }),
+      ]);
+    });
+    this.realtime.disconnectUser(id);
   }
 
   async revokeAll(userId: string) {

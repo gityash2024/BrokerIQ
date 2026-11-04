@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { BlockKind, ListingStatus, Prisma } from '@prisma/client';
 import { ORG_RESTRICTIONS, USER_RESTRICTIONS } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -8,6 +8,7 @@ import { MailService } from '../../core/mail/mail.service';
 import { AccessService } from '../../core/access/access.service';
 import { AuthService } from '../auth/auth.service';
 import type { RequestUser } from '../../common/decorators';
+import { hasAnotherActiveBrokerAdmin, releaseFirmAssignments } from '../../common/firm-membership';
 
 /** Listings hidden because their account/firm was blocked carry this prefix, so unblocking restores only those. */
 const ACCOUNT = 'ACCOUNT: ';
@@ -228,7 +229,21 @@ export class AdminControlService {
   async blockUser(actor: RequestUser, id: string, reason: string) {
     const u = await this.userOrThrow(id);
     this.guardTarget(actor, u);
-    await this.prisma.user.update({ where: { id }, data: { status: 'SUSPENDED', blockedReason: reason } });
+    await this.prisma.$transaction(async (tx) => {
+      if (u.organizationId) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${u.organizationId + ':membership'}))`;
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id} FOR UPDATE`;
+      const latest = await tx.user.findUniqueOrThrow({ where: { id } });
+      this.guardTarget(actor, latest);
+      if (latest.deletedAt || latest.organizationId !== u.organizationId) throw new ConflictException('Membership changed. Reload this account.');
+      if (
+        latest.organizationId &&
+        latest.role === 'BROKER_ADMIN' &&
+        latest.status === 'ACTIVE' &&
+        !(await hasAnotherActiveBrokerAdmin(tx, latest.organizationId, id))
+      )
+        throw new ConflictException('Firm must retain at least one active Broker Admin');
+      await tx.user.update({ where: { id }, data: { status: 'SUSPENDED', blockedReason: reason } });
+    });
     await this.auth.revokeAll(id);
     // The user's own (owner) listings go down with the account.
     const own = await this.prisma.listing.findMany({
@@ -332,9 +347,15 @@ export class AdminControlService {
 
   /** Take a member out of a firm (they keep a normal user account). */
   async removeMember(actor: RequestUser, orgId: string, userId: string) {
-    const u = await this.prisma.user.findFirst({ where: { id: userId, organizationId: orgId } });
-    if (!u) throw new NotFoundException('Member नहीं मिला');
-    await this.prisma.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER' } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
+      const member = await tx.user.findFirst({ where: { id: userId, organizationId: orgId, deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } } });
+      if (!member) throw new NotFoundException('Member नहीं मिला');
+      if (member.role === 'BROKER_ADMIN' && member.status === 'ACTIVE' && !(await hasAnotherActiveBrokerAdmin(tx, orgId, userId)))
+        throw new ConflictException('Firm must retain at least one active Broker Admin');
+      await releaseFirmAssignments(tx, orgId, userId);
+      await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', sessionVersion: { increment: 1 } } });
+    });
     await this.auth.revokeAll(userId);
     await this.audit.log(actor, 'organization.remove_member', 'Organization', orgId, { userId });
     return { ok: true };

@@ -39,6 +39,7 @@ import { readBrokerTeam } from './team-query';
 import { createExcelReport } from '../../common/excel';
 import { renderPdf, pdfText, pdfTable } from '../../common/pdf';
 import { generateCsv } from '../../common/csv';
+import { hasAnotherActiveBrokerAdmin, releaseFirmAssignments } from '../../common/firm-membership';
 
 const memberUpdateSchema = z
   .object({
@@ -547,10 +548,7 @@ export class OrganizationsController {
         latest.status === 'ACTIVE' &&
         ((body.role && body.role !== 'BROKER_ADMIN') || (body.status && body.status !== 'ACTIVE'))
       ) {
-        const remaining = await tx.user.count({
-          where: { organizationId: orgId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } },
-        });
-        if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
+        if (!(await hasAnotherActiveBrokerAdmin(tx, orgId, userId))) throw new BadRequestException('Firm must retain at least one active Broker Admin');
       }
       if (body.targets) {
         userUpdateData.updatedAt = new Date();
@@ -602,29 +600,14 @@ export class OrganizationsController {
     if (!isSuper && member.organizationId !== user.orgId) throw new NotFoundException('Member not found');
     if (userId === user.id) throw new BadRequestException('खुद को remove नहीं कर सकते');
 
-    const orgId = member.organizationId || user.orgId;
     await this.prisma.$transaction(async (tx) => {
       if (!member.organizationId || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Firm member not found');
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${member.organizationId + ':membership'}))`;
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
-      if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE') {
-        const remaining = await tx.user.count({
-          where: { organizationId: member.organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, id: { not: userId } },
-        });
-        if (!remaining) throw new BadRequestException('Firm must retain at least one active Broker Admin');
-      }
-      await tx.lead.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
-      await tx.followUp.updateMany({
-        where: { organizationId: orgId!, assignedToId: userId, status: 'PENDING' },
-        data: { assignedToId: null, reminderSentAt: null },
-      });
-      await tx.siteVisit.updateMany({
-        where: { organizationId: orgId!, assignedToId: userId, status: { in: ['SCHEDULED', 'CONFIRMED'] } },
-        data: { assignedToId: null, reminderSentAt: null },
-      });
-      await tx.inventoryItem.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
-      await tx.brokerRequirement.updateMany({ where: { organizationId: orgId!, assignedToId: userId }, data: { assignedToId: null } });
+      if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE' && !(await hasAnotherActiveBrokerAdmin(tx, member.organizationId, userId)))
+        throw new BadRequestException('Firm must retain at least one active Broker Admin');
+      await releaseFirmAssignments(tx, member.organizationId, userId);
       await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', sessionVersion: { increment: 1 } } });
     });
     await this.auth.revokeAll(userId);

@@ -124,6 +124,26 @@ import { brokerTeamResponseSchema } from '@brokeriq/shared';
       .get(`/api/invites/${cancel.link.split('/').pop()}`)
       .expect(404);
   });
+  it('protects the final active firm Admin across self-delete and platform membership controls', async () => {
+    const admin = await db.user.findFirstOrThrow({ where: { organizationId: org, role: 'BROKER_ADMIN' } });
+    await api().delete('/api/me').set(h(superToken)).expect(403);
+    await api().delete('/api/me').set(h(owner)).expect(409);
+    await api().delete(`/api/admin/users/${admin.id}`).set(h(superToken)).expect(409);
+    await api().delete(`/api/admin/organizations/${org}/members/${admin.id}`).set(h(superToken)).expect(409);
+    await api().post(`/api/admin/users/${admin.id}/block`).set(h(superToken)).send({ reason: 'Isolated membership regression' }).expect(409);
+    const after = await db.user.findUniqueOrThrow({ where: { id: admin.id } });
+    expect(after).toMatchObject({ email: admin.email, status: 'ACTIVE', sessionVersion: admin.sessionVersion });
+    await api().get('/api/broker/team').set(h(owner)).expect(200);
+  });
+
+  it('returns detached Agent work to the firm without deleting it', async () => {
+    const temp = await db.user.create({ data: { name: 'Detachment check', email: `detach.${uid}@e2e.test`, role: 'BROKER_AGENT', organizationId: org } });
+    const lead = (await api().post('/api/leads').set(h(owner)).send({ name: 'Retained client', phone: '9999999911', assignedToId: temp.id }).expect(201)).body;
+    await api().delete(`/api/admin/organizations/${org}/members/${temp.id}`).set(h(superToken)).expect(200);
+    expect(await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).toMatchObject({ organizationId: org, assignedToId: null, deletedAt: null });
+    expect(await db.user.findUniqueOrThrow({ where: { id: temp.id } })).toMatchObject({ organizationId: null, role: 'USER' });
+  });
+
   it('rotates resends and permits exactly one membership when different firms invite the same account', async () => {
     const address = `invite-race.${uid}@e2e.test`;
     const send = async (actor: string, role: 'BROKER_ADMIN' | 'BROKER_AGENT') =>
