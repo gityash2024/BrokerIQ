@@ -15,7 +15,9 @@ import {
   Check,
   ChevronLeft,
   Handshake,
+  Mail,
   MessageCircle,
+  MessageSquare,
   Phone,
   PhoneCall,
   Send,
@@ -35,7 +37,10 @@ import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge, useAssignees } from '@/components/crm';
 import { ListingRow } from '@/components/listing';
 import { Avatar, Badge, Button, Card, Chip, ErrorView, IconBtn, Input, Loader, PressableScale, Row, Segmented, Sheet, Txt } from '@/ui';
+import { NotificationBell } from '@/components/notification-bell';
 import { useFlag, useConfig } from '@/lib/config';
+
+const compactAction = { flex: 1, minWidth: 44, paddingHorizontal: 0 };
 
 const OUTCOMES = [
   ['CONNECTED', '✅ Connected'],
@@ -87,18 +92,23 @@ export default function LeadDetail() {
   const l = q.data;
   const call = () => {
     callPending.current = true;
-    Linking.openURL(`tel:${l.phone}`);
+    Linking.openURL(`tel:${l.phone}`).catch((error) => {
+      callPending.current = false;
+      showError(error);
+    });
   };
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Row style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
-        <IconBtn onPress={() => router.back()}>
+        <IconBtn accessibilityLabel="Back" onPress={() => router.back()}>
           <ChevronLeft size={24} color={c.fg} />
         </IconBtn>
         <View style={{ flex: 1 }} />
+        <NotificationBell />
         {isBrokerAdmin && (
           <IconBtn
+            accessibilityLabel="Delete lead"
             onPress={() =>
               del(`/leads/${id}`)
                 .then(() => (toast.success('Lead हटाई'), qc.invalidateQueries({ queryKey: ['leads'] }), router.back()))
@@ -131,17 +141,29 @@ export default function LeadDetail() {
               )}
             </View>
           </Row>
-          <Row gap={8}>
-            <Button title="Call" icon={<Phone size={17} color="#fff" />} style={{ flex: 1 }} onPress={call} />
+          <Row gap={8} wrap>
+            <Button accessibilityLabel="Call" icon={<Phone size={20} color="#fff" />} style={compactAction} onPress={call} />
             <Button
-              title="WhatsApp"
+              accessibilityLabel="WhatsApp"
               variant="whatsapp"
-              icon={<MessageCircle size={17} color="#fff" />}
-              style={{ flex: 1 }}
+              icon={<MessageCircle size={20} color="#fff" />}
+              style={compactAction}
               onPress={() => openLeadInbox(l.id)}
             />
-            <Button title="SMS" variant="secondary" style={{ flex: 1 }} onPress={() => openLeadInbox(l.id, undefined, 'SMS')} />
-            <Button title="Email" variant="secondary" style={{ flex: 1 }} onPress={() => openLeadInbox(l.id, undefined, 'EMAIL')} />
+            <Button
+              accessibilityLabel="SMS"
+              variant="secondary"
+              icon={<MessageSquare size={20} color={c.fg} />}
+              style={compactAction}
+              onPress={() => openLeadInbox(l.id, undefined, 'SMS')}
+            />
+            <Button
+              accessibilityLabel="Email"
+              variant="secondary"
+              icon={<Mail size={20} color={c.fg} />}
+              style={compactAction}
+              onPress={() => openLeadInbox(l.id, undefined, 'EMAIL')}
+            />
           </Row>
           <Button
             title="Click-to-call (Exotel) — recording lead में save"
@@ -219,28 +241,28 @@ export default function LeadDetail() {
             <>
               <Row gap={8}>
                 <Button
-                  title="Note"
+                  accessibilityLabel="Note"
                   size="sm"
                   variant="secondary"
-                  icon={<StickyNote size={15} color={c.fg} />}
+                  icon={<StickyNote size={19} color={c.fg} />}
                   onPress={() => setSheet('note')}
-                  style={{ flex: 1 }}
+                  style={compactAction}
                 />
                 <Button
-                  title="Call log"
+                  accessibilityLabel="Call log"
                   size="sm"
                   variant="secondary"
-                  icon={<PhoneCall size={15} color={c.fg} />}
+                  icon={<PhoneCall size={19} color={c.fg} />}
                   onPress={() => setSheet('call')}
-                  style={{ flex: 1 }}
+                  style={compactAction}
                 />
                 <Button
-                  title="Follow-up"
+                  accessibilityLabel="Follow-up"
                   size="sm"
                   variant="secondary"
-                  icon={<AlarmClock size={15} color={c.fg} />}
+                  icon={<AlarmClock size={19} color={c.fg} />}
                   onPress={() => setSheet('followup')}
-                  style={{ flex: 1 }}
+                  style={compactAction}
                 />
               </Row>
               {!!l.notes && (

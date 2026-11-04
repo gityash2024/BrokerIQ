@@ -347,6 +347,7 @@ export function IconBtn({
 type BtnVariant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger' | 'success' | 'whatsapp' | 'dark';
 export function Button({
   title,
+  accessibilityLabel,
   onPress,
   variant = 'primary',
   size = 'md',
@@ -359,6 +360,7 @@ export function Button({
 }: {
   color?: string;
   title?: string;
+  accessibilityLabel?: string;
   onPress?: () => void;
   variant?: BtnVariant;
   size?: 'sm' | 'md' | 'lg';
@@ -386,6 +388,8 @@ export function Button({
   return (
     <PressableScale
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ? t(accessibilityLabel) : undefined}
       disabled={disabled || loading}
       style={[
         {
