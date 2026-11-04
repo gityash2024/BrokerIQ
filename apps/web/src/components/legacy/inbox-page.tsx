@@ -232,7 +232,7 @@ function InboxInner() {
   if (leadTarget && resolve.isError) return <ApiErrorState error={resolve.error} onRetry={() => resolve.refetch()} />;
   if (leadTarget) return <PageLoader />;
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100dvh-64px)] sm:-mx-6 lg:-mx-8 bg-surface overflow-hidden">
+    <div className="-mx-3.5 -my-3.5 flex h-[calc(100dvh-64px)] sm:-mx-6 sm:-my-4 lg:-mx-8 bg-surface overflow-hidden">
       {/* Left Conversations Sidebar */}
       <aside className={cn('flex w-full flex-col border-r border-line bg-surface md:w-[360px] lg:w-[380px] md:shrink-0', active && 'hidden md:flex')}>
         {/* Header Block */}
@@ -318,7 +318,7 @@ function InboxInner() {
 
           {/* Search & Filter Bar */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
+            <div className="relative min-w-0 flex-1">
               <Input
                 icon={<Search className="size-4 text-subtle" />}
                 className="h-9 pr-7 rounded-xl bg-surface-2 border-line text-xs focus-within:bg-surface"
@@ -821,7 +821,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             placeholder={
               !connected ? 'WhatsApp connect नहीं है' : windowOpen ? 'संदेश लिखें… (Enter = भेजें, Shift+Enter = नई पंक्ति)' : 'Window बंद — template भेजें'
             }
-            className="border-0 bg-transparent py-2 text-sm text-fg placeholder:text-muted focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal flex-1"
+            className="border-0 bg-transparent py-2 text-sm text-fg placeholder:text-muted focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal min-w-0 flex-1"
           />
           <Button
             type="submit"

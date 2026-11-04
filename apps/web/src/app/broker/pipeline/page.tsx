@@ -116,7 +116,7 @@ export default function PipelinePage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : (
-        <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="-mx-3.5 overflow-x-auto px-3.5 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex min-w-max gap-4">
             {(q.data ?? Array.from({ length: 7 }, (_, i) => ({ stage: String(i) as LeadStage, label: '', count: 0, items: [] }))).map((col) => {
               const c = LEAD_STAGE_COLORS[col.stage] ?? '#94a3b8';
