@@ -35,14 +35,21 @@ describe('AI assistant (e2e)', () => {
   let broker: string;
   let localityId: string;
   const toolsSeen: string[][] = [];
+  const assistantInputs: string[] = [];
+  const summaryInputs: string[] = [];
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(AiService)
       .useValue({
-        chatWithTools: async (_m: any[], tools: any[]) => {
+        chatWithTools: async (messages: any[], tools: any[]) => {
+          assistantInputs.push(JSON.stringify(messages));
           toolsSeen.push(tools.map((t) => t.function.name));
           return script.shift() ?? say('ok');
+        },
+        json: async (messages: any[]) => {
+          summaryInputs.push(JSON.stringify(messages));
+          return { summary: 'Scoped summary', score: 20 };
         },
         transcribe: async () => 'Sector 65 में 3 BHK',
         isAvailable: async () => true,
@@ -146,6 +153,41 @@ describe('AI assistant (e2e)', () => {
       .send({ messages: [{ role: 'user', content: 'show lead' }], lang: 'hi' })
       .expect(201);
     expect(g.body.reply).toBe('नहीं मिली');
+  });
+
+  it('keeps Gmail message and timeline content outside model requests while retaining the CRM timeline', async () => {
+    const lead = (await http.post('/api/leads').set(auth(broker)).send({ name: 'Email privacy check', phone: '9811100556' }).expect(201)).body;
+    const { organizationId } = await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } });
+    await prisma.activity.createMany({
+      data: [
+        { organizationId, leadId: lead.id, type: 'EMAIL', content: 'Private mailbox timeline' },
+        { organizationId, leadId: lead.id, type: 'NOTE', content: 'CRM work note' },
+      ],
+    });
+    await prisma.conversation.create({
+      data: {
+        organizationId,
+        leadId: lead.id,
+        channel: 'EMAIL',
+        contactKey: email('privacy'),
+        messages: { create: { direction: 'INBOUND', body: 'Private mailbox message' } },
+      },
+    });
+    const detail = await http.get(`/api/leads/${lead.id}`).set(auth(broker)).expect(200);
+    expect(detail.text).toContain('Private mailbox timeline');
+
+    await http.post(`/api/leads/${lead.id}/ai`).set(auth(broker)).expect(201);
+    expect(summaryInputs.at(-1)).toContain('CRM work note');
+    expect(summaryInputs.at(-1)).not.toContain('Private mailbox');
+
+    script.push(toolCall('get_lead', { id: lead.id }), say('Scoped summary'));
+    await http
+      .post('/api/assistant/chat')
+      .set(auth(broker))
+      .send({ messages: [{ role: 'user', content: 'Show the lead' }], lang: 'en' })
+      .expect(201);
+    expect(assistantInputs.at(-1)).toContain('CRM work note');
+    expect(assistantInputs.at(-1)).not.toContain('Private mailbox');
   });
 
   it('voice notes are transcribed', async () => {

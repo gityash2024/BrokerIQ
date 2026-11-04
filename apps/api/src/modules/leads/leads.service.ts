@@ -598,11 +598,15 @@ export class LeadsService {
   async aiInsights(id: string, user: RequestUser) {
     const lead = await this.prisma.lead.findFirst({
       where: { id, ...this.scope(user) },
-      include: { requirement: true, activities: { orderBy: { createdAt: 'desc' }, take: 30 }, visits: true },
+      include: { requirement: true, activities: { where: { type: { not: 'EMAIL' } }, orderBy: { createdAt: 'desc' }, take: 30 }, visits: true },
     });
     if (!lead) throw new NotFoundException();
     await this.usage.assertAiCredit(lead.organizationId);
-    const convo = await this.prisma.message.findMany({ where: { conversation: { leadId: id } }, orderBy: { createdAt: 'desc' }, take: 30 });
+    const convo = await this.prisma.message.findMany({
+      where: { conversation: { leadId: id, organizationId: lead.organizationId, channel: { not: 'EMAIL' } } },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
     const context = {
       lead: { name: lead.name, source: lead.source, stage: lead.stage, createdAt: lead.createdAt, notes: lead.notes, requirement: lead.requirement },
       activities: lead.activities.map((a) => ({ at: a.createdAt, type: a.type, content: a.content, callOutcome: a.callOutcome })),

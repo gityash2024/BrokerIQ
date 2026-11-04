@@ -359,7 +359,10 @@ export const TOOLS: Tool[] = [
         email: l.email,
         requirement: l.requirement,
         notes: l.notes,
-        activities: (l.activities ?? []).slice(0, 8).map((x: any) => ({ type: x.type, content: x.content?.slice(0, 200), at: x.createdAt })),
+        activities: (l.activities ?? [])
+          .filter((x: any) => x.type !== 'EMAIL')
+          .slice(0, 8)
+          .map((x: any) => ({ type: x.type, content: x.content?.slice(0, 200), at: x.createdAt })),
         followUps: (l.followUps ?? []).slice(0, 5),
       };
     },
