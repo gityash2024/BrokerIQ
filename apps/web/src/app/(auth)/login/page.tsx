@@ -3,13 +3,13 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { KeyRound, Mail } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Mail } from 'lucide-react';
 import type { AuthResponse, SessionLimitChallenge, LoginOtpChallenge } from '@brokeriq/shared';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { AuthShell } from '@/components/site/auth-shell';
-import { LoginOtpDialog } from '@/components/site/login-otp-dialog';
+import { LoginOtpForm } from '@/components/site/login-otp-dialog';
 import { GoogleButton } from '@/components/site/google-button';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
@@ -34,6 +34,7 @@ function LoginInner() {
   }, [mode, app.auth.allowEmailOtp, app.auth.allowPasswordLogin, app.auth.requireLoginEmailOtp]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -63,6 +64,7 @@ function LoginInner() {
       if (e instanceof ApiError && e.body.code === 'LOGIN_OTP_REQUIRED') {
         setFactor(e.body.details as LoginOtpChallenge);
         setPassword('');
+        setShowPassword(false);
       } else if (e instanceof ApiError && e.body.code === 'SESSION_LIMIT_REACHED') setSelection(e.body.details as SessionLimitChallenge);
       else toast.error(errorMessage(e));
     } finally {
@@ -74,12 +76,29 @@ function LoginInner() {
       const r = await api<{ sent: boolean; devCode?: string }>('/auth/otp/request', { method: 'POST', body: { email }, auth: false });
       setOtpSent(true);
       toast.success(`OTP ${email} पर भेजा गया`);
-      if (r.devCode) setCode(r.devCode);
+      setCode(r.devCode ?? '');
     });
 
+  if (factor) {
+    return (
+      <AuthShell title="Verify your email" subtitle="Sign-in का अंतिम चरण">
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-line bg-surface-2 p-4 text-sm text-muted">
+          <Mail aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-600" />
+          <p className="min-w-0 break-words">
+            <strong className="font-semibold text-fg">{factor.destination}</strong> पर भेजा गया 6-digit code दर्ज करें।
+          </p>
+        </div>
+        <LoginOtpForm challenge={factor} onChange={setFactor} onDone={done} onSessionLimit={setSelection} />
+      </AuthShell>
+    );
+  }
+
+  const emailCodeStep = mode === 'otp' && otpSent;
   return (
-    <AuthShell title="Welcome back" subtitle="अपने account में login करें">
-      <LoginOtpDialog challenge={factor} onChange={setFactor} onDone={done} onSessionLimit={setSelection} />
+    <AuthShell
+      title={emailCodeStep ? 'Verify your email' : 'Welcome back'}
+      subtitle={emailCodeStep ? `${email} पर भेजा गया 6-digit code दर्ज करें।` : 'अपने account में login करें'}
+    >
       <Dialog
         open={!!selection}
         onOpenChange={(open) => {
@@ -118,10 +137,14 @@ function LoginInner() {
           </Button>
         </div>
       </Dialog>
-      <GoogleButton
-        onCredential={(idToken) => run(async () => done(await api('/auth/google', { method: 'POST', body: { idToken, ref: pendingReferral() }, auth: false })))}
-      />
-      {app.auth.allowEmailOtp && !app.auth.requireLoginEmailOtp && app.auth.allowPasswordLogin && (
+      {!emailCodeStep && (
+        <GoogleButton
+          onCredential={(idToken) =>
+            run(async () => done(await api('/auth/google', { method: 'POST', body: { idToken, ref: pendingReferral() }, auth: false })))
+          }
+        />
+      )}
+      {!emailCodeStep && app.auth.allowEmailOtp && !app.auth.requireLoginEmailOtp && app.auth.allowPasswordLogin && (
         <Segmented
           className="mb-5 w-full [&>button]:flex-1"
           value={mode}
@@ -157,31 +180,27 @@ function LoginInner() {
             else sendOtp();
           }}
         >
-          <Field label="Email">
-            <Input
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              disabled={otpSent}
-            />
-          </Field>
+          {!otpSent && (
+            <Field label="Email">
+              <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            </Field>
+          )}
           {otpSent && (
             <Field
               label="6-digit OTP"
               hint={
-                <button type="button" className="text-brand-600" onClick={sendOtp}>
+                <button type="button" className="text-brand-600" disabled={loading} onClick={sendOtp}>
                   OTP दोबारा भेजें
                 </button>
               }
             >
               <Input
                 inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={6}
                 autoFocus
                 required
+                pattern="[0-9]{6}"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 className="text-center font-mono text-xl tracking-[0.5em]"
@@ -192,9 +211,18 @@ function LoginInner() {
             {otpSent ? 'Verify & login' : 'OTP भेजें'}
           </Button>
           {otpSent && (
-            <button type="button" className="w-full text-sm text-muted" onClick={() => setOtpSent(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              disabled={loading}
+              onClick={() => {
+                setOtpSent(false);
+                setCode('');
+              }}
+            >
               Email बदलें
-            </button>
+            </Button>
           )}
         </form>
       ) : (
@@ -216,25 +244,48 @@ function LoginInner() {
               </Link>
             }
           >
-            <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-12"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute inset-y-0 right-0"
+                aria-label={showPassword ? t('Hide password') : t('Show password')}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <EyeOff aria-hidden="true" className="size-5" /> : <Eye aria-hidden="true" className="size-5" />}
+              </Button>
+            </div>
           </Field>
           <Button type="submit" className="w-full" size="lg" loading={loading}>
             Login
           </Button>
         </form>
       )}
-      <p className="mt-8 text-center text-sm text-muted">
-        नया account?{' '}
-        <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-brand-600">
-          Sign up करें
-        </Link>
-      </p>
-      <p className="mt-6 text-center text-sm text-muted">
-        New here?{' '}
-        <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-brand-600">
-          Create a customer account →
-        </Link>
-      </p>
+      {!emailCodeStep && (
+        <>
+          <p className="mt-8 text-center text-sm text-muted">
+            नया account?{' '}
+            <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-brand-600">
+              Sign up करें
+            </Link>
+          </p>
+          <p className="mt-6 text-center text-sm text-muted">
+            New here?{' '}
+            <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-brand-600">
+              Create a customer account →
+            </Link>
+          </p>
+        </>
+      )}
     </AuthShell>
   );
 }
