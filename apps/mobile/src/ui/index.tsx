@@ -421,12 +421,20 @@ export function Button({
 export function Input({
   label,
   icon,
+  trailing,
   error,
   hint,
   style,
   containerStyle,
   ...p
-}: TextInputProps & { label?: string; icon?: React.ReactNode; error?: string | null; hint?: string; containerStyle?: StyleProp<ViewStyle> }) {
+}: TextInputProps & {
+  label?: string;
+  icon?: React.ReactNode;
+  trailing?: React.ReactNode;
+  error?: string | null;
+  hint?: string;
+  containerStyle?: StyleProp<ViewStyle>;
+}) {
   const { c } = useTheme();
   const [focus, setFocus] = useState(false);
   const t = useT();
@@ -457,11 +465,12 @@ export function Input({
           onFocus={(e) => (setFocus(true), p.onFocus?.(e))}
           onBlur={(e) => (setFocus(false), p.onBlur?.(e))}
           style={[
-            { flex: 1, color: c.fg, fontFamily: fonts.body, fontSize: 15, paddingVertical: 12 },
+            { flex: 1, minWidth: 0, color: c.fg, fontFamily: fonts.body, fontSize: 15, paddingVertical: 12 },
             p.multiline && { minHeight: 96, textAlignVertical: 'top' },
             style,
           ]}
         />
+        {trailing}
       </View>
       {!!(error || hint) && (
         <Txt v="caption" color={error ? 'danger' : 'subtle'} style={{ marginTop: 5 }}>

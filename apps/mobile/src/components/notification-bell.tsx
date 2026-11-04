@@ -26,8 +26,9 @@ export function NotificationBell() {
       accessibilityLabel={`${tr('Notifications')}${unread ? ` (${unread})` : ''}`}
       onPress={() => router.push('/notifications')}
       style={{
-        width: 38,
-        height: 38,
+        width: 44,
+        height: 44,
+        flexShrink: 0,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',

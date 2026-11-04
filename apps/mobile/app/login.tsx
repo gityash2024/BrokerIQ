@@ -6,9 +6,9 @@ import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Building2, KeyRound, Lock, Mail, Ticket, User, X } from 'lucide-react-native';
+import { Building2, Eye, EyeOff, KeyRound, Lock, Mail, Ticket, User, X } from 'lucide-react-native';
 import type { AuthResponse, SessionLimitChallenge, LoginOtpChallenge } from '@brokeriq/shared';
-import { LoginOtpSheet } from '@/components/login-otp-sheet';
+import { LoginOtpForm } from '@/components/login-otp-form';
 import { ApiError, post } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -80,6 +80,7 @@ export default function Login() {
   const invite = accountType === 'BROKER' && f.inviteCode ? f.inviteCode : undefined;
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const g = integrations.google_oauth as any;
   const googleOn = app.auth?.allowGoogle !== false && g?.configured && (g.webClientId || g.androidClientId);
 
@@ -93,6 +94,7 @@ export default function Login() {
     if (error instanceof ApiError && error.body.code === 'LOGIN_OTP_REQUIRED') {
       setFactor(error.body.details as LoginOtpChallenge);
       setF((prev) => ({ ...prev, password: '', code: '' }));
+      setShowPassword(false);
     } else if (error instanceof ApiError && error.body.code === 'SESSION_LIMIT_REACHED') setSelection(error.body.details as SessionLimitChallenge);
     else showError(error);
   };
@@ -149,7 +151,6 @@ export default function Login() {
 
   return (
     <Screen keyboard padded={false} edges={['bottom']}>
-      <LoginOtpSheet challenge={factor} onChange={setFactor} onDone={done} onSessionLimit={setSelection} />
       <Modal
         visible={!!selection}
         transparent
@@ -203,10 +204,10 @@ export default function Login() {
         </Row>
         <Animated.View entering={FadeInDown.duration(500)}>
           <Txt v="display" color="white" style={{ marginTop: 24 }}>
-            नमस्ते 👋
+            {factor ? 'Verify your email' : 'नमस्ते 👋'}
           </Txt>
           <Txt color="rgba(255,255,255,0.8)" style={{ marginTop: 6 }}>
-            {app.tagline}
+            {factor ? 'Sign-in का अंतिम चरण' : app.tagline}
           </Txt>
         </Animated.View>
       </LinearGradient>
@@ -226,93 +227,112 @@ export default function Login() {
               elevation: 4,
             }}
           >
-            <Segmented value={mode} onChange={(m) => (setMode(m), setOtpSent(false))} options={modes} />
-            {(mode === 'signup' || (mode === 'otp' && otpSent)) && (
-              <Animated.View entering={FadeIn} style={{ gap: 8 }}>
-                <Txt v="caption" color="muted">
-                  आप कौन हैं?
-                </Txt>
-                <Row>
-                  <Chip
-                    label="Tenant / Owner"
-                    active={accountType === 'USER'}
-                    onPress={() => setAccountType('USER')}
-                    icon={<User size={14} color={accountType === 'USER' ? c.brand : c.muted} />}
-                  />
-                  <Chip
-                    label="Broker / Agency"
-                    active={accountType === 'BROKER'}
-                    onPress={() => setAccountType('BROKER')}
-                    icon={<Building2 size={14} color={accountType === 'BROKER' ? c.brand : c.muted} />}
-                  />
-                </Row>
-              </Animated.View>
-            )}
-            {mode === 'signup' && <Input label="पूरा नाम" value={f.name} onChangeText={set('name')} icon={<User size={18} color={c.subtle} />} />}
-            <Input
-              label="Email"
-              value={f.email}
-              onChangeText={set('email')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              icon={<Mail size={18} color={c.subtle} />}
-              editable={!(mode === 'otp' && otpSent)}
-            />
-            {mode === 'otp' && otpSent && (
-              <Animated.View entering={FadeInDown} style={{ gap: 12 }}>
-                <Input
-                  label="6-digit OTP"
-                  value={f.code}
-                  onChangeText={(v) => set('code')(v.replace(/\D/g, '').slice(0, 6))}
-                  keyboardType="number-pad"
-                  icon={<KeyRound size={18} color={c.subtle} />}
-                  style={{ letterSpacing: 6, fontSize: 20 }}
-                />
-                <Input label="नाम (नए account के लिए)" value={f.name} onChangeText={set('name')} icon={<User size={18} color={c.subtle} />} />
-              </Animated.View>
-            )}
-            {(mode === 'password' || mode === 'signup') && (
-              <Input
-                label="Password"
-                value={f.password}
-                onChangeText={set('password')}
-                secureTextEntry
-                icon={<Lock size={18} color={c.subtle} />}
-                hint={mode === 'signup' ? 'कम से कम 8 अक्षर, एक number' : undefined}
-              />
-            )}
-            {mode === 'signup' && <Input label="Mobile (optional)" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" />}
-            {(mode === 'signup' || (mode === 'otp' && otpSent)) && accountType === 'BROKER' && (
-              <Input
-                label={inviteOnly ? 'Invite code' : 'Invite code (optional)'}
-                value={f.inviteCode}
-                onChangeText={(v) => set('inviteCode')(v.toUpperCase().replace(/\s/g, ''))}
-                autoCapitalize="characters"
-                icon={<Ticket size={18} color={c.subtle} />}
-                hint={inviteOnly ? 'अभी broker account सिर्फ़ invite से बनता है — BrokerIQ team या किसी जुड़े broker से code माँगें।' : undefined}
-              />
-            )}
-            {mode === 'signup' && accountType === 'BROKER' && (
-              <Input label="Firm / Agency name" value={f.firmName} onChangeText={set('firmName')} icon={<Building2 size={18} color={c.subtle} />} />
-            )}
-
-            {mode === 'otp' && !otpSent && <Button title="OTP भेजें" size="lg" loading={busy} disabled={!/.+@.+\..+/.test(f.email)} onPress={sendOtp} />}
-            {mode === 'otp' && otpSent && (
+            {factor ? (
+              <LoginOtpForm challenge={factor} onChange={setFactor} onDone={done} onSessionLimit={setSelection} />
+            ) : (
               <>
-                <Button title="Verify & continue" size="lg" loading={busy} disabled={f.code.length !== 6} onPress={verifyOtp} />
-                <Txt v="small" color="brand" style={{ textAlign: 'center' }} onPress={() => (setOtpSent(false), set('code')(''))}>
-                  Email बदलें / OTP दोबारा भेजें
-                </Txt>
+                <Segmented
+                  value={mode}
+                  onChange={(m) => {
+                    setMode(m);
+                    setOtpSent(false);
+                    setShowPassword(false);
+                  }}
+                  options={modes}
+                />
+                {(mode === 'signup' || (mode === 'otp' && otpSent)) && (
+                  <Animated.View entering={FadeIn} style={{ gap: 8 }}>
+                    <Txt v="caption" color="muted">
+                      आप कौन हैं?
+                    </Txt>
+                    <Row>
+                      <Chip
+                        label="Tenant / Owner"
+                        active={accountType === 'USER'}
+                        onPress={() => setAccountType('USER')}
+                        icon={<User size={14} color={accountType === 'USER' ? c.brand : c.muted} />}
+                      />
+                      <Chip
+                        label="Broker / Agency"
+                        active={accountType === 'BROKER'}
+                        onPress={() => setAccountType('BROKER')}
+                        icon={<Building2 size={14} color={accountType === 'BROKER' ? c.brand : c.muted} />}
+                      />
+                    </Row>
+                  </Animated.View>
+                )}
+                {mode === 'signup' && <Input label="पूरा नाम" value={f.name} onChangeText={set('name')} icon={<User size={18} color={c.subtle} />} />}
+                <Input
+                  label="Email"
+                  value={f.email}
+                  onChangeText={set('email')}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  icon={<Mail size={18} color={c.subtle} />}
+                  editable={!(mode === 'otp' && otpSent)}
+                />
+                {mode === 'otp' && otpSent && (
+                  <Animated.View entering={FadeInDown} style={{ gap: 12 }}>
+                    <Input
+                      label="6-digit OTP"
+                      value={f.code}
+                      onChangeText={(v) => set('code')(v.replace(/\D/g, '').slice(0, 6))}
+                      keyboardType="number-pad"
+                      icon={<KeyRound size={18} color={c.subtle} />}
+                      style={{ letterSpacing: 6, fontSize: 20 }}
+                    />
+                    <Input label="नाम (नए account के लिए)" value={f.name} onChangeText={set('name')} icon={<User size={18} color={c.subtle} />} />
+                  </Animated.View>
+                )}
+                {(mode === 'password' || mode === 'signup') && (
+                  <Input
+                    label="Password"
+                    value={f.password}
+                    onChangeText={set('password')}
+                    secureTextEntry={!showPassword}
+                    trailing={
+                      <IconBtn accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} onPress={() => setShowPassword((value) => !value)}>
+                        {showPassword ? <EyeOff size={20} color={c.muted} /> : <Eye size={20} color={c.muted} />}
+                      </IconBtn>
+                    }
+                    icon={<Lock size={18} color={c.subtle} />}
+                    hint={mode === 'signup' ? 'कम से कम 8 अक्षर, एक number' : undefined}
+                  />
+                )}
+                {mode === 'signup' && <Input label="Mobile (optional)" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" />}
+                {(mode === 'signup' || (mode === 'otp' && otpSent)) && accountType === 'BROKER' && (
+                  <Input
+                    label={inviteOnly ? 'Invite code' : 'Invite code (optional)'}
+                    value={f.inviteCode}
+                    onChangeText={(v) => set('inviteCode')(v.toUpperCase().replace(/\s/g, ''))}
+                    autoCapitalize="characters"
+                    icon={<Ticket size={18} color={c.subtle} />}
+                    hint={inviteOnly ? 'अभी broker account सिर्फ़ invite से बनता है — BrokerIQ team या किसी जुड़े broker से code माँगें।' : undefined}
+                  />
+                )}
+                {mode === 'signup' && accountType === 'BROKER' && (
+                  <Input label="Firm / Agency name" value={f.firmName} onChangeText={set('firmName')} icon={<Building2 size={18} color={c.subtle} />} />
+                )}
+
+                {mode === 'otp' && !otpSent && <Button title="OTP भेजें" size="lg" loading={busy} disabled={!/.+@.+\..+/.test(f.email)} onPress={sendOtp} />}
+                {mode === 'otp' && otpSent && (
+                  <>
+                    <Button title="Verify & continue" size="lg" loading={busy} disabled={f.code.length !== 6} onPress={verifyOtp} />
+                    <Txt v="small" color="brand" style={{ textAlign: 'center' }} onPress={() => (setOtpSent(false), set('code')(''))}>
+                      Email बदलें / OTP दोबारा भेजें
+                    </Txt>
+                  </>
+                )}
+                {mode === 'password' && <Button title="Login" size="lg" loading={busy} disabled={!f.email || !f.password} onPress={login} />}
+                {mode === 'signup' && (
+                  <Button title="Account बनाएँ" size="lg" loading={busy} disabled={!f.name || !f.email || f.password.length < 8} onPress={signup} />
+                )}
               </>
-            )}
-            {mode === 'password' && <Button title="Login" size="lg" loading={busy} disabled={!f.email || !f.password} onPress={login} />}
-            {mode === 'signup' && (
-              <Button title="Account बनाएँ" size="lg" loading={busy} disabled={!f.name || !f.email || f.password.length < 8} onPress={signup} />
             )}
           </View>
         )}
-        {googleOn && (
+        {!factor && googleOn && (
           <>
             <Row style={{ justifyContent: 'center' }}>
               <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
@@ -330,7 +350,7 @@ export default function Login() {
             />
           </>
         )}
-        <Button title="Browse properties as guest" variant="secondary" onPress={() => router.replace('/(user)/home')} />
+        {!factor && <Button title="Browse properties as guest" variant="secondary" onPress={() => router.replace('/(user)/home')} />}
         <Txt v="caption" color="subtle" style={{ textAlign: 'center' }}>
           Continue करके आप हमारी Terms और Privacy policy से सहमत हैं।
         </Txt>

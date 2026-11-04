@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { View, Pressable, useWindowDimensions, type ViewStyle } from 'react-native';
+import { View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
-import { ChevronLeft, Languages, Moon, Sun, UserRound } from 'lucide-react-native';
-import { Card, IconBtn, Txt } from '@/ui';
+import { ChevronLeft, Languages, Moon, MoreHorizontal, Sun, UserRound } from 'lucide-react-native';
+import { Button, Card, IconBtn, Sheet, Txt } from '@/ui';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { LanguageSheet } from '@/components/language';
@@ -26,11 +26,12 @@ export function BrokerScreen({
   const { c, isDark } = useTheme();
   const setMode = useThemeMode((s) => s.setMode);
   const [langSheetOpen, setLangSheetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const broker = useAuth().isBroker;
   const path = usePathname();
   const profilePath = broker ? '/broker-settings' : '/profile';
   const { width, fontScale } = useWindowDimensions();
-  const compact = width / Math.max(1, fontScale) < 430;
+  const compact = width / Math.max(1, fontScale) < 600;
 
   const toggleTheme = () => {
     setMode(isDark ? 'light' : 'dark');
@@ -41,13 +42,12 @@ export function BrokerScreen({
       <View
         style={{
           paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 14,
+          paddingVertical: 10,
           marginBottom: 8,
           flexDirection: 'row',
-          flexWrap: compact ? 'wrap' : 'nowrap',
+          flexWrap: 'nowrap',
           alignItems: 'center',
-          gap: 10,
+          gap: 8,
           backgroundColor: c.surface,
           borderBottomWidth: 1,
           borderBottomColor: c.line,
@@ -57,7 +57,7 @@ export function BrokerScreen({
           <IconBtn
             accessibilityLabel="Back"
             onPress={() => (router.canGoBack() ? router.back() : router.replace(broker ? '/(broker)/dashboard' : '/(user)/home'))}
-            style={{ backgroundColor: c.surface2, width: 38, height: 38 }}
+            style={{ backgroundColor: c.surface2, flexShrink: 0 }}
           >
             <ChevronLeft size={20} color={c.fg} />
           </IconBtn>
@@ -69,67 +69,38 @@ export function BrokerScreen({
               BROKERIQ
             </Txt>
           </View>
-          <Txt v="h2" style={{ fontSize: 20, lineHeight: 26 }} numberOfLines={compact ? undefined : 2}>
+          <Txt v="h2" style={{ fontSize: 20, lineHeight: 26 }} numberOfLines={2}>
             {title}
           </Txt>
           {subtitle && (
-            <Txt v="caption" color="muted" numberOfLines={compact ? undefined : 2} style={{ marginTop: 2 }}>
+            <Txt v="caption" color="muted" numberOfLines={1} style={{ marginTop: 2 }}>
               {subtitle}
             </Txt>
           )}
         </View>
-        <NotificationBell />
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-            gap: 8,
-            ...(compact ? { width: '100%' as const } : {}),
+            flexShrink: 0,
+            gap: 4,
           }}
         >
-          {action ?? (
-            <>
-              <Pressable
-                accessibilityLabel="Toggle Theme"
-                onPress={toggleTheme}
-                style={{
-                  width: 38,
-                  height: 38,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 12,
-                  backgroundColor: c.surface2,
-                  borderWidth: 1,
-                  borderColor: c.line,
-                }}
-              >
-                {isDark ? <Sun size={18} color={c.accent} /> : <Moon size={18} color={c.fg} />}
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Select Language"
-                onPress={() => setLangSheetOpen(true)}
-                style={{
-                  width: 38,
-                  height: 38,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 12,
-                  backgroundColor: c.surface2,
-                  borderWidth: 1,
-                  borderColor: c.line,
-                }}
-              >
-                <Languages size={18} color={c.brand} />
-              </Pressable>
-              {path !== profilePath && (
-                <Pressable
-                  accessibilityLabel="Profile & settings"
-                  onPress={() => router.push(broker ? '/broker-settings' : '/(user)/profile')}
+          <NotificationBell />
+          {compact ? (
+            <IconBtn accessibilityLabel="More options" onPress={() => setSettingsOpen(true)} style={{ backgroundColor: c.surface2 }}>
+              <MoreHorizontal size={20} color={c.fg} />
+            </IconBtn>
+          ) : (
+            (action ?? (
+              <>
+                <IconBtn
+                  accessibilityLabel="Toggle Theme"
+                  onPress={toggleTheme}
                   style={{
-                    width: 38,
-                    height: 38,
+                    width: 44,
+                    height: 44,
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 12,
@@ -138,13 +109,76 @@ export function BrokerScreen({
                     borderColor: c.line,
                   }}
                 >
-                  <UserRound size={18} color={c.fg} />
-                </Pressable>
-              )}
-            </>
+                  {isDark ? <Sun size={18} color={c.accent} /> : <Moon size={18} color={c.fg} />}
+                </IconBtn>
+                <IconBtn
+                  accessibilityLabel="Select Language"
+                  onPress={() => setLangSheetOpen(true)}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 12,
+                    backgroundColor: c.surface2,
+                    borderWidth: 1,
+                    borderColor: c.line,
+                  }}
+                >
+                  <Languages size={18} color={c.brand} />
+                </IconBtn>
+                {path !== profilePath && (
+                  <IconBtn
+                    accessibilityLabel="Profile & settings"
+                    onPress={() => router.push(broker ? '/broker-settings' : '/(user)/profile')}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 12,
+                      backgroundColor: c.surface2,
+                      borderWidth: 1,
+                      borderColor: c.line,
+                    }}
+                  >
+                    <UserRound size={18} color={c.fg} />
+                  </IconBtn>
+                )}
+              </>
+            ))
           )}
         </View>
       </View>
+      <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Quick settings">
+        {action && <View style={{ alignItems: 'flex-start' }}>{action}</View>}
+        <Button
+          title={isDark ? 'Light theme' : 'Dark theme'}
+          variant="secondary"
+          icon={isDark ? <Sun size={20} color={c.accent} /> : <Moon size={20} color={c.fg} />}
+          onPress={toggleTheme}
+        />
+        <Button
+          title="Select Language"
+          variant="secondary"
+          icon={<Languages size={20} color={c.brand} />}
+          onPress={() => {
+            setSettingsOpen(false);
+            setLangSheetOpen(true);
+          }}
+        />
+        {path !== profilePath && (
+          <Button
+            title="Profile & settings"
+            variant="secondary"
+            icon={<UserRound size={20} color={c.fg} />}
+            onPress={() => {
+              setSettingsOpen(false);
+              router.push(broker ? '/broker-settings' : '/(user)/profile');
+            }}
+          />
+        )}
+      </Sheet>
       <LanguageSheet open={langSheetOpen} onClose={() => setLangSheetOpen(false)} />
       {children}
     </SafeAreaView>
