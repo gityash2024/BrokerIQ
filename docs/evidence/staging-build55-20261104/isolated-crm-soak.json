@@ -1,0 +1,38 @@
+{
+  "kind": "CRM_TWO_HOUR_SOAK",
+  "environment": "ISOLATED_LOCAL_NEST_POSTGRESQL",
+  "concurrentSessions": 20,
+  "rounds": 709,
+  "elapsedSeconds": 7204.424886458,
+  "summary": {
+    "list": {
+      "requests": 28360,
+      "p50Ms": 49.867915999144316,
+      "p95Ms": 72.9512499999255,
+      "maxMs": 138.0368749999907
+    },
+    "detail": {
+      "requests": 14180,
+      "p50Ms": 37.57412500027567,
+      "p95Ms": 61.64183299988508,
+      "maxMs": 114.30495799996424
+    },
+    "mutation": {
+      "requests": 2380,
+      "p50Ms": 34.47449999995297,
+      "p95Ms": 50.7927919998765,
+      "maxMs": 70.20829100068659
+    },
+    "refresh": {
+      "requests": 240,
+      "p50Ms": 66.49683400057256,
+      "p95Ms": 76.95350000006147,
+      "maxMs": 84.95420800056309
+    }
+  },
+  "cadence": {
+    "maxGapSeconds": 10.26
+  },
+  "stagingAcceptance": false,
+  "providerOrDeviceAcceptance": false
+}
