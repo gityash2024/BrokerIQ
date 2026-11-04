@@ -6,6 +6,12 @@ PIN="${1:?full candidate commit required}"
 BACKUP="${2:?verified scoped backup directory required}"
 [[ "$PIN" =~ ^[a-f0-9]{40}$ ]] && [[ "$BACKUP" =~ ^/opt/brokeriq/backups/production-[0-9]{8}T[0-9]{6}Z$ ]] || exit 2
 export PATH="$BASE/runtime/node/bin:$PATH" COREPACK_HOME="$BASE/runtime/corepack"
+# systemd can omit HOME. Require the existing staging daemon instead of letting
+# PM2 spawn another daemon with a different registry and competing listeners.
+export HOME=/root PM2_HOME=/root/.pm2
+[ -S "$PM2_HOME/rpc.sock" ] && [ -S "$PM2_HOME/pub.sock" ] || { echo 'Existing staging PM2 sockets are required' >&2; exit 1; }
+PM2_PID="$(cat "$PM2_HOME/pm2.pid")"
+[[ "$PM2_PID" =~ ^[0-9]+$ ]] && kill -0 "$PM2_PID" || { echo 'Existing staging PM2 daemon is required' >&2; exit 1; }
 exec 9>"$BASE/activation.lock"; flock -n 9 || exit 1
 CANDIDATE="$BASE/releases/rc-${PIN:0:12}"
 OLD="$(readlink -f "$BASE/current")"
@@ -25,7 +31,7 @@ JS
 HASH="$(node -e 'console.log(require(process.argv[1]).android.sha256)' "$CANDIDATE/release-manifest.json")"
 CODE="$(node -e 'console.log(require(process.argv[1]).android.versionCode)' "$CANDIDATE/release-manifest.json")"
 if ! node "$BASE/ops/prepublish-staging-apk.cjs" "$PIN" "$HASH"; then
- env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root pm2 reload brokeriq-web --update-env
+ env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin pm2 reload brokeriq-web --update-env
  prepublished=false
  for i in $(seq 1 20); do
   if node "$BASE/ops/prepublish-staging-apk.cjs" "$PIN" "$HASH"; then prepublished=true; break; fi
