@@ -24,6 +24,7 @@ export interface WaCreds {
 }
 
 class UnmatchedWhatsAppReceiptError extends Error {}
+class OversizedWhatsAppMediaError extends Error {}
 
 const NOT_CONNECTED =
   'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। Integration configure होने तक draft सुरक्षित रखें; message भेजा नहीं गया है।';
@@ -374,7 +375,15 @@ export class WhatsAppService {
       // Personal chats without Housing context will not create leads (leadId remains null)
     }
     const conv = await this.conversationFor(orgId, phone, { name: profileName, leadId });
-    if (mediaUrl && orgId) mediaUrl = await this.retrieveMedia(mediaUrl.slice('wa-media:'.length), orgId);
+    if (mediaUrl && orgId) {
+      try {
+        mediaUrl = await this.retrieveMedia(mediaUrl.slice('wa-media:'.length), orgId);
+      } catch (error) {
+        if (!(error instanceof OversizedWhatsAppMediaError)) throw error;
+        mediaUrl = null;
+        text += '\nAttachment exceeds the 12 MiB download limit.';
+      }
+    }
     let saved;
     try {
       saved = await this.prisma.message.create({
@@ -462,7 +471,7 @@ export class WhatsAppService {
     let size = 0;
     for await (const chunk of response.body as any) {
       size += chunk.length;
-      if (size > max) throw new BadRequestException('WhatsApp media exceeds 12MB');
+      if (size > max) throw new OversizedWhatsAppMediaError('WhatsApp media exceeds 12MB');
       chunks.push(Buffer.from(chunk));
     }
     const key = await this.storage.putSource(Buffer.concat(chunks), details.mime_type ?? 'application/octet-stream', orgId);

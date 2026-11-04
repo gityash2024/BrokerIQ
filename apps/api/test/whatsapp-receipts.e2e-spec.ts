@@ -96,4 +96,39 @@ describe('WhatsApp receipt ownership and ordering', () => {
     expect((await db.message.findUniqueOrThrow({ where: { id: late.id } })).status).toBe('DELIVERED');
     expect((await db.webhookEvent.findUniqueOrThrow({ where: { id: event.id } })).status).toBe('PROCESSED');
   });
+  it('retains an oversized attachment as a message without downloading it twice on replay', async () => {
+    const externalId = 'oversized-video-' + uid;
+    const event = await db.webhookEvent.create({
+      data: {
+        provider: 'whatsapp',
+        organizationId: orgA,
+        externalId: externalId + '-event',
+        payload: {
+          entry: [
+            { changes: [{ value: { messages: [{ id: externalId, from: '919700000902', type: 'video', video: { id: '123', caption: 'Visit video' } }] } }] },
+          ],
+        },
+      },
+    });
+    const credentials = jest.spyOn(wa as any, 'requireCreds').mockResolvedValue({ values: { accessToken: 'isolated-provider-adapter' } });
+    const fetchAdapter = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(Response.json({ url: 'https://cdn.fbcdn.net/video', mime_type: 'video/mp4' }))
+      .mockResolvedValueOnce(new Response(new Uint8Array(12 * 1024 * 1024 + 1)));
+    try {
+      await (wa as any).processEvent(event.id);
+      await (wa as any).processEvent(event.id);
+      expect(fetchAdapter).toHaveBeenCalledTimes(2);
+      expect(await db.message.findUniqueOrThrow({ where: { externalId } })).toMatchObject({
+        direction: 'INBOUND',
+        type: 'VIDEO',
+        body: 'Visit video\nAttachment exceeds the 12 MiB download limit.',
+        mediaUrl: null,
+      });
+      expect(await db.webhookEvent.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({ status: 'PROCESSED', error: null });
+    } finally {
+      fetchAdapter.mockRestore();
+      credentials.mockRestore();
+    }
+  });
 });
