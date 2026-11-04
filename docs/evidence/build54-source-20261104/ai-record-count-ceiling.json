@@ -1,0 +1,13 @@
+{
+  "kind": "DETERMINISTIC_RECORD_COUNT_CEILING",
+  "recordReferenceSha256": "d46fa12b37801558467de3ac0768e66a665af1f54b0a69b0ddc9ea209684a12e",
+  "sourceGroups": 12,
+  "referenceRecords": 101,
+  "candidateOffers": 48,
+  "maxPossibleOneToOneMatches": 48,
+  "maxPossibleRecordRecallPercent": 47.524752475247524,
+  "independentReview": false,
+  "fieldPrecision": null,
+  "providerEvaluation": false,
+  "productionAcceptance": false
+}
