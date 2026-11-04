@@ -6,7 +6,9 @@ Commit `1aa0f01` adds separate product galleries for the Customer portal, Broker
 
 The four linked A4 manuals are in `apps/web/public/guides/`. The English and Hindi Broker manuals have 12 pages each and the Super Admin manuals have 9 pages each. Each manual includes linked contents, role-specific steps and redacted screenshots.
 
-All eight local Chrome smoke checks passed, including all 11 image URLs, four PDF signatures, canonical Terms and Privacy redirects and landing width at 360 px. The Build 56 staging handoff verifies the gallery, PDF signatures and public legal routes on the private candidate before activation. The current public release must be checked independently after the switch.
+All eight local Chrome smoke checks passed, including all 11 image URLs, four PDF signatures, canonical Terms and Privacy redirects and landing width at 360 px. Build 56 (2.3.15, commit `4a0c8f145c3f1e97160baaaffad214e4bae07e64`) published to staging on 4 November 2026 at 16:38:58 IST. The private candidate passed gallery, guides and legal checks before the switch. Public verification fetched all 11 images, four PDF signatures and legal routes, matched all three landing timestamps, and independently hashed the 186,565,570-byte signed APK to `bf87a2f9fbeefdae1d9fcb317687e1a3d93faade541fd8110f91856d61f1fae8`. The live API commit and the runtime update link match Build 56. Device acceptance and production sign-off remain open.
+
+The initial activation stopped at the disk guard. Removing only generated Android directories in the completed candidate restored more than 20 GiB available. The signed candidate and published download bytes were rechecked. No schema migrations were applied during activation.
 
 ## Client communications
 
