@@ -1,0 +1,552 @@
+{
+  "viewportWidth": 390,
+  "results": [
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/activity",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/amenities",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/audit",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/blocklist",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/blog",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/broadcasts",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/broker-invites",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/brokers",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/builders",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/chat-reports",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/content",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/coupons",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/enquiries",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/faqs",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/feedback",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/health",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/homepage",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/inventory",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/kyc",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/listings",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/localities",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/locality-reviews",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/moderation",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/modules",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/notifications",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/pages",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/payments",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/plans",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/projects",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/reports",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/services",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/settings/app",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/settings/flags",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/settings/integrations",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/subscriptions",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/support",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/system",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/templates",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/user-data",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/users",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "SUPER_ADMIN",
+      "route": "/admin/visit-verification",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/activity",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/agreements",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/analytics",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/automations",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/billing",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/campaigns",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/connectors",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/deals",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/feedback",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/follow-ups",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/imports",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/inbox",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/inventory/directory",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/inventory",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/invite-brokers",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/invoices",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/leads",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/leads/requirements",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/listings/new",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/listings",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/network",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/notifications",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/onboarding",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/owners",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/pipeline",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/privacy",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/reports",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/reviews",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/scanner",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/settings",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/team",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/tokens",
+      "expectedDisabled": true,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/upcoming",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "BROKER_ADMIN",
+      "route": "/broker/visits",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/activity",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/enquiries",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/feedback",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/listings/new",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/listings",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/messages",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/notifications",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/privacy",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/profile",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/requirements",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/saved",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/searches",
+      "expectedDisabled": false,
+      "overflow": false
+    },
+    {
+      "role": "USER",
+      "route": "/user/account/visits",
+      "expectedDisabled": false,
+      "overflow": false
+    }
+  ],
+  "errors": []
+}

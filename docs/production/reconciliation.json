@@ -3571,14 +3571,14 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "127f9b51d22f4f9e4cd9f194662987453ab1547c",
-    "androidVersion": "2.3.12",
-    "androidVersionCode": 53,
-    "publishedAt": "2026-11-04T03:37:20.219Z",
-    "publicApkSha256": "209f5d00b32dcd10bfa710d698ba2f214e8ff5a5286324c618f86d064685c54c",
-    "evidence": "docs/evidence/staging-build53-20261104/active-verification.json",
+    "commit": "88ef337153c7d8c4b1ff032146353bbb9b391446",
+    "androidVersion": "2.3.13",
+    "androidVersionCode": 54,
+    "publishedAt": "2026-11-04T05:39:34.224Z",
+    "publicApkSha256": "e44dbbef956a65a0b21df9a79dd34d67b1d97f4bc3f85d4dbc407d8312c15373",
+    "evidence": "docs/evidence/staging-build54-20261104/active-verification.json",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
-    "browserVisualAcceptance": "PARTIAL_BROKER_ADMIN_READ_ONLY",
+    "browserVisualAcceptance": "LANDING_RELEASE_AND_PUBLIC_LEGAL_PAGES_ONLY",
     "fullProductSignoff": false
   },
   "latestSourceAudit": {
