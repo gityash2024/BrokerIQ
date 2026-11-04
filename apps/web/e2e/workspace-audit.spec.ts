@@ -116,3 +116,72 @@ test('Super Admin sidebar opens the selected record and keeps upcoming tools dis
   await expect(nav.getByText('Campaigns', { exact: true }).locator('..')).toHaveAttribute('aria-disabled', 'true');
   await expect(nav.getByRole('link', { name: 'Campaigns', exact: true })).toHaveCount(0);
 });
+
+test('Broker Agent sees assigned leads and personal settings, with admin routes protected', async ({ page, request }) => {
+  const { session: owner } = await createBrokerFixture(request);
+  const ownerHeaders = { Authorization: 'Bearer ' + owner.accessToken };
+  const email = `agent.workspace.${Date.now()}@e2e.test`;
+  const identity = { name: 'Workspace test agent', email };
+  const inviteResponse = await request.post(API + '/broker/team/invite', {
+    headers: ownerHeaders,
+    data: { ...identity, role: 'BROKER_AGENT' },
+  });
+  expect(inviteResponse.status()).toBe(201);
+  const invite = (await inviteResponse.json()).link.split('/').pop();
+  const accountResponse = await request.post(API + '/auth/register', {
+    data: { ...identity, password: 'FixtureAgent123', accountType: 'USER' },
+  });
+  expect(accountResponse.status()).toBe(201);
+  const account = await accountResponse.json();
+  const acceptResponse = await request.post(API + '/invites/' + invite + '/accept', {
+    headers: { Authorization: 'Bearer ' + account.accessToken },
+    data: {},
+  });
+  expect(acceptResponse.status()).toBe(201);
+  const agent = await acceptResponse.json();
+  expect(agent.user.role).toBe('BROKER_AGENT');
+
+  async function lead(name: string, phone: string) {
+    const response = await request.post(API + '/leads', { headers: ownerHeaders, data: { name, phone } });
+    expect(response.status()).toBe(201);
+    return response.json();
+  }
+  const visible = await lead('Assigned workspace lead', '9811100011');
+  const hidden = await lead('Private workspace lead', '9811100012');
+  expect(
+    (
+      await request.patch(API + '/leads/' + visible.id + '/assign', {
+        headers: ownerHeaders,
+        data: { assignedToId: agent.user.id },
+      })
+    ).status(),
+  ).toBe(200);
+
+  const headers = { Authorization: 'Bearer ' + agent.accessToken };
+  const exported = await request.get(API + '/leads/export', { headers });
+  expect(exported.status()).toBe(200);
+  const csv = await exported.text();
+  expect(csv).toContain(visible.name);
+  expect(csv).not.toContain(hidden.name);
+
+  await page.goto('/');
+  await page.evaluate((session) => localStorage.setItem('biq.auth', JSON.stringify(session)), agent);
+  await page.goto('/broker/leads');
+  await expect(page.getByText(visible.name, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(hidden.name, { exact: true })).toHaveCount(0);
+  const nav = page.getByRole('navigation', { name: 'Workspace navigation' });
+  await expect(nav.getByRole('button', { name: 'Team & Agents' })).toHaveCount(0);
+  await expect(nav.getByRole('button', { name: 'Automation' })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/broker/settings');
+  await expect(page.getByRole('heading', { name: 'My account', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Firm profile', exact: true })).toHaveCount(0);
+  for (const route of ['/broker/team', '/broker/connectors', '/broker/automations']) {
+    await page.goto(route);
+    await expect(page.getByText('Access restricted', { exact: true })).toBeVisible();
+  }
+  await page.goto('/admin/business');
+  await expect(page).toHaveURL(/\/broker$/);
+  await expect(page.getByRole('heading', { name: 'Business records' })).toHaveCount(0);
+});
