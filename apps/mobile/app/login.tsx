@@ -212,7 +212,7 @@ export default function Login() {
         </Animated.View>
       </LinearGradient>
       <View style={{ padding: 20, marginTop: -28, gap: 16 }}>
-        {modes.length > 0 && (
+        {(factor || modes.length > 0) && (
           <View
             style={{
               backgroundColor: c.surface,
