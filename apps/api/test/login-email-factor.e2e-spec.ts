@@ -213,7 +213,7 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
       );
     jest
       .spyOn(OAuth2Client.prototype, 'verifyIdToken')
-      .mockResolvedValue({ getPayload: () => ({ sub: 'isolated-google-sub', email: user.email, email_verified: true }) } as never);
+      .mockResolvedValue({ getPayload: () => ({ sub: `isolated-google-${user.id}`, email: user.email, email_verified: true }) } as never);
     const google = await request(app.getHttpServer()).post('/api/auth/google').set(ua).send({ idToken: 'isolated-token-for-stubbed-provider' }).expect(428);
     expect(google.body.code).toBe('LOGIN_OTP_REQUIRED');
     expect(await db.refreshToken.count({ where: { userId: user.id } })).toBe(0);

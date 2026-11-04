@@ -99,6 +99,7 @@ export class OrganizationsController {
 
   // ------------------------------------------------------------------ onboarding & profile
   /** Turns a USER into a broker firm owner (or updates the firm profile). Returns fresh tokens. */
+  @Roles('USER', 'BROKER_ADMIN')
   @Post('broker/onboarding')
   async onboarding(@CurrentUser() user: RequestUser, @Body(new ZodPipe(brokerOnboardingSchema)) body: z.infer<typeof brokerOnboardingSchema>, @Req() req: any) {
     if (user.role === 'SUPER_ADMIN') throw new BadRequestException('Super Admin broker account नहीं बना सकता');
