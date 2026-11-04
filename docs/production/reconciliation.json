@@ -246,8 +246,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "IMPLEMENTED",
-      "shippedBuild": "PENDING",
-      "verification": "3 plugin regressions passed; Expo Android clean regeneration re-applied FLAG_SECURE; signed-APK/device verification pending",
+      "shippedBuild": "BUILD53_NATIVE_BYTECODE_VERIFIED_DEVICE_PENDING",
+      "verification": "Clean tracked prebuild and signed APK main and face-capture secure flags verified. Physical screenshot, screen recording, recents and upgrade pending.",
       "notes": [
         "Tracked Expo plugin replaces ignored generated Activity edit. Release guarded with !BuildConfig.DEBUG."
       ],
@@ -260,14 +260,15 @@
       ],
       "sourceFiles": [
         "apps/mobile/plugins/with-screen-protection.js",
-        "apps/mobile/app.config.ts"
+        "apps/mobile/app.config.ts",
+        "ops/verify-android-artifact.py"
       ],
       "commits": [
         "7ab7c2d"
       ],
       "database": "PENDING",
       "rootCause": "FLAG_SECURE existed only in generated Git-ignored MainActivity and was absent after native regeneration/shipped APK.",
-      "releaseEvidence": null
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/native-verification.json"
     },
     {
       "id": "SECURITY-02",
@@ -4162,8 +4163,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "BUILD46_ARTIFACT_VERIFIED_DEVICE_PENDING",
-      "verification": "Clean tracked prebuild; actual signed APK MainActivity/FaceCaptureActivity secure flags and60 native library16KB alignments inspected. Signed/public hashes match. Physical recording/recents/upgrade deferred by user.",
+      "shippedBuild": "BUILD53_NATIVE_CONFIGURATION_VERIFIED_DEVICE_PENDING",
+      "verification": "Build53 retains both secure activities, four ABIs, required permissions and 16KB checks. Installed-device acceptance pending.",
       "notes": [
         "Reviewed clean prebuild guards and actual APK DEX/permissions/16KB verifiers. Native secure-window configuration survives regeneration in50/51 artifacts; physical capture/recents/recording remains deferred."
       ],
@@ -4183,7 +4184,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json",
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/native-verification.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4200,8 +4201,8 @@
       "backend": "PINNED_STAGING_RELEASE_VERIFIED",
       "web": "PINNED_STAGING_RELEASE_VERIFIED",
       "androidSource": "PINNED_SIGNED_APK_VERIFIED",
-      "shippedBuild": "BUILD46_ARTIFACT_VERIFIED_DEVICE_PENDING",
-      "verification": "Pinned0d6c2bc:354 real PostgreSQL tests/27 configuration skips. Broker-first selection53/53 after correcting stale-revision test expectation; unchanged app sources. Signed43 native/security/identity and full public bytes verified. Device/provider/full-product acceptance remains open.",
+      "shippedBuild": "BUILD53_EXACT_PINNED_STAGING_ARTIFACT",
+      "verification": "Tested commit 127f9b51d22f built separately and staged. Public APK and executable identities verified.",
       "notes": [
         "Reviewed immutable candidate, no active-checkout rebuild, exact executable-path helper and fail-fast strict activation/runtime ordering. BrokerIQ-only switch/rollback; actual51 activation evidence is separate."
       ],
@@ -4221,7 +4222,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-build46-20261102/strict-release-verification.json",
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/active-verification.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4238,8 +4239,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD53_SAME_MIGRATION_SET_RESTORE_VERIFIED",
+      "verification": "Same migration digest as Build52. Actual off-host scratch restore passed 101 tables and 664 media hashes.",
       "notes": [
         "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate.",
         "Reviewed additive migration rehearsals and actual fresh encrypted scratch restores. Build51 migration set still43, no new migration/fixtures. Protected45 compatibility wrapper needs both45/46 directories; no down-migration."
@@ -4261,7 +4262,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null,
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/activation-restore-proof.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4278,8 +4279,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD53_SIGNING_CERT_VERIFIED_UPGRADE_PENDING",
+      "verification": "Same signing certificate as Build52. On-device upgrade and stored-data preservation remain pending.",
       "notes": [
         "Reviewed signing identity and monotonically increasing versionCode assertions; actual retained certificate matches published APKs. Installed upgrade/data preservation is NOT accepted without the deferred handset."
       ],
@@ -4298,7 +4299,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null,
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/android-release.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4315,8 +4316,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD53_PUBLIC_BYTES_AND_IDENTITY_VERIFIED",
+      "verification": "Local signed APK, public bytes, embedded identity and manifest match.",
       "notes": [
         "Reviewed complete-byte hash, embedded Expo identity and actual PM2/public/origin verification. Native/API/provider workflows are not inferred from artifact consistency."
       ],
@@ -4335,7 +4336,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null,
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/active-verification.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4352,8 +4353,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD53_LANDING_MANIFEST_AND_RUNTIME_VERIFIED",
+      "verification": "Chrome renders Build53 with 4 Nov 09:07 IST. Runtime points to the same public APK.",
       "notes": [
         "Reviewed generated release manifest used by landing versions/timestamps/download and runtime update configuration; all three50 landing timestamps independently matched actual publication. New screenshots still absent, not relabelled."
       ],
@@ -4363,7 +4364,9 @@
       "sourceFiles": [
         "ops/prepare-staging-candidate.sh",
         "ops/update-active-release.cjs",
-        "apps/web/src/app/(site)/page.tsx"
+        "apps/web/src/app/(site)/page.tsx",
+        "apps/web/src/lib/release.ts",
+        "apps/web/src/app/release.json/route.ts"
       ],
       "commits": [
         "be21ed4",
@@ -4372,7 +4375,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null,
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/runtime-verification.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4389,17 +4392,20 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "PARTIAL_BUILD53_WEB_CAPTURES_ANDROID_PENDING",
+      "verification": "Build53 landing and masked Broker Admin web controls captured. Android gallery awaits matching controlled QA captures.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/app/(site)/page.tsx",
+        "ops/render-user-guides.py"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/browser-read-only.json"
     },
     {
       "id": "RELEASE-10",
@@ -4439,13 +4445,17 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD53_FOUR_A4_PREVIEWS_FINAL_CAPTURES_PENDING",
+      "verification": "Four Hindi/English PDFs rendered with clickable contents and reviewed Build53 web clips. Final screenshots and device verification remain open.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "docs/production/manuals/broker.json",
+        "docs/production/manuals/super-admin.json",
+        "ops/render-user-guides.py"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -4464,17 +4474,19 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "LOCAL_LOAD_VERIFIED_CONTINUOUS_SOAK_OPEN",
+      "verification": "20 sessions, 257 rounds and 10,280 list reads over 8,093 elapsed seconds. Continuous cadence and staging load acceptance remain open.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/test/crm-load.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/local-crm-soak.json"
     },
     {
       "id": "RELEASE-13",
@@ -4489,8 +4501,8 @@
       "backend": "PENDING",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
+      "shippedBuild": "BUILD53_OFFHOST_RESTORE_AND_ROLLBACK_PATH_VERIFIED",
+      "verification": "Encrypted off-host chain and scratch restore verified. Prior release retained. Full operational incident drill remains open.",
       "notes": [
         "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate.",
         "Reviewed encrypted off-host base+delta restoration and scoped rollback runbook. Full monitoring/alerts/operator handoff, recovery exercises and representative soak remain OPEN."
@@ -4511,7 +4523,7 @@
       ],
       "database": "PENDING",
       "rootCause": null,
-      "releaseEvidence": null,
+      "releaseEvidence": "docs/evidence/staging-build53-20261104/activation-restore-proof.json",
       "mappingReviewedAgainstPin": "a34015c4f54b6e70e2cd52b1086d64394d59666b",
       "mappingScope": "Reviewed named implementation/evidence files only; full workflow/device/provider acceptance not inferred"
     },
@@ -4742,14 +4754,14 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "49c158f42c767cedb429545e86e8e510f4a24681",
-    "androidVersion": "2.3.11",
-    "androidVersionCode": 52,
-    "publishedAt": "2026-11-02T18:00:56.661Z",
-    "publicApkSha256": "192fa30099111b0a063ddd46516071e1281de16dc01e35be9bd0fc749679e600",
-    "evidence": "docs/evidence/staging-build52-20261102/strict-release-verification.json",
+    "commit": "127f9b51d22f4f9e4cd9f194662987453ab1547c",
+    "androidVersion": "2.3.12",
+    "androidVersionCode": 53,
+    "publishedAt": "2026-11-04T03:37:20.219Z",
+    "publicApkSha256": "209f5d00b32dcd10bfa710d698ba2f214e8ff5a5286324c618f86d064685c54c",
+    "evidence": "docs/evidence/staging-build53-20261104/active-verification.json",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
-    "browserVisualAcceptance": false,
+    "browserVisualAcceptance": "PARTIAL_BROKER_ADMIN_READ_ONLY",
     "fullProductSignoff": false
   },
   "latestSourceAudit": {

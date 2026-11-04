@@ -1,0 +1,17 @@
+{
+  "commit": "127f9b51d22f4f9e4cd9f194662987453ab1547c",
+  "versionCode": 53,
+  "environment": "staging",
+  "publicLandingVersionAndTimestamp": "04 Nov 2026, 09:07 am IST",
+  "browser": "Chrome",
+  "authenticatedRole": "BROKER_ADMIN",
+  "readOnlyRoutesOpened": ["/broker", "/broker/inventory", "/broker/leads", "/broker/leads/requirements", "/broker/pipeline", "/broker/follow-ups", "/broker/visits", "/broker/inbox", "/broker/notifications"],
+  "inventoryPopulated": true,
+  "inboxTabs": ["WhatsApp", "Website chat", "SMS", "Gmail"],
+  "notificationSeeAllDestination": "/broker/notifications",
+  "directAdminBusinessUrlRedirectedTo": "/broker",
+  "oldAdminTabRescopedAfterAccountChange": true,
+  "businessMutationsTestedInBrowser": false,
+  "installedDeviceAcceptance": false,
+  "fullProductSignoff": false
+}

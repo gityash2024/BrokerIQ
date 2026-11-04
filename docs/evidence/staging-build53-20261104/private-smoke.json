@@ -1,0 +1,13 @@
+{
+  "result": "PRIVATE_CANDIDATE_SMOKE_PASSED",
+  "checkedAt": "2026-11-04T03:36:50.940Z",
+  "pin": "127f9b51d22f4f9e4cd9f194662987453ab1547c",
+  "health": "ok",
+  "database": "ok",
+  "privateDenied": 401,
+  "homepageStatus": 200,
+  "manifestIdentityVerified": true,
+  "verifiedApkSha256": "209f5d00b32dcd10bfa710d698ba2f214e8ff5a5286324c618f86d064685c54c",
+  "jobsStarted": false,
+  "authenticatedJourney": false
+}

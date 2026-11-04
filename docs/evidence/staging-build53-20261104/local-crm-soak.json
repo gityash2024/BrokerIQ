@@ -1,0 +1,37 @@
+{
+  "kind": "CRM_TWO_HOUR_SOAK",
+  "environment": "ISOLATED_LOCAL_NEST_POSTGRESQL",
+  "concurrentSessions": 20,
+  "rounds": 257,
+  "elapsedSeconds": 8093.0538384579995,
+  "summary": {
+    "list": {
+      "requests": 10280,
+      "p50Ms": 48.05999999999767,
+      "p95Ms": 73.95454100007191,
+      "maxMs": 332.26545799989253
+    },
+    "detail": {
+      "requests": 5140,
+      "p50Ms": 27.627290999982506,
+      "p95Ms": 50.14966700016521,
+      "maxMs": 245.02137500047684
+    },
+    "mutation": {
+      "requests": 980,
+      "p50Ms": 32.51995799969882,
+      "p95Ms": 48.23054199991748,
+      "maxMs": 123.77466699993238
+    },
+    "refresh": {
+      "requests": 200,
+      "p50Ms": 70.91037499997765,
+      "p95Ms": 101.12100000027567,
+      "maxMs": 144.22712500020862
+    }
+  },
+  "stagingAcceptance": false,
+  "providerOrDeviceAcceptance": false,
+  "continuousCadenceVerified": false,
+  "environmentNote": "Elapsed host time includes observed gaps. Retain measured request results and repeat uninterrupted staging soak."
+}
