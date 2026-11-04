@@ -124,6 +124,34 @@ describe('Every registered HTTP route: declared role denial', () => {
       .expect(403);
   });
 
+  it('serves only the current firm’s directory fields to an Agent at the firm profile endpoint', async () => {
+    const other = await db.organization.create({ data: { name: 'Isolated foreign profile', slug: 'route-profile-other-' + stamp } });
+    const profile = (role: Role) =>
+      request(app.getHttpServer()).get('/api/broker/profile').query({ organizationId: other.id }).auth(tokens.get(role)!, { type: 'bearer' });
+    const agent = await profile('BROKER_AGENT').expect(200);
+    expect(agent.body).toMatchObject({ id: orgId, name: 'Isolated route role audit' });
+    expect(agent.headers['cache-control']).toBe('private, no-store');
+    for (const privateField of [
+      'webhookKey',
+      'subscription',
+      'plan',
+      'usage',
+      'invoicePrefix',
+      'invoiceSeq',
+      'upiId',
+      'gstNumber',
+      'blockedReason',
+      'restrictions',
+    ]) {
+      expect(agent.body).not.toHaveProperty(privateField);
+    }
+    const admin = await profile('BROKER_ADMIN').expect(200);
+    expect(admin.body).toMatchObject({ id: orgId, invoiceSeq: 0 });
+    expect(admin.body).toHaveProperty('webhookKey');
+    expect(admin.body).toHaveProperty('usage');
+    await profile('USER').expect(403);
+  });
+
   it('rejects every excluded role through the real JWT/session and role guards, without entering business handlers', async () => {
     let denied = 0;
     const failures: string[] = [];

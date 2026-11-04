@@ -135,10 +135,18 @@ export class OrganizationsController {
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Header('Cache-Control', 'private, no-store')
   @Get('broker/profile')
   async profile(@CurrentUser() user: RequestUser) {
+    const orgId = requireOrg(user);
+    if (user.role === 'BROKER_AGENT') {
+      return this.prisma.organization.findUniqueOrThrow({
+        where: { id: orgId },
+        select: { ...PUBLIC_ORG_SELECT, status: true, onboarded: true, phone: true, whatsapp: true, businessHours: true },
+      });
+    }
     const org = await this.prisma.organization.findUniqueOrThrow({
-      where: { id: requireOrg(user) },
+      where: { id: orgId },
       include: { localities: { select: { id: true, name: true, slug: true } }, subscription: { include: { plan: true } } },
     });
     const usage = await this.usage.limits(org.id);
