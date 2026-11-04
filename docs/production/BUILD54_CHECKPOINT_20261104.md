@@ -1,0 +1,11 @@
+# Build 54 candidate and subsequent source changes
+
+Candidate `88ef337153c7d8c4b1ff032146353bbb9b391446` is Android 2.3.13 / 54. Pinned API compilation succeeded. Real PostgreSQL API regression passed 447 cases, with 30 configuration-dependent skips. The focused Broker-first route and microsite suites passed seven. Shared tests passed 65 and mobile source tests passed 115. All workspace typechecks passed. The signed APK and release acceptance are separate.
+
+Build 54 adds Inventory create idempotency, full Inbox pagination, scoped property messaging, onboarding role checks, current-firm microsite QR, protection of Gmail content from automatic AI context, revised company and data-use disclosures, and an Agent-only firm profile projection. The CMS publication procedure is documented in `LEGAL_PAGES_20261104.md`.
+
+All 154 ledger requests are mapped to references. The Build 54 source provenance report resolves all referenced paths at the pin. The ledger tracks unresolved behavior and verification separately. A fresh off-host archive from 4 November restored 101 PostgreSQL tables and 664 media files, including 10 private KYC documents. No application was started against the restored database.
+
+The freeze preceded the tracked-share fix `27b629c` and invite lifecycle fix `3367306`. Isolated PostgreSQL tests passed 32 Growth cases and nine Broker-first Team cases for those changes. Their staging release remains open. The continuous soak harness `49275f2` records per-round cadence with a minimum 600 rounds and a 30-second maximum gap. The earlier interrupted run cannot establish continuous acceptance.
+
+The original Rahul export supplied all 100 frozen text holdout groups. Assistant annotations were created without reading parser predictions. Some catalog annotations give conservative lower bounds rather than exact entity lists. The deterministic parser matched intent in 81 of 100 groups, matched every candidate purpose in 33 of 67 groups with a single explicit purpose, and fell below the annotated lower bound in 46 of 95 groups with a nonzero lower bound. These are coarse diagnostics. Independent field-level gold, media evaluation and capable model results are pending. The annotations and raw messages remain private. The tracked proof contains counts and hashes only.

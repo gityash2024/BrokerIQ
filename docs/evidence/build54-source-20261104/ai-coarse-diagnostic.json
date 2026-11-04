@@ -1,0 +1,16 @@
+{
+  "kind": "DETERMINISTIC_PARSER_COARSE_DIAGNOSTIC",
+  "holdoutSha256": "53cc65391aa73732e7666734d6b08cd2952ebcffb1e37b59fd39d6e84343b219",
+  "annotationsSha256": "81e3adb61068c1ec91fe656de50b0e99873c30633f5a183fa8670920e4d85d24",
+  "groups": 100,
+  "intentMatches": 81,
+  "explicitPurposeGroups": 67,
+  "explicitPurposeMatches": 33,
+  "groupsWithLowerBound": 95,
+  "groupsBelowLowerBound": 46,
+  "predictionErrors": 0,
+  "fieldPrecision": null,
+  "recordRecall": null,
+  "providerEvaluation": false,
+  "productionAcceptance": false
+}

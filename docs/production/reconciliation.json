@@ -383,7 +383,8 @@
       "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
       "notes": [
         "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending.",
-        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded.",
+        "bf7ab70 limits Agent firm-profile responses to directory fields. Direct authenticated API case verifies firm scope and Admin-only response fields."
       ],
       "roles": [
         "GUEST",
@@ -399,7 +400,8 @@
         "apps/api/test/route-roles.e2e-spec.ts"
       ],
       "commits": [
-        "3eef6d0"
+        "3eef6d0",
+        "bf7ab70"
       ],
       "database": "REQUIREMENT_OWNERSHIP_AND_MISSING_MIGRATION_REPAIR_LOCAL_VERIFIED",
       "rootCause": "Several org-only scopes exposed other agents’ records; search OR widened assignment checks; one Team alias bypassed body validation.",
@@ -1895,7 +1897,8 @@
       "shippedBuild": "PENDING",
       "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
       "notes": [
-        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open.",
+        "27b629c makes share card price and badge purpose-aware. Public images and redirects recheck the active listing and Inventory state. Source-only after Build 54 pin."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -1909,7 +1912,9 @@
         "apps/web/src/components/broker/launch/public-publish.tsx",
         "apps/mobile/app/publish-rental.tsx"
       ],
-      "commits": [],
+      "commits": [
+        "27b629c"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
@@ -1926,7 +1931,8 @@
       "shippedBuild": "PENDING",
       "verification": "5 real PostgreSQL publication hierarchy scenarios; local Chrome shows pending Super Admin state with saved public fields and separate authorized review queue. Android installed-device, public share/microsite acceptance and final translations pending.",
       "notes": [
-        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open."
+        "Inventory publish does not create Requirements. Atomic repeat publish and optimistic review; verified Admin direct, verified-firm Agent → Broker Admin, unverified firm → Super Admin; ordinary Sale enabled separately from New Projects. Full final-release closure remains open.",
+        "27b629c tests that an already rendered public share kit and redirect return 404 after archival. Source-only after Build 54 pin."
       ],
       "roles": [
         "BROKER_AGENT",
@@ -1940,7 +1946,9 @@
         "apps/web/src/components/broker/launch/public-publish.tsx",
         "apps/mobile/app/publish-rental.tsx"
       ],
-      "commits": [],
+      "commits": [
+        "27b629c"
+      ],
       "database": "ADDITIVE_MIGRATION_LOCAL_ONLY",
       "rootCause": "Ordinary Sale was coupled to upcoming project flag; publication always required platform review; Agent public preview was hidden; legacy edits considered only a subset of public fields.",
       "releaseEvidence": null
@@ -2758,7 +2766,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded.",
+        "3367306 rotates stale same-firm invites and serializes cross-firm acceptance for the same account. Nine Broker-first Team API tests passed. Later signed release and live invitation mail remain open."
       ],
       "roles": [
         "TO_RECONCILE"
@@ -2767,7 +2776,9 @@
         "apps/api/src/modules/organizations/organizations.controller.ts",
         "apps/api/test/team-release.e2e-spec.ts"
       ],
-      "commits": [],
+      "commits": [
+        "3367306"
+      ],
       "database": "PENDING",
       "rootCause": null,
       "releaseEvidence": null
@@ -3839,7 +3850,8 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded.",
+        "100 frozen holdout groups have assistant annotations. Deterministic coarse intent matched 81 of 100, explicit purpose 33 of 67, and 46 of 95 nonzero lower bounds were under-extracted. Independent exact field gold and a capable model are still required. No field precision or record recall is reported."
       ],
       "roles": [
         "TO_RECONCILE"
@@ -4984,11 +4996,11 @@
     "fullProductSignoff": false
   },
   "latestSourceAudit": {
-    "commit": "49c158f42c767cedb429545e86e8e510f4a24681",
-    "mappedRequests": 83,
-    "unmappedRequests": 71,
+    "commit": "88ef337153c7d8c4b1ff032146353bbb9b391446",
+    "mappedRequests": 154,
+    "unmappedRequests": 0,
     "totalRequests": 154,
-    "evidence": "docs/evidence/staging-build52-20261102/source-provenance-reviewed.json",
+    "evidence": "docs/evidence/build54-source-20261104/source-provenance.json",
     "sourcePresenceIsNotWorkflowAcceptance": true
   }
 }
