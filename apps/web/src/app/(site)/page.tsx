@@ -1,4 +1,5 @@
 import { getConfig } from '@/lib/server';
+import { productGalleries } from '@/lib/product-gallery';
 import { getRelease } from '@/lib/release';
 import { BrokerIQLanding } from '@brokeriq/landing';
 import type { Metadata } from 'next';
@@ -30,13 +31,18 @@ export default async function Home() {
           : undefined
       }
       releaseUpdates={release ? { user: release.portals.publishedAt, broker: release.portals.publishedAt, android: release.android.publishedAt } : undefined}
-      screenshots={
-        release?.screenshots.map((screenshot) => ({
-          src: screenshot.src,
-          label: `${screenshot.description} · Android Build ${screenshot.versionCode}`,
-          caption: `${screenshot.description} · Captured Build ${screenshot.versionCode}`,
-        })) || []
-      }
+      galleries={productGalleries.map((gallery) =>
+        gallery.mobile && release?.screenshots.length
+          ? {
+              ...gallery,
+              screenshots: release.screenshots.map((shot) => ({
+                src: shot.src,
+                label: shot.description,
+                caption: `Android · Captured in Build ${shot.versionCode}`,
+              })),
+            }
+          : gallery,
+      )}
     />
   );
 }

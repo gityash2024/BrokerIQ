@@ -1,4 +1,4 @@
-import { BRAND } from '@brokeriq/shared';
+import { BRAND, BROKERIQ_COMPANY } from '@brokeriq/shared';
 import { LandingMotion } from './landing-motion';
 
 const workflows = [
@@ -28,14 +28,14 @@ export function BrokerIQLanding({
   apkUrl,
   checksum,
   contact,
-  screenshots = [],
+  galleries = [],
   releaseUpdates,
   builds,
 }: {
   apkUrl?: string;
   contact?: { email?: string; phone?: string; address?: string };
   checksum?: string;
-  screenshots?: { src: string; label: string; caption?: string }[];
+  galleries?: { title: string; screenshots: { src: string; label: string; caption: string }[]; mobile?: boolean }[];
   releaseUpdates?: { user: string; broker: string; android: string };
   builds?: { user?: string; broker?: string; android?: string };
 }) {
@@ -51,6 +51,8 @@ export function BrokerIQLanding({
         </a>
         <nav aria-label="Main navigation">
           <a href="#platform">Platform</a>
+          <a href="#screenshots">Screenshots</a>
+          <a href="/guides">User guides</a>
           <a href="/user">Find a property</a>
           <a href="/login?next=/broker" className="biq-button">
             Broker workspace <span aria-hidden>↗</span>
@@ -173,13 +175,77 @@ export function BrokerIQLanding({
               </a>
             </div>
           </div>
-          <div className="biq-screens" data-biq-reveal data-biq-delay="1">
-            {screenshots.slice(0, 2).map((s) => (
-              <figure key={s.src}>
-                <img src={s.src} alt={s.label} loading="lazy" width="390" height="844" />
-                {s.caption && <figcaption>{s.caption}</figcaption>}
-              </figure>
-            ))}
+          <div className="biq-android-details">
+            <h3>Install or update</h3>
+            <p>Download the signed Android app, then open it and sign in with your existing account. Keep the installed app in place when upgrading.</p>
+            <p>
+              <a href="/guides">Read the broker setup guide →</a>
+            </p>
+            {checksum && (
+              <details>
+                <summary>Verify the APK checksum</summary>
+                <code>{checksum}</code>
+              </details>
+            )}
+          </div>
+        </section>
+        <section id="screenshots" className="biq-section biq-wrap" aria-labelledby="screenshots-title">
+          <div className="biq-section-heading">
+            <div>
+              <p className="biq-eyebrow">PRODUCT TOUR</p>
+              <h2 id="screenshots-title">
+                See BrokerIQ <em>at work.</em>
+              </h2>
+            </div>
+            <p>Explore the customer portal, broker workspace, Android app and Super Admin tools. Each screenshot shows its captured edition.</p>
+          </div>
+          {galleries.map(({ title, screenshots, mobile }) => (
+            <section className="biq-gallery" key={title} aria-label={title}>
+              <h3>{title}</h3>
+              <div className={mobile ? 'biq-gallery-grid biq-gallery-phone' : 'biq-gallery-grid'}>
+                {screenshots.map((shot) => (
+                  <figure key={shot.src}>
+                    <a href={shot.src} aria-label={`Open screenshot: ${shot.label}`}>
+                      <img src={shot.src} alt={shot.label} loading="lazy" width={mobile ? 390 : 1400} height={mobile ? 844 : 860} />
+                    </a>
+                    <figcaption>
+                      <strong>{shot.label}</strong>
+                      <span>{shot.caption}</span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </section>
+          ))}
+        </section>
+        <section id="support" className="biq-section biq-wrap" aria-labelledby="support-title">
+          <div className="biq-section-heading">
+            <div>
+              <p className="biq-eyebrow">GUIDES & SUPPORT</p>
+              <h2 id="support-title">
+                Find your <em>next step.</em>
+              </h2>
+            </div>
+            <p>
+              Download Hindi or English guides for Broker Admins, Agents and Super Admins. For account, privacy or service questions, contact BrokerIQ support.
+            </p>
+          </div>
+          <div className="biq-support-grid">
+            <article>
+              <h3>Learn the workspace</h3>
+              <p>Sign-in, leads, inventory, Inbox and administration.</p>
+              <a href="/guides">Open user guides →</a>
+            </article>
+            <article>
+              <h3>Get help</h3>
+              <p>Help with your account, listing or firm setup.</p>
+              <a href="/help">Help centre →</a> <a href="/contact">Contact →</a>
+            </article>
+            <article>
+              <h3>Your data and account</h3>
+              <p>Read the policies and learn how to request account deletion.</p>
+              <a href="/p/terms">Terms</a> · <a href="/p/privacy">Privacy</a> · <a href="/account-deletion">Account deletion</a>
+            </article>
           </div>
         </section>
         <section className="biq-wrap">
@@ -227,12 +293,14 @@ export function BrokerIQLanding({
             </nav>
             <nav aria-label="Footer information" data-biq-reveal data-biq-delay="2">
               <strong>Information</strong>
+              <a href="/guides">User guides</a>
               <a href="/help">Help & support</a>
               <a href="/contact">Contact</a>
               {contact?.email && <a href={`mailto:${contact.email}`}>{contact.email}</a>}
               {contact?.phone && <a href={`tel:${contact.phone}`}>{contact.phone}</a>}
               <a href="/p/privacy">Privacy policy</a>
               <a href="/p/terms">Terms of use</a>
+              <a href="/account-deletion">Account deletion</a>
             </nav>
           </div>
           <div className="biq-wordmark" aria-hidden="true" data-biq-reveal>
@@ -244,7 +312,9 @@ export function BrokerIQLanding({
           </div>
           <div className="biq-footer-bottom">
             <span>© {new Date().getFullYear()} BrokerIQ</span>
-            <span>Made for Gurugram. Built around you.</span>
+            <span>
+              {BROKERIQ_COMPANY.name} · CIN {BROKERIQ_COMPANY.cin}
+            </span>
           </div>
         </div>
       </footer>
@@ -301,11 +371,21 @@ const styles = `
 .biq-card-line{position:absolute;left:24px;bottom:0;width:48px;height:3px;background:var(--biq-accent)}
 .biq-mobile{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;border-top:1px solid var(--line,#e4e7f0)}
 .biq-mobile>div>p:not(.biq-eyebrow){font-size:14px;max-width:420px;color:var(--muted,#475569)}
-.biq-screens{display:flex;gap:16px;align-items:center;padding:20px;background:radial-gradient(ellipse,#4f46e514,transparent 70%)}
-.biq-screens figure{margin:0;max-width:46%;transform:rotate(-4deg)}
-.biq-screens figure+figure{transform:rotate(5deg) translateY(20px)}
-.biq-screens img{display:block;width:100%;height:auto;border:6px solid var(--surface,#fff);border-radius:24px;box-shadow:0 24px 48px -24px #312e8170}
-.biq-screens figcaption{font-size:10px;text-align:center;color:var(--muted,#475569);margin-top:14px;line-height:1.6}
+.biq-android-details,.biq-support-grid article{padding:24px;border:1px solid var(--line,#e4e7f0);border-radius:20px;background:var(--surface,#fff)}
+.biq-android-details h3,.biq-support-grid h3{font-size:19px;font-weight:800}
+.biq-android-details p,.biq-support-grid p{margin:8px 0 12px;color:var(--muted,#475569);line-height:1.6}
+.biq-android-details code{display:block;overflow-wrap:anywhere;font-size:11px;margin-top:8px}
+.biq-android-details a,.biq-support-grid a{font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.biq-gallery{margin-top:32px}
+.biq-gallery h3{font-size:22px;font-weight:800;margin:0 0 14px}
+.biq-gallery-grid,.biq-support-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px}
+.biq-gallery-phone{grid-template-columns:repeat(auto-fit,minmax(min(100%,185px),1fr))}
+.biq-gallery figure{margin:0;min-width:0;overflow:hidden;border:1px solid var(--line,#e4e7f0);border-radius:18px;background:var(--surface,#fff)}
+.biq-gallery figure a{display:block;background:var(--surface-2,#f3f4fa)}
+.biq-gallery img{display:block;width:100%;height:auto;aspect-ratio:1400 / 860;object-fit:contain}
+.biq-gallery-phone img{aspect-ratio:390 / 844;max-height:440px}
+.biq-gallery figcaption{display:grid;gap:4px;padding:14px;font-size:13px}
+.biq-gallery figcaption span{color:var(--muted,#475569);font-size:11px}
 .biq-cta{border-radius:28px;padding:56px;background:linear-gradient(125deg,#1e1b4b,#4338ca);color:white;position:relative;overflow:hidden;margin-bottom:80px}
 .biq-cta:after{content:'';position:absolute;right:-70px;top:-80px;width:380px;height:380px;border:70px solid #ffffff08;border-radius:50%;pointer-events:none}
 .biq-cta h2{font-size:clamp(32px,4vw,52px);letter-spacing:-1.8px;margin:20px 0}
@@ -366,8 +446,6 @@ to{background-position:-150% 0}
 .biq-workflows article:hover{transform:translateY(-5px);border-color:#818cf880;box-shadow:0 18px 36px -24px #4f46e540}
 .biq-card-line{transition:width .4s}
 .biq-workflows article:hover .biq-card-line{width:calc(100% - 48px)}
-.biq-screens figure{transition:transform .5s cubic-bezier(.2,.7,.2,1)}
-.biq-screens figure:hover{transform:rotate(0deg) translateY(-6px)}
 .biq-cta{background-size:180% 180%}
 .biq-cta:after{animation:biq-orbit 9s ease-in-out infinite}
 .biq-footer{position:relative;border-top:1px solid #818cf81a;background:radial-gradient(ellipse at 50% 100%,#4f46e514,transparent 65%),#0e1222}
@@ -407,7 +485,6 @@ to{background-position:-150% 0}
 .biq-workflows h3{font-size:16px}
 .biq-number{margin-bottom:18px}
 .biq-mobile{grid-template-columns:1fr}
-.biq-screens{max-width:400px;margin:auto}
 .biq-cta{padding:30px 24px;margin-bottom:48px}
 .biq-footer-top{flex-wrap:wrap;gap:28px}
 .biq-footer-top>div{width:100%}

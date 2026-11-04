@@ -114,7 +114,10 @@ def make_guide(data, language, release, captures, output, draft):
     contents = 'Contents' if language == 'en' else 'विषय-सूची'
     paragraph(canvas, contents, MARGIN, H - 64, CONTENT, 32, INK, True)
     y = H - 144
-    for index, chapter in enumerate(data['chapters'], 1):
+    contents_items = list(data['chapters'])
+    if role == 'broker':
+        contents_items.append({'id': 'android-reference', 'title': {'en': 'Android screenshot reference', 'hi': 'Android स्क्रीनशॉट संदर्भ'}})
+    for index, chapter in enumerate(contents_items, 1):
         canvas.setFillColor(colors.HexColor(LAVENDER))
         canvas.roundRect(MARGIN, y - 43, CONTENT, 41, 10, fill=1, stroke=0)
         paragraph(canvas, f'{index:02d}', MARGIN + 14, y - 11, 31, 12, INDIGO, True)
@@ -155,6 +158,28 @@ def make_guide(data, language, release, captures, output, draft):
         canvas.roundRect(MARGIN, y - tip_height - 24, CONTENT, tip_height + 24, 10, fill=1, stroke=0)
         tip_box.drawOn(canvas, MARGIN + 14, y - tip_height - 12)
         footer(canvas, index + 2, build)
+        canvas.showPage()
+    if role == 'broker':
+        canvas.bookmarkPage('android-reference')
+        title = 'Android screenshot reference' if language == 'en' else 'Android स्क्रीनशॉट संदर्भ'
+        canvas.addOutlineEntry(title, 'android-reference')
+        y = paragraph(canvas, title, MARGIN, H - 64, CONTENT, 27, INK, True)
+        note = ('These archived Android captures show the build noted below each screen. '
+                'Follow the steps in this edition for the current interface.')
+        if language == 'hi':
+            note = 'ये Android स्क्रीनशॉट पुराने builds से हैं। हर स्क्रीन के नीचे उसका build है। वर्तमान इंटरफ़ेस के लिए इस गाइड के निर्देश पढ़ें।'
+        y = paragraph(canvas, note, MARGIN, y - 13, CONTENT, 12, SLATE) - 22
+        product = ROOT / 'apps/web/public/product'
+        for index, (filename, label, code) in enumerate([
+            ('android-workspace-build23-public.png', 'Today’s Focus', 23),
+            ('android-inventory-build24-public.png', 'Inventory', 24),
+            ('android-capture-build24.png', 'Scanner & import', 24),
+        ]):
+            width = (CONTENT - 24) / 3
+            left = MARGIN + index * (width + 12)
+            bottom = picture(canvas, product / filename, left, y, width, 365)
+            paragraph(canvas, f'{label} / Build {code}', left, bottom - 8, width, 10, SLATE)
+        footer(canvas, len(data['chapters']) + 3, build)
         canvas.showPage()
     canvas.save()
 

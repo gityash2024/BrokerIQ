@@ -1,11 +1,20 @@
 {
   "role": "super-admin",
-  "title": { "en": "Super Admin guide", "hi": "सुपर एडमिन गाइड" },
-  "subtitle": { "en": "Firm oversight, verification and platform operations", "hi": "फर्म की निगरानी, सत्यापन और प्लेटफ़ॉर्म संचालन" },
+  "title": {
+    "en": "Super Admin guide",
+    "hi": "सुपर एडमिन गाइड"
+  },
+  "subtitle": {
+    "en": "Firm oversight, verification and platform operations",
+    "hi": "फर्म की निगरानी, सत्यापन और प्लेटफ़ॉर्म संचालन"
+  },
   "chapters": [
     {
       "id": "access",
-      "title": { "en": "Open the administration workspace", "hi": "एडमिन कार्यक्षेत्र खोलें" },
+      "title": {
+        "en": "Open the administration workspace",
+        "hi": "एडमिन कार्यक्षेत्र खोलें"
+      },
       "summary": {
         "en": "The Super Admin workspace is the platform view. Use a firm filter for work concerning a single brokerage.",
         "hi": "Super Admin में पूरा प्लेटफ़ॉर्म दिखता है। किसी एक brokerage के काम के लिए firm filter चुनें।"
@@ -16,8 +25,8 @@
           "hi": "लैंडिंग पेज से Admin Login खोलें। अपना पंजीकृत login भरें और ईमेल OTP की पुष्टि करें।"
         },
         {
-          "en": "Start at Overview. Use the sidebar to find Broker firms, Team & Agents, Business records, Inventory, KYC or System.",
-          "hi": "Overview से शुरू करें। Sidebar से Broker firms, Team & Agents, Business records, Inventory, KYC या System खोलें।"
+          "en": "Start at Overview. Use Find a module or tool in the sidebar. Expand a Business records group or an Administration group, then select the tool.",
+          "hi": "Overview से शुरू करें। Sidebar में Find a module or tool से खोजें। Business records या Administration का समूह खोलकर tool चुनें।"
         },
         {
           "en": "Use the notification bell for a linked action. If the record is unavailable, open its module and search with the appropriate scope.",
@@ -31,7 +40,10 @@
     },
     {
       "id": "records",
-      "title": { "en": "Inspect business records by firm", "hi": "फर्म के अनुसार business records देखें" },
+      "title": {
+        "en": "Inspect business records by firm",
+        "hi": "फर्म के अनुसार business records देखें"
+      },
       "summary": {
         "en": "Business records starts with the all-firms view and keeps the selected hierarchy when you open a record.",
         "hi": "Business records सभी firms से शुरू होता है। Record खोलने पर चुनी hierarchy साथ रहती है।"
@@ -57,7 +69,10 @@
     },
     {
       "id": "team",
-      "title": { "en": "Review firms, members and shifts", "hi": "फर्म, सदस्य और शिफ्ट देखें" },
+      "title": {
+        "en": "Review firms, members and shifts",
+        "hi": "फर्म, सदस्य और शिफ्ट देखें"
+      },
       "summary": {
         "en": "Use firm and member filters together when reviewing the organization hierarchy.",
         "hi": "Organization hierarchy की समीक्षा में firm और member filters साथ इस्तेमाल करें।"
@@ -83,7 +98,10 @@
     },
     {
       "id": "review",
-      "title": { "en": "Review KYC and publication", "hi": "KYC और प्रकाशन की समीक्षा करें" },
+      "title": {
+        "en": "Review KYC and publication",
+        "hi": "KYC और प्रकाशन की समीक्षा करें"
+      },
       "summary": {
         "en": "Keep verification decisions and public listing approvals in their dedicated queues.",
         "hi": "Verification decisions और public listing approvals उनकी अपनी queues में रखें।"
@@ -109,7 +127,10 @@
     },
     {
       "id": "integrations",
-      "title": { "en": "Manage integrations and delivery", "hi": "इंटीग्रेशन और डिलीवरी सँभालें" },
+      "title": {
+        "en": "Manage integrations and delivery",
+        "hi": "इंटीग्रेशन और डिलीवरी सँभालें"
+      },
       "summary": {
         "en": "Platform credentials and a firm's own connections are separate settings.",
         "hi": "प्लेटफ़ॉर्म credentials और किसी फर्म की अपनी connections अलग settings हैं।"
@@ -135,7 +156,10 @@
     },
     {
       "id": "operations",
-      "title": { "en": "Monitor operations and releases", "hi": "संचालन और रिलीज़ की निगरानी करें" },
+      "title": {
+        "en": "Monitor operations and releases",
+        "hi": "संचालन और रिलीज़ की निगरानी करें"
+      },
       "summary": {
         "en": "Use System and the release record to separate health, provider delivery and app version evidence.",
         "hi": "Health, provider delivery और app version के प्रमाण अलग देखने के लिए System और release record खोलें।"
@@ -161,7 +185,10 @@
     },
     {
       "id": "policy",
-      "title": { "en": "Control access and review AI work", "hi": "एक्सेस नियंत्रित करें और AI काम की समीक्षा करें" },
+      "title": {
+        "en": "Control access and review AI work",
+        "hi": "एक्सेस नियंत्रित करें और AI काम की समीक्षा करें"
+      },
       "summary": {
         "en": "Apply module permissions and review rules to the people and firms that need them.",
         "hi": "Module permissions और review rules संबंधित लोगों और फर्मों पर लागू करें।"

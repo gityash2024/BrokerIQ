@@ -53,3 +53,36 @@ test('unknown page shows the not-found screen', async ({ page }) => {
   const res = await page.goto('/this-page-does-not-exist');
   expect(res?.status()).toBe(404);
 });
+
+test('landing shows all product surfaces, four guides and legal navigation at phone width', async ({ page, request }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  for (const title of ['Customer portal', 'Broker workspace', 'Android app', 'Super Admin']) {
+    const gallery = page.getByRole('region', { name: title, exact: true });
+    await expect(gallery.getByRole('img').first()).toBeVisible();
+    for (const image of await gallery.getByRole('img').all()) {
+      const source = await image.getAttribute('src');
+      expect(source).toMatch(/^\/product\//);
+      expect((await request.get(source!)).ok()).toBe(true);
+    }
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  await page.getByRole('link', { name: 'Open user guides →' }).click();
+  await expect(page.getByRole('heading', { name: 'BrokerIQ user guides' })).toBeVisible();
+  const downloads = await page.locator('a[download][href$=".pdf"]').all();
+  expect(downloads).toHaveLength(4);
+  for (const link of downloads) {
+    const response = await request.get((await link.getAttribute('href'))!);
+    expect(response.ok()).toBe(true);
+    expect((await response.body()).subarray(0, 5).toString()).toBe('%PDF-');
+  }
+  for (const [path, canonical] of [
+    ['/privacy', '/p/privacy'],
+    ['/terms', '/p/terms'],
+  ]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(308);
+    expect(response.headers().location).toBe(canonical);
+  }
+});

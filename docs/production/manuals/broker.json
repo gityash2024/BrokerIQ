@@ -29,8 +29,8 @@
           "hi": "माँगे जाने पर ईमेल OTP भरें। पाँच डिवाइस पहले से जुड़े हों तो चुनें कि किस डिवाइस को साइन आउट करना है।"
         },
         {
-          "en": "Start with Today's Focus. Open a KPI to see its records, or use the sidebar on web and the Broker tabs and More on Android.",
-          "hi": "Today's Focus से शुरू करें। KPI खोलकर उसके records देखें। वेब पर sidebar और Android पर Broker tabs तथा More इस्तेमाल करें।"
+          "en": "Start with Today's Focus. Open a KPI to see its records. On Android use the Broker tabs, the header notification bell and Profile & Settings.",
+          "hi": "Today's Focus से शुरू करें और KPI से उसके records खोलें। Android में Broker tabs, header की घंटी और Profile & Settings इस्तेमाल करें।"
         }
       ],
       "tip": {
@@ -137,8 +137,8 @@
       },
       "steps": [
         {
-          "en": "Choose WhatsApp, SMS or Email from an available lead action. In Inbox, use the matching channel tab to find the thread.",
-          "hi": "Lead के उपलब्ध action से WhatsApp, SMS या Email चुनें। Inbox में संबंधित channel tab से thread खोजें।"
+          "en": "On Android, use the labelled Call, WhatsApp, SMS and Email icons in Lead Details. Choose a messaging icon to open the composer for that lead, or open the matching Inbox tab.",
+          "hi": "Android में Lead Details के Call, WhatsApp, SMS और Email आइकन इस्तेमाल करें। Messaging आइकन उसी lead का composer खोलता है। संबंधित Inbox tab से भी बातचीत खोल सकते हैं।"
         },
         {
           "en": "Check the recipient and edit the draft before sending. For email, enter a subject or reply within the existing thread.",

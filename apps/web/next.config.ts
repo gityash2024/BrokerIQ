@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // Canonical consumer URLs. Next preserves query filters on redirects.
   async redirects() {
     return [
+      { source: '/terms', destination: '/p/terms', permanent: true },
+      { source: '/privacy', destination: '/p/privacy', permanent: true },
       { source: '/admin/settings', destination: '/admin/settings/integrations', permanent: false },
       { source: '/broker/login', destination: '/login', permanent: false },
       { source: '/rent', destination: '/user/search', permanent: false },

@@ -72,6 +72,7 @@ export async function SiteFooter() {
             ['/help', 'Help & FAQs'],
             ['/contact', 'Contact us'],
             ['/p/about', 'About'],
+            ['/guides', 'User guides'],
             ['/p/terms', 'Terms'],
             ['/p/privacy', 'Privacy'],
             ['/account-deletion', 'Account deletion'],
