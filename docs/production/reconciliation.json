@@ -282,7 +282,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "GUEST",
         "USER",
@@ -290,7 +292,10 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/components/privacy/privacy.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -343,7 +348,9 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "GUEST",
         "USER",
@@ -351,7 +358,12 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/common/guards/auth.guard.ts",
+        "apps/api/test/route-roles.e2e-spec.ts",
+        "apps/web/src/app/broker/layout.tsx",
+        "apps/web/src/app/admin/layout.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -370,7 +382,8 @@
       "shippedBuild": "PENDING",
       "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
       "notes": [
-        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
+        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "GUEST",
@@ -379,7 +392,12 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/test/production-permissions.e2e-spec.ts",
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/organizations/team-query.ts",
+        "apps/api/test/route-roles.e2e-spec.ts"
+      ],
       "commits": [
         "3eef6d0"
       ],
@@ -1241,11 +1259,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/mobile/app/handle-share.tsx",
+        "apps/web/src/components/broker/launch/capture-workspace.tsx",
+        "apps/api/src/modules/imports/imports.controller.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1329,11 +1353,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "packages/shared/src/capture.ts",
+        "packages/shared/src/__tests__/capture.test.ts",
+        "apps/api/src/modules/imports/imports.service.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1351,11 +1381,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/capture-stream.ts",
+        "apps/api/src/modules/imports/archive-review.ts",
+        "apps/api/src/modules/imports/imports.service.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1406,11 +1442,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "packages/shared/src/capture.ts",
+        "apps/api/src/modules/imports/imports.service.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1527,11 +1568,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "packages/shared/src/import-upload.ts",
+        "packages/shared/src/__tests__/import-upload.test.ts",
+        "apps/api/src/modules/imports/import-uploads.service.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1549,11 +1596,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/import-uploads.service.ts",
+        "apps/api/src/modules/imports/imports.service.ts",
+        "apps/api/test/source-ledger.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -1629,11 +1682,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Import approval writes Requirements. Confirm historical availability across every Inventory conversion and older imported record before closing."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/imports.service.ts",
+        "apps/api/test/source-ledger.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2128,11 +2186,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+        "apps/api/src/modules/chat/chat.controller.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2153,12 +2216,16 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Lead matches and suggested replies use internal drafts. Inventory-owner/client-phone sharing and complete canned-reply/provider acceptance remain open."
+        "Lead matches and suggested replies use internal drafts. Inventory-owner/client-phone sharing and complete canned-reply/provider acceptance remain open.",
+        "Internal property sharing is source-tested. Canned-reply parity and live delivery remain open."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "docs/production/PROPERTY_INBOX_SHARE_20261104.md",
+        "apps/api/src/modules/messaging/messaging.controller.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2209,11 +2276,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/whatsapp/whatsapp.service.ts",
+        "apps/api/src/modules/messaging/gmail.service.ts",
+        "apps/api/test/notifications-production.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2684,11 +2757,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/test/team-release.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2845,12 +2923,17 @@
       "shippedBuild": "PENDING",
       "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
       "notes": [
-        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/team-query.ts",
+        "apps/api/src/modules/dashboard/dashboard.service.ts",
+        "apps/mobile/app/team-member/[id].tsx"
+      ],
       "commits": [],
       "database": "NO_NEW_MIGRATION",
       "rootCause": null,
@@ -2874,12 +2957,17 @@
       "shippedBuild": "PENDING",
       "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
       "notes": [
-        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/app/broker/team/leaderboard/page.tsx",
+        "apps/web/src/app/admin/team/leaderboard/page.tsx",
+        "apps/mobile/app/leaderboard.tsx"
+      ],
       "commits": [],
       "database": "NO_NEW_MIGRATION",
       "rootCause": null,
@@ -2903,12 +2991,17 @@
       "shippedBuild": "PENDING",
       "verification": "Shared53/mobile65; full API285 passed25skip; Broker-first17; types, Android export and scoped lint pass. Local Chrome Admin/Agent navigation, personal settings and self-only performance verified. Final APK/device and exhaustive all-screen validation pending.",
       "notes": [
-        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules."
+        "Removed hardcoded dashboard targets/SLA and simulated period leaderboard multipliers; real date-filtered PostgreSQL aggregation and saved targets. Shared role/module-aware navigation and authorized multi-module search; controls do not enable disabled modules.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/components/broker/team/team-leaderboard.tsx",
+        "apps/mobile/app/leaderboard.tsx",
+        "apps/api/src/modules/organizations/team-query.ts"
+      ],
       "commits": [],
       "database": "NO_NEW_MIGRATION",
       "rootCause": null,
@@ -2932,12 +3025,19 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md."
+        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/team-query.ts",
+        "apps/web/src/app/broker/team/page.tsx",
+        "apps/web/src/app/broker/kyc/page.tsx",
+        "apps/mobile/app/team.tsx",
+        "apps/mobile/app/agent-kyc.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2961,12 +3061,17 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md."
+        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/src/modules/organizations/team-export.spec.ts",
+        "apps/mobile/app/team.tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -2989,11 +3094,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Team has table sorting. Compare every management table and exported sort order separately."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/components/ui/sortable-header.tsx",
+        "apps/web/src/app/broker/team/page.tsx",
+        "apps/api/src/modules/organizations/team-query.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3017,12 +3128,17 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md."
+        "2026-11-02 Team checkpoint: native filters/sort/selected CSV-XLSX-PDF, shift-scoped last-recorded location and actual Super Admin all-firm Team aggregate implemented; KYC/all-other-module/device/staging acceptance remains open. See TEAM_PARITY_20261102.md.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/organizations/team-query.ts",
+        "apps/web/src/app/broker/team/time-logging/page.tsx",
+        "apps/mobile/app/team-member/[id].tsx"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3517,11 +3633,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "packages/shared/src/i18n/languages.ts",
+        "packages/shared/src/i18n/locales/hi.json",
+        "packages/shared/src/i18n/locales/en.json"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3542,11 +3664,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "packages/shared/src/i18n/translate.ts",
+        "packages/shared/src/i18n/locales/hi.json",
+        "packages/shared/src/i18n/locales/en.json"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3567,11 +3695,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/components/ui/theme-toggle.tsx",
+        "apps/mobile/src/lib/theme.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3593,12 +3727,18 @@
       "shippedBuild": "PENDING",
       "verification": "PENDING",
       "notes": [
-        "Checkpoint: Agent goals/SLA, role-safe drilldowns, Lead IST date/stage filters, and native deep-link filters corrected. Other dashboard datasets remain under audit."
+        "Checkpoint: Agent goals/SLA, role-safe drilldowns, Lead IST date/stage filters, and native deep-link filters corrected. Other dashboard datasets remain under audit.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/dashboard/dashboard.service.ts",
+        "apps/web/src/components/dashboard/dashboard.tsx",
+        "apps/mobile/app/(broker)/dashboard.tsx",
+        "packages/shared/src/dashboard.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3643,11 +3783,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/core/ai/ai.service.ts",
+        "apps/api/src/core/ai/ai.service.spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3693,11 +3838,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "docs/production/LOCAL_QWEN_20261102.md",
+        "docs/production/ZIP_PHOTO_OCR_20261104.md"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3743,11 +3893,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Firm-owned review edits are stored. Reusing corrections as evaluated tenant-specific examples remains open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/imports.service.ts",
+        "docs/production/ZIP_PHOTO_OCR_20261104.md"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3764,11 +3919,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Assistant writes require confirmation. Firm-configured modes and a platform action allowlist remain open."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/assistant/assistant.service.ts",
+        "apps/api/test/assistant.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3816,11 +3976,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Assistant confirmation and audit have isolated tests. Durable action replay, policy controls and quiet hours need separate acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/assistant/assistant.service.ts",
+        "apps/api/src/modules/automation/reminders.service.ts",
+        "apps/api/test/assistant.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3837,11 +4003,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Group import approval upserts Requirements. Check import-triggered background rules and no-outreach behavior in end-to-end acceptance."
+      ],
       "roles": [
         "TO_RECONCILE"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/imports/imports.service.ts",
+        "apps/api/test/source-ledger.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -3979,11 +4150,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/core/settings/settings.service.ts",
+        "apps/api/src/modules/organizations/organizations.controller.ts",
+        "apps/api/test/route-roles.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -4058,11 +4235,16 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "docs/production/PROVIDER_AND_ROUTE_CHECKPOINT_20261104.md",
+        "docs/production/STAGING_ACCEPTANCE_20261102.md"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -4079,11 +4261,17 @@
       "androidSource": "PENDING",
       "shippedBuild": "PENDING",
       "verification": "PENDING",
-      "notes": [],
+      "notes": [
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
+      ],
       "roles": [
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "packages/shared/src/errors.ts",
+        "apps/web/src/components/ui/api-error.tsx",
+        "apps/api/src/modules/messaging/gmail.service.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
@@ -4741,12 +4929,16 @@
       "verification": "PENDING",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
-        "LoginVerification.channel and requiredFactors contract added. EMAIL active only; future SMS remains an explicit adapter/policy extension. Phone stays optional; no fake SMS factor approval."
+        "LoginVerification.channel and requiredFactors contract added. EMAIL active only; future SMS remains an explicit adapter/policy extension. Phone stays optional; no fake SMS factor approval.",
+        "Source and evidence locations identified for review. Existing implementation and acceptance statuses remain as recorded."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/src/modules/auth/login-verification.service.ts",
+        "apps/api/test/login-email-factor.e2e-spec.ts"
+      ],
       "commits": [],
       "database": "PENDING",
       "rootCause": null,
