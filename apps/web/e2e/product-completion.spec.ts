@@ -1,21 +1,7 @@
 import { expect, test } from '@playwright/test';
-const API = 'http://localhost:3099/api';
-test('scanner and chat exports are discoverable, private drafts survive reload and imports stay in review', async ({ page, request }) => {
-  const admin = await request.post(API + '/auth/login', { data: { email: 'admin.web@e2e.test', password: 'Admin@12345' } });
-  expect(admin.status()).toBe(200);
-  const token = (await admin.json()).accessToken;
-  const email = `capture.ui.${Date.now()}@e2e.test`,
-    password = 'FixtureBroker123';
-  const org = await request.post(API + '/admin/organizations', {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { name: 'Capture UI fixture', email, password, firmName: 'Isolated capture UI' },
-  });
-  expect(org.status()).toBe(201);
-  const session = await (await request.post(API + '/auth/login', { data: { email, password } })).json();
-  await request.post(API + '/broker/onboarding', {
-    headers: { Authorization: `Bearer ${session.accessToken}` },
-    data: { firmName: 'Isolated capture UI', phone: '9811100001', localityIds: [] },
-  });
+import { API, createBrokerFixture } from './fixtures';
+test('scanner and chat exports are discoverable, private drafts survive reload and imports stay in review', async ({ page, request }, testInfo) => {
+  const { session, password } = await createBrokerFixture(request);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
@@ -62,10 +48,11 @@ test('scanner and chat exports are discoverable, private drafts survive reload a
   await expect(page.getByRole('heading', { name: 'Source history & review', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole('button', { name: 'Product features & upcoming' }).click();
-  await expect(page.getByRole('heading', { name: 'Your product workspace' })).toBeVisible();
-  await expect(page.locator('article[aria-disabled=true]').filter({ hasText: 'Deals & invoices' })).toBeVisible();
-  await page.screenshot({ path: '/Users/yashjangid/Library/Caches/BrokerIQ/capture-catalog-desktop24.png', fullPage: true });
+  await expect(page.getByRole('button', { name: 'Product features & upcoming' })).toHaveCount(0);
+  const navigation = page.getByRole('navigation', { name: 'Workspace navigation' });
+  await navigation.getByRole('textbox', { name: 'Find a module or tool' }).fill('Campaigns');
+  await expect(navigation.locator('[aria-disabled=true]').filter({ hasText: 'Campaigns' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('capture-catalog-desktop24.png'), fullPage: true });
   const customer = await (
     await request.post(API + '/auth/register', {
       data: { name: 'Catalog access fixture', email: `catalog.${Date.now()}@e2e.test`, password, accountType: 'USER' },
@@ -74,26 +61,13 @@ test('scanner and chat exports are discoverable, private drafts survive reload a
   await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), customer);
   await page.goto('/user/account');
   await page.getByRole('button', { name: 'Product features & upcoming' }).click();
-  await expect(page.locator('article[aria-disabled=true]').filter({ hasText: 'Deals & invoices' })).toBeVisible();
+  await expect(page.locator('article[aria-disabled=true]').filter({ hasText: 'Campaigns' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Scanner · Inventory/ })).toHaveCount(0);
-  await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), {
-    ...(await (await request.post(API + '/auth/login', { data: { email: 'admin.web@e2e.test', password: 'Admin@12345' } })).json()),
-  });
-  await page.goto('/admin');
-  await page.getByRole('button', { name: 'Product features & upcoming' }).click();
-  await expect(page.locator('article[aria-disabled=true]').filter({ hasText: 'Deals & invoices' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('rich inventory and source-backed project details remain usable at desktop and phone widths', async ({ page, request }) => {
-  const login = await (await request.post(API + '/auth/login', { data: { email: 'admin.web@e2e.test', password: 'Admin@12345' } })).json();
-  const email = `details.ui.${Date.now()}@e2e.test`,
-    password = 'FixtureBroker123';
-  await request.post(API + '/admin/organizations', {
-    headers: { Authorization: `Bearer ${login.accessToken}` },
-    data: { name: 'Details UI fixture', email, password, firmName: 'Isolated details UI' },
-  });
-  const session = await (await request.post(API + '/auth/login', { data: { email, password } })).json();
+test('rich inventory and source-backed project details remain usable at desktop and phone widths', async ({ page, request }, testInfo) => {
+  const { session } = await createBrokerFixture(request);
   const headers = { Authorization: `Bearer ${session.accessToken}` };
   const created = await request.post(API + '/inventory', {
     headers,
@@ -119,18 +93,22 @@ test('rich inventory and source-backed project details remain usable at desktop 
   await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
   await page.goto('/broker/inventory');
   await page.getByRole('button', { name: 'Card view', exact: true }).click();
-  await page.getByRole('button').filter({ hasText: 'Apartment 24' }).click();
+  await page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { name: 'Apartment 24' }) })
+    .getByRole('button', { name: 'Details →' })
+    .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('Location & configuration', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Ground floor', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Gated society', { exact: true })).toBeVisible();
   await expect(dialog.getByText('No', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Call before visiting', { exact: true })).toBeVisible();
-  await page.screenshot({ path: '/Users/yashjangid/Library/Caches/BrokerIQ/inventory-detail-desktop24.png' });
+  await page.screenshot({ path: testInfo.outputPath('inventory-detail-desktop24.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(dialog).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: '/Users/yashjangid/Library/Caches/BrokerIQ/inventory-detail-phone24.png' });
+  await page.screenshot({ path: testInfo.outputPath('inventory-detail-phone24.png') });
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await page.goto('/broker/inventory/directory');
   await page.getByLabel('Search directory', { exact: true }).fill('102 EDEN ESTATE');
@@ -139,8 +117,8 @@ test('rich inventory and source-backed project details remain usable at desktop 
   await expect(dialog.getByText('Project land area · As filed', { exact: true })).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Detailed source form ↗', exact: true })).toHaveAttribute('href', /haryanarera.gov.in/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: '/Users/yashjangid/Library/Caches/BrokerIQ/directory-detail-phone24.png' });
+  await page.screenshot({ path: testInfo.outputPath('directory-detail-phone24.png') });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.screenshot({ path: '/Users/yashjangid/Library/Caches/BrokerIQ/directory-detail-desktop24.png' });
+  await page.screenshot({ path: testInfo.outputPath('directory-detail-desktop24.png') });
   expect(errors).toEqual([]);
 });

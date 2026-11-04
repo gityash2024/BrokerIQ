@@ -21,35 +21,22 @@ test('home page renders without errors', async ({ page }) => {
 
 test('rent search page shows filters', async ({ page }) => {
   await page.goto('/rent');
-  if (process.env.BROKER_FIRST === 'true') {
-    await expect(page).toHaveURL(/\/login/);
-    return;
-  }
+  await expect(page).toHaveURL(/\/user\/search$/);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByText(/BHK/).first()).toBeVisible();
 });
 
-test('for-brokers shows the free launch offer, not prices', async ({ page }) => {
+test('the old for-brokers route opens workspace sign-in', async ({ page }) => {
   await page.goto('/for-brokers');
-  if (process.env.BROKER_FIRST === 'true') {
-    await expect(page).toHaveURL(/\/login/);
-    return;
-  }
-  await expect(page.getByText('अभी सब कुछ free है')).toBeVisible();
-  await expect(page.getByText('Simple pricing')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/login/);
 });
 
-test('sale pages redirect to rent while sale listings are off', async ({ page }) => {
+test('ordinary Sale is discoverable while New Projects stays parked', async ({ page }) => {
   await page.goto('/buy');
-  if (process.env.BROKER_FIRST === 'true') {
-    await expect(page).toHaveURL(/\/login/);
-    await page.goto('/projects');
-    await expect(page).toHaveURL(/\/login/);
-    return;
-  }
-  await expect(page).toHaveURL(/\/rent/);
+  await expect(page).toHaveURL(/\/buy$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.goto('/projects');
-  await expect(page).toHaveURL(/\/rent/);
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test('account deletion page is public', async ({ page }) => {

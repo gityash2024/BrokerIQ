@@ -1,12 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { createBrokerFixture } from './fixtures';
+import { API, createBrokerFixture } from './fixtures';
 let brokerEmail = '';
 test.beforeAll(async ({ request }) => {
   brokerEmail = (await createBrokerFixture(request)).email;
 });
-const API = 'http://localhost:3099/api';
-const evidence = '/Users/yashjangid/Library/Caches/BrokerIQ/';
-test('consumer discovery, canonical links and signup run without first-party exceptions', async ({ page }) => {
+test('consumer discovery, canonical links and signup run without first-party exceptions', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('response', (r) => {
@@ -14,7 +12,7 @@ test('consumer discovery, canonical links and signup run without first-party exc
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /A better place/ })).toBeVisible();
-  await page.screenshot({ path: evidence + 'enterprise-landing-desktop.png', fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('enterprise-landing-desktop.png'), fullPage: true });
   await page.getByRole('link', { name: 'Explore properties', exact: true }).click();
   await expect(page).toHaveURL(/\/user$/);
   await expect(page.getByRole('heading', { name: /Find a space/ })).toBeVisible();
@@ -36,7 +34,7 @@ test('consumer discovery, canonical links and signup run without first-party exc
   }
   expect(errors).toEqual([]);
 });
-test('dashboards render charts and drilldowns at desktop and narrow widths', async ({ page }) => {
+test('dashboards render charts and drilldowns at desktop and narrow widths', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/login');
@@ -46,11 +44,11 @@ test('dashboards render charts and drilldowns at desktop and narrow widths', asy
   await expect(page).toHaveURL(/\/broker$/);
   await expect(page.getByRole('heading', { name: /Good to see you/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Inventory availability' })).toBeVisible();
-  await page.screenshot({ path: evidence + 'enterprise-broker-desktop.png', fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('enterprise-broker-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('heading', { name: /Good to see you/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  await page.screenshot({ path: evidence + 'enterprise-broker-mobile.png', fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('enterprise-broker-mobile.png'), fullPage: true });
   await page.goto('/broker/inventory');
   await expect(page.locator('table')).toBeVisible();
   expect(errors).toEqual([]);
@@ -65,11 +63,11 @@ test('consumer cannot mount private broker pages or bypass future feature guards
   expect((await request.get(API + '/admin/dashboard/metrics', { headers: { Authorization: 'Bearer ' + token } })).status()).toBe(403);
   expect((await request.get(API + '/me/dashboard', { headers: { Authorization: 'Bearer ' + token } })).status()).toBe(200);
 });
-test('landing remains usable in dark mode and with reduced motion on mobile', async ({ page }) => {
+test('landing remains usable in dark mode and with reduced motion on mobile', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /A better place/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  await page.screenshot({ path: evidence + 'enterprise-landing-mobile-dark.png', fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('enterprise-landing-mobile-dark.png'), fullPage: true });
 });

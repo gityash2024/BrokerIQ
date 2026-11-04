@@ -85,7 +85,12 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:3000
           NEXT_PUBLIC_SITE_URL: http://localhost:3001
       - name: Website smoke tests (Playwright, system Chrome)
-        run: pnpm --filter @brokeriq/web e2e
         env:
-          JOBS_ENABLED: 'false'
+          BROKER_FIRST: 'true'
+          DATABASE_URL: postgresql://brokeriq:brokeriq@localhost:5432/brokeriq_test_browser_ci
+          CI_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: |
+          docker exec "$CI_POSTGRES_CONTAINER" createdb -U brokeriq brokeriq_test_browser_ci
+          bash apps/api/test/setup-db.sh
+          pnpm --filter @brokeriq/web e2e

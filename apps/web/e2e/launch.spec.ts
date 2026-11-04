@@ -1,10 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { createBrokerFixture } from './fixtures';
+import { API, createBrokerFixture } from './fixtures';
 let brokerEmail = '';
 test.beforeAll(async ({ request }) => {
   brokerEmail = (await createBrokerFixture(request)).email;
 });
-const API = 'http://localhost:3099/api';
 async function login(page: any, email = brokerEmail, password = 'FixtureBroker123') {
   await page.goto('/login');
   const tab = page.getByRole('button', { name: /Password/ }).first();
@@ -20,7 +19,7 @@ test('branded landing and consumer entry points', async ({ page }) => {
   await page.getByRole('link', { name: 'Broker workspace' }).click();
   await expect(page).toHaveURL(/\/login/);
   await page.goto('/buy');
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/buy$/);
 });
 test('broker imports a requirement, reviews it and uses ledger filters', async ({ page, request }) => {
   await login(page);
@@ -35,11 +34,16 @@ test('broker imports a requirement, reviews it and uses ledger filters', async (
   const captured = await response.json();
   await page.goto(`/broker/imports/${captured.id}`);
   await page.getByRole('button', { name: 'Review source & fields' }).first().click({ timeout: 20000 });
-  await page.getByRole('button', { name: 'Save reviewed fields' }).click();
+  await page.getByRole('button', { name: 'Save requirement' }).click();
   await page.getByRole('button', { name: 'Approve saved records' }).click();
   await expect(page.getByText('No entries match this view.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'All entries', exact: true }).click();
-  await expect(page.getByText('APPROVED', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Source \d+ · APPROVED$/)).toBeVisible();
+  const property = await request.post(API + '/inventory', {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+    data: { houseNo: '54', sector: 'Sector 45', purpose: 'RENT', monthlyRent: 20000 },
+  });
+  expect(property.status(), await property.text()).toBe(201);
   await page.goto('/broker/inventory');
   await page
     .getByRole('button', { name: /Filters/ })

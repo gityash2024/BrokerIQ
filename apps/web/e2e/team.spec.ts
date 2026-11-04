@@ -14,10 +14,10 @@ test('team renders real stats after assignee screens, creates and lists an invit
   await page.goto('/broker/leads');
   await expect(page.getByRole('heading', { name: 'Lead inbox', exact: true })).toBeVisible();
   await page.goto('/broker/team');
-  await expect(page.getByRole('heading', { name: 'Team', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Team & Agents', exact: true })).toBeVisible();
   const row = page.getByRole('row').filter({ hasText: broker.email });
   await expect(row).toBeVisible();
-  await expect(row.getByRole('cell').nth(2)).toHaveText('0');
+  await expect(row.getByRole('cell').nth(6)).toHaveText('0');
   await page.getByRole('button', { name: 'Member invite करें', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.locator('input').nth(0).fill('UI invite regression');
@@ -30,7 +30,7 @@ test('team renders real stats after assignee screens, creates and lists an invit
   await page.reload();
   await expect(page.getByText(invitedEmail, { exact: false })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('heading', { name: 'Team', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Team & Agents', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(errors).toEqual([]);
 });

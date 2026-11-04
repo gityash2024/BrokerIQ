@@ -1,49 +1,17 @@
 import { expect, request, test, type APIRequestContext } from '@playwright/test';
 
-/**
- * Broker CRM flow on the real stack: a fresh broker logs in on the website, adds a lead and moves it along the pipeline.
- * The test admin (SUPER_ADMIN_EMAIL in playwright.config.ts) only switches on broker signup + password login.
- */
-const API = `${process.env.E2E_API_URL ?? 'http://localhost:3099'}/api/`;
-const ADMIN = { email: process.env.E2E_ADMIN_EMAIL ?? 'admin.web@e2e.test', password: process.env.E2E_ADMIN_PASSWORD ?? 'Admin@12345' };
-const uniq = Date.now().toString(36);
-const digits = (n: number) => String(Date.now()).slice(-n).padStart(n, '7');
-const broker = { email: `pw.broker.${uniq}@e2e.test`, password: 'Passw0rd!', firm: `PW Realty ${uniq}` };
-const lead = { name: `PW Lead ${uniq}`, phone: `98${digits(8)}` };
+import { API, createBrokerFixture } from './fixtures';
 
+const uniq = Date.now().toString(36);
+const lead = { name: `PW Lead ${uniq}`, phone: `98${String(Date.now()).slice(-8)}` };
 let api: APIRequestContext;
+let broker: Awaited<ReturnType<typeof createBrokerFixture>>;
 let token: string;
 
 test.beforeAll(async () => {
-  api = await request.newContext({ baseURL: API });
-  const admin = await api.post('auth/login', { data: ADMIN });
-  expect(admin.status(), 'test admin login').toBe(200);
-  const adminToken = (await admin.json()).accessToken;
-  await api.patch('admin/app-config', {
-    headers: { Authorization: `Bearer ${adminToken}` },
-    data: { auth: { allowBrokerSignup: true, allowPasswordLogin: true } },
-  });
-  if (process.env.BROKER_FIRST === 'true') {
-    const firm = await api.post('admin/organizations', {
-      headers: { Authorization: `Bearer ${adminToken}` },
-      data: { name: 'PW Broker', email: broker.email, password: broker.password, firmName: broker.firm },
-    });
-    expect(firm.status(), await firm.text()).toBe(201);
-    const login = await api.post('auth/login', { data: { email: broker.email, password: broker.password } });
-    expect(login.status()).toBe(200);
-    token = (await login.json()).accessToken;
-    return;
-  }
-  const reg = await api.post('auth/register', {
-    data: { name: 'PW Broker', email: broker.email, password: broker.password, accountType: 'BROKER', firmName: broker.firm },
-  });
-  expect(reg.status(), await reg.text()).toBe(201);
-  const ob = await api.post('broker/onboarding', {
-    headers: { Authorization: `Bearer ${(await reg.json()).accessToken}` },
-    data: { firmName: broker.firm, phone: `97${digits(8)}` },
-  });
-  expect(ob.status(), await ob.text()).toBe(201);
-  token = (await ob.json()).accessToken;
+  api = await request.newContext({ baseURL: API + '/' });
+  broker = await createBrokerFixture(api);
+  token = broker.session.accessToken;
 });
 
 test.afterAll(async () => api?.dispose());

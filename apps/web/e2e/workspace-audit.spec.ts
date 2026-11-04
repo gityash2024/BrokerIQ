@@ -2,32 +2,15 @@ import { expect, test } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { moduleAllowed, moduleForPath } from '@brokeriq/shared';
-const API = 'http://localhost:3099/api';
-const evidence = '/Users/yashjangid/Library/Caches/BrokerIQ/';
+import { API, browserAdminSession, createBrokerFixture } from './fixtures';
 
-test('all static active workspace routes render at phone width with explicit disabled states and no unexpected API failures', async ({ page, request }) => {
+test('all static active workspace routes render at phone width with explicit disabled states and no unexpected API failures', async ({
+  page,
+  request,
+}, testInfo) => {
   test.setTimeout(300000);
-  const login = async (email: string, password: string) => {
-    const response = await request.post(API + '/auth/login', { data: { email, password } });
-    expect(response.status()).toBe(200);
-    return response.json();
-  };
-  const admin = await login('admin.web@e2e.test', process.env.SUPER_ADMIN_PASSWORD || 'Admin@12345');
-  const brokerEmail = `audit.broker.${Date.now()}@e2e.test`;
-  expect(
-    (
-      await request.post(API + '/admin/organizations', {
-        headers: { Authorization: `Bearer ${admin.accessToken}` },
-        data: { name: 'Workspace audit broker', email: brokerEmail, password: 'FixtureBroker123', firmName: 'Isolated workspace audit' },
-      })
-    ).status(),
-  ).toBe(201);
-  const broker = await login(brokerEmail, 'FixtureBroker123');
-  await request.post(API + '/broker/onboarding', {
-    headers: { Authorization: `Bearer ${broker.accessToken}` },
-    data: { firmName: 'Isolated workspace audit', phone: '9811100001', localityIds: [] },
-  });
-  broker.user.organization.onboarded = true;
+  const admin = browserAdminSession();
+  const { session: broker } = await createBrokerFixture(request);
   const userResponse = await request.post(API + '/auth/register', {
     data: { name: 'Workspace audit fixture', email: `audit.${Date.now()}@e2e.test`, password: 'FixtureCustomer123', accountType: 'USER' },
   });
@@ -80,19 +63,17 @@ test('all static active workspace routes render at phone width with explicit dis
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
       const headings = await page.locator('h1').allTextContents();
       results.push({ route, finalUrl: page.url(), role: session.user.role, headings, expectedDisabled, overflow });
-      writeFileSync(evidence + 'workspace-route-audit24.json', JSON.stringify({ results, errors }, null, 2));
+      writeFileSync(testInfo.outputPath('workspace-route-audit24.json'), JSON.stringify({ results, errors }, null, 2));
       if (overflow) errors.push(`${route}: horizontal page overflow`);
     }
   }
   await Promise.all(responseReads);
-  writeFileSync(evidence + 'workspace-route-audit24.json', JSON.stringify({ results, errors }, null, 2));
+  writeFileSync(testInfo.outputPath('workspace-route-audit24.json'), JSON.stringify({ results, errors }, null, 2));
   expect(errors).toEqual([]);
 });
 
-test('admin master-data forms preserve unsaved edits and mobile cards expose every column', async ({ page, request }) => {
-  const session = await (
-    await request.post(API + '/auth/login', { data: { email: 'admin.web@e2e.test', password: process.env.SUPER_ADMIN_PASSWORD || 'Admin@12345' } })
-  ).json();
+test('admin master-data forms preserve unsaved edits and mobile cards expose every column', async ({ page }, testInfo) => {
+  const session = browserAdminSession();
   await page.goto('/');
   await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), session);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -111,8 +92,27 @@ test('admin master-data forms preserve unsaved edits and mobile cards expose eve
   page.once('dialog', (modal) => modal.dismiss());
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog.getByRole('textbox', { name: 'Label', exact: true })).toHaveValue('Unsaved isolated check');
-  await page.screenshot({ path: evidence + 'admin-form-phone24.png' });
+  await page.screenshot({ path: testInfo.outputPath('admin-form-phone24.png') });
   page.once('dialog', (modal) => modal.accept());
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog).toHaveCount(0);
+});
+
+test('Super Admin sidebar opens the selected record and keeps upcoming tools disabled', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate((value) => localStorage.setItem('biq.auth', JSON.stringify(value)), browserAdminSession());
+  await page.goto('/admin/business?resource=leads');
+  const nav = page.getByRole('navigation', { name: 'Workspace navigation' });
+  await expect(nav.getByRole('link', { name: 'Leads', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: 'Product features & upcoming' })).toHaveCount(0);
+  await nav.getByRole('link', { name: 'Requirements', exact: true }).click();
+  await expect(page).toHaveURL(/resource=requirements$/);
+  await expect(nav.getByRole('link', { name: 'Requirements', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.getByRole('link', { name: 'Leads', exact: true })).not.toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: /^Requirements/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await nav.getByRole('textbox', { name: 'Find a module or tool' }).fill('campaign');
+  await expect(nav.getByText('Campaigns', { exact: true }).locator('..')).toHaveAttribute('aria-disabled', 'true');
+  await expect(nav.getByRole('link', { name: 'Campaigns', exact: true })).toHaveCount(0);
 });
