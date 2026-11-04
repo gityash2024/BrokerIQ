@@ -215,3 +215,26 @@ test('group recruitment requirements never become property clients or salary-bas
   assert.equal(housing.requirement?.purpose, 'RENT');
   assert.deepEqual(housing.requirement?.bedrooms, [2]);
 });
+
+test('explicit numbered offers retain separate amounts and contacts in a single chat message', () => {
+  const rows = extractCapture('Available for rent:\n1. 2 BHK Sector 45, rent 25k, contact 9811100011\n2. 3 BHK Sector 57, rent 45k');
+  assert.equal(rows.length, 2);
+  assert.deepEqual(
+    rows.map((row) => [row.inventory?.purpose, row.inventory?.sector, row.inventory?.bhk, row.inventory?.monthlyRent]),
+    [
+      ['RENT', 'Sector 45', 2, 25000],
+      ['RENT', 'Sector 57', 3, 45000],
+    ],
+  );
+  assert.equal(rows[0].inventory?.contacts?.length, 1);
+  assert.equal(rows[1].inventory?.contacts?.length, 0);
+});
+
+test('numbered lists with shared contacts or mixed intent require manual review', () => {
+  const rows = extractCapture('For sale\n1. Office Sector 56, 400 sqft\n2. Apartment Sector 57, 3 BHK, 1800 sqft\nContact 9811100011');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].requirement?.intent, 'UNKNOWN');
+  const mixed = extractCapture('For sale\n1. Office Sector 56, 400 sqft\n2. Required apartment Sector 57, 3 BHK');
+  assert.equal(mixed.length, 1);
+  assert.equal(mixed[0].requirement?.intent, 'UNKNOWN');
+});

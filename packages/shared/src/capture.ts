@@ -58,10 +58,47 @@ const parseLabeled = (text: string, label: string) => {
   return scaled(match[1], match[2]);
 };
 
+/** Split only explicit offer lists. A scope line may establish purpose,
+ * while each row supplies its own property details and contact evidence. */
+function numberedOfferRows(text: string): { purpose: 'SALE' | 'RENT'; rows: string[] } | null | false {
+  const lines = text
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const heading = /^(?:properties\s+)?(?:available\s+)?for\s+(sale|rent)[:.!]*$/i.exec(lines[0] ?? '');
+  const numbered = /^(\d{1,3})[.)]\s+(.+)$/;
+  if (!heading || !numbered.test(lines[1] ?? '') || !lines.slice(2).some((line) => numbered.test(line))) return null;
+  if (lines.length > 101) return false;
+  const unit = /\b(?:\d{1,2}(?:\.\d+)?\s*(?:BHK|RK)|flat|apartment|plot|shop|office|warehouse)\b/i;
+  const purpose = heading[1].toLowerCase() === 'sale' ? 'SALE' : 'RENT';
+  const conflict = purpose === 'SALE' ? /\b(?:rent|rental)\b|किराया|रेंट/i : /\b(?:sale|sell|resale)\b|सेल|बिक्री/i;
+  const rows: string[] = [];
+  for (const [index, line] of lines.slice(1).entries()) {
+    const item = numbered.exec(line);
+    if (!item || item[2].length > 20000 || Number(item[1]) !== index + 1 || !unit.test(item[2]) || captureLocalities(item[2]).length !== 1) return false;
+    if (/\b(?:requirement|required|need(?:ed)?|wanted|looking\s+for)\b|चाहिए|ज़रूरत|जरूरत/i.test(item[2])) return false;
+    if (conflict.test(item[2])) return false;
+    rows.push(item[2]);
+  }
+  return { purpose, rows };
+}
+
 /** Deterministic extraction creates review drafts; absent values remain null. */
 export function extractCapture(text: string): CapturedEntity[] {
   const normalized = text.replace(/[०-९]/g, (n) => String('०१२३४५६७८९'.indexOf(n)));
-  const blocks = normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/iu).filter((b) => b.trim());
+  const numberedOffers = numberedOfferRows(normalized);
+  if (numberedOffers === false) {
+    return [
+      {
+        kind: 'REQUIREMENT',
+        requirement: brokerRequirementSchema.parse({ intent: 'UNKNOWN', title: 'Numbered property list · review', notes: text.slice(0, 20000) }),
+        warnings: ['The numbered rows contain shared or ambiguous details. Review each property in the original message.'],
+      },
+    ];
+  }
+  const blocks =
+    numberedOffers?.rows ?? normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/iu).filter((b) => b.trim());
   return blocks.map((raw): CapturedEntity => {
     // Group exports include recruiting posts with “Requirement” and salary ranges.
     // They are source evidence, not a customer's property demand or budget.
@@ -106,7 +143,7 @@ export function extractCapture(text: string): CapturedEntity[] {
         : /unfurnished|\bunf\b/i.test(raw)
           ? 'UNFURNISHED'
           : null;
-    const purpose = /\bsale\b|\bsell\b|सेल|बिक्री/i.test(raw) ? 'SALE' : /\brent\b|किराया|रेंट/i.test(raw) ? 'RENT' : null;
+    const purpose = numberedOffers?.purpose ?? (/\bsale\b|\bsell\b|सेल|बिक्री/i.test(raw) ? 'SALE' : /\brent\b|किराया|रेंट/i.test(raw) ? 'RENT' : null);
     const category = /\bacre|एकड़|\bland\b|जमीन/i.test(raw)
       ? 'LAND'
       : /\bplot\b|प्लॉट/i.test(raw)
