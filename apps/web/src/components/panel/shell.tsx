@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
@@ -20,7 +20,7 @@ import { ThemeToggle } from '../ui/theme-toggle';
 import { LanguagePicker } from '../i18n/language-picker';
 import { ModuleAccess } from './module-access';
 import { ProductCatalog } from './product-catalog';
-import { brokerUpcomingModules, moduleAllowed, moduleForPath } from '@brokeriq/shared';
+import { brokerUpcomingModules, catalogModules, moduleAllowed, moduleForPath } from '@brokeriq/shared';
 
 export interface NavItem {
   href: string;
@@ -31,6 +31,7 @@ export interface NavItem {
   iconImage?: string;
   badge?: number | string | null;
   exact?: boolean;
+  activeQuery?: { key: string; value: string; defaultValue: string };
   /** Hidden while Super Admin has this feature flag switched off ('paid' = hidden in free mode). */
   flag?: string;
   /** Only these roles see the item (Super Admin always does). */
@@ -43,8 +44,13 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-function isActive(pathname: string, item: NavItem) {
+function isActive(pathname: string, item: NavItem, search: URLSearchParams) {
   const path = item.href.split('?')[0];
+  if (item.activeQuery) {
+    const { key, value, defaultValue } = item.activeQuery;
+    if (pathname.startsWith(path + '/')) return pathname.split('/')[3] === value;
+    return pathname === path && (search.get(key) ?? defaultValue) === value;
+  }
   return item.exact ? pathname === path : pathname === path || pathname.startsWith(path + '/');
 }
 
@@ -88,6 +94,7 @@ function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
 function NavEntry({
   item,
   pathname,
+  query,
   onNavigate,
   config,
   role,
@@ -95,6 +102,7 @@ function NavEntry({
 }: {
   item: NavItem;
   pathname: string;
+  query: URLSearchParams;
   onNavigate?: () => void;
   config: any;
   role?: string;
@@ -108,8 +116,8 @@ function NavEntry({
   );
 
   const hasChildren = allowedChildren.length > 0;
-  const hasActiveChild = allowedChildren.some((child) => isActive(pathname, child));
-  const isSelfActive = isActive(pathname, item);
+  const hasActiveChild = allowedChildren.some((child) => isActive(pathname, child, query));
+  const isSelfActive = !item.children?.some((child) => child.activeQuery) && isActive(pathname, item, query);
   const isItemActive = isSelfActive || hasActiveChild;
 
   // Automatically open/expand if current pathname matches any child's href
@@ -127,6 +135,7 @@ function NavEntry({
         key={item.href}
         href={item.href}
         onClick={onNavigate}
+        aria-current={isSelfActive ? 'page' : undefined}
         className={cn(
           'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
           isSelfActive ? 'text-brand-700 dark:text-white' : 'text-muted hover:bg-surface-2 hover:text-fg',
@@ -178,13 +187,14 @@ function NavEntry({
       {(isOpen || searching) && (
         <div className="ml-5 space-y-0.5 border-l-2 border-line/70 pl-3">
           {allowedChildren.map((child) => {
-            const childActive = isActive(pathname, child);
+            const childActive = isActive(pathname, child, query);
             const ChildIcon = child.icon;
             return (
               <Link
                 key={child.href}
                 href={child.href}
                 onClick={onNavigate}
+                aria-current={childActive ? 'page' : undefined}
                 className={cn(
                   'group relative flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition',
                   childActive ? 'bg-brand-50 text-brand-700 font-bold dark:bg-brand-500/15 dark:text-brand-300' : 'text-muted hover:bg-surface-2 hover:text-fg',
@@ -213,6 +223,7 @@ function NavEntry({
 
 function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const query = useSearchParams();
   const config = useConfig();
   const role = useAuth().user?.role;
   const [search, setSearch] = useState('');
@@ -232,7 +243,11 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
       }),
     }))
     .filter((group) => group.items.length);
-  const upcoming = brokerUpcomingModules(config.modules, role ?? '').filter((item) => `${item.name} ${item.description}`.toLocaleLowerCase().includes(term));
+  const roadmap =
+    role === 'SUPER_ADMIN'
+      ? catalogModules(config.modules, role).filter((item) => item.state === 'COMING_SOON')
+      : brokerUpcomingModules(config.modules, role ?? '');
+  const upcoming = roadmap.filter((item) => `${item.name} ${item.description}`.toLocaleLowerCase().includes(term));
   return (
     <nav aria-label="Workspace navigation" className="space-y-4">
       <div className="relative">
@@ -250,7 +265,7 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
           {group.title && <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-subtle">{group.title}</p>}
           <div className="space-y-0.5">
             {group.items.map((item) => (
-              <NavEntry key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} config={config} role={role} searching={!!term} />
+              <NavEntry key={item.href} item={item} pathname={pathname} query={query} onNavigate={onNavigate} config={config} role={role} searching={!!term} />
             ))}
           </div>
         </div>
@@ -386,7 +401,9 @@ export function PanelShell({
         </Badge>
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        <Nav groups={groups} onNavigate={() => setOpen(false)} />
+        <Suspense>
+          <Nav groups={groups} onNavigate={() => setOpen(false)} />
+        </Suspense>
       </div>
       {footer}
       <div className="border-t border-line px-3 pt-2">
@@ -398,7 +415,7 @@ export function PanelShell({
           <Settings className="size-[18px]" />
           <span>{user?.role === 'BROKER_AGENT' ? 'My account' : 'Settings'}</span>
         </Link>
-        {!['BROKER_ADMIN', 'BROKER_AGENT'].includes(user?.role ?? '') && <ProductCatalog />}
+        {user?.role === 'USER' && <ProductCatalog />}
       </div>
       <div className="p-3">
         <div className="flex items-center gap-3 rounded-xl p-2">
@@ -417,7 +434,7 @@ export function PanelShell({
   return (
     <div className="workspace-shell min-h-dvh">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-line bg-surface lg:block">{sidebar}</aside>
-      <Sheet open={open} onOpenChange={setOpen} side="left" className="max-w-[280px]">
+      <Sheet open={open} onOpenChange={setOpen} title="Workspace navigation" side="left" className="max-w-[280px]">
         {sidebar}
       </Sheet>
       <div className="lg:pl-64">
