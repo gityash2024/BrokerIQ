@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   name: process.env.APP_NAME ?? 'BrokerIQ',
   slug: 'brokeriq',
   scheme: 'brokeriq',
-  version: '2.3.12',
+  version: '2.3.13',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 53,
+    versionCode: 54,
     googleServicesFile: process.env.GOOGLE_SERVICES_FILE ?? './google-services.json',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: [
@@ -99,7 +99,7 @@ const config: ExpoConfig = {
   ],
   experiments: { typedRoutes: false },
   extra: {
-    release: { commit: process.env.BROKERIQ_RELEASE_COMMIT || null, builtAt: process.env.BROKERIQ_RELEASE_BUILT_AT || null, versionCode: 53 },
+    release: { commit: process.env.BROKERIQ_RELEASE_COMMIT || null, builtAt: process.env.BROKERIQ_RELEASE_BUILT_AT || null, versionCode: 54 },
     apiUrl: process.env.EXPO_PUBLIC_API_URL,
     eas: { projectId: process.env.EAS_PROJECT_ID ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08' },
   },
