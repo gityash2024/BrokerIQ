@@ -2,6 +2,14 @@
 
 Baseline: feat/production, 93bb8a0. Existing live data is production data; never seed test records into it.
 
+## Current checkpoint — 4 November 2026
+
+Build 56 is the verified staging release, pinned to `4a0c8f145c3f1e97160baaaffad214e4bae07e64`, version 2.3.15. All 11 product gallery assets, four public guides and three landing publication timestamps were fetched and checked. The full public signed APK hash matched. See `SITE_AND_CRM_ACCEPTANCE_20261104.md` for the current site and provider evidence. The dated sections below retain their historical results.
+
+Build 57 is being built from `58bd4eaf73b4351053219f3acc8ff7f6316f46c4`. Its source fixes the shared native header wrapping, places compact-screen settings in a menu, and provides password visibility and inline OTP on web and mobile. All workspace typechecks, 122 mobile tests and 8 SMS API/PostgreSQL tests passed. Compilation and device acceptance remain separate gates.
+
+The original authorized diagnostic SMS and the client-linked CRM SMS to the first test handset delivered. Both pending SMS batches on the replacement test lead later reached DELIVERED after the gateway resumed reporting. Gmail accepted its client-linked send. The scoped SMS/Gmail reply checks remain open. Full product sign-off, production Gmail approval, AI quality targets, physical Android acceptance and current-build Android documentation captures remain open.
+
 ## Latest connected staging checkpoint — 2 November 2026
 
 Build51 supersedes50: pinned `a34015c4f54b6e70e2cd52b1086d64394d59666b`, v2.3.10, published **22:33:42 IST** (2026-11-02T17:03:42.683Z). Strict public/origin API/web identities, actual executable paths and embedded APK identity agree. Independent full186,664,770-byte public APK matches SHA256 `3a373f51136cbd604f53bb692e24a8177ed2c31cd48b1235639ddd6cd740fa0c`; signing identity is unchanged. All three landing timestamps/download and runtime latest51 match; minimum2.3.0/email OTP remain unchanged. Eight unrelated services retain exact PID/status/restarts. Actual encrypted off-host base+delta restore verifies101 tables/628 media/10 private KYC. Migration set remains43; no staging migration/seed/fixtures/reset.
