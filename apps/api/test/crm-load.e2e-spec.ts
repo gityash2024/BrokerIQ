@@ -64,9 +64,9 @@ import { AuthService } from '../src/modules/auth/auth.service';
     rounds++;
   }
   const percentile = (values: number[], p: number) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * p) - 1)] ?? null;
-  function report(kind: string, elapsedSeconds: number) {
+  function report(kind: string, elapsedSeconds: number, cadence?: { maxGapSeconds: number }) {
     const summary = Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, { requests: values.length, p50Ms: percentile(values, .5), p95Ms: percentile(values, .95), maxMs: values.length ? Math.max(...values) : null }]));
-    console.log(JSON.stringify({ kind, environment: 'ISOLATED_LOCAL_NEST_POSTGRESQL', concurrentSessions: actors.length, rounds, elapsedSeconds, summary, stagingAcceptance: false, providerOrDeviceAcceptance: false }));
+    console.log(JSON.stringify({ kind, environment: 'ISOLATED_LOCAL_NEST_POSTGRESQL', concurrentSessions: actors.length, rounds, elapsedSeconds, summary, cadence, stagingAcceptance: false, providerOrDeviceAcceptance: false }));
     expect(percentile(samples.list, .95)).toBeLessThanOrEqual(1000);
     expect(percentile(samples.detail, .95)).toBeLessThanOrEqual(2000);
     expect(percentile(samples.mutation, .95)).toBeLessThanOrEqual(2000);
@@ -79,17 +79,25 @@ import { AuthService } from '../src/modules/auth/auth.service';
   }, 120_000);
 
   (process.env.RUN_CRM_SOAK === 'true' ? it : it.skip)('runs the representative two-hour read/write/refresh soak without starting providers', async () => {
+    for (const values of Object.values(samples)) values.length = 0;
+    rounds = 0;
     const started = performance.now();
+    let previousWallTime = Date.now();
+    let maxGapMs = 0;
     let nextWrite = 0, nextRefresh = 0;
-    while (performance.now() - started < 7200_000) {
+    do {
       const elapsed = performance.now() - started;
       await round(elapsed >= nextWrite, elapsed >= nextRefresh);
       if (elapsed >= nextWrite) nextWrite = elapsed + 60_000;
       if (elapsed >= nextRefresh) nextRefresh = elapsed + 600_000;
-      // Preserve the real per-IP rate limit: all twenty test sessions share loopback.
-      // Ten-second polling also leaves headroom for the initial five-journey burst.
+      // Preserve the production per-IP throttle. All twenty sessions share loopback.
       await new Promise((resolve) => setTimeout(resolve, 10_000));
-    }
-    report('CRM_TWO_HOUR_SOAK', (performance.now() - started) / 1000);
+      const wallTime = Date.now();
+      maxGapMs = Math.max(maxGapMs, wallTime - previousWallTime);
+      previousWallTime = wallTime;
+    } while (performance.now() - started < 7200_000);
+    report('CRM_TWO_HOUR_SOAK', (performance.now() - started) / 1000, { maxGapSeconds: maxGapMs / 1000 });
+    expect(rounds).toBeGreaterThanOrEqual(600);
+    expect(maxGapMs).toBeLessThanOrEqual(30_000);
   }, 7320_000);
 });
