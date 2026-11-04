@@ -13,7 +13,7 @@ export default function AccountDeletionPage() {
     <PageShell>
       <div className="container-x max-w-3xl py-14">
         <h1 className="font-display text-4xl font-extrabold tracking-tight">Account delete करें</h1>
-        <p className="mt-2 text-muted">BrokerIQ (Android app और website) का account आप खुद कभी भी delete कर सकते हैं।</p>
+        <p className="mt-2 text-muted">BrokerIQ में sign in करके आप अपना account बंद कर सकते हैं।</p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="card p-5">
@@ -40,13 +40,13 @@ export default function AccountDeletionPage() {
         <div className="card mt-6 p-5 text-sm">
           <p className="font-display font-bold">क्या हटता है</p>
           <p className="mt-1 text-muted">
-            Profile (नाम, email, phone, photo), saved properties और searches, alerts, requirements, flatmate profile, location और contacts data, push tokens और
-            KYC documents — तुरंत। आपकी खुद की (owner) listings archive हो जाती हैं।
+            Account बंद होता है और profile की पहचान हटती है। Saved items, notifications, personal location और contacts entries, push tokens और व्यक्तिगत KYC
+            record हटते हैं। आपकी निजी owner listings archive होती हैं।
           </p>
           <p className="mt-3 font-display font-bold">क्या रहता है</p>
           <p className="mt-1 text-muted">
-            Brokers के साथ हुई enquiries/deals और invoices के records बिना आपकी पहचान के (anonymised) रहते हैं, ताकि brokers का हिसाब सही रहे और क़ानूनी
-            ज़रूरतें पूरी हों।
+            Firm के CRM records, chats, invoices और shift history रह सकते हैं। Uploaded files या backup copies की समीक्षा या deletion के लिए support से संपर्क
+            करें।
           </p>
         </div>
 
@@ -55,7 +55,7 @@ export default function AccountDeletionPage() {
           <a href="/contact" className="font-semibold text-brand-600 hover:underline">
             Contact page
           </a>{' '}
-          से अपने registered email/phone के साथ लिखें — हम 30 दिनों में account delete कर देंगे। पूरी जानकारी:{' '}
+          से अपने registered email के साथ लिखें ताकि हम अनुरोध की पुष्टि कर सकें।{' '}
           <a href="/p/privacy" className="font-semibold text-brand-600 hover:underline">
             Privacy policy
           </a>

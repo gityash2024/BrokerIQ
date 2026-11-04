@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle2, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
-import { whatsappLink } from '@brokeriq/shared';
+import { BROKERIQ_COMPANY, whatsappLink } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useConfig } from '@/lib/config';
 import { PageShell } from '@/components/site/page-shell';
@@ -32,6 +32,9 @@ export default function ContactPage() {
         <div>
           <h1 className="font-display text-4xl font-extrabold tracking-tight">हमसे बात करें</h1>
           <p className="mt-2 text-muted">Listing, account, partnership या कोई भी सवाल — हम मदद के लिए यहाँ हैं।</p>
+          <p className="mt-3 text-sm text-muted">
+            {BROKERIQ_COMPANY.name} · CIN {BROKERIQ_COMPANY.cin}
+          </p>
           <div className="mt-8 space-y-4">
             {app.supportPhone && (
               <a href={`tel:${app.supportPhone}`} className="card flex items-center gap-4 p-4 hover:border-brand-300">
@@ -65,7 +68,7 @@ export default function ContactPage() {
             <div className="py-10 text-center">
               <CheckCircle2 className="mx-auto size-14 text-emerald-500" />
               <p className="mt-3 font-display text-xl font-bold">Message मिल गया!</p>
-              <p className="text-muted">हमारी team 24 घंटे में जवाब देगी।</p>
+              <p className="text-muted">हमारी team आपके message की समीक्षा करेगी।</p>
             </div>
           ) : (
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">

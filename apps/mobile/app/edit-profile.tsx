@@ -76,7 +76,7 @@ export default function EditProfile() {
     }
   };
   const deleteAccount = () =>
-    alert('Account delete करें?', 'आपकी listings, saved properties और chats हट जाएँगी। यह वापस नहीं होगा।', [
+    alert('Account delete करें?', 'आपका account बंद होगा और saved items हटेंगे। Firm के CRM records और chats रह सकते हैं।', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

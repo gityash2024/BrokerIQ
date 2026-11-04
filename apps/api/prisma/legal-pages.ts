@@ -1,105 +1,58 @@
-/**
- * Launch versions of the legal pages (served at /p/privacy and /p/terms). The seed publishes them only
- * while the stored page still has the old "Draft" placeholder — anything edited in Super Admin → CMS →
- * Pages is never overwritten. Have a legal advisor review before scaling up.
- */
+import { BROKERIQ_COMPANY } from '@brokeriq/shared';
+
 export const DRAFT_MARKER = 'Draft — publish करने से पहले';
 
+const COMPANY_HTML = `
+<p>BrokerIQ is operated by <strong>${BROKERIQ_COMPANY.name}</strong> (CIN ${BROKERIQ_COMPANY.cin}). Registered office: ${BROKERIQ_COMPANY.registeredOffice}.</p>
+<p>For support, privacy requests or complaints, email <a href="mailto:${BROKERIQ_COMPANY.supportEmail}">${BROKERIQ_COMPANY.supportEmail}</a> or use the <a href="/contact">BrokerIQ contact form</a>.</p>
+`.trim();
+
 export const PRIVACY_HTML = `
-<p><em>Last updated: 30 September 2026 · BrokerIQ ("हम", "we") — Gurgaon, Haryana का rental marketplace और broker CRM.</em></p>
+<p><em>Policy version 4 November 2026</em></p>
+${COMPANY_HTML}
 
-<h2>1. हम कौन-सा data लेते हैं</h2>
-<ul>
-<li><b>Account:</b> नाम, email, mobile नंबर, password (hash करके), profile photo, और Google sign-in करने पर Google की basic profile.</li>
-<li><b>Listings और enquiries:</b> आपकी डाली गई properties, photos/videos, enquiries, site-visit bookings, chats, reviews और requirements.</li>
-<li><b>Brokers:</b> firm details, RERA नंबर, KYC documents (सिर्फ़ verification के लिए), leads, deals, invoices और team.</li>
-<li><b>Tenant verification (optional):</b> office email या ID document — सिर्फ़ जब आप खुद verify करें.</li>
-<li><b>Location (optional, आपकी अनुमति से):</b> approximate location, दिन में ज़्यादा से ज़्यादा एक बार; background tracking नहीं.</li>
-<li><b>Phone contacts (optional, सिर्फ़ app, आपकी अनुमति से):</b> नाम, नंबर और email — सिर्फ़ BrokerIQ की internal team देख सकती है.</li>
-<li><b>Technical:</b> device/browser type, app version, push-notification token, और errors (app ठीक करने के लिए).</li>
-</ul>
-<p>हम कोई card, UPI PIN या bank details नहीं लेते. Rent, token और brokerage का पैसा सीधे users और brokers के बीच जाता है — BrokerIQ पैसा नहीं रखता.</p>
+<h2>1. Account, marketplace and CRM</h2>
+<p>We use your name, email, optional phone number, profile and sign-in information to manage accounts, verify sign-in, protect sessions and provide support. BrokerIQ processes listings and media, enquiries, client contact details, communications, requirements, visits, invoices and team records to run the marketplace and the broker workspace. Public listing fields and photos appear after publication. Private firm and client records are available according to role, firm and record access.</p>
 
-<h2>2. क्यों लेते हैं</h2>
-<ul>
-<li>Properties दिखाने, enquiries brokers/owners तक पहुँचाने, visits और alerts भेजने के लिए.</li>
-<li>Fraud और fake listings रोकने, safety और moderation के लिए.</li>
-<li>AI features (listing description, lead summary, assistant, listing-book scan) के लिए: जिस text या photo पर आप AI चलाते हैं, वह processing के लिए हमारे AI providers (जैसे OpenRouter, Groq, Google Gemini) को भेजा जाता है. वे इसे हमारी service देने के लिए process करते हैं.</li>
-<li>Service सुधारने के लिए aggregate (नाम-रहित) analytics.</li>
-</ul>
+<h2>2. Verification and device permissions</h2>
+<p>KYC submissions can include Aadhaar, PAN, firm documents and three face photos. Pose checks assist capture. Authorized reviewers use the submitted documents and photos to make verification decisions. Camera and media permissions support capture and uploads. Push tokens and technical diagnostics help deliver notifications and troubleshoot the service.</p>
+<p>Optional location sharing in the customer account and shift tracking in the broker workspace serve different purposes. With permission, mobile shift tracking collects coordinates, capture time and accuracy during an active shift, including in the background. Authorized managers can view shift history. Pause or end your shift to stop active tracking. You can change device permissions in Android settings. Previously recorded shift history may remain available to the firm.</p>
 
-<h2>3. किसके साथ share होता है</h2>
-<ul>
-<li><b>जिस broker/owner को आप enquiry भेजते हैं</b> या जिनका नंबर देखते हैं — उन्हें आपका नाम और नंबर मिलता है.</li>
-<li><b>Move-in partners</b> (packers, broadband आदि) — सिर्फ़ जब आप callback माँगें.</li>
-<li><b>Service providers</b> जो हमारे लिए काम करते हैं: email, WhatsApp/SMS, push notifications, AI processing, hosting.</li>
-<li>क़ानून के अनुसार ज़रूरी होने पर सरकारी अधिकारियों के साथ.</li>
-</ul>
-<p>हम आपका personal data <b>बेचते नहीं</b>.</p>
+<h2>3. Connected communications</h2>
+<p>Configured services can include Housing, WhatsApp, SMS, email and push. BrokerIQ processes client conversations, message status and related lead activity for the firm. Messaging providers receive the information needed to deliver messages and callbacks. Transactional emails such as sign-in codes and invitations are separate from the firm’s Gmail connector.</p>
+<p>When a Broker Admin authorizes Gmail, BrokerIQ uses Gmail read access to find messages for linked client email addresses and Gmail send access to send replies from the connected mailbox. The connector stores supported message text, subjects, participants, timestamps and provider identifiers in the firm’s Inbox and lead timeline. A Broker Admin can disconnect Gmail under Integrations. Disconnecting stops future sync and sending through that connection. Previously imported CRM records can remain.</p>
+<p>BrokerIQ uses Google Workspace data to provide the visible Gmail Inbox and client messaging features. It applies Google’s Limited Use requirements and does not use this data for advertising or model training. Read the <a href="https://developers.google.com/workspace/workspace-api-user-data-developer-policy">Google Workspace user data policy</a>.</p>
 
-<h2>4. कितने समय रखते हैं</h2>
-<p>Account active रहने तक. Account delete करने पर profile, saved properties, requirements और chats हटा दिए जाते हैं; क़ानूनी/audit ज़रूरतों वाले records (जैसे invoices) सीमित समय तक रखे जा सकते हैं. Location की आख़िरी 50 entries तक रहती हैं; sharing बंद करते ही हट जाती हैं.</p>
+<h2>4. Imports and AI</h2>
+<p>When you submit chat exports, scans, photos or voice notes, BrokerIQ may process the content and its source details to prepare CRM records for review. Enabled AI features can process the selected content locally or through the configured provider. Imported chats are not used to train a model automatically. Review extracted fields and suggested actions before relying on them.</p>
 
-<h2>5. सुरक्षा</h2>
-<p>Data India में हमारे अपने server पर रहता है. Documents और photos encrypted रखे जाते हैं, passwords hash किए जाते हैं, और admin access का audit log रहता है.</p>
+<h2>5. Retention, security and your choices</h2>
+<p>We retain account and business records to operate the service, preserve authorized firm history, address security incidents and meet applicable obligations. Integration credentials are encrypted and KYC previews require authorized access. Access to records, including review and integration actions, is controlled and may be audited.</p>
+<p>You can ask to access, correct or delete personal information, or withdraw optional permissions. The <a href="/account-deletion">account deletion page</a> explains what self-service deletion covers. Firm records, communications, invoices, audit history and backup copies may remain where needed for business continuity, security or applicable obligations. Contact us about a specific retained record or privacy concern.</p>
 
-<h2>6. आपके अधिकार (DPDP Act, 2023)</h2>
-<ul>
-<li>अपना data देखना, सुधारना और delete करवाना.</li>
-<li>Location/contacts sharing कभी भी बंद करना — Profile → Privacy & data sharing.</li>
-<li><b>Account delete करना:</b> app में Profile → Edit profile → "Account delete करें", या website पर Account → Profile. पूरी जानकारी: <a href="/account-deletion">/account-deletion</a>.</li>
-<li>Consent वापस लेना — इससे पहले की processing पर असर नहीं पड़ता.</li>
-</ul>
-
-<h2>7. बच्चे</h2>
-<p>BrokerIQ 18 साल से ज़्यादा उम्र के लोगों के लिए है.</p>
-
-<h2>8. Grievance officer / संपर्क</h2>
-<p>Privacy से जुड़े सवाल या शिकायत के लिए <a href="/contact">Contact page</a> पर दिए email/phone पर लिखें. हम 30 दिनों में जवाब देते हैं.</p>
-
-<h2>English summary</h2>
-<p>We collect account, listing, enquiry and (optionally, with your consent) location and contacts data to run the rental marketplace and broker CRM. Text or photos you run AI features on are processed by our AI providers. We never sell personal data. Money never passes through BrokerIQ. You can view, correct or delete your data and delete your account at any time (see /account-deletion). Contact us via the Contact page.</p>
+<h2>हिंदी में सार</h2>
+<p>BrokerIQ account, property listings, enquiries और firm CRM चलाने के लिए ज़रूरी जानकारी इस्तेमाल करता है। KYC documents और face photos अधिकृत reviewers देखते हैं। आपकी अनुमति से active shift के दौरान Android background में location दर्ज कर सकता है। Gmail जोड़ने पर linked clients के emails Inbox में आते हैं और उसी mailbox से जवाब जा सकता है। Integrations से Gmail disconnect करें। Imports और AI के सुझाव जाँचकर इस्तेमाल करें। Account deletion और privacy requests के लिए ऊपर दिए संपर्क का इस्तेमाल करें।</p>
 `.trim();
 
 export const TERMS_HTML = `
-<p><em>Last updated: 30 September 2026. BrokerIQ इस्तेमाल करके आप इन शर्तों से सहमत होते हैं.</em></p>
+<p><em>Policy version 4 November 2026</em></p>
+${COMPANY_HTML}
 
-<h2>1. Service</h2>
-<p>BrokerIQ Gurgaon, Haryana में rent की properties खोजने, list करने और brokers के लिए CRM tools देने वाला platform है. अभी सारी सुविधाएँ <b>free</b> हैं. आगे paid features आएँ तो पहले से बताया जाएगा और free में ली गई सुविधाएँ बिना सूचना नहीं छीनी जाएँगी.</p>
+<h2>1. Using BrokerIQ</h2>
+<p>BrokerIQ offers a property marketplace and broker tools for managing inventory, requirements, leads, conversations, follow-ups and site visits. Features depend on account role, firm settings, and available integrations. You must be 18 or older, supply accurate information and keep your password and verification codes private.</p>
 
-<h2>2. Account</h2>
-<ul>
-<li>आपकी उम्र 18+ होनी चाहिए और दी गई जानकारी सही होनी चाहिए.</li>
-<li>Password और OTP गोपनीय रखें; आपके account से हुई गतिविधि की ज़िम्मेदारी आपकी है.</li>
-<li>Brokers को सही firm details और (जहाँ लागू) RERA registration देना होगा.</li>
-</ul>
+<h2>2. Listings, firm access and moderation</h2>
+<p>Only publish property details and photos you have the right to share. Keep price, availability, charges and property information current. Brokers are responsible for any registrations and disclosures applicable to their work. BrokerIQ may restrict accounts or remove listings for inaccurate information, abuse, spam or unlawful use. A verification badge reflects an account or firm review and does not guarantee a property or transaction.</p>
 
-<h2>3. Listings और content</h2>
-<ul>
-<li>Listing सच्ची, मौजूदा और आपके अधिकार वाली होनी चाहिए — सही rent, deposit, brokerage और photos के साथ.</li>
-<li>हर listing review के बाद live होती है. BrokerIQ किसी भी listing, review या content को बिना कारण बताए छिपा, block या हटा सकता है.</li>
-<li>मना है: fake/duplicate listings, भेदभाव वाली भाषा, दूसरों का data, spam, और क़ानून के ख़िलाफ़ कुछ भी.</li>
-</ul>
+<h2>3. Client data and connected services</h2>
+<p>Import and use client details, chat exports, documents and media only where you are authorized to do so. Use firm accounts and connected messaging services for legitimate client communication. Respect recipients’ choices, applicable law, and provider terms and charges. Use the team’s permission controls to keep private data within the intended workspace.</p>
 
-<h2>4. पैसा और deals</h2>
-<p>BrokerIQ पैसा नहीं रखता और payment gateway नहीं है. Rent, deposit, token और brokerage सीधे users, owners और brokers के बीच तय होते हैं. <b>Property देखे बिना कोई token/advance न दें.</b> "Token record", invoices और rent receipts सिर्फ़ record के लिए हैं.</p>
+<h2>4. Transactions and automated assistance</h2>
+<p>Owners, customers and brokers arrange transactions directly. BrokerIQ provides tools to record or coordinate work. Check property particulars, charges and agreement terms before paying or signing. Review AI output and imported records before relying on them. Applicable statutory and consumer rights continue to apply.</p>
 
-<h2>5. Tools की सीमाएँ</h2>
-<ul>
-<li>Rent agreement एक सामान्य template है, क़ानूनी सलाह नहीं; stamp duty/registration आपकी ज़िम्मेदारी है. OTP से confirm करना stamp paper या registration की जगह नहीं लेता.</li>
-<li>Fair rent, commute time और AI से बने text अनुमान हैं — फ़ैसले से पहले ख़ुद जाँचें.</li>
-<li>WhatsApp, calls या social posting broker के अपने accounts से होती हैं; उनके नियम और खर्च broker के.</li>
-</ul>
+<h2>5. Account, privacy and complaints</h2>
+<p>Use the <a href="/account-deletion">account deletion page</a> for deletion instructions. See the <a href="/p/privacy">Privacy Policy</a> for data handling and your choices. Contact the operator listed above for support or complaints. These terms are governed by the laws of India, subject to applicable mandatory protections.</p>
 
-<h2>6. Account बंद करना</h2>
-<p>आप कभी भी account delete कर सकते हैं. नियम तोड़ने पर BrokerIQ किसी account, firm या listing को suspend/block कर सकता है.</p>
-
-<h2>7. ज़िम्मेदारी</h2>
-<p>BrokerIQ users, owners और brokers को जोड़ने वाला platform है; किसी property, deal या व्यक्ति की guarantee नहीं देता. क़ानून द्वारा अनुमत सीमा तक BrokerIQ किसी indirect नुकसान के लिए ज़िम्मेदार नहीं है.</p>
-
-<h2>8. क़ानून</h2>
-<p>ये शर्तें भारत के क़ानून से चलती हैं; विवाद Gurugram, Haryana की अदालतों में.</p>
-
-<h2>9. संपर्क</h2>
-<p>सवाल या शिकायत: <a href="/contact">Contact page</a>.</p>
+<h2>हिंदी में सार</h2>
+<p>सही account और property जानकारी दें। OTP गोपनीय रखें और केवल वह data या photos share करें जिनके इस्तेमाल की अनुमति आपके पास है। Listing publish करने से पहले कीमत, availability और charges जाँचें। Payment या agreement से पहले property और शर्तों की पुष्टि करें। AI के सुझाव और imported records review करें।</p>
 `.trim();

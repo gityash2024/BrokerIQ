@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const BROKERIQ_COMPANY = {
+  name: 'YARVIX TECHNOLOGIES PRIVATE LIMITED',
+  cin: 'U62090RJ2026PTC118558',
+  registeredOffice: 'Flat No 14, Nangal Crossi, Vardhman Swapan Lok, Jhotwara, Jaipur, Rajasthan 302012, India',
+  supportEmail: 'hello@yarvixhq.com',
+} as const;
+
 /**
  * Non-secret, admin-editable runtime configuration (Super Admin → Settings → App Config).
  * Served publicly at GET /api/public/config.

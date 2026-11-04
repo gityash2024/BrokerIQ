@@ -4428,18 +4428,34 @@
         "11882",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
-      "web": "PENDING",
-      "androidSource": "PENDING",
+      "backend": "SOURCE_PRESENT",
+      "web": "SOURCE_PRESENT",
+      "androidSource": "SOURCE_PRESENT",
       "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": [],
-      "roles": [
-        "TO_RECONCILE"
+      "verification": "POSTGRES_CMS_REHEARSAL",
+      "notes": [
+        "Company CIN and registered office corroborated by two public registry listings.",
+        "PostgreSQL rehearsal updated only matching prior policy copy and preserved CMS edits. Public verification and legal approval remain open. See LEGAL_PAGES_20261104.md."
       ],
-      "sourceFiles": [],
-      "commits": [],
-      "database": "PENDING",
+      "roles": [
+        "PUBLIC",
+        "USER",
+        "BROKER_AGENT",
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [
+        "apps/api/prisma/legal-pages.ts",
+        "apps/api/prisma/update-launch-policies.ts",
+        "packages/shared/src/app-config.ts",
+        "apps/web/src/app/(site)/contact/page.tsx",
+        "apps/web/src/app/(site)/account-deletion/page.tsx",
+        "apps/mobile/app/edit-profile.tsx"
+      ],
+      "commits": [
+        "65f0fb4"
+      ],
+      "database": "GUARDED_CMS_UPDATE",
       "rootCause": null,
       "releaseEvidence": null
     },
