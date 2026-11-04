@@ -110,14 +110,15 @@ export default function BrokerInventoryPage() {
 
   const inventoryQuery = useQuery({
     queryKey: ['broker-inventory', queryParams],
-    queryFn: () => api<{
-      items: InventoryItem[];
-      total: number;
-      page: number;
-      pageSize: number;
-      totalPages: number;
-      statusCounts: { ALL: number; DRAFT: number; ACTIVE: number; RENTED: number };
-    }>(`/inventory${qs(queryParams)}`),
+    queryFn: () =>
+      api<{
+        items: InventoryItem[];
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+        statusCounts: { ALL: number; DRAFT: number; ACTIVE: number; RENTED: number };
+      }>(`/inventory${qs(queryParams)}`),
   });
 
   // Modal State
@@ -155,7 +156,6 @@ export default function BrokerInventoryPage() {
   const data = inventoryQuery.data;
   const statusCounts = data?.statusCounts ?? { ALL: 0, DRAFT: 0, ACTIVE: 0, RENTED: 0 };
 
-
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -191,7 +191,21 @@ export default function BrokerInventoryPage() {
       toast.error('एक्सपोर्ट के लिए कोई डेटा नहीं है');
       return;
     }
-    const headers = ['Page', 'Date', 'Sector', 'House No', 'BHK', 'Floor', 'Rent (₹)', 'Furnishing', 'Tenant Pref', 'Brokerage', 'Owner Phone', 'Status', 'Notes'];
+    const headers = [
+      'Page',
+      'Date',
+      'Sector',
+      'House No',
+      'BHK',
+      'Floor',
+      'Rent (₹)',
+      'Furnishing',
+      'Tenant Pref',
+      'Brokerage',
+      'Owner Phone',
+      'Status',
+      'Notes',
+    ];
     const rows = data.items.map((i) => [
       i.pageNo ? `P.${i.pageNo}` : '',
       i.date ? new Date(i.date).toLocaleDateString('en-IN') : '',
@@ -219,7 +233,15 @@ export default function BrokerInventoryPage() {
   };
 
   const hasActiveFilters = Boolean(
-    filters.search || filters.sector || filters.houseNo || filters.bhk || filters.status || filters.purpose || filters.furnishing || filters.dateFrom || filters.dateTo
+    filters.search ||
+    filters.sector ||
+    filters.houseNo ||
+    filters.bhk ||
+    filters.status ||
+    filters.purpose ||
+    filters.furnishing ||
+    filters.dateFrom ||
+    filters.dateTo,
   );
 
   const resetFilters = () => {
@@ -281,7 +303,7 @@ export default function BrokerInventoryPage() {
           onClick={() => setFilters((f) => ({ ...f, status: '', page: 1 }))}
           className={cn(
             'card p-4 text-left transition hover:border-brand-400',
-            filters.status === '' && 'border-brand-500 bg-brand-50/30 dark:bg-brand-500/10'
+            filters.status === '' && 'border-brand-500 bg-brand-50/30 dark:bg-brand-500/10',
           )}
         >
           <p className="text-xs font-semibold text-muted uppercase">Total Inventory</p>
@@ -293,13 +315,11 @@ export default function BrokerInventoryPage() {
           onClick={() => setFilters((f) => ({ ...f, status: 'DRAFT', page: 1 }))}
           className={cn(
             'card p-4 text-left transition hover:border-amber-400',
-            filters.status === 'DRAFT' && 'border-amber-500 bg-amber-50/30 dark:bg-amber-500/10'
+            filters.status === 'DRAFT' && 'border-amber-500 bg-amber-50/30 dark:bg-amber-500/10',
           )}
         >
           <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase">Draft / Needs Details</p>
-          <p className="mt-1 font-display text-2xl font-bold text-amber-700 dark:text-amber-300">
-            {statusCounts.DRAFT.toLocaleString()}
-          </p>
+          <p className="mt-1 font-display text-2xl font-bold text-amber-700 dark:text-amber-300">{statusCounts.DRAFT.toLocaleString()}</p>
           <p className="mt-1 text-xs text-subtle">मिसिंग फील्ड्स भरें व पब्लिश करें</p>
         </button>
 
@@ -307,27 +327,20 @@ export default function BrokerInventoryPage() {
           onClick={() => setFilters((f) => ({ ...f, status: 'ACTIVE', page: 1 }))}
           className={cn(
             'card p-4 text-left transition hover:border-emerald-400',
-            filters.status === 'ACTIVE' && 'border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/10'
+            filters.status === 'ACTIVE' && 'border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/10',
           )}
         >
           <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Active / Ready</p>
-          <p className="mt-1 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-            {statusCounts.ACTIVE.toLocaleString()}
-          </p>
+          <p className="mt-1 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-300">{statusCounts.ACTIVE.toLocaleString()}</p>
           <p className="mt-1 text-xs text-subtle">पूर्ण विवरण के साथ तैयार</p>
         </button>
 
         <button
           onClick={() => setFilters((f) => ({ ...f, status: 'RENTED', page: 1 }))}
-          className={cn(
-            'card p-4 text-left transition hover:border-sky-400',
-            filters.status === 'RENTED' && 'border-sky-500 bg-sky-50/30 dark:bg-sky-500/10'
-          )}
+          className={cn('card p-4 text-left transition hover:border-sky-400', filters.status === 'RENTED' && 'border-sky-500 bg-sky-50/30 dark:bg-sky-500/10')}
         >
           <p className="text-xs font-semibold text-sky-600 dark:text-sky-400 uppercase">Rented / Out</p>
-          <p className="mt-1 font-display text-2xl font-bold text-sky-700 dark:text-sky-300">
-            {statusCounts.RENTED.toLocaleString()}
-          </p>
+          <p className="mt-1 font-display text-2xl font-bold text-sky-700 dark:text-sky-300">{statusCounts.RENTED.toLocaleString()}</p>
           <p className="mt-1 text-xs text-subtle">किराए पर लग चुकी प्रॉपर्टीज</p>
         </button>
       </div>
@@ -361,9 +374,7 @@ export default function BrokerInventoryPage() {
                 onClick={() => setFilters((f) => ({ ...f, status: st, page: 1 }))}
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
-                  filters.status === st
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'bg-surface-2 text-muted hover:bg-surface-3 hover:text-fg'
+                  filters.status === st ? 'bg-brand-600 text-white shadow-sm' : 'bg-surface-2 text-muted hover:bg-surface-3 hover:text-fg',
                 )}
               >
                 {st === '' ? `All (${statusCounts.ALL})` : `${STATUS_LABELS[st]} (${statusCounts[st as keyof typeof statusCounts]})`}
@@ -377,11 +388,7 @@ export default function BrokerInventoryPage() {
           {/* Sector Filter */}
           <div>
             <label className="text-[11px] font-semibold text-muted uppercase">Sector</label>
-            <Select
-              className="mt-1 h-9 text-xs"
-              value={filters.sector}
-              onChange={(e) => setFilters((f) => ({ ...f, sector: e.target.value, page: 1 }))}
-            >
+            <Select className="mt-1 h-9 text-xs" value={filters.sector} onChange={(e) => setFilters((f) => ({ ...f, sector: e.target.value, page: 1 }))}>
               <option value="">All Sectors</option>
               {sectorsQuery.data?.map((s) => (
                 <option key={s.sector} value={s.sector}>
@@ -405,11 +412,7 @@ export default function BrokerInventoryPage() {
           {/* BHK Filter */}
           <div>
             <label className="text-[11px] font-semibold text-muted uppercase">BHK</label>
-            <Select
-              className="mt-1 h-9 text-xs"
-              value={filters.bhk}
-              onChange={(e) => setFilters((f) => ({ ...f, bhk: e.target.value, page: 1 }))}
-            >
+            <Select className="mt-1 h-9 text-xs" value={filters.bhk} onChange={(e) => setFilters((f) => ({ ...f, bhk: e.target.value, page: 1 }))}>
               <option value="">All BHK</option>
               <option value="1">1 BHK</option>
               <option value="2">2 BHK</option>
@@ -437,11 +440,7 @@ export default function BrokerInventoryPage() {
           {/* Purpose Filter */}
           <div>
             <label className="text-[11px] font-semibold text-muted uppercase">Purpose</label>
-            <Select
-              className="mt-1 h-9 text-xs"
-              value={filters.purpose}
-              onChange={(e) => setFilters((f) => ({ ...f, purpose: e.target.value, page: 1 }))}
-            >
+            <Select className="mt-1 h-9 text-xs" value={filters.purpose} onChange={(e) => setFilters((f) => ({ ...f, purpose: e.target.value, page: 1 }))}>
               <option value="">Rent & Sale</option>
               <option value="RENT">Rent Only</option>
               <option value="SALE">Sale Only</option>
@@ -494,10 +493,7 @@ export default function BrokerInventoryPage() {
             />
           </div>
           {(filters.dateFrom || filters.dateTo) && (
-            <button
-              onClick={() => setFilters((f) => ({ ...f, dateFrom: '', dateTo: '', page: 1 }))}
-              className="text-subtle hover:text-fg text-xs underline"
-            >
+            <button onClick={() => setFilters((f) => ({ ...f, dateFrom: '', dateTo: '', page: 1 }))} className="text-subtle hover:text-fg text-xs underline">
               Clear dates
             </button>
           )}
@@ -516,26 +512,35 @@ export default function BrokerInventoryPage() {
           text="फिल्टर बदलें या नया लेजर रिकॉर्ड जोड़ने के लिए ऊपर '+ Add Ledger Row' पर क्लिक करें।"
         />
       ) : (
-
         <div className="card overflow-hidden">
           {selectedIds.size > 0 && (
             <div className="bg-brand-50 dark:bg-brand-500/10 border-b border-brand-200 dark:border-brand-500/20 px-4 py-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-                {selectedIds.size} properties selected
-              </span>
+              <span className="text-sm font-medium text-brand-700 dark:text-brand-300">{selectedIds.size} properties selected</span>
               <div className="flex gap-2">
-                <Button size="sm" variant="secondary" className="bg-white" onClick={() => handleBulkStatus('ACTIVE')}>Make Active</Button>
-                <Button size="sm" variant="secondary" className="bg-white text-amber-600" onClick={() => handleBulkStatus('DRAFT')}>Make Draft</Button>
-                <Button size="sm" variant="secondary" className="bg-white text-red-600" onClick={() => handleBulkStatus('INACTIVE')}>Make Inactive</Button>
+                <Button size="sm" variant="secondary" className="bg-white" onClick={() => handleBulkStatus('ACTIVE')}>
+                  Make Active
+                </Button>
+                <Button size="sm" variant="secondary" className="bg-white text-amber-600" onClick={() => handleBulkStatus('DRAFT')}>
+                  Make Draft
+                </Button>
+                <Button size="sm" variant="secondary" className="bg-white text-red-600" onClick={() => handleBulkStatus('INACTIVE')}>
+                  Make Inactive
+                </Button>
               </div>
             </div>
           )}
           <div className="overflow-x-auto">
-
             <table className="w-full min-w-[1100px] border-collapse text-left text-xs">
               <thead className="border-b border-line bg-surface-2 text-subtle font-semibold uppercase tracking-wider sticky top-0">
                 <tr>
-                  <th className="px-3 py-3 w-10 text-center"><input type="checkbox" className="rounded border-line" onChange={toggleAll} checked={data?.items?.length > 0 && selectedIds.size === data.items.length} /></th>
+                  <th className="px-3 py-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-line"
+                      onChange={toggleAll}
+                      checked={data?.items?.length > 0 && selectedIds.size === data.items.length}
+                    />
+                  </th>
                   <th className="px-3 py-3 w-14"># / Page</th>
                   <th className="px-3 py-3 w-28">Date</th>
                   <th className="px-3 py-3 w-32">Sector</th>
@@ -554,19 +559,19 @@ export default function BrokerInventoryPage() {
                 {data.items.map((row, idx) => {
                   const serial = (data.page - 1) * data.pageSize + idx + 1;
                   return (
-                    <tr
-                      key={row.id}
-                      className="group transition-colors hover:bg-brand-50/40 dark:hover:bg-brand-500/10"
-                    >
+                    <tr key={row.id} className="group transition-colors hover:bg-brand-50/40 dark:hover:bg-brand-500/10">
                       {/* Serial & Page No */}
-                      <td className="px-3 py-2.5 text-center"><input type="checkbox" className="rounded border-line cursor-pointer" checked={selectedIds.has(row.id)} onChange={() => toggleSelection(row.id)} /></td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          className="rounded border-line cursor-pointer"
+                          checked={selectedIds.has(row.id)}
+                          onChange={() => toggleSelection(row.id)}
+                        />
+                      </td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-muted">
                         <span>{serial}.</span>
-                        {row.pageNo && (
-                          <span className="ml-1 inline-block rounded bg-surface-3 px-1 py-0.2 text-[10px] text-subtle">
-                            P.{row.pageNo}
-                          </span>
-                        )}
+                        {row.pageNo && <span className="ml-1 inline-block rounded bg-surface-3 px-1 py-0.2 text-[10px] text-subtle">P.{row.pageNo}</span>}
                       </td>
 
                       {/* Date */}
@@ -584,18 +589,12 @@ export default function BrokerInventoryPage() {
 
                       {/* House No */}
                       <td className="px-3 py-2.5 font-bold text-fg">
-                        <span className="font-mono text-sm tracking-tight text-brand-700 dark:text-brand-300">
-                          {row.houseNo}
-                        </span>
+                        <span className="font-mono text-sm tracking-tight text-brand-700 dark:text-brand-300">{row.houseNo}</span>
                       </td>
 
                       {/* BHK & Floor */}
                       <td className="px-3 py-2.5 whitespace-nowrap text-fg">
-                        {row.bhk ? (
-                          <span className="font-semibold">{row.bhk} BHK</span>
-                        ) : (
-                          <span className="text-subtle italic">BHK N/A</span>
-                        )}
+                        {row.bhk ? <span className="font-semibold">{row.bhk} BHK</span> : <span className="text-subtle italic">BHK N/A</span>}
                         {row.floor && <span className="text-muted ml-1 font-normal">({row.floor})</span>}
                       </td>
 
@@ -609,29 +608,19 @@ export default function BrokerInventoryPage() {
                         ) : (
                           <span className="text-amber-600 dark:text-amber-400 text-[11px] italic">Not set</span>
                         )}
-                        {row.purpose === 'SALE' && (
-                          <span className="ml-1 rounded bg-rose-50 px-1 text-[10px] text-rose-600">SALE</span>
-                        )}
+                        {row.purpose === 'SALE' && <span className="ml-1 rounded bg-rose-50 px-1 text-[10px] text-rose-600">SALE</span>}
                       </td>
 
                       {/* Furnishing */}
                       <td className="px-3 py-2.5 text-muted whitespace-nowrap">
-                        {row.furnishing ? (
-                          <span>{row.furnishing.replace(/_/g, ' ')}</span>
-                        ) : (
-                          <span className="text-subtle italic">—</span>
-                        )}
+                        {row.furnishing ? <span>{row.furnishing.replace(/_/g, ' ')}</span> : <span className="text-subtle italic">—</span>}
                       </td>
 
                       {/* Tenant Preference */}
-                      <td className="px-3 py-2.5 text-muted whitespace-nowrap">
-                        {row.tenantPreference || '—'}
-                      </td>
+                      <td className="px-3 py-2.5 text-muted whitespace-nowrap">{row.tenantPreference || '—'}</td>
 
                       {/* Brokerage */}
-                      <td className="px-3 py-2.5 text-muted whitespace-nowrap font-mono text-[11px]">
-                        {row.brokerage || '—'}
-                      </td>
+                      <td className="px-3 py-2.5 text-muted whitespace-nowrap font-mono text-[11px]">{row.brokerage || '—'}</td>
 
                       {/* Owner Contact */}
                       <td className="px-3 py-2.5 whitespace-nowrap">
@@ -657,16 +646,12 @@ export default function BrokerInventoryPage() {
                         ) : (
                           <span className="text-subtle italic">No phone</span>
                         )}
-                        {row.ownerName && (
-                          <p className="text-[10px] text-subtle truncate max-w-[120px]">{row.ownerName}</p>
-                        )}
+                        {row.ownerName && <p className="text-[10px] text-subtle truncate max-w-[120px]">{row.ownerName}</p>}
                       </td>
 
                       {/* Status Badge */}
                       <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                        <Badge tone={STATUS_TONES[row.status] || 'neutral'}>
-                          {STATUS_LABELS[row.status] || row.status}
-                        </Badge>
+                        <Badge tone={STATUS_TONES[row.status] || 'neutral'}>{STATUS_LABELS[row.status] || row.status}</Badge>
                       </td>
 
                       {/* Action Buttons */}
@@ -745,28 +730,18 @@ export default function BrokerInventoryPage() {
           {/* Table Footer & Pagination */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface-2/40 px-4 py-3 text-xs">
             <span className="text-muted">
-              Showing {Math.min(data.total, (data.page - 1) * data.pageSize + 1)} to{' '}
-              {Math.min(data.total, data.page * data.pageSize)} of <strong className="text-fg">{data.total}</strong> entries
+              Showing {Math.min(data.total, (data.page - 1) * data.pageSize + 1)} to {Math.min(data.total, data.page * data.pageSize)} of{' '}
+              <strong className="text-fg">{data.total}</strong> entries
             </span>
 
             <div className="flex items-center gap-2">
               <span className="text-muted">
                 Page {data.page} of {data.totalPages || 1}
               </span>
-              <Button
-                size="xs"
-                variant="secondary"
-                disabled={data.page <= 1}
-                onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
-              >
+              <Button size="xs" variant="secondary" disabled={data.page <= 1} onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}>
                 Previous
               </Button>
-              <Button
-                size="xs"
-                variant="secondary"
-                disabled={data.page >= data.totalPages}
-                onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
-              >
+              <Button size="xs" variant="secondary" disabled={data.page >= data.totalPages} onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}>
                 Next
               </Button>
             </div>
@@ -786,10 +761,7 @@ export default function BrokerInventoryPage() {
             <Button variant="secondary" onClick={() => setEditItem(null)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => editItem && saveMutation.mutate(editItem)}
-              loading={saveMutation.isPending}
-            >
+            <Button onClick={() => editItem && saveMutation.mutate(editItem)} loading={saveMutation.isPending}>
               {isNew ? 'रो जोड़ें' : 'Save Changes'}
             </Button>
           </>
@@ -814,10 +786,7 @@ export default function BrokerInventoryPage() {
             </Field>
 
             <Field label="BHK">
-              <Select
-                value={String(editItem.bhk ?? '')}
-                onChange={(e) => setEditItem({ ...editItem, bhk: e.target.value ? Number(e.target.value) : null })}
-              >
+              <Select value={String(editItem.bhk ?? '')} onChange={(e) => setEditItem({ ...editItem, bhk: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">Select BHK</option>
                 <option value="1">1 BHK</option>
                 <option value="2">2 BHK</option>
@@ -849,18 +818,13 @@ export default function BrokerInventoryPage() {
               <Input
                 type="number"
                 value={editItem.securityDeposit ?? ''}
-                onChange={(e) =>
-                  setEditItem({ ...editItem, securityDeposit: e.target.value ? Number(e.target.value) : null })
-                }
+                onChange={(e) => setEditItem({ ...editItem, securityDeposit: e.target.value ? Number(e.target.value) : null })}
                 placeholder="e.g. 70000"
               />
             </Field>
 
             <Field label="Furnishing">
-              <Select
-                value={editItem.furnishing || 'SEMI_FURNISHED'}
-                onChange={(e) => setEditItem({ ...editItem, furnishing: e.target.value })}
-              >
+              <Select value={editItem.furnishing || 'SEMI_FURNISHED'} onChange={(e) => setEditItem({ ...editItem, furnishing: e.target.value })}>
                 <option value="UNFURNISHED">Unfurnished</option>
                 <option value="SEMI_FURNISHED">Semi Furnished (SFD)</option>
                 <option value="FULLY_FURNISHED">Fully Furnished (FFD)</option>
@@ -868,10 +832,7 @@ export default function BrokerInventoryPage() {
             </Field>
 
             <Field label="Purpose">
-              <Select
-                value={editItem.purpose || 'RENT'}
-                onChange={(e) => setEditItem({ ...editItem, purpose: e.target.value })}
-              >
+              <Select value={editItem.purpose || 'RENT'} onChange={(e) => setEditItem({ ...editItem, purpose: e.target.value })}>
                 <option value="RENT">Rent</option>
                 <option value="SALE">Sale</option>
               </Select>
@@ -894,11 +855,7 @@ export default function BrokerInventoryPage() {
             </Field>
 
             <Field label="Owner Name">
-              <Input
-                value={editItem.ownerName || ''}
-                onChange={(e) => setEditItem({ ...editItem, ownerName: e.target.value })}
-                placeholder="e.g. Sharma Ji"
-              />
+              <Input value={editItem.ownerName || ''} onChange={(e) => setEditItem({ ...editItem, ownerName: e.target.value })} placeholder="e.g. Sharma Ji" />
             </Field>
 
             <Field label="Owner Phone Number">
@@ -910,10 +867,7 @@ export default function BrokerInventoryPage() {
             </Field>
 
             <Field label="Status">
-              <Select
-                value={editItem.status || 'DRAFT'}
-                onChange={(e) => setEditItem({ ...editItem, status: e.target.value as any })}
-              >
+              <Select value={editItem.status || 'DRAFT'} onChange={(e) => setEditItem({ ...editItem, status: e.target.value as any })}>
                 <option value="DRAFT">DRAFT (Missing info / Needs work)</option>
                 <option value="ACTIVE">ACTIVE (Ready to publish / Live)</option>
                 <option value="RENTED">RENTED (Already given)</option>

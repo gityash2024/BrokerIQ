@@ -154,7 +154,7 @@ export default function MapView({
             <Tooltip direction="top" offset={[0, -6]}>
               {p.label}
             </Tooltip>
-          ) : (p.label || p.sublabel || p.address) ? (
+          ) : p.label || p.sublabel || p.address ? (
             <Tooltip direction="top" offset={[0, -10]}>
               <div className="text-xs font-sans">
                 <div className="font-bold">

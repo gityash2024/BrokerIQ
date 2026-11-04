@@ -26,10 +26,7 @@ test('Tier 1: KYC Filtering (Requirement R1)', async (t) => {
 
     const todayStr = new Date().toISOString().slice(0, 10);
     for (const doc of res.body) {
-      assert.ok(
-        doc.createdAt.startsWith(todayStr),
-        `Document ${doc.id} createdAt (${doc.createdAt}) must match today (${todayStr})`
-      );
+      assert.ok(doc.createdAt.startsWith(todayStr), `Document ${doc.id} createdAt (${doc.createdAt}) must match today (${todayStr})`);
     }
   });
 
@@ -41,10 +38,7 @@ test('Tier 1: KYC Filtering (Requirement R1)', async (t) => {
 
     const yesterdayDate = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     for (const doc of res.body) {
-      assert.ok(
-        doc.createdAt.startsWith(yesterdayDate),
-        `Document ${doc.id} createdAt (${doc.createdAt}) must match yesterday (${yesterdayDate})`
-      );
+      assert.ok(doc.createdAt.startsWith(yesterdayDate), `Document ${doc.id} createdAt (${doc.createdAt}) must match yesterday (${yesterdayDate})`);
     }
   });
 
@@ -65,12 +59,18 @@ test('Tier 1: KYC Filtering (Requirement R1)', async (t) => {
     const pendingRes = await client.getKyc({ status: 'PENDING' });
     assert.strictEqual(pendingRes.status, 200);
     assert.ok(pendingRes.body.length > 0);
-    assert.ok(pendingRes.body.every((d) => d.status === 'PENDING'), 'All documents must be PENDING');
+    assert.ok(
+      pendingRes.body.every((d) => d.status === 'PENDING'),
+      'All documents must be PENDING',
+    );
 
     const verifiedRes = await client.getKyc({ status: 'VERIFIED' });
     assert.strictEqual(verifiedRes.status, 200);
     assert.ok(verifiedRes.body.length > 0);
-    assert.ok(verifiedRes.body.every((d) => d.status === 'VERIFIED'), 'All documents must be VERIFIED');
+    assert.ok(
+      verifiedRes.body.every((d) => d.status === 'VERIFIED'),
+      'All documents must be VERIFIED',
+    );
   });
 
   await t.test('T1.1.5: Role Filter - filters by BROKER_ADMIN vs BROKER_AGENT', async () => {

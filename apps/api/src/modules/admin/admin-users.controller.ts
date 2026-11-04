@@ -209,7 +209,11 @@ export class AdminUsersController {
     await this.prisma.organization.update({ where: { id }, data: { status: body.status, verification: body.verification } });
     if (body.verification === 'VERIFIED') {
       await this.prisma.listing.updateMany({ where: { organizationId: id, deletedAt: null }, data: { isVerified: true } });
-      await this.notifications.notifyOrg(id, { kind: 'KYC_UPDATE', title: '✅ आपकी firm verified हो गई है', link: '/broker/kyc?view=firm' }, { adminsOnly: true });
+      await this.notifications.notifyOrg(
+        id,
+        { kind: 'KYC_UPDATE', title: '✅ आपकी firm verified हो गई है', link: '/broker/kyc?view=firm' },
+        { adminsOnly: true },
+      );
     }
     if (body.planCode) {
       const plan = await this.prisma.plan.findUnique({ where: { code: body.planCode } });
@@ -248,7 +252,8 @@ export class AdminUsersController {
     ids?: string;
     history?: string;
   }): Prisma.KycDocumentWhereInput {
-    const where: Prisma.KycDocumentWhereInput = filters.history === 'ARCHIVED' ? { supersededAt: { not: null } } : filters.history === 'ALL' ? {} : { supersededAt: null };
+    const where: Prisma.KycDocumentWhereInput =
+      filters.history === 'ARCHIVED' ? { supersededAt: { not: null } } : filters.history === 'ALL' ? {} : { supersededAt: null };
 
     if (filters.brokerId) {
       where.OR = [{ organizationId: filters.brokerId }, { user: { organizationId: filters.brokerId } }];

@@ -4,7 +4,8 @@ import * as Location from 'expo-location';
 import { AccountScopeChangedError, authStore } from '../api';
 import { checkInVisit } from '../visit-check-in';
 
-const login = (firm = 'a') => authStore.set({ accessToken: 'isolated', refreshToken: 'isolated', user: { id: 'visit-owner', role: 'BROKER_AGENT', organization: { id: firm } } } as any);
+const login = (firm = 'a') =>
+  authStore.set({ accessToken: 'isolated', refreshToken: 'isolated', user: { id: 'visit-owner', role: 'BROKER_AGENT', organization: { id: firm } } } as any);
 beforeEach(async () => {
   jest.clearAllMocks();
   await login();
@@ -14,14 +15,20 @@ beforeEach(async () => {
 afterEach(() => jest.restoreAllMocks());
 
 it('does not read GPS after the permission dialog returns to a different firm', async () => {
-  (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementationOnce(async () => { await login('b'); return { granted: true }; });
+  (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementationOnce(async () => {
+    await login('b');
+    return { granted: true };
+  });
   const send = jest.spyOn(globalThis, 'fetch');
   await expect(checkInVisit('visit-id')).rejects.toBeInstanceOf(AccountScopeChangedError);
   expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
   expect(send).not.toHaveBeenCalled();
 });
 it('does not send a GPS result after an account-scope change', async () => {
-  (Location.getCurrentPositionAsync as jest.Mock).mockImplementationOnce(async () => { await login('b'); return { coords: { latitude: 28.4, longitude: 77 } }; });
+  (Location.getCurrentPositionAsync as jest.Mock).mockImplementationOnce(async () => {
+    await login('b');
+    return { coords: { latitude: 28.4, longitude: 77 } };
+  });
   const send = jest.spyOn(globalThis, 'fetch');
   await expect(checkInVisit('visit-id')).rejects.toBeInstanceOf(AccountScopeChangedError);
   expect(send).not.toHaveBeenCalled();

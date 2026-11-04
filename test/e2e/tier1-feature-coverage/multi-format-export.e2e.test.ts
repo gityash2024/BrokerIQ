@@ -43,10 +43,7 @@ test('Tier 1: Multi-Format Data Export (Requirement R2)', async (t) => {
     const res = await client.exportKyc({ format: 'xlsx' });
     assert.strictEqual(res.status, 200);
     assert.ok(res.rawBuffer);
-    assert.strictEqual(
-      res.headers['content-type'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
+    assert.strictEqual(res.headers['content-type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
     assertExcelValid(res.rawBuffer, 'KYC Excel (.xlsx) Export');
   });
@@ -75,10 +72,7 @@ test('Tier 1: Multi-Format Data Export (Requirement R2)', async (t) => {
     const res = await client.exportTeam({ format: 'xlsx' });
     assert.strictEqual(res.status, 200);
     assert.ok(res.rawBuffer);
-    assert.strictEqual(
-      res.headers['content-type'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
+    assert.strictEqual(res.headers['content-type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
     assertExcelValid(res.rawBuffer, 'Teams Excel (.xlsx) Export');
   });

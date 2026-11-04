@@ -100,7 +100,12 @@ export default function AutomationsPage() {
 
   return (
     <>
-      <div className="mb-5 rounded-xl border border-line bg-surface p-4"><Link href="/broker/connectors" className="font-semibold text-brand-600">Housing & portal connections →</Link><p className="mt-1 text-xs text-muted">Connection state and sync history come from your configured account.</p></div>
+      <div className="mb-5 rounded-xl border border-line bg-surface p-4">
+        <Link href="/broker/connectors" className="font-semibold text-brand-600">
+          Housing & portal connections →
+        </Link>
+        <p className="mt-1 text-xs text-muted">Connection state and sync history come from your configured account.</p>
+      </div>
       <PageHeader
         title="Automations"
         subtitle="Lead आते ही welcome, assignment, drip follow-ups — आपकी team सोए तब भी काम चलता रहे"

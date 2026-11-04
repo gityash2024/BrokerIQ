@@ -10,7 +10,7 @@ export type DatePreset = 'ALL' | 'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'THIS_M
 export interface DateRangeValue {
   preset: DatePreset;
   from?: string; // YYYY-MM-DD
-  to?: string;   // YYYY-MM-DD
+  to?: string; // YYYY-MM-DD
 }
 
 export interface DateRangeFilterProps {
@@ -26,10 +26,7 @@ const IST_OFFSET_MS = 5.5 * 3600_000;
 /**
  * Client-side evaluation helper ensuring exact alignment with backend IST midnight boundaries (+05:30).
  */
-export function isDateInRange(
-  dateInput: string | Date | number | null | undefined,
-  value: DateRangeValue,
-): boolean {
+export function isDateInRange(dateInput: string | Date | number | null | undefined, value: DateRangeValue): boolean {
   if (!dateInput) return false;
   if (!value) return true;
   const preset = (value.preset || 'ALL').toUpperCase() as DatePreset;
@@ -88,13 +85,7 @@ export function isDateInRange(
   }
 }
 
-export function DateRangeFilter({
-  value,
-  onChange,
-  className,
-  size = 'sm',
-  disabled = false,
-}: DateRangeFilterProps) {
+export function DateRangeFilter({ value, onChange, className, size = 'sm', disabled = false }: DateRangeFilterProps) {
   const normalizedPreset = (value?.preset || 'ALL').toUpperCase() as DatePreset;
 
   const handlePresetChange = (preset: DatePreset) => {

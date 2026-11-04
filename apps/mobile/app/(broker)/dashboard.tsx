@@ -50,11 +50,7 @@ export default function Today() {
                   justifyContent: 'center',
                 }}
               >
-                {kycStatus === 'PENDING' ? (
-                  <Clock size={20} color="#fff" />
-                ) : (
-                  <ShieldAlert size={20} color="#fff" />
-                )}
+                {kycStatus === 'PENDING' ? <Clock size={20} color="#fff" /> : <ShieldAlert size={20} color="#fff" />}
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -67,11 +63,7 @@ export default function Today() {
                       paddingVertical: 2,
                       borderRadius: 10,
                       backgroundColor:
-                        kycStatus === 'PENDING'
-                          ? 'rgba(59,130,246,0.15)'
-                          : kycStatus === 'REJECTED'
-                            ? 'rgba(239,68,68,0.15)'
-                            : 'rgba(245,158,11,0.15)',
+                        kycStatus === 'PENDING' ? 'rgba(59,130,246,0.15)' : kycStatus === 'REJECTED' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
                     }}
                   >
                     <Txt
@@ -79,12 +71,7 @@ export default function Today() {
                       style={{
                         fontSize: 10,
                         fontWeight: '700',
-                        color:
-                          kycStatus === 'PENDING'
-                            ? '#3B82F6'
-                            : kycStatus === 'REJECTED'
-                              ? '#EF4444'
-                              : '#D97706',
+                        color: kycStatus === 'PENDING' ? '#3B82F6' : kycStatus === 'REJECTED' ? '#EF4444' : '#D97706',
                       }}
                     >
                       {kycStatus === 'PENDING' ? 'Under Review' : kycStatus === 'REJECTED' ? 'Rejected' : 'Action Req'}

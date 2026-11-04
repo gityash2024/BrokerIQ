@@ -455,20 +455,29 @@ describe('Production agent/firm record boundaries', () => {
   });
 
   it('imports ZIP photo evidence with private record scope and keeps a reviewed entry across retries', async () => {
-    const original = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#cccccc' } }).png().toBuffer();
-    const other = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#dddddd' } }).png().toBuffer();
+    const original = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#cccccc' } })
+      .png()
+      .toBuffer();
+    const other = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#dddddd' } })
+      .png()
+      .toBuffer();
     const caption = '<attached: property.png>';
-    const source = (image: Buffer, extra = {}) => zipSync({
-      'chat.txt': strToU8(`02/11/2026, 10:00 - Sender: ${caption}\n02/11/2026, 10:01 - Sender: <attached: missing.png>`),
-      'images/property.png': image,
-      ...extra,
-    });
+    const source = (image: Buffer, extra = {}) =>
+      zipSync({
+        'chat.txt': strToU8(`02/11/2026, 10:00 - Sender: ${caption}\n02/11/2026, 10:01 - Sender: <attached: missing.png>`),
+        'images/property.png': image,
+        ...extra,
+      });
     const capture = async (file: Uint8Array) => {
-      const response = await request(app.getHttpServer()).post('/api/imports').set(headers(a)).send({
-        sourceType: 'CHAT_EXPORT',
-        groupName: 'zip-photo-permissions-' + uid,
-        fileDataUrl: 'data:application/zip;base64,' + Buffer.from(file).toString('base64'),
-      }).expect(201);
+      const response = await request(app.getHttpServer())
+        .post('/api/imports')
+        .set(headers(a))
+        .send({
+          sourceType: 'CHAT_EXPORT',
+          groupName: 'zip-photo-permissions-' + uid,
+          fileDataUrl: 'data:application/zip;base64,' + Buffer.from(file).toString('base64'),
+        })
+        .expect(201);
       await app.get(ImportsService).extract(response.body.id);
       return response.body.id as string;
     };
@@ -481,7 +490,10 @@ describe('Production agent/firm record boundaries', () => {
     });
     try {
       const id = await capture(source(original));
-      const review = await request(app.getHttpServer()).get('/api/imports/' + id).set(headers(a)).expect(200);
+      const review = await request(app.getHttpServer())
+        .get('/api/imports/' + id)
+        .set(headers(a))
+        .expect(200);
       const [entry, missing] = review.body.entries;
       expect(entry.rawText).toBe(caption);
       expect(entry.ocr).toMatchObject({ sender: 'Sender', timestamp: '02/11/2026, 10:00', sourceFile: 'chat.txt' });
@@ -500,7 +512,10 @@ describe('Production agent/firm record boundaries', () => {
       expect(file.body.equals(original)).toBe(true);
       const persisted = await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } });
       const key = (persisted.ocr as unknown as { attachments: { mediaRef: string }[] }).attachments[0].mediaRef;
-      await request(app.getHttpServer()).get('/api/media/f/' + key).set(headers(a)).expect(404);
+      await request(app.getHttpServer())
+        .get('/api/media/f/' + key)
+        .set(headers(a))
+        .expect(404);
       await db.sourceEntry.update({ where: { id: entry.id }, data: { reviewState: 'APPROVED', reviewNote: 'Reviewed by agent' } });
       const approved = await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } });
       await db.importBatch.update({ where: { id }, data: { status: 'FAILED' } });
@@ -518,7 +533,9 @@ describe('Production agent/firm record boundaries', () => {
       expect(await db.job.count({ where: { key: 'import:' + previewId } })).toBe(1);
       await app.get(ImportsService).extract(previewId);
       const preview = await request(app.getHttpServer())
-        .get('/api/imports/' + previewId + '?reviewState=NEEDS_REVIEW').set(headers(a)).expect(200);
+        .get('/api/imports/' + previewId + '?reviewState=NEEDS_REVIEW')
+        .set(headers(a))
+        .expect(200);
       expect(preview.body).toMatchObject({ previewOfImportId: id, status: 'COMPLETE', pending: 0, canPreview: false });
       const previewEntry = preview.body.entries.find((item: { rawText: string }) => item.rawText === caption);
       expect(previewEntry).toMatchObject({ reviewState: 'PREVIEW', messageIdentity: null, duplicateOfId: null });
@@ -528,16 +545,27 @@ describe('Production agent/firm record boundaries', () => {
       expect(previewFile.body.equals(original)).toBe(true);
       await request(app.getHttpServer()).get(previewAttachment).set(headers(b)).expect(404);
       const requirementsBefore = await db.brokerRequirement.count();
-      await request(app.getHttpServer()).patch('/api/imports/entries/' + previewEntry.id)
-        .set(headers(a)).send({ entities: [] }).expect(403);
-      await request(app.getHttpServer()).post('/api/imports/entries/' + previewEntry.id + '/approve')
-        .set(headers(admin)).send({ entities: previewEntry.extracted }).expect(403);
-      await request(app.getHttpServer()).post('/api/imports/entries/' + previewEntry.id + '/approve')
-        .set(headers(a)).send({ entities: [], ignore: true }).expect(403);
-      await request(app.getHttpServer()).post('/api/imports/' + previewId + '/preview').set(headers(a)).expect(400);
+      await request(app.getHttpServer())
+        .patch('/api/imports/entries/' + previewEntry.id)
+        .set(headers(a))
+        .send({ entities: [] })
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/api/imports/entries/' + previewEntry.id + '/approve')
+        .set(headers(admin))
+        .send({ entities: previewEntry.extracted })
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/api/imports/entries/' + previewEntry.id + '/approve')
+        .set(headers(a))
+        .send({ entities: [], ignore: true })
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/api/imports/' + previewId + '/preview')
+        .set(headers(a))
+        .expect(400);
       expect(await db.brokerRequirement.count()).toBe(requirementsBefore);
       expect(await db.sourceEntry.findUniqueOrThrow({ where: { id: entry.id } })).toEqual(approved);
-
 
       const repeated = await capture(source(original, { 'irrelevant.txt': strToU8('another chat export segment') }));
       const distinct = await capture(source(other));

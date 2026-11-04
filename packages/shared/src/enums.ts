@@ -341,4 +341,3 @@ export const ShiftStatus = {
 } as const;
 export type ShiftStatus = (typeof ShiftStatus)[keyof typeof ShiftStatus];
 export const SHIFT_STATUSES = values(ShiftStatus);
-

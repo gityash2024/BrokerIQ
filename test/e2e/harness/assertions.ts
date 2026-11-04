@@ -25,9 +25,9 @@ export function assertPdfValid(buffer: Buffer, description: string = 'PDF output
  */
 export function assertExcelValid(buffer: Buffer, description: string = 'Excel (.xlsx) output'): void {
   assert.ok(buffer.length > 300, `${description} should be a non-trivial spreadsheet (got ${buffer.length} bytes)`);
-  
+
   // PKZIP magic number: 0x50 0x4B 0x03 0x04 ("PK\x03\x04")
-  const isZip = buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04;
+  const isZip = buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04;
   assert.ok(isZip, `${description} must be a valid PKZip-based OpenXML spreadsheet with 'PK\\x03\\x04' magic header`);
 
   // Ensure it has content types or workbook entry references in the zip stream
@@ -40,12 +40,7 @@ export function assertExcelValid(buffer: Buffer, description: string = 'Excel (.
  * Validates that a CSV buffer contains a UTF-8 Byte Order Mark (\ufeff),
  * proper headers, and valid RFC 4180 escaping.
  */
-export function assertCsvValid(
-  buffer: Buffer,
-  expectedHeaders: string[],
-  minRows: number = 0,
-  description: string = 'CSV output'
-): string[][] {
+export function assertCsvValid(buffer: Buffer, expectedHeaders: string[], minRows: number = 0, description: string = 'CSV output'): string[][] {
   assert.ok(buffer.length >= 3, `${description} must not be empty`);
 
   // Check UTF-8 BOM: 0xEF, 0xBB, 0xBF
@@ -54,7 +49,7 @@ export function assertCsvValid(
 
   // Strip BOM and parse lines
   const text = buffer.subarray(3).toString('utf-8');
-  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
   assert.ok(lines.length >= 1, `${description} must contain at least a header row`);
 
   // Parse header line
@@ -62,7 +57,7 @@ export function assertCsvValid(
   for (const expHeader of expectedHeaders) {
     assert.ok(
       headerLine.toLowerCase().includes(expHeader.toLowerCase()),
-      `${description} header must contain column '${expHeader}'. Full header: '${headerLine}'`
+      `${description} header must contain column '${expHeader}'. Full header: '${headerLine}'`,
     );
   }
 
@@ -71,14 +66,11 @@ export function assertCsvValid(
   for (let i = 1; i < lines.length; i++) {
     const rawLine = lines[i];
     // Split by comma taking basic quotes into account
-    const cells = rawLine.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+    const cells = rawLine.split(',').map((c) => c.replace(/^"|"$/g, '').trim());
     parsedRows.push(cells);
   }
 
-  assert.ok(
-    parsedRows.length >= minRows,
-    `${description} expected at least ${minRows} data rows, but got ${parsedRows.length}`
-  );
+  assert.ok(parsedRows.length >= minRows, `${description} expected at least ${minRows} data rows, but got ${parsedRows.length}`);
 
   return parsedRows;
 }
@@ -92,7 +84,7 @@ export function assertTimelineChronological(events: TimelineEvent[], description
     const tNext = new Date(events[i + 1].timestamp).getTime();
     assert.ok(
       tCurrent <= tNext,
-      `${description}: Event ${i} (${events[i].type} @ ${events[i].timestamp}) must be <= Event ${i + 1} (${events[i + 1].type} @ ${events[i + 1].timestamp})`
+      `${description}: Event ${i} (${events[i].type} @ ${events[i].timestamp}) must be <= Event ${i + 1} (${events[i + 1].type} @ ${events[i + 1].timestamp})`,
     );
   }
 }
@@ -100,15 +92,7 @@ export function assertTimelineChronological(events: TimelineEvent[], description
 /**
  * Validates that total working minutes match the calculated sum of intervals.
  */
-export function assertDurationMatches(
-  actualMinutes: number,
-  expectedMinutes: number,
-  tolerance: number = 2,
-  description: string = 'Working minutes'
-): void {
+export function assertDurationMatches(actualMinutes: number, expectedMinutes: number, tolerance: number = 2, description: string = 'Working minutes'): void {
   const diff = Math.abs(actualMinutes - expectedMinutes);
-  assert.ok(
-    diff <= tolerance,
-    `${description}: Expected ${expectedMinutes}m (±${tolerance}m), got ${actualMinutes}m (difference: ${diff}m)`
-  );
+  assert.ok(diff <= tolerance, `${description}: Expected ${expectedMinutes}m (±${tolerance}m), got ${actualMinutes}m (difference: ${diff}m)`);
 }

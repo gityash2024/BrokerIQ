@@ -341,7 +341,7 @@ export default function Dashboard() {
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Txt v="h3">{(k?.unreadMessages || 0)}</Txt>
+                  <Txt v="h3">{k?.unreadMessages || 0}</Txt>
                   <Txt v="caption" color="muted">
                     Unread messages
                   </Txt>

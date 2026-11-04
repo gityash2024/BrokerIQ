@@ -107,13 +107,27 @@ export default function ReportsPage() {
             <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b border-line bg-surface-2 text-left text-xs font-bold text-subtle uppercase">
                 <tr>
-                  <SortableTh column="month" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Month</SortableTh>
-                  <SortableTh column="deals" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Deals</SortableTh>
-                  <SortableTh column="dealValue" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Deal value</SortableTh>
-                  <SortableTh column="commission" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Commission</SortableTh>
-                  <SortableTh column="received" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Received</SortableTh>
-                  <SortableTh column="invoiced" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Invoiced</SortableTh>
-                  <SortableTh column="gst" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>GST</SortableTh>
+                  <SortableTh column="month" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Month
+                  </SortableTh>
+                  <SortableTh column="deals" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Deals
+                  </SortableTh>
+                  <SortableTh column="dealValue" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Deal value
+                  </SortableTh>
+                  <SortableTh column="commission" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Commission
+                  </SortableTh>
+                  <SortableTh column="received" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Received
+                  </SortableTh>
+                  <SortableTh column="invoiced" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Invoiced
+                  </SortableTh>
+                  <SortableTh column="gst" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    GST
+                  </SortableTh>
                 </tr>
               </thead>
               <tbody>

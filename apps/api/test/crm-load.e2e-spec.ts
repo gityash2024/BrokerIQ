@@ -27,16 +27,41 @@ import { AuthService } from '../src/modules/auth/auth.service';
     org = (await db.organization.create({ data: { name: 'Isolated CRM load fixture', slug: 'crm-load-' + stamp } })).id;
     for (let index = 0; index < 20; index++) {
       const user = await db.user.create({
-        data: { name: 'Load session ' + index, email: `${index}.${stamp}@load.e2e.test`, role: index === 0 ? 'BROKER_ADMIN' : 'BROKER_AGENT', organizationId: org },
+        data: {
+          name: 'Load session ' + index,
+          email: `${index}.${stamp}@load.e2e.test`,
+          role: index === 0 ? 'BROKER_ADMIN' : 'BROKER_AGENT',
+          organizationId: org,
+        },
         include: { organization: true },
       });
       const auth = await app.get(AuthService).issue(user);
-      const leads = await db.lead.createManyAndReturn({ data: Array.from({ length: 20 }, (_, n) => ({ organizationId: org, assignedToId: user.id, name: `Session ${index} lead ${n}`, phone: `+9198${String(index).padStart(2, '0')}${String(n).padStart(6, '0')}` })) });
-      const properties = await db.inventoryItem.createManyAndReturn({ data: Array.from({ length: 50 }, (_, n) => ({ organizationId: org, assignedToId: user.id, createdById: user.id, sector: 'Sector 45', houseNo: `${index}-${n}`, purpose: 'RENT', monthlyRent: 25000, availability: 'UNKNOWN' })) });
+      const leads = await db.lead.createManyAndReturn({
+        data: Array.from({ length: 20 }, (_, n) => ({
+          organizationId: org,
+          assignedToId: user.id,
+          name: `Session ${index} lead ${n}`,
+          phone: `+9198${String(index).padStart(2, '0')}${String(n).padStart(6, '0')}`,
+        })),
+      });
+      const properties = await db.inventoryItem.createManyAndReturn({
+        data: Array.from({ length: 50 }, (_, n) => ({
+          organizationId: org,
+          assignedToId: user.id,
+          createdById: user.id,
+          sector: 'Sector 45',
+          houseNo: `${index}-${n}`,
+          purpose: 'RENT',
+          monthlyRent: 25000,
+          availability: 'UNKNOWN',
+        })),
+      });
       actors.push({ id: user.id, token: auth.accessToken, refreshToken: auth.refreshToken, leadId: leads[0].id, inventoryId: properties[0].id });
     }
   }, 120_000);
-  afterAll(async () => { await app?.close(); });
+  afterAll(async () => {
+    await app?.close();
+  });
 
   async function measured<T>(kind: keyof typeof samples, run: () => Promise<T>) {
     const started = performance.now();
@@ -45,31 +70,68 @@ import { AuthService } from '../src/modules/auth/auth.service';
     return result;
   }
   async function round(write: boolean, refresh: boolean) {
-    await Promise.all(actors.map(async (actor, index) => {
-      if (refresh) {
-        const result = await measured('refresh', () => http().post('/api/auth/refresh').send({ refreshToken: actor.refreshToken }).expect(200));
-        actor.token = result.body.accessToken;
-        actor.refreshToken = result.body.refreshToken;
-      }
-      const leads = await measured('list', () => http().get('/api/leads?pageSize=30').set(headers(actor)).expect(200));
-      const inventory = await measured('list', () => http().get('/api/inventory?pageSize=30').set(headers(actor)).expect(200));
-      if (index !== 0) {
-        expect(leads.body.items.every((row: { assignedToId: string }) => row.assignedToId === actor.id)).toBe(true);
-        expect(inventory.body.items.every((row: { assignedToId: string }) => row.assignedToId === actor.id)).toBe(true);
-      }
-      const detail = await measured('detail', () => http().get('/api/leads/' + actor.leadId).set(headers(actor)).expect(200));
-      expect(detail.body.id).toBe(actor.leadId);
-      if (write) await measured('mutation', () => http().post('/api/follow-ups').set(headers(actor)).send({ leadId: actor.leadId, type: 'CALL', dueAt: new Date(Date.now() + 86400_000).toISOString(), clientMutationId: randomUUID(), note: 'Isolated load acceptance' }).expect(201));
-    }));
+    await Promise.all(
+      actors.map(async (actor, index) => {
+        if (refresh) {
+          const result = await measured('refresh', () => http().post('/api/auth/refresh').send({ refreshToken: actor.refreshToken }).expect(200));
+          actor.token = result.body.accessToken;
+          actor.refreshToken = result.body.refreshToken;
+        }
+        const leads = await measured('list', () => http().get('/api/leads?pageSize=30').set(headers(actor)).expect(200));
+        const inventory = await measured('list', () => http().get('/api/inventory?pageSize=30').set(headers(actor)).expect(200));
+        if (index !== 0) {
+          expect(leads.body.items.every((row: { assignedToId: string }) => row.assignedToId === actor.id)).toBe(true);
+          expect(inventory.body.items.every((row: { assignedToId: string }) => row.assignedToId === actor.id)).toBe(true);
+        }
+        const detail = await measured('detail', () =>
+          http()
+            .get('/api/leads/' + actor.leadId)
+            .set(headers(actor))
+            .expect(200),
+        );
+        expect(detail.body.id).toBe(actor.leadId);
+        if (write)
+          await measured('mutation', () =>
+            http()
+              .post('/api/follow-ups')
+              .set(headers(actor))
+              .send({
+                leadId: actor.leadId,
+                type: 'CALL',
+                dueAt: new Date(Date.now() + 86400_000).toISOString(),
+                clientMutationId: randomUUID(),
+                note: 'Isolated load acceptance',
+              })
+              .expect(201),
+          );
+      }),
+    );
     rounds++;
   }
   const percentile = (values: number[], p: number) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * p) - 1)] ?? null;
   function report(kind: string, elapsedSeconds: number, cadence?: { maxGapSeconds: number }) {
-    const summary = Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, { requests: values.length, p50Ms: percentile(values, .5), p95Ms: percentile(values, .95), maxMs: values.length ? Math.max(...values) : null }]));
-    console.log(JSON.stringify({ kind, environment: 'ISOLATED_LOCAL_NEST_POSTGRESQL', concurrentSessions: actors.length, rounds, elapsedSeconds, summary, cadence, stagingAcceptance: false, providerOrDeviceAcceptance: false }));
-    expect(percentile(samples.list, .95)).toBeLessThanOrEqual(1000);
-    expect(percentile(samples.detail, .95)).toBeLessThanOrEqual(2000);
-    expect(percentile(samples.mutation, .95)).toBeLessThanOrEqual(2000);
+    const summary = Object.fromEntries(
+      Object.entries(samples).map(([key, values]) => [
+        key,
+        { requests: values.length, p50Ms: percentile(values, 0.5), p95Ms: percentile(values, 0.95), maxMs: values.length ? Math.max(...values) : null },
+      ]),
+    );
+    console.log(
+      JSON.stringify({
+        kind,
+        environment: 'ISOLATED_LOCAL_NEST_POSTGRESQL',
+        concurrentSessions: actors.length,
+        rounds,
+        elapsedSeconds,
+        summary,
+        cadence,
+        stagingAcceptance: false,
+        providerOrDeviceAcceptance: false,
+      }),
+    );
+    expect(percentile(samples.list, 0.95)).toBeLessThanOrEqual(1000);
+    expect(percentile(samples.detail, 0.95)).toBeLessThanOrEqual(2000);
+    expect(percentile(samples.mutation, 0.95)).toBeLessThanOrEqual(2000);
   }
   it('measures populated list/detail/save requests and checks current Agent ownership under concurrency', async () => {
     const started = performance.now();
@@ -78,26 +140,31 @@ import { AuthService } from '../src/modules/auth/auth.service';
     report('CRM_LOAD', (performance.now() - started) / 1000);
   }, 120_000);
 
-  (process.env.RUN_CRM_SOAK === 'true' ? it : it.skip)('runs the representative two-hour read/write/refresh soak without starting providers', async () => {
-    for (const values of Object.values(samples)) values.length = 0;
-    rounds = 0;
-    const started = performance.now();
-    let previousWallTime = Date.now();
-    let maxGapMs = 0;
-    let nextWrite = 0, nextRefresh = 0;
-    do {
-      const elapsed = performance.now() - started;
-      await round(elapsed >= nextWrite, elapsed >= nextRefresh);
-      if (elapsed >= nextWrite) nextWrite = elapsed + 60_000;
-      if (elapsed >= nextRefresh) nextRefresh = elapsed + 600_000;
-      // Preserve the production per-IP throttle. All twenty sessions share loopback.
-      await new Promise((resolve) => setTimeout(resolve, 10_000));
-      const wallTime = Date.now();
-      maxGapMs = Math.max(maxGapMs, wallTime - previousWallTime);
-      previousWallTime = wallTime;
-    } while (performance.now() - started < 7200_000);
-    report('CRM_TWO_HOUR_SOAK', (performance.now() - started) / 1000, { maxGapSeconds: maxGapMs / 1000 });
-    expect(rounds).toBeGreaterThanOrEqual(600);
-    expect(maxGapMs).toBeLessThanOrEqual(30_000);
-  }, 7320_000);
+  (process.env.RUN_CRM_SOAK === 'true' ? it : it.skip)(
+    'runs the representative two-hour read/write/refresh soak without starting providers',
+    async () => {
+      for (const values of Object.values(samples)) values.length = 0;
+      rounds = 0;
+      const started = performance.now();
+      let previousWallTime = Date.now();
+      let maxGapMs = 0;
+      let nextWrite = 0,
+        nextRefresh = 0;
+      do {
+        const elapsed = performance.now() - started;
+        await round(elapsed >= nextWrite, elapsed >= nextRefresh);
+        if (elapsed >= nextWrite) nextWrite = elapsed + 60_000;
+        if (elapsed >= nextRefresh) nextRefresh = elapsed + 600_000;
+        // Preserve the production per-IP throttle. All twenty sessions share loopback.
+        await new Promise((resolve) => setTimeout(resolve, 10_000));
+        const wallTime = Date.now();
+        maxGapMs = Math.max(maxGapMs, wallTime - previousWallTime);
+        previousWallTime = wallTime;
+      } while (performance.now() - started < 7200_000);
+      report('CRM_TWO_HOUR_SOAK', (performance.now() - started) / 1000, { maxGapSeconds: maxGapMs / 1000 });
+      expect(rounds).toBeGreaterThanOrEqual(600);
+      expect(maxGapMs).toBeLessThanOrEqual(30_000);
+    },
+    7320_000,
+  );
 });

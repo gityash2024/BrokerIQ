@@ -1,4 +1,12 @@
-import { IMPORT_MAX_BYTES, bytesToBase64, uploadImport, prepareInventoryEditorInput, captureContentType, followUpInputSchema, visitInputSchema } from '@brokeriq/shared';
+import {
+  IMPORT_MAX_BYTES,
+  bytesToBase64,
+  uploadImport,
+  prepareInventoryEditorInput,
+  captureContentType,
+  followUpInputSchema,
+  visitInputSchema,
+} from '@brokeriq/shared';
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -8,7 +16,15 @@ import { api, ApiError, authStore, captureAccountContext, assertAccountContext, 
 
 export type TaskDraftKind = 'FOLLOW_UP_CREATE' | 'SITE_VISIT_CREATE';
 export type DraftKind =
-  'PROPERTY_CREATE' | 'PROPERTY_EDIT' | 'REQUIREMENT_CREATE' | 'REQUIREMENT_EDIT' | 'CAPTURE' | 'CAPTURE_COMPOSE' | 'IMPORT_REVIEW' | 'PUBLIC_PUBLISH' | TaskDraftKind;
+  | 'PROPERTY_CREATE'
+  | 'PROPERTY_EDIT'
+  | 'REQUIREMENT_CREATE'
+  | 'REQUIREMENT_EDIT'
+  | 'CAPTURE'
+  | 'CAPTURE_COMPOSE'
+  | 'IMPORT_REVIEW'
+  | 'PUBLIC_PUBLISH'
+  | TaskDraftKind;
 export type DraftState = 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
 export interface LocalDraft {
   id: string;
@@ -165,7 +181,10 @@ export async function holdFailedTask(id: string, owner = contextNow()) {
   const result = await database.runAsync(
     `UPDATE local_mutations SET state='DRAFT',updated_at=?
      WHERE id=? AND owner_id=? AND owner_scope=? AND state='FAILED' AND kind IN ('FOLLOW_UP_CREATE','SITE_VISIT_CREATE')`,
-    Date.now(), id, draftOwnerId(owner), owner.scope,
+    Date.now(),
+    id,
+    draftOwnerId(owner),
+    owner.scope,
   );
   assertAccountContext(owner);
   if (!result.changes) throw new Error('Task could not be set aside. Refresh Saved drafts.');
@@ -284,15 +303,27 @@ export async function submitTask(kind: TaskDraftKind, input: unknown, owner = co
        SELECT 1 FROM local_mutations WHERE owner_id=? AND owner_scope=? AND kind=? AND draft_key=?
        AND state IN ('QUEUED','SYNCING','FAILED')
      )`,
-    id, owner.userId, owner.scope, kind, body.leadId, payload, Date.now(),
-    owner.userId, owner.scope, kind, body.leadId,
+    id,
+    owner.userId,
+    owner.scope,
+    kind,
+    body.leadId,
+    payload,
+    Date.now(),
+    owner.userId,
+    owner.scope,
+    kind,
+    body.leadId,
   );
   assertAccountContext(owner);
   let savedId = id;
   if (!inserted.changes) {
     const existing = await database.getFirstAsync<LocalDraft>(
       "SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND kind=? AND draft_key=? AND state IN ('QUEUED','SYNCING','FAILED') LIMIT 1",
-      owner.userId, owner.scope, kind, body.leadId,
+      owner.userId,
+      owner.scope,
+      kind,
+      body.leadId,
     );
     assertAccountContext(owner);
     if (!existing || existing.payload !== payload || existing.state === 'FAILED') {

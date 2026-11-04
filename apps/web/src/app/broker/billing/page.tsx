@@ -267,10 +267,18 @@ function PaidBilling() {
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold text-subtle uppercase">
               <tr>
-                <SortableTh column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Date</SortableTh>
-                <SortableTh column="purpose" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>For</SortableTh>
-                <SortableTh column="amount" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Amount</SortableTh>
-                <SortableTh column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Status</SortableTh>
+                <SortableTh column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Date
+                </SortableTh>
+                <SortableTh column="purpose" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  For
+                </SortableTh>
+                <SortableTh column="amount" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Amount
+                </SortableTh>
+                <SortableTh column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Status
+                </SortableTh>
                 <th className="px-4 py-3" />
               </tr>
             </thead>

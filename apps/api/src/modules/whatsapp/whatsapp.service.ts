@@ -248,8 +248,9 @@ export class WhatsAppService {
           const contacts: any[] = value.contacts ?? [];
           for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone);
           for (const s of value.statuses ?? []) {
-            try { await this.onStatus(s, target.orgId); }
-            catch (error) {
+            try {
+              await this.onStatus(s, target.orgId);
+            } catch (error) {
               if (!(error instanceof UnmatchedWhatsAppReceiptError)) throw error;
               unmatchedReceipt = error;
             }
@@ -474,7 +475,7 @@ export class WhatsAppService {
     if (!status || typeof s.id !== 'string' || !s.id) return;
     // A receipt contains neither the message body nor proof of another firm's identity.
     // Never create a conversation/message by matching a recipient or the first active firm.
-    const changed = await this.prisma.$transaction(async tx => {
+    const changed = await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Message" WHERE "externalId"=${s.id} FOR UPDATE`;
       if (!rows.length) throw new UnmatchedWhatsAppReceiptError('WhatsApp receipt has no recorded outbound message; retained for retry');
       const msg = await tx.message.findUnique({ where: { id: rows[0].id }, include: { conversation: true } });

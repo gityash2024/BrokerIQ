@@ -281,12 +281,21 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
 export function NotificationsBell({ href }: { href: string }) {
   const { user } = useAuth();
   const client = useQueryClient();
-  const { data, refetch, isError, isLoading } = useQuery({ queryKey: ['notifications', user?.id, 'summary'], enabled: !!user, queryFn: () => api<NotificationsResponse>('/me/notifications'), refetchInterval: 60_000 });
+  const { data, refetch, isError, isLoading } = useQuery({
+    queryKey: ['notifications', user?.id, 'summary'],
+    enabled: !!user,
+    queryFn: () => api<NotificationsResponse>('/me/notifications'),
+    refetchInterval: 60_000,
+  });
   useRealtime('notification', () => refetch());
   const unread = data?.unreadCount ?? 0;
   const markAll = async () => {
-    try { await api('/me/notifications/read', { method: 'POST', body: {} }); await client.invalidateQueries({ queryKey: ['notifications'] }); }
-    catch (e) { toast.error((e as Error).message); }
+    try {
+      await api('/me/notifications/read', { method: 'POST', body: {} });
+      await client.invalidateQueries({ queryKey: ['notifications'] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
   return (
     <DM.Root>
@@ -324,7 +333,11 @@ export function NotificationsBell({ href }: { href: string }) {
                 </Link>
               </DM.Item>
             ))}
-            {isError && <button className="p-4 text-sm" onClick={() => refetch()}>Notifications नहीं मिलीं · Retry</button>}
+            {isError && (
+              <button className="p-4 text-sm" onClick={() => refetch()}>
+                Notifications नहीं मिलीं · Retry
+              </button>
+            )}
             {isLoading && <p className="p-4 text-sm">Loading…</p>}
             {!isError && !isLoading && !data?.items?.length && <p className="p-6 text-center text-sm text-muted">कोई notification नहीं</p>}
           </div>

@@ -33,7 +33,7 @@ describe('Launch readiness (e2e)', () => {
     app.use(json());
     app.use(urlencoded({ extended: true }));
     configureApp(app);
-    await app.listen(0,'127.0.0.1');
+    await app.listen(0, '127.0.0.1');
     prisma = app.get(PrismaService);
     settings = app.get(SettingsService);
     http = request(app.getHttpServer());

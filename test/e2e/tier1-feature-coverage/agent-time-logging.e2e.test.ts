@@ -22,9 +22,8 @@ test('Tier 1: Agent Time Logging & Tracking (Requirement R3)', async (t) => {
     const res = await client.punchIn({ address: 'Unknown site without GPS' });
     assert.strictEqual(res.status, 400);
     assert.ok(
-      JSON.stringify(res.body).toLowerCase().includes('mandatory') ||
-        JSON.stringify(res.body).toLowerCase().includes('coordinate'),
-      `Error message should state location is mandatory: ${JSON.stringify(res.body)}`
+      JSON.stringify(res.body).toLowerCase().includes('mandatory') || JSON.stringify(res.body).toLowerCase().includes('coordinate'),
+      `Error message should state location is mandatory: ${JSON.stringify(res.body)}`,
     );
   });
 

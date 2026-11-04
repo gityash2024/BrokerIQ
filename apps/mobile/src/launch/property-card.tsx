@@ -41,15 +41,7 @@ export function propertyShare(item: LedgerItem) {
   return parts.filter(Boolean).join('\n');
 }
 
-export function PropertyCard({
-  item,
-  selected,
-  onSelect,
-}: {
-  item: LedgerItem;
-  selected?: boolean;
-  onSelect?: () => void;
-}) {
+export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; selected?: boolean; onSelect?: () => void }) {
   const { c } = useTheme();
   const qc = useQueryClient();
   const phone = item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone;
@@ -155,22 +147,13 @@ export function PropertyCard({
                 height: 6,
                 borderRadius: 3,
                 backgroundColor:
-                  item.availability === 'AVAILABLE'
-                    ? c.success
-                    : item.availability === 'RENTED' || item.availability === 'SOLD'
-                      ? '#EF4444'
-                      : '#F59E0B',
+                  item.availability === 'AVAILABLE' ? c.success : item.availability === 'RENTED' || item.availability === 'SOLD' ? '#EF4444' : '#F59E0B',
               }}
             />
             <Txt
               v="caption"
               style={{
-                color:
-                  item.availability === 'AVAILABLE'
-                    ? c.success
-                    : item.availability === 'RENTED' || item.availability === 'SOLD'
-                      ? '#EF4444'
-                      : c.muted,
+                color: item.availability === 'AVAILABLE' ? c.success : item.availability === 'RENTED' || item.availability === 'SOLD' ? '#EF4444' : c.muted,
                 fontWeight: '700',
                 fontSize: 11,
               }}
@@ -383,9 +366,7 @@ export function PropertyCard({
           {item.pageNo ? ` · P.${item.pageNo}` : ''}
         </Txt>
 
-        {item.verificationStatus === 'VERIFIED' && (
-          <CheckCircle2 size={16} color={c.success} accessibilityLabel="Source reviewed" />
-        )}
+        {item.verificationStatus === 'VERIFIED' && <CheckCircle2 size={16} color={c.success} accessibilityLabel="Source reviewed" />}
 
         {/* 1-Tap Call Owner */}
         {phone && (
@@ -409,8 +390,8 @@ export function PropertyCard({
           <Pressable
             accessibilityLabel="WhatsApp contact"
             onPress={() =>
-              Linking.openURL(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(propertyShare(item))}`).catch(
-                (error) => toast.error(errorMessage(error)),
+              Linking.openURL(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(propertyShare(item))}`).catch((error) =>
+                toast.error(errorMessage(error)),
               )
             }
             style={{

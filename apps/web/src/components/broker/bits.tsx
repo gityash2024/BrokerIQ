@@ -1,7 +1,16 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Snowflake, Sun } from 'lucide-react';
-import { brokerTeamResponseSchema, type BrokerTeamResponse, LEAD_SOURCE_COLORS, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, type LeadSource, type LeadStage } from '@brokeriq/shared';
+import {
+  brokerTeamResponseSchema,
+  type BrokerTeamResponse,
+  LEAD_SOURCE_COLORS,
+  LEAD_SOURCE_LABELS,
+  LEAD_STAGE_COLORS,
+  LEAD_STAGE_LABELS,
+  type LeadSource,
+  type LeadStage,
+} from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 

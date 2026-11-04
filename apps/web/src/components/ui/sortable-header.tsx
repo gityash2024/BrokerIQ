@@ -22,16 +22,7 @@ export interface SortableThProps<T extends string> {
  * Click 2: Descending (▼)
  * Click 3: Default (Unsorted)
  */
-export function SortableTh<T extends string>({
-  column,
-  sortColumn,
-  sortDirection,
-  onSort,
-  children,
-  align = 'left',
-  className,
-  title,
-}: SortableThProps<T>) {
+export function SortableTh<T extends string>({ column, sortColumn, sortDirection, onSort, children, align = 'left', className, title }: SortableThProps<T>) {
   const isActive = sortColumn === column && sortDirection !== null;
 
   return (

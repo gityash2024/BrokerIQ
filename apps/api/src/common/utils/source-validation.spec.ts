@@ -8,7 +8,10 @@ describe('private source validation', () => {
   });
 
   it('preserves multiple units, normalises contacts and accepts the canonical price', () => {
-    const units = [0, 1].map((floor) => ({ kind: 'INVENTORY', inventory: { sector: 'Sector 42', floor: String(floor), purpose: 'SALE', totalSalePrice: 14000000, contacts: [{ phone: '9898990000', role: 'UNKNOWN' }] } }));
+    const units = [0, 1].map((floor) => ({
+      kind: 'INVENTORY',
+      inventory: { sector: 'Sector 42', floor: String(floor), purpose: 'SALE', totalSalePrice: 14000000, contacts: [{ phone: '9898990000', role: 'UNKNOWN' }] },
+    }));
     const parsed = units.map((unit) => capturedEntitySchema.parse(unit));
     expect(() => assertNoDroppedSourceFields(units, parsed)).not.toThrow();
     expect(parsed[1].inventory?.totalSalePrice).toBe(14000000);
@@ -20,7 +23,9 @@ describe('private source validation', () => {
   });
 
   it('allows a complete repeated source page without reapproving its units', () => {
-    expect(() => assertRepeatedSourcePage([{ groupNo: 1, transcription: 'same source line', ready: false }], [{ rowNo: 1, rawText: 'same source line' }])).not.toThrow();
+    expect(() =>
+      assertRepeatedSourcePage([{ groupNo: 1, transcription: 'same source line', ready: false }], [{ rowNo: 1, rawText: 'same source line' }]),
+    ).not.toThrow();
   });
 
   it('rejects shared-contact lookalikes, incomplete pages and ready duplicates', () => {

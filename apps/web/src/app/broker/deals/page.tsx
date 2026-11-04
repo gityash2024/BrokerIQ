@@ -121,12 +121,26 @@ export default function DealsPage() {
           <table className="w-full min-w-[820px] text-sm">
             <thead className="border-b border-line bg-surface-2/60 text-left text-xs font-bold tracking-wide text-subtle uppercase">
               <tr>
-                <SortableTh column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Deal</SortableTh>
-                <SortableTh column="value" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Value</SortableTh>
-                <SortableTh column="commission" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Commission</SortableTh>
-                <SortableTh column="collected" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Collected</SortableTh>
-                {admin && <SortableTh column="agent" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Agent</SortableTh>}
-                <SortableTh column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Status</SortableTh>
+                <SortableTh column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Deal
+                </SortableTh>
+                <SortableTh column="value" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Value
+                </SortableTh>
+                <SortableTh column="commission" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Commission
+                </SortableTh>
+                <SortableTh column="collected" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Collected
+                </SortableTh>
+                {admin && (
+                  <SortableTh column="agent" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                    Agent
+                  </SortableTh>
+                )}
+                <SortableTh column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
+                  Status
+                </SortableTh>
                 <th className="px-4 py-3" />
               </tr>
             </thead>

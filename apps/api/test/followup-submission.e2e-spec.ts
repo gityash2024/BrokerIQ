@@ -16,7 +16,9 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
   const post = (body: any, actor = agent) => request(app.getHttpServer()).post('/api/follow-ups').set(headers(actor)).send(body);
   beforeAll(async () => {
     const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = mod.createNestApplication(); configureApp(app); await app.listen(0, '127.0.0.1');
+    app = mod.createNestApplication();
+    configureApp(app);
+    await app.listen(0, '127.0.0.1');
     db = app.get(PrismaService);
     org = (await db.organization.create({ data: { name: 'Follow-up submission fixture', slug: 'followup-' + uid } })).id;
     otherOrg = (await db.organization.create({ data: { name: 'Foreign submission fixture', slug: 'foreign-followup-' + uid } })).id;
@@ -24,15 +26,19 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
       const row = await db.user.create({ data: { name, organizationId, role, email: `${name}.${uid}@e2e.test` }, include: { organization: true } });
       return { id: row.id, token: (await app.get(AuthService).issue(row)).accessToken, user: { id: row.id, orgId: organizationId, role, sessionVersion: 0 } };
     };
-    agent = await actor('agent', org, 'BROKER_AGENT'); peer = await actor('peer', org, 'BROKER_AGENT');
-    admin = await actor('admin', org, 'BROKER_ADMIN'); outsider = await actor('outsider', otherOrg, 'BROKER_ADMIN');
+    agent = await actor('agent', org, 'BROKER_AGENT');
+    peer = await actor('peer', org, 'BROKER_AGENT');
+    admin = await actor('admin', org, 'BROKER_ADMIN');
+    outsider = await actor('outsider', otherOrg, 'BROKER_ADMIN');
     lead = (await db.lead.create({ data: { organizationId: org, name: 'Atomic follow-up lead', phone: '+919876543210', assignedToId: agent.id } })).id;
   });
-  afterAll(async () => { await app?.close(); });
+  afterAll(async () => {
+    await app?.close();
+  });
 
   it('commits one task/activity/next pointer across20 concurrent retries and preserves the original response', async () => {
     const results = await Promise.all(Array.from({ length: 20 }, () => post(payload()).expect(201)));
-    expect(new Set(results.map(r => r.body.id)).size).toBe(1);
+    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
     expect(await db.followUp.count({ where: { leadId: lead } })).toBe(1);
     expect(await db.activity.count({ where: { leadId: lead, type: 'FOLLOW_UP' } })).toBe(1);
     expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).nextFollowUpAt?.toISOString()).toBe('2026-12-06T04:30:00.000Z');
@@ -63,7 +69,9 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
     const before = await db.lead.findUniqueOrThrow({ where: { id: lead } });
     const count = await db.followUp.count({ where: { leadId: lead } });
     try {
-      await db.$executeRawUnsafe(`CREATE FUNCTION "${functionName}"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.content LIKE '%atomic-write-failure-${uid}%' THEN RAISE EXCEPTION 'Isolated follow-up activity failure'; END IF; RETURN NEW; END; $$`);
+      await db.$executeRawUnsafe(
+        `CREATE FUNCTION "${functionName}"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.content LIKE '%atomic-write-failure-${uid}%' THEN RAISE EXCEPTION 'Isolated follow-up activity failure'; END IF; RETURN NEW; END; $$`,
+      );
       await db.$executeRawUnsafe(`CREATE TRIGGER "${functionName}" BEFORE INSERT ON "Activity" FOR EACH ROW EXECUTE FUNCTION "${functionName}"()`);
       await post({ ...payload(), clientMutationId: 'failed-' + uid, note: 'atomic-write-failure-' + uid, dueAt: '2026-11-10T10:00:00Z' }).expect(500);
       expect(await db.followUp.count({ where: { leadId: lead } })).toBe(count);
@@ -76,7 +84,8 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
   it('schedules explicit SMS and Email tasks without provider dispatch or fabricated delivery', async () => {
     for (const type of ['SMS', 'EMAIL']) {
       const saved = await post({ ...payload(), type, clientMutationId: `${type}-${uid}`, dueAt: '2026-12-07T10:00:00Z' }).expect(201);
-      expect(saved.body.type).toBe(type); expect(saved.body.status).toBe('PENDING');
+      expect(saved.body.type).toBe(type);
+      expect(saved.body.status).toBe('PENDING');
     }
     expect(await db.message.count({ where: { conversation: { organizationId: org } } })).toBe(0);
   });

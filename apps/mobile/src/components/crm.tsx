@@ -1,6 +1,15 @@
 import { View } from 'react-native';
 import { Flame, Snowflake, Sun } from 'lucide-react-native';
-import { brokerTeamResponseSchema, type BrokerTeamResponse, LEAD_SOURCE_COLORS, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, type LeadSource, type LeadStage } from '@brokeriq/shared';
+import {
+  brokerTeamResponseSchema,
+  type BrokerTeamResponse,
+  LEAD_SOURCE_COLORS,
+  LEAD_SOURCE_LABELS,
+  LEAD_STAGE_COLORS,
+  LEAD_STAGE_LABELS,
+  type LeadSource,
+  type LeadStage,
+} from '@brokeriq/shared';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Badge } from '@/ui';

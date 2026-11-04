@@ -94,7 +94,10 @@ async function main() {
       ? await prisma.sourceEntry.findMany({ where: { batchId: batch.id, pageNo: review.repeatedPageOf, entryKey: { startsWith: 'visual-v1-' } } })
       : null;
     if (repeatedOriginal) {
-      if (review.repeatedPageOf! >= review.pageNo || !metadata.visualReviews?.some((page: any) => page.pageNo === review.repeatedPageOf && !page.repeatedPageOf))
+      if (
+        review.repeatedPageOf! >= review.pageNo ||
+        !metadata.visualReviews?.some((page: any) => page.pageNo === review.repeatedPageOf && !page.repeatedPageOf)
+      )
         throw new Error('Repeated page must refer to an earlier visually reviewed original page');
       assertRepeatedSourcePage(review.groups, repeatedOriginal);
     }
@@ -120,11 +123,13 @@ async function main() {
           ocr: { annotationSha, visualReview: true, sourceImageSha256: review.pageImageSha256, reviewMethod: review.reviewMethod, issues: group.issues },
           extracted: group.entities.map((e) => ({ ...e, warnings: [...e.warnings, ...group.issues] })) as Prisma.InputJsonValue,
           reviewState: repeatedOriginal ? 'DUPLICATE' : 'NEEDS_REVIEW',
-          ...(repeatedOriginal ? {
-            reviewNote: `VISUALLY_CONFIRMED_REPEAT_OF:${repeatedOriginal.find((entry) => entry.rowNo === group.groupNo)!.id}`,
-            reviewedById: reviewer.id,
-            reviewedAt: new Date(),
-          } : {}),
+          ...(repeatedOriginal
+            ? {
+                reviewNote: `VISUALLY_CONFIRMED_REPEAT_OF:${repeatedOriginal.find((entry) => entry.rowNo === group.groupNo)!.id}`,
+                reviewedById: reviewer.id,
+                reviewedAt: new Date(),
+              }
+            : {}),
         })),
       });
       await tx.sourceEntry.updateMany({
@@ -191,7 +196,10 @@ async function main() {
       const pending = await tx.sourceEntry.count({ where: { batchId: batch.id, reviewState: 'NEEDS_REVIEW' } });
       await tx.importBatch.update({
         where: { id: batch.id },
-        data: { status: pending ? 'NEEDS_REVIEW' : 'COMPLETE', metadata: { ...meta, reconciliation: { ...meta.reconciliation, visuallyVerifiedUnits: verified } } },
+        data: {
+          status: pending ? 'NEEDS_REVIEW' : 'COMPLETE',
+          metadata: { ...meta, reconciliation: { ...meta.reconciliation, visuallyVerifiedUnits: verified } },
+        },
       });
       await tx.auditLog.create({
         data: {

@@ -1,6 +1,6 @@
 /**
  * Empirical Challenger M2.2: Comprehensive Stress Test & Bug Discovery Harness
- * 
+ *
  * Target Mission:
  * 1. Multi-tenant and BOLA/IDOR Security (exportKyc, exportTeam, firm isolation)
  * 2. Export Payload & Stream Correctness (.xlsx, .pdf, .csv, formatting, formula injection)
@@ -30,10 +30,7 @@ export interface DateRangeValue {
 }
 
 /** Exact replica of isDateInRange from apps/web/src/components/broker/date-range-filter.tsx */
-export function isDateInRange(
-  dateInput: string | Date | number | null | undefined,
-  value: DateRangeValue,
-): boolean {
+export function isDateInRange(dateInput: string | Date | number | null | undefined, value: DateRangeValue): boolean {
   if (!dateInput) return false;
   if (!value) return true;
   const preset = (value.preset || 'ALL').toUpperCase() as DatePreset;
@@ -151,8 +148,8 @@ describe('Empirical Challenger M2.2 Stress Harness', () => {
       expect(capturedWhere).toBeDefined();
 
       // Check if the query restricted by organizationId
-      const hasOrgConstraint = 
-        capturedWhere.organizationId === 'org_firm_a' || 
+      const hasOrgConstraint =
+        capturedWhere.organizationId === 'org_firm_a' ||
         (capturedWhere.AND && JSON.stringify(capturedWhere).includes('org_firm_a')) ||
         (capturedWhere.OR && JSON.stringify(capturedWhere).includes('org_firm_a')) ||
         capturedWhere.user?.organizationId === 'org_firm_a';
@@ -183,20 +180,7 @@ describe('Empirical Challenger M2.2 Stress Harness', () => {
         email: 'admin@firma.test',
       };
 
-      await controller.exportKyc(
-        'csv',
-        'ALL',
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        mockRes,
-        brokerUser,
-      );
+      await controller.exportKyc('csv', 'ALL', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes, brokerUser);
 
       console.log('  [EMPIRICAL PROBE] exportKyc without ids where clause:', JSON.stringify(capturedWhere));
 
@@ -204,9 +188,8 @@ describe('Empirical Challenger M2.2 Stress Harness', () => {
       // If where clause ONLY specifies organizationId: 'org_firm_a', it misses all agent KYC documents!
       // It should check: OR: [{ organizationId: 'org_firm_a' }, { user: { organizationId: 'org_firm_a' } }]
       // or at least have a mechanism to match agents belonging to the firm.
-      const matchesAgentDocs = 
-        Boolean(capturedWhere.OR?.some((cond: any) => cond.user?.organizationId === 'org_firm_a')) ||
-        capturedWhere.user?.organizationId === 'org_firm_a';
+      const matchesAgentDocs =
+        Boolean(capturedWhere.OR?.some((cond: any) => cond.user?.organizationId === 'org_firm_a')) || capturedWhere.user?.organizationId === 'org_firm_a';
 
       expect(matchesAgentDocs).toBe(true);
     });

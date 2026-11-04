@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  FlatList,
-  Linking,
-  Modal,
-  RefreshControl,
-  ScrollView,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Linking, Modal, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -99,7 +91,7 @@ export default function Inventory() {
   const generateWaMessage = (item: InventoryItem, type: 'owner' | 'client') => {
     const brokerName = user?.name || 'Broker';
     const brokerFirm = user?.organization?.name || 'Real Estate';
-    const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : 'Sir/Ma\'am';
+    const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : "Sir/Ma'am";
     const bhkStr = item.bhk ? `${item.bhk} BHK` : '';
     const floorStr = item.floor ? `${item.floor} Floor` : '';
     const configStr = [bhkStr, floorStr].filter(Boolean).join(' ');
@@ -110,14 +102,16 @@ export default function Inventory() {
     if (type === 'owner') {
       return `Namaste ${owner}, I am ${brokerName} from ${brokerFirm}. Regarding your property in ${item.sector} ${houseStr} (${configStr}, ${item.purpose === 'SALE' ? 'Sale' : 'Rent'}: ₹${priceStr}), is it currently available for deal/visit? Please let me know suitable time for client site visit.`;
     } else {
-      return `🏠 *Verified Property in ${item.sector}*\n` +
+      return (
+        `🏠 *Verified Property in ${item.sector}*\n` +
         `• Unit: ${houseStr}\n` +
         (configStr ? `• Configuration: ${configStr}\n` : '') +
         (item.furnishing ? `• Furnishing: ${furnStr}\n` : '') +
         `• ${item.purpose === 'SALE' ? 'Demand' : 'Rent'}: ₹${priceStr}\n` +
         (item.tenantPreference ? `• Suitable for: ${item.tenantPreference}\n` : '') +
         `• Contact: ${brokerName} (${brokerFirm})\n\n` +
-        `Interested in scheduling a site visit? Reply to this message or call directly.`;
+        `Interested in scheduling a site visit? Reply to this message or call directly.`
+      );
     }
   };
 
@@ -187,14 +181,11 @@ export default function Inventory() {
     enabled: activeTab === 'ledger',
   });
 
-  const saveMutation = useApiMutation(
-    (item: Partial<InventoryItem>) => patch(`/inventory/${item.id}`, item),
-    {
-      success: 'इन्वेंटरी रो अपडेट हो गई',
-      invalidate: [['mobile-inventory']],
-      onSuccess: () => setEditItem(null),
-    }
-  );
+  const saveMutation = useApiMutation((item: Partial<InventoryItem>) => patch(`/inventory/${item.id}`, item), {
+    success: 'इन्वेंटरी रो अपडेट हो गई',
+    invalidate: [['mobile-inventory']],
+    onSuccess: () => setEditItem(null),
+  });
 
   const deleteMutation = useApiMutation((id: string) => del(`/inventory/${id}`), {
     success: 'रो हटा दी गई',
@@ -286,23 +277,31 @@ export default function Inventory() {
             }}
           >
             <View style={{ alignItems: 'center' }}>
-              <Txt v="label" color="muted">Total</Txt>
+              <Txt v="label" color="muted">
+                Total
+              </Txt>
               <Txt v="bodyStrong">{statusCounts.ALL.toLocaleString()}</Txt>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Txt v="label" style={{ color: STATUS_COLORS.DRAFT }}>Draft</Txt>
+              <Txt v="label" style={{ color: STATUS_COLORS.DRAFT }}>
+                Draft
+              </Txt>
               <Txt v="bodyStrong" style={{ color: STATUS_COLORS.DRAFT }}>
                 {statusCounts.DRAFT.toLocaleString()}
               </Txt>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Txt v="label" style={{ color: STATUS_COLORS.ACTIVE }}>Active</Txt>
+              <Txt v="label" style={{ color: STATUS_COLORS.ACTIVE }}>
+                Active
+              </Txt>
               <Txt v="bodyStrong" style={{ color: STATUS_COLORS.ACTIVE }}>
                 {statusCounts.ACTIVE.toLocaleString()}
               </Txt>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Txt v="label" style={{ color: STATUS_COLORS.RENTED }}>Rented</Txt>
+              <Txt v="label" style={{ color: STATUS_COLORS.RENTED }}>
+                Rented
+              </Txt>
               <Txt v="bodyStrong" style={{ color: STATUS_COLORS.RENTED }}>
                 {statusCounts.RENTED.toLocaleString()}
               </Txt>
@@ -349,11 +348,7 @@ export default function Inventory() {
           </View>
 
           {/* Filter Chips: Status */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 6 }}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 6 }}>
             <Chip
               label={`All (${statusCounts.ALL})`}
               active={status === ''}
@@ -393,11 +388,7 @@ export default function Inventory() {
 
           {/* Filter Chips: Sectors */}
           {sectorsQuery.data && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 6 }}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 6 }}>
               <Chip
                 label="All Sectors"
                 active={sector === ''}
@@ -421,11 +412,7 @@ export default function Inventory() {
           )}
 
           {/* Filter Chips: BHK */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 6 }}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 6 }}>
             <Chip
               label="All BHK"
               active={bhk === ''}
@@ -455,21 +442,13 @@ export default function Inventory() {
               <Skeleton style={{ height: 100, borderRadius: 16 }} />
             </View>
           ) : !data?.items?.length ? (
-            <Empty
-              title="कोई लेजर रिकॉर्ड नहीं मिला"
-              text="फिल्टर बदलें या AI Scanner से नए पेज स्कैन करें।"
-            />
+            <Empty title="कोई लेजर रिकॉर्ड नहीं मिला" text="फिल्टर बदलें या AI Scanner से नए पेज स्कैन करें।" />
           ) : (
             <FlatList
               data={data.items}
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 60 }}
-              refreshControl={
-                <RefreshControl
-                  refreshing={inventoryQuery.isRefetching}
-                  onRefresh={() => inventoryQuery.refetch()}
-                />
-              }
+              refreshControl={<RefreshControl refreshing={inventoryQuery.isRefetching} onRefresh={() => inventoryQuery.refetch()} />}
               renderItem={({ item, index }) => (
                 <Card style={{ padding: 14 }}>
                   {/* Row 1: Sector, House No, Page No, Status Badge */}
@@ -510,10 +489,7 @@ export default function Inventory() {
                         borderRadius: 8,
                       }}
                     >
-                      <Txt
-                        v="caption"
-                        style={{ color: STATUS_COLORS[item.status], fontWeight: '700' }}
-                      >
+                      <Txt v="caption" style={{ color: STATUS_COLORS[item.status], fontWeight: '700' }}>
                         {STATUS_LABELS[item.status]}
                       </Txt>
                     </View>
@@ -608,10 +584,7 @@ export default function Inventory() {
                     {/* Action buttons */}
                     <Row style={{ gap: 6 }}>
                       {/* WhatsApp pitch icon */}
-                      <IconBtn
-                        onPress={() => openWaDialog(item, 'client')}
-                        style={{ width: 32, height: 32, backgroundColor: '#25D36620' }}
-                      >
+                      <IconBtn onPress={() => openWaDialog(item, 'client')} style={{ width: 32, height: 32, backgroundColor: '#25D36620' }}>
                         <MessageCircle size={15} color="#25D366" />
                       </IconBtn>
 
@@ -637,10 +610,7 @@ export default function Inventory() {
                         />
                       )}
 
-                      <IconBtn
-                        onPress={() => setEditItem(item)}
-                        style={{ width: 32, height: 32, backgroundColor: c.surface2 }}
-                      >
+                      <IconBtn onPress={() => setEditItem(item)} style={{ width: 32, height: 32, backgroundColor: c.surface2 }}>
                         <Pencil size={14} color={c.fg} />
                       </IconBtn>
 
@@ -674,33 +644,16 @@ export default function Inventory() {
                 borderTopColor: c.line,
               }}
             >
-              <Button
-                size="sm"
-                variant="secondary"
-                title="Prev"
-                disabled={page <= 1}
-                onPress={() => setPage((p) => Math.max(1, p - 1))}
-              />
+              <Button size="sm" variant="secondary" title="Prev" disabled={page <= 1} onPress={() => setPage((p) => Math.max(1, p - 1))} />
               <Txt v="caption" color="muted">
                 Page {page} of {data.totalPages} ({data.total} items)
               </Txt>
-              <Button
-                size="sm"
-                variant="secondary"
-                title="Next"
-                disabled={page >= data.totalPages}
-                onPress={() => setPage((p) => p + 1)}
-              />
+              <Button size="sm" variant="secondary" title="Next" disabled={page >= data.totalPages} onPress={() => setPage((p) => p + 1)} />
             </Row>
           )}
 
           {/* Quick Edit Modal */}
-          <Modal
-            visible={Boolean(editItem)}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setEditItem(null)}
-          >
+          <Modal visible={Boolean(editItem)} transparent animationType="slide" onRequestClose={() => setEditItem(null)}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
               <View
                 style={{
@@ -720,7 +673,9 @@ export default function Inventory() {
 
                 {editItem && (
                   <ScrollView showsVerticalScrollIndicator={false}>
-                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>Sector</Txt>
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      Sector
+                    </Txt>
                     <TextInput
                       style={{
                         backgroundColor: c.surface2,
@@ -733,7 +688,9 @@ export default function Inventory() {
                       onChangeText={(t) => setEditItem({ ...editItem, sector: t })}
                     />
 
-                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>House No</Txt>
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      House No
+                    </Txt>
                     <TextInput
                       style={{
                         backgroundColor: c.surface2,
@@ -746,7 +703,9 @@ export default function Inventory() {
                       onChangeText={(t) => setEditItem({ ...editItem, houseNo: t })}
                     />
 
-                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>Rent (₹)</Txt>
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      Rent (₹)
+                    </Txt>
                     <TextInput
                       keyboardType="numeric"
                       style={{
@@ -760,7 +719,9 @@ export default function Inventory() {
                       onChangeText={(t) => setEditItem({ ...editItem, rent: Number(t) || null })}
                     />
 
-                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>Floor</Txt>
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      Floor
+                    </Txt>
                     <TextInput
                       style={{
                         backgroundColor: c.surface2,
@@ -773,7 +734,9 @@ export default function Inventory() {
                       onChangeText={(t) => setEditItem({ ...editItem, floor: t })}
                     />
 
-                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>Owner Phone</Txt>
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      Owner Phone
+                    </Txt>
                     <TextInput
                       keyboardType="phone-pad"
                       style={{
@@ -787,7 +750,9 @@ export default function Inventory() {
                       onChangeText={(t) => setEditItem({ ...editItem, ownerPhone: t })}
                     />
 
-                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>Notes</Txt>
+                    <Txt v="caption" color="muted" style={{ marginBottom: 4 }}>
+                      Notes
+                    </Txt>
                     <TextInput
                       multiline
                       numberOfLines={3}
@@ -803,12 +768,7 @@ export default function Inventory() {
                       onChangeText={(t) => setEditItem({ ...editItem, notes: t })}
                     />
 
-                    <Button
-                      size="lg"
-                      title="Save Changes"
-                      loading={saveMutation.isPending}
-                      onPress={() => editItem && saveMutation.mutate(editItem)}
-                    />
+                    <Button size="lg" title="Save Changes" loading={saveMutation.isPending} onPress={() => editItem && saveMutation.mutate(editItem)} />
                   </ScrollView>
                 )}
               </View>
@@ -816,12 +776,7 @@ export default function Inventory() {
           </Modal>
 
           {/* Dynamic WhatsApp Action Modal */}
-          <Modal
-            visible={Boolean(waItem)}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setWaItem(null)}
-          >
+          <Modal visible={Boolean(waItem)} transparent animationType="slide" onRequestClose={() => setWaItem(null)}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
               <View
                 style={{
@@ -852,7 +807,8 @@ export default function Inventory() {
                         House {waItem.houseNo}, {waItem.sector}
                       </Txt>
                       <Txt v="caption" color="muted">
-                        {waItem.bhk ? `${waItem.bhk} BHK` : ''} {waItem.floor ? `· ${waItem.floor}` : ''} · {waItem.rent ? `${formatINR(waItem.rent)}/mo` : 'Price N/A'}
+                        {waItem.bhk ? `${waItem.bhk} BHK` : ''} {waItem.floor ? `· ${waItem.floor}` : ''} ·{' '}
+                        {waItem.rent ? `${formatINR(waItem.rent)}/mo` : 'Price N/A'}
                         {waItem.ownerPhone ? ` · Owner: ${waItem.ownerPhone}` : ''}
                       </Txt>
                     </Card>

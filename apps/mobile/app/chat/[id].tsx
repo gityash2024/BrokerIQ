@@ -70,7 +70,7 @@ export default function ChatScreen() {
   useEffect(() => {
     setTimeout(() => list.current?.scrollToEnd({ animated: true }), 100);
   }, [q.data?.items?.length]);
-  const mine = (m: any) => (m.senderUserId ? m.senderUserId === user?.id : (isBroker ? m.direction === 'OUTBOUND' : m.direction === 'INBOUND'));
+  const mine = (m: any) => (m.senderUserId ? m.senderUserId === user?.id : isBroker ? m.direction === 'OUTBOUND' : m.direction === 'INBOUND');
   const send = async () => {
     const t = text.trim();
     if (!t) return;

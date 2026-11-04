@@ -1,7 +1,7 @@
 /**
  * Tier 5 — Adversarial Coverage Hardening E2E Suite
  * Role: Milestone 4 Tier 5 Adversarial Hardening Challenger
- * 
+ *
  * Comprehensive empirical stress testing covering all 5 focus areas:
  * 1. Concurrent punch-in / punch-out race conditions
  * 2. Time-travel & timezone boundaries (IST midnight transitions, DST, leap year)
@@ -13,12 +13,7 @@
 import { test, before, after, beforeEach } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { E2EClient } from '../harness/client';
-import {
-  assertCsvValid,
-  assertPdfValid,
-  assertExcelValid,
-  assertTimelineChronological,
-} from '../harness/assertions';
+import { assertCsvValid, assertPdfValid, assertExcelValid, assertTimelineChronological } from '../harness/assertions';
 import { createExcelReport } from '../../../apps/api/src/common/excel';
 import { generateCsv } from '../../../apps/api/src/common/csv';
 import { renderPdf, pdfTable, pdfText } from '../../../apps/api/src/common/pdf';
@@ -52,24 +47,14 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
       const agentToken = 'agent_concurrency_test_1';
       const coords = { latitude: 28.4595, longitude: 77.0266, address: 'DLF CyberCity' };
 
-      const promises = Array.from({ length: 10 }, () =>
-        client.punchIn(coords, agentToken)
-      );
+      const promises = Array.from({ length: 10 }, () => client.punchIn(coords, agentToken));
 
       const results = await Promise.all(promises);
       const successes = results.filter((r) => r.status === 201);
       const conflicts = results.filter((r) => r.status === 409);
 
-      assert.strictEqual(
-        successes.length,
-        1,
-        `Expected exactly 1 punch-in to succeed (201), got ${successes.length}`
-      );
-      assert.strictEqual(
-        conflicts.length,
-        9,
-        `Expected 9 punch-ins to be rejected with 409 Conflict, got ${conflicts.length}`
-      );
+      assert.strictEqual(successes.length, 1, `Expected exactly 1 punch-in to succeed (201), got ${successes.length}`);
+      assert.strictEqual(conflicts.length, 9, `Expected 9 punch-ins to be rejected with 409 Conflict, got ${conflicts.length}`);
 
       // Verify simulator has only 1 active shift for this agent
       const statusRes = await client.getShiftStatus(agentToken);
@@ -85,24 +70,14 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
       const inRes = await client.punchIn({ latitude: 28.4595, longitude: 77.0266 }, agentToken);
       assert.strictEqual(inRes.status, 201);
 
-      const punchOutPromises = Array.from({ length: 5 }, () =>
-        client.punchOut({ latitude: 28.46, longitude: 77.03 }, agentToken)
-      );
+      const punchOutPromises = Array.from({ length: 5 }, () => client.punchOut({ latitude: 28.46, longitude: 77.03 }, agentToken));
 
       const results = await Promise.all(punchOutPromises);
       const successes = results.filter((r) => r.status === 200);
       const errors = results.filter((r) => r.status === 400);
 
-      assert.strictEqual(
-        successes.length,
-        1,
-        `Expected exactly 1 punch-out to succeed (200), got ${successes.length}`
-      );
-      assert.strictEqual(
-        errors.length,
-        4,
-        `Expected 4 punch-outs to return 400 Bad Request, got ${errors.length}`
-      );
+      assert.strictEqual(successes.length, 1, `Expected exactly 1 punch-out to succeed (200), got ${successes.length}`);
+      assert.strictEqual(errors.length, 4, `Expected 4 punch-outs to return 400 Bad Request, got ${errors.length}`);
 
       const statusRes = await client.getShiftStatus(agentToken);
       assert.strictEqual(statusRes.body.activeShift, null);
@@ -123,8 +98,8 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
               longitude: 77.03 + i * 0.001,
               address: `Concurrent Checkpoint ${i + 1}`,
             },
-            agentToken
-          )
+            agentToken,
+          ),
         );
 
         const results = await Promise.all(checkpointPromises);
@@ -264,11 +239,7 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
       const victimAgentId = 'agent_amit'; // Belongs to Firm B
 
       const res = await client.getTimeline(victimAgentId, '2026-10-31', tokenFirmA);
-      assert.strictEqual(
-        res.status,
-        403,
-        `Expected 403 Forbidden for cross-tenant timeline access, got ${res.status}`
-      );
+      assert.strictEqual(res.status, 403, `Expected 403 Forbidden for cross-tenant timeline access, got ${res.status}`);
     });
 
     await t2.test('T5.3.4: History BOLA: Broker Admin of Firm A blocked with 403 from viewing GPS history of agent in Firm B', async () => {
@@ -276,11 +247,7 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
       const victimAgentId = 'agent_amit'; // Belongs to Firm B
 
       const res = await client.getHistory(victimAgentId, '2026-10-31', tokenFirmA);
-      assert.strictEqual(
-        res.status,
-        403,
-        `Expected 403 Forbidden for cross-tenant GPS history access, got ${res.status}`
-      );
+      assert.strictEqual(res.status, 403, `Expected 403 Forbidden for cross-tenant GPS history access, got ${res.status}`);
     });
 
     await t2.test('T5.3.5: Shift Status BOLA: Broker Admin of Firm A blocked with 403 from viewing status of agent in Firm B', async () => {
@@ -288,11 +255,7 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
       const victimAgentId = 'agent_amit'; // Belongs to Firm B
 
       const res = await client.getShiftStatus(tokenFirmA, victimAgentId);
-      assert.strictEqual(
-        res.status,
-        403,
-        `Expected 403 Forbidden for cross-tenant shift status access, got ${res.status}`
-      );
+      assert.strictEqual(res.status, 403, `Expected 403 Forbidden for cross-tenant shift status access, got ${res.status}`);
     });
 
     await t2.test('T5.3.6: Summary BOLA: Broker Admin of Firm A specifying brokerId=org_elite_realty is strictly scoped to Firm A', async () => {
@@ -306,7 +269,7 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
       assert.ok(res.body.agents.length > 0);
       assert.ok(
         res.body.agents.every((a) => a.id !== 'agent_amit' && a.id !== 'agent_neha'),
-        'Firm B agents must not appear in Firm A summary report'
+        'Firm B agents must not appear in Firm A summary report',
       );
     });
   });
@@ -317,20 +280,14 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
   await t.test('4. Hardware Flapping Stress: Rapid GPS Signal Transitions', async (t2) => {
     await t2.test('T5.4.1: 10 rapid alternating pause and auto-resume transitions survive without state corruption', async () => {
       const agentToken = 'agent_flapping_stress_token';
-      const inRes = await client.punchIn(
-        { latitude: 28.4595, longitude: 77.0266, address: 'CyberCity Base' },
-        agentToken
-      );
+      const inRes = await client.punchIn({ latitude: 28.4595, longitude: 77.0266, address: 'CyberCity Base' }, agentToken);
       assert.strictEqual(inRes.status, 201);
       const shiftId = inRes.body.shift.id;
 
       try {
         for (let i = 0; i < 10; i++) {
           // GPS signal lost -> pause
-          const p = await client.pauseShift(
-            { shiftId, reason: `FLAPPING_LOSS_${i}` },
-            agentToken
-          );
+          const p = await client.pauseShift({ shiftId, reason: `FLAPPING_LOSS_${i}` }, agentToken);
           assert.strictEqual(p.status, 200);
           assert.strictEqual(p.body.status, 'PAUSED');
 
@@ -342,17 +299,14 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
               longitude: 77.03 + i * 0.001,
               address: `Flapping Restored Point ${i}`,
             },
-            agentToken
+            agentToken,
           );
           assert.strictEqual(r.status, 200);
           assert.strictEqual(r.body.status, 'ACTIVE');
         }
 
         // Final punch out
-        const out = await client.punchOut(
-          { latitude: 28.48, longitude: 77.05, address: 'Final Destination' },
-          agentToken
-        );
+        const out = await client.punchOut({ latitude: 28.48, longitude: 77.05, address: 'Final Destination' }, agentToken);
         assert.strictEqual(out.status, 200);
         assert.strictEqual(out.body.status, 'COMPLETED');
         assert.ok(out.body.totalMinutes >= 1);
@@ -471,7 +425,7 @@ test('Tier 5: Adversarial Coverage Hardening Suite', async (t) => {
           const headers = ['#', 'Agent Name', 'Role', 'Document', 'Number', 'Status', 'Date'];
           pdfTable(doc, headers, testRows);
         },
-        { layout: 'landscape', size: 'A4', margin: 36 }
+        { layout: 'landscape', size: 'A4', margin: 36 },
       );
       const durationMs = Date.now() - t0;
 

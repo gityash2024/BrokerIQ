@@ -2,7 +2,7 @@
  * ==============================================================================
  * BrokerIQ Milestone 2 Empirical Adversarial Challenge Suite
  * Author: Challenger M2.1 (teamwork_challenger)
- * 
+ *
  * Target Milestone: Milestone 2: Web Frontend Filtering, Multi-Format Export,
  * Sidebar Sub-Dropdown Navigation, and Time Logging Dashboard
  * ==============================================================================
@@ -87,7 +87,7 @@ async function runEmpiricalChallenge() {
     // In JS Date.UTC(2026, 9, 0) is 2026-09-30 (September 30th)
     const oct1StartUtc = Date.UTC(2026, 9, 1, 0, 0, 0, 0) - IST_OFFSET_MS;
     const sep30EndUtc = Date.UTC(2026, 9, 0, 23, 59, 59, 999) - IST_OFFSET_MS;
-    
+
     // Difference between Oct 1 00:00:00 IST and Sep 30 23:59:59.999 IST must be exactly 1 ms
     assert.equal(oct1StartUtc - sep30EndUtc, 1, 'Date.UTC normalization across month boundaries must have 1ms diff');
 
@@ -99,12 +99,7 @@ async function runEmpiricalChallenge() {
   });
 
   await test('DateBoundaries', 'Client isDateInRange aligns 100% with Backend resolveDateRange', () => {
-    const presets: Array<'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'THIS_MONTH'> = [
-      'TODAY',
-      'YESTERDAY',
-      'LAST_7_DAYS',
-      'THIS_MONTH',
-    ];
+    const presets: Array<'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'THIS_MONTH'> = ['TODAY', 'YESTERDAY', 'LAST_7_DAYS', 'THIS_MONTH'];
 
     for (const preset of presets) {
       const clientVal: DateRangeValue = { preset };
@@ -117,29 +112,13 @@ async function runEmpiricalChallenge() {
       const endMs = backendRange.endDate!.getTime();
 
       // Test exact start boundary
-      assert.equal(
-        isDateInRange(startMs, clientVal),
-        true,
-        `Client isDateInRange must include backend startDate for ${preset}`,
-      );
+      assert.equal(isDateInRange(startMs, clientVal), true, `Client isDateInRange must include backend startDate for ${preset}`);
       // Test 1ms before start
-      assert.equal(
-        isDateInRange(startMs - 1, clientVal),
-        false,
-        `Client isDateInRange must reject 1ms before backend startDate for ${preset}`,
-      );
+      assert.equal(isDateInRange(startMs - 1, clientVal), false, `Client isDateInRange must reject 1ms before backend startDate for ${preset}`);
       // Test exact end boundary
-      assert.equal(
-        isDateInRange(endMs, clientVal),
-        true,
-        `Client isDateInRange must include backend endDate for ${preset}`,
-      );
+      assert.equal(isDateInRange(endMs, clientVal), true, `Client isDateInRange must include backend endDate for ${preset}`);
       // Test 1ms after end
-      assert.equal(
-        isDateInRange(endMs + 1, clientVal),
-        false,
-        `Client isDateInRange must reject 1ms after backend endDate for ${preset}`,
-      );
+      assert.equal(isDateInRange(endMs + 1, clientVal), false, `Client isDateInRange must reject 1ms after backend endDate for ${preset}`);
     }
   });
 
@@ -273,7 +252,10 @@ async function runEmpiricalChallenge() {
       searchQuery: '',
       dateRange: { preset: 'ALL' },
     });
-    assert.deepEqual(f1.map((m) => m.id), ['m1', 'm3']);
+    assert.deepEqual(
+      f1.map((m) => m.id),
+      ['m1', 'm3'],
+    );
 
     // 2 Filters: status = VERIFIED AND role = BROKER_AGENT -> only m1
     const f2 = applyKycFilters(mockMembers, {
@@ -283,7 +265,10 @@ async function runEmpiricalChallenge() {
       searchQuery: '',
       dateRange: { preset: 'ALL' },
     });
-    assert.deepEqual(f2.map((m) => m.id), ['m1']);
+    assert.deepEqual(
+      f2.map((m) => m.id),
+      ['m1'],
+    );
 
     // 3 Filters: status = VERIFIED AND role = BROKER_AGENT AND search = 'sharma' -> m1
     const f3 = applyKycFilters(mockMembers, {
@@ -293,7 +278,10 @@ async function runEmpiricalChallenge() {
       searchQuery: 'sharma',
       dateRange: { preset: 'ALL' },
     });
-    assert.deepEqual(f3.map((m) => m.id), ['m1']);
+    assert.deepEqual(
+      f3.map((m) => m.id),
+      ['m1'],
+    );
 
     // 4 Filters: dateRange = TODAY -> m1 matches because m1 createdAt is now
     const f4 = applyKycFilters(mockMembers, {
@@ -303,7 +291,10 @@ async function runEmpiricalChallenge() {
       searchQuery: 'sharma',
       dateRange: { preset: 'TODAY' },
     });
-    assert.deepEqual(f4.map((m) => m.id), ['m1']);
+    assert.deepEqual(
+      f4.map((m) => m.id),
+      ['m1'],
+    );
 
     // 5 Filters: agentFilter = m2 -> should return empty because m1.id !== m2
     const f5 = applyKycFilters(mockMembers, {
@@ -393,7 +384,7 @@ async function runEmpiricalChallenge() {
         if (filters.statusFilter !== 'ALL' && m.status !== filters.statusFilter) return false;
 
         const loc = m.lastLocation;
-        const isLive = loc && (Date.now() - new Date((loc as any).updatedAt || loc.capturedAt).getTime() <= 30 * 60 * 1000);
+        const isLive = loc && Date.now() - new Date((loc as any).updatedAt || loc.capturedAt).getTime() <= 30 * 60 * 1000;
         if (filters.locationFilter === 'LIVE' && !isLive) return false;
         if (filters.locationFilter === 'OFFLINE' && isLive) return false;
 
@@ -440,7 +431,10 @@ async function runEmpiricalChallenge() {
       searchQuery: '',
     });
     // t1 (10m ago) and t2 (29m ago) are LIVE. t3 (31m ago) and t4 (null) are OFFLINE
-    assert.deepEqual(liveMembers.map((m) => m.id), ['t1', 't2']);
+    assert.deepEqual(
+      liveMembers.map((m) => m.id),
+      ['t1', 't2'],
+    );
 
     // Test Offline filter
     const offlineMembers = applyTeamFilters(mockTeam, {
@@ -452,7 +446,10 @@ async function runEmpiricalChallenge() {
       dateRange: { preset: 'ALL' },
       searchQuery: '',
     });
-    assert.deepEqual(offlineMembers.map((m) => m.id), ['t3', 't4']);
+    assert.deepEqual(
+      offlineMembers.map((m) => m.id),
+      ['t3', 't4'],
+    );
 
     // Test 7-filter combination:
     // role: BROKER_AGENT, status: ACTIVE, location: LIVE, kyc: VERIFIED, dateRange: TODAY, search: 'amit', agent: t1
@@ -465,7 +462,10 @@ async function runEmpiricalChallenge() {
       dateRange: { preset: 'TODAY' },
       searchQuery: 'amit',
     });
-    assert.deepEqual(combo.map((m) => m.id), ['t1']);
+    assert.deepEqual(
+      combo.map((m) => m.id),
+      ['t1'],
+    );
   });
 
   // ============================================================================
@@ -477,10 +477,8 @@ async function runEmpiricalChallenge() {
     const filteredMembers = [{ id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }];
     let selectedIds = new Set<string>();
 
-    const isAllFilteredSelected = () =>
-      filteredMembers.length > 0 && filteredMembers.every((m) => selectedIds.has(m.id));
-    const isSomeFilteredSelected = () =>
-      filteredMembers.some((m) => selectedIds.has(m.id)) && !isAllFilteredSelected();
+    const isAllFilteredSelected = () => filteredMembers.length > 0 && filteredMembers.every((m) => selectedIds.has(m.id));
+    const isSomeFilteredSelected = () => filteredMembers.some((m) => selectedIds.has(m.id)) && !isAllFilteredSelected();
 
     // 0 selected
     assert.equal(isAllFilteredSelected(), false);
@@ -505,11 +503,7 @@ async function runEmpiricalChallenge() {
 
   await test('ExportToolbar', 'Query parameter construction: ids= takes priority over filters', () => {
     // Emulate export-toolbar.tsx lines 62-74
-    function buildExportParams(
-      format: 'xlsx' | 'pdf' | 'csv',
-      selectedIds?: string[],
-      filters?: Record<string, unknown>,
-    ) {
+    function buildExportParams(format: 'xlsx' | 'pdf' | 'csv', selectedIds?: string[], filters?: Record<string, unknown>) {
       const hasSelection = Boolean(selectedIds && selectedIds.length > 0);
       const params: Record<string, unknown> = { format };
 
@@ -676,8 +670,8 @@ async function runEmpiricalChallenge() {
   await test('TimeLoggingMap', 'MapPoint waypoint indexing and coordinates polyline', () => {
     const historyPoints = [
       { id: 'p1', latitude: 28.4595, longitude: 77.0266, capturedAt: '2026-10-31T09:00:00.000Z', address: 'Cyber City' },
-      { id: 'p2', latitude: 28.4650, longitude: 77.0300, capturedAt: '2026-10-31T09:15:00.000Z', address: 'Golf Course Rd' },
-      { id: 'p3', latitude: 28.4700, longitude: 77.0350, capturedAt: '2026-10-31T09:30:00.000Z', address: 'Sector 54' },
+      { id: 'p2', latitude: 28.465, longitude: 77.03, capturedAt: '2026-10-31T09:15:00.000Z', address: 'Golf Course Rd' },
+      { id: 'p3', latitude: 28.47, longitude: 77.035, capturedAt: '2026-10-31T09:30:00.000Z', address: 'Sector 54' },
     ];
 
     // Replicate mapping in apps/web/src/app/broker/team/time-logging/page.tsx:205-220
@@ -696,26 +690,17 @@ async function runEmpiricalChallenge() {
     const polylineCoords = historyPoints.map((p) => [p.latitude, p.longitude]);
     assert.equal(polylineCoords.length, 3);
     assert.deepEqual(polylineCoords[0], [28.4595, 77.0266]);
-    assert.deepEqual(polylineCoords[2], [28.4700, 77.0350]);
+    assert.deepEqual(polylineCoords[2], [28.47, 77.035]);
   });
 
   await test('SSR Safety', 'Dynamic import configuration has ssr: false', async () => {
     // Read the time-logging page source and verify `ssr: false` is configured for the map
     const fs = await import('node:fs');
     const path = await import('node:path');
-    const pageContent = fs.readFileSync(
-      path.resolve(__dirname, '../../apps/web/src/app/broker/team/time-logging/page.tsx'),
-      'utf-8',
-    );
+    const pageContent = fs.readFileSync(path.resolve(__dirname, '../../apps/web/src/app/broker/team/time-logging/page.tsx'), 'utf-8');
 
-    assert.ok(
-      pageContent.includes('ssr: false'),
-      'Time logging page must specify ssr: false for dynamic map import',
-    );
-    assert.ok(
-      pageContent.includes('dynamic('),
-      'Time logging page must use dynamic import for map',
-    );
+    assert.ok(pageContent.includes('ssr: false'), 'Time logging page must specify ssr: false for dynamic map import');
+    assert.ok(pageContent.includes('dynamic('), 'Time logging page must use dynamic import for map');
   });
 
   // ============================================================================
@@ -734,9 +719,11 @@ async function runEmpiricalChallenge() {
 
   if (failedCount > 0) {
     console.error('\n❌ FAILURES DETECTED:');
-    results.filter((r) => r.status === 'FAIL').forEach((r) => {
-      console.error(`  - [${r.category}] ${r.name}: ${r.error}`);
-    });
+    results
+      .filter((r) => r.status === 'FAIL')
+      .forEach((r) => {
+        console.error(`  - [${r.category}] ${r.name}: ${r.error}`);
+      });
     process.exit(1);
   } else {
     console.log('\n🎉 ALL EMPIRICAL CHALLENGES PASSED WITH ZERO FAILURES!\n');

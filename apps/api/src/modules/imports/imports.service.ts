@@ -58,9 +58,13 @@ function previewParent(metadata: Prisma.JsonValue) {
 
 function canPreview(batch: { status: string; sourceType: string; mediaRef: string | null; metadata: Prisma.JsonValue; fileName: string | null }) {
   const type = (batch.metadata as { contentType?: string } | null)?.contentType;
-  return !previewParent(batch.metadata) && ['NEEDS_REVIEW', 'COMPLETE'].includes(batch.status) &&
-    batch.sourceType === 'CHAT_EXPORT' && !!batch.mediaRef &&
-    (type === 'application/zip' || (!type && /\.zip$/i.test(batch.fileName ?? '')));
+  return (
+    !previewParent(batch.metadata) &&
+    ['NEEDS_REVIEW', 'COMPLETE'].includes(batch.status) &&
+    batch.sourceType === 'CHAT_EXPORT' &&
+    !!batch.mediaRef &&
+    (type === 'application/zip' || (!type && /\.zip$/i.test(batch.fileName ?? '')))
+  );
 }
 
 const arraySchema = z.array(capturedEntitySchema).max(100);
@@ -115,7 +119,10 @@ export class ImportsService {
     ]);
     return {
       items: items.map(({ metadata, ...item }) => ({ ...item, previewOfImportId: previewParent(metadata) })),
-      total, page, pageSize: 30, totalPages: Math.ceil(total / 30),
+      total,
+      page,
+      pageSize: 30,
+      totalPages: Math.ceil(total / 30),
     };
   }
   async get(id: string, user: RequestUser, page = 1, sourcePage?: number, reviewState?: string) {
@@ -145,7 +152,11 @@ export class ImportsService {
       canPreview: canPreview(batch),
       rawText: batch.rawText?.slice(0, 20000),
       entries: entries.map((entry) => ({ ...entry, ocr: reviewProvenance(entry.ocr) })),
-      total, pending, page, pageSize: 50, totalPages: Math.ceil(total / 50),
+      total,
+      pending,
+      page,
+      pageSize: 50,
+      totalPages: Math.ceil(total / 50),
     };
   }
   async capture(input: z.infer<typeof captureInputSchema>, user: RequestUser) {
@@ -439,20 +450,41 @@ export class ImportsService {
           if (entity.kind === 'REQUIREMENT' && !entity.requirement) throw new BadRequestException('Requirement fields required');
           const parsed = entity.kind === 'INVENTORY' ? offeredRequirement(entity.inventory!) : brokerRequirementSchema.parse(entity.requirement);
           const { expectedRevision: _revision, organizationId: _organization, clientMutationId: _mutation, offerDetails, ...data } = parsed;
-          if (data.leadId && !(await tx.lead.findFirst({ where: { id:data.leadId, organizationId:entry.batch.organizationId, deletedAt:null, ...(user.role==='BROKER_AGENT'?{assignedToId:user.id}:{}) } })))
+          if (
+            data.leadId &&
+            !(await tx.lead.findFirst({
+              where: {
+                id: data.leadId,
+                organizationId: entry.batch.organizationId,
+                deletedAt: null,
+                ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
+              },
+            }))
+          )
             throw new ForbiddenException('Lead is not accessible');
           await tx.brokerRequirement.upsert({
             where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
             create: {
               ...data,
-              ...(offerDetails ? {offerDetails:offerDetails as Prisma.InputJsonValue} : {}),
-              organizationId:entry.batch.organizationId,
-              createdById:entry.batch.createdById,
-              assignedToId:user.role==='BROKER_AGENT'?user.id:null,
-              sourceEntryId:entry.id, sourceUnitKey,
-              provenance:{rawText:entry.rawText, sourceType:entry.batch.sourceType, fileName:entry.batch.fileName, groupName:entry.batch.groupName, senderName:entry.batch.senderName, senderPhone:entry.batch.senderPhone, message:reviewProvenance(entry.ocr), reviewedAt:new Date().toISOString(), reviewedById:user.id} as Prisma.InputJsonValue,
+              ...(offerDetails ? { offerDetails: offerDetails as Prisma.InputJsonValue } : {}),
+              organizationId: entry.batch.organizationId,
+              createdById: entry.batch.createdById,
+              assignedToId: user.role === 'BROKER_AGENT' ? user.id : null,
+              sourceEntryId: entry.id,
+              sourceUnitKey,
+              provenance: {
+                rawText: entry.rawText,
+                sourceType: entry.batch.sourceType,
+                fileName: entry.batch.fileName,
+                groupName: entry.batch.groupName,
+                senderName: entry.batch.senderName,
+                senderPhone: entry.batch.senderPhone,
+                message: reviewProvenance(entry.ocr),
+                reviewedAt: new Date().toISOString(),
+                reviewedById: user.id,
+              } as Prisma.InputJsonValue,
             },
-            update:{},
+            update: {},
           });
         }
       }

@@ -118,26 +118,34 @@ export default function Drafts() {
                           ? '/inbox'
                           : item.kind === 'FOLLOW_UP_CREATE' || item.kind === 'SITE_VISIT_CREATE'
                             ? `/lead/${item.draft_key}`
-                          : item.kind.startsWith('PROPERTY')
-                            ? `/inventory/${item.server_id}`
-                            : ('/requirements' as any),
+                            : item.kind.startsWith('PROPERTY')
+                              ? `/inventory/${item.server_id}`
+                              : ('/requirements' as any),
                   )
                 }
               />
             )}
-            {(item.state === 'FAILED' || (item.state === 'DRAFT' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind))) &&
-              <Button title="Retry" size="sm" onPress={() => retry(item.id)} />}
-            {item.state === 'FAILED' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && (
-              <Button title="Set aside and keep draft" variant="secondary" size="sm" onPress={async () => {
-                try {
-                  await holdFailedTask(item.id);
-                  await list.refetch();
-                } catch (failure) {
-                  setError(errorMessage(failure));
-                }
-              }} />
+            {(item.state === 'FAILED' || (item.state === 'DRAFT' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind))) && (
+              <Button title="Retry" size="sm" onPress={() => retry(item.id)} />
             )}
-            {['DRAFT', 'FAILED'].includes(item.state) && !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />}
+            {item.state === 'FAILED' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && (
+              <Button
+                title="Set aside and keep draft"
+                variant="secondary"
+                size="sm"
+                onPress={async () => {
+                  try {
+                    await holdFailedTask(item.id);
+                    await list.refetch();
+                  } catch (failure) {
+                    setError(errorMessage(failure));
+                  }
+                }}
+              />
+            )}
+            {['DRAFT', 'FAILED'].includes(item.state) && !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && (
+              <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />
+            )}
           </NativeCard>
         )}
       />

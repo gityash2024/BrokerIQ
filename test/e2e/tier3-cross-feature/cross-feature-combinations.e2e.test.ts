@@ -87,18 +87,12 @@ test('Tier 3: Cross-Feature Combinations', async (t) => {
     const todayStr = new Date().toISOString().slice(0, 10);
 
     // 1. Punch In at Sector 29
-    const punchIn = await client.punchIn(
-      { latitude: 28.4595, longitude: 77.0266, address: 'Start: Sector 29' },
-      agentToken
-    );
+    const punchIn = await client.punchIn({ latitude: 28.4595, longitude: 77.0266, address: 'Start: Sector 29' }, agentToken);
     assert.strictEqual(punchIn.status, 201);
     const shiftId = punchIn.body.shift.id;
 
     // 2. Periodic 15-minute GPS coordinate checkpoint
-    const check1 = await client.recordLocation(
-      { shiftId, latitude: 28.465, longitude: 77.05, address: '15m Checkpoint: IFFCO Chowk' },
-      agentToken
-    );
+    const check1 = await client.recordLocation({ shiftId, latitude: 28.465, longitude: 77.05, address: '15m Checkpoint: IFFCO Chowk' }, agentToken);
     assert.strictEqual(check1.status, 200);
 
     // 3. Interruption: GPS lost in underground parking -> pause shift
@@ -107,18 +101,12 @@ test('Tier 3: Cross-Feature Combinations', async (t) => {
     assert.strictEqual(pause.body.status, 'PAUSED');
 
     // 4. Recovery: Agent exits basement, GPS restored -> send new coordinate -> auto-resumes shift
-    const resume = await client.recordLocation(
-      { shiftId, latitude: 28.4721, longitude: 77.0865, address: 'GPS Restored: DLF Phase 5' },
-      agentToken
-    );
+    const resume = await client.recordLocation({ shiftId, latitude: 28.4721, longitude: 77.0865, address: 'GPS Restored: DLF Phase 5' }, agentToken);
     assert.strictEqual(resume.status, 200);
     assert.strictEqual(resume.body.status, 'ACTIVE');
 
     // 5. Punch Out at Golf Course Road
-    const punchOut = await client.punchOut(
-      { latitude: 28.4901, longitude: 77.0912, address: 'End: Golf Course Road' },
-      agentToken
-    );
+    const punchOut = await client.punchOut({ latitude: 28.4901, longitude: 77.0912, address: 'End: Golf Course Road' }, agentToken);
     assert.strictEqual(punchOut.status, 200);
     assert.strictEqual(punchOut.body.status, 'COMPLETED');
     assert.ok(punchOut.body.totalMinutes >= 1);

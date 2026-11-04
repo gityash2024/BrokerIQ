@@ -182,8 +182,21 @@ export class BrokerRequirementsController {
       const convertedAt = new Date();
       await tx.brokerRequirement.update({
         where: { id },
-        data: { convertedInventoryId: inventory.id, convertedAt, convertedById: user.id, revision: { increment: 1 },
-          provenance:{...((item.provenance && typeof item.provenance==='object' && !Array.isArray(item.provenance))?item.provenance:{}),conversion:{reviewedOffer:details,reviewedRevision:item.revision,inventoryId:inventory.id,convertedAt:convertedAt.toISOString(),convertedById:user.id}} as Prisma.InputJsonValue,
+        data: {
+          convertedInventoryId: inventory.id,
+          convertedAt,
+          convertedById: user.id,
+          revision: { increment: 1 },
+          provenance: {
+            ...(item.provenance && typeof item.provenance === 'object' && !Array.isArray(item.provenance) ? item.provenance : {}),
+            conversion: {
+              reviewedOffer: details,
+              reviewedRevision: item.revision,
+              inventoryId: inventory.id,
+              convertedAt: convertedAt.toISOString(),
+              convertedById: user.id,
+            },
+          } as Prisma.InputJsonValue,
         },
       });
       return { inventoryId: inventory.id as string, convertedAt, duplicate: false };
@@ -197,11 +210,11 @@ export class BrokerRequirementsController {
     return this.inventory.matching(ledgerJson(item) as BrokerRequirementInput, { ...user, orgId: item.organizationId });
   }
   @Delete(':id') async archive(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    await this.prisma.$transaction(async tx=>{
+    await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "BrokerRequirement" WHERE id=${id} FOR UPDATE`;
-      const item=await tx.brokerRequirement.findFirst({where:{...this.scope(user),id}});
-      if(!item)throw new NotFoundException('Requirement not found');
-      await tx.brokerRequirement.update({where:{id},data:{deletedAt:new Date(),revision:{increment:1}}});
+      const item = await tx.brokerRequirement.findFirst({ where: { ...this.scope(user), id } });
+      if (!item) throw new NotFoundException('Requirement not found');
+      await tx.brokerRequirement.update({ where: { id }, data: { deletedAt: new Date(), revision: { increment: 1 } } });
     });
     await this.audit.log(user, 'requirement.archive', 'BrokerRequirement', id);
     return { ok: true };

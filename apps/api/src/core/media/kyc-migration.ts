@@ -67,10 +67,14 @@ async function original(url: string) {
       const { done, value } = await reader.read();
       if (done) break;
       length += value.length;
-      if (length > 20 * 1024 * 1024) throw Object.assign(new Error('KYC migration file exceeds safety limit'), { safeCode: 'KYC_MIGRATION_FILE_EXCEEDS_LIMIT' });
+      if (length > 20 * 1024 * 1024)
+        throw Object.assign(new Error('KYC migration file exceeds safety limit'), { safeCode: 'KYC_MIGRATION_FILE_EXCEEDS_LIMIT' });
       chunks.push(Buffer.from(value));
     }
-  } finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
   const body = Buffer.concat(chunks);
   if (contentType === 'application/pdf') {
     if (body.subarray(0, 5).toString() !== '%PDF-') throw Object.assign(new Error('Invalid KYC PDF'), { safeCode: 'KYC_INVALID_KYC_PDF' });

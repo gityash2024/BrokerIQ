@@ -74,11 +74,14 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   const [recording, setRecording] = useState(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const list = useRef<FlatList<Msg>>(null);
-  useEffect(() => () => {
-    void Speech.stop();
-    if (recorder.isRecording) void recorder.stop().catch(() => undefined);
-    void setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
-  }, [recorder]);
+  useEffect(
+    () => () => {
+      void Speech.stop();
+      if (recorder.isRecording) void recorder.stop().catch(() => undefined);
+      void setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+    },
+    [recorder],
+  );
 
   const say = (t: string) => speak && Speech.speak(t.replace(/[*_#`]/g, ''), { language: languageOf(lang).speech });
   const append = (m: Msg) => setMsgs((x) => [...x, m]);

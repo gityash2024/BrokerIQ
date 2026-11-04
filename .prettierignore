@@ -14,3 +14,7 @@ packages/shared/src/i18n/locales
 scripts/i18n
 apps/web/next-env.d.ts
 **/*.md
+# Keep shipped third-party files and machine-generated release evidence byte-identical.
+apps/web/public/vendor
+apps/web/public/map-assets
+docs/evidence

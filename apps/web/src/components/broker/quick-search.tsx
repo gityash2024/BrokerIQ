@@ -99,7 +99,7 @@ export function QuickLeadSearch() {
           onInteractOutside={() => setOpen(false)}
           className="z-50 max-h-[70vh] w-[440px] max-w-[92vw] overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-2xl"
         >
-        {query.isPending && searches.length > 0 && (
+          {query.isPending && searches.length > 0 && (
             <p role="status" className="p-3 text-sm text-muted">
               Searching…
             </p>

@@ -7,7 +7,11 @@ test('IST monthly goals use real calendar boundaries and preserve explicit zero 
   assert.equal(month.start.toISOString(), '2026-10-31T18:30:00.000Z');
   assert.equal(month.end.toISOString(), '2026-11-30T18:30:00.000Z');
   assert.deepEqual(agentTargets(undefined), {});
-  assert.deepEqual(agentTargets({ monthlyDeals: 0, monthlyLeads: 11, commissionPct: 0, monthlyRevenue: -2 }), { monthlyDeals: 0, monthlyLeads: 11, commissionPct: 0 });
+  assert.deepEqual(agentTargets({ monthlyDeals: 0, monthlyLeads: 11, commissionPct: 0, monthlyRevenue: -2 }), {
+    monthlyDeals: 0,
+    monthlyLeads: 11,
+    commissionPct: 0,
+  });
 });
 import { inventoryPublishSchema } from '../publishing';
 test('IST reporting days cross UTC midnight correctly', () => {

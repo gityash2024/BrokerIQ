@@ -139,15 +139,19 @@ function InboxInner() {
   const convs = useInfiniteQuery({
     queryKey: ['conversations', 'pages', channel, dq, unreadOnly],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => api<InboxPage<any>>(`/whatsapp/conversations${qs({ channel, q: dq, unread: unreadOnly ? 'true' : '', paginated: 'true', page: pageParam, pageSize: 50 })}`),
-    getNextPageParam: (last, pages) => pages.length < last.totalPages ? pages.length + 1 : undefined,
+    queryFn: ({ pageParam }) =>
+      api<InboxPage<any>>(
+        `/whatsapp/conversations${qs({ channel, q: dq, unread: unreadOnly ? 'true' : '', paginated: 'true', page: pageParam, pageSize: 50 })}`,
+      ),
+    getNextPageParam: (last, pages) => (pages.length < last.totalPages ? pages.length + 1 : undefined),
     refetchInterval: 20_000,
   });
   const conversationItems = useMemo(() => {
     const seen = new Set<string>();
     return (convs.data?.pages.flatMap((page) => page.items) ?? []).filter((item) => {
       if (seen.has(item.id)) return false;
-      seen.add(item.id); return true;
+      seen.add(item.id);
+      return true;
     });
   }, [convs.data]);
 
@@ -169,7 +173,10 @@ function InboxInner() {
     if (c.unreadCount > 0) {
       qc.setQueryData(['conversations', 'pages', channel, dq, unreadOnly], (old: InfiniteData<InboxPage<any>> | undefined) => {
         if (!old) return old;
-        return { ...old, pages: old.pages.map((page) => ({ ...page, items: page.items.map((item) => item.id === c.id ? { ...item, unreadCount: 0 } : item) })) };
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({ ...page, items: page.items.map((item) => (item.id === c.id ? { ...item, unreadCount: 0 } : item)) })),
+        };
       });
       api(`/whatsapp/conversations/${c.id}/read`, { method: 'POST', body: {} })
         .then(() => refreshAll())
@@ -213,7 +220,14 @@ function InboxInner() {
   const waUnreadCount = unreadStats.data?.whatsapp?.unreadConversations ?? 0;
   const chatUnreadCount = unreadStats.data?.chat?.unreadConversations ?? 0;
   const totalUnreadCount = unreadStats.data?.total?.unreadConversations ?? waUnreadCount + chatUnreadCount;
-  const currentChannelUnread = channel === 'WHATSAPP' ? waUnreadCount : channel === 'SMS' ? (unreadStats.data?.sms?.unreadConversations ?? 0) : channel === 'EMAIL' ? (unreadStats.data?.email?.unreadConversations ?? 0) : chatUnreadCount;
+  const currentChannelUnread =
+    channel === 'WHATSAPP'
+      ? waUnreadCount
+      : channel === 'SMS'
+        ? (unreadStats.data?.sms?.unreadConversations ?? 0)
+        : channel === 'EMAIL'
+          ? (unreadStats.data?.email?.unreadConversations ?? 0)
+          : chatUnreadCount;
 
   if (leadTarget && resolve.isError) return <ApiErrorState error={resolve.error} onRetry={() => resolve.refetch()} />;
   if (leadTarget) return <PageLoader />;
@@ -429,8 +443,18 @@ function InboxInner() {
               </div>
             );
           })}
-          {convs.data && <p className="p-3 text-center text-xs text-muted">{conversationItems.length} / {convs.data.pages[0]?.total ?? 0} conversations</p>}
-          {convs.hasNextPage && <div className="p-3"><Button variant="secondary" loading={convs.isFetchingNextPage} onClick={() => convs.fetchNextPage()}>Load more conversations</Button></div>}
+          {convs.data && (
+            <p className="p-3 text-center text-xs text-muted">
+              {conversationItems.length} / {convs.data.pages[0]?.total ?? 0} conversations
+            </p>
+          )}
+          {convs.hasNextPage && (
+            <div className="p-3">
+              <Button variant="secondary" loading={convs.isFetchingNextPage} onClick={() => convs.fetchNextPage()}>
+                Load more conversations
+              </Button>
+            </div>
+          )}
         </div>
       </aside>
 

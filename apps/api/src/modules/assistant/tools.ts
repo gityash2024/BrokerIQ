@@ -98,21 +98,28 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'search_properties',
-    description: 'Search published RENT or SALE properties. Choose the explicitly requested purpose; prices are monthly rent for RENT or total sale price for SALE. Do not assume a purpose.',
+    description:
+      'Search published RENT or SALE properties. Choose the explicitly requested purpose; prices are monthly rent for RENT or total sale price for SALE. Do not assume a purpose.',
     roles: ALL,
-    parameters: obj({
-      purpose: { type: 'string', enum: ['RENT', 'SALE'], description: 'Explicit requested transaction purpose' },
-      q: str('locality, sector, society or project'),
-      localities: str('comma separated locality slugs'),
-      bedrooms: str('comma separated BHK'),
-      minPrice: num('minimum INR, monthly for RENT or total for SALE'),
-      maxPrice: num('maximum INR, monthly for RENT or total for SALE'),
-      furnishing: str('UNFURNISHED | SEMI_FURNISHED | FULLY_FURNISHED'),
-      types: str('comma separated property types'),
-    }, ['purpose']),
+    parameters: obj(
+      {
+        purpose: { type: 'string', enum: ['RENT', 'SALE'], description: 'Explicit requested transaction purpose' },
+        q: str('locality, sector, society or project'),
+        localities: str('comma separated locality slugs'),
+        bedrooms: str('comma separated BHK'),
+        minPrice: num('minimum INR, monthly for RENT or total for SALE'),
+        maxPrice: num('maximum INR, monthly for RENT or total for SALE'),
+        furnishing: str('UNFURNISHED | SEMI_FURNISHED | FULLY_FURNISHED'),
+        types: str('comma separated property types'),
+      },
+      ['purpose'],
+    ),
     run: async (a, { call }) => {
       if (a.purpose !== 'RENT' && a.purpose !== 'SALE') throw new Error('Choose RENT or SALE before searching properties');
-      const r = await call({ method: 'GET', path: `/listings${qs({ purpose: a.purpose, q: a.q, localities: a.localities, bedrooms: a.bedrooms, minPrice: a.minPrice, maxPrice: a.maxPrice, furnishing: a.furnishing, types: a.types, pageSize: 8 })}` });
+      const r = await call({
+        method: 'GET',
+        path: `/listings${qs({ purpose: a.purpose, q: a.q, localities: a.localities, bedrooms: a.bedrooms, minPrice: a.minPrice, maxPrice: a.maxPrice, furnishing: a.furnishing, types: a.types, pageSize: 8 })}`,
+      });
       return { purpose: a.purpose, total: r.total, listings: (r.items ?? []).map(slimListing) };
     },
   },

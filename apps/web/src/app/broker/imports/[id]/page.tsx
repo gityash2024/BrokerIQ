@@ -47,7 +47,9 @@ export default function ReviewPage() {
     <>
       <PageHeader
         title={query.data?.fileName || 'Source review'}
-        subtitle={query.data ? `${query.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${query.data.pending} need review`}` : 'Loading source…'}
+        subtitle={
+          query.data ? `${query.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${query.data.pending} need review`}` : 'Loading source…'
+        }
         actions={
           <Link href="/broker/imports" className="text-sm text-brand-600">
             All captures
@@ -56,11 +58,20 @@ export default function ReviewPage() {
       />
       {previewOfImportId && (
         <p className="mb-4 rounded-xl bg-surface-2 p-3 text-sm">
-          Review what the latest extraction found. To update business records, open the <Link className="font-semibold text-brand-600" href={`/broker/imports/${previewOfImportId}`}>original import</Link>.
+          Review what the latest extraction found. To update business records, open the{' '}
+          <Link className="font-semibold text-brand-600" href={`/broker/imports/${previewOfImportId}`}>
+            original import
+          </Link>
+          .
         </p>
       )}
       {query.data?.canPreview && (
-        <button type="button" disabled={openingPreview} onClick={openPreview} className="mb-4 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-brand-600">
+        <button
+          type="button"
+          disabled={openingPreview}
+          onClick={openPreview}
+          className="mb-4 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-brand-600"
+        >
           {openingPreview ? 'Opening preview…' : 'Preview latest extraction'}
         </button>
       )}
@@ -71,21 +82,23 @@ export default function ReviewPage() {
           Confirm each extracted entry before approval.
         </p>
       )}
-      {!previewOfImportId && <div className="mb-5 flex gap-2" role="group" aria-label="Review status">
-        {[true, false].map((pending) => (
-          <button
-            key={String(pending)}
-            aria-pressed={pendingOnly === pending}
-            className={`rounded-full border px-4 py-2 text-sm ${pendingOnly === pending ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line'}`}
-            onClick={() => {
-              setPendingOnly(pending);
-              setPage(1);
-            }}
-          >
-            {pending ? 'Pending only' : 'All entries'}
-          </button>
-        ))}
-      </div>}
+      {!previewOfImportId && (
+        <div className="mb-5 flex gap-2" role="group" aria-label="Review status">
+          {[true, false].map((pending) => (
+            <button
+              key={String(pending)}
+              aria-pressed={pendingOnly === pending}
+              className={`rounded-full border px-4 py-2 text-sm ${pendingOnly === pending ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line'}`}
+              onClick={() => {
+                setPendingOnly(pending);
+                setPage(1);
+              }}
+            >
+              {pending ? 'Pending only' : 'All entries'}
+            </button>
+          ))}
+        </div>
+      )}
       {query.data?.metadata?.pages?.length > 0 && (
         <label className="mb-5 block text-sm">
           Register page
@@ -196,26 +209,35 @@ function Entry({
             {(image || entry.pageNo) && (
               <PrivateSource path={`/imports/${batchId}/source${entry.pageNo ? `?pageNo=${entry.pageNo}&entryId=${entry.id}` : ''}`} />
             )}
-            {entry.ocr?.attachments?.map((attachment: { index: number; name: string; contentType: string; available: boolean; text?: string; warning?: string }) => (
-              <div key={attachment.index} className="mt-3 space-y-2 rounded-xl border border-line p-3">
-                <p className="break-all text-xs font-semibold">{attachment.name}</p>
-                {attachment.available && (
-                  <button type="button" className="text-xs font-semibold text-brand-600"
-                    onClick={() => setPreviewAttachment((active) => active === attachment.index ? null : attachment.index)}>
-                    {previewAttachment === attachment.index ? 'Hide attachment' : 'Preview attachment'}
-                  </button>
-                )}
-                {attachment.available && previewAttachment === attachment.index && (
-                  <PrivateSource
-                    path={`/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`}
-                    videoType={attachment.contentType.startsWith('video/') ? attachment.contentType : undefined}
-                  />
-                )}
-                {attachment.warning && <p className="text-xs text-muted">{attachment.warning}</p>}
-                {attachment.text && <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs">{attachment.text}</pre>}
-              </div>
+            {entry.ocr?.attachments?.map(
+              (attachment: { index: number; name: string; contentType: string; available: boolean; text?: string; warning?: string }) => (
+                <div key={attachment.index} className="mt-3 space-y-2 rounded-xl border border-line p-3">
+                  <p className="break-all text-xs font-semibold">{attachment.name}</p>
+                  {attachment.available && (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-brand-600"
+                      onClick={() => setPreviewAttachment((active) => (active === attachment.index ? null : attachment.index))}
+                    >
+                      {previewAttachment === attachment.index ? 'Hide attachment' : 'Preview attachment'}
+                    </button>
+                  )}
+                  {attachment.available && previewAttachment === attachment.index && (
+                    <PrivateSource
+                      path={`/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`}
+                      videoType={attachment.contentType.startsWith('video/') ? attachment.contentType : undefined}
+                    />
+                  )}
+                  {attachment.warning && <p className="text-xs text-muted">{attachment.warning}</p>}
+                  {attachment.text && <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs">{attachment.text}</pre>}
+                </div>
+              ),
+            )}
+            {entry.ocr?.attachmentWarnings?.map((warning: string) => (
+              <p key={warning} className="mt-2 text-xs text-muted">
+                {warning}
+              </p>
             ))}
-            {entry.ocr?.attachmentWarnings?.map((warning: string) => <p key={warning} className="mt-2 text-xs text-muted">{warning}</p>)}
             <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-xs">{entry.rawText}</pre>
           </div>
           <div className="space-y-5">
@@ -232,7 +254,10 @@ function Entry({
                 {entry.reviewState === 'PREVIEW' && (
                   <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 text-sm">
                     {capturePreviewFacts(entity).map(({ label, value }) => (
-                      <div key={label} className="min-w-0"><dt className="text-muted">{label}</dt><dd className="break-words">{value}</dd></div>
+                      <div key={label} className="min-w-0">
+                        <dt className="text-muted">{label}</dt>
+                        <dd className="break-words">{value}</dd>
+                      </div>
                     ))}
                   </dl>
                 )}

@@ -260,7 +260,10 @@ export default function InventoryEditor() {
                   multiline
                   value={contact.note ?? ''}
                   onChangeText={(note) =>
-                    change('contacts', form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)))
+                    change(
+                      'contacts',
+                      form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)),
+                    )
                   }
                 />
                 <Button

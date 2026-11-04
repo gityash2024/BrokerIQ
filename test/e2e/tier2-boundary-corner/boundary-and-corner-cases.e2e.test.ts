@@ -108,10 +108,7 @@ test('Tier 2: Boundary & Corner Cases', async (t) => {
     // Second punch in without punching out
     const second = await client.punchIn({ latitude: 28.4721, longitude: 77.0865 });
     assert.strictEqual(second.status, 409);
-    assert.ok(
-      JSON.stringify(second.body).toLowerCase().includes('already') ||
-        JSON.stringify(second.body).toLowerCase().includes('active')
-    );
+    assert.ok(JSON.stringify(second.body).toLowerCase().includes('already') || JSON.stringify(second.body).toLowerCase().includes('active'));
 
     // Clean up
     await client.punchOut();
@@ -120,10 +117,7 @@ test('Tier 2: Boundary & Corner Cases', async (t) => {
   await t.test('T2.9: Punch Out without an active shift returns 400 Bad Request', async () => {
     const res = await client.punchOut();
     assert.strictEqual(res.status, 400);
-    assert.ok(
-      JSON.stringify(res.body).toLowerCase().includes('no active') ||
-        JSON.stringify(res.body).toLowerCase().includes('not found')
-    );
+    assert.ok(JSON.stringify(res.body).toLowerCase().includes('no active') || JSON.stringify(res.body).toLowerCase().includes('not found'));
   });
 
   await t.test('T2.10: Location waypoint or pause on completed shift returns 400 Bad Request', async () => {
@@ -154,13 +148,7 @@ test('Tier 2: Boundary & Corner Cases', async (t) => {
   });
 
   await t.test('T2.13: Special characters, SQL metacharacters, and Devanagari Unicode in search handled safely', async () => {
-    const inputs = [
-      "'; DROP TABLE kyc_documents; --",
-      '<script>alert("xss")</script>',
-      'रोहित शर्मा',
-      'DLF & Co. "Sector 54"',
-      '100% Guaranteed',
-    ];
+    const inputs = ["'; DROP TABLE kyc_documents; --", '<script>alert("xss")</script>', 'रोहित शर्मा', 'DLF & Co. "Sector 54"', '100% Guaranteed'];
 
     for (const q of inputs) {
       const res = await client.getKyc({ search: q });

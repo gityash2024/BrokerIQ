@@ -34,14 +34,18 @@ export class MailService {
     const key = await this.provider();
     return { key, values: await this.settings.require(key) };
   }
-  async isConfigured() { return this.settings.isConfigured(await this.provider()); }
+  async isConfigured() {
+    return this.settings.isConfigured(await this.provider());
+  }
 
   private async transport(values?: Record<string, unknown>) {
     const v = values ?? (await this.settings.require('smtp'));
     const port = Number(v.port ?? 587);
     return {
       tx: nodemailer.createTransport({
-        connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
         requireTLS: !(v.secure === true || port === 465),
         host: String(v.host),
         port,
@@ -59,16 +63,16 @@ export class MailService {
     try {
       if (key === 'zoho_mail') await this.zoho.send(values, { ...input, html: wrapHtml(input.html, app.siteName, app.primaryColor) });
       else {
-      const { tx, from } = await this.transport(values);
-      await tx.sendMail({
-        from,
-        to: input.to,
-        bcc: input.bcc,
-        subject: input.subject,
-        html: wrapHtml(input.html, app.siteName, app.primaryColor),
-        text: input.text,
-        replyTo: input.replyTo,
-      });
+        const { tx, from } = await this.transport(values);
+        await tx.sendMail({
+          from,
+          to: input.to,
+          bcc: input.bcc,
+          subject: input.subject,
+          html: wrapHtml(input.html, app.siteName, app.primaryColor),
+          text: input.text,
+          replyTo: input.replyTo,
+        });
       }
       // Counted for Admin → Cost & usage (free SMTP plans have daily limits).
       await this.prisma.integrationLog
@@ -107,7 +111,11 @@ export class MailService {
   }
 
   async testZoho(values: Record<string, unknown>, to: string) {
-    await this.zoho.send(values, { to, subject: 'BrokerIQ Zoho HTTPS email test', html: '<p>यह BrokerIQ का Zoho HTTPS sender test है। इस email की inbox में प्राप्ति delivery का प्रमाण है; production workflows की acceptance अलग से होगी।</p>' });
+    await this.zoho.send(values, {
+      to,
+      subject: 'BrokerIQ Zoho HTTPS email test',
+      html: '<p>यह BrokerIQ का Zoho HTTPS sender test है। इस email की inbox में प्राप्ति delivery का प्रमाण है; production workflows की acceptance अलग से होगी।</p>',
+    });
   }
 
   async test(values: Record<string, unknown>, to: string) {

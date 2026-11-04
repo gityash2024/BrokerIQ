@@ -46,8 +46,11 @@ export class BrokerInvitesService {
 
   /** Marks the invite used by a new firm and links the referral. */
   async consume(invite: BrokerInvite, orgId: string, tx: Tx = this.prisma) {
-    const consumed=await tx.brokerInvite.updateMany({where:{id:invite.id,isActive:true,uses:{lt:invite.maxUses},OR:[{expiresAt:null},{expiresAt:{gt:new Date()}}]},data:{uses:{increment:1}}});
-    if(consumed.count!==1)throw new ForbiddenException('Invitation is expired or already used');
+    const consumed = await tx.brokerInvite.updateMany({
+      where: { id: invite.id, isActive: true, uses: { lt: invite.maxUses }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      data: { uses: { increment: 1 } },
+    });
+    if (consumed.count !== 1) throw new ForbiddenException('Invitation is expired or already used');
     await tx.organization.update({ where: { id: orgId }, data: { brokerInviteId: invite.id, referredByOrgId: invite.createdByOrgId ?? undefined } });
   }
 

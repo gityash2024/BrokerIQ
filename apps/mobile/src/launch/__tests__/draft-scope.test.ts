@@ -221,7 +221,8 @@ it('retains the original task identity and payload after a lost response and rep
   await login('task-retry-owner');
   jest.mocked(scheduleReminder).mockClear();
   const body = { leadId: 'lead-retry', type: 'SMS', dueAt: '2026-11-06T09:00:00.000Z', note: 'Call after lunch' };
-  const request = jest.spyOn(globalThis, 'fetch')
+  const request = jest
+    .spyOn(globalThis, 'fetch')
     .mockRejectedValueOnce(new Error('Network disconnected after write'))
     .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'task-saved', leadId: body.leadId, status: 'PENDING', dueAt: body.dueAt })));
   try {
@@ -250,7 +251,8 @@ it('retains the original task identity and payload after a lost response and rep
 it('keeps failed visit evidence when set aside and refuses to retry into an occupied task slot', async () => {
   await login('task-hold-owner');
   const body = { leadId: 'lead-hold', scheduledAt: '2026-11-06T09:00:00.000Z', inventoryId: 'selected-property', address: 'Original address' };
-  const request = jest.spyOn(globalThis, 'fetch')
+  const request = jest
+    .spyOn(globalThis, 'fetch')
     .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Property was archived' }), { status: 400 }))
     .mockRejectedValueOnce(new Error('Offline'));
   try {

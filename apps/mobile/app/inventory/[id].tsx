@@ -3,14 +3,7 @@ import { ScrollView, View, Linking, Share, ActivityIndicator, Pressable, Touchab
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import {
-  type LedgerItem,
-  floorLabel,
-  inventoryFactGroups,
-  inventoryTitle,
-  inventoryPrice,
-  readableValue,
-} from '@brokeriq/shared';
+import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, readableValue } from '@brokeriq/shared';
 import { api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
@@ -57,7 +50,8 @@ export default function PropertyDetail() {
 
   const team = useQuery({
     queryKey: ['broker-team'],
-    queryFn: () => api<any>('/broker/team'),enabled:isAdmin,
+    queryFn: () => api<any>('/broker/team'),
+    enabled: isAdmin,
   });
 
   const item = q.data;
@@ -108,11 +102,7 @@ export default function PropertyDetail() {
   }
 
   return (
-    <BrokerScreen
-      title={item ? inventoryTitle(item) : 'Property details'}
-      subtitle={item?.sector ? `📍 ${item.sector}` : undefined}
-      back
-    >
+    <BrokerScreen title={item ? inventoryTitle(item) : 'Property details'} subtitle={item?.sector ? `📍 ${item.sector}` : undefined} back>
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 110 }}>
         {q.error && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {q.isPending && <ActivityIndicator color={c.brand} style={{ padding: 40 }} />}
@@ -176,11 +166,10 @@ export default function PropertyDetail() {
               </View>
 
               <View style={{ gap: 4 }}>
-                <Txt style={{ fontSize: 32, fontWeight: '900', color: c.fg, letterSpacing: -0.5 }}>
-                  {inventoryPrice(item)}
-                </Txt>
+                <Txt style={{ fontSize: 32, fontWeight: '900', color: c.fg, letterSpacing: -0.5 }}>{inventoryPrice(item)}</Txt>
                 <Txt v="body" color="muted">
-                  {item.houseNo ? `#${item.houseNo}, ` : ''}{item.sector ?? item.address ?? 'Sector unknown'}
+                  {item.houseNo ? `#${item.houseNo}, ` : ''}
+                  {item.sector ?? item.address ?? 'Sector unknown'}
                 </Txt>
               </View>
 
@@ -197,27 +186,75 @@ export default function PropertyDetail() {
                 }}
               >
                 {item.bhk != null && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2,
+                    }}
+                  >
                     <Layers size={14} color={c.brand} />
-                    <Txt v="small" style={{ fontWeight: '600' }}>{item.bhk} {item.roomKind || 'rooms'}</Txt>
+                    <Txt v="small" style={{ fontWeight: '600' }}>
+                      {item.bhk} {item.roomKind || 'rooms'}
+                    </Txt>
                   </View>
                 )}
                 {item.area != null && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2,
+                    }}
+                  >
                     <Maximize2 size={14} color={c.brand} />
-                    <Txt v="small" style={{ fontWeight: '600' }}>{item.area} {item.areaUnit || 'unit not recorded'}</Txt>
+                    <Txt v="small" style={{ fontWeight: '600' }}>
+                      {item.area} {item.areaUnit || 'unit not recorded'}
+                    </Txt>
                   </View>
                 )}
                 {item.floor != null && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2,
+                    }}
+                  >
                     <Building2 size={14} color={c.brand} />
-                    <Txt v="small" style={{ fontWeight: '600' }}>{floorLabel(item.floor)}</Txt>
+                    <Txt v="small" style={{ fontWeight: '600' }}>
+                      {floorLabel(item.floor)}
+                    </Txt>
                   </View>
                 )}
                 {item.furnishing && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surface2,
+                    }}
+                  >
                     <Sparkles size={14} color={c.brand} />
-                    <Txt v="small" style={{ fontWeight: '600' }}>{readableValue(item.furnishing)}</Txt>
+                    <Txt v="small" style={{ fontWeight: '600' }}>
+                      {readableValue(item.furnishing)}
+                    </Txt>
                   </View>
                 )}
               </View>
@@ -302,9 +339,7 @@ export default function PropertyDetail() {
                     Buyer Leads
                   </Txt>
                   <Txt v="bodyStrong" numberOfLines={1} style={{ color: c.warning }}>
-                    {item.matchingLeadsCount != null && item.matchingLeadsCount > 0
-                      ? `${item.matchingLeadsCount} Leads Match`
-                      : 'Match Leads'}
+                    {item.matchingLeadsCount != null && item.matchingLeadsCount > 0 ? `${item.matchingLeadsCount} Leads Match` : 'Match Leads'}
                   </Txt>
                   <Txt v="caption" color="muted" style={{ fontSize: 10 }}>
                     Tap to share
@@ -336,12 +371,7 @@ export default function PropertyDetail() {
                     Verify with owner before sharing with buyers.
                   </Txt>
                 </View>
-                <Button
-                  title="Verify now"
-                  size="sm"
-                  loading={confirmingAvail}
-                  onPress={handleConfirmAvailable}
-                />
+                <Button title="Verify now" size="sm" loading={confirmingAvail} onPress={handleConfirmAvailable} />
               </View>
             )}
 
@@ -385,9 +415,7 @@ export default function PropertyDetail() {
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() =>
-                              Linking.openURL(`https://wa.me/91${contact.phone!.replace(/\D/g, '').slice(-10)}`).catch((e) =>
-                                toast.error(errorMessage(e)),
-                              )
+                              Linking.openURL(`https://wa.me/91${contact.phone!.replace(/\D/g, '').slice(-10)}`).catch((e) => toast.error(errorMessage(e)))
                             }
                             style={{
                               width: 38,
@@ -477,12 +505,7 @@ export default function PropertyDetail() {
 
             {/* Photos & Videos */}
             {(item.photoUrls ?? []).map((uri) => (
-              <Image
-                key={uri}
-                source={{ uri }}
-                contentFit="cover"
-                style={{ width: '100%', height: 230, borderRadius: 20 }}
-              />
+              <Image key={uri} source={{ uri }} contentFit="cover" style={{ width: '100%', height: 230, borderRadius: 20 }} />
             ))}
 
             {(item.videoUrls ?? []).map((uri) => (
@@ -495,7 +518,11 @@ export default function PropertyDetail() {
             ))}
 
             {/* Notes */}
-            <Button title="Share using another app" variant="secondary" onPress={() => Share.share({ message: propertyShare(item) }).catch((e) => toast.error(errorMessage(e)))} />
+            <Button
+              title="Share using another app"
+              variant="secondary"
+              onPress={() => Share.share({ message: propertyShare(item) }).catch((e) => toast.error(errorMessage(e)))}
+            />
             {item.notes && (
               <NativeCard style={{ gap: 8 }}>
                 <Txt v="h3">Notes</Txt>
@@ -533,11 +560,7 @@ export default function PropertyDetail() {
                       {item.sourceEntry.rawText}
                     </Txt>
                   )}
-                  <Button
-                    title="Open source review"
-                    variant="secondary"
-                    onPress={() => router.push(`/import-review/${item.sourceEntry?.batch?.id}` as any)}
-                  />
+                  <Button title="Open source review" variant="secondary" onPress={() => router.push(`/import-review/${item.sourceEntry?.batch?.id}` as any)} />
                 </NativeCard>
               </>
             )}
@@ -566,9 +589,7 @@ export default function PropertyDetail() {
         >
           {primaryContact?.phone ? (
             <TouchableOpacity
-              onPress={() =>
-                Linking.openURL(`tel:${primaryContact.phone}`).catch((e) => toast.error(errorMessage(e)))
-              }
+              onPress={() => Linking.openURL(`tel:${primaryContact.phone}`).catch((e) => toast.error(errorMessage(e)))}
               style={{
                 width: 48,
                 height: 48,
@@ -587,9 +608,7 @@ export default function PropertyDetail() {
           {primaryContact?.phone ? (
             <TouchableOpacity
               onPress={() =>
-                Linking.openURL(`https://wa.me/91${primaryContact.phone!.replace(/\D/g, '').slice(-10)}`).catch((e) =>
-                  toast.error(errorMessage(e)),
-                )
+                Linking.openURL(`https://wa.me/91${primaryContact.phone!.replace(/\D/g, '').slice(-10)}`).catch((e) => toast.error(errorMessage(e)))
               }
               style={{
                 width: 48,
@@ -606,22 +625,25 @@ export default function PropertyDetail() {
             </TouchableOpacity>
           ) : null}
 
-          <Button
-            title="Share"
-            variant="secondary"
-            style={{ flex: 1, height: 48, borderRadius: 16 }}
-            onPress={() => setShareWithLead(true)}
-          />
+          <Button title="Share" variant="secondary" style={{ flex: 1, height: 48, borderRadius: 16 }} onPress={() => setShareWithLead(true)} />
 
-          <Button
-            title="Edit"
-            style={{ flex: 1.2, height: 48, borderRadius: 16 }}
-            onPress={() => router.push(`/inventory-edit?id=${id}` as any)}
-          />
+          <Button title="Edit" style={{ flex: 1.2, height: 48, borderRadius: 16 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
         </View>
       )}
 
-      {item&&<View style={{padding:16,gap:8}}><Txt v="caption" color="muted">Publication: {item.publishedListing?.status || 'Not submitted'}{item.publishedListing?.reviewRequiredRole?' · '+item.publishedListing.reviewRequiredRole:''}</Txt><Button title={isAdmin&&item.publishedListing?.reviewRequiredRole==='BROKER_ADMIN'?'Review publication':'Public preview / publish'} variant="secondary" onPress={()=>router.push(`/publish-rental?id=${id}` as any)}/></View>}
+      {item && (
+        <View style={{ padding: 16, gap: 8 }}>
+          <Txt v="caption" color="muted">
+            Publication: {item.publishedListing?.status || 'Not submitted'}
+            {item.publishedListing?.reviewRequiredRole ? ' · ' + item.publishedListing.reviewRequiredRole : ''}
+          </Txt>
+          <Button
+            title={isAdmin && item.publishedListing?.reviewRequiredRole === 'BROKER_ADMIN' ? 'Review publication' : 'Public preview / publish'}
+            variant="secondary"
+            onPress={() => router.push(`/publish-rental?id=${id}` as any)}
+          />
+        </View>
+      )}
       {/* 1-Tap Quick Assignee Selection Sheet */}
       <Sheet open={isAdmin && reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
         <View style={{ gap: 8, paddingBottom: 20 }}>

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 // Rental marketplace: every tab searches rent listings.
 const TABS = [
   { key: 'RENT', label: 'Rent', path: '/user/search' },
-  {key:'SALE',label:'Buy',path:'/buy'},
+  { key: 'SALE', label: 'Buy', path: '/buy' },
   { key: 'FURNISHED', label: 'Furnished', path: '/rent?furnishing=FULLY_FURNISHED' },
   { key: 'PG', label: 'PG / Co-living', path: '/rent?types=PG' },
   { key: 'COMMERCIAL', label: 'Commercial', path: '/user/commercial' },

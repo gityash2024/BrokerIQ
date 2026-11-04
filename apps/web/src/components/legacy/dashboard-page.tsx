@@ -348,7 +348,6 @@ export default function BrokerDashboard() {
         </div>
       </div>
 
-
       {/* 🚀 BILLION-DOLLAR DASHBOARD UPGRADES 🚀 */}
 
       {/* Revenue & Integrations Row */}
@@ -388,7 +387,9 @@ export default function BrokerDashboard() {
             <h2 className="flex items-center gap-2 font-display font-bold">
               <Plug className="size-5 text-indigo-600" /> API & Platform Sync
             </h2>
-            <Link href="/broker/connectors" className="text-xs text-brand-600 font-bold">Settings →</Link>
+            <Link href="/broker/connectors" className="text-xs text-brand-600 font-bold">
+              Settings →
+            </Link>
           </div>
           <div className="mt-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -402,7 +403,7 @@ export default function BrokerDashboard() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-black text-lg">{(d?.kpis?.unreadMessages || 0)}</p>
+                <p className="font-black text-lg">{d?.kpis?.unreadMessages || 0}</p>
                 <p className="text-[10px] text-muted">Unread messages</p>
               </div>
             </div>
@@ -439,10 +440,7 @@ export default function BrokerDashboard() {
                 <p className="text-xs text-muted">117 Handwritten Register Pages — Source records require review</p>
               </div>
             </div>
-            <Link
-              href="/broker/inventory"
-              className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
-            >
+            <Link href="/broker/inventory" className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
               Open Full Ledger →
             </Link>
           </div>

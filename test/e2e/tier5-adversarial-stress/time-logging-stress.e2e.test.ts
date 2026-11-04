@@ -129,19 +129,13 @@ test('Tier 5: Time Logging & Location Empirical Stress Suite', async (t) => {
     const todayStr = new Date().toISOString().slice(0, 10);
 
     // 1. Punch In
-    const inRes = await client.punchIn(
-      { latitude: 28.4595, longitude: 77.0266, address: 'Office Start' },
-      agentToken
-    );
+    const inRes = await client.punchIn({ latitude: 28.4595, longitude: 77.0266, address: 'Office Start' }, agentToken);
     assert.strictEqual(inRes.status, 201);
     const shiftId = inRes.body.shift.id;
 
     try {
       // 2. Location Checkpoint
-      const checkRes = await client.recordLocation(
-        { shiftId, latitude: 28.465, longitude: 77.035, address: 'Checkpoint 1' },
-        agentToken
-      );
+      const checkRes = await client.recordLocation({ shiftId, latitude: 28.465, longitude: 77.035, address: 'Checkpoint 1' }, agentToken);
       assert.strictEqual(checkRes.status, 200);
 
       // 3. GPS Lost (Pause)
@@ -154,10 +148,7 @@ test('Tier 5: Time Logging & Location Empirical Stress Suite', async (t) => {
       assert.strictEqual(statusRes.body.activeShift?.status, 'PAUSED');
 
       // 5. GPS Restored -> Periodic waypoint triggers auto-resume
-      const autoResumeRes = await client.recordLocation(
-        { shiftId, latitude: 28.472, longitude: 77.045, address: 'GPS Restored Point' },
-        agentToken
-      );
+      const autoResumeRes = await client.recordLocation({ shiftId, latitude: 28.472, longitude: 77.045, address: 'GPS Restored Point' }, agentToken);
       assert.strictEqual(autoResumeRes.status, 200);
       assert.strictEqual(autoResumeRes.body.status, 'ACTIVE');
 
@@ -166,10 +157,7 @@ test('Tier 5: Time Logging & Location Empirical Stress Suite', async (t) => {
       assert.strictEqual(statusRes2.body.activeShift?.status, 'ACTIVE');
 
       // 7. Punch Out
-      const outRes = await client.punchOut(
-        { latitude: 28.48, longitude: 77.05, address: 'Office End' },
-        agentToken
-      );
+      const outRes = await client.punchOut({ latitude: 28.48, longitude: 77.05, address: 'Office End' }, agentToken);
       assert.strictEqual(outRes.status, 200);
       assert.strictEqual(outRes.body.status, 'COMPLETED');
       assert.ok(outRes.body.totalMinutes >= 1);
@@ -219,10 +207,7 @@ test('Tier 5: Time Logging & Location Empirical Stress Suite', async (t) => {
         const p = await client.pauseShift({ shiftId, reason: `CHURN_${i}` }, token);
         assert.strictEqual(p.status, 200);
 
-        const r = await client.recordLocation(
-          { shiftId, latitude: 28.46 + i * 0.001, longitude: 77.03 + i * 0.001 },
-          token
-        );
+        const r = await client.recordLocation({ shiftId, latitude: 28.46 + i * 0.001, longitude: 77.03 + i * 0.001 }, token);
         assert.strictEqual(r.status, 200);
       }
 

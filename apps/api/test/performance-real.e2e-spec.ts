@@ -68,9 +68,19 @@ describe('Real targets, SLA and period performance', () => {
     expect(metric('slaHealth').value).toBe('33%');
     expect(metric('targetLeads').value).toBe('4/7');
     expect(metric('targetDeals').value).toBe('No monthly target');
-    const wonRows = (await http().get('/api' + metric('wonDeals').href.replace('/broker/leads', '/leads')).set(h()).expect(200)).body;
+    const wonRows = (
+      await http()
+        .get('/api' + metric('wonDeals').href.replace('/broker/leads', '/leads'))
+        .set(h())
+        .expect(200)
+    ).body;
     expect(wonRows.total).toBe(metric('wonDeals').value);
-    const eligible = (await http().get('/api' + metric('slaHealth').href.replace('/broker/leads', '/leads')).set(h()).expect(200)).body;
+    const eligible = (
+      await http()
+        .get('/api' + metric('slaHealth').href.replace('/broker/leads', '/leads'))
+        .set(h())
+        .expect(200)
+    ).body;
     expect(eligible.total).toBe(3);
     const unset = (await http().get('/api/broker/dashboard/metrics?days=7').set(h(b)).expect(200)).body;
     expect(unset.metrics.find((m: any) => m.key === 'targetDeals').value).toBe('Not set');
@@ -105,8 +115,12 @@ describe('Real targets, SLA and period performance', () => {
     const empty = (await http().get('/api/broker/dashboard/metrics?from=2020-01-01&to=2020-01-02').set(h()).expect(200)).body;
     expect(empty.metrics.find((m: any) => m.key === 'slaHealth').value).toBeNull();
     await http().get('/api/leads?from=2026-02-30').set(h()).expect(400);
-    const included = await db.lead.create({ data: { organizationId: org, assignedToId: b.id, name: 'IST boundary included', phone: '+919700009101', createdAt: new Date('2026-10-31T19:00:00Z') } });
-    const excluded = await db.lead.create({ data: { organizationId: org, assignedToId: b.id, name: 'IST boundary excluded', phone: '+919700009102', createdAt: new Date('2026-10-31T18:29:59Z') } });
+    const included = await db.lead.create({
+      data: { organizationId: org, assignedToId: b.id, name: 'IST boundary included', phone: '+919700009101', createdAt: new Date('2026-10-31T19:00:00Z') },
+    });
+    const excluded = await db.lead.create({
+      data: { organizationId: org, assignedToId: b.id, name: 'IST boundary excluded', phone: '+919700009102', createdAt: new Date('2026-10-31T18:29:59Z') },
+    });
     const day = (await http().get('/api/leads?from=2026-11-01&to=2026-11-01').set(h(b)).expect(200)).body;
     expect(day.items.some((row: any) => row.id === included.id)).toBe(true);
     expect(day.items.some((row: any) => row.id === excluded.id)).toBe(false);

@@ -26,7 +26,7 @@ describe('Independent requirement conversion (real PostgreSQL)', () => {
     const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.listen(0,'127.0.0.1');
+    await app.listen(0, '127.0.0.1');
     db = app.get(PrismaService);
     org = (await db.organization.create({ data: { name: 'Conversion fixture ' + stamp, slug: 'conversion-' + stamp } })).id;
     for (const [name, role] of [

@@ -110,10 +110,25 @@ export class AdminCoreController {
 
   @Get('launch-overview')
   async launchOverview() {
-    const [firms,brokers,inventory,requirements,pendingImports,failedJobs]=await Promise.all([
-      this.prisma.organization.count({where:{status:'ACTIVE'}}),this.prisma.user.count({where:{role:'BROKER_ADMIN',status:'ACTIVE',deletedAt:null}}),this.prisma.inventoryItem.count({where:{deletedAt:null}}),this.prisma.brokerRequirement.count({where:{deletedAt:null,status:'OPEN'}}),this.prisma.sourceEntry.count({where:{reviewState:'NEEDS_REVIEW'}}),this.prisma.job.count({where:{status:'FAILED'}})
+    const [firms, brokers, inventory, requirements, pendingImports, failedJobs] = await Promise.all([
+      this.prisma.organization.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.user.count({ where: { role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null } }),
+      this.prisma.inventoryItem.count({ where: { deletedAt: null } }),
+      this.prisma.brokerRequirement.count({ where: { deletedAt: null, status: 'OPEN' } }),
+      this.prisma.sourceEntry.count({ where: { reviewState: 'NEEDS_REVIEW' } }),
+      this.prisma.job.count({ where: { status: 'FAILED' } }),
     ]);
-    return {firms,brokers,inventory,requirements,pendingImports,failedJobs,integrations:(await this.settings.platformOverview()).filter((i)=>['housing_api','whatsapp_platform','openrouter'].includes(i.key)).map((i)=>({key:i.key,configured:i.configured,lastTestOk:i.lastTestOk}))};
+    return {
+      firms,
+      brokers,
+      inventory,
+      requirements,
+      pendingImports,
+      failedJobs,
+      integrations: (await this.settings.platformOverview())
+        .filter((i) => ['housing_api', 'whatsapp_platform', 'openrouter'].includes(i.key))
+        .map((i) => ({ key: i.key, configured: i.configured, lastTestOk: i.lastTestOk })),
+    };
   }
 
   // ------------------------------------------------------------------ credentials center
@@ -121,18 +136,27 @@ export class AdminCoreController {
   async integrations(@Query('scope') scope?: string) {
     const apiUrl = env().PUBLIC_API_URL;
     const defs = INTEGRATIONS.filter((d) => (scope ? d.scope === scope : d.scope === 'platform' || d.key === 'housing_api'));
-    return Promise.all(
-      defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: await this.settings.view(d.key) })),
-    );
+    return Promise.all(defs.map(async (d) => ({ ...d, steps: renderSteps(d, apiUrl), state: await this.settings.view(d.key) })));
   }
 
   @Get('email-delivery')
   async emailDelivery() {
     const provider = await this.mail.provider();
-    return { provider, providers: await Promise.all(['smtp','zoho_mail'].map(async (key) => { const state = await this.settings.view(key); return { key, configured: state.configured, lastTestOk: state.lastTestOk, enabled: state.enabled }; })) };
+    return {
+      provider,
+      providers: await Promise.all(
+        ['smtp', 'zoho_mail'].map(async (key) => {
+          const state = await this.settings.view(key);
+          return { key, configured: state.configured, lastTestOk: state.lastTestOk, enabled: state.enabled };
+        }),
+      ),
+    };
   }
   @Patch('email-delivery')
-  async selectEmail(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ provider: z.enum(['smtp','zoho_mail']) }))) body: {provider:'smtp'|'zoho_mail'}) {
+  async selectEmail(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ provider: z.enum(['smtp', 'zoho_mail']) }))) body: { provider: 'smtp' | 'zoho_mail' },
+  ) {
     const state = await this.settings.view(body.provider);
     if (!state.configured || state.lastTestOk !== true) throw new BadRequestException('Save and successfully test the provider before selecting it.');
     await this.settings.setJson('email.provider', body.provider, user.id);
@@ -140,11 +164,11 @@ export class AdminCoreController {
     return this.emailDelivery();
   }
   @Post('integrations/zoho_mail/authorize')
-  async authorizeZoho(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ code: z.string().trim().min(1).max(4096) }))) body: {code:string}) {
+  async authorizeZoho(@CurrentUser() user: RequestUser, @Body(new ZodPipe(z.object({ code: z.string().trim().min(1).max(4096) }))) body: { code: string }) {
     const fields = await this.settings.oauthSetup('zoho_mail');
     const refreshToken = await this.zoho.authorize(fields, body.code);
-    const state = await this.settings.save('zoho_mail', { enabled: true, fields: {...fields, refreshToken} }, {userId:user.id});
-    await this.audit.log(user, 'email.zoho.authorize', 'Integration', 'zoho_mail', {scopes:['ZohoMail.messages.CREATE','ZohoMail.accounts.READ']});
+    const state = await this.settings.save('zoho_mail', { enabled: true, fields: { ...fields, refreshToken } }, { userId: user.id });
+    await this.audit.log(user, 'email.zoho.authorize', 'Integration', 'zoho_mail', { scopes: ['ZohoMail.messages.CREATE', 'ZohoMail.accounts.READ'] });
     return state;
   }
 
@@ -192,10 +216,12 @@ export class AdminCoreController {
   async updateAppConfig(@CurrentUser() user: RequestUser, @Body() body: any) {
     const current = await this.settings.getAppConfig();
     const nextAuth = { ...current.auth, ...body?.auth };
-    if (nextAuth.requireLoginEmailOtp && !nextAuth.allowPasswordLogin && !nextAuth.allowGoogle) throw new BadRequestException('At least one first-factor login method must remain enabled.');
+    if (nextAuth.requireLoginEmailOtp && !nextAuth.allowPasswordLogin && !nextAuth.allowGoogle)
+      throw new BadRequestException('At least one first-factor login method must remain enabled.');
     if (body?.auth?.requireLoginEmailOtp === true && !current.auth.requireLoginEmailOtp) {
       const state = await this.settings.view(await this.mail.provider());
-      if (!state.configured || state.lastTestOk !== true) throw new BadRequestException('Save and successfully test the selected email provider before requiring login OTP.');
+      if (!state.configured || state.lastTestOk !== true)
+        throw new BadRequestException('Save and successfully test the selected email provider before requiring login OTP.');
     }
     const cfg = await this.settings.updateAppConfig(body ?? {}, user.id);
     await this.audit.log(user, 'app_config.update', 'SystemSetting', 'app.config', { keys: Object.keys(body ?? {}) });

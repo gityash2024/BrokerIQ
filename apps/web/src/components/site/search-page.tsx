@@ -97,7 +97,9 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
 
   const mapQ = useQuery({ queryKey: ['search-map', key], queryFn: () => api<any[]>(`/listings/map${key}`, { auth: false }), enabled: view === 'map' });
 
-  const types = (tax?.propertyTypes ?? []).filter((t: any) => (m.category ? t.category === m.category : true) && (purpose==='SALE'?PROPERTY_TYPES:RENTABLE_TYPES).includes(t.value));
+  const types = (tax?.propertyTypes ?? []).filter(
+    (t: any) => (m.category ? t.category === m.category : true) && (purpose === 'SALE' ? PROPERTY_TYPES : RENTABLE_TYPES).includes(t.value),
+  );
   const budgets: number[] = tax?.budgets?.[purpose] ?? [];
   const selectedLocs = (f.localities ?? '').split(',').filter(Boolean);
   const activeCount = [

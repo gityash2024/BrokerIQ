@@ -44,33 +44,47 @@ export default function ImportReview() {
     }
   }
   return (
-    <BrokerScreen title="Review capture" subtitle={q.data ? `${q.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${q.data.pending} need review`}` : 'Source saved, loading…'} back>
+    <BrokerScreen
+      title="Review capture"
+      subtitle={q.data ? `${q.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${q.data.pending} need review`}` : 'Source saved, loading…'}
+      back
+    >
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 50 }}>
-        {previewOfImportId ? <NativeCard>
-          <Txt>Review what the latest extraction found.</Txt>
-          <Button title="Open original import" variant="secondary" onPress={() => router.replace({ pathname: '/import-review/[id]', params: { id: previewOfImportId } })} />
-        </NativeCard> : <WorkspaceHero
-          label="SOURCE REVIEW"
-          title="Check every fact before saving."
-          description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve independent requirement records. Property offers require a separate conversion into Inventory."
-        />}
+        {previewOfImportId ? (
+          <NativeCard>
+            <Txt>Review what the latest extraction found.</Txt>
+            <Button
+              title="Open original import"
+              variant="secondary"
+              onPress={() => router.replace({ pathname: '/import-review/[id]', params: { id: previewOfImportId } })}
+            />
+          </NativeCard>
+        ) : (
+          <WorkspaceHero
+            label="SOURCE REVIEW"
+            title="Check every fact before saving."
+            description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve independent requirement records. Property offers require a separate conversion into Inventory."
+          />
+        )}
         {q.data?.canPreview && <Button title="Preview latest extraction" variant="secondary" loading={openingPreview} onPress={openPreview} />}
         {q.data?.metadata?.requestedTarget && q.data.metadata.requestedTarget !== 'AUTO' && (
           <WorkspaceTag label={`Requested destination: ${q.data.metadata.requestedTarget === 'INVENTORY' ? 'Inventory' : 'Requirements'}`} />
         )}
-        {!previewOfImportId && <View style={{ flexDirection: 'row', gap: 8 }}>
-          {[true, false].map((pending) => (
-            <Chip
-              key={String(pending)}
-              label={pending ? 'Pending only' : 'All entries'}
-              active={pendingOnly === pending}
-              onPress={() => {
-                setPendingOnly(pending);
-                setPage(1);
-              }}
-            />
-          ))}
-        </View>}
+        {!previewOfImportId && (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[true, false].map((pending) => (
+              <Chip
+                key={String(pending)}
+                label={pending ? 'Pending only' : 'All entries'}
+                active={pendingOnly === pending}
+                onPress={() => {
+                  setPendingOnly(pending);
+                  setPage(1);
+                }}
+              />
+            ))}
+          </View>
+        )}
         {q.data?.metadata?.pages?.length > 0 && (
           <ChoiceField
             label="Register page"
@@ -144,7 +158,10 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   useEffect(() => {
-    if (entry.reviewState === 'PREVIEW') { setReady(true); return; }
+    if (entry.reviewState === 'PREVIEW') {
+      setReady(true);
+      return;
+    }
     let active = true;
     (async () => {
       try {
@@ -231,8 +248,12 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
           <Txt v="caption">{attachment.name}</Txt>
           {attachment.available && attachment.contentType.startsWith('image/') && (
             <>
-              <Button title={previewAttachment === attachment.index ? 'Hide photo' : 'Preview photo'} size="sm" variant="secondary"
-                onPress={() => setPreviewAttachment((active) => active === attachment.index ? null : attachment.index)} />
+              <Button
+                title={previewAttachment === attachment.index ? 'Hide photo' : 'Preview photo'}
+                size="sm"
+                variant="secondary"
+                onPress={() => setPreviewAttachment((active) => (active === attachment.index ? null : attachment.index))}
+              />
               {previewAttachment === attachment.index && (
                 <SourceImage uri={`${API_URL}/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`} token={authStore.get()?.accessToken} />
               )}
@@ -241,11 +262,23 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
           {attachment.available && attachment.contentType.startsWith('video/') && (
             <SourceVideo path={`/imports/${batchId}/entries/${entry.id}/attachments/${attachment.index}`} contentType={attachment.contentType} />
           )}
-          {attachment.warning && <Txt v="caption" color="muted">{attachment.warning}</Txt>}
-          {attachment.text && <Txt v="caption" selectable>{attachment.text}</Txt>}
+          {attachment.warning && (
+            <Txt v="caption" color="muted">
+              {attachment.warning}
+            </Txt>
+          )}
+          {attachment.text && (
+            <Txt v="caption" selectable>
+              {attachment.text}
+            </Txt>
+          )}
         </View>
       ))}
-      {entry.ocr?.attachmentWarnings?.map((warning: string) => <Txt key={warning} v="caption" color="muted">{warning}</Txt>)}
+      {entry.ocr?.attachmentWarnings?.map((warning: string) => (
+        <Txt key={warning} v="caption" color="muted">
+          {warning}
+        </Txt>
+      ))}
       {ready &&
         entities.map((e, index) => (
           <View key={index} style={{ gap: 12 }}>
@@ -257,9 +290,12 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
                 {warning}
               </Txt>
             ))}
-            {entry.reviewState === 'PREVIEW' && capturePreviewFacts(e).map(({ label, value }) => (
-              <Txt key={label} v="small" selectable>{label} · {value}</Txt>
-            ))}
+            {entry.reviewState === 'PREVIEW' &&
+              capturePreviewFacts(e).map(({ label, value }) => (
+                <Txt key={label} v="small" selectable>
+                  {label} · {value}
+                </Txt>
+              ))}
             {!done && e.kind !== 'UNRELATED' && (
               <EntityFields
                 requirement={e.kind === 'REQUIREMENT'}
@@ -352,7 +388,11 @@ function SourceVideo({ path, contentType }: { path: string; contentType: string 
   return (
     <>
       <Button title="Open source video" size="sm" variant="secondary" loading={busy} onPress={open} />
-      {!!error && <Txt v="caption" color="muted">{error}</Txt>}
+      {!!error && (
+        <Txt v="caption" color="muted">
+          {error}
+        </Txt>
+      )}
     </>
   );
 }

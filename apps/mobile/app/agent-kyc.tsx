@@ -2,31 +2,10 @@ import { captureGuidedFaces, hasPendingFaceCaptures, discardFaceCaptures } from 
 import { KycHistory } from '@/launch/kyc-history';
 import { KycMedia } from '@/launch/kyc-media';
 import { useState, useEffect } from 'react';
-import {
-  Alert,
-  Modal,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Modal, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Building2,
-  CheckCircle2,
-  Clock,
-  CreditCard,
-  Eye,
-  FileText,
-  Camera,
-  ShieldCheck,
-  ShieldAlert,
-  Shield,
-  Upload,
-  UserCheck,
-  X,
-} from 'lucide-react-native';
+import { Building2, CheckCircle2, Clock, CreditCard, Eye, FileText, Camera, ShieldCheck, ShieldAlert, Shield, Upload, UserCheck, X } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
 import { Txt, Button, Card, Badge, Row } from '@/ui';
 import { useTheme } from '@/lib/theme';
@@ -98,10 +77,7 @@ export default function AgentKycScreen() {
   const submitMutation = useMutation({
     mutationFn: (body: any) => post('/broker/team/agent-kyc', body),
     onSuccess: () => {
-      Alert.alert(
-        'KYC सबमिट हो गया ✅',
-        'आपका Agent KYC सफलतापूर्वक सबमिट हो चुका है। ब्रोकर एडमिन इसे जल्द वेरिफाई करेंगे।',
-      );
+      Alert.alert('KYC सबमिट हो गया ✅', 'आपका Agent KYC सफलतापूर्वक सबमिट हो चुका है। ब्रोकर एडमिन इसे जल्द वेरिफाई करेंगे।');
       queryClient.invalidateQueries({ queryKey: ['agent-kyc-mine-mobile'] });
     },
     onError: (err: any) => {
@@ -268,22 +244,41 @@ export default function AgentKycScreen() {
             return (
               <Card style={{ padding: 18, gap: 14 }}>
                 <Row gap={12} align="center">
-                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      backgroundColor: 'rgba(99,102,241,0.15)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
                     <Building2 size={24} color={c.brand} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Txt v="bodyStrong" style={{ fontSize: 16 }}>फर्म सत्यापन (Firm KYC)</Txt>
-                    <Txt v="caption" color="muted">SuperAdmin द्वारा प्रमाणित</Txt>
+                    <Txt v="bodyStrong" style={{ fontSize: 16 }}>
+                      फर्म सत्यापन (Firm KYC)
+                    </Txt>
+                    <Txt v="caption" color="muted">
+                      SuperAdmin द्वारा प्रमाणित
+                    </Txt>
                   </View>
                 </Row>
 
                 <View style={{ gap: 10, padding: 14, borderRadius: 12, backgroundColor: isDark ? '#13172C' : '#F8FAFC' }}>
                   <Row justify="space-between">
-                    <Txt v="caption" color="muted">फर्म का नाम:</Txt>
-                    <Txt v="small" style={{ fontWeight: '700' }}>{firm?.name || 'BrokerIQ Firm'}</Txt>
+                    <Txt v="caption" color="muted">
+                      फर्म का नाम:
+                    </Txt>
+                    <Txt v="small" style={{ fontWeight: '700' }}>
+                      {firm?.name || 'BrokerIQ Firm'}
+                    </Txt>
                   </Row>
                   <Row justify="space-between">
-                    <Txt v="caption" color="muted">सत्यापन स्थिति:</Txt>
+                    <Txt v="caption" color="muted">
+                      सत्यापन स्थिति:
+                    </Txt>
                     <Badge
                       label={isVerified ? 'Verified by SuperAdmin' : isPending ? 'Under Review' : 'Unverified'}
                       color={isVerified ? '#10B981' : isPending ? '#F59E0B' : '#EF4444'}
@@ -302,7 +297,9 @@ export default function AgentKycScreen() {
                     <Row justify="space-between" align="center">
                       <Row gap={8} align="center">
                         <ShieldCheck size={16} color={c.brand} />
-                        <Txt v="small" style={{ fontWeight: '700' }}>RERA Registration</Txt>
+                        <Txt v="small" style={{ fontWeight: '700' }}>
+                          RERA Registration
+                        </Txt>
                       </Row>
                       {reraDoc?.fileUrl && (
                         <TouchableOpacity
@@ -310,11 +307,15 @@ export default function AgentKycScreen() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                         >
                           <Eye size={13} color={c.brand} />
-                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                            सर्टिफिकेट देखें
+                          </Txt>
                         </TouchableOpacity>
                       )}
                     </Row>
-                    <Txt v="caption" color="muted">नंबर: {firm?.reraNumber || reraDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                    <Txt v="caption" color="muted">
+                      नंबर: {firm?.reraNumber || reraDoc?.docNumber || 'दर्ज नहीं'}
+                    </Txt>
                   </Card>
 
                   {/* GST */}
@@ -322,7 +323,9 @@ export default function AgentKycScreen() {
                     <Row justify="space-between" align="center">
                       <Row gap={8} align="center">
                         <FileText size={16} color="#10B981" />
-                        <Txt v="small" style={{ fontWeight: '700' }}>GSTIN / Trade Tax</Txt>
+                        <Txt v="small" style={{ fontWeight: '700' }}>
+                          GSTIN / Trade Tax
+                        </Txt>
                       </Row>
                       {gstDoc?.fileUrl && (
                         <TouchableOpacity
@@ -330,11 +333,15 @@ export default function AgentKycScreen() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                         >
                           <Eye size={13} color={c.brand} />
-                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>सर्टिफिकेट देखें</Txt>
+                          <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                            सर्टिफिकेट देखें
+                          </Txt>
                         </TouchableOpacity>
                       )}
                     </Row>
-                    <Txt v="caption" color="muted">नंबर: {firm?.gstNumber || gstDoc?.docNumber || 'दर्ज नहीं'}</Txt>
+                    <Txt v="caption" color="muted">
+                      नंबर: {firm?.gstNumber || gstDoc?.docNumber || 'दर्ज नहीं'}
+                    </Txt>
                   </Card>
 
                   {/* PAN */}
@@ -343,7 +350,9 @@ export default function AgentKycScreen() {
                       <Row justify="space-between" align="center">
                         <Row gap={8} align="center">
                           <CreditCard size={16} color="#3B82F6" />
-                          <Txt v="small" style={{ fontWeight: '700' }}>Company PAN</Txt>
+                          <Txt v="small" style={{ fontWeight: '700' }}>
+                            Company PAN
+                          </Txt>
                         </Row>
                         {panDoc.fileUrl && (
                           <TouchableOpacity
@@ -351,11 +360,15 @@ export default function AgentKycScreen() {
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                           >
                             <Eye size={13} color={c.brand} />
-                            <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>दस्तावेज़ देखें</Txt>
+                            <Txt v="caption" color="brand" style={{ fontWeight: '800' }}>
+                              दस्तावेज़ देखें
+                            </Txt>
                           </TouchableOpacity>
                         )}
                       </Row>
-                      <Txt v="caption" color="muted">नंबर: {panDoc.docNumber || 'दर्ज नहीं'}</Txt>
+                      <Txt v="caption" color="muted">
+                        नंबर: {panDoc.docNumber || 'दर्ज नहीं'}
+                      </Txt>
                     </Card>
                   )}
                 </View>
@@ -365,390 +378,380 @@ export default function AgentKycScreen() {
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 50 }}>
-        {/* Status Card */}
-        {isVerified ? (
-          <View
-            style={{
-              padding: 16,
-              borderRadius: 20,
-              backgroundColor: 'rgba(16,185,129,0.12)',
-              borderWidth: 1,
-              borderColor: 'rgba(16,185,129,0.3)',
-              gap: 6,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <ShieldCheck size={22} color="#10B981" />
-              <Txt style={{ fontSize: 16, fontWeight: '900', color: '#10B981' }}>
-                KYC Verified • सत्यापित
+          {/* Status Card */}
+          {isVerified ? (
+            <View
+              style={{
+                padding: 16,
+                borderRadius: 20,
+                backgroundColor: 'rgba(16,185,129,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(16,185,129,0.3)',
+                gap: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck size={22} color="#10B981" />
+                <Txt style={{ fontSize: 16, fontWeight: '900', color: '#10B981' }}>KYC Verified • सत्यापित</Txt>
+              </View>
+              <Txt v="small" style={{ color: isDark ? '#A7F3D0' : '#065F46' }}>
+                आपके सभी पहचान दस्तावेज़ स्वीकृत हैं। आप वेरिफाइड एजेंट के रूप में प्रमाणित हैं।
               </Txt>
             </View>
-            <Txt v="small" style={{ color: isDark ? '#A7F3D0' : '#065F46' }}>
-              आपके सभी पहचान दस्तावेज़ स्वीकृत हैं। आप वेरिफाइड एजेंट के रूप में प्रमाणित हैं।
-            </Txt>
-          </View>
-        ) : isPending ? (
-          <View
-            style={{
-              padding: 16,
-              borderRadius: 20,
-              backgroundColor: 'rgba(245,158,11,0.12)',
-              borderWidth: 1,
-              borderColor: 'rgba(245,158,11,0.3)',
-              gap: 6,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Clock size={22} color="#F59E0B" />
-              <Txt style={{ fontSize: 16, fontWeight: '900', color: '#F59E0B' }}>
-                Under Review • समीक्षा जारी है
+          ) : isPending ? (
+            <View
+              style={{
+                padding: 16,
+                borderRadius: 20,
+                backgroundColor: 'rgba(245,158,11,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(245,158,11,0.3)',
+                gap: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Clock size={22} color="#F59E0B" />
+                <Txt style={{ fontSize: 16, fontWeight: '900', color: '#F59E0B' }}>Under Review • समीक्षा जारी है</Txt>
+              </View>
+              <Txt v="small" style={{ color: isDark ? '#FDE68A' : '#92400E' }}>
+                दस्तावेज़ जमा हो चुके हैं। ब्रोकर एडमिन की समीक्षा के बाद स्थिति अपडेट होगी।
               </Txt>
             </View>
-            <Txt v="small" style={{ color: isDark ? '#FDE68A' : '#92400E' }}>
-              दस्तावेज़ जमा हो चुके हैं। ब्रोकर एडमिन की समीक्षा के बाद स्थिति अपडेट होगी।
-            </Txt>
-          </View>
-        ) : isRejected ? (
-          <View
-            style={{
-              padding: 16,
-              borderRadius: 20,
-              backgroundColor: 'rgba(239,68,68,0.12)',
-              borderWidth: 1,
-              borderColor: 'rgba(239,68,68,0.3)',
-              gap: 6,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <ShieldAlert size={22} color="#EF4444" />
-              <Txt style={{ fontSize: 16, fontWeight: '900', color: '#EF4444' }}>
-                KYC Rejected • अस्वीकृत
+          ) : isRejected ? (
+            <View
+              style={{
+                padding: 16,
+                borderRadius: 20,
+                backgroundColor: 'rgba(239,68,68,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(239,68,68,0.3)',
+                gap: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ShieldAlert size={22} color="#EF4444" />
+                <Txt style={{ fontSize: 16, fontWeight: '900', color: '#EF4444' }}>KYC Rejected • अस्वीकृत</Txt>
+              </View>
+              <Txt v="small" style={{ color: isDark ? '#FECACA' : '#991B1B' }}>
+                कारण: {kyc?.reviewNote || 'दस्तावेज़ साफ़ नहीं थे या जानकारी मेल नहीं खाती।'}
+              </Txt>
+              <Txt v="caption" style={{ color: isDark ? '#FCA5A5' : '#B91C1C' }}>
+                कृपया सही जानकारी व नई फ़ोटो के साथ पुनः सबमिट करें।
               </Txt>
             </View>
-            <Txt v="small" style={{ color: isDark ? '#FECACA' : '#991B1B' }}>
-              कारण: {kyc?.reviewNote || 'दस्तावेज़ साफ़ नहीं थे या जानकारी मेल नहीं खाती।'}
-            </Txt>
-            <Txt v="caption" style={{ color: isDark ? '#FCA5A5' : '#B91C1C' }}>
-              कृपया सही जानकारी व नई फ़ोटो के साथ पुनः सबमिट करें।
-            </Txt>
-          </View>
-        ) : (
+          ) : (
+            <View
+              style={{
+                padding: 16,
+                borderRadius: 20,
+                backgroundColor: isDark ? '#13172C' : '#FFFFFF',
+                borderWidth: 1,
+                borderColor: c.line,
+                gap: 4,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Shield size={20} color={c.muted} />
+                <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>पहचान सत्यापन आवश्यक</Txt>
+              </View>
+              <Txt v="small" color="muted">
+                कृपया नीचे आधार नंबर, पैन नंबर व 3-स्टेप चेहरा सत्यापन पूरा करें।
+              </Txt>
+            </View>
+          )}
+
+          {/* Section 1: Aadhaar Card */}
           <View
             style={{
+              borderRadius: 22,
               padding: 16,
-              borderRadius: 20,
-              backgroundColor: isDark ? '#13172C' : '#FFFFFF',
+              backgroundColor: isDark ? '#121524' : '#FFFFFF',
               borderWidth: 1,
               borderColor: c.line,
-              gap: 4,
+              gap: 12,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Shield size={20} color={c.muted} />
-              <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>
-                पहचान सत्यापन आवश्यक
+              <CreditCard size={18} color="#F97316" />
+              <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>1. Aadhaar Card • आधार कार्ड</Txt>
+            </View>
+
+            <View style={{ gap: 4 }}>
+              <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
+                आधार नंबर (12 Digits)
               </Txt>
-            </View>
-            <Txt v="small" color="muted">
-              कृपया नीचे आधार नंबर, पैन नंबर व 3-स्टेप चेहरा सत्यापन पूरा करें।
-            </Txt>
-          </View>
-        )}
-
-        {/* Section 1: Aadhaar Card */}
-        <View
-          style={{
-            borderRadius: 22,
-            padding: 16,
-            backgroundColor: isDark ? '#121524' : '#FFFFFF',
-            borderWidth: 1,
-            borderColor: c.line,
-            gap: 12,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <CreditCard size={18} color="#F97316" />
-            <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>
-              1. Aadhaar Card • आधार कार्ड
-            </Txt>
-          </View>
-
-          <View style={{ gap: 4 }}>
-            <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
-              आधार नंबर (12 Digits)
-            </Txt>
-            <TextInput
-              value={currentAadhaar}
-              editable={!isVerified}
-              keyboardType="numeric"
-              maxLength={14}
-              placeholder="XXXX XXXX XXXX"
-              placeholderTextColor={c.muted}
-              onChangeText={(t) => {
-                const raw = t.replace(/\D/g, '').slice(0, 12);
-                const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
-                setAadhaarNumber(formatted);
-              }}
-              style={{
-                height: 48,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: currentAadhaar.replace(/\D/g, '').length === 12 ? '#10B981' : c.line,
-                backgroundColor: isDark ? '#0A0D1A' : '#F9FAFB',
-                paddingHorizontal: 14,
-                fontSize: 15,
-                fontWeight: '700',
-                color: c.fg,
-                fontFamily: 'monospace',
-                letterSpacing: 1,
-              }}
-            />
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
-              आधार कार्ड फ़ोटो / डॉक्यूमेंट
-            </Txt>
-            {currentAadhaarDoc ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: c.line, padding: 8 }}>
-                <KycMedia uri={currentAadhaarDoc} style={{ width: 50, height: 50, borderRadius: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Txt style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>दस्तावेज़ संलग्न ✅</Txt>
-                  <Txt v="caption" color="muted" numberOfLines={1}>Private document · देखें</Txt>
-                </View>
-                {!isVerified && (
-                  <TouchableOpacity onPress={() => pickDocument('aadhaar')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                    <Txt style={{ color: c.brand, fontSize: 12, fontWeight: '700' }}>बदलें</Txt>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity
-                disabled={isVerified || uploadingAadhaar}
-                onPress={() => pickDocument('aadhaar')}
+              <TextInput
+                value={currentAadhaar}
+                editable={!isVerified}
+                keyboardType="numeric"
+                maxLength={14}
+                placeholder="XXXX XXXX XXXX"
+                placeholderTextColor={c.muted}
+                onChangeText={(t) => {
+                  const raw = t.replace(/\D/g, '').slice(0, 12);
+                  const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+                  setAadhaarNumber(formatted);
+                }}
                 style={{
-                  height: 44,
+                  height: 48,
                   borderRadius: 12,
                   borderWidth: 1,
-                  borderStyle: 'dashed',
-                  borderColor: c.line,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'row',
-                  gap: 8,
-                }}
-              >
-                <Upload size={16} color={c.muted} />
-                <Txt v="small" style={{ fontWeight: '700', color: c.fg }}>
-                  {uploadingAadhaar ? 'अपलोड हो रहा है...' : 'आधार फ़ोटो चुनें (Upload)'}
-                </Txt>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Section 2: PAN Card */}
-        <View
-          style={{
-            borderRadius: 22,
-            padding: 16,
-            backgroundColor: isDark ? '#121524' : '#FFFFFF',
-            borderWidth: 1,
-            borderColor: c.line,
-            gap: 12,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <FileText size={18} color="#6366F1" />
-            <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>
-              2. PAN Card • पैन कार्ड
-            </Txt>
-          </View>
-
-          <View style={{ gap: 4 }}>
-            <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
-              पैन नंबर (Format: ABCDE1234F)
-            </Txt>
-            <TextInput
-              value={currentPan}
-              editable={!isVerified}
-              autoCapitalize="characters"
-              maxLength={10}
-              placeholder="ABCDE1234F"
-              placeholderTextColor={c.muted}
-              onChangeText={(t) => setPanNumber(t.toUpperCase())}
-              style={{
-                height: 48,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(currentPan) ? '#10B981' : c.line,
-                backgroundColor: isDark ? '#0A0D1A' : '#F9FAFB',
-                paddingHorizontal: 14,
-                fontSize: 15,
-                fontWeight: '700',
-                color: c.fg,
-                fontFamily: 'monospace',
-                letterSpacing: 1,
-              }}
-            />
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
-              पैन कार्ड फ़ोटो / डॉक्यूमेंट
-            </Txt>
-            {currentPanDoc ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: c.line, padding: 8 }}>
-                <KycMedia uri={currentPanDoc} style={{ width: 50, height: 50, borderRadius: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Txt style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>दस्तावेज़ संलग्न ✅</Txt>
-                  <Txt v="caption" color="muted" numberOfLines={1}>Private document · देखें</Txt>
-                </View>
-                {!isVerified && (
-                  <TouchableOpacity onPress={() => pickDocument('pan')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                    <Txt style={{ color: c.brand, fontSize: 12, fontWeight: '700' }}>बदलें</Txt>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity
-                disabled={isVerified || uploadingPan}
-                onPress={() => pickDocument('pan')}
-                style={{
-                  height: 44,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderStyle: 'dashed',
-                  borderColor: c.line,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'row',
-                  gap: 8,
-                }}
-              >
-                <Upload size={16} color={c.muted} />
-                <Txt v="small" style={{ fontWeight: '700', color: c.fg }}>
-                  {uploadingPan ? 'अपलोड हो रहा है...' : 'पैन फ़ोटो चुनें (Upload)'}
-                </Txt>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Section 3: Guided Face Capture (3 Poses) */}
-        <View
-          style={{
-            borderRadius: 22,
-            padding: 16,
-            backgroundColor: isDark ? '#121524' : '#FFFFFF',
-            borderWidth: 1,
-            borderColor: c.line,
-            gap: 12,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Camera size={18} color="#10B981" />
-              <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>3. Guided Face Capture (3 Poses)</Txt>
-            </View>
-            {straightUrl && leftUrl && rightUrl && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <CheckCircle2 size={14} color="#10B981" />
-                <Txt style={{ fontSize: 11, fontWeight: '700', color: '#10B981' }}>3/3 Complete</Txt>
-              </View>
-            )}
-          </View>
-
-          <Txt v="caption" color="muted">
-            सत्यापन हेतु सेल्फी कैमरे से 3 अलग कोणों में अपना चेहरा कैप्चर करें
-          </Txt>
-
-          {/* 3 Pose Cards */}
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {[
-              { key: 'STRAIGHT' as const, label: 'Straight', hint: 'सामने देखें', url: straightUrl },
-              { key: 'LEFT' as const, label: 'Turn Left', hint: 'बाईं तरफ', url: leftUrl },
-              { key: 'RIGHT' as const, label: 'Turn Right', hint: 'दाईं तरफ', url: rightUrl },
-            ].map((pose) => (
-              <View
-                key={pose.key}
-                style={{
-                  flex: 1,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: pose.url ? '#10B981' : c.line,
+                  borderColor: currentAadhaar.replace(/\D/g, '').length === 12 ? '#10B981' : c.line,
                   backgroundColor: isDark ? '#0A0D1A' : '#F9FAFB',
-                  padding: 8,
-                  alignItems: 'center',
-                  gap: 6,
+                  paddingHorizontal: 14,
+                  fontSize: 15,
+                  fontWeight: '700',
+                  color: c.fg,
+                  fontFamily: 'monospace',
+                  letterSpacing: 1,
                 }}
-              >
-                <View
-                  style={{
-                    width: '100%',
-                    aspectRatio: 1,
-                    borderRadius: 10,
-                    overflow: 'hidden',
-                    backgroundColor: isDark ? '#171B30' : '#E5E7EB',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {pose.url ? <KycMedia uri={pose.url} style={{ width: '100%', height: '100%' }} /> : <Camera size={24} color={c.muted} />}
-                  {pose.url && (
-                    <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#10B981', borderRadius: 99, padding: 2 }}>
-                      <CheckCircle2 size={12} color="#fff" />
-                    </View>
+              />
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
+                आधार कार्ड फ़ोटो / डॉक्यूमेंट
+              </Txt>
+              {currentAadhaarDoc ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: c.line, padding: 8 }}>
+                  <KycMedia uri={currentAadhaarDoc} style={{ width: 50, height: 50, borderRadius: 8 }} />
+                  <View style={{ flex: 1 }}>
+                    <Txt style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>दस्तावेज़ संलग्न ✅</Txt>
+                    <Txt v="caption" color="muted" numberOfLines={1}>
+                      Private document · देखें
+                    </Txt>
+                  </View>
+                  {!isVerified && (
+                    <TouchableOpacity onPress={() => pickDocument('aadhaar')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                      <Txt style={{ color: c.brand, fontSize: 12, fontWeight: '700' }}>बदलें</Txt>
+                    </TouchableOpacity>
                   )}
                 </View>
-
-                <Txt style={{ fontSize: 11, fontWeight: '800', color: c.fg }}>{pose.label}</Txt>
-                <Txt style={{ fontSize: 10, color: c.muted }}>{pose.hint}</Txt>
-              </View>
-            ))}
+              ) : (
+                <TouchableOpacity
+                  disabled={isVerified || uploadingAadhaar}
+                  onPress={() => pickDocument('aadhaar')}
+                  style={{
+                    height: 44,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderStyle: 'dashed',
+                    borderColor: c.line,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 8,
+                  }}
+                >
+                  <Upload size={16} color={c.muted} />
+                  <Txt v="small" style={{ fontWeight: '700', color: c.fg }}>
+                    {uploadingAadhaar ? 'अपलोड हो रहा है...' : 'आधार फ़ोटो चुनें (Upload)'}
+                  </Txt>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
+
+          {/* Section 2: PAN Card */}
+          <View
+            style={{
+              borderRadius: 22,
+              padding: 16,
+              backgroundColor: isDark ? '#121524' : '#FFFFFF',
+              borderWidth: 1,
+              borderColor: c.line,
+              gap: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <FileText size={18} color="#6366F1" />
+              <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>2. PAN Card • पैन कार्ड</Txt>
+            </View>
+
+            <View style={{ gap: 4 }}>
+              <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
+                पैन नंबर (Format: ABCDE1234F)
+              </Txt>
+              <TextInput
+                value={currentPan}
+                editable={!isVerified}
+                autoCapitalize="characters"
+                maxLength={10}
+                placeholder="ABCDE1234F"
+                placeholderTextColor={c.muted}
+                onChangeText={(t) => setPanNumber(t.toUpperCase())}
+                style={{
+                  height: 48,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(currentPan) ? '#10B981' : c.line,
+                  backgroundColor: isDark ? '#0A0D1A' : '#F9FAFB',
+                  paddingHorizontal: 14,
+                  fontSize: 15,
+                  fontWeight: '700',
+                  color: c.fg,
+                  fontFamily: 'monospace',
+                  letterSpacing: 1,
+                }}
+              />
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <Txt v="caption" color="muted" style={{ fontWeight: '700' }}>
+                पैन कार्ड फ़ोटो / डॉक्यूमेंट
+              </Txt>
+              {currentPanDoc ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: c.line, padding: 8 }}>
+                  <KycMedia uri={currentPanDoc} style={{ width: 50, height: 50, borderRadius: 8 }} />
+                  <View style={{ flex: 1 }}>
+                    <Txt style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>दस्तावेज़ संलग्न ✅</Txt>
+                    <Txt v="caption" color="muted" numberOfLines={1}>
+                      Private document · देखें
+                    </Txt>
+                  </View>
+                  {!isVerified && (
+                    <TouchableOpacity onPress={() => pickDocument('pan')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                      <Txt style={{ color: c.brand, fontSize: 12, fontWeight: '700' }}>बदलें</Txt>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <TouchableOpacity
+                  disabled={isVerified || uploadingPan}
+                  onPress={() => pickDocument('pan')}
+                  style={{
+                    height: 44,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderStyle: 'dashed',
+                    borderColor: c.line,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 8,
+                  }}
+                >
+                  <Upload size={16} color={c.muted} />
+                  <Txt v="small" style={{ fontWeight: '700', color: c.fg }}>
+                    {uploadingPan ? 'अपलोड हो रहा है...' : 'पैन फ़ोटो चुनें (Upload)'}
+                  </Txt>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Section 3: Guided Face Capture (3 Poses) */}
+          <View
+            style={{
+              borderRadius: 22,
+              padding: 16,
+              backgroundColor: isDark ? '#121524' : '#FFFFFF',
+              borderWidth: 1,
+              borderColor: c.line,
+              gap: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Camera size={18} color="#10B981" />
+                <Txt style={{ fontSize: 15, fontWeight: '800', color: c.fg }}>3. Guided Face Capture (3 Poses)</Txt>
+              </View>
+              {straightUrl && leftUrl && rightUrl && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <CheckCircle2 size={14} color="#10B981" />
+                  <Txt style={{ fontSize: 11, fontWeight: '700', color: '#10B981' }}>3/3 Complete</Txt>
+                </View>
+              )}
+            </View>
+
+            <Txt v="caption" color="muted">
+              सत्यापन हेतु सेल्फी कैमरे से 3 अलग कोणों में अपना चेहरा कैप्चर करें
+            </Txt>
+
+            {/* 3 Pose Cards */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {[
+                { key: 'STRAIGHT' as const, label: 'Straight', hint: 'सामने देखें', url: straightUrl },
+                { key: 'LEFT' as const, label: 'Turn Left', hint: 'बाईं तरफ', url: leftUrl },
+                { key: 'RIGHT' as const, label: 'Turn Right', hint: 'दाईं तरफ', url: rightUrl },
+              ].map((pose) => (
+                <View
+                  key={pose.key}
+                  style={{
+                    flex: 1,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: pose.url ? '#10B981' : c.line,
+                    backgroundColor: isDark ? '#0A0D1A' : '#F9FAFB',
+                    padding: 8,
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: '100%',
+                      aspectRatio: 1,
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      backgroundColor: isDark ? '#171B30' : '#E5E7EB',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {pose.url ? <KycMedia uri={pose.url} style={{ width: '100%', height: '100%' }} /> : <Camera size={24} color={c.muted} />}
+                    {pose.url && (
+                      <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#10B981', borderRadius: 99, padding: 2 }}>
+                        <CheckCircle2 size={12} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+
+                  <Txt style={{ fontSize: 11, fontWeight: '800', color: c.fg }}>{pose.label}</Txt>
+                  <Txt style={{ fontSize: 10, color: c.muted }}>{pose.hint}</Txt>
+                </View>
+              ))}
+            </View>
+            {!isVerified && (
+              <Button
+                title={
+                  retryFaceUpload
+                    ? 'कैप्चर की हुई फ़ोटो upload दोबारा करें'
+                    : straightUrl && leftUrl && rightUrl
+                      ? 'तीनों face poses दोबारा लें'
+                      : 'तीनों face poses कैप्चर करें'
+                }
+                loading={!!uploadingPose}
+                onPress={() => capturePose('STRAIGHT')}
+              />
+            )}
+            {retryFaceUpload && !!user && (
+              <Button
+                title="नई captures लें"
+                variant="secondary"
+                disabled={!!uploadingPose}
+                onPress={async () => {
+                  await discardFaceCaptures(user.id);
+                  setRetryFaceUpload(false);
+                  capturePose('STRAIGHT');
+                }}
+              />
+            )}
+          </View>
+
+          {/* Submit Button */}
           {!isVerified && (
             <Button
-              title={
-                retryFaceUpload
-                  ? 'कैप्चर की हुई फ़ोटो upload दोबारा करें'
-                  : straightUrl && leftUrl && rightUrl
-                    ? 'तीनों face poses दोबारा लें'
-                    : 'तीनों face poses कैप्चर करें'
-              }
-              loading={!!uploadingPose}
-              onPress={() => capturePose('STRAIGHT')}
-            />
-          )}
-          {retryFaceUpload && !!user && (
-            <Button
-              title="नई captures लें"
-              variant="secondary"
+              size="lg"
+              variant="primary"
+              title={isRejected ? 'सुधार कर पुनः सबमिट करें' : 'KYC सबमिट करें (Submit KYC)'}
+              loading={submitMutation.isPending}
               disabled={!!uploadingPose}
-              onPress={async () => {
-                await discardFaceCaptures(user.id);
-                setRetryFaceUpload(false);
-                capturePose('STRAIGHT');
-              }}
+              onPress={handleSubmit}
+              style={{ marginTop: 8 }}
             />
           )}
-        </View>
-
-
-
-        {/* Submit Button */}
-        {!isVerified && (
-          <Button
-            size="lg"
-            variant="primary"
-            title={isRejected ? 'सुधार कर पुनः सबमिट करें' : 'KYC सबमिट करें (Submit KYC)'}
-            loading={submitMutation.isPending}
-            disabled={!!uploadingPose}
-            onPress={handleSubmit}
-            style={{ marginTop: 8 }}
-          />
-        )}
-      </ScrollView>
+        </ScrollView>
       )}
 
       {/* Photo Preview Modal */}

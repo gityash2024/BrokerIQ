@@ -148,8 +148,8 @@ function createMultiTenantPrismaMock() {
       id: 'loc_b_2',
       shiftId: 'shift_firm_b_1',
       userId: 'agent_firm_b_1',
-      latitude: 28.4610,
-      longitude: 77.0280,
+      latitude: 28.461,
+      longitude: 77.028,
       accuracy: 12,
       address: 'Secret Site Waypoint 2',
       source: 'MOBILE',
@@ -309,17 +309,7 @@ async function runMultiTenantIsolationChallenges() {
     email: 'super@brokeriq.test',
   };
 
-  const controller = new OrganizationsController(
-    {} as any,
-    prisma,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as never,
-  );
+  const controller = new OrganizationsController({} as any, prisma, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as never);
 
   const timeLoggingService = new TimeLoggingService(prisma);
 
@@ -514,37 +504,21 @@ async function runCsvSanitizationChallenges() {
 
   // 2.1 Attack vector: Equal sign (=) formula triggers
   await challenge('CSV-Sanitization', 'Neutralizes "=" formula triggers', () => {
-    const vectors = [
-      '=1+1',
-      '=SUM(A1:A10)',
-      '=cmd|\'/C calc\'!A0',
-      '=HYPERLINK("http://evil.com","Click")',
-      '==DOUBLE_EQUAL',
-    ];
+    const vectors = ['=1+1', '=SUM(A1:A10)', "=cmd|'/C calc'!A0", '=HYPERLINK("http://evil.com","Click")', '==DOUBLE_EQUAL'];
 
     for (const v of vectors) {
       const sanitized = csvCell(v);
-      assert.ok(
-        sanitized.startsWith("'=") || sanitized.startsWith("\"'="),
-        `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`,
-      );
+      assert.ok(sanitized.startsWith("'=") || sanitized.startsWith('"\'='), `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`);
     }
   });
 
   // 2.2 Attack vector: Plus sign (+) formula triggers
   await challenge('CSV-Sanitization', 'Neutralizes "+" formula triggers and preserves phone format', () => {
-    const vectors = [
-      '+1+1',
-      '+cmd|\'calc\'!A0',
-      '+@SUM(A1)',
-    ];
+    const vectors = ['+1+1', "+cmd|'calc'!A0", '+@SUM(A1)'];
 
     for (const v of vectors) {
       const sanitized = csvCell(v);
-      assert.ok(
-        sanitized.startsWith("'+") || sanitized.startsWith("\"'+"),
-        `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`,
-      );
+      assert.ok(sanitized.startsWith("'+") || sanitized.startsWith('"\'+'), `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`);
     }
 
     // Phone numbers starting with + are also safely prefixed with '
@@ -554,50 +528,36 @@ async function runCsvSanitizationChallenges() {
 
   // 2.3 Attack vector: Minus sign (-) formula triggers
   await challenge('CSV-Sanitization', 'Neutralizes "-" formula triggers', () => {
-    const vectors = [
-      '-2+3',
-      '-cmd|\'calc\'!A0',
-      '-@SUM(B1:B5)',
-    ];
+    const vectors = ['-2+3', "-cmd|'calc'!A0", '-@SUM(B1:B5)'];
 
     for (const v of vectors) {
       const sanitized = csvCell(v);
-      assert.ok(
-        sanitized.startsWith("'-") || sanitized.startsWith("\"'-"),
-        `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`,
-      );
+      assert.ok(sanitized.startsWith("'-") || sanitized.startsWith('"\'-'), `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`);
     }
   });
 
   // 2.4 Attack vector: At sign (@) formula triggers
   await challenge('CSV-Sanitization', 'Neutralizes "@" formula triggers', () => {
-    const vectors = [
-      '@SUM(A1:A10)',
-      '@cmd|\'calc\'!A0',
-      '@AVERAGE(C1:C100)',
-    ];
+    const vectors = ['@SUM(A1:A10)', "@cmd|'calc'!A0", '@AVERAGE(C1:C100)'];
 
     for (const v of vectors) {
       const sanitized = csvCell(v);
-      assert.ok(
-        sanitized.startsWith("'@") || sanitized.startsWith("\"'@"),
-        `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`,
-      );
+      assert.ok(sanitized.startsWith("'@") || sanitized.startsWith('"\'@'), `Payload "${v}" must be escaped with single-quote prefix. Got: "${sanitized}"`);
     }
   });
 
   // 2.5 Attack vector: Tab (\t) and Carriage Return (\r) formula triggers
   await challenge('CSV-Sanitization', 'Neutralizes Tab (\\t) and Carriage Return (\\r) triggers', () => {
     // Tab
-    const tabPayload = '\t=cmd|\'calc\'!A0';
+    const tabPayload = "\t=cmd|'calc'!A0";
     const sanitizedTab = csvCell(tabPayload);
     assert.ok(sanitizedTab.startsWith("'\t"), `Tab payload must start with single quote. Got: "${sanitizedTab}"`);
 
     // Carriage return
-    const crPayload = '\r=cmd|\'calc\'!A0';
+    const crPayload = "\r=cmd|'calc'!A0";
     const sanitizedCr = csvCell(crPayload);
     // Because it contains \r, RFC 4180 rules enclose it in double quotes: "\'\r=cmd..."
-    assert.ok(sanitizedCr.startsWith("\"'\r"), `CR payload must be quoted and prefixed with single quote. Got: "${sanitizedCr}"`);
+    assert.ok(sanitizedCr.startsWith('"\'\r'), `CR payload must be quoted and prefixed with single quote. Got: "${sanitizedCr}"`);
   });
 
   // 2.6 Benign data preservation: Verify normal text and numbers are NOT corrupted
@@ -616,7 +576,7 @@ async function runCsvSanitizationChallenges() {
   await challenge('CSV-Sanitization', 'Full generateCsv pipeline with adversarial table rows parses safely with RFC 4180 parser', () => {
     const headers = ['ID', 'Agent Name', 'Email', 'Doc Number', 'Review Note'];
     const maliciousRows = [
-      ['usr_1', '=cmd|\'/C calc\'!A0', 'normal@broker.test', '+919811002233', 'Standard note'],
+      ['usr_1', "=cmd|'/C calc'!A0", 'normal@broker.test', '+919811002233', 'Standard note'],
       ['usr_2', '+2+5', '-malicious@email.test', '@DDE("cmd","calc")', '\t=cmd'],
       ['usr_3', '\r=evil', 'benign@broker.test', 'DOC-1234-XYZ', '=HYPERLINK("http://evil.com","Leak")'],
       ['usr_4', 'विक्रम शर्मा', 'vikram@broker.test', 'AADHAAR-9999', 'Approved: ₹50,000 / month'],
@@ -644,12 +604,12 @@ async function runCsvSanitizationChallenges() {
     // Row 2 assertions
     assert.equal(parsedRows[2][1], "'+2+5", '+ formula must be neutralized');
     assert.equal(parsedRows[2][2], "'-malicious@email.test", '- email must be neutralized');
-    assert.equal(parsedRows[2][3], "'@DDE(\"cmd\",\"calc\")", '@ DDE must be neutralized');
+    assert.equal(parsedRows[2][3], '\'@DDE("cmd","calc")', '@ DDE must be neutralized');
     assert.equal(parsedRows[2][4], "'\t=cmd", 'Tab command must be neutralized');
 
     // Row 3 assertions
     assert.equal(parsedRows[3][1], "'\r=evil", 'CR evil command must be neutralized');
-    assert.equal(parsedRows[3][4], "'=HYPERLINK(\"http://evil.com\",\"Leak\")", 'Hyperlink formula must be neutralized');
+    assert.equal(parsedRows[3][4], '\'=HYPERLINK("http://evil.com","Leak")', 'Hyperlink formula must be neutralized');
 
     // Row 4 assertions (benign row)
     assert.equal(parsedRows[4][1], 'विक्रम शर्मा', 'Hindi text must NOT have apostrophe prefix');

@@ -88,13 +88,9 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
                     paddingHorizontal: focused ? 14 : 10,
                     paddingVertical: 5,
                     borderRadius: 16,
-                    backgroundColor: focused
-                      ? (isDark ? 'rgba(99, 102, 241, 0.22)' : 'rgba(99, 102, 241, 0.12)')
-                      : 'transparent',
+                    backgroundColor: focused ? (isDark ? 'rgba(99, 102, 241, 0.22)' : 'rgba(99, 102, 241, 0.12)') : 'transparent',
                     borderWidth: 1,
-                    borderColor: focused
-                      ? (isDark ? 'rgba(99, 102, 241, 0.45)' : 'rgba(99, 102, 241, 0.3)')
-                      : 'transparent',
+                    borderColor: focused ? (isDark ? 'rgba(99, 102, 241, 0.45)' : 'rgba(99, 102, 241, 0.3)') : 'transparent',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}

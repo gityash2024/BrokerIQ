@@ -26,7 +26,7 @@ test('Tier 1: Interruption Handling & Web Management (Requirement R3)', async (t
         longitude: 77.0266,
         address: 'Priya Start Point - Sector 29',
       },
-      token
+      token,
     );
     assert.strictEqual(start.status, 201);
     shiftId = start.body.shift.id;
@@ -55,7 +55,7 @@ test('Tier 1: Interruption Handling & Web Management (Requirement R3)', async (t
         longitude: 77.0865,
         address: 'Restored GPS at DLF Phase 5',
       },
-      token
+      token,
     );
     assert.strictEqual(resumeRes.status, 200);
     assert.strictEqual(resumeRes.body.status, 'ACTIVE');

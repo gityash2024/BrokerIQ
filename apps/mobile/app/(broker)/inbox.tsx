@@ -32,7 +32,7 @@ export default function Inbox() {
     queryKey: ['conversations', 'pages', channel, term],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => api<InboxPage<any>>(`/whatsapp/conversations${qs({ channel, q: term, paginated: 'true', page: pageParam, pageSize: 50 })}`),
-    getNextPageParam: (last, pages) => pages.length < last.totalPages ? pages.length + 1 : undefined,
+    getNextPageParam: (last, pages) => (pages.length < last.totalPages ? pages.length + 1 : undefined),
     refetchInterval: 15_000,
   });
 
@@ -44,14 +44,21 @@ export default function Inbox() {
     qc.invalidateQueries({ queryKey: ['conversations'] });
   });
 
-  useRealtime('wa:read', () => { qc.invalidateQueries({ queryKey: ['conversations'] }); });
-  useRealtime('chat:read', () => { qc.invalidateQueries({ queryKey: ['conversations'] }); });
-  useRealtime('wa:conversation_deleted', () => { qc.invalidateQueries({ queryKey: ['conversations'] }); });
+  useRealtime('wa:read', () => {
+    qc.invalidateQueries({ queryKey: ['conversations'] });
+  });
+  useRealtime('chat:read', () => {
+    qc.invalidateQueries({ queryKey: ['conversations'] });
+  });
+  useRealtime('wa:conversation_deleted', () => {
+    qc.invalidateQueries({ queryKey: ['conversations'] });
+  });
   const list = useMemo(() => {
     const seen = new Set<string>();
     return (convs.data?.pages.flatMap((page) => page.items) ?? []).filter((item) => {
       if (seen.has(item.id)) return false;
-      seen.add(item.id); return true;
+      seen.add(item.id);
+      return true;
     });
   }, [convs.data]);
 
@@ -133,7 +140,17 @@ export default function Inbox() {
         refreshing={convs.isRefetching && !convs.isFetchingNextPage}
         onRefresh={() => convs.refetch()}
         onEndReached={() => convs.hasNextPage && !convs.isFetchingNextPage && !convs.isError && convs.fetchNextPage()}
-        ListFooterComponent={<View style={{ gap: 10 }}>{convs.error && list.length > 0 && <ErrorView error={convs.error} onRetry={() => convs.refetch()} />}{convs.data && <Txt v="caption" color="muted">{list.length} / {convs.data.pages[0]?.total ?? 0} conversations</Txt>}{convs.hasNextPage && <Button title="Load more conversations" loading={convs.isFetchingNextPage} onPress={() => convs.fetchNextPage()} />}</View>}
+        ListFooterComponent={
+          <View style={{ gap: 10 }}>
+            {convs.error && list.length > 0 && <ErrorView error={convs.error} onRetry={() => convs.refetch()} />}
+            {convs.data && (
+              <Txt v="caption" color="muted">
+                {list.length} / {convs.data.pages[0]?.total ?? 0} conversations
+              </Txt>
+            )}
+            {convs.hasNextPage && <Button title="Load more conversations" loading={convs.isFetchingNextPage} onPress={() => convs.fetchNextPage()} />}
+          </View>
+        }
         ListEmptyComponent={
           convs.error ? (
             <ErrorView error={convs.error} onRetry={() => convs.refetch()} />
@@ -142,11 +159,17 @@ export default function Inbox() {
           ) : (
             <NativeCard style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
               {channel === 'WHATSAPP' ? <MessageCircle size={38} color="#25D366" /> : <Globe size={38} color={c.brand} />}
-              <Txt v="title">No {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : channel === 'EMAIL' ? 'Gmail' : 'Website'} conversations</Txt>
+              <Txt v="title">
+                No {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : channel === 'EMAIL' ? 'Gmail' : 'Website'} conversations
+              </Txt>
               <Txt color="muted" style={{ textAlign: 'center', maxWidth: 280 }}>
                 {channel === 'WHATSAPP'
                   ? 'Incoming WhatsApp chats and client enquiries will appear here automatically.'
-                  : channel === 'SMS' ? 'Lead के SMS action से बातचीत खोलें। केवल configured business SIM का trail यहाँ दिखेगा।' : channel === 'EMAIL' ? 'Lead के Email action से बातचीत खोलें और Gmail sync करें।' : 'Visitors chatting on your public property portal will show up here.'}
+                  : channel === 'SMS'
+                    ? 'Lead के SMS action से बातचीत खोलें। केवल configured business SIM का trail यहाँ दिखेगा।'
+                    : channel === 'EMAIL'
+                      ? 'Lead के Email action से बातचीत खोलें और Gmail sync करें।'
+                      : 'Visitors chatting on your public property portal will show up here.'}
               </Txt>
             </NativeCard>
           )

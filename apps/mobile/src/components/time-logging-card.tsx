@@ -1,25 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Alert,
-  Linking,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Alert, Linking, ActivityIndicator, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Clock,
-  MapPin,
-  LogIn,
-  LogOut,
-  Pause,
-  Play,
-  RotateCw,
-  Timer,
-  Navigation,
-} from 'lucide-react-native';
+import { Clock, MapPin, LogIn, LogOut, Pause, Play, RotateCw, Timer, Navigation } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
@@ -54,11 +38,7 @@ export function TimeLoggingCard() {
   const loadPersistedState = useTimeTrackingStore((s) => s.loadPersistedState);
 
   // Status computation
-  const status: 'ACTIVE' | 'PAUSED' | 'OFF_DUTY' = !isPunchedIn || !activeShift
-    ? 'OFF_DUTY'
-    : isPaused
-    ? 'PAUSED'
-    : 'ACTIVE';
+  const status: 'ACTIVE' | 'PAUSED' | 'OFF_DUTY' = !isPunchedIn || !activeShift ? 'OFF_DUTY' : isPaused ? 'PAUSED' : 'ACTIVE';
 
   // Load persisted state on mount
   useEffect(() => {
@@ -66,11 +46,7 @@ export function TimeLoggingCard() {
   }, [loadPersistedState]);
 
   // Periodic server sync via React Query
-  const {
-    isLoading,
-    isRefetching,
-    refetch,
-  } = useQuery({
+  const { isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['time-logging-status'],
     queryFn: async () => {
       await syncStatus();
@@ -127,11 +103,7 @@ export function TimeLoggingCard() {
       // 1. Mandatory Location Services Check
       const servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!servicesEnabled) {
-        Alert.alert(
-          tr('GPS Disabled'),
-          tr('Please enable Location / GPS services on your device to punch in.'),
-          [{ text: tr('OK') }]
-        );
+        Alert.alert(tr('GPS Disabled'), tr('Please enable Location / GPS services on your device to punch in.'), [{ text: tr('OK') }]);
         return;
       }
 
@@ -151,7 +123,7 @@ export function TimeLoggingCard() {
           [
             { text: tr('Cancel'), style: 'cancel' },
             { text: tr('Open Settings'), onPress: () => Linking.openSettings() },
-          ]
+          ],
         );
         return;
       }
@@ -171,31 +143,27 @@ export function TimeLoggingCard() {
 
   // Punch Out Action with confirmation dialog
   const handlePunchOut = () => {
-    Alert.alert(
-      tr('End Shift & Punch Out?'),
-      tr('Are you sure you want to punch out? Total active shift duration: ') + timerDisplay,
-      [
-        { text: tr('Cancel'), style: 'cancel' },
-        {
-          text: tr('Punch Out'),
-          style: 'destructive',
-          onPress: async () => {
-            setPunchingOut(true);
-            try {
-              await punchOutStore();
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-              toast.success(tr('Shift completed. Punched out successfully!'));
-              qc.invalidateQueries({ queryKey: ['time-logging-status'] });
-            } catch (err: any) {
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-              Alert.alert(tr('Punch Out Failed'), err.message || errorMessage(err));
-            } finally {
-              setPunchingOut(false);
-            }
-          },
+    Alert.alert(tr('End Shift & Punch Out?'), tr('Are you sure you want to punch out? Total active shift duration: ') + timerDisplay, [
+      { text: tr('Cancel'), style: 'cancel' },
+      {
+        text: tr('Punch Out'),
+        style: 'destructive',
+        onPress: async () => {
+          setPunchingOut(true);
+          try {
+            await punchOutStore();
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            toast.success(tr('Shift completed. Punched out successfully!'));
+            qc.invalidateQueries({ queryKey: ['time-logging-status'] });
+          } catch (err: any) {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+            Alert.alert(tr('Punch Out Failed'), err.message || errorMessage(err));
+          } finally {
+            setPunchingOut(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // Pause Shift Action
@@ -291,10 +259,16 @@ export function TimeLoggingCard() {
         borderWidth: 1,
         borderColor:
           status === 'ACTIVE'
-            ? (isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.4)')
+            ? isDark
+              ? 'rgba(16,185,129,0.35)'
+              : 'rgba(16,185,129,0.4)'
             : status === 'PAUSED'
-            ? (isDark ? 'rgba(245,158,11,0.35)' : 'rgba(245,158,11,0.4)')
-            : (isDark ? 'rgba(99,102,241,0.2)' : c.line),
+              ? isDark
+                ? 'rgba(245,158,11,0.35)'
+                : 'rgba(245,158,11,0.4)'
+              : isDark
+                ? 'rgba(99,102,241,0.2)'
+                : c.line,
         shadowColor: '#000',
         shadowOpacity: 0.08,
         shadowRadius: 14,
@@ -307,18 +281,16 @@ export function TimeLoggingCard() {
         <View style={{ gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Clock size={16} color={status === 'ACTIVE' ? '#10B981' : status === 'PAUSED' ? '#F59E0B' : c.brand} />
-            <Txt style={{ fontSize: 16, fontWeight: '800', color: c.fg }}>
-              Time & Shift Attendance
-            </Txt>
+            <Txt style={{ fontSize: 16, fontWeight: '800', color: c.fg }}>Time & Shift Attendance</Txt>
           </View>
           <Txt v="caption" color="muted">
             {status === 'ACTIVE'
               ? 'GPS-verified live duty session'
               : status === 'PAUSED'
-              ? pauseReason === 'GPS_SIGNAL_LOST'
-                ? 'Auto-paused: GPS location lost'
-                : 'Shift paused · Take break'
-              : 'Mandatory GPS location to punch in'}
+                ? pauseReason === 'GPS_SIGNAL_LOST'
+                  ? 'Auto-paused: GPS location lost'
+                  : 'Shift paused · Take break'
+                : 'Mandatory GPS location to punch in'}
           </Txt>
         </View>
 
@@ -358,9 +330,7 @@ export function TimeLoggingCard() {
                 backgroundColor: badgeConfig.dotColor,
               }}
             />
-            <Txt style={{ color: badgeConfig.color, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>
-              {badgeConfig.label}
-            </Txt>
+            <Txt style={{ color: badgeConfig.color, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>{badgeConfig.label}</Txt>
           </View>
         </View>
       </View>
@@ -414,9 +384,7 @@ export function TimeLoggingCard() {
                   Punch In
                 </Txt>
               </View>
-              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>
-                {formatTimeOnly(activeShift?.punchInAt)}
-              </Txt>
+              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>{formatTimeOnly(activeShift?.punchInAt)}</Txt>
             </View>
 
             <View style={{ width: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : c.line }} />
@@ -429,9 +397,7 @@ export function TimeLoggingCard() {
                   Today's Total
                 </Txt>
               </View>
-              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>
-                {formatMinutes(todaySummary?.activeMinutes)}
-              </Txt>
+              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>{formatMinutes(todaySummary?.activeMinutes)}</Txt>
             </View>
           </View>
 
@@ -455,8 +421,7 @@ export function TimeLoggingCard() {
                   Punch-In Location
                 </Txt>
                 <Txt v="small" style={{ color: c.fg, fontWeight: '600' }} numberOfLines={2}>
-                  {activeShift?.punchInAddress ||
-                    `${activeShift?.punchInLat?.toFixed(4)}, ${activeShift?.punchInLng?.toFixed(4)}`}
+                  {activeShift?.punchInAddress || `${activeShift?.punchInLat?.toFixed(4)}, ${activeShift?.punchInLng?.toFixed(4)}`}
                 </Txt>
               </View>
             </View>
@@ -485,9 +450,7 @@ export function TimeLoggingCard() {
               ) : (
                 <>
                   <Pause size={16} color="#F59E0B" />
-                  <Txt style={{ color: '#F59E0B', fontWeight: '800', fontSize: 14 }}>
-                    Take Break
-                  </Txt>
+                  <Txt style={{ color: '#F59E0B', fontWeight: '800', fontSize: 14 }}>Take Break</Txt>
                 </>
               )}
             </TouchableOpacity>
@@ -511,9 +474,7 @@ export function TimeLoggingCard() {
               ) : (
                 <>
                   <LogOut size={16} color="#fff" />
-                  <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
-                    Punch Out
-                  </Txt>
+                  <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Punch Out</Txt>
                 </>
               )}
             </TouchableOpacity>
@@ -547,9 +508,7 @@ export function TimeLoggingCard() {
               {timerDisplay}
             </Txt>
             <Txt v="caption" style={{ color: '#F59E0B', fontWeight: '700', marginTop: 2 }}>
-              {pauseReason === 'GPS_SIGNAL_LOST'
-                ? '⚠️ Shift Auto-Paused · GPS Signal Lost'
-                : '⏸ Shift Paused · Break in Progress'}
+              {pauseReason === 'GPS_SIGNAL_LOST' ? '⚠️ Shift Auto-Paused · GPS Signal Lost' : '⏸ Shift Paused · Break in Progress'}
             </Txt>
           </View>
 
@@ -567,18 +526,14 @@ export function TimeLoggingCard() {
               <Txt v="caption" color="muted">
                 Punched In At
               </Txt>
-              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>
-                {formatTimeOnly(activeShift?.punchInAt)}
-              </Txt>
+              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>{formatTimeOnly(activeShift?.punchInAt)}</Txt>
             </View>
             <View style={{ width: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : c.line }} />
             <View style={{ flex: 1, gap: 3 }}>
               <Txt v="caption" color="muted">
                 Today Total
               </Txt>
-              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>
-                {formatMinutes(todaySummary?.activeMinutes)}
-              </Txt>
+              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>{formatMinutes(todaySummary?.activeMinutes)}</Txt>
             </View>
           </View>
 
@@ -603,9 +558,7 @@ export function TimeLoggingCard() {
               ) : (
                 <>
                   <Play size={16} color="#fff" />
-                  <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
-                    Resume Shift
-                  </Txt>
+                  <Txt style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Resume Shift</Txt>
                 </>
               )}
             </TouchableOpacity>
@@ -631,9 +584,7 @@ export function TimeLoggingCard() {
               ) : (
                 <>
                   <LogOut size={16} color={c.danger} />
-                  <Txt style={{ color: c.danger, fontWeight: '800', fontSize: 14 }}>
-                    Punch Out
-                  </Txt>
+                  <Txt style={{ color: c.danger, fontWeight: '800', fontSize: 14 }}>Punch Out</Txt>
                 </>
               )}
             </TouchableOpacity>
@@ -675,9 +626,7 @@ export function TimeLoggingCard() {
                 <Txt v="caption" color="muted">
                   Total Active Time
                 </Txt>
-                <Txt style={{ fontSize: 18, fontWeight: '900', color: c.fg }}>
-                  {formatMinutes(todaySummary?.activeMinutes)}
-                </Txt>
+                <Txt style={{ fontSize: 18, fontWeight: '900', color: c.fg }}>{formatMinutes(todaySummary?.activeMinutes)}</Txt>
               </View>
 
               <View style={{ width: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : c.line }} />
@@ -686,9 +635,7 @@ export function TimeLoggingCard() {
                 <Txt v="caption" color="muted">
                   Break Time
                 </Txt>
-                <Txt style={{ fontSize: 18, fontWeight: '900', color: c.muted }}>
-                  {formatMinutes(todaySummary?.pausedMinutes)}
-                </Txt>
+                <Txt style={{ fontSize: 18, fontWeight: '900', color: c.muted }}>{formatMinutes(todaySummary?.pausedMinutes)}</Txt>
               </View>
             </View>
           </View>
@@ -733,16 +680,12 @@ export function TimeLoggingCard() {
             {punchingIn ? (
               <>
                 <ActivityIndicator size="small" color="#FFFFFF" />
-                <Txt style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
-                  Verifying GPS Location...
-                </Txt>
+                <Txt style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>Verifying GPS Location...</Txt>
               </>
             ) : (
               <>
                 <LogIn size={18} color="#FFFFFF" />
-                <Txt style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
-                  Punch In (Start Shift)
-                </Txt>
+                <Txt style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>Punch In (Start Shift)</Txt>
               </>
             )}
           </TouchableOpacity>

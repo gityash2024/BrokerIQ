@@ -38,14 +38,17 @@ export function LandingMotion() {
       }
       if (preference.matches) return;
 
-      observer = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.setAttribute('data-biq-visible', '');
-            observer?.unobserve(entry.target);
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              entry.target.setAttribute('data-biq-visible', '');
+              observer?.unobserve(entry.target);
+            }
           }
-        }
-      }, { threshold: 0.12, rootMargin: '0px 0px -24px 0px' });
+        },
+        { threshold: 0.12, rootMargin: '0px 0px -24px 0px' },
+      );
 
       for (const target of targets) target.setAttribute('data-biq-ready', '');
       // Separate the initial and revealed styles so above-the-fold content animates too.

@@ -29,7 +29,15 @@ export function EmailDeliverySelector() {
             return (
               <option key={key} value={key} disabled={!state?.configured || state.lastTestOk !== true}>
                 {key === 'smtp' ? 'SMTP' : 'Zoho Mail HTTPS'}
-                {!state?.enabled ? ' · Disabled' : !state.configured ? ' · Setup needed' : state.lastTestOk === false ? ' · Test failed' : state.lastTestOk !== true ? ' · Test pending' : ''}
+                {!state?.enabled
+                  ? ' · Disabled'
+                  : !state.configured
+                    ? ' · Setup needed'
+                    : state.lastTestOk === false
+                      ? ' · Test failed'
+                      : state.lastTestOk !== true
+                        ? ' · Test pending'
+                        : ''}
               </option>
             );
           })}

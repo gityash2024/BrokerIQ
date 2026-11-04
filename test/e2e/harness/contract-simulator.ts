@@ -120,7 +120,7 @@ export class ContractSimulator {
         createdAt: lastMonth,
         user: { id: 'agent_neha', name: 'Neha Gupta', email: 'neha@eliterealty.test', phone: '+919811009900', role: 'BROKER_AGENT' },
         organization: org2,
-      }
+      },
     );
 
     // Seed Team Members
@@ -191,7 +191,7 @@ export class ContractSimulator {
         createdAt: lastMonth,
         lastLoginAt: lastMonth,
         stats: { openLeads: 0, won30d: 0, activities30d: 0 },
-      }
+      },
     );
   }
 
@@ -329,9 +329,7 @@ export class ContractSimulator {
         this.inFlightPunches.add(userId);
 
         try {
-          const existing = Array.from(this.shifts.values()).find(
-            (s) => s.userId === userId && (s.status === 'ACTIVE' || s.status === 'PAUSED')
-          );
+          const existing = Array.from(this.shifts.values()).find((s) => s.userId === userId && (s.status === 'ACTIVE' || s.status === 'PAUSED'));
           if (existing) {
             return this.sendError(res, 409, 'Agent already has an active duty shift in progress');
           }
@@ -392,9 +390,7 @@ export class ContractSimulator {
 
         try {
           // Find active or paused shift
-          const activeShift = Array.from(this.shifts.values()).find(
-            (s) => s.userId === userId && (s.status === 'ACTIVE' || s.status === 'PAUSED')
-          );
+          const activeShift = Array.from(this.shifts.values()).find((s) => s.userId === userId && (s.status === 'ACTIVE' || s.status === 'PAUSED'));
           if (!activeShift) {
             return this.sendError(res, 400, 'No active shift found to punch out');
           }
@@ -576,9 +572,7 @@ export class ContractSimulator {
         }
 
         const activeShift =
-          Array.from(this.shifts.values()).find(
-            (s) => s.userId === targetAgentId && (s.status === 'ACTIVE' || s.status === 'PAUSED')
-          ) || null;
+          Array.from(this.shifts.values()).find((s) => s.userId === targetAgentId && (s.status === 'ACTIVE' || s.status === 'PAUSED')) || null;
 
         const checkpoints = activeShift ? this.locations.filter((l) => l.shiftId === activeShift.id).length : 0;
         const resp: ShiftStatusResponse = {
@@ -609,9 +603,7 @@ export class ContractSimulator {
           email: 'rohit@primeproperties.test',
         };
 
-        const agentShifts = Array.from(this.shifts.values()).filter(
-          (s) => s.userId === targetAgentId && s.punchInAt.startsWith(targetDate)
-        );
+        const agentShifts = Array.from(this.shifts.values()).filter((s) => s.userId === targetAgentId && s.punchInAt.startsWith(targetDate));
         const currentShift = agentShifts[agentShifts.length - 1] || null;
 
         // Build chronological events
@@ -711,8 +703,10 @@ export class ContractSimulator {
       }
 
       if (path === '/api/time-logging/summary' && method === 'GET') {
-        const brokerId = role === 'SUPER_ADMIN' ? (parsedUrl.searchParams.get('brokerId') || orgId) : orgId;
-        const members = this.teamMembers.filter((m) => (role === 'SUPER_ADMIN' ? (brokerId ? m.organizationId === brokerId : true) : m.organizationId === brokerId));
+        const brokerId = role === 'SUPER_ADMIN' ? parsedUrl.searchParams.get('brokerId') || orgId : orgId;
+        const members = this.teamMembers.filter((m) =>
+          role === 'SUPER_ADMIN' ? (brokerId ? m.organizationId === brokerId : true) : m.organizationId === brokerId,
+        );
 
         const agents = members.map((m) => {
           const agentShifts = Array.from(this.shifts.values()).filter((s) => s.userId === m.id);
@@ -778,7 +772,7 @@ export class ContractSimulator {
           d.user.email.toLowerCase().includes(q) ||
           (d.user.phone && d.user.phone.toLowerCase().includes(q)) ||
           (d.docNumber && d.docNumber.toLowerCase().includes(q)) ||
-          (d.organization.reraNumber && d.organization.reraNumber.toLowerCase().includes(q))
+          (d.organization.reraNumber && d.organization.reraNumber.toLowerCase().includes(q)),
       );
     }
 
@@ -829,12 +823,7 @@ export class ContractSimulator {
     const search = params.get('search');
     if (search && search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter(
-        (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.email.toLowerCase().includes(q) ||
-          (m.phone && m.phone.toLowerCase().includes(q))
-      );
+      list = list.filter((m) => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.phone && m.phone.toLowerCase().includes(q)));
     }
 
     const datePreset = params.get('datePreset');
@@ -854,13 +843,7 @@ export class ContractSimulator {
     return list;
   }
 
-  private applyDateFilter<T>(
-    items: T[],
-    datePreset: string | null,
-    from: string | null,
-    to: string | null,
-    getDateStr: (item: T) => string
-  ): T[] {
+  private applyDateFilter<T>(items: T[], datePreset: string | null, from: string | null, to: string | null, getDateStr: (item: T) => string): T[] {
     if (!datePreset || datePreset === 'ALL') {
       if (!from && !to) return items;
     }
@@ -1038,10 +1021,10 @@ export class ContractSimulator {
       const pendingCount = items.filter((i) => i.status === 'PENDING').length;
       const verifiedCount = items.filter((i) => i.status === 'VERIFIED').length;
       const rejectedCount = items.filter((i) => i.status === 'REJECTED').length;
-      doc.fontSize(10).fillColor('#0f172a').text(
-        `Summary Counts: Pending: ${pendingCount} | Verified: ${verifiedCount} | Rejected: ${rejectedCount}`,
-        { align: 'right' }
-      );
+      doc
+        .fontSize(10)
+        .fillColor('#0f172a')
+        .text(`Summary Counts: Pending: ${pendingCount} | Verified: ${verifiedCount} | Rejected: ${rejectedCount}`, { align: 'right' });
 
       doc.end();
     });
@@ -1081,10 +1064,7 @@ export class ContractSimulator {
       doc.moveDown(1);
       doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(10).fillColor('#0f172a').text(
-        `Totals: Open Leads: ${totalLeads} | Deals Won (30d): ${totalWon}`,
-        { align: 'right' }
-      );
+      doc.fontSize(10).fillColor('#0f172a').text(`Totals: Open Leads: ${totalLeads} | Deals Won (30d): ${totalWon}`, { align: 'right' });
 
       doc.end();
     });
@@ -1104,7 +1084,7 @@ export class ContractSimulator {
       <c r="E${idx + 2}" t="inlineStr"><is><t>${this.xmlEscape(i.docType)}</t></is></c>
       <c r="F${idx + 2}" t="inlineStr"><is><t>${this.xmlEscape(i.status)}</t></is></c>
       <c r="G${idx + 2}" t="inlineStr"><is><t>${this.xmlEscape(i.createdAt)}</t></is></c>
-    </row>`
+    </row>`,
       )
       .join('');
 
@@ -1140,7 +1120,7 @@ export class ContractSimulator {
       <c r="F${idx + 2}" t="inlineStr"><is><t>${this.xmlEscape(i.kycStatus)}</t></is></c>
       <c r="G${idx + 2}"><v>${i.stats?.openLeads ?? 0}</v></c>
       <c r="H${idx + 2}"><v>${i.stats?.won30d ?? 0}</v></c>
-    </row>`
+    </row>`,
       )
       .join('');
 
@@ -1199,11 +1179,6 @@ export class ContractSimulator {
   }
 
   private xmlEscape(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   }
 }

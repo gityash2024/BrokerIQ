@@ -58,14 +58,24 @@ export async function sendOtpOnWhatsApp(
   msg: { text: string; otp: string; code: string },
 ) {
   try {
-    await wa.send(orgId, to.phone, { type: 'text', text: msg.text }, { contactName: to.name, ownNumberOnly: true, storedBody: msg.text.replace(msg.otp, '******') });
+    await wa.send(
+      orgId,
+      to.phone,
+      { type: 'text', text: msg.text },
+      { contactName: to.name, ownNumberOnly: true, storedBody: msg.text.replace(msg.otp, '******') },
+    );
   } catch (e) {
     if (!(e instanceof WhatsAppWindowClosedException)) throw e;
     const firm = await wa.firmNumber(orgId);
     if (!firm) throw e;
-    throw new AppException(HttpStatus.CONFLICT, ErrorCode.WHATSAPP_WINDOW_CLOSED, 'पहले firm को WhatsApp पर message भेजें — OTP उसी chat में जवाब में आ जाएगा', {
-      waLink: whatsappLink(firm, `BrokerIQ OTP ${msg.code}`),
-      code: msg.code,
-    });
+    throw new AppException(
+      HttpStatus.CONFLICT,
+      ErrorCode.WHATSAPP_WINDOW_CLOSED,
+      'पहले firm को WhatsApp पर message भेजें — OTP उसी chat में जवाब में आ जाएगा',
+      {
+        waLink: whatsappLink(firm, `BrokerIQ OTP ${msg.code}`),
+        code: msg.code,
+      },
+    );
   }
 }

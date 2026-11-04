@@ -1,7 +1,7 @@
 /**
  * Empirical Challenger M1 It2.1 Test Suite
  * Shift Lifecycle & Concurrency Empirical Verification
- * 
+ *
  * Verifies:
  * 1. recordLocation strictly rejects COMPLETED shifts with 400 Bad Request
  *    (both with shiftId specified and without shiftId specified, preserving off-duty privacy)
@@ -100,12 +100,8 @@ class ConcurrencyEmulatingPrisma {
 
       return {
         ...match,
-        intervals: query.include?.intervals
-          ? this.intervals.filter((i) => i.shiftId === match.id)
-          : undefined,
-        locations: query.include?.locations
-          ? this.locations.filter((l) => l.shiftId === match.id)
-          : undefined,
+        intervals: query.include?.intervals ? this.intervals.filter((i) => i.shiftId === match.id) : undefined,
+        locations: query.include?.locations ? this.locations.filter((l) => l.shiftId === match.id) : undefined,
       };
     },
 
@@ -128,13 +124,9 @@ class ConcurrencyEmulatingPrisma {
       // Partial unique index simulation:
       // CREATE UNIQUE INDEX "unique_active_shift_per_user" ON "AgentShift"("userId") WHERE "status" IN ('ACTIVE', 'PAUSED');
       if (this.simulateP2002OnRace && ['ACTIVE', 'PAUSED'].includes(data.status)) {
-        const hasExistingActiveOrPaused = this.shifts.some(
-          (s) => s.userId === data.userId && ['ACTIVE', 'PAUSED'].includes(s.status),
-        );
+        const hasExistingActiveOrPaused = this.shifts.some((s) => s.userId === data.userId && ['ACTIVE', 'PAUSED'].includes(s.status));
         if (hasExistingActiveOrPaused) {
-          const p2002: any = new Error(
-            'Unique constraint failed on the constraint: unique_active_shift_per_user',
-          );
+          const p2002: any = new Error('Unique constraint failed on the constraint: unique_active_shift_per_user');
           p2002.code = 'P2002';
           p2002.meta = { target: ['userId', 'status'] };
           throw p2002;
@@ -395,18 +387,14 @@ async function runAllChallenges() {
     assert.equal((err.getResponse() as any).message, 'An active shift is already in progress');
 
     // Verify DB count
-    const activeShifts = prisma.shifts.filter(
-      (s) => s.userId === agent1.id && ['ACTIVE', 'PAUSED'].includes(s.status),
-    );
+    const activeShifts = prisma.shifts.filter((s) => s.userId === agent1.id && ['ACTIVE', 'PAUSED'].includes(s.status));
     assert.equal(activeShifts.length, 1, 'DB must contain strictly 1 active shift');
   });
 
   await challenge('Concurrency', 'High burst: 10 concurrent punchIn requests for same user spawn strictly 1 shift', async () => {
     prisma.reset();
 
-    const burstRequests = Array.from({ length: 10 }, (_, idx) =>
-      service.punchIn(agent1, { latitude: 28.45 + idx * 0.001, longitude: 77.05 + idx * 0.001 }),
-    );
+    const burstRequests = Array.from({ length: 10 }, (_, idx) => service.punchIn(agent1, { latitude: 28.45 + idx * 0.001, longitude: 77.05 + idx * 0.001 }));
 
     const results = await Promise.allSettled(burstRequests);
 
@@ -424,9 +412,7 @@ async function runAllChallenges() {
       assert.equal((err.getResponse() as any).message, 'An active shift is already in progress');
     }
 
-    const activeShifts = prisma.shifts.filter(
-      (s) => s.userId === agent1.id && ['ACTIVE', 'PAUSED'].includes(s.status),
-    );
+    const activeShifts = prisma.shifts.filter((s) => s.userId === agent1.id && ['ACTIVE', 'PAUSED'].includes(s.status));
     assert.equal(activeShifts.length, 1, 'Database must have exactly 1 active shift for user');
   });
 
@@ -462,7 +448,7 @@ async function runAllChallenges() {
     // Agent 1 and Agent 2 punch in simultaneously
     const results = await Promise.allSettled([
       service.punchIn(agent1, { latitude: 28.45, longitude: 77.05 }),
-      service.punchIn(agent2, { latitude: 28.50, longitude: 77.10 }),
+      service.punchIn(agent2, { latitude: 28.5, longitude: 77.1 }),
     ]);
 
     const fulfilled = results.filter((r) => r.status === 'fulfilled');

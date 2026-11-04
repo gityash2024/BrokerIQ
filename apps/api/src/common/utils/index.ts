@@ -54,4 +54,3 @@ export function verifySignedId(purpose: string, token: string): string | null {
 }
 
 export * from './dates';
-

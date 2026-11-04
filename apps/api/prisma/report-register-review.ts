@@ -25,51 +25,59 @@ async function main() {
       where: { sourceEntry: { batchId: batch.id }, deletedAt: null },
       select: { sourceEntryId: true, availability: true },
     });
-    const pages = pageNumbers.sort((a, b) => a - b).map((pageNo) => {
-      const rows = entries.filter((entry) => entry.pageNo === pageNo);
-      const visual = rows.filter((entry) => entry.entryKey.startsWith('visual-v1-'));
-      const original = rows.filter((entry) => !entry.entryKey.startsWith('visual-v1-'));
-      const ids = new Set(rows.map((entry) => entry.id));
-      const records = inventory.filter((item) => item.sourceEntryId && ids.has(item.sourceEntryId));
-      const examined = Boolean(metadata.visualReviews?.some((page: any) => page.pageNo === pageNo));
-      return {
-        pageNo,
-        visuallyExamined: examined,
-        repeatedPageOf: metadata.visualReviews?.find((page: any) => page.pageNo === pageNo)?.repeatedPageOf ?? null,
-        originalCandidateBlocks: original.length,
-        supersededObservations: original.filter((entry) => entry.reviewNote === 'SUPERSEDED_BY_VISUAL_REVIEW').length,
-        pendingCandidateBlocks: original.filter((entry) => entry.reviewState === 'NEEDS_REVIEW').length,
-        sourceGroups: visual.length,
-        approvedGroups: visual.filter((entry) => entry.reviewState === 'APPROVED').length,
-        unresolvedGroups: visual.filter((entry) => entry.reviewState === 'NEEDS_REVIEW').length,
-        duplicateGroups: visual.filter((entry) => entry.reviewState === 'DUPLICATE').length,
-        ignoredGroups: visual.filter((entry) => entry.reviewState === 'IGNORED').length,
-        inventoryRecords: records.length,
-        unknownAvailabilityRecords: records.filter((item) => item.availability === 'UNKNOWN').length,
-      };
-    });
+    const pages = pageNumbers
+      .sort((a, b) => a - b)
+      .map((pageNo) => {
+        const rows = entries.filter((entry) => entry.pageNo === pageNo);
+        const visual = rows.filter((entry) => entry.entryKey.startsWith('visual-v1-'));
+        const original = rows.filter((entry) => !entry.entryKey.startsWith('visual-v1-'));
+        const ids = new Set(rows.map((entry) => entry.id));
+        const records = inventory.filter((item) => item.sourceEntryId && ids.has(item.sourceEntryId));
+        const examined = Boolean(metadata.visualReviews?.some((page: any) => page.pageNo === pageNo));
+        return {
+          pageNo,
+          visuallyExamined: examined,
+          repeatedPageOf: metadata.visualReviews?.find((page: any) => page.pageNo === pageNo)?.repeatedPageOf ?? null,
+          originalCandidateBlocks: original.length,
+          supersededObservations: original.filter((entry) => entry.reviewNote === 'SUPERSEDED_BY_VISUAL_REVIEW').length,
+          pendingCandidateBlocks: original.filter((entry) => entry.reviewState === 'NEEDS_REVIEW').length,
+          sourceGroups: visual.length,
+          approvedGroups: visual.filter((entry) => entry.reviewState === 'APPROVED').length,
+          unresolvedGroups: visual.filter((entry) => entry.reviewState === 'NEEDS_REVIEW').length,
+          duplicateGroups: visual.filter((entry) => entry.reviewState === 'DUPLICATE').length,
+          ignoredGroups: visual.filter((entry) => entry.reviewState === 'IGNORED').length,
+          inventoryRecords: records.length,
+          unknownAvailabilityRecords: records.filter((item) => item.availability === 'UNKNOWN').length,
+        };
+      });
     const sum = (field: keyof (typeof pages)[number]) => pages.reduce((total, page) => total + Number(page[field]), 0);
     const pendingCandidateBlocks = sum('pendingCandidateBlocks');
     const unresolvedGroups = sum('unresolvedGroups');
     const examinedPages = pages.filter((page) => page.visuallyExamined).length;
-    console.log(JSON.stringify({
-      generatedAt: new Date().toISOString(),
-      sourceSha256,
-      status: examinedPages === pages.length && !pendingCandidateBlocks && !unresolvedGroups ? 'RECONCILED' : 'INCOMPLETE_RECONCILIATION',
-      totalPages: pages.length,
-      visuallyExaminedPages: examinedPages,
-      remainingPages: pages.length - examinedPages,
-      sourceGroups: sum('sourceGroups'),
-      approvedGroups: sum('approvedGroups'),
-      unresolvedGroups,
-      duplicateGroups: sum('duplicateGroups'),
-      ignoredGroups: sum('ignoredGroups'),
-      pendingCandidateBlocks,
-      inventoryRecords: inventory.length,
-      unknownAvailabilityRecords: sum('unknownAvailabilityRecords'),
-      note: 'Candidate blocks, source groups and ledger records are different measures. Ledger records are not a final count of unique physical properties. Historical notes do not confirm current availability.',
-      pages,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          generatedAt: new Date().toISOString(),
+          sourceSha256,
+          status: examinedPages === pages.length && !pendingCandidateBlocks && !unresolvedGroups ? 'RECONCILED' : 'INCOMPLETE_RECONCILIATION',
+          totalPages: pages.length,
+          visuallyExaminedPages: examinedPages,
+          remainingPages: pages.length - examinedPages,
+          sourceGroups: sum('sourceGroups'),
+          approvedGroups: sum('approvedGroups'),
+          unresolvedGroups,
+          duplicateGroups: sum('duplicateGroups'),
+          ignoredGroups: sum('ignoredGroups'),
+          pendingCandidateBlocks,
+          inventoryRecords: inventory.length,
+          unknownAvailabilityRecords: sum('unknownAvailabilityRecords'),
+          note: 'Candidate blocks, source groups and ledger records are different measures. Ledger records are not a final count of unique physical properties. Historical notes do not confirm current availability.',
+          pages,
+        },
+        null,
+        2,
+      ),
+    );
   } finally {
     await prisma.$disconnect();
   }

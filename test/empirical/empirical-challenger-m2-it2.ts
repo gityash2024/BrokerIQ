@@ -1,7 +1,7 @@
 /**
  * Empirical Adversarial Challenger Suite — Milestone 2 Iteration 2
  * Author: Challenger M2 Iteration 2 Agent 1 (teamwork_challenger)
- * 
+ *
  * Target Verification & Stress-Testing:
  * 1. KYC Row Selection Fallback Edge Case (0 submitted KYC docs)
  * 2. Tenant Scoping & BOLA/IDOR Security Fixes (buildKycWhereClause & exportKyc)
@@ -56,19 +56,11 @@ function simulateExportToolbar(props: ExportToolbarSimProps) {
   const hasSelection = isSelectionActive && selectedCount > 0 && !hasSentinel;
   const isSelectionEmpty = isSelectionActive && (selectedCount === 0 || hasSentinel);
 
-  const displayCount = isSelectionActive
-    ? selectedCount
-    : filteredCount != null
-      ? filteredCount
-      : totalCount;
+  const displayCount = isSelectionActive ? selectedCount : filteredCount != null ? filteredCount : totalCount;
 
   const isButtonDisabled = disabled || isSelectionEmpty;
 
-  const label = isSelectionActive
-    ? `Export Selected (${selectedCount})`
-    : displayCount != null
-      ? `Export (${displayCount})`
-      : 'Export Data';
+  const label = isSelectionActive ? `Export Selected (${selectedCount})` : displayCount != null ? `Export (${displayCount})` : 'Export Data';
 
   // Simulate downloadExport logic
   let attemptedApiCall: { urlParams?: Record<string, any>; blocked: boolean; reason?: string } | null = null;
@@ -310,7 +302,7 @@ async function runAllEmpiricalChallenges() {
     ];
 
     // Filter using the exact where clause structure produced by buildKycWhereClause
-    const filterByWhere = (doc: typeof dbDocuments[0], where: any) => {
+    const filterByWhere = (doc: (typeof dbDocuments)[0], where: any) => {
       // Direct organization match
       const directOrgMatch = doc.organizationId === where.organizationId;
       // Dual-association OR match
@@ -412,7 +404,20 @@ async function runAllEmpiricalChallenges() {
     assert.strictEqual(capturedQueryWhere.organizationId, undefined, 'SUPER_ADMIN global export has no organizationId constraint');
 
     // 2. Targeted export
-    await controller.exportKyc('csv', undefined, undefined, undefined, 'org_target_firm', undefined, undefined, undefined, undefined, 'doc_target_1', mockRes, superAdmin);
+    await controller.exportKyc(
+      'csv',
+      undefined,
+      undefined,
+      undefined,
+      'org_target_firm',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'doc_target_1',
+      mockRes,
+      superAdmin,
+    );
     assert.strictEqual(capturedQueryWhere.organizationId, 'org_target_firm', 'SUPER_ADMIN can target specific brokerId');
   });
 
@@ -437,7 +442,20 @@ async function runAllEmpiricalChallenges() {
     assert.strictEqual(capturedQueryWhere.id, undefined, 'Whitespace/commas-only ids must not produce where.id condition');
 
     // ids: 'doc_1,  doc_2  ,doc_3'
-    await controller.exportKyc('csv', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'doc_1,  doc_2  ,doc_3', mockRes, brokerUser);
+    await controller.exportKyc(
+      'csv',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'doc_1,  doc_2  ,doc_3',
+      mockRes,
+      brokerUser,
+    );
     assert.deepStrictEqual(capturedQueryWhere.id, { in: ['doc_1', 'doc_2', 'doc_3'] }, 'Trimmed list must be parsed accurately');
   });
 

@@ -10,7 +10,9 @@ export default function DisabledScreen() {
   }, []);
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <View><View /></View>
+      <View>
+        <View />
+      </View>
     </View>
   );
 }

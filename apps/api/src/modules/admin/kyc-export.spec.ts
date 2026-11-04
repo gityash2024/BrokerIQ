@@ -64,10 +64,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             status: 'VERIFIED',
-            OR: [
-              { organizationId: 'org_1' },
-              { user: { organizationId: 'org_1' } },
-            ],
+            OR: [{ organizationId: 'org_1' }, { user: { organizationId: 'org_1' } }],
             userId: 'u1',
             user: { role: 'BROKER_AGENT' },
             createdAt: expect.any(Object),
@@ -107,14 +104,8 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
     it('exports as XLSX spreadsheet with correct headers', async () => {
       await controller.exportKyc('xlsx', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes);
 
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        expect.stringContaining('.xlsx'),
-      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('.xlsx'));
       expect(mockRes.send).toHaveBeenCalled();
       const sentBuffer = mockRes.send.mock.calls[0][0];
       expect(Buffer.isBuffer(sentBuffer)).toBe(true);
@@ -125,10 +116,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
       await controller.exportKyc('pdf', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes);
 
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        expect.stringContaining('.pdf'),
-      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('.pdf'));
       expect(mockRes.send).toHaveBeenCalled();
       const sentBuffer = mockRes.send.mock.calls[0][0];
       expect(Buffer.isBuffer(sentBuffer)).toBe(true);
@@ -139,10 +127,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
       await controller.exportKyc('csv', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes);
 
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
-      expect(mockRes.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        expect.stringContaining('.csv'),
-      );
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringContaining('.csv'));
       expect(mockRes.send).toHaveBeenCalled();
       const sentCsv = mockRes.send.mock.calls[0][0];
       expect(typeof sentCsv).toBe('string');
@@ -189,10 +174,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
           expect.objectContaining({
             where: expect.objectContaining({
               id: { in: ['doc_victim_99'] },
-              OR: [
-                { organizationId: 'org_attacker_firm' },
-                { user: { organizationId: 'org_attacker_firm' } },
-              ],
+              OR: [{ organizationId: 'org_attacker_firm' }, { user: { organizationId: 'org_attacker_firm' } }],
             }),
           }),
         );
@@ -200,10 +182,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
         const callArgs = mockPrisma.kycDocument.findMany.mock.calls[0][0];
         expect(callArgs.where.organizationId).toBeUndefined();
         expect(callArgs.where.id).toEqual({ in: ['doc_victim_99'] });
-        expect(callArgs.where.OR).toEqual([
-          { organizationId: 'org_attacker_firm' },
-          { user: { organizationId: 'org_attacker_firm' } },
-        ]);
+        expect(callArgs.where.OR).toEqual([{ organizationId: 'org_attacker_firm' }, { user: { organizationId: 'org_attacker_firm' } }]);
       });
 
       it('prevents BROKER_ADMIN from overriding tenant scope via brokerId query parameter (spoofing protection)', async () => {
@@ -232,10 +211,7 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
 
         const callArgs = mockPrisma.kycDocument.findMany.mock.calls[0][0];
         expect(callArgs.where.organizationId).toBeUndefined();
-        expect(callArgs.where.OR).toEqual([
-          { organizationId: 'org_firm_a' },
-          { user: { organizationId: 'org_firm_a' } },
-        ]);
+        expect(callArgs.where.OR).toEqual([{ organizationId: 'org_firm_a' }, { user: { organizationId: 'org_firm_a' } }]);
         expect(callArgs.where.OR).not.toContainEqual({ organizationId: 'org_foreign_victim' });
       });
 
@@ -290,26 +266,11 @@ describe('AdminUsersController - KYC Filtering & Multi-Format Export', () => {
           email: 'admin@firma.test',
         };
 
-        await controller.exportKyc(
-          'csv',
-          'ALL',
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          mockRes,
-          brokerUser,
-        );
+        await controller.exportKyc('csv', 'ALL', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, mockRes, brokerUser);
 
         const callArgs = mockPrisma.kycDocument.findMany.mock.calls[0][0];
         expect(callArgs.where.OR).toBeDefined();
-        const matchesAgentDocs = callArgs.where.OR.some(
-          (cond: any) => cond.user?.organizationId === 'org_firm_a',
-        );
+        const matchesAgentDocs = callArgs.where.OR.some((cond: any) => cond.user?.organizationId === 'org_firm_a');
         expect(matchesAgentDocs).toBe(true);
       });
     });
