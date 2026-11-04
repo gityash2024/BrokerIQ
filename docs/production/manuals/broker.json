@@ -1,0 +1,274 @@
+{
+  "role": "broker",
+  "title": {
+    "en": "Broker workspace guide",
+    "hi": "ब्रोकर कार्यक्षेत्र की गाइड"
+  },
+  "subtitle": {
+    "en": "Daily workflows for Broker Admins and Agents on web and Android",
+    "hi": "वेब और Android पर Broker Admin और Agent के रोज़ के काम"
+  },
+  "chapters": [
+    {
+      "id": "access",
+      "title": {
+        "en": "Sign in and find your work",
+        "hi": "लॉगिन करें और अपना काम खोलें"
+      },
+      "summary": {
+        "en": "Your role and firm determine which modules, actions and records you can open.",
+        "hi": "आपकी भूमिका और फर्म तय करती है कि कौन से मॉड्यूल, actions और records खुलेंगे।"
+      },
+      "steps": [
+        {
+          "en": "Open Broker Portal from the landing page or sign in to the BrokerIQ Android app. Enter your registered email and password.",
+          "hi": "लैंडिंग पेज से Broker Portal खोलें या BrokerIQ Android ऐप में लॉगिन करें। अपना पंजीकृत ईमेल और पासवर्ड भरें।"
+        },
+        {
+          "en": "Enter the email OTP when prompted. If five devices are already signed in, choose the device you want to sign out.",
+          "hi": "माँगे जाने पर ईमेल OTP भरें। पाँच डिवाइस पहले से जुड़े हों तो चुनें कि किस डिवाइस को साइन आउट करना है।"
+        },
+        {
+          "en": "Start with Today's Focus. Open a KPI to see its records, or use the sidebar on web and the Broker tabs and More on Android.",
+          "hi": "Today's Focus से शुरू करें। KPI खोलकर उसके records देखें। वेब पर sidebar और Android पर Broker tabs तथा More इस्तेमाल करें।"
+        }
+      ],
+      "tip": {
+        "en": "Broker Admins work across their firm. Agents see assigned leads and the inventory and tasks available to their account. Use the notification bell for the destination associated with a record.",
+        "hi": "Broker Admin अपनी फर्म का काम देखते हैं। Agent को assigned leads और उनके खाते के लिए उपलब्ध inventory तथा tasks दिखते हैं। किसी record से जुड़ी सूचना खोलने के लिए घंटी दबाएँ।"
+      }
+    },
+    {
+      "id": "inventory",
+      "title": {
+        "en": "Maintain inventory and publish",
+        "hi": "इन्वेंटरी सँभालें और लिस्टिंग प्रकाशित करें"
+      },
+      "summary": {
+        "en": "Inventory holds properties. Requirements hold client needs and source material for review.",
+        "hi": "Inventory में प्रॉपर्टी रहती हैं। Requirements में ग्राहक की ज़रूरत और समीक्षा के लिए स्रोत सामग्री रहती है।"
+      },
+      "steps": [
+        {
+          "en": "Open Inventory and narrow the list by locality, configuration, availability or assignee. Open the specific floor or unit before editing.",
+          "hi": "Inventory खोलें और locality, configuration, availability या assignee से सूची छाँटें। बदलने से पहले सही floor या unit खोलें।"
+        },
+        {
+          "en": "Add or update the property, price, purpose and availability using facts you can confirm. Save the record and reopen it to check the details.",
+          "hi": "पुष्ट जानकारी से प्रॉपर्टी, कीमत, उद्देश्य और उपलब्धता जोड़ें या बदलें। Save करें और विवरण फिर खोलकर जाँचें।"
+        },
+        {
+          "en": "Choose Publish on an eligible record. Review the public fields and selected photos. The listing screen shows whether publication is pending, published, rejected or withdrawn.",
+          "hi": "योग्य record पर Publish चुनें। सार्वजनिक fields और चुनी हुई तस्वीरें जाँचें। Listing screen पर pending, published, rejected या withdrawn स्थिति देखें।"
+        }
+      ],
+      "tip": {
+        "en": "Verified firm admins can publish eligible records. Agent submissions go through the applicable firm or platform review. Update availability when a property is rented or sold.",
+        "hi": "Verified firm admin योग्य records प्रकाशित कर सकते हैं। Agent की submission संबंधित firm या platform review में जाती है। प्रॉपर्टी किराये पर जाने या बिकने पर उपलब्धता बदलें।"
+      }
+    },
+    {
+      "id": "requirements",
+      "title": {
+        "en": "Review imports and requirements",
+        "hi": "इम्पोर्ट और आवश्यकताओं की समीक्षा करें"
+      },
+      "summary": {
+        "en": "Keep the original source and confirm the structured details before using an extracted record.",
+        "hi": "मूल स्रोत साथ रखें और निकाले गए record का उपयोग करने से पहले उसका विवरण जाँचें।"
+      },
+      "steps": [
+        {
+          "en": "Open Requirements or Imports. Add the relevant shared text, WhatsApp export, scan or supported file using the available capture control.",
+          "hi": "Requirements या Imports खोलें। उपलब्ध capture विकल्प से संबंधित text, WhatsApp export, scan या समर्थित file जोड़ें।"
+        },
+        {
+          "en": "Review each proposed entry against the original message or image. Check locality, unit, rent or sale, price and whether it is a request or an offer.",
+          "hi": "हर प्रस्तावित entry को मूल संदेश या तस्वीर से मिलाएँ। locality, unit, किराया या बिक्री, कीमत और माँग या ऑफ़र का प्रकार जाँचें।"
+        },
+        {
+          "en": "Confirm a valid requirement. For an available property, review and explicitly convert the offer to Inventory. Open the new inventory record and verify the fields.",
+          "hi": "सही requirement की पुष्टि करें। उपलब्ध प्रॉपर्टी का ऑफ़र हो तो समीक्षा करके उसे Inventory में convert करें। नया inventory record खोलकर fields जाँचें।"
+        }
+      ],
+      "tip": {
+        "en": "Use the review state for unclear source material. When an upload pauses, open its existing batch and resume or retry there. Check the result before starting a second import.",
+        "hi": "अस्पष्ट स्रोत को review में रखें। Upload रुक जाए तो उसी batch को खोलकर resume या retry करें। दूसरा import शुरू करने से पहले परिणाम देखें।"
+      }
+    },
+    {
+      "id": "leads",
+      "title": {
+        "en": "Work leads, follow-ups and visits",
+        "hi": "लीड, फॉलो-अप और विज़िट सँभालें"
+      },
+      "summary": {
+        "en": "Use the lead record to track the client, stage, next action and appointment together.",
+        "hi": "ग्राहक, stage, अगला action और appointment साथ देखने के लिए lead record खोलें।"
+      },
+      "steps": [
+        {
+          "en": "Open Leads. Search the contact before creating a new record. Use Pipeline to check its stage and a permitted assignment control to choose an owner.",
+          "hi": "Leads खोलें। नया record बनाने से पहले contact खोजें। Pipeline में stage देखें और अनुमति हो तो owner assign करें।"
+        },
+        {
+          "en": "From the lead or Follow-ups, set the due date and action. Use due-today and overdue filters to work the next items.",
+          "hi": "Lead या Follow-ups से due date और action भरें। आज देय और overdue filters से अगला काम चुनें।"
+        },
+        {
+          "en": "Schedule a Site Visit with the exact property unit or a custom address. Check the date and time, then reopen Visits to confirm its status.",
+          "hi": "सही unit या custom address से Site Visit तय करें। तारीख और समय जाँचें, फिर Visits में उसकी स्थिति देखें।"
+        }
+      ],
+      "tip": {
+        "en": "If a follow-up or visit save is queued while offline, return to the same account and reopen the saved draft. Confirm the server status before creating another record.",
+        "hi": "Offline में follow-up या visit queue में जाए तो उसी खाते में लौटकर saved draft खोलें। नया record बनाने से पहले server की स्थिति जाँचें।"
+      }
+    },
+    {
+      "id": "inbox",
+      "title": {
+        "en": "Communicate from the lead",
+        "hi": "लीड से बातचीत करें"
+      },
+      "summary": {
+        "en": "Open the client thread from its lead so the conversation stays associated with the correct contact.",
+        "hi": "ग्राहक का thread उसी lead से खोलें ताकि बातचीत सही contact से जुड़ी रहे।"
+      },
+      "steps": [
+        {
+          "en": "Choose WhatsApp, SMS or Email from an available lead action. In Inbox, use the matching channel tab to find the thread.",
+          "hi": "Lead के उपलब्ध action से WhatsApp, SMS या Email चुनें। Inbox में संबंधित channel tab से thread खोजें।"
+        },
+        {
+          "en": "Check the recipient and edit the draft before sending. For email, enter a subject or reply within the existing thread.",
+          "hi": "भेजने से पहले recipient जाँचें और draft बदलें। Email का subject भरें या मौजूदा thread में reply करें।"
+        },
+        {
+          "en": "Read the status in the conversation. Check an uncertain provider response in delivery history or Sent before retrying.",
+          "hi": "बातचीत में message की स्थिति देखें। Provider का जवाब अस्पष्ट हो तो retry से पहले delivery history या Sent जाँचें।"
+        }
+      ],
+      "tip": {
+        "en": "A missing connector opens its setup path for the firm admin. Gmail and SMS availability depends on the firm's approved connection and provider status.",
+        "hi": "Connector गायब हो तो firm admin के लिए उसका setup path खुलेगा। Gmail और SMS की उपलब्धता फर्म की approved connection और provider status पर निर्भर है।"
+      }
+    },
+    {
+      "id": "team-kyc",
+      "title": {
+        "en": "Manage team and verification",
+        "hi": "टीम और सत्यापन सँभालें"
+      },
+      "summary": {
+        "en": "Use the member page for responsibilities and the KYC workspace for document review.",
+        "hi": "ज़िम्मेदारियों के लिए member page और दस्तावेज़ review के लिए KYC workspace इस्तेमाल करें।"
+      },
+      "steps": [
+        {
+          "en": "As Broker Admin, open Team & Agents. Invite a member, check the invite status and use their member page for permitted edits and assignments.",
+          "hi": "Broker Admin के रूप में Team & Agents खोलें। सदस्य को invite करें, उसकी स्थिति देखें और अनुमत बदलाव व assignments के लिए member page खोलें।"
+        },
+        {
+          "en": "As Agent, open KYC to submit your own documents. Follow the camera prompts, review each required photo and use retake when needed.",
+          "hi": "Agent के रूप में अपने दस्तावेज़ जमा करने के लिए KYC खोलें। Camera prompts का पालन करें, हर फोटो देखें और ज़रूरत पर retake करें।"
+        },
+        {
+          "en": "Use KYC to see pending, rejected or verified submissions. Read the review note and replace the rejected files when resubmission is available.",
+          "hi": "KYC में pending, rejected या verified submission देखें। Review note पढ़ें और resubmission उपलब्ध हो तो rejected files बदलें।"
+        }
+      ],
+      "tip": {
+        "en": "Export only the permitted filtered or selected records. Treat KYC downloads as private and share them only through your authorized process.",
+        "hi": "केवल अनुमत filtered या selected records export करें। KYC downloads निजी हैं। उन्हें अपनी अधिकृत प्रक्रिया से ही साझा करें।"
+      }
+    },
+    {
+      "id": "shift",
+      "title": {
+        "en": "Record shifts and field visits",
+        "hi": "शिफ्ट और फील्ड विज़िट दर्ज करें"
+      },
+      "summary": {
+        "en": "Time Logging shows shift state and the last recorded location time.",
+        "hi": "Time Logging में shift की स्थिति और दर्ज location का अंतिम समय दिखता है।"
+      },
+      "steps": [
+        {
+          "en": "Open Time Logging and check the account. Allow the requested location access when you intend to start an active tracked shift.",
+          "hi": "Time Logging खोलें और खाता जाँचें। Tracked shift शुरू करनी हो तभी माँगी गई location अनुमति दें।"
+        },
+        {
+          "en": "Punch in and confirm the active state. Use Pause, Resume and Punch out for the intended shift transition.",
+          "hi": "Punch in करके active स्थिति जाँचें। ज़रूरत के अनुसार Pause, Resume और Punch out चुनें।"
+        },
+        {
+          "en": "If GPS or the network drops, review the current state and last updated time. Restore access and let pending items sync from the same account.",
+          "hi": "GPS या network बंद हो तो current state और last updated time देखें। Access लौटाकर उसी खाते से pending items sync होने दें।"
+        }
+      ],
+      "tip": {
+        "en": "Android tracking depends on granted permissions and device power settings. A stale timestamp means the displayed location is historical.",
+        "hi": "Android tracking दी गई permissions और device power settings पर निर्भर है। पुराना timestamp दिखे तो location ऐतिहासिक है।"
+      }
+    },
+    {
+      "id": "automation-invoices",
+      "title": {
+        "en": "Review automations and invoices",
+        "hi": "ऑटोमेशन और इनवॉइस देखें"
+      },
+      "summary": {
+        "en": "Use the dedicated workspaces for rule history, team performance and brokerage invoices.",
+        "hi": "Rule history, टीम की performance और brokerage invoices के लिए उनके workspaces खोलें।"
+      },
+      "steps": [
+        {
+          "en": "As Broker Admin, open Automation and review the rule trigger, action and connection. Use Run history to check an execution before enabling a rule or retrying an action.",
+          "hi": "Broker Admin के रूप में Automation खोलें और rule का trigger, action तथा connection जाँचें। Rule enable या action retry करने से पहले Run history देखें।"
+        },
+        {
+          "en": "Open the member page to review permitted targets. In Leaderboard or Performance, check the selected period and available results.",
+          "hi": "अनुमत targets देखने के लिए member page खोलें। Leaderboard या Performance में चुना period और उपलब्ध results देखें।"
+        },
+        {
+          "en": "Open Invoices and choose the relevant client and deal. Review the invoice number, amount and payment details before sharing. Record payment only after confirming it.",
+          "hi": "Invoices खोलें और संबंधित client तथा deal चुनें। साझा करने से पहले invoice number, राशि और payment details जाँचें। भुगतान की पुष्टि के बाद ही उसे दर्ज करें।"
+        }
+      ],
+      "tip": {
+        "en": "Permission, connection and status checks still apply when an automation or invoice action is opened from another screen.",
+        "hi": "Automation या invoice action किसी दूसरी screen से खोलने पर भी permission, connection और status की जाँच लागू रहती है।"
+      }
+    },
+    {
+      "id": "support",
+      "title": {
+        "en": "Resolve a blocked step",
+        "hi": "रुके हुए काम को आगे बढ़ाएँ"
+      },
+      "summary": {
+        "en": "Use the account, module and visible status to identify the next step.",
+        "hi": "अगला कदम तय करने के लिए खाता, module और दिखाई दे रही स्थिति देखें।"
+      },
+      "steps": [
+        {
+          "en": "For OTP problems, check the registered mailbox and spam folder. Use the resend control after its timer and enter the latest code.",
+          "hi": "OTP समस्या में registered mailbox और spam folder देखें। Timer पूरा होने पर Resend दबाएँ और सबसे नया code भरें।"
+        },
+        {
+          "en": "For missing work, check the selected firm, role and filters. Ask your firm admin to verify assignment and permissions.",
+          "hi": "काम न दिखे तो चुनी हुई फर्म, role और filters जाँचें। Firm admin से assignment और permissions की पुष्टि करवाएँ।"
+        },
+        {
+          "en": "For provider or upload errors, note the time and visible status and open the linked setup or existing batch. Share only the error and relevant record reference with support.",
+          "hi": "Provider या upload error में समय और दिखी स्थिति लिखें। Linked setup या वही batch खोलें। Support से केवल error और संबंधित record reference साझा करें।"
+        }
+      ],
+      "tip": {
+        "en": "Find the Android version and published date on the BrokerIQ landing page. Use the signed download there when your administrator asks you to update.",
+        "hi": "Android version और प्रकाशन की तारीख BrokerIQ landing page पर देखें। Admin के कहने पर वहीं की signed download से update करें।"
+      }
+    }
+  ]
+}

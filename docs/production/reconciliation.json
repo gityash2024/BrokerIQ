@@ -308,7 +308,8 @@
       "shippedBuild": "PENDING",
       "verification": "9 real API/PostgreSQL cases passed; UI/realtime/device coverage pending",
       "notes": [
-        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending."
+        "Permission checkpoint: nine real Nest/PostgreSQL cases cover conversation assignment, alternate chat routes, requirements search/matching/idempotency, import privacy, dashboard counts, Team role validation and last-admin preservation. Full module/UI/device matrix remains pending.",
+        "4 November isolated route audit found 537 declarations and verified 1,391 role denials in full-platform mode and 726 in broker-first mode. Broker onboarding role declaration fixed. Browser/device and per-record positive acceptance remain separate."
       ],
       "roles": [
         "GUEST",
@@ -317,9 +318,13 @@
         "BROKER_ADMIN",
         "SUPER_ADMIN"
       ],
-      "sourceFiles": [],
+      "sourceFiles": [
+        "apps/api/test/route-roles.e2e-spec.ts",
+        "apps/api/src/modules/organizations/organizations.controller.ts"
+      ],
       "commits": [
-        "3eef6d0"
+        "3eef6d0",
+        "e5ba668"
       ],
       "database": "REQUIREMENT_OWNERSHIP_AND_MISSING_MIGRATION_REPAIR_LOCAL_VERIFIED",
       "rootCause": "Several org-only scopes exposed other agents’ records; search OR widened assignment checks; one Team alias bypassed body validation.",
@@ -4588,11 +4593,12 @@
       "web": "IMPLEMENTED_LOCAL_BROWSER_MISSING_CONNECTION_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "Gmail PKCE/device-bound OAuth and owned CRM send/sync/reply tests use actual PostgreSQL with stub Google HTTP; complete suites and local browser evidence in GMAIL_CHECKPOINT_20261102.md. No live OAuth grant/provider delivery or installed-device claim.",
+      "verification": "Live staging Build52: encrypted firm OAuth grant, refreshed Gmail profile and one self-addressed email verified in Sent and Inbox. Google Testing audience. Production verification and actual linked client replies remain open.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "Separate organization-owned encrypted read/send grant; current Admin/device/session PKCE, no platform mailbox fallback, assigned-client-only sync, durable idempotent sends and generic owned notifications. Bounded 30/90-day sync window and no attachment import are explicit limitations. All applicable automated process integration, Google production verification/consent, actual send/reply and full release acceptance remain open.",
-        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate.",
+        "4 November dedicated BrokerIQ CRM OAuth project enabled Gmail API and declared only read/send. Real Broker Admin consent completed. Zoho remains transactional sender."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -4621,13 +4627,14 @@
       "web": "IMPLEMENTED_LOCAL_BROWSER_MISSING_CONNECTION_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "Prior full fresh API325 passed/25 skips and targeted20 passed; Nov2 Chrome verified Textbee form, Lead internal routing and correct missing-integration link. Full key/SIM/phone privacy filters/webhook and actual provider delivery remain open. See SMS_CHECKPOINT_20261101.md.",
+      "verification": "Live staging Build52: one Textbee diagnostic on selected SIM3 delivered, signed SENT/DELIVERED ingress retained. CRM client trail and inbound reply remain open.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending.",
         "Textbee provider dashboard configured by user and read-only inspected. Single firm device binding, encrypted settings, idempotent single-attempt outbox, signed business-only inbound, complete pagination, Lead activities and owned notifications implemented. Actual SIM/full-key/webhook/delivery, all-process automation integration and provider-history recovery still open.",
         "Build46 checkpoint: Textbee key/device3/outgoing-only signed webhook saved and readonly connection verified. SMS/Email task types ship46. No diagnostic send, inbound enablement, live delivery/reply or complete process acceptance.",
-        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate.",
+        "Provider diagnostic delivered 4 November at 02:28:12 IST to authorized test recipient ending 6926. No CRM test lead created. BrokerIQ inbound remains off."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"
@@ -4665,7 +4672,8 @@
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "Explicit rollout gate defaults off for backward compatibility; final production activation is required after selected application mail delivery is tested. No production migration, live OTP send or installed APK claim.",
-        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate."
+        "Build52 read-only evidence matches all43 recorded migration names/checksums; fresh encrypted scratch restore verifies101 tables/628 media/10 private KYC. This corrects the stale not-deployed schema label; device, browser and provider workflow acceptance remains separate.",
+        "4 November Olive Estate Broker Admin password plus registered-email OTP completed in Chrome. Gmail CRM provider consent is a separate operation."
       ],
       "roles": [
         "ALL_APPLICABLE_ROLES"

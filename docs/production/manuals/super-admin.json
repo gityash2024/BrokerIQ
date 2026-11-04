@@ -1,0 +1,84 @@
+{
+  "role": "super-admin",
+  "title": {"en": "Super Admin guide", "hi": "सुपर एडमिन गाइड"},
+  "subtitle": {"en": "Firm oversight, verification and platform operations", "hi": "फर्म की निगरानी, सत्यापन और प्लेटफ़ॉर्म संचालन"},
+  "chapters": [
+    {
+      "id": "access",
+      "title": {"en": "Open the administration workspace", "hi": "एडमिन कार्यक्षेत्र खोलें"},
+      "summary": {"en": "The Super Admin workspace is the platform view. Use a firm filter for work concerning a single brokerage.", "hi": "Super Admin में पूरा प्लेटफ़ॉर्म दिखता है। किसी एक brokerage के काम के लिए firm filter चुनें।"},
+      "steps": [
+        {"en": "Open Admin Login from the landing page. Enter your registered credentials and complete the email OTP challenge.", "hi": "लैंडिंग पेज से Admin Login खोलें। अपना पंजीकृत login भरें और ईमेल OTP की पुष्टि करें।"},
+        {"en": "Start at Overview. Use the sidebar to find Broker firms, Team & Agents, Business records, Inventory, KYC or System.", "hi": "Overview से शुरू करें। Sidebar से Broker firms, Team & Agents, Business records, Inventory, KYC या System खोलें।"},
+        {"en": "Use the notification bell for a linked action. If the record is unavailable, open its module and search with the appropriate scope.", "hi": "जुड़ा action खोलने के लिए notification bell दबाएँ। Record उपलब्ध न हो तो उसका module खोलकर सही scope में खोजें।"}
+      ],
+      "tip": {"en": "Keep the Admin session on a trusted device. Use session management to revoke a device you no longer use.", "hi": "Admin session विश्वसनीय डिवाइस पर रखें। जिस डिवाइस का उपयोग नहीं करते उसे session management से revoke करें।"}
+    },
+    {
+      "id": "records",
+      "title": {"en": "Inspect business records by firm", "hi": "फर्म के अनुसार business records देखें"},
+      "summary": {"en": "Business records starts with the all-firms view and keeps the selected hierarchy when you open a record.", "hi": "Business records सभी firms से शुरू होता है। Record खोलने पर चुनी hierarchy साथ रहती है।"},
+      "steps": [
+        {"en": "Open Business records. Select the resource, such as leads, requirements, imports, inventory, listings, messages, visits, invoices or automation runs.", "hi": "Business records खोलें। Leads, requirements, imports, inventory, listings, messages, visits, invoices या automation runs जैसा resource चुनें।"},
+        {"en": "Choose a firm or keep all firms. Apply the supported member, date, status and archive filters. Compare the result count with the applied filters.", "hi": "एक firm चुनें या All firms रखें। समर्थित member, date, status और archive filters लगाएँ। Result count को चुने filters से मिलाएँ।"},
+        {"en": "Open a record and follow its authorized related links. Return to the filtered list to continue reviewing or export the matching summary CSV.", "hi": "Record खोलें और उसके अधिकृत related links देखें। आगे review या matching summary CSV export करने के लिए filtered list पर लौटें।"}
+      ],
+      "tip": {"en": "Use dedicated Team, KYC, Inventory and System screens for actions and fields specific to those modules.", "hi": "Module के खास actions और fields के लिए Team, KYC, Inventory और System की अलग screens खोलें।"}
+    },
+    {
+      "id": "team",
+      "title": {"en": "Review firms, members and shifts", "hi": "फर्म, सदस्य और शिफ्ट देखें"},
+      "summary": {"en": "Use firm and member filters together when reviewing the organization hierarchy.", "hi": "Organization hierarchy की समीक्षा में firm और member filters साथ इस्तेमाल करें।"},
+      "steps": [
+        {"en": "Open Broker firms to find the firm. Check its status and choose the member or integration workspace for that firm.", "hi": "Broker firms में फर्म खोजें। उसकी स्थिति देखें और उसी फर्म का member या integration workspace खोलें।"},
+        {"en": "Open Team & Agents and select the member. Confirm their role and assignment before a permitted promotion, suspension or reassignment.", "hi": "Team & Agents खोलें और सदस्य चुनें। अनुमत promotion, suspension या reassignment से पहले role और assignment जाँचें।"},
+        {"en": "Open Time Logging or Leaderboard. Apply the appropriate firm, member and date filters, then open the available details.", "hi": "Time Logging या Leaderboard खोलें। उचित firm, member और date filters लगाकर उपलब्ध details देखें।"}
+      ],
+      "tip": {"en": "The last active firm administrator is protected. Check the new role and session state after membership changes.", "hi": "फर्म के अंतिम active administrator की सुरक्षा लागू है। सदस्यता बदलने के बाद नई भूमिका और session की स्थिति जाँचें।"}
+    },
+    {
+      "id": "review",
+      "title": {"en": "Review KYC and publication", "hi": "KYC और प्रकाशन की समीक्षा करें"},
+      "summary": {"en": "Keep verification decisions and public listing approvals in their dedicated queues.", "hi": "Verification decisions और public listing approvals उनकी अपनी queues में रखें।"},
+      "steps": [
+        {"en": "Open KYC and filter by firm, member or submission status. Open an authenticated document preview for the selected record.", "hi": "KYC खोलें और firm, member या submission status से छाँटें। चुने record का authenticated document preview खोलें।"},
+        {"en": "Review the submitted documents and required photos. Record the authorized decision and any review note, then confirm the new status.", "hi": "जमा दस्तावेज़ और ज़रूरी photos देखें। अधिकृत decision और review note दर्ज करें, फिर नई स्थिति जाँचें।"},
+        {"en": "For listing publication, open the Inventory or listing review workflow. Check firm ownership, availability and the public preview before deciding.", "hi": "Listing प्रकाशन के लिए Inventory या listing review खोलें। निर्णय से पहले firm ownership, availability और public preview जाँचें।"}
+      ],
+      "tip": {"en": "Treat KYC previews and exports as private. Share the public listing link after the listing reaches Published.", "hi": "KYC previews और exports निजी रखें। Listing की स्थिति Published होने पर उसका public link साझा करें।"}
+    },
+    {
+      "id": "integrations",
+      "title": {"en": "Manage integrations and delivery", "hi": "इंटीग्रेशन और डिलीवरी सँभालें"},
+      "summary": {"en": "Platform credentials and a firm's own connections are separate settings.", "hi": "प्लेटफ़ॉर्म credentials और किसी फर्म की अपनी connections अलग settings हैं।"},
+      "steps": [
+        {"en": "Open Integrations for platform configuration. Review the selected transactional email provider and its test result before relying on OTP or invitations.", "hi": "प्लेटफ़ॉर्म configuration के लिए Integrations खोलें। OTP या invitations पर निर्भर होने से पहले चुना email provider और test result देखें।"},
+        {"en": "From Broker firms, open the specific firm's Integrations to check Housing, WhatsApp or Textbee. Check that the device and SIM belong to the firm before sending a diagnostic.", "hi": "Broker firms से संबंधित फर्म की Integrations खोलें और Housing, WhatsApp या Textbee देखें। Diagnostic से पहले device और SIM की फर्म से पुष्टि करें।"},
+        {"en": "Set up the dedicated platform Gmail client. The firm's Broker Admin connects its own mailbox from its workspace. Check the grant mode and provider result.", "hi": "Dedicated platform Gmail client configure करें। फर्म का Broker Admin अपने workspace से अपना mailbox जोड़ता है। Grant mode और provider result देखें।"}
+      ],
+      "tip": {"en": "Gmail Testing access is for the approved test mailbox. Review provider verification before a wider rollout. Keep API keys and tokens in encrypted settings.", "hi": "Gmail Testing access approved test mailbox के लिए है। व्यापक rollout से पहले provider verification देखें। API keys और tokens encrypted settings में रखें।"}
+    },
+    {
+      "id": "operations",
+      "title": {"en": "Monitor operations and releases", "hi": "संचालन और रिलीज़ की निगरानी करें"},
+      "summary": {"en": "Use System and the release record to separate health, provider delivery and app version evidence.", "hi": "Health, provider delivery और app version के प्रमाण अलग देखने के लिए System और release record खोलें।"},
+      "steps": [
+        {"en": "Open System to check API, database, storage and background work. In Business records, select jobs, webhook events or automation runs to narrow a failure.", "hi": "System में API, database, storage और background work देखें। किसी failure को समझने के लिए Business records में jobs, webhook events या automation runs चुनें।"},
+        {"en": "Before retrying a failed provider action, check the original delivery status and related record. Give support the time and record reference.", "hi": "Provider action retry करने से पहले मूल delivery status और जुड़ा record देखें। Support को समय और record reference दें।"},
+        {"en": "For a release, compare the landing page version and timestamp with the release record and signed APK checksum. Use the release runbook for backup and rollback.", "hi": "रिलीज़ में landing page version और timestamp को release record व signed APK checksum से मिलाएँ। Backup और rollback के लिए release runbook इस्तेमाल करें।"}
+      ],
+      "tip": {"en": "Verify restore evidence in an isolated database. Keep the previous accepted release available until the new release is accepted.", "hi": "Restore का प्रमाण isolated database में जाँचें। नई रिलीज़ स्वीकार होने तक पिछली accepted release उपलब्ध रखें।"}
+    },
+    {
+      "id": "policy",
+      "title": {"en": "Control access and review AI work", "hi": "एक्सेस नियंत्रित करें और AI काम की समीक्षा करें"},
+      "summary": {"en": "Apply module permissions and review rules to the people and firms that need them.", "hi": "Module permissions और review rules संबंधित लोगों और फर्मों पर लागू करें।"},
+      "steps": [
+        {"en": "Open Modules & permissions. Check the affected role and firm before saving a change. Verify that account's allowed and restricted routes.", "hi": "Modules & permissions खोलें। Save से पहले प्रभावित role और firm जाँचें। उस खाते के allowed और restricted routes सत्यापित करें।"},
+        {"en": "Review the available AI provider and firm automation configuration. Use reviewed drafts for extracted facts and client-facing actions.", "hi": "उपलब्ध AI provider और firm automation configuration देखें। निकाले facts और client actions के लिए reviewed drafts इस्तेमाल करें।"},
+        {"en": "Use audit and job history to investigate changes. Escalate a suspected permission, data or delivery issue with its record, time and current release.", "hi": "बदलाव समझने के लिए audit और job history देखें। Permission, data या delivery की समस्या में record, समय और current release के साथ सहायता लें।"}
+      ],
+      "tip": {"en": "Keep KYC, publication and financial decisions in their human review flows.", "hi": "KYC, प्रकाशन और वित्तीय decisions उनकी human review प्रक्रिया में रखें।"}
+    }
+  ]
+}
