@@ -12,7 +12,13 @@ All eight local Chrome smoke checks passed, including all 11 image URLs, four PD
 
 Both Gmail and SMS suites passed all 16 checks against real isolated NestJS and PostgreSQL. HTTP responses at the provider boundary were controlled. Prior live provider tests established standalone delivery evidence for the approved test mail and SMS. A linked CRM send, reply and timeline check is still open for each channel.
 
-The latest approved email and phone each matched an existing Olive Estate CRM lead. The lookup was read-only and returned only counts. No test lead was created and no live message was sent during this check. Use alternate approved test contacts that do not collide with existing leads. Confirm the Textbee device receives only the test number before enabling inbound replies. The staging Gmail testing grant and production Gmail approval are separate gates.
+The authorized Broker Admin created a separate Olive Estate QA lead after a read-only collision check. The staging Inbox recorded one Gmail send at 16:14 IST as `SENT`, with a provider ID, and one Textbee SMS at 16:15 IST as `DELIVERED`, with a signed provider receipt. Gmail sync completed without an error and returned no reply for the thread. The outbound checks are complete. Inbound acceptance remains open for both channels.
+
+For the scoped SMS reply check, the existing signed Textbee webhook briefly included `MESSAGE_RECEIVED` and the CRM inbound switch was enabled. The test handset was unavailable. The original outgoing event list and inbound-off setting were both restored and verified. The available alternate number belongs to an archived lead, which stayed archived. The staging Gmail testing grant and production Gmail approval are separate gates.
+
+## Web sign-in
+
+Commit `ef65466` adds an accessible password visibility toggle and uses the login layout for both email OTP paths. Local Chrome against isolated NestJS and PostgreSQL verified the toggle, 360 px layout, invalid OTP feedback, resend cooldown, back navigation, successful verification and post-login redirect. Both password followed by OTP and email-only OTP were exercised. This commit follows the Build 56 release pin.
 
 ## Extraction
 
