@@ -65,7 +65,7 @@ describe('SMS production contracts (real PostgreSQL)', () => {
           status: 200,
           json: async () => ({
             data: String(url).endsWith('/send-sms')
-              ? { success: true, smsBatchId: '456789012345678901234567' }
+              ? { success: true, smsBatchId: randomUUID().replace(/-/g, '').slice(0, 24) }
               : { _id: device, enabled: true, simInfo: { sims: [{ subscriptionId: 4 }] } },
           }),
         }) as Response,
@@ -158,6 +158,23 @@ describe('SMS production contracts (real PostgreSQL)', () => {
     expect((await db.message.findUniqueOrThrow({ where: { id: queued.id } })).status).toBe('FAILED');
     await api().post('/api/messaging/sms/send').set(h()).send({ conversationId, text: 'Forbidden', requestId: randomUUID() }).expect(404);
     await db.lead.update({ where: { id: lead }, data: { assignedToId: agent.id } });
+  });
+  it('shows uncertain provider status without inventing failure and accepts a later delivery', async () => {
+    const smsId = randomUUID().replace(/-/g, '').slice(0, 24);
+    const queued = await send('Isolated unknown delivery');
+    provider();
+    await service.dispatch(queued.id);
+    const saved = await db.message.findUniqueOrThrow({ where: { id: queued.id } });
+    await callback(event('UNKNOWN_STATE', { smsId, smsBatchId: saved.providerBatchId }));
+    const uncertain = await db.message.findUniqueOrThrow({ where: { id: queued.id } });
+    expect(uncertain.status).toBe('QUEUED');
+    expect(uncertain.error).toContain('unconfirmed');
+    expect((uncertain.meta as any).dispatch).toBe('UNCERTAIN');
+    await callback(event('MESSAGE_DELIVERED', { smsId, smsBatchId: saved.providerBatchId, deliveredAt: new Date().toISOString() }));
+    await callback(event('UNKNOWN_STATE', { smsId, smsBatchId: saved.providerBatchId }));
+    const delivered = await db.message.findUniqueOrThrow({ where: { id: queued.id } });
+    expect(delivered.status).toBe('DELIVERED');
+    expect(delivered.error).toBeNull();
   });
   it('never automatically retries an uncertain timeout', async () => {
     const queued = await send('Uncertain isolated message');

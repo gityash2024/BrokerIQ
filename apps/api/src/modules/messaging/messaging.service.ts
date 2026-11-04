@@ -344,6 +344,14 @@ export class MessagingService {
               where: { id: current.conversation.leadId, organizationId: orgId, firstResponseAt: null },
               data: { firstResponseAt: at },
             });
+        } else if (event.webhookEvent === 'UNKNOWN_STATE' && current.status === 'QUEUED') {
+          message = await tx.message.update({
+            where: { id: current.id },
+            data: {
+              error: 'SMS delivery is unconfirmed. Check the sending phone and provider history before sending again.',
+              meta: { ...((current.meta as Record<string, any>) ?? {}), dispatch: 'UNCERTAIN' },
+            },
+          });
         }
       }
       await tx.webhookEvent.update({ where: { id }, data: { status: 'PROCESSED', processedAt: new Date() } });
