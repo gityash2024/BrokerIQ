@@ -49,10 +49,28 @@ jobs:
           pnpm --filter @brokeriq/mobile typecheck
       - name: API unit tests
         run: pnpm --filter @brokeriq/api test
+      - name: Install private PDF preview runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          command -v pdfinfo pdftoppm
       - name: API e2e tests (real Postgres)
         run: |
           bash apps/api/test/setup-db.sh
           pnpm --filter @brokeriq/api test:e2e
+      - name: Broker-first API acceptance (separate real Postgres)
+        env:
+          BROKER_FIRST: 'true'
+          DATABASE_URL: postgresql://brokeriq:brokeriq@localhost:5432/brokeriq_test_brokerfirst
+          CI_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$CI_POSTGRES_CONTAINER" createdb -U brokeriq brokeriq_test_brokerfirst
+          bash apps/api/test/setup-db.sh
+          pnpm --filter @brokeriq/api test:e2e --runTestsByPath \
+            test/broker-first.e2e-spec.ts test/admin-business.e2e-spec.ts \
+            test/source-ledger.e2e-spec.ts test/enterprise.e2e-spec.ts \
+            test/team-release.e2e-spec.ts test/production-permissions.e2e-spec.ts \
+            test/kyc-privacy.e2e-spec.ts test/route-roles.e2e-spec.ts test/microsite-qr.e2e-spec.ts
       - name: Web private storage and ownership contracts (Node; not browser acceptance)
         run: pnpm --filter @brokeriq/web test:storage
       - name: Mobile unit tests
