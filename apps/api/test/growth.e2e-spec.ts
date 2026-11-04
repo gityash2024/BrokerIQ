@@ -324,6 +324,24 @@ describe('Growth features (e2e)', () => {
     await http.post(`/api/broker/share-kit/${coListing.id}`).set(auth(referred.token)).send({}).expect(404);
   });
 
+  it('refuses unpublished listing shares and invalidates an already-rendered share when the property is withdrawn', async () => {
+    const property = await createAndApprove(broker.token);
+    const lead = (await http.post('/api/leads').set(auth(broker.token)).send({ name: 'Share scope check', phone: '9876543298' }).expect(201)).body;
+    const share = (listingId?: string) => http.post(`/api/leads/${lead.id}/share`).set(auth(broker.token)).send({ listingId });
+    await share().expect(400);
+    const kit = await http.post(`/api/broker/share-kit/${property.id}`).set(auth(broker.token)).send({}).expect(201);
+    const code = kit.body.code;
+    const image = await http.get(`/api/public/share-kit/${code}`).expect(200);
+    expect(image.headers['cache-control']).toBe('no-store');
+    await http.get(`/api/public/share/${code}`).expect(200);
+    await share(property.id).expect(201);
+    await prisma.listing.update({ where: { id: property.id }, data: { status: 'ARCHIVED' } });
+    await share(property.id).expect(404);
+    await http.post(`/api/broker/share-kit/${property.id}`).set(auth(broker.token)).send({}).expect(404);
+    await http.get(`/api/public/share-kit/${code}`).expect(404);
+    await http.get(`/api/public/share/${code}`).expect(404);
+  });
+
   it('owner CRM syncs from listings; closed rent deals become leases with renewal follow-ups', async () => {
     const owners = await http.get('/api/broker/owners').set(auth(broker.token)).expect(200);
     const owner = owners.body.find((o: any) => o.phone.includes('9898989898'));

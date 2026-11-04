@@ -1,3 +1,4 @@
+import { PUBLIC_LISTING_ORIGIN } from './public-listing-scope';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Listing } from '@prisma/client';
 import {
@@ -112,18 +113,11 @@ export class ListingsService {
       .catch(() => undefined);
   }
 
-  /** An inventory-backed listing can only be public while its source unit is available. */
-  private publicOriginWhere(): Prisma.ListingWhereInput {
-    return {
-      OR: [{ inventoryOrigin: { is: null } }, { inventoryOrigin: { is: { availability: 'AVAILABLE', status: 'ACTIVE', deletedAt: null } } }],
-    };
-  }
-
   // ------------------------------------------------------------------ search
   /** `rentalOnly` (default on): public results are rent listings unless Super Admin enabled sale listings. */
   buildWhere(f: Partial<ListingSearchInput>, opts: { publicOnly?: boolean; rentalOnly?: boolean } = { publicOnly: true }): Prisma.ListingWhereInput {
     const and: Prisma.ListingWhereInput[] = [{ deletedAt: null }];
-    if (opts.publicOnly) and.push({ status: 'ACTIVE' }, this.publicOriginWhere());
+    if (opts.publicOnly) and.push({ status: 'ACTIVE' }, PUBLIC_LISTING_ORIGIN);
     // Rental marketplace: public search only ever shows rent listings (legacy sale listings stay hidden).
     if (opts.publicOnly && (opts.rentalOnly ?? true)) and.push({ purpose: 'RENT' });
     else if (f.purpose) and.push({ purpose: f.purpose });
@@ -373,7 +367,7 @@ export class ListingsService {
           where: { publishedListingId: listing.id, organizationId: user.orgId, deletedAt: null, OR: [{ createdById: user.id }, { assignedToId: user.id }] },
         }))
       );
-    if (!manage && !(await this.prisma.listing.count({ where: { id: listing.id, ...this.publicOriginWhere() } })))
+    if (!manage && !(await this.prisma.listing.count({ where: { id: listing.id, ...PUBLIC_LISTING_ORIGIN } })))
       throw new NotFoundException('Property नहीं मिली');
     if (listing.status !== 'ACTIVE' && !manage && !['SOLD', 'RENTED'].includes(listing.status)) throw new NotFoundException('Property नहीं मिली');
     // Legacy sale listings stay visible to their owners/admins only.
@@ -419,7 +413,7 @@ export class ListingsService {
     if (!l) throw new NotFoundException();
     return this.prisma.listing.findMany({
       where: {
-        AND: [this.publicOriginWhere()],
+        AND: [PUBLIC_LISTING_ORIGIN],
         id: { not: l.id },
         status: 'ACTIVE',
         deletedAt: null,
@@ -439,7 +433,7 @@ export class ListingsService {
     const app = await this.settings.getAppConfig();
     if (!user) throw new ForbiddenException('Number देखने के लिए login करें');
     const l = await this.prisma.listing.findFirst({
-      where: { id, status: 'ACTIVE', deletedAt: null, ...this.publicOriginWhere() },
+      where: { id, status: 'ACTIVE', deletedAt: null, ...PUBLIC_LISTING_ORIGIN },
       include: { organization: true, postedBy: true },
     });
     if (!l) throw new NotFoundException();

@@ -22,6 +22,7 @@ import { CurrentUser, Public, type RequestUser, Feature } from '../../common/dec
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { env } from '../../config/env';
+import { SHAREABLE_LISTING } from '../listings/public-listing-scope';
 
 const contactSchema = z.object({
   name: z.string().min(2).max(80),
@@ -190,7 +191,7 @@ export class PublicController {
   /** Tracked share links (/s/:code on the web redirects here). */
   @Get('share/:code')
   async share(@Param('code') code: string) {
-    const link = await this.prisma.shareLink.findUnique({ where: { code }, include: { listing: { select: { slug: true } } } });
+    const link = await this.prisma.shareLink.findFirst({ where: { code, listing: SHAREABLE_LISTING }, include: { listing: { select: { slug: true } } } });
     if (!link) throw new NotFoundException();
     await this.prisma.shareLink.update({ where: { id: link.id }, data: { opens: { increment: 1 }, lastOpenedAt: new Date() } });
     if (link.leadId && link.opens === 0) {

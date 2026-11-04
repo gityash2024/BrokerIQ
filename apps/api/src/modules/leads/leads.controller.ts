@@ -102,7 +102,7 @@ export class LeadsController {
   }
 
   @Post(':id/share')
-  share(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() body: { listingId: string }) {
+  share(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(z.object({ listingId: z.string().trim().min(1).max(100) }))) body: { listingId: string }) {
     return this.leads.shareListing(id, body.listingId, user);
   }
 

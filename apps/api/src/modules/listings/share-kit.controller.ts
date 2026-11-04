@@ -22,7 +22,7 @@ export class ShareKitController {
     @Param('listingId') listingId: string,
     @Body(new ZodPipe(z.object({ leadId: z.string().optional().nullable() }))) body: { leadId?: string | null },
   ) {
-    return this.kit.create(requireOrg(user), user.id, listingId, body.leadId);
+    return this.kit.create(requireOrg(user), user.id, listingId, body.leadId, user.role === 'BROKER_AGENT');
   }
 
   @Public()
@@ -41,7 +41,7 @@ export class ShareKitController {
     const jpg = type === 'jpg';
     const body = jpg ? await sharp(png).flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer() : png;
     res.setHeader('Content-Type', jpg ? 'image/jpeg' : 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=600');
+    res.setHeader('Cache-Control', 'no-store');
     if (download) res.setHeader('Content-Disposition', `attachment; filename="brokeriq-${fmt}-${code}.${jpg ? 'jpg' : 'png'}"`);
     res.send(body);
   }

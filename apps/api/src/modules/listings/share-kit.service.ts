@@ -8,6 +8,7 @@ import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, formatINR } from '@brokeriq/sh
 import { PrismaService } from '../../prisma/prisma.service';
 import { shortCode } from '../../common/utils';
 import { env } from '../../config/env';
+import { SHAREABLE_LISTING } from './public-listing-scope';
 
 type Format = 'post' | 'story';
 const SIZES: Record<Format, { w: number; h: number; photoH: number }> = { post: { w: 1080, h: 1080, photoH: 700 }, story: { w: 1080, h: 1920, photoH: 1180 } };
@@ -47,23 +48,29 @@ export class ShareKitService {
   }
 
   /** Creates a tracked link for a listing (optionally tied to a lead) and returns caption + image URLs. */
-  async create(orgId: string, userId: string, listingId: string, leadId?: string | null) {
+  async create(orgId: string, userId: string, listingId: string, leadId?: string | null, restrictLeadToCreator = false) {
     const l = await this.prisma.listing.findFirst({
-      where: { id: listingId, organizationId: orgId, deletedAt: null },
+      where: { id: listingId, organizationId: orgId, ...SHAREABLE_LISTING },
       include: { locality: { select: { name: true } }, organization: { select: { name: true, phone: true, whatsapp: true } } },
     });
     if (!l) throw new NotFoundException('Listing नहीं मिली');
-    if (l.status !== 'ACTIVE') throw new BadRequestException('Share kit सिर्फ़ live listing के लिए बनता है');
-    if (leadId && !(await this.prisma.lead.findFirst({ where: { id: leadId, organizationId: orgId }, select: { id: true } })))
+    if (
+      leadId &&
+      !(await this.prisma.lead.findFirst({
+        where: { id: leadId, organizationId: orgId, deletedAt: null, ...(restrictLeadToCreator ? { assignedToId: userId } : {}) },
+        select: { id: true },
+      }))
+    )
       throw new BadRequestException('Lead नहीं मिली');
     const code = shortCode(8);
     await this.prisma.shareLink.create({ data: { code, organizationId: orgId, listingId, leadId: leadId ?? null, createdById: userId } });
     const web = env().PUBLIC_WEB_URL.replace(/\/$/, '');
     const api = env().PUBLIC_API_URL.replace(/\/$/, '');
     const link = `${web}/s/${code}`;
+    const price = formatINR(l.price) + (l.purpose === 'RENT' ? '/month' : '');
     const lines = [
       `🏠 ${l.title}`,
-      `💰 ${formatINR(l.price)}/month${l.securityDeposit ? ` · Deposit ${formatINR(l.securityDeposit)}` : ''}`,
+      `💰 ${price}${l.purpose === 'RENT' && l.securityDeposit ? ` · Deposit ${formatINR(l.securityDeposit)}` : ''}`,
       [l.bedrooms ? `${l.bedrooms} BHK` : null, l.furnishing ? FURNISHING_LABELS[l.furnishing] : null, l.superArea ? `${l.superArea} sqft` : null]
         .filter(Boolean)
         .join(' · '),
@@ -83,15 +90,15 @@ export class ShareKitService {
 
   /** Renders the PNG for a share link (public: the listing itself is public). */
   async render(code: string, format: Format): Promise<Buffer> {
-    const key = `${code}:${format}`;
-    const hit = this.cache.get(key);
-    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.png;
-    const link = await this.prisma.shareLink.findUnique({
-      where: { code },
+    const link = await this.prisma.shareLink.findFirst({
+      where: { code, listing: SHAREABLE_LISTING },
       include: { listing: { include: { locality: { select: { name: true } }, organization: { select: { name: true, logoUrl: true } } } } },
     });
-    if (!link?.listing || link.listing.deletedAt) throw new NotFoundException();
+    if (!link) throw new NotFoundException();
     const l = link.listing;
+    const key = `${code}:${format}:${l.updatedAt.getTime()}`;
+    const hit = this.cache.get(key);
+    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.png;
     const { w, h, photoH } = SIZES[format];
     const f = this.font();
     const url = `${env().PUBLIC_WEB_URL.replace(/\/$/, '')}/s/${code}`;
@@ -116,15 +123,17 @@ export class ShareKitService {
       .filter(Boolean)
       .join(' · ');
     const place = [l.societyName, l.locality.name].filter(Boolean).join(', ');
+    const price = formatINR(l.price) + (l.purpose === 'RENT' ? '/month' : '');
+    const badge = l.purpose === 'RENT' ? 'FOR RENT' : 'FOR SALE';
     const paths = [
-      this.path(f.bold, `${formatINR(l.price)}/month`, pad, y0, big, textW, '#FFFFFF'),
+      this.path(f.bold, price, pad, y0, big, textW, '#FFFFFF'),
       this.path(f.medium, facts, pad, y0 + big * 0.95, mid, textW, '#E2E8F0'),
       this.path(f.medium, `${place}, Gurgaon`, pad, y0 + big * 0.95 + mid * 1.45, mid, textW, '#E2E8F0'),
       l.organization ? this.path(f.bold, l.organization.name, pad, h - pad - (format === 'story' ? 40 : 10), small, nameW, '#A5B4FC') : '',
-      this.path(f.bold, 'FOR RENT', pad + 26, 94, 30, 400, '#0F172A'),
+      this.path(f.bold, badge, pad + 26, 94, 30, 400, '#0F172A'),
       this.path(f.medium, 'Scan for photos', w - pad - qrSize, h - pad + 4 - (format === 'story' ? 30 : 0), 22, qrSize, '#CBD5E1'),
     ].join('');
-    const rentPillW = Math.ceil(f.bold.getAdvanceWidth('FOR RENT', 30)) + 52;
+    const rentPillW = Math.ceil(f.bold.getAdvanceWidth(badge, 30)) + 52;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
       <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E1B4B"/><stop offset="1" stop-color="#0F172A"/></linearGradient>
       <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#0F172A" stop-opacity="0"/><stop offset="1" stop-color="#0F172A" stop-opacity="0.85"/></linearGradient></defs>

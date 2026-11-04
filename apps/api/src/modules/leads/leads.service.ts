@@ -21,6 +21,7 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { paged, requireOrg, shortCode } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
 import { LISTING_CARD_SELECT } from '../listings/listings.service';
+import { SHAREABLE_LISTING } from '../listings/public-listing-scope';
 import { env } from '../../config/env';
 import { LEAD_INSIGHTS_SYSTEM, leadInsightsSchema, type LeadInsights } from '../../core/ai/prompts';
 
@@ -581,7 +582,7 @@ export class LeadsService {
 
   async shareListing(id: string, listingId: string, user: RequestUser) {
     const lead = await this.getScoped(id, user);
-    const listing = await this.prisma.listing.findFirst({ where: { id: listingId, deletedAt: null }, include: { locality: true } });
+    const listing = await this.prisma.listing.findFirst({ where: { id: listingId, ...SHAREABLE_LISTING }, include: { locality: true } });
     if (!listing) throw new NotFoundException('Listing नहीं मिली');
     const code = shortCode(8);
     await this.prisma.shareLink.create({ data: { code, organizationId: lead.organizationId, listingId, leadId: id, createdById: user.id } });
