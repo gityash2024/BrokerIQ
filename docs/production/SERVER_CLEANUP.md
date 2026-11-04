@@ -16,3 +16,7 @@ Machine-readable before/after inventories: ../evidence/production-20261101/serve
 ## 2 November: unpublished candidate only
 
 Build52 cleanup removed only `/opt/brokeriq/releases/rc-2c9241fa206f` after process/config/symlink reference checks. Apparent size1,845,742,754 bytes; measured available space increased407,183,360 bytes, from46,198,923,264 to46,606,106,624. Shared files explain the difference. Current Build51 remained healthy during cleanup; backups/uploads/secrets/models/published APKs and protected rollback dependencies were retained. Later Build52 publication and unrelated-service observations are separately recorded in staging-build52 evidence.
+
+## 4 November 2026, Build 55 preparation
+
+Removed generated `app/build`, `app/.cxx` and Android-project `.gradle` from the exact Build 53 and 54 checkouts after verifying their retained signed download copies. The cleanup confirmed those paths were Git-ignored, contained zero tracked files and had no process using them as its working directory. Live web/API paths, the Build 53 rollback, release manifests, backups and provider data stayed in place. Before and after available disk were 21,598,172 KiB and 22,885,172 KiB. Net free space increased by 1,287,000 KiB (1,317,888,000 bytes) during the measurement, with Build 55 compilation running in a separate checkout. Loopback API health and release manifest remained reachable.
