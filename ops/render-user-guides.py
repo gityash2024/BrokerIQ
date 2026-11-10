@@ -164,21 +164,34 @@ def make_guide(data, language, release, captures, output, draft):
         title = 'Android screenshot reference' if language == 'en' else 'Android स्क्रीनशॉट संदर्भ'
         canvas.addOutlineEntry(title, 'android-reference')
         y = paragraph(canvas, title, MARGIN, H - 64, CONTENT, 27, INK, True)
-        note = ('These archived Android captures show the build noted below each screen. '
-                'Follow the steps in this edition for the current interface.')
-        if language == 'hi':
-            note = 'ये Android स्क्रीनशॉट पुराने builds से हैं। हर स्क्रीन के नीचे उसका build है। वर्तमान इंटरफ़ेस के लिए इस गाइड के निर्देश पढ़ें।'
+        android_screens = [('access', 'Today’s Focus'), ('inventory', 'Inventory'), ('leads', 'Leads')]
+        reviewed = [asset_for(captures, role, f'android/{key}', commit) for key, _ in android_screens]
+        if any(reviewed) and not all(reviewed):
+            raise ValueError('The Android reference requires all three reviewed screenshots')
+        if all(reviewed):
+            note = 'Captured on an isolated Android emulator from this edition’s source, using a QA build.'
+            if language == 'hi':
+                note = 'ये स्क्रीनशॉट इसी संस्करण के सोर्स से बने QA build में, अलग Android emulator पर लिए गए हैं।'
+        else:
+            note = ('These archived Android captures show the build noted below each screen. '
+                    'Follow the steps in this edition for the current interface.')
+            if language == 'hi':
+                note = 'ये Android स्क्रीनशॉट पुराने builds से हैं। हर स्क्रीन के नीचे उसका build है। वर्तमान इंटरफ़ेस के लिए इस गाइड के निर्देश पढ़ें।'
         y = paragraph(canvas, note, MARGIN, y - 13, CONTENT, 12, SLATE) - 22
         product = ROOT / 'apps/web/public/product'
-        for index, (filename, label, code) in enumerate([
-            ('android-workspace-build23-public.png', 'Today’s Focus', 23),
-            ('android-inventory-build24-public.png', 'Inventory', 24),
-            ('android-capture-build24.png', 'Scanner & import', 24),
-        ]):
+        if all(reviewed):
+            screens = [(shot[0], f'{label} / Build {build} UI') for (_, label), shot in zip(android_screens, reviewed)]
+        else:
+            screens = [
+                (product / 'android-workspace-build23-public.png', 'Today’s Focus / Build 23'),
+                (product / 'android-inventory-build24-public.png', 'Inventory / Build 24'),
+                (product / 'android-capture-build24.png', 'Scanner & import / Build 24'),
+            ]
+        for index, (image, caption) in enumerate(screens):
             width = (CONTENT - 24) / 3
             left = MARGIN + index * (width + 12)
-            bottom = picture(canvas, product / filename, left, y, width, 365)
-            paragraph(canvas, f'{label} / Build {code}', left, bottom - 8, width, 10, SLATE)
+            bottom = picture(canvas, image, left, y, width, 365)
+            paragraph(canvas, caption, left, bottom - 8, width, 10, SLATE)
         footer(canvas, len(data['chapters']) + 3, build)
         canvas.showPage()
     canvas.save()

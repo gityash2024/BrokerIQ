@@ -1,0 +1,313 @@
+{
+  "sourceCommit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+  "portalVersion": "2.3.16",
+  "androidVersionCode": 57,
+  "androidQaApkSha256": "7688a489ac9573c94be91a8a94a2983e04897fb01d6d904d3438add4697dd3ac",
+  "captureEnvironment": "Isolated QA database and Android 36 ARM64 emulator. The QA APK is separate from the signed download.",
+  "gallery": [
+    {
+      "path": "/product/android57-access.png",
+      "surface": "android",
+      "sha256": "ade075fc593be49d247a1aca7c75a66e748b4c7f7c3c0f7db5409f74727f180b",
+      "capturedAt": "2026-11-10T09:44:37+05:30"
+    },
+    {
+      "path": "/product/android57-inbox.png",
+      "surface": "android",
+      "sha256": "be08001f7cf502801abddd784a0216a4d2677e6939879c1fcfeac77bef5ceaec",
+      "capturedAt": "2026-11-10T09:41:16+05:30"
+    },
+    {
+      "path": "/product/android57-inventory.png",
+      "surface": "android",
+      "sha256": "fccd8bd04d1f4a0f5cc5eea4a74be88c4e4f82223f5bc3df4b541abcc9aaf898",
+      "capturedAt": "2026-11-10T09:41:09+05:30"
+    },
+    {
+      "path": "/product/android57-lead-detail.png",
+      "surface": "android",
+      "sha256": "6fee2e4899f472cdee3712946b1df6b729cdfee7ffe685c51fffabc10f4c2e57",
+      "capturedAt": "2026-11-10T09:41:59+05:30"
+    },
+    {
+      "path": "/product/android57-leads.png",
+      "surface": "android",
+      "sha256": "55a4ecab19e1aa0d1c8a9951a9a24f2711e5e88adecf16909d6e61f51302beac",
+      "capturedAt": "2026-11-10T09:41:13+05:30"
+    },
+    {
+      "path": "/product/android57-login.png",
+      "surface": "android",
+      "sha256": "5776d42240d50830a26334cdf452e96247551f1dd51eb3d16ff2f811f3df339d",
+      "capturedAt": "2026-11-10T09:38:27+05:30"
+    },
+    {
+      "path": "/product/android57-notifications.png",
+      "surface": "android",
+      "sha256": "0442a9fe51584b0175de7b6d667b8bba1a8985d737e13ff989f546f20fa0556e",
+      "capturedAt": "2026-11-10T09:41:40+05:30"
+    },
+    {
+      "path": "/product/web57-admin-access.jpg",
+      "surface": "web",
+      "sha256": "f257cedd9d6917b0ef5328768dc141faae1647ab946d30edc88f0c633390f7d1",
+      "capturedAt": "2026-11-10T09:31:41+05:30"
+    },
+    {
+      "path": "/product/web57-admin-operations.jpg",
+      "surface": "web",
+      "sha256": "458ff76d6840971e34c1b8c1b1d7c5d4f94d0ad44ecd14c999d9d26e1fe913e2",
+      "capturedAt": "2026-11-10T09:31:45+05:30"
+    },
+    {
+      "path": "/product/web57-admin-policy.jpg",
+      "surface": "web",
+      "sha256": "6044b510670e653ae42629833bec4fcfef5549384da37f8bc73cc44d3371a355",
+      "capturedAt": "2026-11-10T09:31:46+05:30"
+    },
+    {
+      "path": "/product/web57-admin-records.jpg",
+      "surface": "web",
+      "sha256": "dc4803c0cc2c06b4c42e266cbd4d1c90bc34225228c7c760a6ab72b96374b45d",
+      "capturedAt": "2026-11-10T09:31:42+05:30"
+    },
+    {
+      "path": "/product/web57-broker-access.jpg",
+      "surface": "web",
+      "sha256": "3a35a52722d135e7b9a1438e092b1e17b0f8df9555c372eb5aade283c6521049",
+      "capturedAt": "2026-11-10T09:31:41+05:30"
+    },
+    {
+      "path": "/product/web57-broker-inbox.jpg",
+      "surface": "web",
+      "sha256": "7fff285a00bfcf0439e87b210d7a2e90d3cf636e304981743413939329183d72",
+      "capturedAt": "2026-11-10T09:31:44+05:30"
+    },
+    {
+      "path": "/product/web57-broker-inventory.jpg",
+      "surface": "web",
+      "sha256": "56adc39200e98ae19673a223b24ad659a71739006e21a87cb59d9aaf0bc94314",
+      "capturedAt": "2026-11-10T09:31:42+05:30"
+    },
+    {
+      "path": "/product/web57-broker-leads.jpg",
+      "surface": "web",
+      "sha256": "2800b19010f39db3c1bb3a6b71c915cd4983db622455e21f450a0c8403e0bd38",
+      "capturedAt": "2026-11-10T09:31:44+05:30"
+    },
+    {
+      "path": "/product/web57-customer.jpg",
+      "surface": "web",
+      "sha256": "ed1dcfb0d165cf0f6122e1200a9e4aac65b2bdb51c4368f6653f1a97ccbb6231",
+      "capturedAt": "2026-11-10T09:31:48+05:30"
+    }
+  ],
+  "manualScreenshots": [
+    {
+      "chapter": "broker/access",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "3a35a52722d135e7b9a1438e092b1e17b0f8df9555c372eb5aade283c6521049",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.75,
+          "y": 0.151,
+          "step": 3
+        }
+      ]
+    },
+    {
+      "chapter": "broker/android/access",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "ade075fc593be49d247a1aca7c75a66e748b4c7f7c3c0f7db5409f74727f180b",
+      "privateDataMasked": true,
+      "surface": "Android · Isolated QA emulator",
+      "capturedAtIst": "10 Nov 2026, 09:44 IST"
+    },
+    {
+      "chapter": "broker/android/inventory",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "fccd8bd04d1f4a0f5cc5eea4a74be88c4e4f82223f5bc3df4b541abcc9aaf898",
+      "privateDataMasked": true,
+      "surface": "Android · Isolated QA emulator",
+      "capturedAtIst": "10 Nov 2026, 09:41 IST"
+    },
+    {
+      "chapter": "broker/android/leads",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "55a4ecab19e1aa0d1c8a9951a9a24f2711e5e88adecf16909d6e61f51302beac",
+      "privateDataMasked": true,
+      "surface": "Android · Isolated QA emulator",
+      "capturedAtIst": "10 Nov 2026, 09:41 IST"
+    },
+    {
+      "chapter": "broker/automation-invoices",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "efda1e7f00c6792cc0fb01312e223fc321e3a050f9607ba6c889813fa8e8cc5e",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "broker/inbox",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "7fff285a00bfcf0439e87b210d7a2e90d3cf636e304981743413939329183d72",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.256,
+          "y": 0.199,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "chapter": "broker/inventory",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "56adc39200e98ae19673a223b24ad659a71739006e21a87cb59d9aaf0bc94314",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.94,
+          "y": 0.286,
+          "step": 1
+        },
+        {
+          "x": 0.759,
+          "y": 0.165,
+          "step": 2
+        }
+      ]
+    },
+    {
+      "chapter": "broker/leads",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "2800b19010f39db3c1bb3a6b71c915cd4983db622455e21f450a0c8403e0bd38",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.23,
+          "y": 0.405,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "chapter": "broker/requirements",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "14a3bfffce4341791ebe389b4bb7e51f01ff50333e4335ff2e73b00c876bce29",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.949,
+          "y": 0.177,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "chapter": "broker/shift",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "01787111b36372671a58ff58cbb0cfb4ac9f7ebf23b02308e1e33f2d9f8642be",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "broker/support",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "e69a4a363d37361dba2e7949d77edc5476a29e6a6380f16f45ea4b75d959d964",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "broker/team-kyc",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "cd9c1abefd3d2b4ffad0a2195014b23cf00faddfdd75f873f75c00e234dba3ef",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "super-admin/access",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "f257cedd9d6917b0ef5328768dc141faae1647ab946d30edc88f0c633390f7d1",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.15,
+          "y": 0.102,
+          "step": 2
+        }
+      ]
+    },
+    {
+      "chapter": "super-admin/integrations",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "c9606ac26e33605cc1724e3c1d5c997fc0ab657debbe547fff7ac85f18fb5d22",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "super-admin/operations",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "458ff76d6840971e34c1b8c1b1d7c5d4f94d0ad44ecd14c999d9d26e1fe913e2",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "super-admin/policy",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "6044b510670e653ae42629833bec4fcfef5549384da37f8bc73cc44d3371a355",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    },
+    {
+      "chapter": "super-admin/records",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "dc4803c0cc2c06b4c42e266cbd4d1c90bc34225228c7c760a6ab72b96374b45d",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST",
+      "markers": [
+        {
+          "x": 0.277,
+          "y": 0.187,
+          "step": 2
+        }
+      ]
+    },
+    {
+      "chapter": "super-admin/review",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "db701b46ffa843b5e2561be45f2523286f387e3e6f2328691fc3d6c6a0291bd4",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:33 IST"
+    },
+    {
+      "chapter": "super-admin/team",
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "sha256": "cbe84b5c8f60b2bd5002df653364e28c73f0cc6e949c9b56ba9da42bf786a433",
+      "privateDataMasked": true,
+      "surface": "Web · Isolated QA workspace",
+      "capturedAtIst": "10 Nov 2026, 09:31 IST"
+    }
+  ]
+}
