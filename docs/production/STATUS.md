@@ -2,7 +2,11 @@
 
 Baseline: feat/production, 93bb8a0. Existing live data is production data; never seed test records into it.
 
-## Current checkpoint — 5 November 2026
+## Current checkpoint — 10 November 2026
+
+Staging serves Build 58 / v2.3.17 from `cc7793b3f66554864581f97196f2469248d7313d`, published at **16:36:29 IST**. API, web, public APK and in-app update agree. The new gallery and four manuals are live. Build 58 includes the Android notification channel and compact Leads toolbar fixes, Gmail/SMS activity timestamp correction and free/no-training AI transport limits. The fresh backup and signed upgrade results are in `STAGING_BUILD58_20261110.md`.
+
+## Previous checkpoint — 5 November 2026
 
 Build 57 is the verified staging release, pinned to `58bd4eaf73b4351053219f3acc8ff7f6316f46c4`, version 2.3.16, published 5 November at 10:44:25 IST. All 11 gallery assets, four public guides and three landing timestamps were fetched and checked; the full public APK hash matched. API/web/runtime identities agree and eight unrelated services are unchanged. See `STAGING_BUILD57_20261105.md`. The dated sections below retain their historical results.
 
@@ -12,7 +16,7 @@ The original diagnostic and client-linked SMS sends delivered; both pending batc
 
 ## Build 58 preparation — 10 November 2026
 
-Nine web and seven Android screenshots were captured with isolated QA data from Build 57, including the Customer, Broker and Super Admin interfaces. The Android captures use a debug APK separate from the signed download. The four reviewed A4 manuals and the expanded gallery are committed for the next coordinated release. Capture source, checksums and timestamps are in `../evidence/staging-build57-20261105/gallery-captures-20261110.json`.
+Nine web and seven Android screenshots were captured with isolated QA data from Build 57, including the Customer, Broker and Super Admin interfaces. The Android captures use a debug APK separate from the signed download. The four reviewed A4 manuals and the expanded gallery were prepared for Build 58. Capture source, checksums and timestamps are in `../evidence/staging-build57-20261105/gallery-captures-20261110.json`.
 
 Android QA found two additional issues: Expo treated the literal channel sound `default` as an absent bundled resource, and the Leads filter button clipped at 320 dp with 1.3 font scale. A reload with the corrected source eliminated the channel error and verified the complete Filters label and touch target within the screen gutters. The notification bell and More remained aligned, and all four lead contact actions remained within one row. All 123 mobile cases passed. Focused suites passed 18 AI adapter cases and 55 real PostgreSQL cases for Gmail, SMS, roles, firm isolation, Super Admin records and KYC privacy. Debug startup also logged a tracking module import cycle and a React pre-mount update warning. Both need separate investigation. The app continued to render.
 
