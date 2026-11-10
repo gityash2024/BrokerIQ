@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { capturedEntitySchema } from '@brokeriq/shared';
+import * as configuration from '../../config/env';
 import { AiService, parseJsonLoose } from './ai.service';
 
 /** Fallback chain: busy models and rejected keys fall through; JSON is validated and repaired once. */
@@ -17,6 +18,7 @@ describe('AiService', () => {
   const ok = (content: string) => ({ status: 200, json: { choices: [{ message: { content } }], usage: { total_tokens: 10 } } });
 
   beforeEach(() => {
+    jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: false });
     calls = [];
     global.fetch = jest.fn(async (url: any, init: any) => {
       const body = JSON.parse(init.body);
@@ -25,6 +27,7 @@ describe('AiService', () => {
       return { ok: r.status < 400, status: r.status, json: async () => r.json } as any;
     }) as any;
   });
+  afterEach(() => jest.restoreAllMocks());
   afterAll(() => {
     global.fetch = realFetch;
   });
@@ -34,6 +37,24 @@ describe('AiService', () => {
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
     await expect(ai.chat([{ role: 'user', content: 'hi' }], { feature: 't' })).resolves.toBe('नमस्ते');
     expect(calls.map((c) => c.model)).toEqual(['a:free', 'b:free']);
+  });
+
+  it('keeps no-training and zero-price endpoint constraints on every launch fallback', async () => {
+    const configuration = require('../../config/env');
+    const spy = jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });
+    const bodies: any[] = [];
+    respond = (_url, body) => {
+      bodies.push(body);
+      return body.model === 'a:free' ? { status: 404, json: { error: { message: 'No eligible endpoint' } } } : ok('OK');
+    };
+    try {
+      const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
+      await expect(ai.chat([{ role: 'user', content: 'A reviewed draft' }], { feature: 't' })).resolves.toBe('OK');
+      expect(bodies).toHaveLength(2);
+      for (const body of bodies) expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0 } });
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('skips a provider whose key is rejected and moves to the next provider', async () => {

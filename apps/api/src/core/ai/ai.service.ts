@@ -421,6 +421,12 @@ export class AiService {
     if (p.name === 'openrouter') {
       headers['HTTP-Referer'] = env().PUBLIC_WEB_URL;
       headers['X-Title'] = 'BrokerIQ';
+      // A :free model name alone does not pin endpoint pricing or data policy.
+      // Fail when no compliant endpoint exists; never relax these on fallback.
+      body = {
+        ...body,
+        provider: { data_collection: 'deny', ...(env().BROKER_FIRST ? { max_price: { prompt: 0, completion: 0 } } : {}) },
+      };
     }
     let res: Response;
     try {
