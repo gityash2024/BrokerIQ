@@ -2609,19 +2609,39 @@
     {
       "id": "UI-05",
       "requirement": "Native navigation compact headers and touch controls",
-      "sourceRequests": ["6611", "7844", "9918", "10489", "latest-approved-plan"],
+      "sourceRequests": [
+            "6611",
+            "7844",
+            "9918",
+            "10489",
+            "latest-approved-plan"
+      ],
       "backend": "PENDING",
       "web": "PENDING",
-      "androidSource": "PENDING",
-      "shippedBuild": "PENDING",
-      "verification": "PENDING",
-      "notes": ["Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance."],
-      "roles": ["TO_RECONCILE"],
-      "sourceFiles": ["apps/mobile/src/ui/index.tsx", "apps/mobile/src/components/notification-bell.tsx", "apps/mobile/src/launch/screen.tsx"],
-      "commits": ["2c762513e4bf6f85e8a26269f5f178bc9f1d1772"],
+      "androidSource": "IMPLEMENTED_COMPONENT_TESTED",
+      "shippedBuild": "BUILD57_PUBLIC_BYTES_VERIFIED_DEVICE_ACCEPTANCE_PENDING",
+      "verification": "Shared header: five component cases at 320/360/412 dp and 600 dp with fontScale 2; all 122 mobile cases pass. Public signed Build57 matches the source pin. Native rendered geometry and physical-device acceptance remain pending.",
+      "notes": [
+            "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance.",
+            "Build57 uses a non-wrapping header, bounded title/subtitle, 44dp notification and More controls; theme, language, profile and module actions remain reachable in the compact menu. Component tests do not establish measured native layout."
+      ],
+      "roles": [
+            "BROKER_ADMIN",
+            "BROKER_AGENT",
+            "CUSTOMER"
+      ],
+      "sourceFiles": [
+            "apps/mobile/src/ui/index.tsx",
+            "apps/mobile/src/components/notification-bell.tsx",
+            "apps/mobile/src/launch/screen.tsx"
+      ],
+      "commits": [
+            "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+            "b5c70ff"
+      ],
       "database": "PENDING",
-      "rootCause": null,
-      "releaseEvidence": null
+      "rootCause": "Compact header switched its settings container to full width, while flex wrapping allowed a second row. The title and subtitle had no bounded line count.",
+      "releaseEvidence": "docs/evidence/staging-build57-20261105/public-verification.json"
     },
     {
       "id": "UI-06",
@@ -3521,7 +3541,7 @@
         "apps/api/src/modules/auth/login-verification.service.ts",
         "apps/api/prisma/migrations/20261101133000_login_email_factor/migration.sql",
         "apps/web/src/components/site/login-otp-dialog.tsx",
-        "apps/mobile/src/components/login-otp-sheet.tsx"
+        "apps/mobile/src/components/login-otp-form.tsx"
       ],
       "commits": [],
       "database": "ADDITIVE_MIGRATIONS_DEPLOYED_CHECKSUM_AND_RESTORE_VERIFIED",
@@ -3571,15 +3591,15 @@
     }
   ],
   "latestStagingRelease": {
-    "commit": "f606692d0b3299a03e76a617f3c2c7fd181d0732",
-    "androidVersion": "2.3.14",
-    "androidVersionCode": 55,
-    "publishedAt": "2026-11-04T07:39:17.233Z",
-    "publicApkSha256": "1f8f67dfa7377473d771e53f50d60760f28920d9fb83836de17fce3e4daf728c",
-    "evidence": "docs/evidence/staging-build55-20261104/active-verification.json",
-    "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
-    "browserVisualAcceptance": "PUBLIC_LANDING_LEGAL_AND_ANONYMOUS_ADMIN_GUARD",
-    "fullProductSignoff": false
+      "commit": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+      "androidVersion": "2.3.16",
+      "androidVersionCode": 57,
+      "publishedAt": "2026-11-05T05:14:25.486Z",
+      "publicApkSha256": "392ca1d7906c05807872bec4671527c95c2543388e2e3e0816cbe42839d6b579",
+      "evidence": "docs/evidence/staging-build57-20261105/active-verification.json",
+      "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
+      "browserVisualAcceptance": "PUBLIC_GALLERY_GUIDES_LEGAL_CHECKED_AUTHENTICATED_JOURNEYS_PENDING",
+      "fullProductSignoff": false
   },
   "latestSourceAudit": {
     "commit": "88ef337153c7d8c4b1ff032146353bbb9b391446",

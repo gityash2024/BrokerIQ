@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-11-05T05:17:20.643425+00:00",
+  "pin": "58bd4eaf73b4351053219f3acc8ff7f6316f46c4",
+  "version": "2.3.16",
+  "code": 57,
+  "bytes": 186569090,
+  "sha256": "392ca1d7906c05807872bec4671527c95c2543388e2e3e0816cbe42839d6b579",
+  "publishedAt": "2026-11-05T05:14:25.486Z",
+  "galleryAssets": 11,
+  "pdfGuides": 4,
+  "landingTimestamps": [
+    "2026-11-05T05:14:25.486Z",
+    "2026-11-05T05:14:25.486Z",
+    "2026-11-05T05:14:25.486Z"
+  ],
+  "apiCommitMatched": true,
+  "installedDeviceAcceptance": false
+}

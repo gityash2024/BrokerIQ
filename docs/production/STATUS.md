@@ -2,13 +2,13 @@
 
 Baseline: feat/production, 93bb8a0. Existing live data is production data; never seed test records into it.
 
-## Current checkpoint — 4 November 2026
+## Current checkpoint — 5 November 2026
 
-Build 56 is the verified staging release, pinned to `4a0c8f145c3f1e97160baaaffad214e4bae07e64`, version 2.3.15. All 11 product gallery assets, four public guides and three landing publication timestamps were fetched and checked. The full public signed APK hash matched. See `SITE_AND_CRM_ACCEPTANCE_20261104.md` for the current site and provider evidence. The dated sections below retain their historical results.
+Build 57 is the verified staging release, pinned to `58bd4eaf73b4351053219f3acc8ff7f6316f46c4`, version 2.3.16, published 5 November at 10:44:25 IST. All 11 gallery assets, four public guides and three landing timestamps were fetched and checked; the full public APK hash matched. API/web/runtime identities agree and eight unrelated services are unchanged. See `STAGING_BUILD57_20261105.md`. The dated sections below retain their historical results.
 
-Build 57 is being built from `58bd4eaf73b4351053219f3acc8ff7f6316f46c4`. Its source fixes the shared native header wrapping, places compact-screen settings in a menu, and provides password visibility and inline OTP on web and mobile. All workspace typechecks, 122 mobile tests and 8 SMS API/PostgreSQL tests passed. Compilation and device acceptance remain separate gates.
+Build 57 fixes shared native header wrapping, puts compact-screen settings in a menu, and provides password visibility and inline OTP on web/mobile. All workspace typechecks, 122 mobile tests, eight SMS API/PostgreSQL cases and native artifact checks passed. Measured native layout and physical-device acceptance remain separate gates. A controlled debug capture build is in progress for current Android documentation images.
 
-The original authorized diagnostic SMS and the client-linked CRM SMS to the first test handset delivered. Both pending SMS batches on the replacement test lead later reached DELIVERED after the gateway resumed reporting. Gmail accepted its client-linked send. The scoped SMS/Gmail reply checks remain open. Full product sign-off, production Gmail approval, AI quality targets, physical Android acceptance and current-build Android documentation captures remain open.
+The original diagnostic and client-linked SMS sends delivered; both pending batches on the replacement test lead later reached DELIVERED after the gateway resumed reporting. The user deferred SMS reply acceptance until the end. The replacement Gmail test completed a real browser send, provider acceptance, incoming reply, Inbox/timeline display, scoped notification link and duplicate-free repeat sync. The live check exposed stale lead activity time; the subsequent monotonic activity correction and explicit free/no-training AI transport restrictions are tested source changes after Build 57. Full product sign-off, production Gmail approval, AI quality, physical Android acceptance and same-build Android documentation captures remain open.
 
 ## Latest connected staging checkpoint — 2 November 2026
 
