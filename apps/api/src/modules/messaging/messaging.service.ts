@@ -173,7 +173,10 @@ export class MessagingService {
           where: { id },
           data: { providerBatchId: accepted.batchId, meta: { ...original, dispatch: 'ACCEPTED', warning: accepted.warning, deviceId: config.deviceId } },
         });
-        await tx.conversation.update({ where: { id: conv.id }, data: { lastMessageAt: record.createdAt, lastPreview: record.body!.slice(0, 140) } });
+        await tx.conversation.updateMany({
+          where: { id: conv.id, OR: [{ lastMessageAt: null }, { lastMessageAt: { lte: record.createdAt } }] },
+          data: { lastMessageAt: record.createdAt, lastPreview: record.body!.slice(0, 140) },
+        });
         await tx.activity.create({
           data: {
             organizationId: orgId,
@@ -183,7 +186,10 @@ export class MessagingService {
             content: `SMS queued · ${record.body!.slice(0, 500)}`,
           },
         });
-        await tx.lead.update({ where: { id: conv.leadId! }, data: { lastActivityAt: record.createdAt } });
+        await tx.lead.updateMany({
+          where: { id: conv.leadId!, organizationId: orgId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: record.createdAt } }] },
+          data: { lastActivityAt: record.createdAt },
+        });
       });
     } catch (error) {
       const uncertain = !!acceptedBatch || (error instanceof TextbeeRequestError && error.ambiguous);
@@ -286,7 +292,11 @@ export class MessagingService {
               },
             });
             await tx.activity.create({
-              data: { organizationId: orgId, leadId: conv.leadId!, type: 'SMS', content: `SMS received · ${event.message.slice(0, 500)}` },
+              data: { organizationId: orgId, leadId: conv.leadId!, type: 'SMS', content: `SMS received · ${event.message.slice(0, 500)}`, createdAt: at },
+            });
+            await tx.lead.updateMany({
+              where: { id: conv.leadId!, organizationId: orgId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: at } }] },
+              data: { lastActivityAt: at },
             });
             const recipients = await tx.user.findMany({
               where: {

@@ -379,7 +379,10 @@ export class GmailService {
             meta: { ...meta, dispatch: 'ACCEPTED', threadId: sent.threadId || '', messageId: mime.messageId },
           },
         });
-        await tx.conversation.update({ where: { id: conv.id }, data: { lastMessageAt: message.createdAt, lastPreview: message.body!.slice(0, 140) } });
+        await tx.conversation.updateMany({
+          where: { id: conv.id, OR: [{ lastMessageAt: null }, { lastMessageAt: { lte: message.createdAt } }] },
+          data: { lastMessageAt: message.createdAt, lastPreview: message.body!.slice(0, 140) },
+        });
         await tx.activity.create({
           data: {
             organizationId: orgId,
@@ -390,6 +393,10 @@ export class GmailService {
           },
         });
         await tx.lead.updateMany({ where: { id: conv.leadId!, organizationId: orgId, firstResponseAt: null }, data: { firstResponseAt: new Date() } });
+        await tx.lead.updateMany({
+          where: { id: conv.leadId!, organizationId: orgId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: message.createdAt } }] },
+          data: { lastActivityAt: message.createdAt },
+        });
       });
     } catch (error) {
       const uncertain = accepted || (error instanceof GmailRequestError && error.ambiguous);
@@ -519,7 +526,12 @@ export class GmailService {
             leadId: conv.leadId!,
             type: 'EMAIL',
             content: `Email ${inbound ? 'received' : 'sent'} · ${parsed.subject || ''} · ${body.slice(0, 500)}`,
+            createdAt: at,
           },
+        });
+        await tx.lead.updateMany({
+          where: { id: conv.leadId!, organizationId: orgId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: at } }] },
+          data: { lastActivityAt: at },
         });
         return true;
       });

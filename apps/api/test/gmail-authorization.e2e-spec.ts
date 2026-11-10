@@ -106,10 +106,13 @@ describe('Gmail firm OAuth authorization (real PostgreSQL)', () => {
     await Promise.all([gmail.dispatchEmail(sent[0].body.id), gmail.dispatchEmail(sent[0].body.id)]);
     expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/messages/send'))).toHaveLength(1);
     expect((await db.message.findUniqueOrThrow({ where: { id: sent[0].body.id } })).status).toBe('SENT');
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).lastActivityAt).toEqual(new Date(sent[0].body.createdAt));
+    const receivedAt = Date.now();
+    await db.lead.update({ where: { id: lead.id }, data: { lastActivityAt: new Date(0) } });
     const clientMail = (id: string, text: string, extraTo = '') => ({
       id,
       threadId: 'bcd123',
-      internalDate: String(Date.now()),
+      internalDate: String(receivedAt),
       payload: {
         mimeType: 'text/plain',
         headers: [
@@ -152,6 +155,10 @@ describe('Gmail firm OAuth authorization (real PostgreSQL)', () => {
     expect(synced.body.imported).toBe(1);
     expect((await api().post(`/api/messaging/email/${conv}/sync`).set(h(agent)).send({}).expect(201)).body.imported).toBe(0);
     expect(await db.message.count({ where: { conversationId: conv, direction: 'INBOUND' } })).toBe(1);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).lastActivityAt).toEqual(new Date(receivedAt));
+    expect((await db.activity.findFirstOrThrow({ where: { leadId: lead.id, content: { startsWith: 'Email received' } } })).createdAt).toEqual(
+      new Date(receivedAt),
+    );
     const notes = await db.notification.findMany({ where: { kind: 'EMAIL', link: `/broker/inbox?channel=EMAIL&c=${conv}` } });
     expect(notes.map((note) => note.userId).sort()).toEqual([admin.id, agent.id].sort());
     expect(await db.message.count({ where: { conversationId: conv, body: { contains: 'OTP' } } })).toBe(0);
@@ -165,6 +172,21 @@ describe('Gmail firm OAuth authorization (real PostgreSQL)', () => {
       .send({ ...payload, requestId: randomUUID(), subject: 'Re: Client response', replyToId: inbound.id })
       .expect(201);
     expect(reply.body.meta.replyTo).toBe('<bcd111@example.com>');
+    const laterActivity = new Date(receivedAt + 60_000);
+    await db.lead.update({ where: { id: lead.id }, data: { lastActivityAt: laterActivity } });
+    fetch.mockImplementation(
+      async (url: any) =>
+        new Response(
+          JSON.stringify(
+            String(url).includes('/messages?')
+              ? { messages: [{ id: 'bcd666' }] }
+              : { ...clientMail('bcd666', 'Older client history'), internalDate: String(receivedAt - 60_000) },
+          ),
+          { status: 200 },
+        ),
+    );
+    expect((await api().post(`/api/messaging/email/${conv}/sync`).set(h(agent)).send({}).expect(201)).body.imported).toBe(1);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).lastActivityAt).toEqual(laterActivity);
     await db.lead.update({ where: { id: lead.id }, data: { assignedToId: admin.id } });
     fetch.mockClear();
     await gmail.dispatchEmail(reply.body.id);

@@ -191,12 +191,16 @@ describe('SMS production contracts (real PostgreSQL)', () => {
     expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/send-sms'))).toHaveLength(1);
   });
   it('validates signature/SIM, deduplicates inbound and never stores unknown sender or OTP content', async () => {
-    const inbound = event('MESSAGE_RECEIVED', { smsId: '567890123456789012345678', sender: '+919700000301', receivedAt: new Date().toISOString() });
+    const receivedAt = new Date();
+    await db.lead.update({ where: { id: lead }, data: { lastActivityAt: new Date(0) } });
+    const inbound = event('MESSAGE_RECEIVED', { smsId: '567890123456789012345678', sender: '+919700000301', receivedAt: receivedAt.toISOString() });
     await callback(inbound, 403, '0'.repeat(64));
     await callback({ ...inbound, deviceId: '999999999999999999999999' }, 403);
     await callback(inbound);
     await callback(inbound);
     expect(await db.message.count({ where: { conversationId, direction: 'INBOUND' } })).toBe(1);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).lastActivityAt).toEqual(receivedAt);
+    expect((await db.activity.findFirstOrThrow({ where: { leadId: lead, content: { startsWith: 'SMS received' } } })).createdAt).toEqual(receivedAt);
     expect((await db.conversation.findUniqueOrThrow({ where: { id: conversationId } })).unreadCount).toBe(1);
     const notes = await db.notification.findMany({ where: { kind: 'SMS', link: `/broker/inbox?channel=SMS&c=${conversationId}` } });
     expect(notes.map((note) => note.userId).sort()).toEqual([agent.id, admin.id].sort());
@@ -213,6 +217,15 @@ describe('SMS production contracts (real PostgreSQL)', () => {
       .send({})
       .expect(200);
     expect((await db.conversation.findUniqueOrThrow({ where: { id: conversationId } })).unreadCount).toBe(0);
+    const latest = new Date(receivedAt.getTime() + 60_000);
+    await db.lead.update({ where: { id: lead }, data: { lastActivityAt: latest } });
+    await callback({
+      ...inbound,
+      idempotencyKey: randomUUID(),
+      smsId: '678901234567890123456789',
+      receivedAt: new Date(receivedAt.getTime() - 60_000).toISOString(),
+    });
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).lastActivityAt).toEqual(latest);
   });
   it('pages the complete message trail including equal timestamps and rejects foreign cursors', async () => {
     const at = new Date('2026-10-01T10:00:00Z');
