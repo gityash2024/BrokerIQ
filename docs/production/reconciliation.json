@@ -195,7 +195,7 @@
       "web": "PENDING",
       "androidSource": "IMPLEMENTED",
       "shippedBuild": "BUILD53_NATIVE_BYTECODE_VERIFIED_DEVICE_PENDING",
-      "verification": "Clean tracked prebuild and signed APK main and face-capture secure flags verified. Physical screenshot, screen recording, recents and upgrade pending.",
+      "verification": "Clean tracked prebuild and signed APK main and face-capture secure flags verified. Android 36 ARM64 emulator accepted Build 57 over 56 and reported SECURE on MainActivity. Physical screenshot, screen recording, recents and authenticated data retention pending.",
       "notes": ["Tracked Expo plugin replaces ignored generated Activity edit. Release guarded with !BuildConfig.DEBUG."],
       "roles": ["GUEST", "USER", "BROKER_AGENT", "BROKER_ADMIN", "SUPER_ADMIN"],
       "sourceFiles": ["apps/mobile/plugins/with-screen-protection.js", "apps/mobile/app.config.ts", "ops/verify-android-artifact.py"],
@@ -2620,7 +2620,7 @@
       "web": "PENDING",
       "androidSource": "IMPLEMENTED_COMPONENT_TESTED",
       "shippedBuild": "BUILD57_PUBLIC_BYTES_VERIFIED_DEVICE_ACCEPTANCE_PENDING",
-      "verification": "Shared header: five component cases at 320/360/412 dp and 600 dp with fontScale 2; all 122 mobile cases pass. Public signed Build57 matches the source pin. Native rendered geometry and physical-device acceptance remain pending.",
+      "verification": "Android 36 QA emulator verified the compact header and four contact actions at 320 dp with font scale 1.3. Build 57 pinned artifact is live; narrow Leads tool-row and channel-sound fixes await the next signed artifact. Physical-device acceptance pending.",
       "notes": [
             "Manually reviewed source presence at Build52 pin; this mapping does not close role, browser, device, provider or full workflow acceptance.",
             "Build57 uses a non-wrapping header, bounded title/subtitle, 44dp notification and More controls; theme, language, profile and module actions remain reachable in the compact menu. Component tests do not establish measured native layout."
@@ -3213,7 +3213,7 @@
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "BUILD53_SAME_MIGRATION_SET_RESTORE_VERIFIED",
-      "verification": "Same migration digest as Build52. Actual off-host scratch restore passed 101 tables and 664 media hashes.",
+      "verification": "Latest encrypted off-host scratch restore verified 101 tables, 776 media hashes and 25 private KYC documents. New candidate still needs activation checks.",
       "notes": [
         "fd96714: production snapshot, encrypted off-host archive and scratch restore verified for all99 tables/595 storage files. Final pre-release refresh and deployment rollback tests remain separate.",
         "Reviewed additive migration rehearsals and actual fresh encrypted scratch restores. Build51 migration set still43, no new migration/fixtures. Protected45 compatibility wrapper needs both45/46 directories; no down-migration."
@@ -3235,7 +3235,7 @@
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "BUILD53_SIGNING_CERT_VERIFIED_UPGRADE_PENDING",
-      "verification": "Same signing certificate as Build52. On-device upgrade and stored-data preservation remain pending.",
+      "verification": "Signed public Build 56 and 57 hashes verified. Android 36 ARM64 emulator accepted the in-place upgrade with identical first-install time. Authenticated data retention and physical handset pending.",
       "notes": [
         "Reviewed signing identity and monotonically increasing versionCode assertions; actual retained certificate matches published APKs. Installed upgrade/data preservation is NOT accepted without the deferred handset."
       ],
@@ -3304,7 +3304,7 @@
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "PARTIAL_BUILD53_WEB_CAPTURES_ANDROID_PENDING",
-      "verification": "Build53 landing and masked Broker Admin web controls captured. Android gallery awaits matching controlled QA captures.",
+      "verification": "Nine web and seven Android screenshots captured with isolated QA data from Build 57, checksum and timestamps recorded. Android uses a separate QA APK. New gallery committed; staging publication pending.",
       "notes": [],
       "roles": ["TO_RECONCILE"],
       "sourceFiles": ["apps/web/src/app/(site)/page.tsx", "ops/render-user-guides.py"],
@@ -3348,7 +3348,7 @@
       "web": "PENDING",
       "androidSource": "PENDING",
       "shippedBuild": "BUILD53_FOUR_A4_PREVIEWS_FINAL_CAPTURES_PENDING",
-      "verification": "Four Hindi/English PDFs rendered with clickable contents and reviewed Build53 web clips. Final screenshots and device verification remain open.",
+      "verification": "Four updated English/Hindi PDFs rendered with clickable contents, annotated web screenshots and a Build 57 QA Android reference. Revised PDFs committed; staging publication and physical-device acceptance pending.",
       "notes": [],
       "roles": ["TO_RECONCILE"],
       "sourceFiles": ["docs/production/manuals/broker.json", "docs/production/manuals/super-admin.json", "ops/render-user-guides.py"],
@@ -3465,7 +3465,7 @@
       "web": "IMPLEMENTED_LOCAL_BROWSER_MISSING_CONNECTION_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "Live staging Build52: encrypted firm OAuth grant, refreshed Gmail profile and one self-addressed email verified in Sent and Inbox. Google Testing audience. Production verification and actual linked client replies remain open.",
+      "verification": "Real Broker Admin Gmail send and client reply in the same thread verified on staging. Inbox, Lead timeline, scoped notification and repeat-sync dedup verified. Google production approval and post-pin activity-time fix deployment pending.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "Separate organization-owned encrypted read/send grant; current Admin/device/session PKCE, no platform mailbox fallback, assigned-client-only sync, durable idempotent sends and generic owned notifications. Bounded 30/90-day sync window and no attachment import are explicit limitations. All applicable automated process integration, Google production verification/consent, actual send/reply and full release acceptance remain open.",
@@ -3495,7 +3495,7 @@
       "web": "IMPLEMENTED_LOCAL_BROWSER_MISSING_CONNECTION_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_NOT_INSTALLED",
       "shippedBuild": "PENDING",
-      "verification": "Live staging Build52: one Textbee diagnostic on selected SIM3 delivered, signed SENT/DELIVERED ingress retained. CRM client trail and inbound reply remain open.",
+      "verification": "Authorized staging SMS delivered with signed Textbee events and CRM lead trail. Real inbound reply verification deferred at user request. Isolated PostgreSQL receive and dedup checks pass.",
       "notes": [
         "Accepted additive scope; see ADDONS_20261101.md. No existing production-plan work is cancelled.",
         "User selected existing Olive Estate WhatsApp SIM +919899980802. Android app installation/provider key/device/receive filters and live send/reply still pending.",
