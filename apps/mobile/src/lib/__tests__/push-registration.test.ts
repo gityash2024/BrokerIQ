@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { api, authStore } from '../api';
 import { registerPush, unregisterPush, scheduleReminder } from '../push';
 
@@ -30,6 +31,20 @@ beforeEach(() => {
   (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
   (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
   (api as jest.Mock).mockResolvedValue({ ok: true });
+});
+
+it('creates both Android channels with the system sound and keeps their existing ids', async () => {
+  const platform = jest.replaceProperty(Platform, 'OS', 'android');
+  try {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    expect(await registerPush()).toBeNull();
+    const calls = jest.mocked(Notifications.setNotificationChannelAsync).mock.calls;
+    expect(calls.map(([id]) => id)).toEqual(['default', 'brokeriq_notifications']);
+    for (const [, options] of calls) expect(options).not.toHaveProperty('sound');
+  } finally {
+    platform.restore();
+  }
 });
 
 it('cleans up a persisted registration after process restart and only removes this account reminders', async () => {

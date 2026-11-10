@@ -18,18 +18,17 @@ export async function registerPush() {
   if (!session) return null;
   if (!Device.isDevice && Platform.OS !== 'android') return null;
   if (Platform.OS === 'android') {
+    // Expo uses the system sound when omitted. A string here names a bundled audio file.
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Default',
       importance: Notifications.AndroidImportance.HIGH,
       lightColor: '#4F46E5',
-      sound: 'default',
       vibrationPattern: [0, 250, 250, 250],
     });
     await Notifications.setNotificationChannelAsync('brokeriq_notifications', {
       name: 'BrokerIQ Alerts',
       importance: Notifications.AndroidImportance.HIGH,
       lightColor: '#4F46E5',
-      sound: 'default',
       vibrationPattern: [0, 250, 250, 250],
     });
   }
