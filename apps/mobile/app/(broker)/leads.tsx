@@ -204,7 +204,7 @@ export default function Leads() {
     <BrokerScreen title="Leads & Requirements" subtitle={list.data ? `${list.data.pages[0].total} contacts` : 'Contacts, follow-ups and visits.'}>
       <View style={{ paddingHorizontal: 20, gap: 10, paddingBottom: 12 }}>
         <Input value={text} onChangeText={setText} placeholder="Name / phone" />
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Button title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
           <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />
           <Button
@@ -214,7 +214,7 @@ export default function Leads() {
             onPress={() => setFilters(true)}
           />
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Button title="Pipeline" size="sm" variant="ghost" onPress={() => router.push('/pipeline')} />
           <Button title="Follow-ups" size="sm" variant="ghost" onPress={() => router.push('/follow-ups')} />
           <Button title="Visits" size="sm" variant="ghost" onPress={() => router.push('/visits')} />
