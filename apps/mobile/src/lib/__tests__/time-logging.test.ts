@@ -4,7 +4,8 @@ import * as outbox from '../shift-location-outbox';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { useTimeTrackingStore } from '../time-tracking-store';
-import { periodicLocationTracker, RECORDING_INTERVAL_MS, HEALTH_CHECK_INTERVAL_MS } from '../periodic-location-tracker';
+import { periodicLocationTracker } from '../time-tracking-store';
+import { RECORDING_INTERVAL_MS, HEALTH_CHECK_INTERVAL_MS } from '../periodic-location-tracker';
 import * as apiModule from '../api';
 
 jest.mock('../background-shift-tracking', () => ({ configureBackgroundShift: jest.fn().mockResolvedValue(undefined) }));

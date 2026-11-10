@@ -27,7 +27,7 @@ async function safeSecureStoreDelete(key: string): Promise<void> {
 
 import { trackingBinding } from './shift-location-outbox';
 import { configureBackgroundShift } from './background-shift-tracking';
-import { periodicLocationTracker } from './periodic-location-tracker';
+import { PeriodicLocationTrackerEngine } from './periodic-location-tracker';
 
 interface PersistedState {
   userId: string;
@@ -671,3 +671,5 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
     }
   },
 }));
+
+export const periodicLocationTracker = new PeriodicLocationTrackerEngine(useTimeTrackingStore);

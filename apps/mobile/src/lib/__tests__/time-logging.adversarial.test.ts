@@ -4,9 +4,8 @@ import * as outbox from '../shift-location-outbox';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, type AppStateStatus } from 'react-native';
-import { useTimeTrackingStore, computeActiveElapsedSeconds } from '../time-tracking-store';
+import { useTimeTrackingStore, computeActiveElapsedSeconds, periodicLocationTracker } from '../time-tracking-store';
 import {
-  periodicLocationTracker,
   RECORDING_INTERVAL_MS,
   HEALTH_CHECK_INTERVAL_MS,
   OFFLINE_QUEUE_KEY,
