@@ -19,6 +19,12 @@ The release used the verified encrypted base/delta restore for `production-20261
 
 Evidence: `../evidence/staging-build57-20261105/`.
 
+## 10 November follow-up
+
+The public Build 56 and Build 57 APKs matched their published checksums. Both launched on an isolated Android 36 ARM64 emulator. Android accepted Build 57 via `adb install -r` over Build 56 and reported the same first-install timestamp. Build 57 rendered the marketplace and the active MainActivity window reported `SECURE`. The existing emulator had insufficient install storage, so this check used a new QA emulator. Authenticated layouts, physical hardware and application data retention remain separate checks.
+
+The focused Gmail, SMS and AI suites passed all 35 cases together under the broker-first environment, and API typecheck passed. The AI suite now sets the expected provider mode explicitly for each case. A follow-up synthetic probe to the selected free endpoint returned HTTP 400 before extraction. The controlled Android screenshot build hit its memory limit and resumed incrementally with a smaller JVM heap.
+
 ## Corrections identified after the release pin
 
 The live reply exposed a stale lead `lastActivityAt` despite its new email timeline entry. Subsequent source changes update Gmail send/sync and SMS receive activity monotonically, preserve provider timestamps in incoming timeline entries and prevent delayed sends/history from replacing a newer conversation preview. Seventeen Gmail/SMS real PostgreSQL contracts pass after one initial SMS pagination authentication failure; the isolated SMS rerun and combined rerun both pass. The initial failure is retained in private logs and is not reported as a clean first run.
