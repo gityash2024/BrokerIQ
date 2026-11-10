@@ -190,6 +190,15 @@ export class SettingsService {
     return this.isComplete(def, values) ? values : null;
   }
 
+  /** A disabled OpenRouter key can run the platform's synthetic connection test only. */
+  async openRouterTestCredentials(): Promise<IntegrationValues | null> {
+    const def = this.defOrThrow('openrouter');
+    const { stored } = await this.loadStored(def.key);
+    if (stored?.enabled !== false) return this.resolve(def.key);
+    const values = this.withDefaults(def, this.decode(stored));
+    return this.isComplete(def, values) ? values : null;
+  }
+
   /** A firm's physical SMS SIM/mailbox must never inherit another firm's platform identity. */
   async resolveOrganizationOnly(key: string, orgId: string): Promise<IntegrationValues | null> {
     const def = this.defOrThrow(key);

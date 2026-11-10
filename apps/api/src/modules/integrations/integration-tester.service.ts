@@ -26,7 +26,14 @@ export class IntegrationTesterService {
   async test(key: string, orgId: string | null, actorEmail: string): Promise<{ ok: boolean; message: string }> {
     const def = getIntegration(key);
     if (!def) throw new BadRequestException('Unknown integration');
-    const values = key === 'textbee' ? (orgId ? await this.settings.resolveOrganizationOnly(key, orgId) : null) : await this.settings.resolve(key, orgId);
+    const values =
+      key === 'openrouter' && !orgId
+        ? await this.settings.openRouterTestCredentials()
+        : key === 'textbee'
+          ? orgId
+            ? await this.settings.resolveOrganizationOnly(key, orgId)
+            : null
+          : await this.settings.resolve(key, orgId);
     if (!values) {
       const r = { ok: false, message: 'पहले सारे required fields भरकर Save करें।' };
       await this.settings.recordTest(key, orgId, false, r.message).catch(() => undefined);

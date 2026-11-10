@@ -312,7 +312,7 @@ export class ImportsService {
           const recognized = await this.ocr.recognize(file.body);
           text = recognized.text;
           // AI is an optional free-only assistant. Validation and explicit review remain mandatory.
-          if (await this.ai.isAvailable('vision')) {
+          if (await this.ai.isAvailable('vision', 'capture')) {
             try {
               const response = await this.ai.vision(
                 `data:${file.contentType};base64,${file.body.toString('base64')}`,

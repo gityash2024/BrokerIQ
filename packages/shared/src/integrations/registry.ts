@@ -334,6 +334,8 @@ export const INTEGRATIONS: IntegrationDef[] = [
         type: 'text',
         default: '',
       },
+      { key: 'captureVisionApprovedModel', label: 'Approved image-import model ID', type: 'text' },
+      { key: 'captureVisionEvaluationSha256', label: 'Image-import holdout report SHA-256', type: 'text' },
     ],
     usedFor: ['AI scanner', 'Lead summary', 'Reply suggestions', 'Description writer', 'AI assistant'],
     testable: true,

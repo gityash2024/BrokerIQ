@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationFailedException, IntegrationNotConfiguredException } from '../../common/exceptions';
 import { env } from '../../config/env';
+import { isFreeOpenRouterModel, openRouterFreeRouting } from './openrouter-policy';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -21,6 +22,7 @@ interface Provider {
   textModels: string[];
   visionModels: string[];
   structuredApproved?: boolean;
+  captureVisionApprovedModel?: string;
 }
 
 interface CallOpts {
@@ -92,8 +94,12 @@ export class AiService {
         name,
         apiKey,
         url: URLS[name],
-        textModels: [...list(v.textModel), ...list(v.fallbackModels)],
-        visionModels: [...list(v.visionModel), ...list(v.visionFallbackModels)],
+        textModels: [...new Set([...list(v.textModel), ...list(v.fallbackModels)].filter(isFreeOpenRouterModel))],
+        visionModels: [...new Set([...list(v.visionModel), ...list(v.visionFallbackModels)].filter(isFreeOpenRouterModel))],
+        captureVisionApprovedModel:
+          /^[a-f0-9]{64}$/.test(String(v.captureVisionEvaluationSha256 ?? '')) && typeof v.captureVisionApprovedModel === 'string'
+            ? v.captureVisionApprovedModel
+            : undefined,
       };
     if (name === 'groq')
       return { name, apiKey, url: URLS[name], textModels: list(v.textModel || 'llama-3.3-70b-versatile'), visionModels: list(v.visionModel) };
@@ -112,23 +118,23 @@ export class AiService {
       if (v && (v.apiKey || (name === 'qwen_local' && v.textModel))) {
         const provider = this.toProvider(name, v);
         // Paid fallback is never used by the broker-first launch.
-        if (env().BROKER_FIRST) {
-          if (name !== 'openrouter' && name !== 'qwen_local') continue;
-          if (name === 'openrouter') {
-            provider.textModels = provider.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
-            provider.visionModels = provider.visionModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
-          }
-        }
+        if (env().BROKER_FIRST && name !== 'openrouter' && name !== 'qwen_local') continue;
         if (provider.textModels.length || provider.visionModels.length) out.push(provider);
       }
     }
     return out;
   }
 
-  async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text') {
+  private visionModels(provider: Provider, feature?: string) {
+    if (feature !== 'capture' || !env().BROKER_FIRST) return provider.visionModels;
+    // A generic router or fallback can change the underlying model after evaluation.
+    return provider.visionModels.filter((model) => model.endsWith(':free') && model === provider.captureVisionApprovedModel);
+  }
+
+  async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text', feature?: string) {
     return (await this.providers()).some((p) =>
       kind === 'vision'
-        ? p.visionModels.length > 0
+        ? this.visionModels(p, feature).length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
           (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
           p.textModels.length > 0,
@@ -323,7 +329,7 @@ export class AiService {
   ): Promise<string> {
     const providers = (await this.providers()).filter((p) =>
       kind === 'vision'
-        ? p.visionModels.length > 0
+        ? this.visionModels(p, opts.feature).length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
           (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
           p.textModels.length > 0,
@@ -331,7 +337,7 @@ export class AiService {
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     for (const p of providers) {
-      const models = kind === 'vision' ? p.visionModels : p.textModels;
+      const models = kind === 'vision' ? this.visionModels(p, opts.feature) : p.textModels;
       for (const model of models) {
         try {
           const out = await attempt(p, model);
@@ -419,13 +425,14 @@ export class AiService {
   private async postRequest(p: Provider, body: Record<string, unknown>, timeoutMs: number): Promise<any> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}) };
     if (p.name === 'openrouter') {
+      if (typeof body.model !== 'string' || !isFreeOpenRouterModel(body.model)) throw new ProviderError('OpenRouter requires a free model');
       headers['HTTP-Referer'] = env().PUBLIC_WEB_URL;
       headers['X-Title'] = 'BrokerIQ';
       // A :free model name alone does not pin endpoint pricing or data policy.
       // Fail when no compliant endpoint exists; never relax these on fallback.
       body = {
         ...body,
-        provider: { data_collection: 'deny', ...(env().BROKER_FIRST ? { max_price: { prompt: 0, completion: 0 } } : {}) },
+        provider: openRouterFreeRouting,
       };
     }
     let res: Response;
@@ -461,17 +468,17 @@ export class AiService {
     if (env().BROKER_FIRST) {
       if (key !== 'openrouter' && key !== 'qwen_local')
         throw new IntegrationNotConfiguredException('openrouter', 'Launch AI uses local Qwen or OpenRouter free models only.');
-      if (key === 'openrouter') p.textModels = p.textModels.filter((m) => m.endsWith(':free') || m === 'openrouter/free');
     }
     const errors: string[] = [];
     for (const model of p.textModels) {
       try {
         const data = await this.post(p, { model, messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 5 }, 20_000);
         const ok = String(data.choices?.[0]?.message?.content ?? '').trim();
+        if (!ok) throw new RetryableError('empty diagnostic response');
         const free = key === 'openrouter' ? await this.freeModels(p.apiKey).catch(() => []) : [];
-        const missing = key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => !free.includes(m)) : [];
+        const missing = key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => m !== 'openrouter/free' && !free.includes(m)) : [];
         return [
-          `${model}: ${ok || 'OK'}`,
+          `${model}: ${ok}`,
           missing.length ? `⚠️ अभी free list में नहीं: ${missing.join(', ')}` : '',
           free.length ? `Free models (${free.length}): ${free.slice(0, 12).join(', ')}${free.length > 12 ? ' …' : ''}` : '',
         ]

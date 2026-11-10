@@ -39,6 +39,37 @@ describe('AiService', () => {
     expect(calls.map((c) => c.model)).toEqual(['a:free', 'b:free']);
   });
 
+  it('does not report an empty provider diagnostic as a successful connection', async () => {
+    respond = () => ok(' ');
+    const ai = new AiService(settings({}), prisma);
+    await expect(ai.test('openrouter', { apiKey: 'k', textModel: 'openrouter/free' })).rejects.toThrow('empty diagnostic response');
+  });
+
+  it('uses only the exact approved image-import model and never falls back to an unapproved router', async () => {
+    jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });
+    const values = {
+      apiKey: 'k',
+      visionModel: 'a:free',
+      visionFallbackModels: 'openrouter/free,b:free',
+      captureVisionApprovedModel: 'a:free',
+      captureVisionEvaluationSha256: '',
+    };
+    const ai = new AiService(settings({ openrouter: values }), prisma);
+    expect(await ai.isAvailable('vision')).toBe(true);
+    expect(await ai.isAvailable('vision', 'capture')).toBe(false);
+    await expect(ai.vision('data:image/png;base64,AA==', 'Extract', { feature: 'capture' })).rejects.toThrow();
+    expect(calls).toHaveLength(0);
+
+    values.captureVisionEvaluationSha256 = 'a'.repeat(64);
+    respond = () => ({ status: 429, json: { error: { message: 'rate limited' } } });
+    expect(await ai.isAvailable('vision', 'capture')).toBe(true);
+    await expect(ai.vision('data:image/png;base64,AA==', 'Extract', { feature: 'capture' })).rejects.toThrow();
+    expect(calls.map((call) => call.model)).toEqual(['a:free']);
+
+    values.captureVisionApprovedModel = 'openrouter/free';
+    expect(await ai.isAvailable('vision', 'capture')).toBe(false);
+  });
+
   it('keeps no-training and zero-price endpoint constraints on every launch fallback', async () => {
     const configuration = require('../../config/env');
     const spy = jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });
@@ -51,10 +82,22 @@ describe('AiService', () => {
       const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
       await expect(ai.chat([{ role: 'user', content: 'A reviewed draft' }], { feature: 't' })).resolves.toBe('OK');
       expect(bodies).toHaveLength(2);
-      for (const body of bodies) expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0 } });
+      for (const body of bodies) expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0, image: 0, request: 0 } });
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('never calls a paid OpenRouter model, including when the full platform is active', async () => {
+    respond = () => ok('OK');
+    const ai = new AiService(
+      settings({ openrouter: { apiKey: 'k', textModel: 'paid-model', fallbackModels: 'a:free,a:free' } }),
+      prisma,
+    );
+    await expect(ai.chat([{ role: 'user', content: 'Test' }], { feature: 'test' })).resolves.toBe('OK');
+    expect(calls.map((call) => call.model)).toEqual(['a:free']);
+    await expect(ai.test('openrouter', { apiKey: 'k', textModel: 'paid-model' })).rejects.toThrow('No model configured');
+    expect(calls).toHaveLength(1);
   });
 
   it('skips a provider whose key is rejected and moves to the next provider', async () => {

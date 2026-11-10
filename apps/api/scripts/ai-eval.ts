@@ -9,11 +9,11 @@
  */
 import { LEAD_INSIGHTS_SYSTEM, descriptionSystem, leadInsightsSchema } from '../src/core/ai/prompts';
 import { parseJsonLoose } from '../src/core/ai/ai.service';
+import { isFreeOpenRouterModel, openRouterFreeRouting } from '../src/core/ai/openrouter-policy';
 
 const KEY = process.env.OPENROUTER_API_KEY;
 const MODELS = (
-  process.env.AI_EVAL_MODELS ??
-  'meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-chat-v3-0324:free,qwen/qwen-2.5-72b-instruct:free,google/gemini-2.0-flash-exp:free'
+  process.env.AI_EVAL_MODELS ?? 'openrouter/free'
 )
   .split(',')
   .map((m) => m.trim())
@@ -107,7 +107,10 @@ async function run(model: string, c: Case) {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', 'X-Title': 'BrokerIQ eval' },
-    body: JSON.stringify({ model, messages: c.messages, temperature: 0.3, max_tokens: 800, ...(c.json ? { response_format: { type: 'json_object' } } : {}) }),
+    body: JSON.stringify({
+      model, messages: c.messages, temperature: 0.3, max_tokens: 800, provider: openRouterFreeRouting,
+      ...(c.json ? { response_format: { type: 'json_object' } } : {}),
+    }),
     signal: AbortSignal.timeout(60_000),
   }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e) } }) }) as any);
   const data: any = await res.json().catch(() => ({}));
@@ -122,6 +125,7 @@ async function main() {
     console.error('Set OPENROUTER_API_KEY (free key from https://openrouter.ai/keys).');
     process.exit(1);
   }
+  if (!MODELS.length || MODELS.some((model) => !isFreeOpenRouterModel(model))) throw new Error('Select only free OpenRouter models.');
   for (const model of MODELS) {
     let pass = 0;
     let total = 0;
