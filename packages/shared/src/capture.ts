@@ -34,8 +34,12 @@ const scaled = (amount: string, suffix?: string) =>
   (/^(cr|crore)/i.test(suffix ?? '') ? 10000000 : /^(l|lac|lakh)/i.test(suffix ?? '') ? 100000 : /^(k|thousand)/i.test(suffix ?? '') ? 1000 : 1);
 export function captureLocalities(text: string) {
   const result: string[] = [];
-  for (const m of text.matchAll(/\b(?:sector|sec|s-)\s*[-:]?\s*(\d{1,3}(?:\s*[,&/]\s*\d{1,3})*)\b/gi))
-    result.push(...m[1].split(/[,&/]/).map((n) => `Sector ${Number(n.trim())}`));
+  for (const m of text.matchAll(/\b(?:sector|sec\.?|s-)\s*[-:]?\s*(\d{1,3}[a-z]?(?:\s*[,&/]\s*\d{1,3}[a-z]?)*)\b/gi)) {
+    for (const item of m[1].split(/[,&/]/)) {
+      const sector = item.trim().toUpperCase().replace(/^0+(?=\d)/, '');
+      result.push(`Sector ${sector}`);
+    }
+  }
   for (const m of text.matchAll(/\b(sushant\s+lok\s*(?:[123]|I\b)|south\s*city\s*[12]|wazirabad|mohyal\s+colony|saraswati\s+kunj)\b/gi))
     result.push(m[1].replace(/\s+/g, ' ').replace(/\bI$/, '1'));
   return [...new Set(result)];
@@ -117,7 +121,8 @@ export function extractCapture(text: string): CapturedEntity[] {
     const hasRequirement = /requirement|required|looking\s+for|चाहिए|ज़रूरत|जरूरत/i.test(raw);
     // "Required ... for rent" is a demand, not two contradictory records.
     // An explicit "available for ..." section alongside a demand still needs splitting.
-    const hasSupply = /available\s+(?:for\s+)?(?:sale|rent)/i.test(raw) || (!hasRequirement && /for\s+(?:sale|rent)|land\s+for\s+sale/i.test(raw));
+    const hasSupply = /available\s+(?:for\s+)?(?:sale|rent|lease)\b/i.test(raw) ||
+      (!hasRequirement && /for\s+(?:sale|rent|lease)\b/i.test(raw));
     const roomMentions = [...raw.matchAll(/(?<![\d.])\b\d{1,2}(?:\.\d+)?\s*(?:BHK|RK|br(?:\+sq)?|bed(?:room)?s?)\b/gi)];
     const sizeMentions = [...raw.matchAll(/\b\d[\d,]*(?:\.\d+)?\s*(?:sq\.?\s*ft\.?|sqft|sq\.?\s*yd\.?|acre?s?|hectare?s?)\b/gi)];
     // OCR of columns or several chat bubbles can interleave unrelated facts. Never
@@ -143,7 +148,10 @@ export function extractCapture(text: string): CapturedEntity[] {
         : /unfurnished|\bunf\b/i.test(raw)
           ? 'UNFURNISHED'
           : null;
-    const purpose = numberedOffers?.purpose ?? (/\bsale\b|\bsell\b|सेल|बिक्री/i.test(raw) ? 'SALE' : /\brent\b|किराया|रेंट/i.test(raw) ? 'RENT' : null);
+    const sale = /\b(?:sale|resale|sell)\b|सेल|बिक्री/i.test(raw) ||
+      (hasRequirement && /\b(?:for\s+purchase|(?:required|looking\s+for)\s+to\s+buy)\b/i.test(raw));
+    const rentIntent = /\b(?:rent|rental)\b|\b(?:for\s+lease|available\s+to\s+lease)\b|किराया|रेंट/i.test(raw);
+    const purpose = numberedOffers?.purpose ?? (sale ? 'SALE' : rentIntent ? 'RENT' : null);
     const category = /\bacre|एकड़|\bland\b|जमीन/i.test(raw)
       ? 'LAND'
       : /\bplot\b|प्लॉट/i.test(raw)

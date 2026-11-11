@@ -238,3 +238,16 @@ test('numbered lists with shared contacts or mixed intent require manual review'
   assert.equal(mixed.length, 1);
   assert.equal(mixed[0].requirement?.intent, 'UNKNOWN');
 });
+
+test('capture preserves sector suffixes and distinguishes purchase demand from a sale offer', () => {
+  const [demand] = extractCapture('Required for purchase: 3 BHK in Sec. 063a / 63B, Budget 3 Cr');
+  assert.equal(demand.kind, 'REQUIREMENT');
+  assert.equal(demand.requirement?.purpose, 'SALE');
+  assert.deepEqual(demand.requirement?.localityNames, ['Sector 63A', 'Sector 63B']);
+  assert.equal(demand.requirement?.maxBudget, 30_000_000);
+
+  const [offer] = extractCapture('Office available for lease in Sector 88A');
+  assert.equal(offer.kind, 'INVENTORY');
+  assert.equal(offer.inventory?.purpose, 'RENT');
+  assert.equal(offer.inventory?.sector, 'Sector 88A');
+});
