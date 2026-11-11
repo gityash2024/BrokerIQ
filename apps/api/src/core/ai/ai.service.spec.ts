@@ -7,7 +7,7 @@ import { AiService, parseJsonLoose } from './ai.service';
 describe('AiService', () => {
   const realFetch = global.fetch;
   let calls: { url: string; model: string; msgs: number }[];
-  let respond: (url: string, body: any) => { status: number; json: any };
+  let respond: (url: string, body: any) => { status: number; json: any; headers?: Headers };
 
   const settings = (config: Record<string, Record<string, unknown> | null>, order = 'openrouter,groq,gemini') =>
     ({
@@ -24,7 +24,7 @@ describe('AiService', () => {
       const body = JSON.parse(init.body);
       calls.push({ url: String(url), model: body.model, msgs: body.messages.length });
       const r = respond(String(url), body);
-      return { ok: r.status < 400, status: r.status, json: async () => r.json } as any;
+      return { ok: r.status < 400, status: r.status, headers: r.headers, json: async () => r.json } as any;
     }) as any;
   });
   afterEach(() => jest.restoreAllMocks());
@@ -37,6 +37,16 @@ describe('AiService', () => {
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
     await expect(ai.chat([{ role: 'user', content: 'hi' }], { feature: 't' })).resolves.toBe('नमस्ते');
     expect(calls.map((c) => c.model)).toEqual(['a:free', 'b:free']);
+  });
+
+  it('honors a free model Retry-After without skipping available OpenRouter alternatives', async () => {
+    respond = (_url, body) =>
+      body.model === 'a:free' ? { status: 429, json: {}, headers: new Headers({ 'Retry-After': '60' }) } : ok('hosted');
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
+    const messages = [{ role: 'user' as const, content: 'hi' }];
+    await expect(ai.chat(messages, { feature: 't' })).resolves.toBe('hosted');
+    await expect(ai.chat(messages, { feature: 't' })).resolves.toBe('hosted');
+    expect(calls.map((call) => call.model)).toEqual(['a:free', 'b:free', 'b:free']);
   });
 
   it('does not report an empty provider diagnostic as a successful connection', async () => {

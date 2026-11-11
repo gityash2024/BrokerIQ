@@ -62,7 +62,7 @@ class RetryableError extends Error {}
 class ProviderError extends Error {}
 
 /**
- * Provider-agnostic AI client. Tries providers in the admin-set order (default OpenRouter → Groq → Gemini)
+ * Provider-agnostic AI client. Tries free OpenRouter before the configured fallback providers
  * and, inside each, the primary then backup models — so a busy free model or a rate limit falls through to
  * the next one. JSON answers can be checked against a zod schema with one automatic repair attempt.
  */
@@ -70,6 +70,7 @@ class ProviderError extends Error {}
 export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly cache = new Map<string, { at: number; ttl: number; text: string }>();
+  private readonly openRouterRetryAt = new Map<string, number>();
   private localBusy = false;
   private localRetryAt = 0;
   constructor(
@@ -339,6 +340,10 @@ export class AiService {
     for (const p of providers) {
       const models = kind === 'vision' ? this.visionModels(p, opts.feature) : p.textModels;
       for (const model of models) {
+        if (p.name === 'openrouter' && Date.now() < (this.openRouterRetryAt.get(model) ?? 0)) {
+          errors.push(`openrouter/${model}: waiting for Retry-After`);
+          continue;
+        }
         try {
           const out = await attempt(p, model);
           await this.track(p.name, model, opts, true, out.tokens);
@@ -440,6 +445,14 @@ export class AiService {
       res = await fetch(p.url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
     } catch (e) {
       throw new RetryableError(`network/timeout: ${(e as Error).message}`);
+    }
+    if (p.name === 'openrouter' && res.status === 429 && typeof body.model === 'string') {
+      const retryAfter = res.headers?.get('retry-after');
+      if (retryAfter) {
+        const now = Date.now();
+        const retryAt = /^\d+$/.test(retryAfter) ? now + Number(retryAfter) * 1000 : Date.parse(retryAfter);
+        if (Number.isFinite(retryAt) && retryAt > now) this.openRouterRetryAt.set(body.model, Math.min(retryAt, now + 86_400_000));
+      }
     }
     const data: any = await res.json().catch(() => ({}));
     const msg = data?.error?.message ?? data?.[0]?.error?.message ?? `HTTP ${res.status}`;
