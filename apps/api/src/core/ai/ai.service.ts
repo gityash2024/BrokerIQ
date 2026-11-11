@@ -106,10 +106,10 @@ export class AiService {
     return { name, apiKey, url: URLS[name], textModels: list(v.model || 'gemini-2.5-flash'), visionModels: list(v.model || 'gemini-2.5-flash') };
   }
 
-  /** Configured providers in the admin-chosen order. */
+  /** Try free OpenRouter first, then configured alternatives. */
   async providers(): Promise<Provider[]> {
     const app = await this.settings.getAppConfig();
-    const order = [...new Set(['qwen_local', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName =>
+    const order = [...new Set(['openrouter', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName =>
       (PROVIDERS as string[]).includes(p),
     );
     const out: Provider[] = [];

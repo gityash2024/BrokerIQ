@@ -157,7 +157,7 @@ describe('AiService', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('allows local text and only free OpenRouter fallback in broker-first mode', async () => {
+  it('prioritizes free OpenRouter over local text in broker-first mode', async () => {
     const configuration = require('../../config/env');
     const current = configuration.env();
     const spy = jest.spyOn(configuration, 'env').mockReturnValue({ ...current, BROKER_FIRST: true });
@@ -171,8 +171,8 @@ describe('AiService', () => {
         prisma,
       );
       expect((await ai.providers()).map((p) => ({ name: p.name, textModels: p.textModels }))).toEqual([
-        { name: 'qwen_local', textModels: ['qwen'] },
         { name: 'openrouter', textModels: ['a:free'] },
+        { name: 'qwen_local', textModels: ['qwen'] },
       ]);
     } finally {
       spy.mockRestore();
@@ -314,9 +314,9 @@ describe('AiService', () => {
     expect(Object.keys(format.schema.definitions).length).toBeGreaterThan(0);
   });
 
-  it('cools down a failed local service and keeps cached responses firm/user scoped', async () => {
+  it('falls back after OpenRouter throttling and cools down a failed local service', async () => {
     let localCalls = 0;
-    respond = (url) => (url.includes('127.0.0.1') ? (localCalls++, { status: 503, json: {} }) : ok('hosted'));
+    respond = (url) => (url.includes('127.0.0.1') ? (localCalls++, { status: 503, json: {} }) : { status: 429, json: {} });
     const ai = new AiService(
       settings({
         qwen_local: { textModel: 'qwen', structuredTextApprovedModel: 'qwen', structuredEvaluationSha256: 'a'.repeat(64) },
@@ -325,10 +325,9 @@ describe('AiService', () => {
       prisma,
     );
     const messages = [{ role: 'user' as const, content: 'same' }];
-    await ai.chat(messages, { feature: 'capture', orgId: 'a', userId: 'a', cacheMs: 60000 });
-    await ai.chat(messages, { feature: 'capture', orgId: 'b', userId: 'b', cacheMs: 60000 });
-    await ai.chat(messages, { feature: 'capture', orgId: 'a', userId: 'a', cacheMs: 60000 });
+    await expect(ai.chat(messages, { feature: 'capture', orgId: 'a' })).rejects.toMatchObject({ status: 502 });
+    await expect(ai.chat(messages, { feature: 'capture', orgId: 'b' })).rejects.toMatchObject({ status: 502 });
     expect(localCalls).toBe(1);
-    expect(calls.filter((c) => c.model === 'a:free')).toHaveLength(2);
+    expect(calls.map((c) => c.model)).toEqual(['a:free', 'qwen', 'a:free']);
   });
 });
