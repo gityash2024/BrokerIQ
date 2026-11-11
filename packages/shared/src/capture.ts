@@ -88,6 +88,40 @@ function numberedOfferRows(text: string): { purpose: 'SALE' | 'RENT'; rows: stri
   return { purpose, rows };
 }
 
+/** Explicit project headings may scope a list of independent unit rows. */
+function projectOfferRows(text: string): string[] | null {
+  const lines = text.split(/\r?\n/).map((line) => line.trim().replace(/^[\s*•▪🏠📍]+|[\s*]+$/gu, '')).filter(Boolean);
+  const offer = /^(?:properties\s+)?(?:available\s+)?for\s+(sale|rent)[:.!]*$/i.exec(lines[0] ?? '');
+  if (!offer || lines.length > 110) return null;
+  const purpose = offer[1].toLowerCase();
+  const heading = /^([\p{L}\p{N}][\p{L}\p{N} .&'-]{1,79}?)\s*[,–-]?\s+(?:sector|sec\.?)\s*[-:]?\s*(\d{1,3}[a-z]?)\.?$/iu;
+  const unit = /^\d{1,2}\s*(?:BHK|RK)\b/i;
+  const priceLabel = purpose === 'rent' ? '(?:rent|asking(?: price)?|@)' : '(?:asking(?: price)?|demand|price|@)';
+  const price = new RegExp(`${priceLabel}\\s*[:=@-]?\\s*₹?\\s*${amountPattern}\\s*$`, 'i');
+  const rows: string[] = [];
+  let project = '';
+  let unitsInProject = 0;
+  for (const line of lines.slice(1)) {
+    if (/^(?:contact|call|thanks|regards)\b/i.test(line) && unitsInProject > 0) break;
+    const section = heading.exec(line);
+    if (section) {
+      if (project && unitsInProject === 0) return null;
+      project = line;
+      unitsInProject = 0;
+      continue;
+    }
+    const amount = price.exec(line);
+    if (!project || !unit.test(line) || !amount || !amount[2] ||
+      /\b(?:or|to|sold|rented|required|requirement|wanted|sale|resale|lease|premium|booking|deposit)\b|\/\s*month/i.test(line) ||
+      (purpose === 'sale' && /\brent\b/i.test(line)) || captureLocalities(line).length) return null;
+    const label = purpose === 'rent' ? 'Rent' : 'Asking';
+    rows.push(`For ${purpose}\n${project}\n${line.slice(0, amount.index).trim()}\n${label} ${amount[1]}${amount[2]}`);
+    unitsInProject += 1;
+    if (rows.length > 100) return null;
+  }
+  return rows.length > 1 && unitsInProject > 0 ? rows : null;
+}
+
 /** Deterministic extraction creates review drafts; absent values remain null. */
 export function extractCapture(text: string): CapturedEntity[] {
   const normalized = text.replace(/[०-९]/g, (n) => String('०१२३४५६७८९'.indexOf(n)));
@@ -102,7 +136,7 @@ export function extractCapture(text: string): CapturedEntity[] {
     ];
   }
   const blocks =
-    numberedOffers?.rows ?? normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/iu).filter((b) => b.trim());
+    numberedOffers?.rows ?? projectOfferRows(normalized) ?? normalized.split(/\n\s*\n(?=\s*[🔥⭐🌟🏠🌿]*\s*[^\n]{0,90}(?:sector|sec\s*[-:]?\d|for\s+(?:sale|rent)))/iu).filter((b) => b.trim());
   return blocks.map((raw): CapturedEntity => {
     // Group exports include recruiting posts with “Requirement” and salary ranges.
     // They are source evidence, not a customer's property demand or budget.

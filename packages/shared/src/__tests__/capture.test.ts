@@ -251,3 +251,19 @@ test('capture preserves sector suffixes and distinguishes purchase demand from a
   assert.equal(offer.inventory?.purpose, 'RENT');
   assert.equal(offer.inventory?.sector, 'Sector 88A');
 });
+
+test('project offer lists keep each unit price and sector under its own project heading', () => {
+  const rows = extractCapture(
+    'Available for Rent\nExample Heights, Sector 63A\n2 BHK 1250 sqft Rent 45k\n3 BHK 1600 sqft Rent 60k\nExample Park, Sector 88B\n2 BHK 1100 sqft @ 35k',
+  );
+  assert.deepEqual(
+    rows.map(({ inventory }) => [inventory?.sector, inventory?.bhk, inventory?.area, inventory?.monthlyRent]),
+    [['Sector 63A', 2, 1250, 45000], ['Sector 63A', 3, 1600, 60000], ['Sector 88B', 2, 1100, 35000]],
+  );
+  assert.ok(rows.every(({ inventory }) => inventory?.verificationStatus === 'NEEDS_REVIEW'));
+});
+
+test('project offer rows with a deposit do not treat the deposit as unit rent', () => {
+  const text = 'Available for Rent\nExample Heights, Sector 63A\n2 BHK Rent 45k\n3 BHK Deposit @ 60k';
+  assert.ok(extractCapture(text).every(({ inventory }) => inventory?.monthlyRent !== 60000));
+});
