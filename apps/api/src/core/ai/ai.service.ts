@@ -391,8 +391,11 @@ export class AiService {
       },
       timeoutMs,
     );
-    const text = String(data.choices?.[0]?.message?.content ?? '');
-    if (key && text.trim()) this.remember(key, text, opts.cacheMs!);
+    const choice = data.choices?.[0];
+    if (choice?.finish_reason === 'length') throw new RetryableError('model exhausted its output token budget');
+    const text = String(choice?.message?.content ?? '');
+    if (!text.trim()) throw new RetryableError('model returned an empty answer');
+    if (key) this.remember(key, text, opts.cacheMs!);
     return { text, tokens: data.usage?.total_tokens ?? 0 };
   }
 

@@ -49,6 +49,20 @@ describe('AiService', () => {
     expect(calls.map((call) => call.model)).toEqual(['a:free', 'b:free', 'b:free']);
   });
 
+  it.each(['partial answer', ''])('falls back from token exhaustion and caches the complete answer (%j)', async (content) => {
+    respond = (_url, body) => {
+      if (body.model === 'b:free') return ok('complete answer');
+      const result = ok(content);
+      return { ...result, json: { ...result.json, choices: [{ message: { content }, finish_reason: 'length' }] } };
+    };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
+    const messages = [{ role: 'user' as const, content: 'Describe this property' }];
+    const options = { feature: 'description', cacheMs: 60_000 };
+    await expect(ai.chat(messages, options)).resolves.toBe('complete answer');
+    await expect(ai.chat(messages, options)).resolves.toBe('complete answer');
+    expect(calls.map((call) => call.model)).toEqual(['a:free', 'b:free', 'a:free']);
+  });
+
   it('does not report an empty provider diagnostic as a successful connection', async () => {
     respond = () => ok(' ');
     const ai = new AiService(settings({}), prisma);
