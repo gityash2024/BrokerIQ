@@ -31,10 +31,10 @@ export function chatExportMessages(text: string): CapturedMessage[] {
 }
 const scaled = (amount: string, suffix?: string) =>
   Number(amount.replace(/,/g, '')) *
-  (/^(cr|crore)/i.test(suffix ?? '') ? 10000000 : /^(l|lac|lakh)/i.test(suffix ?? '') ? 100000 : /^(k|thousand)/i.test(suffix ?? '') ? 1000 : 1);
+  (/^(cr|करोड़|करोड)/i.test(suffix ?? '') ? 10000000 : /^(l|लाख)/i.test(suffix ?? '') ? 100000 : /^(k|thousand|हज़ार|हजार)/i.test(suffix ?? '') ? 1000 : 1);
 export function captureLocalities(text: string) {
   const result: string[] = [];
-  for (const m of text.matchAll(/\b(?:sector|sec\.?|s-)\s*[-:]?\s*(\d{1,3}[a-z]?(?:\s*[,&/]\s*\d{1,3}[a-z]?)*)\b/gi)) {
+  for (const m of text.matchAll(/(?:\b(?:sector|sec\.?|s-)|(?<![\p{L}\p{M}])सेक्टर)\s*[-:]?\s*(\d{1,3}[a-z]?(?:\s*[,&/]\s*\d{1,3}[a-z]?)*)\b/giu)) {
     for (const item of m[1].split(/[,&/]/)) {
       const sector = item.trim().toUpperCase().replace(/^0+(?=\d)/, '');
       result.push(`Sector ${sector}`);
@@ -52,7 +52,7 @@ function contactPhones(text: string) {
   }
   return phones;
 }
-const amountPattern = '(\\d[\\d,]*(?:\\.\\d+)?)\\s*(cr(?:ore)?|lakh?s?|lacs?|k|thousand)?';
+const amountPattern = '(\\d[\\d,]*(?:\\.\\d+)?)\\s*(cr(?:ore)?|lakh?s?|lacs?|k|thousand|करोड़|करोड|लाख|हज़ार|हजार)?';
 const parseLabeled = (text: string, label: string) => {
   const match = text.match(new RegExp(`(?:${label})\\s*[:=@-]?\\s*₹?\\s*${amountPattern}`, 'i'));
   if (!match) return null;
@@ -258,7 +258,7 @@ export function extractCapture(text: string): CapturedEntity[] {
     }
     if (!purpose && !room && !size) return { kind: 'UNRELATED', warnings: ['No property/requirement identified; preserve source for review'] };
     const rent = purpose === 'RENT' ? parseLabeled(raw, 'rent|किराया|रेंट') : null;
-    const salePrice = purpose === 'SALE' ? parseLabeled(raw, 'ask|asking|demand|price|कीमत|@') : null;
+    const salePrice = purpose === 'SALE' ? parseLabeled(raw, 'ask|asking|demand|price|कीमत|क़ीमत|@') : null;
     const perUnit = /(?:per|pr\.?|\/)\s*(acre|एकड़|sq\.?\s*ft|sqft|sq\.?\s*yd)/i.exec(raw);
     const house = raw.match(/(?:house|plot|unit)\s*(?:no\.?|number)?\s*[.:#-]?\s*([A-Za-z]?[-]?\d{1,5}[A-Za-z]?)(?!\d)/i);
     // TF is broker-confirmed as top floor; its numeric level is not known.

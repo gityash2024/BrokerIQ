@@ -3,6 +3,18 @@ import { strict as assert } from 'node:assert';
 import { extractCapture, chatExportMessages, captureEntryTitle } from '../capture';
 import { ledgerMatch, inventoryInputSchema, prepareInventoryEditorInput, offeredRequirement } from '../inventory';
 
+test('Hindi listings and requirements preserve sector and price scale', () => {
+  const rental = extractCapture('सेक्टर ४५ में 2 BHK किराए पर\nकिराया ३५ हज़ार')[0];
+  assert.equal(rental.inventory?.sector, 'Sector 45');
+  assert.equal(rental.inventory?.monthlyRent, 35000);
+  const sale = extractCapture('सेक्टर ५२A में 3 BHK बिक्री के लिए\nक़ीमत १.५ करोड़')[0];
+  assert.equal(sale.inventory?.sector, 'Sector 52A');
+  assert.equal(sale.inventory?.totalSalePrice, 15000000);
+  const demand = extractCapture('सेक्टर ४५ में 2 BHK चाहिए\nकिराया\nBudget ३५ हजार to ४५ हजार')[0];
+  assert.equal(demand.requirement?.minBudget, 35000);
+  assert.equal(demand.requirement?.maxBudget, 45000);
+});
+
 test('requirements retain compound sectors and budget range', () => {
   const entry = extractCapture('Requirement\n2bhk\nSector 27&28&43&42\nBudget 45k to 55k rent\nFully furnished luxury')[0];
   assert.equal(entry.kind, 'REQUIREMENT');
