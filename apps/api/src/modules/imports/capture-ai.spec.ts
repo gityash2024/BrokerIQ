@@ -81,6 +81,20 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     const [range] = factsToEntities({ records: [{ ...base, priceMin: 32000, priceMax: 33000 }] }, 'Sector 45 rent 32-33k');
     expect(range.inventory?.notes).toContain('32000 - 33000');
   });
+  it('rejects model-invented area units, including an unrelated per-square-foot rate', () => {
+    for (const source of ['SIZE: 1200, 2 BHK, asking 30k', 'SIZE: 1200, asking 18450 per sq ft', 'SIZE: 1200 marla']) {
+      const [row] = factsToEntities({ records: [base] }, source, true);
+      expect(row.inventory?.area).toBeNull();
+      expect(row.inventory?.areaUnit).toBeNull();
+      expect(row.warnings).toContain('Area without an explicit unit omitted.');
+    }
+    const [wrongUnit] = factsToEntities({ records: [base] }, 'Size 1200 sq yards');
+    expect(wrongUnit.inventory?.areaUnit).toBeNull();
+    const [printed] = factsToEntities({ records: [base] }, 'Size 1,200 SQ-FT');
+    expect(printed.inventory).toMatchObject({ area: 1200, areaUnit: 'SQ_FT' });
+    const [header] = factsToEntities({ records: [base] }, 'Area (sqft)\n2 BHK 1200 rent 30000');
+    expect(header.inventory).toMatchObject({ area: 1200, areaUnit: 'SQ_FT' });
+  });
   it('allows original visual evidence when OCR is absent and still normalizes explicit sectors', () => {
     const [offer] = factsToEntities({ records: [base] }, '', true);
     expect(offer.inventory?.sector).toBe('Sector 45');

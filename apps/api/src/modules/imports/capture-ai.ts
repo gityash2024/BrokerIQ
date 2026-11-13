@@ -60,6 +60,27 @@ function sourceAmounts(source: string) {
   }
   return values;
 }
+
+const AREA_UNITS: Record<z.infer<typeof areaUnitSchema>, string> = {
+  SQ_FT: '(?:sq[.\\s-]*(?:ft|feet)|sqft|square\\s*(?:feet|foot)|वर्ग\\s*(?:फुट|फीट))',
+  SQ_YD: '(?:sq[.\\s-]*(?:yds?|yards?|yrds?)|sqyd|square\\s*yards?|gaj|गज|वर्ग\\s*गज)',
+  SQ_M: '(?:sq[.\\s-]*(?:m|mtr|meters?|metres?)|sqm|square\\s*met(?:er|re)s?|वर्ग\\s*मीटर)',
+  ACRE: '(?:acres?|एकड़)',
+  HECTARE: '(?:hectares?|हेक्टेयर)',
+};
+
+/** A bare size or a per-area price elsewhere does not establish the property's area unit. */
+function hasAreaUnitEvidence(source: string, area: number | null, unit: z.infer<typeof areaUnitSchema>, visual: boolean) {
+  if (!source.trim()) return visual; // OCR may be absent; the separate evaluated vision gate still applies.
+  if (area == null) return false;
+  const normalized = source.replace(/(?<=\d),(?=\d)/g, '').replace(/(?<=\d)[Oo](?=[\dOo]*(?:\s|[/.,-]|$))/g, '0');
+  const number = String(area).replace('.', '\\.');
+  const pattern = AREA_UNITS[unit];
+  const adjacent = new RegExp('(?<![\\d.])' + number + '(?![\\d.])\\s*' + pattern + '(?![\\p{L}])', 'iu');
+  if (adjacent.test(normalized)) return true;
+  const units = Object.values(AREA_UNITS).filter((p) => new RegExp(p + '(?![\\p{L}])', 'iu').test(normalized));
+  return units.length === 1 && new RegExp('(?:area|size)\\s*(?:in\\s*)?[:(\\-]?\\s*' + pattern + '(?![\\p{L}])', 'iu').test(normalized);
+}
 export function factsToEntities(input: z.infer<typeof captureFactsSchema>, source: string, visualEvidence = false): CapturedEntity[] {
   source = source.normalize('NFKC');
   const sectors = captureLocalities(source).map(compact);
@@ -131,8 +152,9 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     const bhk = (fractional && Math.floor(Number(fractional[1])) === fact.bhk) || warnedFraction ? null : fact.bhk;
     if (fact.bhk != null && bhk == null) warnings.push('Fractional layout must not be rounded to integer BHK.');
     const common = { purpose: fact.purpose, roomKind: fact.roomKind, furnishing: fact.furnishing, notes: quoted };
-    const area = fact.areaUnit ? groundedAmount(fact.area) : null;
-    if (fact.area != null && !fact.areaUnit) warnings.push('Area without an explicit unit omitted.');
+    const areaUnit = fact.areaUnit && hasAreaUnitEvidence(source, fact.area, fact.areaUnit, visualEvidence) ? fact.areaUnit : null;
+    const area = areaUnit ? groundedAmount(fact.area) : null;
+    if (fact.area != null && !areaUnit) warnings.push('Area without an explicit unit omitted.');
     if (fact.intent === 'DEMAND')
       return capturedEntitySchema.parse({
         kind: 'REQUIREMENT',
@@ -147,7 +169,7 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
           maxBudget: ['MONTHLY_RENT', 'SALE_TOTAL'].includes(fact.priceBasis ?? '') ? max : null,
           minArea: area,
           maxArea: area,
-          areaUnit: fact.areaUnit,
+          areaUnit,
           contactName: contacts[0]?.name,
           contactPhone: contacts[0]?.phone,
         },
@@ -162,7 +184,7 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
         floor: fact.floor,
         bhk,
         area,
-        areaUnit: fact.areaUnit,
+        areaUnit,
         monthlyRent: fact.priceBasis === 'MONTHLY_RENT' ? exact : null,
         totalSalePrice: fact.priceBasis === 'SALE_TOTAL' ? exact : null,
         ratePerArea: fact.priceBasis === 'RATE_PER_SQFT' || fact.priceBasis === 'RATE_PER_SQYD' ? exact : null,
