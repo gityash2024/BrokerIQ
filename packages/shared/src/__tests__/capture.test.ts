@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { extractCapture, chatExportMessages, captureEntryTitle } from '../capture';
+import { extractCapture, chatExportMessages, captureEntryTitle, captureLocalities } from '../capture';
 import { ledgerMatch, inventoryInputSchema, prepareInventoryEditorInput, offeredRequirement } from '../inventory';
+
+test('printed named localities retain phase numbers and hyphens without looking up a project location', () => {
+  assert.deepEqual(captureLocalities('SUSHANT LOK-1, Udyog Vihar Phase 5, DLF City Phase-II and South City-2'), [
+    'Sushant Lok 1', 'South City 2', 'DLF Phase 2', 'Udyog Vihar Phase 5',
+  ]);
+  assert.deepEqual(captureLocalities('Smartworld Gems-89 and M3M Capital113'), []);
+});
 
 test('Hindi listings and requirements preserve sector and price scale', () => {
   const rental = extractCapture('सेक्टर ४५ में 2 BHK किराए पर\nकिराया ३५ हज़ार')[0];

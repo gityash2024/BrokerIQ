@@ -33,6 +33,7 @@ const scaled = (amount: string, suffix?: string) =>
   Number(amount.replace(/,/g, '')) *
   (/^(cr|करोड़|करोड)/i.test(suffix ?? '') ? 10000000 : /^(l|लाख)/i.test(suffix ?? '') ? 100000 : /^(k|thousand|हज़ार|हजार)/i.test(suffix ?? '') ? 1000 : 1);
 export function captureLocalities(text: string) {
+  text = text.normalize('NFKC');
   const result: string[] = [];
   for (const m of text.matchAll(/(?:\b(?:sector|sec\.?|s-)|(?<![\p{L}\p{M}])सेक्टर)\s*[-:]?\s*(\d{1,3}[a-z]?(?:\s*[,&/]\s*\d{1,3}[a-z]?)*)\b/giu)) {
     for (const item of m[1].split(/[,&/]/)) {
@@ -40,8 +41,15 @@ export function captureLocalities(text: string) {
       result.push(`Sector ${sector}`);
     }
   }
-  for (const m of text.matchAll(/\b(sushant\s+lok\s*(?:[123]|I\b)|south\s*city\s*[12]|wazirabad|mohyal\s+colony|saraswati\s+kunj)\b/gi))
-    result.push(m[1].replace(/\s+/g, ' ').replace(/\bI$/, '1'));
+  const roman: Record<string, string> = { I: '1', II: '2', III: '3', IV: '4', V: '5', VI: '6' };
+  const phaseNumber = (n: string) => roman[n.toUpperCase()] ?? n;
+  for (const m of text.matchAll(/\bsushant\s+lok[\s-]*(III|II|I|[123])\b/gi)) result.push(`Sushant Lok ${phaseNumber(m[1])}`);
+  for (const m of text.matchAll(/\bsouth\s*city[\s-]*([12])\b/gi)) result.push(`South City ${m[1]}`);
+  for (const m of text.matchAll(/\bdlf\s+(?:city\s+)?(?:phase|ph\.?)\s*[-:]?\s*(IV|III|II|V|I|[1-5])\b/gi))
+    result.push(`DLF Phase ${phaseNumber(m[1])}`);
+  for (const m of text.matchAll(/\budyog\s+vihar(?:\s+(?:phase|ph\.?)\s*[-:]?\s*(VI|IV|III|II|V|I|[1-6]))?\b/gi))
+    result.push(`Udyog Vihar${m[1] ? ` Phase ${phaseNumber(m[1])}` : ''}`);
+  for (const m of text.matchAll(/\b(wazirabad|mohyal\s+colony|saraswati\s+kunj)\b/gi)) result.push(m[1].replace(/\s+/g, ' '));
   return [...new Set(result)];
 }
 function contactPhones(text: string) {
