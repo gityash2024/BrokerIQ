@@ -29,7 +29,7 @@ export default function GuidesPage() {
           <p className="text-sm font-semibold text-brand-700 dark:text-brand-300">Help & documentation</p>
           <h1 className="font-display text-4xl font-extrabold tracking-tight">BrokerIQ user guides</h1>
           <p className="text-muted">
-            Build 61 workflow update with property-photo sharing and display preferences. The illustrated core retains its labelled Build 57 web and QA-emulator
+            Updated workflow supplements cover ten-minute shift locations, source review, property-photo sharing and display preferences. The illustrated core retains its labelled Build 57 web and QA-emulator
             captures.
           </p>
         </header>

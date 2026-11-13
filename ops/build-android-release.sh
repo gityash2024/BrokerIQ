@@ -2,6 +2,12 @@
 set -euo pipefail
 TASK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$TASK_ROOT"
+if [ -n "${BROKERIQ_RELEASE_EXPECTED_COMMIT:-}" ]; then
+  [[ "$BROKERIQ_RELEASE_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] &&
+    [ "$(git rev-parse HEAD)" = "$BROKERIQ_RELEASE_EXPECTED_COMMIT" ] || {
+    echo 'Android builder does not match the requested release commit' >&2; exit 1;
+  }
+fi
 git diff --quiet && git diff --cached --quiet || { echo 'Commit tracked changes before building a pinned release' >&2; exit 1; }
 test -z "$(git ls-files --others --exclude-standard apps packages)" || { echo 'Commit new application files before building a pinned release' >&2; exit 1; }
 # A clean native build temporarily duplicates CMake, DEX and packaging outputs.
