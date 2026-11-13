@@ -129,7 +129,7 @@ describe('minimal AI facts map to independent reviewed business records', () => 
       { records: [{ ...base, purpose: 'SALE', bhk: 2, area: 1215, priceBasis: 'SALE_TOTAL', priceMin: 19500000, priceMax: 30500000 }] },
       'Sector 102\n2 BHK 1215 sq.ft price 1.95 Cr\n4 BHK 2180 sq.ft price 3.05 Cr',
     );
-    expect(row.inventory?.totalSalePrice).toBe(19500000);
+    expect(row.inventory?.totalSalePrice).toBeNull();
     expect(row.warnings.some((w) => w.includes('Amount not grounded'))).toBe(true);
   });
   it('refuses fractional BHK rounding and visual crore arithmetic conflicts', () => {
@@ -209,6 +209,11 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     const [row] = factsToEntities({ records: [{ ...base, bhk: 4 }] }, 'Sector 45 Heritage tower 3bhk ka 4bhk hoga lower floor rent 30000');
     expect(row.inventory?.bhk).toBe(3);
     expect(row.warnings).toContain('Planned conversion is not treated as a completed layout.');
+  });
+  it('does not publish a lower bound as the exact price when the other bound is ungrounded', () => {
+    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 17000000, priceMax: 17500000 }] }, 'Sector 45 2 BHK 1200 sqft for sale @1.70 - 75 CR');
+    expect(row.inventory?.totalSalePrice).toBeNull();
+    expect(row.warnings.some((warning) => warning.includes('Amount not grounded'))).toBe(true);
   });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');

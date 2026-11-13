@@ -236,7 +236,8 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     };
     const min = consistentPrice ? groundedAmount(fact.priceMin, priceAmounts) : null,
       max = consistentPrice ? groundedAmount(fact.priceMax, priceAmounts) : null;
-    const exact = min != null && (max == null || min === max) ? min : null;
+    // A rejected upper bound must not turn a proposed range into an exact lower price.
+    const exact = min != null && (fact.priceMax == null || (max != null && min === max)) ? min : null;
     let priceBasis = fact.priceBasis;
     if (min != null && !visualEvidence) {
       const labels = [...evidence.matchAll(/\b(premium|primium|books?(?:\s+value)?|total\s*(?:price|cost))\b/gi)];
