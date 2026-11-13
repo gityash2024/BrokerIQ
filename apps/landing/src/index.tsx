@@ -31,7 +31,9 @@ export function BrokerIQLanding({
   galleries = [],
   releaseUpdates,
   builds,
+  preferences,
 }: {
+  preferences?: React.ReactNode;
   apkUrl?: string;
   contact?: { email?: string; phone?: string; address?: string };
   checksum?: string;
@@ -45,7 +47,7 @@ export function BrokerIQLanding({
       <LandingMotion />
       <div className="biq-scroll-progress" aria-hidden="true" />
       <header className="biq-nav biq-wrap">
-        <a className="biq-logo" href="/" aria-label="BrokerIQ home">
+        <a className="biq-logo" data-no-i18n href="/" aria-label="BrokerIQ home">
           <img src="/icon.svg" alt="" width="38" height="38" />
           Broker<span>IQ</span>
         </a>
@@ -54,9 +56,14 @@ export function BrokerIQLanding({
           <a href="#screenshots">Screenshots</a>
           <a href="/guides">User guides</a>
           <a href="/user">Find a property</a>
-          <a href="/login?next=/broker" className="biq-button">
-            Broker workspace <span aria-hidden>↗</span>
+          <a href="/login?next=/broker" className="biq-button" aria-label="Broker workspace">
+            <span className="biq-nav-cta-label">Broker workspace</span> <span aria-hidden>↗</span>
           </a>
+          {preferences && (
+            <div className="biq-preferences" role="group" aria-label="Display preferences">
+              {preferences}
+            </div>
+          )}
         </nav>
       </header>
       <main>
@@ -270,7 +277,7 @@ export function BrokerIQLanding({
         <div className="biq-wrap">
           <div className="biq-footer-top">
             <div data-biq-reveal>
-              <a className="biq-logo" href="/">
+              <a className="biq-logo" data-no-i18n href="/">
                 <img src="/icon.svg" alt="" width="38" height="38" />
                 Broker<span>IQ</span>
               </a>
@@ -331,6 +338,8 @@ const styles = `
 .biq-nav{height:96px;display:flex;align-items:center;justify-content:space-between;gap:24px}
 .biq-logo{display:inline-flex;gap:10px;align-items:center;font-family:var(--font-jakarta),sans-serif;font-size:25px;font-weight:800;letter-spacing:-1px;white-space:nowrap}
 .biq-logo>span{color:var(--biq-accent);margin-left:-10px}
+.biq-preferences{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.biq-preferences button{flex-shrink:0}
 .biq-nav nav{display:flex;align-items:center;gap:30px;font-size:14px;font-weight:600}
 .biq-button,.biq-secondary{display:inline-flex;align-items:center;justify-content:center;gap:24px;min-height:48px;padding:13px 22px;border-radius:14px;font-size:14px;font-weight:650;transition:transform .22s,box-shadow .22s}
 .biq-button{background:var(--biq-brand);color:white!important;box-shadow:0 8px 22px #4f46e51a}
@@ -454,7 +463,9 @@ to{background-position:-150% 0}
 .biq-footer nav a:hover{translate:3px 0;color:#fff}
 @keyframes biq-orbit{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20px,16px) scale(1.06)}}
 @media(hover:none){.biq-hero-art:hover>img,.biq-workflows article:hover,.biq-portals>a:hover,.biq-button:hover,.biq-secondary:hover{transform:none}}
-@media(max-width:1050px){.biq-wrap{padding-inline:28px}
+@media(max-width:1050px){.biq-nav nav>a:not(.biq-button){display:none}
+.biq-nav nav{gap:12px}
+.biq-wrap{padding-inline:28px}
 .biq-hero h1{letter-spacing:-2px}
 .biq-hero-art>img{height:440px}
 .biq-workflows{grid-template-columns:repeat(2,1fr)}
@@ -493,6 +504,7 @@ to{background-position:-150% 0}
 .biq-footer-bottom{flex-wrap:wrap}
 .biq-footer{padding-top:40px}
 }
+@media(max-width:480px){.biq-nav{gap:8px}.biq-nav nav{gap:8px}.biq-nav-cta-label{display:none}.biq-nav .biq-button{padding:10px}.biq-preferences>button{width:36px;height:36px}}
 @media(prefers-reduced-motion:reduce){.biq-landing *,.biq-landing *:before,.biq-landing *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 .biq-landing [data-biq-ready]{opacity:1!important;translate:none!important}
 .biq-scroll-progress{display:none}

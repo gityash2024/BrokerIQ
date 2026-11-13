@@ -3,6 +3,8 @@ import { productGalleries } from '@/lib/product-gallery';
 import { getRelease } from '@/lib/release';
 import { BrokerIQLanding } from '@brokeriq/landing';
 import type { Metadata } from 'next';
+import { LanguagePicker } from '@/components/i18n/language-picker';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -18,6 +20,12 @@ export default async function Home() {
 
   return (
     <BrokerIQLanding
+      preferences={
+        <>
+          <LanguagePicker />
+          <ThemeToggle />
+        </>
+      }
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={release?.android.url}
       checksum={release?.android.sha256}
