@@ -1,4 +1,4 @@
-import { captureFactsSchema, factsToEntities } from './capture-ai';
+import { captureFactsSchema, captureTextParts, factsToEntities } from './capture-ai';
 import { z } from 'zod';
 const base = {
   intent: 'OFFER' as const,
@@ -159,6 +159,19 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(first.inventory?.bhk).toBe(2);
     expect(second.inventory?.sector).toBe('Sector 90');
     expect(second.inventory?.bhk).toBeNull();
+  });
+  it('does not infer a bare asking rate unit from the printed property size', () => {
+    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'RATE_PER_SQFT', priceMin: 16000, priceMax: 16000 }] }, 'Sector 45 1200 sqft lower floor @ 16000');
+    expect(row.inventory?.ratePerArea).toBeNull();
+    expect(row.warnings).toContain('Price without an explicit rate unit omitted; confirm manually.');
+  });
+  it('splits long explicitly headed unit lists without duplicating or dropping a heading', () => {
+    const source = 'Available for SALE\n' + Array.from({ length: 40 }, (_, i) => `👉 Project ${i} sector 45\n2 BHK 1200 sqft price 1.5 crore\n${'Original property notes. '.repeat(5)}\n`).join('');
+    const parts = captureTextParts(source)!;
+    expect(parts.length).toBe(5);
+    for (let i = 0; i < 40; i++) expect(parts.join('\n').split(`👉 Project ${i} sector`).length - 1).toBe(1);
+    expect(parts.every((part) => part.startsWith('Available for SALE'))).toBe(true);
+    expect(captureTextParts('Available for RENT 2 BHK')).toEqual(['Available for RENT 2 BHK']);
   });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');

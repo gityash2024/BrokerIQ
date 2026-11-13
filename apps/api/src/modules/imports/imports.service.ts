@@ -18,7 +18,7 @@ import { JobsService } from '../../core/jobs/jobs.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { AiService, parseJsonLoose } from '../../core/ai/ai.service';
 import { OcrService, OcrInputError } from './ocr.service';
-import { captureFactsSchema, CAPTURE_FACTS_PROMPT, factsToEntities } from './capture-ai';
+import { captureFactsSchema, CAPTURE_FACTS_PROMPT, captureTextParts, factsToEntities } from './capture-ai';
 import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
 import sharp from 'sharp';
@@ -292,17 +292,25 @@ export class ImportsService {
     }
     return file;
   }
-  private async extractText(text: string, organizationId: string, userId?: string): Promise<CapturedEntity[] | null> {
+  private async extractText(text: string, organizationId: string, userId?: string, reserveRequest?: () => boolean): Promise<CapturedEntity[] | null> {
     try {
-      const facts = await this.ai.json(
-        [
-          { role: 'system', content: CAPTURE_FACTS_PROMPT },
-          { role: 'user', content: text },
-        ],
-        { feature: 'capture', orgId: organizationId, userId, schema: captureFactsSchema, strictSchema: true, maxTokens: 6000, temperature: 0 },
-      );
-      return factsToEntities(facts, text);
+      const parts = captureTextParts(text);
+      if (!parts) return null;
+      const entities: CapturedEntity[] = [];
+      for (const part of parts) {
+        if (reserveRequest && !reserveRequest()) return null;
+        const facts = await this.ai.json(
+          [
+            { role: 'system', content: CAPTURE_FACTS_PROMPT },
+            { role: 'user', content: part },
+          ],
+          { feature: 'capture', orgId: organizationId, userId, schema: captureFactsSchema, strictSchema: true, maxTokens: 6000, temperature: 0 },
+        );
+        entities.push(...factsToEntities(facts, part));
+      }
+      return entities;
     } catch {
+      // A partial long-post extraction is not presented as a successful complete draft.
       return null;
     }
   }
@@ -383,8 +391,11 @@ export class ImportsService {
           const key = sha(message.text);
           if (textCache.has(key)) textProposal = structuredClone(textCache.get(key) ?? null);
           else if (textAiRequests < 100) {
-            textAiRequests++;
-            textProposal = await this.extractText(message.text, batch.organizationId, batch.createdById ?? undefined);
+            textProposal = await this.extractText(message.text, batch.organizationId, batch.createdById ?? undefined, () => {
+              if (textAiRequests >= 100) return false;
+              textAiRequests++;
+              return true;
+            });
             textCache.set(key, structuredClone(textProposal));
           }
           if (textProposal) textAiDrafts++;

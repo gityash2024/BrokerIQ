@@ -61,6 +61,17 @@ describe('approved chat AI drafts preserve source review and bounded work', () =
     await service.extract('batch');
     return { entries, updates, ai };
   }
+  it('counts actual long-post parts against the import budget and rejects partial provider results', async () => {
+    const source = 'Available for SALE\n' + Array.from({ length: 32 }, (_, i) => `👉 Project ${i} sector 45\n2 BHK 1200 sqft price 1.5 crore\n${'Source notes. '.repeat(10)}\n`).join('');
+    const ai = { json: jest.fn().mockResolvedValue({ records: [] }) };
+    const service = new ImportsService({} as any, {} as any, { register: jest.fn() } as any, {} as any, {} as any, ai as any, {} as any);
+    let remaining = 2;
+    expect(await (service as any).extractText(source, 'isolated', undefined, () => remaining-- > 0)).toBeNull();
+    expect(ai.json).toHaveBeenCalledTimes(2);
+    ai.json.mockClear().mockResolvedValueOnce({ records: [] }).mockRejectedValueOnce(new Error('Provider offline'));
+    expect(await (service as any).extractText(source, 'isolated')).toBeNull();
+    expect(ai.json).toHaveBeenCalledTimes(2);
+  });
   it('reuses identical forwarded text without dropping the original sender/time or creating approved records', async () => {
     const text = '2 BHK for rent Sector 45 rent 30000';
     const { entries, updates, ai } = await extract(`13/11/2026, 10:00 - Sender: ${text}\n13/11/2026, 10:01 - Sender: ${text}`);
