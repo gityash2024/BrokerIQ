@@ -383,7 +383,13 @@ export class AiService {
         throw new RetryableError('JSON schema cannot be represented safely');
       }
       if (Buffer.byteLength(JSON.stringify(schema), 'utf8') > 16000) throw new RetryableError('local JSON schema exceeds bounded grammar size');
-      responseFormat =
+      // Gemma 4 free endpoints advertise JSON mode, not server-side strict grammar.
+      // Send the same bounded contract as instructions and retain independent Zod
+      // validation/one repair below. No provider/pricing/privacy filter is relaxed.
+      if (p.name === 'openrouter' && /^google\/gemma-4-(?:31b|26b-a4b)-it:free$/.test(model)) {
+        responseFormat = { type: 'json_object' };
+        messages = [{ role: 'system', content: 'Return ONLY a JSON object matching this schema. Unknown facts must remain null. Schema: ' + JSON.stringify(schema) }, ...messages];
+      } else responseFormat =
         p.name === 'qwen_local'
           ? { type: 'json_object', schema }
           : { type: 'json_schema', json_schema: { name: 'brokeriq_response', strict: opts.strictSchema === true, schema } };

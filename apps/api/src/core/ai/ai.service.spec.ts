@@ -32,6 +32,19 @@ describe('AiService', () => {
     global.fetch = realFetch;
   });
 
+  it('uses supported JSON mode for free Gemma endpoints and still rejects invalid schema values', async () => {
+    const bodies: any[] = [];
+    respond = (_url, body) => { bodies.push(body); return ok(JSON.stringify({ intent: 'OFFER' })); };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'google/gemma-4-31b-it:free' } }), prisma);
+    const schema = z.object({ intent: z.enum(['OFFER', 'DEMAND']) });
+    await expect(ai.json([{ role: 'user', content: 'Property available' }], { feature: 'diagnostic', schema, strictSchema: true })).resolves.toEqual({ intent: 'OFFER' });
+    expect(bodies[0].response_format).toEqual({ type: 'json_object' });
+    expect(bodies[0].messages[0].content).toContain('Schema:');
+    expect(bodies[0].provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
+    expect(bodies[0].provider.data_collection).toBe('deny');
+    respond = () => ok(JSON.stringify({ intent: 'PUBLISH_WITHOUT_PERMISSION' }));
+    await expect(ai.json([{ role: 'user', content: 'Untrusted post' }], { feature: 'diagnostic', schema, strictSchema: true })).rejects.toMatchObject({ status: 502 });
+  });
   it('uses the next model when one is rate limited', async () => {
     respond = (_u, b) => (b.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('नमस्ते'));
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
