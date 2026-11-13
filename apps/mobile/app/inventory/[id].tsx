@@ -3,8 +3,10 @@ import { ScrollView, View, Linking, Share, ActivityIndicator, Pressable, Touchab
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, readableValue } from '@brokeriq/shared';
-import { api, API_URL, authStore, errorMessage } from '@/lib/api';
+import { api, API_URL, assertAccountContext, authStore, captureAccountContext, errorMessage, uploadUri } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { Txt, Button, ErrorView, Sheet } from '@/ui';
@@ -41,6 +43,7 @@ export default function PropertyDetail() {
   const [matchLeadsOpen, setMatchLeadsOpen] = useState(false);
   const [shareWithLead, setShareWithLead] = useState(share === '1');
   const [updatingAssignee, setUpdatingAssignee] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [confirmingAvail, setConfirmingAvail] = useState(false);
 
   const q = useQuery({
@@ -57,6 +60,34 @@ export default function PropertyDetail() {
   const item = q.data;
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : team.data?.members) || [];
   const primaryContact = item?.contacts?.[0];
+
+  async function addPropertyPhoto() {
+    if (!item || uploadingPhoto || (item.photoUrls?.length ?? 0) >= 50) return;
+    const owner = captureAccountContext();
+    setUploadingPhoto(true);
+    try {
+      const selection = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'] });
+      if (selection.canceled) return;
+      const asset = selection.assets[0];
+      const photo = await ImageManipulator.manipulateAsync(asset.uri, [{ resize: { width: Math.min(asset.width || 1800, 1800) } }], {
+        compress: 0.85,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      assertAccountContext(owner);
+      const { url } = await uploadUri(photo.uri, 'listing');
+      await api(`/inventory/${item.id}`, {
+        method: 'PATCH',
+        ownerContext: owner,
+        body: { photoUrls: [...(item.photoUrls ?? []), url], expectedRevision: item.revision },
+      });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['ledger-item', id] }), qc.invalidateQueries({ queryKey: ['ledger'] })]);
+      toast.success('Photo saved to this property');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   async function handleAssign(memberId: string | null) {
     if (!item) return;
@@ -503,6 +534,9 @@ export default function PropertyDetail() {
               </NativeCard>
             )}
 
+            {!item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
+              <Button title="Add property photo" variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
+            )}
             {/* Photos & Videos */}
             {(item.photoUrls ?? []).map((uri) => (
               <Image key={uri} source={{ uri }} contentFit="cover" style={{ width: '100%', height: 230, borderRadius: 20 }} />
@@ -702,7 +736,7 @@ export default function PropertyDetail() {
 
       {/* Matching Leads Sheet */}
       <Sheet open={shareWithLead} onClose={() => setShareWithLead(false)} title="Share with CRM lead">
-        {shareWithLead && item && <InventoryLeadShare message={propertyShare(item)} />}
+        {shareWithLead && item && <InventoryLeadShare message={propertyShare(item)} photoUrls={item.photoUrls} />}
       </Sheet>
       <Sheet open={matchLeadsOpen} onClose={() => setMatchLeadsOpen(false)} title="Matching Buyer Leads">
         <View style={{ gap: 14, paddingBottom: 20 }}>

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BadgeCheck, Camera, Clock, FileUp, ShieldCheck, XCircle } from 'lucide-react';
 import { KycPreviewButton } from '@/components/broker/kyc-media';
-import { api, compressImage, errorMessage, uploadFile } from '@/lib/api';
+import { api, compressImage, captureAccountContext, assertAccountContext, errorMessage, uploadFile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/utils';
 import { Button } from '../ui/button';
@@ -34,8 +34,12 @@ export function ProfileForm() {
   const avatar = async (file?: File) => {
     if (!file) return;
     try {
-      const { url } = await uploadFile(await compressImage(file, 600), 'avatar');
-      await api('/me', { method: 'PATCH', body: { avatarUrl: url } });
+      const owner = captureAccountContext();
+      const image = await compressImage(file, 600);
+      assertAccountContext(owner);
+      const { url } = await uploadFile(image, 'avatar');
+      await api('/me', { method: 'PATCH', body: { avatarUrl: url }, ownerContext: owner });
+      assertAccountContext(owner);
       await refreshMe();
     } catch (e) {
       toast.error(errorMessage(e));

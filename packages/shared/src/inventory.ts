@@ -368,3 +368,21 @@ export function inventoryEditorPatch(value: Record<string, any>, initial: Record
   if (revision != null) patch.expectedRevision = revision;
   return patch;
 }
+
+/** Add a shareable photo link without exposing private import or chat media. */
+export function propertyPhotoDraft(message: string, urls: readonly string[] = [], maxLength = 2000): string {
+  const links: string[] = [];
+  for (const value of new Set(urls)) {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== 'https:' || url.username || url.password) continue;
+    if (/\/(?:imports|inventory|private|kyc|scan|chat|inspection)(?:\/|$)|\/media\/f\/(?!listing\/)/i.test(url.pathname)) continue;
+    const section = `\n\nProperty photos:\n${[...links, url.href].join('\n')}`;
+    if (message.length + section.length <= maxLength) links.push(url.href);
+  }
+  return links.length ? `${message}\n\nProperty photos:\n${links.join('\n')}` : message;
+}

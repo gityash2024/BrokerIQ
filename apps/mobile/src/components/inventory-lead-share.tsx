@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { LeadInboxChannel } from '@brokeriq/shared';
+import { propertyPhotoDraft, type LeadInboxChannel } from '@brokeriq/shared';
 import { api, assertAccountContext, captureAccountContext, errorMessage, qs } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
 import { openLeadInbox } from '@/lib/inbox-composer';
@@ -12,12 +12,14 @@ type Lead = { id: string; name: string; phone: string; email?: string | null };
 type Page = { items: Lead[]; totalPages: number; total: number };
 
 /** Opens an editable encrypted Inbox draft; choosing a channel never sends it. */
-export function InventoryLeadShare({ message }: { message: string }) {
+export function InventoryLeadShare({ message, photoUrls }: { message: string; photoUrls?: string[] }) {
   const owner = useRef(captureAccountContext()).current;
+  const [includePhotos, setIncludePhotos] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Lead | null>(null);
   const [channel, setChannel] = useState<LeadInboxChannel>('WHATSAPP');
   const term = useDebounced(search);
+  const draft = includePhotos ? propertyPhotoDraft(message, photoUrls) : message;
   const leads = useInfiniteQuery({
     queryKey: ['inventory-share-lead', owner.scope, term],
     initialPageParam: 1,
@@ -29,7 +31,7 @@ export function InventoryLeadShare({ message }: { message: string }) {
     try {
       assertAccountContext(owner);
       if (!selected) throw new Error('Choose a CRM lead first.');
-      await openLeadInbox(selected.id, message, channel);
+      await openLeadInbox(selected.id, draft, channel);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -75,8 +77,9 @@ export function InventoryLeadShare({ message }: { message: string }) {
           <Chip key={value} label={value === 'EMAIL' ? 'Email' : value} active={channel === value} onPress={() => setChannel(value)} />
         ))}
       </View>
+      {!!photoUrls?.length && <Chip label="Include property photo links" active={includePhotos} onPress={() => setIncludePhotos(!includePhotos)} />}
       <Txt v="caption" color="muted">
-        {message}
+        {draft}
       </Txt>
       <Button title={`Open ${channel === 'EMAIL' ? 'Email' : channel} Inbox`} disabled={!selected || (channel === 'EMAIL' && !selected.email)} onPress={open} />
       {selected && channel === 'EMAIL' && !selected.email && <Txt color="muted">Add the client's email to their lead before opening Email Inbox.</Txt>}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput } from '../inventory';
+import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput, propertyPhotoDraft } from '../inventory';
 
 const imported = {
   id: 'private-record',
@@ -50,4 +50,14 @@ test('explicit clearing sends null or an empty collection and keeps meaningful z
 test('unchanged imported records and absent numeric fields never acquire destructive nulls', () => {
   assert.deepEqual(inventoryEditorPatch(imported, imported), { expectedRevision: 4 });
   assert.deepEqual(prepareInventoryEditorInput({ notes: 'Only this field' }), { notes: 'Only this field' });
+});
+
+test('property photo drafts exclude private source links and keep whole public links within the message limit', () => {
+  const publicPhoto = 'https://brokeriq.example/api/media/f/listing/org/photo.jpg';
+  const privatePhoto = 'https://brokeriq.example/api/media/f/scan/org/private.jpg';
+  const alternate = 'https://brokeriq.example/api/media/f/listing/org/second.jpg';
+  const message = 'Property for rent';
+  const expected = `${message}\n\nProperty photos:\n${publicPhoto}`;
+  assert.equal(propertyPhotoDraft(message, [privatePhoto, publicPhoto, publicPhoto, alternate], expected.length), expected);
+  assert.equal(propertyPhotoDraft(message, [privatePhoto, publicPhoto], expected.length - 1), message);
 });

@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, Camera, FileUp, Lock, Trash2 } from 'lucide-react-native';
-import { api, del, patch, post, uploadUri } from '@/lib/api';
+import { api, assertAccountContext, captureAccountContext, del, patch, post, uploadUri } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
@@ -41,19 +41,23 @@ export default function EditProfile() {
   });
 
   const pickImage = async (kind: 'avatar' | 'kyc') => {
+    const owner = captureAccountContext();
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9, allowsEditing: kind === 'avatar', aspect: [1, 1] });
     if (r.canceled) return null;
     const small = await ImageManipulator.manipulateAsync(r.assets[0].uri, [{ resize: { width: kind === 'avatar' ? 600 : 1800 } }], {
       compress: 0.85,
       format: ImageManipulator.SaveFormat.JPEG,
     });
+    assertAccountContext(owner);
     return (await uploadUri(small.uri, kind)).url;
   };
   const avatar = async () => {
     try {
+      const owner = captureAccountContext();
       const url = await pickImage('avatar');
       if (!url) return;
-      await patch('/me', { avatarUrl: url });
+      await api('/me', { method: 'PATCH', body: { avatarUrl: url }, ownerContext: owner });
+      assertAccountContext(owner);
       await refreshMe();
       toast.success('Photo updated');
     } catch (e) {

@@ -4,7 +4,7 @@ import { Copy, Send, Check, User, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { formatINR, normalizeIndianPhone, floorLabel } from '@brokeriq/shared';
+import { formatINR, normalizeIndianPhone, floorLabel, propertyPhotoDraft } from '@brokeriq/shared';
 import { cn } from '@/lib/utils';
 import { captureAccountContext, assertAccountContext, errorMessage } from '@/lib/api';
 import { openLeadInbox } from '@/lib/inbox-composer';
@@ -14,6 +14,7 @@ import type { LeadInboxChannel } from '@brokeriq/shared';
 
 export interface InventoryItemForWhatsApp {
   id: string;
+  photoUrls?: string[];
   sector?: string | null;
   houseNo?: string | null;
   ownerName?: string | null;
@@ -44,6 +45,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
   const owner = useRef(captureAccountContext());
   const [templateType, setTemplateType] = useState<'owner' | 'client'>('owner');
   const [customText, setCustomText] = useState('');
+  const [includePhotos, setIncludePhotos] = useState(false);
   const [copied, setCopied] = useState(false);
   const [client, setClient] = useState<{ id: string; name?: string | null; phone: string } | null>(null);
   const [channel, setChannel] = useState<LeadInboxChannel>('WHATSAPP');
@@ -87,6 +89,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
     if (item) {
       setCustomText(generateMessage(templateType));
       setCopied(false);
+      setIncludePhotos(false);
       setClient(null);
     }
   }, [item, templateType, generateMessage]);
@@ -98,7 +101,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
       assertAccountContext(owner.current);
       if (templateType === 'client') {
         if (!crmAllowed || !client) return toast.error('Choose an authorized CRM lead first.');
-        await openLeadInbox(client.id, customText, channel);
+        await openLeadInbox(client.id, includePhotos ? propertyPhotoDraft(customText, item.photoUrls) : customText, channel);
         return;
       }
       const text = encodeURIComponent(customText);
@@ -184,6 +187,12 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
           <div className="space-y-3">
             <p className="text-xs text-muted">Choose a CRM lead. Review the message in Inbox before sending.</p>
             <LeadPicker value={client} onChange={setClient} />
+            {!!item.photoUrls?.length && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={includePhotos} onChange={(event) => setIncludePhotos(event.target.checked)} />
+                Include property photo links
+              </label>
+            )}
             <div className="flex gap-2">
               {(['WHATSAPP', 'SMS', 'EMAIL'] as const).map((value) => (
                 <Button key={value} size="sm" variant={channel === value ? 'primary' : 'secondary'} onClick={() => setChannel(value)}>

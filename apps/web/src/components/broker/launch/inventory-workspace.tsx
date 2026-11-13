@@ -9,7 +9,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Phone, MessageCircle } from 'lucide-react';
 import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, formatINR } from '@brokeriq/shared';
-import { api, apiBlob, errorMessage } from '@/lib/api';
+import { api, apiBlob, assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { qs } from '@/lib/utils';
@@ -704,6 +704,20 @@ function LedgerInner() {
         {viewing && (
           <InventoryDetails
             item={viewing}
+            onUploadPhoto={async (file) => {
+              const owner = captureAccountContext();
+              const image = await compressImage(file);
+              assertAccountContext(owner);
+              const { url } = await uploadFile(image, 'listing');
+              const updated = await api<LedgerItem>(`/inventory/${viewing.id}`, {
+                method: 'PATCH',
+                ownerContext: owner,
+                body: { photoUrls: [...(viewing.photoUrls ?? []), url], expectedRevision: viewing.revision },
+              });
+              assertAccountContext(owner);
+              setViewing((current) => current?.id === updated.id ? updated : current);
+              await refresh();
+            }}
             sourceHref={isSuper ? null : undefined}
             onMessage={() => {
               setMessageItem(viewing);
