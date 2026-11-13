@@ -156,7 +156,7 @@ function reviewedFacts(input: z.infer<typeof captureFactsSchema>, visual: boolea
 export function factsToEntities(input: z.infer<typeof captureFactsSchema>, source: string, visualEvidence = false): CapturedEntity[] {
   source = source.normalize('NFKC');
   const records = reviewedFacts(input, visualEvidence);
-  return records.map((fact) => {
+  const entities: CapturedEntity[] = records.map((fact) => {
     const warnings = [...fact.warnings, 'AI draft. Verify against the original source.'];
     const evidence = visualEvidence ? source : projectEvidence(source, fact.society, records);
     const explicitNeed = /\b(?:need(?:ed)?|require(?:d|ment)?|looking\s+for|wanted|chahiye)\b|चाहिए|ज़रूरत/i.test(evidence);
@@ -166,9 +166,21 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     if (advertisedPurposes.size === 1 && !mixedPurpose && !visualEvidence) purpose = [...advertisedPurposes][0];
     const rentalContext = /\b(?:rent|rental|lease|leasing)\b|किराय/i.test(evidence);
     if (purpose === 'RENT' && !rentalContext && !visualEvidence && !explicitNeed) { purpose = null; warnings.push('Rental purpose not explicit; confirm manually.'); }
+    const saleContext = /\b(?:sale|resale|sell|purchase|premium|primium|book\s*value|cr(?:ore)?s?)\b|खरीद|बिक्री|करोड़|करोड/i.test(evidence);
+    if (purpose === 'SALE' && !saleContext && !visualEvidence) { purpose = null; warnings.push('Sale purpose not explicit; confirm manually.'); }
     const sectors = captureLocalities(evidence).map(compact);
     const explicitAmounts = sourceAmounts(evidence);
-    if (fact.intent === 'UNRELATED') return { kind: 'UNRELATED', warnings };
+    // Providers sometimes label a complete marketed configuration as generic advertising.
+    // Recover only independently printed project + unit facts, never model-only facts.
+    const groundedProject = fact.society && compact(evidence).includes(compact(fact.society));
+    const printedConfiguration = (fact.area != null && fact.areaUnit != null && explicitAmounts.has(fact.area) && hasAreaUnitEvidence(evidence, fact.area, fact.areaUnit, false)) ||
+      (fact.bhk != null && new RegExp('(?<![\\d.])' + fact.bhk + '\\s*[- ]?\\s*(?:BHK|RK)\\b', 'i').test(evidence));
+    const recoverOffer = !visualEvidence && fact.intent === 'UNRELATED' && !explicitNeed && groundedProject && printedConfiguration;
+    if (fact.intent === 'UNRELATED' && !recoverOffer) return { kind: 'UNRELATED', warnings };
+    if (recoverOffer) warnings.push('Printed configuration retained despite uncertain AI classification; review the source.');
+    if (fact.intent === 'OFFER' && !visualEvidence && fact.society &&
+      [fact.bhk, fact.area, fact.houseNo, fact.floor, fact.priceMin].every((value) => value == null))
+      return { kind: 'UNRELATED', warnings: [...warnings, 'Project-only advertising has no identifiable unit; retained as source evidence.'] };
     let sector = fact.sector?.replace(/^(?:sec(?:tor)?\.?\s*[-:]?\s*)?(\d{1,3}[a-z]?)$/i, (_all, n: string) => 'Sector ' + n.toUpperCase()) ?? null;
     if (sector) {
       const canonical = captureLocalities(sector);
@@ -247,7 +259,9 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
         const label = labels[i];
         const lineEnd = evidence.indexOf('\n', label.index!);
         const end = Math.min(labels[i + 1]?.index ?? evidence.length, lineEnd < 0 ? evidence.length : lineEnd);
-        if (!sourceAmounts(evidence.slice(label.index! + label[0].length, end)).has(min)) continue;
+        const quote = evidence.slice(label.index! + label[0].length, end);
+        // "Premium luxury apartment ... 50k" is an adjective, not a premium quote.
+        if (!/^\s*(?:[:=@₹*\-–]|rs\.?|inr|around\b|approx(?:imately)?\.?|about\b|is\b|of\b|value\b|price\b|only\b|\s)*\s*\d/i.test(quote) || !sourceAmounts(quote).has(min)) continue;
         matching.add(/premium|primium/i.test(label[1]) ? 'PREMIUM' : /book/i.test(label[1]) ? 'BOOK_VALUE' : 'SALE_TOTAL');
       }
       if (matching.size === 1) {
@@ -316,4 +330,12 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
       },
     });
   });
+  // The complete source is stored once by ImportsService. Multiple rejected model
+  // fragments must not create a list of empty, apparently independent properties.
+  const unrelated = entities.filter((entity) => entity.kind === 'UNRELATED');
+  if (unrelated.length <= 1) return entities;
+  return [...entities.filter((entity) => entity.kind !== 'UNRELATED'), {
+    kind: 'UNRELATED',
+    warnings: [...new Set(unrelated.flatMap((entity) => entity.warnings))].slice(0, 50),
+  }];
 }

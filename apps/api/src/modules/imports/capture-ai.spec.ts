@@ -19,6 +19,22 @@ const base = {
   warnings: [],
 };
 describe('minimal AI facts map to independent reviewed business records', () => {
+  it('recovers a printed configuration from an uncertain classification without guessing rent or sale', () => {
+    const [row] = factsToEntities({ records: [{ ...base, intent: 'UNRELATED', purpose: 'SALE' }] }, 'Reviewed project\n2 BHK 1200 sqft\nAsk 30000');
+    expect(row.kind).toBe('INVENTORY');
+    expect(row.inventory).toMatchObject({ purpose: null, bhk: 2, area: 1200, totalSalePrice: null, monthlyRent: null });
+    const [invented] = factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Reviewed project — contact us for details');
+    expect(invented.kind).toBe('UNRELATED');
+  });
+  it('retains project-only advertising as evidence rather than creating an empty property', () => {
+    const [row] = factsToEntities({ records: [{ ...base, bhk: null, area: null, priceMin: null, priceMax: null }] }, 'Reviewed project for sale. Many options; contact us.');
+    expect(row.kind).toBe('UNRELATED');
+  });
+  it('does not reinterpret premium as a financial label when it describes an apartment', () => {
+    const [row] = factsToEntities({ records: [{ ...base, priceMin: 50000, priceMax: 50000 }] }, 'Premium luxury apartment in Reviewed project 2 BHK 1200 sqft for rent 50k');
+    expect(row.inventory?.monthlyRent).toBe(50000);
+    expect(row.inventory?.notes).toBeNull();
+  });
   it('keeps an advertised offer distinct from a client demand, with no model-controlled ownership or approval', () => {
     const parsed = captureFactsSchema.parse({ records: [{ ...base, organizationId: 'foreign', assignedToId: 'someone', availability: 'AVAILABLE' }] });
     const [offer] = factsToEntities(parsed, 'Reviewed project Sector 45 2 BHK 1200 sqft rent 30000');
