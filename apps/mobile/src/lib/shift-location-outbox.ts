@@ -16,6 +16,7 @@ export interface TrackingBinding {
   shiftId: string;
   enabled: boolean;
   lastCapturedAt?: number;
+  intervalMs?: number;
   pauseReason?: string;
   pausedAt?: string;
 }

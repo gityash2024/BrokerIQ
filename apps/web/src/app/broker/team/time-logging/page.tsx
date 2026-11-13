@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import type { MapPoint } from '@/components/site/map';
-import type { BrokerTeamResponse } from '@brokeriq/shared';
+import { SHIFT_LOCATION_INTERVAL_MS, type BrokerTeamResponse } from '@brokeriq/shared';
 
 // Dynamic Leaflet map import with { ssr: false } to eliminate window reference exceptions
 const DynamicMap = dynamic(() => import('@/components/site/map').then((mod) => mod.Map), {
@@ -172,13 +172,19 @@ function TimeLoggingContent() {
     queryKey: ['time-logging-timeline', activeAgentId, selectedDate],
     queryFn: () => api<TimelineResponse>(`/time-logging/timeline${qs({ agentId: activeAgentId, date: selectedDate })}`),
     enabled: !!activeAgentId && !!selectedDate,
+    refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 
-  // 5. Fetch 15-minute location history points
+  // 5. Fetch 10-minute location history points
   const historyQuery = useQuery({
     queryKey: ['time-logging-history', activeAgentId, selectedDate],
     queryFn: () => api<HistoryResponse>(`/time-logging/history${qs({ agentId: activeAgentId, date: selectedDate })}`),
     enabled: !!activeAgentId && !!selectedDate,
+    refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 
   const timelineData = timelineQuery.data;
@@ -292,7 +298,7 @@ function TimeLoggingContent() {
     <div className="space-y-6">
       <PageHeader
         title="Time Logging & Location History"
-        subtitle="Monitor agent working hours, 15-minute breadcrumb coordinates, shift status, and daily activity timelines"
+        subtitle="Monitor agent working hours, 10-minute breadcrumb coordinates, shift status, and daily activity timelines"
       />
 
       {/* Filters Toolbar */}
@@ -674,7 +680,7 @@ function TimeLoggingContent() {
                       <Navigation className="size-6" />
                     </div>
                     <h4 className="font-display font-bold text-fg">No GPS breadcrumbs recorded</h4>
-                    <p className="mt-1 max-w-sm text-xs text-muted">No 15-minute location history points were logged for this agent on {selectedDate}.</p>
+                    <p className="mt-1 max-w-sm text-xs text-muted">No 10-minute location history points were logged for this agent on {selectedDate}.</p>
                   </div>
                 ) : (
                   <DynamicMap

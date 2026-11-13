@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ShiftStatus } from './enums';
 
+/** Requested capture cadence. Native OS scheduling can be delayed by device restrictions. */
+export const SHIFT_LOCATION_INTERVAL_MS = 10 * 60_000;
+
 export const punchInRequestSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),

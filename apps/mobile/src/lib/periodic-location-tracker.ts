@@ -1,3 +1,4 @@
+import { SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
@@ -7,7 +8,7 @@ import { configureBackgroundShift } from './background-shift-tracking';
 import { flushShiftPings, queueShiftPing, pendingShiftPings } from './shift-location-outbox';
 import type { useTimeTrackingStore } from './time-tracking-store';
 
-export const RECORDING_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes (900,000 ms)
+export const RECORDING_INTERVAL_MS = SHIFT_LOCATION_INTERVAL_MS; // 10 minutes
 export const HEALTH_CHECK_INTERVAL_MS = 30 * 1000; // 30 seconds for rapid GPS loss/restore detection
 export const OFFLINE_QUEUE_KEY = 'biq.time_logging.offline_locations';
 
@@ -58,7 +59,7 @@ export class PeriodicLocationTrackerEngine {
     this.lastPingTime = Date.now();
     configureBackgroundShift(shiftId).catch((error) => this.store.setState({ error: error.message }));
 
-    // 1. Schedule 15-minute periodic recording
+    // 1. Schedule 10-minute periodic recording
     this.timer = setInterval(() => {
       // Android/iOS capture comes from the native task, not JavaScript timers.
       if (Platform.OS === 'web') this.recordPeriodicLocation();
@@ -156,7 +157,7 @@ export class PeriodicLocationTrackerEngine {
   }
 
   /**
-   * Record periodic location (called every 15 minutes).
+   * Record periodic location (called every 10 minutes).
    */
   async recordPeriodicLocation(): Promise<boolean> {
     if (this.isProcessing) return false;
@@ -257,7 +258,7 @@ export class PeriodicLocationTrackerEngine {
       // Check GPS health immediately on return
       await this.checkGpsHealth();
 
-      // If more than 15 minutes have elapsed since last ping, record immediately
+      // If more than 10 minutes have elapsed since last ping, record immediately
       if (this.lastPingTime && Date.now() - this.lastPingTime >= RECORDING_INTERVAL_MS) {
         if (Platform.OS === 'web') await this.recordPeriodicLocation();
       }

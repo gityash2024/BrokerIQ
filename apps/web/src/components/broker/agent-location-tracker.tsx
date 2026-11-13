@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
+import { SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
+import { startShiftLocationPolling } from '@/lib/shift-location-poller';
 
 /** Browser tracking is limited to an open page and an explicitly active shift. */
 export function AgentLocationTracker() {
@@ -19,9 +21,10 @@ export function AgentLocationTracker() {
   useEffect(() => {
     if (!user || !shift || !enabled || !navigator.geolocation) return;
     const owner = user.id;
+    lastSentRef.current = 0;
     let cancelled = false;
     const report = async (pos: GeolocationPosition) => {
-      if (cancelled || Date.now() - lastSentRef.current < 15 * 60_000) return;
+      if (cancelled || Date.now() - lastSentRef.current < SHIFT_LOCATION_INTERVAL_MS) return;
       lastSentRef.current = Date.now();
       try {
         const current = await api<{ activeShift: { id: string; status: string; pauseReason?: string } | null }>('/time-logging/status', { ownerId: owner });
@@ -47,10 +50,17 @@ export function AgentLocationTracker() {
         lastSentRef.current = 0;
       }
     };
-    const watchId = navigator.geolocation.watchPosition(report, () => {}, { enableHighAccuracy: false, maximumAge: 30_000 });
+    const polling = startShiftLocationPolling(navigator.geolocation, report, SHIFT_LOCATION_INTERVAL_MS);
+    const resume = () => {
+      if (document.visibilityState === 'visible') polling.poll();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
     return () => {
       cancelled = true;
-      navigator.geolocation.clearWatch(watchId);
+      polling.stop();
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('online', resume);
     };
   }, [user?.id, shift?.id, enabled]);
   return null;

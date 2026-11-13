@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { AppState, ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { moduleAllowed } from '@brokeriq/shared';
+import { moduleAllowed, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { api, qs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -18,27 +18,40 @@ export default function TimeLogging() {
   const params = useLocalSearchParams<{ memberId?: string }>();
   const [member, setMember] = useState<string | null>(params.memberId || null);
   const [date, setDate] = useState<Date | null>(new Date());
-  const canReadTeam = user?.role === 'BROKER_ADMIN' && moduleAllowed(modules, 'team', user.role);
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const canReadTeam = isSuperAdmin || (user?.role === 'BROKER_ADMIN' && moduleAllowed(modules, 'team', user.role));
   const team = useQuery({ queryKey: ['team-time-picker', user?.id], queryFn: () => api<any>('/broker/team'), enabled: canReadTeam });
-  const agentId = canReadTeam && member ? member : user?.id;
+  const agentId = canReadTeam && member ? member : isSuperAdmin ? null : user?.id;
   const day = date ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date) : '';
   const query = useQuery({
     queryKey: ['time-timeline', user?.id, agentId, day],
     queryFn: () => api<any>(`/time-logging/timeline${qs({ agentId, date: day })}`),
     enabled: !!agentId && !!day,
+    refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
+    refetchOnReconnect: 'always',
   });
+  useFocusEffect(useCallback(() => {
+    if (agentId && day) void query.refetch();
+    if (canReadTeam) void team.refetch();
+  }, [agentId, day, canReadTeam, query.refetch, team.refetch]));
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && agentId && day) void query.refetch();
+    });
+    return () => subscription.remove();
+  }, [agentId, day, query.refetch]);
   const members: any[] = team.data?.members ?? [];
   return (
     <BrokerScreen title="Time Logging" subtitle="Shift activity and recorded location history · IST" back>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
-        <TimeLoggingCard />
+        {!isSuperAdmin && <TimeLoggingCard />}
         {canReadTeam && (
           <ChoiceField
             label="Team member"
             value={member}
             choices={members.map((item) => item.id)}
-            labels={Object.fromEntries(members.map((item) => [item.id, item.name]))}
-            emptyLabel="My activity"
+            labels={Object.fromEntries(members.map((item) => [item.id, isSuperAdmin && item.organization?.name ? `${item.name} · ${item.organization.name}` : item.name]))}
+            emptyLabel={isSuperAdmin ? "Choose a member" : "My activity"}
             onChange={setMember}
           />
         )}
@@ -47,7 +60,9 @@ export default function TimeLogging() {
         <Txt v="small" color="muted">
           Recorded history shows original capture times. A past checkpoint does not indicate a live location.
         </Txt>
-        {query.error ? (
+        {!agentId ? (
+          <Txt color="muted">Choose a member to inspect recorded activity.</Txt>
+        ) : query.error ? (
           <ErrorView error={query.error} onRetry={() => query.refetch()} />
         ) : query.isPending ? (
           <Txt>Loading history…</Txt>

@@ -250,7 +250,7 @@ export const useTimeTrackingStore = create<TimeTrackingState>((set, get) => ({
         const consent = await new Promise<boolean>((resolve) =>
           alert(
             'Active shift location',
-            'During an active shift, BrokerIQ records your location about every 15 minutes, including when the app is in the background. Your firm admin can view it. Manual pause, punch-out and logout stop tracking. Allow background location in Settings to continue.',
+            'During an active shift, BrokerIQ records your location about every 10 minutes, including when the app is in the background. Your firm admin can view it. Manual pause, punch-out and logout stop tracking. Allow background location in Settings to continue.',
             [
               { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
               { text: 'Continue', onPress: () => resolve(true) },

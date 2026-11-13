@@ -206,8 +206,8 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
     expect(periodicLocationTracker.getStatus().isRunning).toBe(true);
   });
 
-  // Test 3: 15-Minute Periodic Location Recording
-  it('records location and sends to backend every 15 minutes', async () => {
+  // Test 3: 10-Minute Periodic Location Recording
+  it('records location and sends to backend every 10 minutes', async () => {
     // Setup active shift
     useTimeTrackingStore.setState({
       activeShift: { id: 'shift_123', status: 'ACTIVE', punchInAt: new Date().toISOString(), totalMinutes: 0 } as any,
@@ -226,7 +226,7 @@ describe('Time Logging & Periodic Location Tracking Engine', () => {
 
     await periodicLocationTracker.start('shift_123');
 
-    // Advance 15 minutes (900,000 ms)
+    // Advance 10 minutes (600,000 ms)
     await jest.advanceTimersByTimeAsync(RECORDING_INTERVAL_MS);
 
     expect(Location.getCurrentPositionAsync).toHaveBeenCalledWith({

@@ -1,3 +1,4 @@
+import { SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { Platform } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
@@ -6,7 +7,7 @@ import { authStore, registerSessionReset, useSession } from './api';
 import { flushShiftPings, queueBoundShiftPing, setTrackingBinding, trackingBinding } from './shift-location-outbox';
 
 export const SHIFT_LOCATION_TASK = 'brokeriq.active-shift.location.v1';
-export const SHIFT_LOCATION_INTERVAL = 15 * 60_000;
+export const SHIFT_LOCATION_INTERVAL = SHIFT_LOCATION_INTERVAL_MS;
 
 // Registered at module scope and imported by the root layout: headless launches must see this definition.
 if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(SHIFT_LOCATION_TASK)) {
@@ -72,6 +73,7 @@ export function configureBackgroundShift(shiftId: string | null, enabled = true,
         ownerId: owner,
         shiftId,
         enabled: true,
+        intervalMs: SHIFT_LOCATION_INTERVAL,
         lastCapturedAt: previous?.ownerId === owner && previous.shiftId === shiftId ? previous.lastCapturedAt : undefined,
       });
       const permission = await Location.getBackgroundPermissionsAsync();
@@ -79,6 +81,8 @@ export function configureBackgroundShift(shiftId: string | null, enabled = true,
         await stopNativeTracking();
         throw new Error('Background location permission is required during an active shift.');
       }
+      // Existing registrations survive app updates; replace the former cadence once.
+      if (previous?.intervalMs !== SHIFT_LOCATION_INTERVAL) await stopNativeTracking();
       if (!(await Location.hasStartedLocationUpdatesAsync(SHIFT_LOCATION_TASK))) {
         await Location.startLocationUpdatesAsync(SHIFT_LOCATION_TASK, {
           accuracy: Location.Accuracy.Balanced,

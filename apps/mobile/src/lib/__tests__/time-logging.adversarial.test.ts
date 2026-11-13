@@ -356,7 +356,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
         elapsedSeconds: 0,
       });
 
-      // Advance time by 4 hours 15 minutes (15,300 seconds)
+      // Advance time by 4 hours 10 minutes (15,300 seconds)
       const afterBackgrounding = new Date('2026-10-31T13:15:00.000Z');
       const elapsed = computeActiveElapsedSeconds(shift, afterBackgrounding);
       expect(elapsed).toBe(15300);
@@ -370,8 +370,8 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
   // =========================================================================
   // 3. PERIODIC 15-MINUTE LOCATION RECORDING & REVERSE GEOCODE FALLBACK
   // =========================================================================
-  describe('3. Periodic 15-Minute Location Recording & Geocode Fallback', () => {
-    it('STRESS-3.1: Verifies exact 15-minute recording cycle (900,000 ms)', async () => {
+  describe('3. Periodic 10-Minute Location Recording & Geocode Fallback', () => {
+    it('STRESS-3.1: Verifies exact 10-minute recording cycle (600,000 ms)', async () => {
       useTimeTrackingStore.setState({
         activeShift: {
           id: 'shift_periodic_1',
@@ -394,11 +394,11 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
 
       await periodicLocationTracker.start('shift_periodic_1');
 
-      // Advance to 14 minutes 59 seconds -> no periodic ping yet
-      await jest.advanceTimersByTimeAsync(14 * 60 * 1000 + 59 * 1000);
+      // Advance to 9 minutes 59 seconds -> no periodic ping yet
+      await jest.advanceTimersByTimeAsync(9 * 60 * 1000 + 59 * 1000);
       expect(apiModule.post).not.toHaveBeenCalledWith('/time-logging/location', expect.anything());
 
-      // Advance 1 more second to reach 15m (900,000ms)
+      // Advance 1 more second to reach 10m (600,000ms)
       await jest.advanceTimersByTimeAsync(1000);
 
       expect(outbox.queueShiftPing).toHaveBeenCalledWith(
@@ -659,7 +659,7 @@ describe('Milestone 3 Mobile Time Logging — Empirical Adversarial Stress Suite
       expect(useTimeTrackingStore.getState().pauseReason).toBe('LUNCH_BREAK');
     });
 
-    it('STRESS-5.2: 15-minute periodic location recording is suppressed while shift is on manual break', async () => {
+    it('STRESS-5.2: 10-minute periodic location recording is suppressed while shift is on manual break', async () => {
       useTimeTrackingStore.setState({
         activeShift: {
           id: 'shift_manual_break_2',
