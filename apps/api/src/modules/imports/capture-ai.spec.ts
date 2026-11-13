@@ -117,4 +117,20 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);
   });
+  it('does not save a model-calculated total when a property image quotes only a per-area rate', () => {
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 660000000, priceMax: 660000000 }] },
+      '4 BHK 3577 SQFT 18,450 PER SQUARE FOOT',
+      true,
+    );
+    expect(row.inventory?.totalSalePrice).toBeNull();
+    expect(row.warnings.some((w) => w.includes('Price type conflicts'))).toBe(true);
+    const [rate] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'RATE_PER_SQFT', priceMin: 18450, priceMax: 18450 }] },
+      '4 BHK 3577 SQFT 18,450 PER SQUARE FOOT',
+      true,
+    );
+    expect(rate.inventory?.ratePerArea).toBe(18450);
+    expect(rate.inventory?.totalSalePrice).toBeNull();
+  });
 });
