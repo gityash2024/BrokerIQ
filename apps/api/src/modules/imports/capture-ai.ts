@@ -161,8 +161,9 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     const evidence = visualEvidence ? source : projectEvidence(source, fact.society, records);
     const explicitNeed = /\b(?:need(?:ed)?|require(?:d|ment)?|looking\s+for|wanted|chahiye)\b|चाहिए|ज़रूरत/i.test(evidence);
     let purpose = fact.purpose;
-    const advertisedPurpose = evidence.match(/\bfor\s+(sale|sell|rent|lease)\b/i)?.[1]?.toLowerCase();
-    if (advertisedPurpose && !visualEvidence) purpose = /sale|sell/.test(advertisedPurpose) ? 'SALE' : 'RENT';
+    const advertisedPurposes = new Set([...evidence.matchAll(/\bfor\s+(sale|sell|rent|lease)\b/gi)].map((match) => /sale|sell/i.test(match[1]) ? 'SALE' as const : 'RENT' as const));
+    const mixedPurpose = /\bfor\s+(?:(?:sale|sell)\s*[/&]\s*(?:rent|lease)|(?:rent|lease)\s*[/&]\s*(?:sale|sell))\b/i.test(evidence);
+    if (advertisedPurposes.size === 1 && !mixedPurpose && !visualEvidence) purpose = [...advertisedPurposes][0];
     const rentalContext = /\b(?:rent|rental|lease|leasing)\b|किराय/i.test(evidence);
     if (purpose === 'RENT' && !rentalContext && !visualEvidence && !explicitNeed) { purpose = null; warnings.push('Rental purpose not explicit; confirm manually.'); }
     const sectors = captureLocalities(evidence).map(compact);

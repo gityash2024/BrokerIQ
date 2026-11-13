@@ -215,6 +215,13 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(row.inventory?.totalSalePrice).toBeNull();
     expect(row.warnings.some((warning) => warning.includes('Amount not grounded'))).toBe(true);
   });
+  it('does not let one global advertised purpose overwrite a separate sale/rent unit', () => {
+    const rows = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 20000000, priceMax: 20000000 }, base] }, 'Reviewed project Sector 45\nLane A property for sale 2 crore\nLane B property for rent 30000');
+    expect(rows[0].inventory?.purpose).toBe('SALE');
+    expect(rows[0].inventory?.totalSalePrice).toBe(20000000);
+    expect(rows[1].inventory?.purpose).toBe('RENT');
+    expect(rows[1].inventory?.monthlyRent).toBe(30000);
+  });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);
