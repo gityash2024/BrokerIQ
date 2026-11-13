@@ -361,15 +361,16 @@ export class AiService {
 
   private async complete(p: Provider, model: string, messages: any[], opts: CallOpts, timeoutMs: number) {
     let responseFormat: Record<string, unknown> | undefined = opts.json ? { type: 'json_object' } : undefined;
-    if (p.name === 'qwen_local' && opts.responseSchema) {
+    if ((p.name === 'qwen_local' || p.name === 'openrouter') && opts.responseSchema) {
       let schema;
       try {
         schema = toJSONSchema(opts.responseSchema, { target: 'draft-7', io: 'input', reused: 'ref' });
       } catch {
-        throw new RetryableError('local JSON schema cannot be represented safely');
+        throw new RetryableError('JSON schema cannot be represented safely');
       }
       if (Buffer.byteLength(JSON.stringify(schema), 'utf8') > 16000) throw new RetryableError('local JSON schema exceeds bounded grammar size');
-      responseFormat = { type: 'json_object', schema };
+      responseFormat =
+        p.name === 'qwen_local' ? { type: 'json_object', schema } : { type: 'json_schema', json_schema: { name: 'brokeriq_response', strict: false, schema } };
     }
     const key = opts.cacheMs
       ? createHash('sha256')
@@ -440,7 +441,10 @@ export class AiService {
       // Fail when no compliant endpoint exists; never relax these on fallback.
       body = {
         ...body,
-        provider: openRouterFreeRouting,
+        provider: {
+          ...openRouterFreeRouting,
+          ...((body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),
+        },
       };
     }
     let res: Response;
@@ -492,7 +496,8 @@ export class AiService {
         const ok = String(data.choices?.[0]?.message?.content ?? '').trim();
         if (!ok) throw new RetryableError('empty diagnostic response');
         const free = key === 'openrouter' ? await this.freeModels(p.apiKey).catch(() => []) : [];
-        const missing = key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => m !== 'openrouter/free' && !free.includes(m)) : [];
+        const missing =
+          key === 'openrouter' && free.length ? [...p.textModels, ...p.visionModels].filter((m) => m !== 'openrouter/free' && !free.includes(m)) : [];
         return [
           `${model}: ${ok}`,
           missing.length ? `⚠️ अभी free list में नहीं: ${missing.join(', ')}` : '',

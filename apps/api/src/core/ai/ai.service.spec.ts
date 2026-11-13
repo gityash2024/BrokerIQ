@@ -40,8 +40,7 @@ describe('AiService', () => {
   });
 
   it('honors a free model Retry-After without skipping available OpenRouter alternatives', async () => {
-    respond = (_url, body) =>
-      body.model === 'a:free' ? { status: 429, json: {}, headers: new Headers({ 'Retry-After': '60' }) } : ok('hosted');
+    respond = (_url, body) => (body.model === 'a:free' ? { status: 429, json: {}, headers: new Headers({ 'Retry-After': '60' }) } : ok('hosted'));
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
     const messages = [{ role: 'user' as const, content: 'hi' }];
     await expect(ai.chat(messages, { feature: 't' })).resolves.toBe('hosted');
@@ -114,10 +113,7 @@ describe('AiService', () => {
 
   it('never calls a paid OpenRouter model, including when the full platform is active', async () => {
     respond = () => ok('OK');
-    const ai = new AiService(
-      settings({ openrouter: { apiKey: 'k', textModel: 'paid-model', fallbackModels: 'a:free,a:free' } }),
-      prisma,
-    );
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'paid-model', fallbackModels: 'a:free,a:free' } }), prisma);
     await expect(ai.chat([{ role: 'user', content: 'Test' }], { feature: 'test' })).resolves.toBe('OK');
     expect(calls.map((call) => call.model)).toEqual(['a:free']);
     await expect(ai.test('openrouter', { apiKey: 'k', textModel: 'paid-model' })).rejects.toThrow('No model configured');
@@ -139,6 +135,21 @@ describe('AiService', () => {
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'or' }, gemini: { apiKey: 'g', model: 'gem' } }, 'gemini,openrouter'), prisma);
     await ai.chat([{ role: 'user', content: 'hi' }], { feature: 't' });
     expect(calls[0].model).toBe('gem');
+  });
+
+  it('sends OpenRouter the actual contract and keeps zero-cost routing on schema-capable endpoints', async () => {
+    let body: any;
+    respond = (_url, input) => {
+      body = input;
+      return ok('{"purpose":"RENT"}');
+    };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'model:free' } }), prisma);
+    await expect(
+      ai.json([{ role: 'user', content: 'Rent' }], { feature: 'capture', schema: z.object({ purpose: z.enum(['RENT', 'SALE']) }) }),
+    ).resolves.toEqual({ purpose: 'RENT' });
+    expect(body.response_format.type).toBe('json_schema');
+    expect(body.response_format.json_schema.schema.properties.purpose.enum).toEqual(['RENT', 'SALE']);
+    expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0, image: 0, request: 0 }, require_parameters: true });
   });
 
   it('repairs JSON that does not match the schema, then validates it', async () => {

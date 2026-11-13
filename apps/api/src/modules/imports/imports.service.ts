@@ -298,7 +298,7 @@ export class ImportsService {
           `data:${contentType};base64,${body.toString('base64')}`,
           'Extract only explicit inventory and requirements as JSON {entities:[{kind:"INVENTORY"|"REQUIREMENT"|"UNRELATED", inventory?:{}, requirement?:{}, warnings:[]}]}. Split independent units and listings. Do not invent phone, price, locality, BHK, owner identity or availability. Preserve RK separately from BHK. Broker notation BHK+1 means details.additionalRooms:1 with unspecified use, never a bathroom or assumed servant room. Explicit B after BHK means bathrooms. TF means Top Floor, not a numeric floor. A truncated screenshot requires a warning. All records require review. Use monthlyRent/totalSalePrice/ratePerArea with explicit units; never convert phone digits to money. OCR context:\n' +
             text.slice(0, 20000),
-          { feature: 'capture', orgId: organizationId, userId: userId, json: true, maxTokens: 6000 },
+          { feature: 'capture', orgId: organizationId, userId: userId, json: true, maxTokens: 6000, responseSchema: z.object({ entities: arraySchema }) },
         );
         const parsed = parseJsonLoose<{ entities: unknown }>(response);
         return arraySchema.parse(parsed.entities);
