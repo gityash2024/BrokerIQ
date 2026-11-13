@@ -137,6 +137,24 @@ describe('AiService', () => {
     expect(calls[0].model).toBe('gem');
   });
 
+  it('allows chat assistance but gates import JSON on the exact evaluated free model', async () => {
+    jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });
+    const config = { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' };
+    const pending = new AiService(settings({ openrouter: config }), prisma);
+    expect(await pending.isAvailable('text')).toBe(true);
+    expect(await pending.isAvailable('json', 'capture')).toBe(false);
+    const approved = new AiService(
+      settings({ openrouter: { ...config, captureTextApprovedModel: 'a:free', captureTextEvaluationSha256: 'a'.repeat(64) } }),
+      prisma,
+    );
+    expect(await approved.isAvailable('json', 'capture')).toBe(true);
+    respond = (_u, b) => (b.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('{"entities":[]}'));
+    await expect(
+      approved.json([{ role: 'user', content: 'Required flat' }], { feature: 'capture', schema: z.object({ entities: z.array(z.any()) }) }),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(calls.map((c) => c.model)).toEqual(['a:free']);
+  });
+
   it('sends OpenRouter the actual contract and keeps zero-cost routing on schema-capable endpoints', async () => {
     let body: any;
     respond = (_url, input) => {

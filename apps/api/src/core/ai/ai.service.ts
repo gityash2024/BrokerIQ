@@ -23,6 +23,7 @@ interface Provider {
   visionModels: string[];
   structuredApproved?: boolean;
   captureVisionApprovedModel?: string;
+  captureTextApprovedModel?: string;
 }
 
 interface CallOpts {
@@ -97,6 +98,10 @@ export class AiService {
         url: URLS[name],
         textModels: [...new Set([...list(v.textModel), ...list(v.fallbackModels)].filter(isFreeOpenRouterModel))],
         visionModels: [...new Set([...list(v.visionModel), ...list(v.visionFallbackModels)].filter(isFreeOpenRouterModel))],
+        captureTextApprovedModel:
+          /^[a-f0-9]{64}$/.test(String(v.captureTextEvaluationSha256 ?? '')) && typeof v.captureTextApprovedModel === 'string'
+            ? v.captureTextApprovedModel
+            : undefined,
         captureVisionApprovedModel:
           /^[a-f0-9]{64}$/.test(String(v.captureVisionEvaluationSha256 ?? '')) && typeof v.captureVisionApprovedModel === 'string'
             ? v.captureVisionApprovedModel
@@ -132,13 +137,19 @@ export class AiService {
     return provider.visionModels.filter((model) => model.endsWith(':free') && model === provider.captureVisionApprovedModel);
   }
 
+  private textModels(provider: Provider, kind: string, feature?: string) {
+    if (kind === 'json' && feature === 'capture' && env().BROKER_FIRST && provider.name === 'openrouter')
+      return provider.textModels.filter((model) => model.endsWith(':free') && model === provider.captureTextApprovedModel);
+    return provider.textModels;
+  }
+
   async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text', feature?: string) {
     return (await this.providers()).some((p) =>
       kind === 'vision'
         ? this.visionModels(p, feature).length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
           (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
-          p.textModels.length > 0,
+          this.textModels(p, kind, feature).length > 0,
     );
   }
 
@@ -333,12 +344,12 @@ export class AiService {
         ? this.visionModels(p, opts.feature).length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
           (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
-          p.textModels.length > 0,
+          this.textModels(p, kind, opts.feature).length > 0,
     );
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     for (const p of providers) {
-      const models = kind === 'vision' ? this.visionModels(p, opts.feature) : p.textModels;
+      const models = kind === 'vision' ? this.visionModels(p, opts.feature) : this.textModels(p, kind, opts.feature);
       for (const model of models) {
         if (p.name === 'openrouter' && Date.now() < (this.openRouterRetryAt.get(model) ?? 0)) {
           errors.push(`openrouter/${model}: waiting for Retry-After`);
