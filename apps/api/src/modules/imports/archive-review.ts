@@ -1,5 +1,5 @@
 import type { LocalStorageService } from '../../core/media/local-storage.service';
-import type { CapturedMessage } from '@brokeriq/shared';
+import type { CapturedEntity, CapturedMessage } from '@brokeriq/shared';
 import sharp from 'sharp';
 import { associatedAttachments, attachmentNames, zipMedia, type ArchiveMediaFile } from './archive-media';
 import { openCaptureSource, zipMessages, type ArchiveSummary } from './capture-stream';
@@ -9,10 +9,16 @@ export type ReviewAttachment = Omit<ArchiveMediaFile, 'body'> & {
   mediaRef?: string;
   text?: string;
   confidence?: number;
+  entities?: CapturedEntity[];
 };
 type Batch = { id: string; mediaRef: string; createdAt: Date };
 
-export async function prepareArchiveReview(storage: LocalStorageService, ocr: OcrService, batch: Batch) {
+export async function prepareArchiveReview(
+  storage: LocalStorageService,
+  ocr: OcrService,
+  batch: Batch,
+  extractPhoto?: (body: Buffer, contentType: string, text: string) => Promise<CapturedEntity[] | null>,
+) {
   const open = async () => (await openCaptureSource(storage, batch.mediaRef)).bytes;
   const archive: ArchiveSummary = { textFiles: 0, attachmentFiles: 0, expandedTextBytes: 0 };
   const referenced = new Set<string>();
@@ -56,6 +62,14 @@ export async function prepareArchiveReview(storage: LocalStorageService, ocr: Oc
           } catch (error) {
             if (!(error instanceof OcrInputError)) throw error;
             attachment.warning = 'Photo could not be read automatically. Review the original.';
+          }
+          if (extractPhoto) {
+            try {
+              const entities = await extractPhoto(body, file.contentType, attachment.text ?? '');
+              if (entities) attachment.entities = entities;
+            } catch {
+              attachment.warning = 'Photo AI unavailable. Original and OCR retained for manual review.';
+            }
           }
         }
       } else {

@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Role } from '@prisma/client';
 import request from 'supertest';
+import sharp from 'sharp';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -192,6 +193,51 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
     expect(saved.organizationId).toBe(org);
     expect(saved.totalSalePrice).toBe(18000000);
     expect(saved.details.projectName).toBe('Reviewed source');
+  });
+  it('uploads a real property photo, preserves other fields and rejects stale or unauthorized saves', async () => {
+    const photo = await sharp({ create: { width: 48, height: 32, channels: 3, background: '#4253a8' } })
+      .jpeg()
+      .toBuffer();
+    const signed = (
+      await request(app.getHttpServer()).post('/api/me/uploads/sign').set(h(agent)).send({ kind: 'listing', contentType: 'image/jpeg' }).expect(201)
+    ).body;
+    expect(signed.key).toMatch(new RegExp('^listing/' + org + '/'));
+    await request(app.getHttpServer()).put(new URL(signed.uploadUrl).pathname).set('Content-Type', 'image/jpeg').send(photo).expect(200);
+    const downloaded = await request(app.getHttpServer()).get(new URL(signed.publicUrl).pathname).expect(200);
+    expect(downloaded.headers['content-type']).toContain('image/');
+    const meta = await sharp(downloaded.body).metadata();
+    expect(meta.width).toBe(48);
+    expect(meta.exif).toBeUndefined();
+    const current = await db.inventoryItem.findUniqueOrThrow({ where: { id: item.id } });
+    const saved = (
+      await request(app.getHttpServer())
+        .patch('/api/inventory/' + item.id)
+        .set(h(agent))
+        .send({ photoUrls: [signed.publicUrl], expectedRevision: current.revision })
+        .expect(200)
+    ).body;
+    expect(saved.photoUrls).toEqual([signed.publicUrl]);
+    expect(saved.monthlyRent).toBe(23000);
+    expect(saved.assignedToId).toBe(agentId);
+    await request(app.getHttpServer())
+      .patch('/api/inventory/' + item.id)
+      .set(h(broker))
+      .send({ photoUrls: [], expectedRevision: current.revision })
+      .expect(409);
+    await request(app.getHttpServer())
+      .patch('/api/inventory/' + item.id)
+      .set(h(outsider))
+      .send({ photoUrls: [], expectedRevision: saved.revision })
+      .expect(404);
+    expect((await get('/' + item.id, broker).expect(200)).body.photoUrls).toEqual([signed.publicUrl]);
+    // Avatar upload uses the same real media route but can only update the authenticated profile.
+    const avatar = (
+      await request(app.getHttpServer()).post('/api/me/uploads/sign').set(h(agent)).send({ kind: 'avatar', contentType: 'image/jpeg' }).expect(201)
+    ).body;
+    await request(app.getHttpServer()).put(new URL(avatar.uploadUrl).pathname).set('Content-Type', 'image/jpeg').send(photo).expect(200);
+    await request(app.getHttpServer()).patch('/api/me').set(h(agent)).send({ avatarUrl: avatar.publicUrl }).expect(200);
+    expect((await db.user.findUniqueOrThrow({ where: { id: agentId } })).avatarUrl).toBe(avatar.publicUrl);
+    expect((await db.user.findUniqueOrThrow({ where: { id: foreignId } })).avatarUrl).toBeNull();
   });
   it('archives reversibly, prevents agent/cross-firm restoration and never republishes automatically', async () => {
     await request(app.getHttpServer())

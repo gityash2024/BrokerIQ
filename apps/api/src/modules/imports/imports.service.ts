@@ -291,6 +291,23 @@ export class ImportsService {
     }
     return file;
   }
+  private async extractPhoto(body: Buffer, contentType: string, text: string, organizationId: string, userId?: string): Promise<CapturedEntity[] | null> {
+    if (await this.ai.isAvailable('vision', 'capture')) {
+      try {
+        const response = await this.ai.vision(
+          `data:${contentType};base64,${body.toString('base64')}`,
+          'Extract only explicit inventory and requirements as JSON {entities:[{kind:"INVENTORY"|"REQUIREMENT"|"UNRELATED", inventory?:{}, requirement?:{}, warnings:[]}]}. Split independent units and listings. Do not invent phone, price, locality, BHK, owner identity or availability. Preserve RK separately from BHK. Broker notation BHK+1 means details.additionalRooms:1 with unspecified use, never a bathroom or assumed servant room. Explicit B after BHK means bathrooms. TF means Top Floor, not a numeric floor. A truncated screenshot requires a warning. All records require review. Use monthlyRent/totalSalePrice/ratePerArea with explicit units; never convert phone digits to money. OCR context:\n' +
+            text.slice(0, 20000),
+          { feature: 'capture', orgId: organizationId, userId: userId, json: true, maxTokens: 6000 },
+        );
+        const parsed = parseJsonLoose<{ entities: unknown }>(response);
+        return arraySchema.parse(parsed.entities);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
   async extract(batchId: string) {
     const batch = await this.prisma.importBatch.findUniqueOrThrow({ where: { id: batchId } });
     if (['NEEDS_REVIEW', 'COMPLETE'].includes(batch.status)) return;
@@ -311,23 +328,11 @@ export class ImportsService {
           const file = { contentType: source.contentType, body: Buffer.concat(buffers) };
           const recognized = await this.ocr.recognize(file.body);
           text = recognized.text;
-          // AI is an optional free-only assistant. Validation and explicit review remain mandatory.
-          if (await this.ai.isAvailable('vision', 'capture')) {
-            try {
-              const response = await this.ai.vision(
-                `data:${file.contentType};base64,${file.body.toString('base64')}`,
-                'Extract only explicit inventory and requirements as JSON {entities:[{kind:"INVENTORY"|"REQUIREMENT"|"UNRELATED", inventory?:{}, requirement?:{}, warnings:[]}]}. Split independent units and listings. Do not invent phone, price, locality, BHK, owner identity or availability. Preserve RK separately from BHK. Broker notation BHK+1 means details.additionalRooms:1 with unspecified use, never a bathroom or assumed servant room. Explicit B after BHK means bathrooms. TF means Top Floor, not a numeric floor. A truncated screenshot requires a warning. All records require review. Use monthlyRent/totalSalePrice/ratePerArea with explicit units; never convert phone digits to money. OCR context:\n' +
-                  text.slice(0, 20000),
-                { feature: 'capture', orgId: batch.organizationId, userId: batch.createdById ?? undefined, json: true, maxTokens: 6000 },
-              );
-              const parsed = parseJsonLoose<{ entities: unknown }>(response);
-              entities = arraySchema.parse(parsed.entities);
-            } catch {
-              entities = null;
-            }
-          }
+          entities = await this.extractPhoto(file.body, file.contentType, text, batch.organizationId, batch.createdById ?? undefined);
         } else if (source.contentType === 'application/zip') {
-          const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef });
+          const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef }, (body, type, ocrText) =>
+            this.extractPhoto(body, type, ocrText, batch.organizationId, batch.createdById ?? undefined),
+          );
           archiveSummary = archive.archive;
           archiveFiles = archive.files;
           streamed = archive.messages;
@@ -345,11 +350,19 @@ export class ImportsService {
         // Keep each photo separate so an OCR fragment cannot alter the caption's proposed facts.
         const photoHashes = new Set<string>();
         for (const photo of evidence.attachments) {
-          if (!photo.text || !photo.sha256 || photoHashes.has(photo.sha256)) continue;
+          if ((!photo.text && !photo.entities) || !photo.sha256 || photoHashes.has(photo.sha256)) continue;
           photoHashes.add(photo.sha256);
-          for (const entity of extractCapture(photo.text)) {
+          for (const entity of photo.entities ?? extractCapture(photo.text ?? '')) {
             if (entity.kind === 'UNRELATED' || extracted.length >= 100) continue;
-            extracted.push({ ...entity, warnings: [...entity.warnings, 'From photo OCR. Verify all fields against the original photo.'] });
+            extracted.push({
+              ...entity,
+              warnings: [
+                ...entity.warnings,
+                photo.entities
+                  ? 'From photo AI. Verify all fields against the original photo.'
+                  : 'From photo OCR. Verify all fields against the original photo.',
+              ],
+            });
           }
         }
         const originalIdentity = `${message.sender ?? ''}\0${message.timestamp ?? ''}\0${message.text}`;
@@ -417,7 +430,7 @@ export class ImportsService {
             ...(archiveSummary.attachmentFiles
               ? {
                   attachmentNote:
-                    'Matching photos and their OCR appear beside the message. Review all extracted details. Videos and unmatched files remain source evidence.',
+                    'Matching photos and their extraction appear beside the message. Review all extracted details. Videos and unmatched files remain source evidence.',
                 }
               : {}),
           },
