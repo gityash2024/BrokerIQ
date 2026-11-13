@@ -164,7 +164,7 @@ export class PeriodicLocationTrackerEngine {
     const store = this.store.getState();
     if (!store.isPunchedIn || !store.activeShift) return false;
 
-    // If shift is paused for any reason, skip normal 15-min breadcrumb
+    // If shift is paused for any reason, skip normal 10-min breadcrumb
     if (store.isPaused) return false;
 
     this.isProcessing = true;

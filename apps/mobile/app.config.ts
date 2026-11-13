@@ -20,7 +20,7 @@ const config: ExpoConfig = {
       NSCameraUsageDescription: 'Property photos और listing-book scan करने के लिए camera चाहिए।',
       NSPhotoLibraryUsageDescription: 'Property photos चुनने के लिए gallery access चाहिए।',
       NSLocationWhenInUseUsageDescription: 'Punch-in verification, site visits aur properties check-in ke liye location chahiye.',
-      NSLocationAlwaysAndWhenInUseUsageDescription: 'Active shift ke dauran 15-minute periodic location record karne ke liye location access chahiye.',
+      NSLocationAlwaysAndWhenInUseUsageDescription: 'Active shift ke dauran 10-minute periodic location record karne ke liye location access chahiye.',
       NSLocationAlwaysUsageDescription: 'Shift tracking ke liye background location access chahiye.',
       UIBackgroundModes: ['location', 'fetch'],
       NSMicrophoneUsageDescription: 'AI assistant से बोलकर बात करने के लिए microphone चाहिए।',
@@ -75,7 +75,7 @@ const config: ExpoConfig = {
       'expo-location',
       {
         locationWhenInUsePermission: 'Punch-in verification aur site visits ke liye location chahiye.',
-        locationAlwaysAndWhenInUsePermission: 'Shift ke dauran 15-minute periodic location record karne ke liye location permission chahiye.',
+        locationAlwaysAndWhenInUsePermission: 'Shift ke dauran 10-minute periodic location record karne ke liye location permission chahiye.',
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
       },
