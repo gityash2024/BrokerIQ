@@ -94,6 +94,8 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(printed.inventory).toMatchObject({ area: 1200, areaUnit: 'SQ_FT' });
     const [header] = factsToEntities({ records: [base] }, 'Area (sqft)\n2 BHK 1200 rent 30000');
     expect(header.inventory).toMatchObject({ area: 1200, areaUnit: 'SQ_FT' });
+    const [visualCorrection] = factsToEntities({ records: [{ ...base, area: 4000 }] }, 'Office for sale 2000 sqft', true);
+    expect(visualCorrection.inventory).toMatchObject({ area: 4000, areaUnit: 'SQ_FT' });
   });
   it('allows original visual evidence when OCR is absent and still normalizes explicit sectors', () => {
     const [offer] = factsToEntities({ records: [base] }, '', true);
@@ -101,6 +103,21 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(offer.inventory?.areaUnit).toBe('SQ_FT');
     const [bad] = factsToEntities({ records: [{ ...base, sector: 'Invented project' }] }, '', true);
     expect(bad.inventory?.sector).toBeNull();
+  });
+  it('keeps explicit shared-unit size lists separate from thousands-formatted numbers', () => {
+    for (const area of [1460, 1582, 1811, 1851, 2208]) {
+      const [row] = factsToEntities({ records: [{ ...base, area }] }, 'Required 1460 & 1582 SQ.Ft., 1811,1851,2208 SQ.Ft.');
+      expect(row.inventory).toMatchObject({ area, areaUnit: 'SQ_FT' });
+    }
+    const [price] = factsToEntities({ records: [{ ...base, priceMin: 125000, priceMax: 125000 }] }, '2 BHK 1,200 sq ft rent 1,25,000');
+    expect(price.inventory).toMatchObject({ area: 1200, monthlyRent: 125000 });
+    for (const printed of ['1,200,000', '12,00,000']) {
+      const [sale] = factsToEntities(
+        { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 1200000, priceMax: 1200000 }] },
+        '2 BHK 1,200 sq ft sale price ' + printed,
+      );
+      expect(sale.inventory?.totalSalePrice).toBe(1200000);
+    }
   });
   it('normalizes styled WhatsApp Unicode and avoids floating-point price rejection', () => {
     const [row] = factsToEntities({ records: [{ ...base, sector: '102', priceMin: 210000, priceMax: 230000 }] }, '𝐒𝐞𝐜𝐭𝐨𝐫 - 𝟏𝟎𝟐 2 BHK rent 2.1 L - 2.3 L');

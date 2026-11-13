@@ -41,10 +41,21 @@ const compact = (s: string) =>
     .normalize('NFKC')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]/gu, '');
+function normalizePrintedNumbers(source: string) {
+  return source
+    .normalize('NFKC')
+    .replace(/(?<=\d)[Oo](?=[\dOo]*(?:\s|[/.,-]|$))/g, '0')
+    .replace(/\d[\d,]*(?:\.\d+)?/g, (token) => {
+      if (!token.includes(',')) return token;
+      const integer = token.split('.')[0];
+      // Indian/Western thousands and comma-separated configuration lists are different.
+      return /^(?:\d{1,3}(?:,\d{3})+|\d{1,3}(?:,\d{2})*,\d{3})$/.test(integer) ? token.replace(/,/g, '') : token.replace(/,/g, ' , ');
+    });
+}
 /** A model may suggest a value, but text-source arithmetic must independently support it. */
 function sourceAmounts(source: string) {
   const values = new Set<number>();
-  source = source.normalize('NFKC').replace(/(?<=\d)[Oo](?=[\dOo]*(?:\s|[/.,-]|$))/g, '0');
+  source = normalizePrintedNumbers(source);
   const amount = '(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:/-\\s*)?(cr(?:ore)?s?|l(?:akh)?s?|lacs?|k|thousand|करोड़|करोड|लाख|हज़ार|हजार)?';
   const scale = (value: string, unit?: string) => {
     const factor = /^(cr|करोड़|करोड)/i.test(unit ?? '') ? 1e7 : /^(l|लाख)/i.test(unit ?? '') ? 1e5 : /^(k|thousand|हज़ार|हजार)/i.test(unit ?? '') ? 1000 : 1;
@@ -73,11 +84,15 @@ const AREA_UNITS: Record<z.infer<typeof areaUnitSchema>, string> = {
 function hasAreaUnitEvidence(source: string, area: number | null, unit: z.infer<typeof areaUnitSchema>, visual: boolean) {
   if (!source.trim()) return visual; // OCR may be absent; the separate evaluated vision gate still applies.
   if (area == null) return false;
-  const normalized = source.replace(/(?<=\d),(?=\d)/g, '').replace(/(?<=\d)[Oo](?=[\dOo]*(?:\s|[/.,-]|$))/g, '0');
+  const normalized = normalizePrintedNumbers(source);
   const number = String(area).replace('.', '\\.');
   const pattern = AREA_UNITS[unit];
-  const adjacent = new RegExp('(?<![\\d.])' + number + '(?![\\d.])\\s*' + pattern + '(?![\\p{L}])', 'iu');
+  const sharedList = '(?:\\s*(?:,|&|and)\\s*\\d+(?:\\.\\d+)?){0,8}';
+  const adjacent = new RegExp('(?<![\\d.])' + number + '(?![\\d.])' + sharedList + '\\s*' + pattern + '(?![\\p{L}])', 'iu');
   if (adjacent.test(normalized)) return true;
+  // Vision can correct a misread digit (e.g. image 4000, OCR 2000 sqft). The unit must
+  // still be printed beside a size, rather than inferred from a separate per-area rate.
+  if (visual && new RegExp('\\d\\s*' + pattern + '(?![\\p{L}])', 'iu').test(normalized)) return true;
   const units = Object.values(AREA_UNITS).filter((p) => new RegExp(p + '(?![\\p{L}])', 'iu').test(normalized));
   return units.length === 1 && new RegExp('(?:area|size)\\s*(?:in\\s*)?[:(\\-]?\\s*' + pattern + '(?![\\p{L}])', 'iu').test(normalized);
 }
