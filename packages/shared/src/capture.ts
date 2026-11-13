@@ -35,9 +35,9 @@ const scaled = (amount: string, suffix?: string) =>
 export function captureLocalities(text: string) {
   text = text.normalize('NFKC');
   const result: string[] = [];
-  for (const m of text.matchAll(/(?:\b(?:sector|sec\.?|s-)|(?<![\p{L}\p{M}])सेक्टर)\s*[-:]?\s*(\d{1,3}[a-z]?(?:\s*[,&/]\s*\d{1,3}[a-z]?)*)\b/giu)) {
+  for (const m of text.matchAll(/(?:\b(?:sector|sec\.?|s-)|(?<![\p{L}\p{M}])सेक्टर)\s*[-:]?\s*(\d{1,3}(?:\s*[a-z])?(?:\s*[,&/]\s*\d{1,3}(?:\s*[a-z])?)*)\b/giu)) {
     for (const item of m[1].split(/[,&/]/)) {
-      const sector = item.trim().toUpperCase().replace(/^0+(?=\d)/, '');
+      const sector = item.replace(/\s+/g, '').toUpperCase().replace(/^0+(?=\d)/, '');
       result.push(`Sector ${sector}`);
     }
   }

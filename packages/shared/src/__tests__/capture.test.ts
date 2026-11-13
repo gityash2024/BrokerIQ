@@ -286,3 +286,8 @@ test('project offer rows with a deposit do not treat the deposit as unit rent', 
   const text = 'Available for Rent\nExample Heights, Sector 63A\n2 BHK Rent 45k\n3 BHK Deposit @ 60k';
   assert.ok(extractCapture(text).every(({ inventory }) => inventory?.monthlyRent !== 60000));
 });
+
+test('spaced sector suffixes remain part of the locality, without consuming the next word', () => {
+  assert.deepEqual(captureLocalities('Sector 13 A, 13 B and Sector 19 B'), ['Sector 13A', 'Sector 13B', 'Sector 19B']);
+  assert.deepEqual(captureLocalities('Sector 19 apartment for sale'), ['Sector 19']);
+});

@@ -205,6 +205,11 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     const detailed = factsToEntities({ records: [main, { ...rate, bhk: 3, area: 1500 }] }, 'Reviewed project 2 BHK 1200 sqft and 3 BHK 1500 sqft, total 6.6 Cr and 18450 per sqft', true);
     expect(detailed).toHaveLength(2);
   });
+  it('keeps the current layout when a larger BHK is only a future proposal', () => {
+    const [row] = factsToEntities({ records: [{ ...base, bhk: 4 }] }, 'Sector 45 Heritage tower 3bhk ka 4bhk hoga lower floor rent 30000');
+    expect(row.inventory?.bhk).toBe(3);
+    expect(row.warnings).toContain('Planned conversion is not treated as a completed layout.');
+  });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);
