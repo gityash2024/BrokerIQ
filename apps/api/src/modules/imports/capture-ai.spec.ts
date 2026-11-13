@@ -173,6 +173,22 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(parts.every((part) => part.startsWith('Available for SALE'))).toBe(true);
     expect(captureTextParts('Available for RENT 2 BHK')).toEqual(['Available for RENT 2 BHK']);
   });
+  it('does not relabel a book-value amount as premium merely because both labels share one line', () => {
+    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 68300000, priceMax: 68300000 }] }, 'Sector 45 for sale\nTower A | Books 6.83 Cr | Premium 50 L | Higher Floor');
+    expect(row.inventory?.totalSalePrice).toBeNull();
+    expect(row.inventory?.notes).toContain('BOOK_VALUE INR 68300000');
+  });
+  it('preserves the advertised sale purpose when the property also generates rental income', () => {
+    const [row] = factsToEntities({ records: [{ ...base, purpose: 'RENT', priceMin: 125000, priceMax: 125000 }] }, 'Property for sale\nReviewed project Sector 45 2 BHK\nRent coming 1.25 lakh\nSale asking 5.65 crore');
+    expect(row.inventory?.purpose).toBe('SALE');
+    expect(row.inventory?.monthlyRent).toBeNull();
+  });
+  it('keeps seller demand quotations on offered units out of client requirements', () => {
+    const [row] = factsToEntities({ records: [{ ...base, intent: 'DEMAND', purpose: 'RENT', priceMin: 17000, priceMax: 17000 }] }, 'Reviewed project Sector 45\n2 BHK 1200 sqft demand 17k\nMultiple units are available');
+    expect(row.kind).toBe('INVENTORY');
+    expect(row.inventory?.purpose).toBeNull();
+    expect(row.inventory?.monthlyRent).toBeNull();
+  });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);

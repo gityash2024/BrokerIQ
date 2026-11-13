@@ -113,7 +113,10 @@ function projectEvidence(source: string, society: string | null, records: z.infe
   if (at < 0) return source;
   const starts = [...new Set(records.map((record) => record.society ? flattened.indexOf(compact(record.society)) : -1).filter((index) => index >= 0))];
   const next = starts.filter((index) => index > at + own.length).sort((a, b) => a - b)[0];
-  return source.slice(offsets[at], next == null ? undefined : offsets[next]);
+  const first = Math.min(...starts);
+  const prefix = source.slice(0, offsets[first]);
+  const globalPurpose = prefix.match(/\bfor\s+(?:sale|sell|rent|lease)\b/i)?.[0] ?? '';
+  return (at === first ? '' : globalPurpose + '\n') + source.slice(at === first ? 0 : offsets[at], next == null ? undefined : offsets[next]);
 }
 /** Keep complete explicitly headed unit blocks together and cap provider work on long posts. */
 export function captureTextParts(source: string): string[] | null {
@@ -133,6 +136,12 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
   return input.records.map((fact) => {
     const warnings = [...fact.warnings, 'AI draft. Verify against the original source.'];
     const evidence = visualEvidence ? source : projectEvidence(source, fact.society, input.records);
+    const explicitNeed = /\b(?:need(?:ed)?|require(?:d|ment)?|looking\s+for|wanted|chahiye)\b|चाहिए|ज़रूरत/i.test(evidence);
+    let purpose = fact.purpose;
+    const advertisedPurpose = evidence.match(/\bfor\s+(sale|sell|rent|lease)\b/i)?.[1]?.toLowerCase();
+    if (advertisedPurpose && !visualEvidence) purpose = /sale|sell/.test(advertisedPurpose) ? 'SALE' : 'RENT';
+    const rentalContext = /\b(?:rent|rental|lease|leasing)\b|किराय/i.test(evidence);
+    if (purpose === 'RENT' && !rentalContext && !visualEvidence && !explicitNeed) { purpose = null; warnings.push('Rental purpose not explicit; confirm manually.'); }
     const sectors = captureLocalities(evidence).map(compact);
     const explicitAmounts = sourceAmounts(evidence);
     if (fact.intent === 'UNRELATED') return { kind: 'UNRELATED', warnings };
@@ -171,7 +180,7 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     const explicitRate = !rateUnit || new RegExp('(?:per\\s*|/\\s*)' + rateUnit + '|\\b' + rateAbbreviation + '\\b', 'i').test(evidence);
     if (!explicitRate) warnings.push('Price without an explicit rate unit omitted; confirm manually.');
     const consistentPrice = explicitRate &&
-      (fact.priceBasis === 'MONTHLY_RENT' ? fact.purpose === 'RENT' : fact.priceBasis === 'SALE_TOTAL' ? fact.purpose === 'SALE' : true) &&
+      (fact.priceBasis === 'MONTHLY_RENT' ? purpose === 'RENT' : fact.priceBasis === 'SALE_TOTAL' ? purpose === 'SALE' : true) &&
       !(rateOnlyVisual && fact.priceBasis === 'SALE_TOTAL');
     if (!consistentPrice) warnings.push('Price type conflicts with rent/sale purpose; confirm manually.');
     const candidates = evidence
@@ -206,12 +215,20 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
       max = consistentPrice ? groundedAmount(fact.priceMax, priceAmounts) : null;
     const exact = min != null && (max == null || min === max) ? min : null;
     let priceBasis = fact.priceBasis;
-    if (priceBasis === 'SALE_TOTAL' && min != null && !visualEvidence) {
-      const labels = evidence.split(/\r?\n/).filter((line) => sourceAmounts(line).has(min));
-      const total = labels.some((line) => /total\s*(?:price|cost)|all\s*inclusive/i.test(line));
-      if (!total && labels.some((line) => /\b(?:premium|primium)\b/i.test(line))) {
-        priceBasis = 'PREMIUM';
-        warnings.push('Source premium preserved separately from the total sale price.');
+    if (min != null && !visualEvidence) {
+      const labels = [...evidence.matchAll(/\b(premium|primium|books?(?:\s+value)?|total\s*(?:price|cost))\b/gi)];
+      const matching = new Set<string>();
+      for (let i = 0; i < labels.length; i++) {
+        const label = labels[i];
+        const lineEnd = evidence.indexOf('\n', label.index!);
+        const end = Math.min(labels[i + 1]?.index ?? evidence.length, lineEnd < 0 ? evidence.length : lineEnd);
+        if (!sourceAmounts(evidence.slice(label.index! + label[0].length, end)).has(min)) continue;
+        matching.add(/premium|primium/i.test(label[1]) ? 'PREMIUM' : /book/i.test(label[1]) ? 'BOOK_VALUE' : 'SALE_TOTAL');
+      }
+      if (matching.size === 1) {
+        const labelledBasis = [...matching][0] as typeof priceBasis;
+        if (labelledBasis !== priceBasis) warnings.push('Source-labelled quote preserved separately; verify the final price.');
+        priceBasis = labelledBasis;
       }
     }
     const quoted =
@@ -223,12 +240,14 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     const explicitInteger = fact.bhk != null && new RegExp('(?<![\\d.])' + fact.bhk + '\\s*[- ]?\\s*(?:BHK|RK)\\b', 'i').test(evidence);
     const bhk = (fractional && !explicitInteger && Math.floor(Number(fractional[1])) === fact.bhk) || warnedFraction ? null : fact.bhk;
     if (fact.bhk != null && bhk == null) warnings.push('Fractional layout must not be rounded to integer BHK.');
-    const purpose = fact.purpose ?? (['PREMIUM', 'BOOK_VALUE'].includes(priceBasis ?? '') ? 'SALE' : null);
+    purpose ??= ['PREMIUM', 'BOOK_VALUE'].includes(priceBasis ?? '') ? 'SALE' : null;
     const common = { purpose, roomKind: fact.roomKind, furnishing: fact.furnishing, notes: quoted };
     const areaUnit = fact.areaUnit && hasAreaUnitEvidence(source, fact.area, fact.areaUnit, visualEvidence) ? fact.areaUnit : null;
     const area = areaUnit ? groundedAmount(fact.area) : null;
     if (fact.area != null && !areaUnit) warnings.push('Area without an explicit unit omitted.');
-    if (fact.intent === 'DEMAND')
+    const offeredUnits = /\b(?:units?\s+(?:are\s+)?available|available\s+for|for\s+(?:sale|sell|rent|lease))\b/i.test(evidence);
+    const intent = fact.intent === 'DEMAND' && !explicitNeed && offeredUnits ? 'OFFER' : fact.intent;
+    if (intent === 'DEMAND')
       return capturedEntitySchema.parse({
         kind: 'REQUIREMENT',
         warnings,
