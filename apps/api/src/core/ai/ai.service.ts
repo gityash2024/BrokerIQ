@@ -22,6 +22,7 @@ interface Provider {
   textModels: string[];
   visionModels: string[];
   structuredApproved?: boolean;
+  disableReasoning?: boolean;
   captureVisionApprovedModel?: string;
   captureTextApprovedModel?: string;
 }
@@ -96,6 +97,7 @@ export class AiService {
         name,
         apiKey,
         url: URLS[name],
+        disableReasoning: v.disableReasoning === true || v.disableReasoning === 'true',
         textModels: [...new Set([...list(v.textModel), ...list(v.fallbackModels)].filter(isFreeOpenRouterModel))],
         visionModels: [...new Set([...list(v.visionModel), ...list(v.visionFallbackModels)].filter(isFreeOpenRouterModel))],
         captureTextApprovedModel:
@@ -452,6 +454,7 @@ export class AiService {
       // Fail when no compliant endpoint exists; never relax these on fallback.
       body = {
         ...body,
+        ...(p.disableReasoning ? { reasoning: { enabled: false } } : {}),
         provider: {
           ...openRouterFreeRouting,
           ...((body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),

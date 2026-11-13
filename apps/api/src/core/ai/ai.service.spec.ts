@@ -155,6 +155,18 @@ describe('AiService', () => {
     expect(calls.map((c) => c.model)).toEqual(['a:free']);
   });
 
+  it('disables optional reasoning only when configured without relaxing free routing', async () => {
+    let body: any;
+    respond = (_u, b) => {
+      body = b;
+      return ok('ready');
+    };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', disableReasoning: true } }), prisma);
+    await expect(ai.chat([{ role: 'user', content: 'diagnostic' }], { feature: 'diagnostic' })).resolves.toBe('ready');
+    expect(body.reasoning).toEqual({ enabled: false });
+    expect(body.provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
+  });
+
   it('sends OpenRouter the actual contract and keeps zero-cost routing on schema-capable endpoints', async () => {
     let body: any;
     respond = (_url, input) => {

@@ -334,6 +334,7 @@ export const INTEGRATIONS: IntegrationDef[] = [
         type: 'text',
         default: '',
       },
+      { key: 'disableReasoning', label: 'Disable optional reasoning on models that support it', type: 'boolean', default: false },
       { key: 'captureTextApprovedModel', label: 'Approved chat-import model ID', type: 'text' },
       { key: 'captureTextEvaluationSha256', label: 'Chat-import holdout report SHA-256', type: 'text' },
       { key: 'captureVisionApprovedModel', label: 'Approved image-import model ID', type: 'text' },

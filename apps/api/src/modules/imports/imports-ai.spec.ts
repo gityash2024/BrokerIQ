@@ -33,7 +33,28 @@ describe('approved chat AI drafts preserve source review and bounded work', () =
       isAvailable: jest.fn(async () => available),
       json: jest.fn(async () => {
         if (fail) throw new Error('Provider busy');
-        return { entities: [{ kind: 'INVENTORY', inventory: { sector: 'Sector 45', purpose: 'RENT', monthlyRent: 30000 }, warnings: [] }] };
+        return {
+          records: [
+            {
+              intent: 'OFFER',
+              purpose: 'RENT',
+              society: null,
+              sector: 'Sector 45',
+              houseNo: null,
+              floor: null,
+              bhk: 2,
+              roomKind: 'BHK',
+              area: null,
+              areaUnit: null,
+              priceBasis: 'MONTHLY_RENT',
+              priceMin: 30000,
+              priceMax: 30000,
+              furnishing: null,
+              contacts: [],
+              warnings: [],
+            },
+          ],
+        };
       }),
     };
     const service = new ImportsService(prisma as any, {} as any, { register: jest.fn() } as any, {} as any, {} as any, ai as any, {} as any);
@@ -48,7 +69,7 @@ describe('approved chat AI drafts preserve source review and bounded work', () =
     expect(entries[0].rawText).toBe(text);
     expect(entries[0].ocr.sender).toBe('Sender');
     expect(entries[0].ocr.timestamp).not.toBe(entries[1].ocr.timestamp);
-    expect(entries[0].extracted[0].warnings).toContain('AI draft. Verify against the original message.');
+    expect(entries[0].extracted[0].warnings).toContain('AI draft. Verify against the original source.');
     expect(entries[0].reviewState).not.toBe('APPROVED');
     expect(updates.at(-1).data.metadata.textAi).toEqual({ available: true, requests: 1, draftMessages: 2, maxRequestsPerImport: 100 });
   });
