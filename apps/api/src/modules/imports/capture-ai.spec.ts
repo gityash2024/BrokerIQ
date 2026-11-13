@@ -144,6 +144,22 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     const [identity] = factsToEntities({ records: [{ ...base, contacts: [{ name: 'Brand', phone: null, role: 'OWNER' }] }] }, '', true);
     expect(identity.inventory?.contacts?.[0].role).toBe('UNKNOWN');
   });
+  it('keeps premium separate even when a model labels it as a total', () => {
+    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 30000000, priceMax: 30000000 }] }, 'Sector 45 available for sale premium 3 cr');
+    expect(row.inventory?.totalSalePrice).toBeNull();
+    expect(row.inventory?.notes).toContain('Source quote: PREMIUM INR 30000000');
+  });
+  it('preserves an explicit total printed after the configuration line', () => {
+    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 72200000, priceMax: 72200000 }] }, 'Sector 45\n2 BHK 1200 sqft at 20185 per sq ft\nBook value 6.57 crore\nPremium 65 lakh\nTotal Price 7.22 crore');
+    expect(row.inventory?.totalSalePrice).toBe(72200000);
+  });
+  it('does not leak another project sector or fractional layout across headings', () => {
+    const [first, second] = factsToEntities({ records: [{ ...base, society: 'First Homes', sector: '90', bhk: 2 }, { ...base, society: 'Second Homes', sector: '90', bhk: 2 }] }, 'First Homes 92\n2 BHK 1200 sqft rent 30000\nSecond Homes Sector 90\n2.5 BHK 1200 sqft rent 30000');
+    expect(first.inventory?.sector).toBeNull();
+    expect(first.inventory?.bhk).toBe(2);
+    expect(second.inventory?.sector).toBe('Sector 90');
+    expect(second.inventory?.bhk).toBeNull();
+  });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);
