@@ -1,7 +1,7 @@
 {
   "date": "2026-11-13",
-  "sourceCommit": "63ee54cb6cdcefb20661f68730fcc728aa0e95dc",
-  "evaluation": "Actual ImportsService and AiService through free OpenRouter; isolated diagnostic settings, no CRM writes",
+  "sourceCommit": "980e4ee709683db2984a8e97628863addc7384c2",
+  "evaluation": "Actual ImportsService and AiService using free OpenRouter; isolated diagnostic settings; no CRM writes",
   "model": "dots-studio/dots-3-note-preview:free",
   "before": {
     "usage": 0,
@@ -11,91 +11,19 @@
     "usage": 0,
     "usageDaily": 0
   },
-  "textGroups": [
-    {
-      "sourceIndex": 114,
-      "expected": 12,
-      "actual": 12,
-      "strictMatches": 0
-    },
-    {
-      "sourceIndex": 641,
-      "expected": 16,
-      "actual": 16,
-      "strictMatches": 8
-    },
-    {
-      "sourceIndex": 1582,
-      "expected": 13,
-      "actual": 13,
-      "strictMatches": 0
-    },
-    {
-      "sourceIndex": 1227,
-      "expected": 10,
-      "actual": 10,
-      "strictMatches": 10
-    },
-    {
-      "sourceIndex": 1883,
-      "expected": 16,
-      "actual": 16,
-      "strictMatches": 14
-    },
-    {
-      "sourceIndex": 323,
-      "expected": 9,
-      "actual": 9,
-      "strictMatches": 9
-    },
-    {
-      "sourceIndex": 71,
-      "expected": 5,
-      "actual": 5,
-      "strictMatches": 2
-    },
-    {
-      "sourceIndex": 470,
-      "expected": 7,
-      "actual": 7,
-      "strictMatches": 3
-    },
-    {
-      "sourceIndex": 272,
-      "expected": 5,
-      "actual": 5,
-      "strictMatches": 0
-    },
-    {
-      "sourceIndex": 1886,
-      "expected": 2,
-      "actual": 2,
-      "strictMatches": 2
-    },
-    {
-      "sourceIndex": 1877,
-      "expected": 4,
-      "actual": 4,
-      "strictMatches": 0
-    },
-    {
-      "sourceIndex": 1838,
-      "expected": 2,
-      "actual": 2,
-      "strictMatches": 0
-    }
-  ],
   "textExpectedRecords": 101,
-  "textProducedRecords": 101,
-  "strictAllFieldMatches": 48,
+  "textProducedRecords": 96,
+  "providerUnavailableTextGroups": 1,
   "photoCount": 5,
   "captureApprovalWritten": false,
   "fullQualityGatePassed": false,
+  "independentHumanLabelledHoldoutComplete": false,
   "observedLimitations": [
-    "Missing explicit prices/purpose remain null for review",
-    "Fractional BHK and ambiguous area units require review",
-    "Project naming differences remain strict mismatches",
-    "Independent 100-message semantic acceptance remains incomplete"
+    "One text group unavailable; all originals retained for rule/manual review",
+    "Bare photo area unit can still be incorrectly inferred by model",
+    "Fractional layouts remain manual review, never rounded BHK",
+    "Rate-only OCR cannot establish a total price; server drops unsupported totals",
+    "Original photo reference contained inferred sector/unit fields and needs independent review"
   ],
   "rawSourceDataIncluded": false
 }
