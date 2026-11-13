@@ -1,0 +1,26 @@
+{
+  "apk": "/opt/brokeriq/releases/rc-63ee54cb6cdc/releases/build61-980e4ee70968/BrokerIQ-v2.3.20-build61.apk",
+  "checked64BitLibraries": 60,
+  "alignmentFailures": [],
+  "zipAlignmentExitCode": 0,
+  "secureActivityBytecode": {
+    "Class descriptor  : 'Lcom/brokeriq/app/MainActivity;'": {
+      "hasWindowFlagCall": true,
+      "hasSecure8192Constant": true
+    },
+    "Class descriptor  : 'Lcom/brokeriq/facecapture/FaceCaptureActivity;'": {
+      "hasWindowFlagCall": true,
+      "hasSecure8192Constant": true
+    }
+  },
+  "requiredPermissions": [
+    "CAMERA",
+    "RECORD_AUDIO",
+    "POST_NOTIFICATIONS",
+    "ACCESS_FINE_LOCATION",
+    "ACCESS_BACKGROUND_LOCATION",
+    "FOREGROUND_SERVICE_LOCATION"
+  ],
+  "backgroundAudioServicesAbsent": true,
+  "installedDeviceAcceptance": false
+}

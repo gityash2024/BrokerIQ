@@ -2,7 +2,11 @@
 
 Baseline: feat/production, 93bb8a0. Existing live data is production data; never seed test records into it.
 
-## Current checkpoint — 10 November 2026
+## Current checkpoint — 13 November 2026
+
+Staging serves Build 61 / v2.3.20 from `980e4ee709683db2984a8e97628863addc7384c2`, published **16:18:58 IST**. API/web/public APK/in-app update match; independent full-byte APK and live landing preference checks passed. Property/profile photo changes, internal photo-link drafts, landing preferences and guide supplements are shipped. Free OpenRouter assistance is enabled and its live-settings text/tool diagnostic reported unchanged zero key usage. Capture quality approval remains OFF. Gmail is submitted and visibly under review. See `STAGING_BUILD61_20261113.md` for exact evidence and remaining boundaries. Post-pin capture unit/list hardening is separate unshipped source until a subsequent verified release.
+
+## Historical checkpoint — 10 November 2026
 
 Staging serves Build 58 / v2.3.17 from `cc7793b3f66554864581f97196f2469248d7313d`, published at **16:36:29 IST**. API, web, public APK and in-app update agree. The new gallery and four manuals are live. Build 58 includes the Android notification channel and compact Leads toolbar fixes, Gmail/SMS activity timestamp correction and free/no-training AI transport limits. The fresh backup and signed upgrade results are in `STAGING_BUILD58_20261110.md`.
 

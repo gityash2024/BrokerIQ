@@ -3598,7 +3598,7 @@
       "backend": "IMPLEMENTED_API_AND_WEB_VERIFIED",
       "web": "IMPLEMENTED_API_AND_WEB_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_PHYSICAL_ACCEPTANCE_DEFERRED",
-      "shippedBuild": "BUILD61_CANDIDATE_NOT_YET_ACTIVE",
+      "shippedBuild": "BUILD61_STAGING_VERIFIED",
       "verification": "8 real Nest/PostgreSQL tests: actual sanitized WebP upload/download, persistence, price/assignee preservation, stale revision 409, foreign record 404. Four web viewport checks. Physical Android upload acceptance is deferred.",
       "notes": [
         "Post-baseline addition; historical 154-request source audit is retained and does not certify these new rows."
@@ -3629,7 +3629,7 @@
       "backend": "IMPLEMENTED_API_VERIFIED",
       "web": "IMPLEMENTED_API_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_PHYSICAL_ACCEPTANCE_DEFERRED",
-      "shippedBuild": "BUILD61_CANDIDATE_NOT_YET_ACTIVE",
+      "shippedBuild": "BUILD61_STAGING_VERIFIED",
       "verification": "Real API own-profile avatar persistence and cross-account authorization verified. Account-context guards cover asynchronous picking/upload. Physical Android remains deferred.",
       "notes": [
         "Post-baseline addition; historical 154-request source audit is retained and does not certify these new rows."
@@ -3659,7 +3659,7 @@
       "backend": "IMPLEMENTED_WEB_DRAFT_VERIFIED",
       "web": "IMPLEMENTED_WEB_DRAFT_VERIFIED",
       "androidSource": "IMPLEMENTED_TYPECHECKED_PHYSICAL_ACCEPTANCE_DEFERRED",
-      "shippedBuild": "BUILD61_CANDIDATE_NOT_YET_ACTIVE",
+      "shippedBuild": "BUILD61_STAGING_VERIFIED",
       "verification": "Selected HTTPS photo link survived internal Email Inbox navigation in an encrypted draft. Source/KYC URLs excluded. Manually sent draft; link sharing, not a claim of binary attachments on all channels. Physical Android remains deferred.",
       "notes": [
         "Post-baseline addition; historical 154-request source audit is retained and does not certify these new rows."
@@ -3689,7 +3689,7 @@
       "backend": "IMPLEMENTED_REAL_BROWSER_VERIFIED",
       "web": "IMPLEMENTED_REAL_BROWSER_VERIFIED",
       "androidSource": "NOT_APPLICABLE_OR_EXISTING_SHARED_CLIENT",
-      "shippedBuild": "BUILD61_CANDIDATE_NOT_YET_ACTIVE",
+      "shippedBuild": "BUILD61_STAGING_VERIFIED",
       "verification": "Actual Next/API browser checks at 320, 360, 390, 768, 1024 and 1440 px: visible controls, no horizontal overflow, Hindi and theme persistence after reload. Public release recheck follows deployment.",
       "notes": [
         "Post-baseline addition; historical 154-request source audit is retained and does not certify these new rows."
@@ -3718,7 +3718,7 @@
       "backend": "ASSISTANCE_VERIFIED_CAPTURE_QUALITY_PENDING",
       "web": "ASSISTANCE_VERIFIED_CAPTURE_QUALITY_PENDING",
       "androidSource": "NOT_APPLICABLE_OR_EXISTING_SHARED_CLIENT",
-      "shippedBuild": "BUILD61_CANDIDATE_NOT_YET_ACTIVE",
+      "shippedBuild": "BUILD61_STAGING_VERIFIED",
       "verification": "Actual free assistant text/tool-selection diagnostic passed. Reported key usage stayed zero. Actual pinned capture evaluation produced 96 of 101 text records and 5 photo results; unsupported/ambiguous area and OCR prices prevent full quality approval. Capture approval remains OFF; independent reviewed holdout acceptance remains open.",
       "notes": [
         "Post-baseline addition; historical 154-request source audit is retained and does not certify these new rows."
@@ -3738,18 +3738,44 @@
       "database": "NO_SCHEMA_CHANGE",
       "rootCause": "Later explicit user request or diagnosed regression.",
       "releaseEvidence": "docs/evidence/staging-build61-20261113/photo-workflows.md"
+    },
+    {
+      "id": "ADD-LOCATION-10MIN",
+      "requirement": "Refresh authorized agent location views every ten minutes on Broker Admin and Super Admin web/mobile, with fresh capture timestamps and correct stale state",
+      "sourceRequests": [
+        "2026-11-13-user-ten-minute-agent-location-refresh"
+      ],
+      "backend": "AUDIT_PENDING",
+      "web": "AUDIT_PENDING",
+      "androidSource": "AUDIT_PENDING_PHYSICAL_ACCEPTANCE_DEFERRED",
+      "shippedBuild": "NOT_YET_IMPLEMENTED",
+      "verification": "New user report queued after current AI work; no ten-minute refresh or device delivery claim yet.",
+      "notes": [
+        "Preserve active-shift disclosure, manual pause and role/firm isolation. UI polling must not relabel old coordinates as live. Other roles require their existing explicit location permission."
+      ],
+      "roles": [
+        "BROKER_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "sourceFiles": [],
+      "commits": [],
+      "database": "PRESERVE_EXISTING_HISTORY",
+      "rootCause": "NEW_REPORT_NOT_YET_DIAGNOSED",
+      "releaseEvidence": null
     }
   ],
   "latestStagingRelease": {
-      "commit": "cc7793b3f66554864581f97196f2469248d7313d",
-      "androidVersion": "2.3.17",
-      "androidVersionCode": 58,
-      "publishedAt": "2026-11-10T11:06:29.269Z",
-      "publicApkSha256": "1347a89fd7cd0971d287d769198b6a7856270e6b92de840c61000749e0a11bef",
-      "evidence": "docs/evidence/staging-build58-20261110/strict-release-verification.json",
-      "physicalAndroidAcceptance": "DEFERRED_BY_USER_PHONE_UNAVAILABLE",
-      "browserVisualAcceptance": "PUBLIC_GALLERY_GUIDES_LEGAL_CHECKED_FULL_AUTHENTICATED_JOURNEYS_PENDING",
-      "fullProductSignoff": false
+    "commit": "980e4ee709683db2984a8e97628863addc7384c2",
+    "androidVersion": "2.3.20",
+    "androidVersionCode": 61,
+    "publishedAt": "2026-11-13T10:48:58.011Z",
+    "publicApkSha256": "cc180ab16ff9f59ee9f9affe71904b3ad58add75dfae556291b21dca15196bf2",
+    "evidence": "docs/evidence/staging-build61-20261113/strict-release-verification.json",
+    "physicalAndroidAcceptance": "DEFERRED_BY_USER",
+    "browserVisualAcceptance": "PUBLIC_LANDING_CONTROLS_GALLERY_GUIDES_LEGAL_VERIFIED_FULL_ROLE_SIGNOFF_SEPARATE",
+    "gmailReview": "SUBMITTED_UNDER_REVIEW",
+    "captureQuality": "NOT_APPROVED",
+    "fullProductSignoff": false
   },
   "latestSourceAudit": {
     "commit": "88ef337153c7d8c4b1ff032146353bbb9b391446",
