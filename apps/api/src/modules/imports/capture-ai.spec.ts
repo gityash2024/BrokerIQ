@@ -189,6 +189,12 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(row.inventory?.purpose).toBeNull();
     expect(row.inventory?.monthlyRent).toBeNull();
   });
+  it('accepts explicitly printed Gurgaon square-yard abbreviations', () => {
+    for (const unit of ['SQY', 'sq yd', 'yard', 'gaj']) {
+      const [row] = factsToEntities({ records: [{ ...base, area: 120, areaUnit: 'SQ_YD' }] }, `Sector 45 builder floor area 120 ${unit} rent 30000`);
+      expect(row.inventory).toMatchObject({ area: 120, areaUnit: 'SQ_YD' });
+    }
+  });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);
