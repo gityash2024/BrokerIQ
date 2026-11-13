@@ -9,3 +9,5 @@ python3 ops/render-user-guides.py --release /path/to/release.json --output outpu
 ```
 
 Add `--captures /path/to/captures.json` for captured UI. The manifest is keyed by `broker/inventory`, `super-admin/records` and the other role/chapter IDs in the copy. Each entry contains `path`, `sha256`, `commit`, `privateDataMasked`, `surface` and `capturedAtIst`. Review the crop against the underlying role, source identity and private fields before setting the privacy flag. Keep unredacted source captures outside Git. Mobile captures must come from the matching release commit using the controlled QA capture build. The final renderer requires a reviewed capture for every chapter. Use `--draft` for work in progress with partial coverage.
+
+Build 61 adds a reviewed workflow supplement without relabelling core Build 57 screenshots. Reproduce from the four PDFs at commit 8f716dd5f1972786ce83285b82033d2ba97621fa using `ops/append-guide-updates.py --base-dir /path/to/base-pdfs --output /path/to/guides`.

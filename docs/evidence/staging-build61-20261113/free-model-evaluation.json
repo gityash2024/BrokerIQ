@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-13",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "freeRouting": {
+    "data_collection": "deny",
+    "prompt": 0,
+    "completion": 0,
+    "image": 0,
+    "request": 0
+  },
+  "walletUsageBefore": {
+    "usage": 0,
+    "usageDaily": 0
+  },
+  "walletUsageAfter": {
+    "usage": 0,
+    "usageDaily": 0
+  },
+  "text": {
+    "labelledPosts": 12,
+    "expectedRecords": 101,
+    "predictedRecords": 101,
+    "strictAllFieldMatches": 67,
+    "strictPrecision": 0.6633663366336634,
+    "strictRecall": 0.6633663366336634,
+    "recordCountIsNotSemanticAcceptance": true
+  },
+  "vision": {
+    "images": 5,
+    "expectedCriticalFields": 17,
+    "matchedCriticalFields": 15,
+    "walletBefore": {
+      "usage": 0,
+      "usageDaily": 0
+    },
+    "walletAfter": {
+      "usage": 0,
+      "usageDaily": 0
+    }
+  },
+  "qualityGatePassed": false,
+  "captureApprovalWritten": false,
+  "rawCustomerDataIncluded": false
+}
