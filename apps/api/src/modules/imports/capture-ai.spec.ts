@@ -88,6 +88,19 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     const [bad] = factsToEntities({ records: [{ ...base, sector: 'Invented project' }] }, '', true);
     expect(bad.inventory?.sector).toBeNull();
   });
+  it('normalizes styled WhatsApp Unicode and avoids floating-point price rejection', () => {
+    const [row] = factsToEntities({ records: [{ ...base, sector: '102', priceMin: 210000, priceMax: 230000 }] }, '𝐒𝐞𝐜𝐭𝐨𝐫 - 𝟏𝟎𝟐 2 BHK rent 2.1 L - 2.3 L');
+    expect(row.inventory?.sector).toBe('Sector 102');
+    expect(row.inventory?.notes).toContain('210000 - 230000');
+  });
+  it('does not mix another unit row price into a uniquely identified BHK and area row', () => {
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', bhk: 2, area: 1215, priceBasis: 'SALE_TOTAL', priceMin: 19500000, priceMax: 30500000 }] },
+      'Sector 102\n2 BHK 1215 sq.ft price 1.95 Cr\n4 BHK 2180 sq.ft price 3.05 Cr',
+    );
+    expect(row.inventory?.totalSalePrice).toBe(19500000);
+    expect(row.warnings.some((w) => w.includes('Amount not grounded'))).toBe(true);
+  });
   it('refuses fractional BHK rounding and visual crore arithmetic conflicts', () => {
     const [rounded] = factsToEntities({ records: [{ ...base, bhk: 3, warnings: ['Fractional BHK value 3.5 was rounded'] }] }, '', true);
     expect(rounded.inventory?.bhk).toBeNull();

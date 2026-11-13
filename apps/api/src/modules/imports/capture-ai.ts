@@ -43,11 +43,12 @@ const compact = (s: string) =>
 /** A model may suggest a value, but text-source arithmetic must independently support it. */
 function sourceAmounts(source: string) {
   const values = new Set<number>();
-  source = source.replace(/(?<=\d)[Oo](?=[\dOo]*(?:\s|[/.,-]|$))/g, '0');
+  source = source.normalize('NFKC').replace(/(?<=\d)[Oo](?=[\dOo]*(?:\s|[/.,-]|$))/g, '0');
   const amount = '(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:/-\\s*)?(cr(?:ore)?s?|l(?:akh)?s?|lacs?|k|thousand|करोड़|करोड|लाख|हज़ार|हजार)?';
-  const scale = (value: string, unit?: string) =>
-    Number(value.replace(/,/g, '')) *
-    (/^(cr|करोड़|करोड)/i.test(unit ?? '') ? 1e7 : /^(l|लाख)/i.test(unit ?? '') ? 1e5 : /^(k|thousand|हज़ार|हजार)/i.test(unit ?? '') ? 1000 : 1);
+  const scale = (value: string, unit?: string) => {
+    const factor = /^(cr|करोड़|करोड)/i.test(unit ?? '') ? 1e7 : /^(l|लाख)/i.test(unit ?? '') ? 1e5 : /^(k|thousand|हज़ार|हजार)/i.test(unit ?? '') ? 1000 : 1;
+    return Math.round(Number(value.replace(/,/g, '')) * factor * 10000) / 10000;
+  };
   for (const m of source.matchAll(new RegExp(amount, 'giu'))) {
     if (!m[2] && /^[6-9]\d{9}$/.test(m[1].replace(/,/g, ''))) continue;
     values.add(scale(m[1], m[2]));
@@ -59,6 +60,7 @@ function sourceAmounts(source: string) {
   return values;
 }
 export function factsToEntities(input: z.infer<typeof captureFactsSchema>, source: string, visualEvidence = false): CapturedEntity[] {
+  source = source.normalize('NFKC');
   const sectors = captureLocalities(source).map(compact);
   const explicitAmounts = sourceAmounts(source);
   return input.records.map((fact) => {
@@ -87,8 +89,18 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
       .filter((c) => c.phone || c.name);
     const consistentPrice = fact.priceBasis === 'MONTHLY_RENT' ? fact.purpose === 'RENT' : fact.priceBasis === 'SALE_TOTAL' ? fact.purpose === 'SALE' : true;
     if (!consistentPrice) warnings.push('Price type conflicts with rent/sale purpose; confirm manually.');
-    const groundedAmount = (value: number | null) => {
-      if (value == null || explicitAmounts.has(value)) return value;
+    const candidates = source
+      .split(/\r?\n/)
+      .filter(
+        (line) =>
+          fact.area != null &&
+          fact.bhk != null &&
+          new RegExp('(?<![\\d.])' + String(fact.area).replace('.', '\\.') + '(?![\\d.])').test(line) &&
+          new RegExp('\\b' + fact.bhk + '\\s*[- ]?\\s*(?:BHK|RK)\\b', 'i').test(line),
+      );
+    const priceAmounts = !visualEvidence && candidates.length === 1 ? sourceAmounts(candidates[0]) : explicitAmounts;
+    const groundedAmount = (value: number | null, choices = explicitAmounts) => {
+      if (value == null || choices.has(value)) return value;
       if (visualEvidence) {
         if (/(?:\bcr\b|crore|lakh|लाख|करोड़)/i.test(source) && (explicitAmounts.has(value / 10) || explicitAmounts.has(value * 10))) {
           warnings.push('Visual amount conflicts with source arithmetic; confirm manually.');
@@ -99,8 +111,8 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
       warnings.push('Amount not grounded in the original text; confirm manually.');
       return null;
     };
-    const min = consistentPrice ? groundedAmount(fact.priceMin) : null,
-      max = consistentPrice ? groundedAmount(fact.priceMax) : null;
+    const min = consistentPrice ? groundedAmount(fact.priceMin, priceAmounts) : null,
+      max = consistentPrice ? groundedAmount(fact.priceMax, priceAmounts) : null;
     const exact = min != null && (max == null || min === max) ? min : null;
     const quoted =
       min != null && ((max != null && min !== max) || ['PREMIUM', 'BOOK_VALUE'].includes(fact.priceBasis ?? ''))
