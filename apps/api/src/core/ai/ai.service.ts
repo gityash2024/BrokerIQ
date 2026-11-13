@@ -60,7 +60,9 @@ const list = (v: unknown) =>
     .filter(Boolean);
 
 /** Errors worth trying the next model/provider for (busy, rate limited, model gone, bad output). */
-class RetryableError extends Error {}
+class RetryableError extends Error {
+  constructor(message: string, readonly transient = false) { super(message); }
+}
 /** The provider itself is unusable (bad key, no credit) — skip all its models. */
 class ProviderError extends Error {}
 
@@ -359,7 +361,17 @@ export class AiService {
           continue;
         }
         try {
-          const out = await attempt(p, model);
+          let out;
+          try {
+            out = await attempt(p, model);
+          } catch (error) {
+            // One bounded retry for network/5xx glitches; rate limits immediately
+            // follow the configured fallback chain and retain Retry-After.
+            if (p.name !== 'openrouter' || !(error instanceof RetryableError) || !error.transient) throw error;
+            await this.track(p.name, model, opts, false, 0);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            out = await attempt(p, model);
+          }
           await this.track(p.name, model, opts, true, out.tokens);
           return out.text;
         } catch (e) {
@@ -474,7 +486,7 @@ export class AiService {
     try {
       res = await fetch(p.url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
     } catch (e) {
-      throw new RetryableError(`network/timeout: ${(e as Error).message}`);
+      throw new RetryableError(`network/timeout: ${(e as Error).message}`, true);
     }
     if (p.name === 'openrouter' && res.status === 429 && typeof body.model === 'string') {
       const retryAfter = res.headers?.get('retry-after');
@@ -488,7 +500,7 @@ export class AiService {
     const msg = data?.error?.message ?? data?.[0]?.error?.message ?? `HTTP ${res.status}`;
     if (res.status === 401 || res.status === 403) throw new ProviderError(`key rejected: ${msg}`);
     if (res.status === 402) throw new ProviderError(`no credit: ${msg}`);
-    if (!res.ok) throw new RetryableError(msg); // 400 (e.g. model can't do tools/json/images), 404, 429, 5xx
+    if (!res.ok) throw new RetryableError(msg, res.status >= 500); // 400 (e.g. model can't do tools/json/images), 404, 429, 5xx
     if (data?.error) throw new RetryableError(String(data.error.message ?? 'provider error'));
     return data;
   }

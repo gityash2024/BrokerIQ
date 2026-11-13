@@ -195,6 +195,16 @@ describe('minimal AI facts map to independent reviewed business records', () => 
       expect(row.inventory).toMatchObject({ area: 120, areaUnit: 'SQ_YD' });
     }
   });
+  it('keeps a rate-only photo fragment with its single described property instead of inventing another unit', () => {
+    const main = { ...base, purpose: 'SALE' as const, priceBasis: 'SALE_TOTAL' as const, priceMin: 66000000, priceMax: 66000000 };
+    const rate = { ...main, bhk: null, area: null, floor: null, houseNo: null, priceBasis: 'RATE_PER_SQFT' as const, priceMin: 18450, priceMax: 18450 };
+    const rows = factsToEntities({ records: [main, rate] }, 'Reviewed project Sector 45 2 BHK 1200 sqft Total Price 6.6 Cr, 18450 per sqft', true);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].inventory?.totalSalePrice).toBe(66000000);
+    expect(rows[0].warnings.some((warning) => warning.includes('Additional source quote'))).toBe(true);
+    const detailed = factsToEntities({ records: [main, { ...rate, bhk: 3, area: 1500 }] }, 'Reviewed project 2 BHK 1200 sqft and 3 BHK 1500 sqft, total 6.6 Cr and 18450 per sqft', true);
+    expect(detailed).toHaveLength(2);
+  });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');
     expect(JSON.stringify(z.toJSONSchema(captureFactsSchema)).length).toBeLessThan(5000);

@@ -45,6 +45,16 @@ describe('AiService', () => {
     respond = () => ok(JSON.stringify({ intent: 'PUBLISH_WITHOUT_PERMISSION' }));
     await expect(ai.json([{ role: 'user', content: 'Untrusted post' }], { feature: 'diagnostic', schema, strictSchema: true })).rejects.toMatchObject({ status: 502 });
   });
+  it('retries one transient free-provider failure without spending credits or changing the model', async () => {
+    let attempts = 0;
+    respond = (_url, body) => {
+      expect(body.provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
+      return attempts++ === 0 ? { status: 503, json: { error: { message: 'Temporarily unavailable' } } } : ok('Recovered');
+    };
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    await expect(ai.chat([{ role: 'user', content: 'Draft only' }], { feature: 'diagnostic' })).resolves.toBe('Recovered');
+    expect(calls.map((call) => call.model)).toEqual(['a:free', 'a:free']);
+  });
   it('uses the next model when one is rate limited', async () => {
     respond = (_u, b) => (b.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('नमस्ते'));
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
