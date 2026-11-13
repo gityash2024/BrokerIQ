@@ -60,8 +60,10 @@ export async function prepareArchiveReview(
             attachment.confidence = recognized.confidence;
             if (!attachment.text || recognized.confidence < 70) attachment.warning = 'Photo OCR needs manual verification.';
           } catch (error) {
-            if (!(error instanceof OcrInputError)) throw error;
-            attachment.warning = 'Photo could not be read automatically. Review the original.';
+            attachment.warning =
+              error instanceof OcrInputError
+                ? 'Photo could not be read automatically. Review the original.'
+                : 'Photo OCR unavailable. Original retained; verify all extracted details.';
           }
           if (extractPhoto) {
             try {

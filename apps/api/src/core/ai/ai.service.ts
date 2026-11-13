@@ -38,6 +38,7 @@ interface CallOpts {
   cacheMs?: number;
   /** Internal constrained-generation contract; output is still validated independently. */
   responseSchema?: ZodType;
+  strictSchema?: boolean;
 }
 
 const PROVIDERS: ProviderName[] = ['qwen_local', 'openrouter', 'groq', 'gemini'];
@@ -383,7 +384,9 @@ export class AiService {
       }
       if (Buffer.byteLength(JSON.stringify(schema), 'utf8') > 16000) throw new RetryableError('local JSON schema exceeds bounded grammar size');
       responseFormat =
-        p.name === 'qwen_local' ? { type: 'json_object', schema } : { type: 'json_schema', json_schema: { name: 'brokeriq_response', strict: false, schema } };
+        p.name === 'qwen_local'
+          ? { type: 'json_object', schema }
+          : { type: 'json_schema', json_schema: { name: 'brokeriq_response', strict: opts.strictSchema === true, schema } };
     }
     const key = opts.cacheMs
       ? createHash('sha256')

@@ -62,12 +62,43 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(offer.inventory?.area).toBeNull();
     expect(offer.warnings.length).toBeGreaterThan(1);
   });
+  it('checks lakh/crore arithmetic independently and keeps shared-unit ranges', () => {
+    const [wrong] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 215000000, priceMax: 215000000 }] },
+      'Sector 45 2 BHK for sale asking 2.15 crore',
+    );
+    expect(wrong.inventory?.totalSalePrice).toBeNull();
+    const [correct] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 21500000, priceMax: 21500000 }] },
+      'Sector 45 2 BHK for sale asking 2.15 crore',
+    );
+    expect(correct.inventory?.totalSalePrice).toBe(21500000);
+    const [normalized] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 26000000, priceMax: 26000000 }] },
+      'Sector 45 demand 2.6O/-Cr',
+    );
+    expect(normalized.inventory?.totalSalePrice).toBe(26000000);
+    const [range] = factsToEntities({ records: [{ ...base, priceMin: 32000, priceMax: 33000 }] }, 'Sector 45 rent 32-33k');
+    expect(range.inventory?.notes).toContain('32000 - 33000');
+  });
   it('allows original visual evidence when OCR is absent and still normalizes explicit sectors', () => {
     const [offer] = factsToEntities({ records: [base] }, '', true);
     expect(offer.inventory?.sector).toBe('Sector 45');
     expect(offer.inventory?.areaUnit).toBe('SQ_FT');
     const [bad] = factsToEntities({ records: [{ ...base, sector: 'Invented project' }] }, '', true);
     expect(bad.inventory?.sector).toBeNull();
+  });
+  it('refuses fractional BHK rounding and visual crore arithmetic conflicts', () => {
+    const [rounded] = factsToEntities({ records: [{ ...base, bhk: 3, warnings: ['Fractional BHK value 3.5 was rounded'] }] }, '', true);
+    expect(rounded.inventory?.bhk).toBeNull();
+    const [scaled] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 660000000, priceMax: 660000000 }] },
+      'Price 6.60 Cr only',
+      true,
+    );
+    expect(scaled.inventory?.totalSalePrice).toBeNull();
+    const [identity] = factsToEntities({ records: [{ ...base, contacts: [{ name: 'Brand', phone: null, role: 'OWNER' }] }] }, '', true);
+    expect(identity.inventory?.contacts?.[0].role).toBe('UNKNOWN');
   });
   it('keeps unrelated source events out of property fields and has a bounded schema', () => {
     expect(factsToEntities({ records: [{ ...base, intent: 'UNRELATED' }] }, 'Group event')[0].kind).toBe('UNRELATED');

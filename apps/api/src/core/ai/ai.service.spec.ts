@@ -175,9 +175,10 @@ describe('AiService', () => {
     };
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'model:free' } }), prisma);
     await expect(
-      ai.json([{ role: 'user', content: 'Rent' }], { feature: 'capture', schema: z.object({ purpose: z.enum(['RENT', 'SALE']) }) }),
+      ai.json([{ role: 'user', content: 'Rent' }], { feature: 'capture', strictSchema: true, schema: z.object({ purpose: z.enum(['RENT', 'SALE']) }) }),
     ).resolves.toEqual({ purpose: 'RENT' });
     expect(body.response_format.type).toBe('json_schema');
+    expect(body.response_format.json_schema.strict).toBe(true);
     expect(body.response_format.json_schema.schema.properties.purpose.enum).toEqual(['RENT', 'SALE']);
     expect(body.provider).toEqual({ data_collection: 'deny', max_price: { prompt: 0, completion: 0, image: 0, request: 0 }, require_parameters: true });
   });

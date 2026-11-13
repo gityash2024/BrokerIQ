@@ -17,7 +17,7 @@ import { LocalStorageService } from '../../core/media/local-storage.service';
 import { JobsService } from '../../core/jobs/jobs.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { AiService, parseJsonLoose } from '../../core/ai/ai.service';
-import { OcrService } from './ocr.service';
+import { OcrService, OcrInputError } from './ocr.service';
 import { captureFactsSchema, CAPTURE_FACTS_PROMPT, factsToEntities } from './capture-ai';
 import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
@@ -299,7 +299,7 @@ export class ImportsService {
           { role: 'system', content: CAPTURE_FACTS_PROMPT },
           { role: 'user', content: text },
         ],
-        { feature: 'capture', orgId: organizationId, userId, schema: captureFactsSchema, maxTokens: 6000, temperature: 0 },
+        { feature: 'capture', orgId: organizationId, userId, schema: captureFactsSchema, strictSchema: true, maxTokens: 6000, temperature: 0 },
       );
       return factsToEntities(facts, text);
     } catch {
@@ -312,7 +312,16 @@ export class ImportsService {
       const response = await this.ai.vision(
         `data:${contentType};base64,${body.toString('base64')}`,
         CAPTURE_FACTS_PROMPT + '\nRead the original photo, using OCR only as secondary evidence. OCR context:\n' + text.slice(0, 20000),
-        { feature: 'capture', orgId: organizationId, userId, json: true, maxTokens: 6000, temperature: 0, responseSchema: captureFactsSchema },
+        {
+          feature: 'capture',
+          orgId: organizationId,
+          userId,
+          json: true,
+          maxTokens: 6000,
+          temperature: 0,
+          responseSchema: captureFactsSchema,
+          strictSchema: true,
+        },
       );
       const facts = captureFactsSchema.parse(parseJsonLoose(response));
       // Vision has the original photo as evidence: do not force OCR noise to erase valid visual facts.
@@ -330,6 +339,7 @@ export class ImportsService {
     try {
       let text = batch.rawText ?? '';
       let entities: CapturedEntity[] | null = null;
+      let imageWarning: string | null = null;
       let streamed: AsyncIterable<CapturedMessage & { sourceFile?: string }> | undefined;
       let archiveSummary: ArchiveSummary = { textFiles: 0, attachmentFiles: 0, expandedTextBytes: 0 };
       let archiveFiles: ReviewAttachment[] = [];
@@ -339,8 +349,13 @@ export class ImportsService {
           const buffers: Buffer[] = [];
           for await (const part of source.bytes) buffers.push(part);
           const file = { contentType: source.contentType, body: Buffer.concat(buffers) };
-          const recognized = await this.ocr.recognize(file.body);
-          text = recognized.text;
+          try {
+            text = (await this.ocr.recognize(file.body)).text;
+          } catch (error) {
+            if (error instanceof OcrInputError) throw error;
+            text = ''; // A temporary OCR outage must not prevent approved vision or source review.
+            imageWarning = 'OCR unavailable. Review the original image and all extracted fields.';
+          }
           entities = await this.extractPhoto(file.body, file.contentType, text, batch.organizationId, batch.createdById ?? undefined);
         } else if (source.contentType === 'application/zip') {
           const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef }, (body, type, ocrText) =>
@@ -377,6 +392,7 @@ export class ImportsService {
         const extracted: CapturedEntity[] = message.system
           ? [{ kind: 'UNRELATED', warnings: ['WhatsApp system event; retained only as source evidence'] }]
           : (entities ?? textProposal ?? extractCapture(message.text));
+        if (imageWarning) for (const entity of extracted) entity.warnings.push(imageWarning);
         // Keep each photo separate so an OCR fragment cannot alter the caption's proposed facts.
         const photoHashes = new Set<string>();
         for (const photo of evidence.attachments) {

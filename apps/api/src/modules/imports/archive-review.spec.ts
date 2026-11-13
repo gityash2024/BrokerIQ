@@ -3,7 +3,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { prepareArchiveReview, archiveEvidence } from './archive-review';
 
 describe('ZIP photo vision with preserved source evidence', () => {
-  async function review(vision: jest.Mock) {
+  async function review(vision: jest.Mock, ocrOffline = false) {
     const image = await sharp({ create: { width: 24, height: 24, channels: 3, background: '#456789' } })
       .jpeg()
       .toBuffer();
@@ -15,7 +15,12 @@ describe('ZIP photo vision with preserved source evidence', () => {
       }),
     );
     const storage = { read: jest.fn(async () => ({ body, contentType: 'application/zip' })), putImportAttachment: jest.fn(async () => 'private-photo') };
-    const ocr = { recognize: jest.fn(async () => ({ text: 'Original photo OCR', confidence: 50 })) };
+    const ocr = {
+      recognize: jest.fn(async () => {
+        if (ocrOffline) throw new Error('OCR process unavailable');
+        return { text: 'Original photo OCR', confidence: 50 };
+      }),
+    };
     const result = await prepareArchiveReview(storage as any, ocr as any, { id: 'batch', mediaRef: 'zip', createdAt: new Date() }, vision);
     return { result, storage, ocr };
   }
@@ -38,6 +43,14 @@ describe('ZIP photo vision with preserved source evidence', () => {
       expect(evidence.identity).toMatch(/^[a-f0-9]{64}$/);
     }
     expect(archiveEvidence({ text: 'Unrelated caption' }, result.files).attachments).toEqual([]);
+  });
+  it('continues to approved vision and keeps the image when the optional OCR worker is unavailable', async () => {
+    const vision = jest.fn(async () => [{ kind: 'UNRELATED', warnings: ['Review original'] }]);
+    const { result } = await review(vision, true);
+    expect(vision).toHaveBeenCalledTimes(1);
+    expect(result.files[0].mediaRef).toBe('private-photo');
+    expect(result.files[0].entities).toHaveLength(1);
+    expect(result.files[0].warning).toContain('OCR unavailable');
   });
   it('retains original photo and OCR after a vision outage for manual review', async () => {
     const { result } = await review(
