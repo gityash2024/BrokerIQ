@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { PLATFORM_MODULES, moduleAllowed, type ModulePolicies } from './modules';
 
-export const delegatedActions = ['view', 'create', 'edit', 'delete', 'export', 'approve', 'assign', 'publish', 'send'] as const;
+export const delegatedActions = ['view', 'create', 'edit', 'delete', 'export', 'approve', 'assign', 'publish', 'send', 'connection_status', 'sync'] as const;
 export type DelegatedAction = (typeof delegatedActions)[number];
 
-export const delegatedGrantSchema = z.array(z.string().regex(/^[a-z_]+:(view|create|edit|delete|export|approve|assign|publish|send)$/)).max(350);
+export const delegatedGrantSchema = z.array(z.string().regex(/^[a-z_]+:(view|create|edit|delete|export|approve|assign|publish|send|connection_status|sync)$/)).max(350);
 export const delegatedGrant = (module: string, action: DelegatedAction) => `${module}:${action}`;
 
 const actionsByModule: Record<string, readonly DelegatedAction[]> = {
@@ -13,7 +13,7 @@ const actionsByModule: Record<string, readonly DelegatedAction[]> = {
   inventory: ['view', 'create', 'edit', 'delete', 'export', 'approve', 'assign', 'publish'],
   leads: ['view', 'create', 'edit', 'delete', 'export', 'assign', 'send'],
   inbox: ['view', 'create', 'edit', 'delete', 'approve', 'send'],
-  automation: ['view', 'create', 'edit', 'delete'],
+  automation: ['view', 'create', 'edit', 'delete', 'connection_status', 'sync'],
   deals: ['view', 'create', 'edit', 'send'],
   team: ['view', 'edit', 'export'],
   kyc: ['view', 'create', 'approve'],

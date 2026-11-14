@@ -15,6 +15,9 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   // aggregates and credentials. They require their own scoped implementation.
   if (path === '/broker/today' && method === 'GET') return { module: 'today', actions: ['view'] };
   if (!module || ['legacy', 'assistant', 'today', 'consumer'].includes(module)) return null;
+  if (path === '/broker/connectors' && ['GET', 'HEAD'].includes(method)) return { module: 'automation', actions: ['connection_status'] };
+  if (method === 'POST' && /^\/broker\/connectors\/(housing_api|email_inbox)\/sync$/.test(path))
+    return { module: 'automation', actions: ['sync'] };
   if (/^\/(?:broker\/(?:connectors|integrations|portal-pack|whatsapp)|messaging\/gmail|whatsapp\/connect)(?:\/|$)/.test(path)) return null;
   if (/^\/broker\/profile(?:\/|$)/.test(path)) return null;
   if (path === '/broker/team' && method !== 'GET') return null;

@@ -55,6 +55,7 @@ function ConnectorsInner() {
   const focus = sp.get('key');
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
+  const canSync = admin || user?.delegatedPermissions?.includes('automation:sync');
   const q = useQuery({ queryKey: ['connectors'], queryFn: () => api<any>('/broker/connectors') });
   const sync = useApiMutation(() => post<any>('/broker/connectors/email_inbox/sync'), {
     invalidate: [['connectors'], ['leads']],
@@ -225,12 +226,12 @@ function ConnectorsInner() {
                   <Badge tone={state.status === 'ACTIVE' ? 'success' : state.status === 'ERROR' ? 'danger' : 'neutral'}>{state.status}</Badge>
                   <span className="text-muted">{state.leadsImported} leads imported</span>
                   {state.lastSyncAt && <span className="text-muted">Last sync {formatDateTime(state.lastSyncAt)}</span>}
-                  {c.key === 'email_inbox' && admin && c.config?.configured && (
+                  {c.key === 'email_inbox' && canSync && c.config?.configured && (
                     <Button size="xs" variant="secondary" onClick={() => sync.mutate(undefined)} loading={sync.isPending}>
                       <RefreshCw className="size-3.5" /> अभी check करें
                     </Button>
                   )}
-                  {c.key === 'housing_api' && admin && c.config?.configured && (
+                  {c.key === 'housing_api' && canSync && c.config?.configured && (
                     <Button size="xs" variant="secondary" onClick={() => syncHousing.mutate(undefined)} loading={syncHousing.isPending}>
                       <RefreshCw className="size-3.5" /> अभी sync करें
                     </Button>

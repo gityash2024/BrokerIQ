@@ -19,7 +19,7 @@ export function DelegatedPermissions({ value, onChange }: { value: string[]; onC
                 <label key={grant} className="flex items-center gap-2 text-sm capitalize">
                   <input type="checkbox" checked={value.includes(grant)}
                     onChange={(e) => onChange(e.target.checked ? [...value, grant] : value.filter((item) => item !== grant))} />
-                  {action}
+                  {action.replace('_', ' ')}
                 </label>
               );
             })}

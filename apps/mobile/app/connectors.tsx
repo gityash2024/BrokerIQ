@@ -120,6 +120,7 @@ export default function Connectors() {
   const { c } = useTheme();
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
+  const canSync = admin || user?.delegatedPermissions?.includes('automation:sync');
   const q = useQuery({ queryKey: ['connectors'], queryFn: () => api<any>('/broker/connectors') });
   const sync = useApiMutation(() => post<any>('/broker/connectors/email_inbox/sync'), {
     success: (r: any) => `${r?.imported ?? 0} नई leads`,
@@ -211,7 +212,7 @@ export default function Connectors() {
               )}
               {cn.extra?.webhookUrl && <CopyRow label="Callback URL" value={cn.extra.webhookUrl} />}
               {cn.extra?.verifyToken && <CopyRow label="Verify token" value={cn.extra.verifyToken} />}
-              {cn.key === 'email_inbox' && on && (
+              {cn.key === 'email_inbox' && on && (user?.role !== 'SUB_BROKER_ADMIN' || canSync) && (
                 <Button
                   title="अभी inbox check करें"
                   size="sm"
@@ -221,7 +222,7 @@ export default function Connectors() {
                   onPress={() => sync.mutate(undefined)}
                 />
               )}
-              {cn.key === 'housing_api' && on && (
+              {cn.key === 'housing_api' && on && (user?.role !== 'SUB_BROKER_ADMIN' || canSync) && (
                 <Button
                   title="अभी Housing sync करें"
                   size="sm"

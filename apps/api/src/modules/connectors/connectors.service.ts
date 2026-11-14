@@ -65,7 +65,7 @@ export class ConnectorsService implements OnModuleInit {
   }
 
   // ------------------------------------------------------------------ overview for broker "Connectors" page
-  async overview(orgId: string, isAdmin: boolean) {
+  async overview(orgId: string, isAdmin: boolean, delegated = false) {
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const states = await this.prisma.connectorState.findMany({ where: { organizationId: orgId } });
     const api = env().PUBLIC_API_URL.replace(/\/$/, '');
@@ -84,7 +84,7 @@ export class ConnectorsService implements OnModuleInit {
           ...d,
           steps: renderSteps(d, api),
           config: isAdmin ? await this.settings.view(d.key, orgId) : { configured: await this.settings.isConfigured(d.key, orgId) },
-          state: state ?? null,
+          state: state && delegated ? { status: state.status, lastSyncAt: state.lastSyncAt, leadsImported: state.leadsImported } : state ?? null,
           extra,
         };
       }),
@@ -94,7 +94,7 @@ export class ConnectorsService implements OnModuleInit {
       connectors,
       webhook: {
         url: isAdmin ? `${api}/api/webhooks/leads/${org.webhookKey}` : null,
-        state: webhookState ?? null,
+        state: delegated ? null : webhookState ?? null,
         samplePayload: {
           name: 'Rahul Sharma',
           phone: '+919876543210',
@@ -105,7 +105,7 @@ export class ConnectorsService implements OnModuleInit {
         },
       },
       platformWhatsappFallback: !(await this.settings.isConfigured('whatsapp', orgId)) && (await this.settings.isConfigured('whatsapp_platform')),
-      portalStats: await this.portalStats(orgId),
+      portalStats: delegated ? [] : await this.portalStats(orgId),
     };
   }
 
