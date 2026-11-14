@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-14T06:00:41.118Z",
+  "release": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+  "actualSettingsResolver": true,
+  "actualAiUsageDatabaseLogging": true,
+  "textSourceFactsVerified": true,
+  "originalPhotoFactsVerified": true,
+  "sourceReviewRequired": true,
+  "primaryProvider": "openrouter",
+  "configuredProviders": [
+    "openrouter",
+    "qwen_local"
+  ],
+  "httpCalls": 2,
+  "before": {
+    "usage": 0,
+    "usageDaily": 0
+  },
+  "after": {
+    "usage": 0,
+    "usageDaily": 0
+  },
+  "businessRecordsCreated": 0,
+  "toolsExecuted": 0,
+  "outboundMessagesSent": 0
+}

@@ -14,11 +14,19 @@ for (const file of files) {
   if (!/^(apps|packages|ops|docs)\//.test(file) || file.includes('..')) throw Error('Unsafe source reference');
   try {
     const atPin = git('rev-parse', `${pin}:${file}`);
+    const objectType = git('cat-file', '-t', `${pin}:${file}`);
     let working = null;
     try {
-      working = git('hash-object', file);
+      if (objectType === 'tree') {
+        // Trees must compare their tracked contents, plus detect new source files.
+        git('diff', '--quiet', pin, '--', file);
+        const untracked = git('ls-files', '--others', '--exclude-standard', '--', file);
+        if (fs.statSync(file).isDirectory() && !untracked) working = atPin;
+      } else {
+        working = git('hash-object', file);
+      }
     } catch {}
-    byFile.set(file, { path: file, atPin, workingTreeMatchesPin: working === atPin });
+    byFile.set(file, { path: file, objectType, atPin, workingTreeMatchesPin: working === atPin });
   } catch {
     byFile.set(file, { path: file, atPin: null, workingTreeMatchesPin: false });
   }

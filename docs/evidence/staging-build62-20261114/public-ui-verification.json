@@ -1,0 +1,46 @@
+{
+  "at": "2026-11-14T05:53:49.670Z",
+  "release": 62,
+  "preferencesSurviveReload": true,
+  "checks": [
+    {
+      "width": 320,
+      "dark": true,
+      "controlsVisible": true,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "dark": false,
+      "controlsVisible": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "dark": true,
+      "controlsVisible": true,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "dark": false,
+      "controlsVisible": true,
+      "overflow": false
+    },
+    {
+      "width": 1024,
+      "dark": true,
+      "controlsVisible": true,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "dark": false,
+      "controlsVisible": true,
+      "overflow": false
+    }
+  ],
+  "galleryImages": 16,
+  "passwordVisibilityToggle": true,
+  "pageErrors": []
+}

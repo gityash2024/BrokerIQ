@@ -1,0 +1,18 @@
+{
+  "archive": "production-20261113T224121Z.tar.age",
+  "archiveChain": [
+    {
+      "archive": "production-20261113T224121Z.tar.age",
+      "sha256": "c6694d3973c25a8922ea715a3f4b14f45ee91c087f64b94fe9ab13288e8d3f68"
+    }
+  ],
+  "database": "brokeriq_restore_release62_20261114",
+  "snapshotStartedAt": "2026-11-13T22:41:23.115Z",
+  "verifiedAt": "2026-11-13T22:48:37.042914+00:00",
+  "privateKycDocuments": 30,
+  "tablesVerified": 101,
+  "mediaFilesVerified": 867,
+  "mediaBytesVerified": 2522030046,
+  "dumpSha256": "b1125bb1cbb47f3be7b7f104a88c8c04bfd8598139f1cf98f541ae1a63cfa3a5",
+  "result": "VERIFIED_SCRATCH_RESTORE_NO_APPLICATION_STARTED"
+}

@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-14T05:38:40Z",
+  "deletedGeneratedCompilerPaths": [
+    "/opt/brokeriq/releases/rc-63ee54cb6cdc/apps/mobile/android",
+    "/opt/brokeriq/releases/rc-63ee54cb6cdc/node_modules"
+  ],
+  "beforeAvailableBytes": 18700423168,
+  "afterAvailableBytes": 22670008320,
+  "reclaimedBytes": 3969585152,
+  "liveHealth": "ok",
+  "currentProtected": "/opt/brokeriq/releases/rc-980e4ee70968",
+  "signedArtifactRetainedAndVerified": "5cdb5b1f98ff5d4c23db54400ece28e4b23b79b747e36f3debf35ab0def0e35b"
+}

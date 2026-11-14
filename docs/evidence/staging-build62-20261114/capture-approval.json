@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-14T05:47:20.805Z",
+  "release": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "proofSha256": "39ebb51c39789f0cf45a46ae677a68b95dace2ccb7d6f8cd4ea5a921904e49f0",
+  "textCaptureApproved": true,
+  "visionCaptureApproved": true,
+  "mode": "HUMAN_REVIEWED_DRAFTS",
+  "evaluatedRuntimeFilesMatched": true,
+  "credentialUnchanged": true,
+  "otherProviderFieldsUnchanged": true,
+  "autonomySettingsChanged": false
+}

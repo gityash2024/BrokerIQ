@@ -1,0 +1,15 @@
+{
+  "observedAt": "2026-11-14T06:36:00Z",
+  "project": "brokeriq-crm",
+  "brandingStatus": "VERIFIED",
+  "dataAccessStatus": "UNDER_REVIEW",
+  "observedText": "Your app's data access is under review.",
+  "scopes": [
+    "gmail.readonly",
+    "gmail.send"
+  ],
+  "video": "https://youtu.be/tUPaKR6GR2I",
+  "paidAssessmentPurchased": false,
+  "approvalGranted": false,
+  "note": "On 14 November the current screen initially showed unverified and Prepare for verification. The saved demo/justifications were retained. With the existing owner authorization for the exact acknowledgements, the questionnaire was completed and Submit was clicked. Under-review confirmation was then visibly observed. Earlier submission evidence is historical and does not replace this current observation."
+}

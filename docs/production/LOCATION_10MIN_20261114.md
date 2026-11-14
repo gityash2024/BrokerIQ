@@ -1,6 +1,6 @@
 # Ten-minute shift location refresh
 
-Status: source verified; not included in public Build 61. Physical Android acceptance remains deferred.
+Status: published in Build 62 / v2.3.21 on 14 November 2026 at 11:14:12 IST. The signed emulator upgrade and application launch passed. Physical Android acceptance remains deferred.
 
 The previous native and foreground schedules requested fifteen minutes. Browser `watchPosition` could remain silent while stationary. Admin timeline/history queries had no periodic refetch, even though status refreshed. An existing native task registration could also survive an upgrade with its older options.
 

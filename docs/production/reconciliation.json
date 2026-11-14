@@ -5113,11 +5113,11 @@
       "sourceRequests": [
         "2026-11-current-session-followup-addons"
       ],
-      "backend": "ASSISTANCE_VERIFIED_CAPTURE_QUALITY_PENDING",
-      "web": "ASSISTANCE_VERIFIED_CAPTURE_QUALITY_PENDING",
+      "backend": "FREE_CAPTURE_QUALITY_GATE_PASSED_AND_ENABLED",
+      "web": "REVIEWED_DRAFT_CAPTURE_USES_APPROVED_MODEL",
       "androidSource": "NOT_APPLICABLE_OR_EXISTING_SHARED_CLIENT",
-      "shippedBuild": "BUILD61_STAGING_VERIFIED",
-      "verification": "Actual free assistant text/tool-selection diagnostic passed. Reported key usage stayed zero. Actual pinned capture evaluation produced 96 of 101 text records and 5 photo results; unsupported/ambiguous area and OCR prices prevent full quality approval. Capture approval remains OFF; independent reviewed holdout acceptance remains open.",
+      "shippedBuild": "BUILD62_STAGING_CAPTURE_APPROVED",
+      "verification": "Frozen 107-record text holdout: 97.78% critical-field precision and 96.12% business-record recall. Five real photo cases evaluated. Live settings verified text and photo sample facts with zero charged OpenRouter usage. Human review remains required.",
       "notes": [
         "Post-baseline addition; historical 154-request source audit is retained and does not certify these new rows."
       ],
@@ -5135,7 +5135,7 @@
       ],
       "database": "NO_SCHEMA_CHANGE",
       "rootCause": "Later explicit user request or diagnosed regression.",
-      "releaseEvidence": "docs/evidence/staging-build61-20261113/photo-workflows.md"
+      "releaseEvidence": "docs/evidence/staging-build62-20261114/ai-quality-evaluation.json"
     },
     {
       "id": "ADD-LOCATION-10MIN",
@@ -5146,8 +5146,8 @@
       "backend": "EXISTING_AUTHORIZATION_AND_PROVENANCE_REAL_API_VERIFIED",
       "web": "TEN_MINUTE_CAPTURE_AND_HISTORY_REFRESH_SOURCE_VERIFIED",
       "androidSource": "TEN_MINUTE_NATIVE_REGISTRATION_SOURCE_VERIFIED_DEVICE_DEFERRED",
-      "shippedBuild": "PENDING_NEXT_RELEASE_NOT_IN_BUILD61",
-      "verification": "45 mobile tests, 28 API tests including real PostgreSQL, two browser poller tests, TypeScript checks. See LOCATION_10MIN_20261114.md.",
+      "shippedBuild": "BUILD62_STAGING_VERIFIED_DEVICE_DEFERRED",
+      "verification": "45 mobile tracking tests, 28 API cases including real PostgreSQL, two browser poller tests, workspace typechecks and signed APK checks. Build 62 launches on emulator after in-place upgrade. Physical Android GPS cadence remains deferred.",
       "notes": [
         "Preserve active-shift disclosure, manual pause and role/firm isolation. UI polling must not relabel old coordinates as live. Other roles require their existing explicit location permission."
       ],
@@ -5166,28 +5166,29 @@
       "commits": [],
       "database": "PRESERVE_EXISTING_HISTORY",
       "rootCause": "FIFTEEN_MINUTE_CAPTURE_STATIONARY_WATCH_AND_UNPOLLED_HISTORY",
-      "releaseEvidence": null
+      "releaseEvidence": "docs/evidence/staging-build62-20261114/strict-release-verification.json"
     }
   ],
   "latestStagingRelease": {
-    "commit": "980e4ee709683db2984a8e97628863addc7384c2",
-    "androidVersion": "2.3.20",
-    "androidVersionCode": 61,
-    "publishedAt": "2026-11-13T10:48:58.011Z",
-    "publicApkSha256": "cc180ab16ff9f59ee9f9affe71904b3ad58add75dfae556291b21dca15196bf2",
-    "evidence": "docs/evidence/staging-build61-20261113/strict-release-verification.json",
+    "commit": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+    "androidVersion": "2.3.21",
+    "androidVersionCode": 62,
+    "publishedAt": "2026-11-14T05:44:12.949Z",
+    "publicApkSha256": "5cdb5b1f98ff5d4c23db54400ece28e4b23b79b747e36f3debf35ab0def0e35b",
+    "evidence": "docs/evidence/staging-build62-20261114/strict-release-verification.json",
     "physicalAndroidAcceptance": "DEFERRED_BY_USER",
     "browserVisualAcceptance": "PUBLIC_LANDING_CONTROLS_GALLERY_GUIDES_LEGAL_VERIFIED_FULL_ROLE_SIGNOFF_SEPARATE",
-    "gmailReview": "SUBMITTED_UNDER_REVIEW",
-    "captureQuality": "NOT_APPROVED",
-    "fullProductSignoff": false
+    "gmailReview": "SUBMITTED_UNDER_REVIEW_VERIFIED_20261114",
+    "captureQuality": "EXACT_FREE_MODEL_APPROVED_FOR_REVIEWED_DRAFTS",
+    "fullProductSignoff": false,
+    "loadSoak": "RUNNING"
   },
   "latestSourceAudit": {
-    "commit": "88ef337153c7d8c4b1ff032146353bbb9b391446",
-    "mappedRequests": 154,
+    "commit": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+    "mappedRequests": 160,
     "unmappedRequests": 0,
-    "totalRequests": 154,
-    "evidence": "docs/evidence/build54-source-20261104/source-provenance.json",
+    "totalRequests": 160,
+    "evidence": "docs/evidence/staging-build62-20261114/source-provenance.json",
     "sourcePresenceIsNotWorkflowAcceptance": true
   }
 }

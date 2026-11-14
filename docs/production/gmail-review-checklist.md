@@ -34,3 +34,5 @@ The actual QA recording was completed on 13 November 2026. It shows the genuine 
 - Data Access form: the exact URL is saved; Save and Discard are disabled after saving.
 - Final submission completed after the owner confirmed the formal verification and CASA/annual-recertification acknowledgements. Google Verification Center visibly reports **Your app's data access is under review.**
 - Google approval and any required CASA assessment remain external gates. No assessment or payment was purchased.
+
+On 14 November, Verification Center initially offered preparation again. The saved scope justifications and demo were present. The owner had approved the two acknowledgements for this submission. After submission, Verification Center visibly reported **Your app’s data access is under review** and offered **View verification progress**. See the [current observation](../evidence/staging-build62-20261114/gmail-review.json). Approval remains pending.

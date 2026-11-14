@@ -1,0 +1,5688 @@
+{
+  "kind": "SOURCE_PROVENANCE_ONLY",
+  "commit": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+  "generatedAt": "2026-11-14T06:35:41.489Z",
+  "requirementCount": 160,
+  "mappedRequirements": 160,
+  "unmappedRequirements": 0,
+  "referencedFiles": 243,
+  "missingReferencedFiles": 0,
+  "rows": [
+    {
+      "id": "AUTH-01",
+      "requirement": "365-day persistent sessions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/auth/auth.service.ts",
+          "objectType": "blob",
+          "atPin": "72ead9cab01aded5dcb8fe4d3efcf45c11e1b415",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(auth)/login/page.tsx",
+          "objectType": "blob",
+          "atPin": "3d33c9009f3e7c88332e91a502e5d0f72edd2739",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/login.tsx",
+          "objectType": "blob",
+          "atPin": "3cf27a20c8f4b8074e755d2e73452825c28d79d8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "ea2b66b",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-02",
+      "requirement": "Five simultaneous device sessions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/auth/auth.service.ts",
+          "objectType": "blob",
+          "atPin": "72ead9cab01aded5dcb8fe4d3efcf45c11e1b415",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(auth)/login/page.tsx",
+          "objectType": "blob",
+          "atPin": "3d33c9009f3e7c88332e91a502e5d0f72edd2739",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/login.tsx",
+          "objectType": "blob",
+          "atPin": "3cf27a20c8f4b8074e755d2e73452825c28d79d8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "ea2b66b",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-03",
+      "requirement": "Sixth login offers explicit session replacement",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/auth/auth.service.ts",
+          "objectType": "blob",
+          "atPin": "72ead9cab01aded5dcb8fe4d3efcf45c11e1b415",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(auth)/login/page.tsx",
+          "objectType": "blob",
+          "atPin": "3d33c9009f3e7c88332e91a502e5d0f72edd2739",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/login.tsx",
+          "objectType": "blob",
+          "atPin": "3cf27a20c8f4b8074e755d2e73452825c28d79d8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "ea2b66b",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-04",
+      "requirement": "Refresh rotation preserves other devices",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/auth/auth.service.ts",
+          "objectType": "blob",
+          "atPin": "72ead9cab01aded5dcb8fe4d3efcf45c11e1b415",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(auth)/login/page.tsx",
+          "objectType": "blob",
+          "atPin": "3d33c9009f3e7c88332e91a502e5d0f72edd2739",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/login.tsx",
+          "objectType": "blob",
+          "atPin": "3cf27a20c8f4b8074e755d2e73452825c28d79d8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "ea2b66b",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-05",
+      "requirement": "Immediate revoke/suspend enforcement",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/auth/auth.service.ts",
+          "objectType": "blob",
+          "atPin": "72ead9cab01aded5dcb8fe4d3efcf45c11e1b415",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/realtime/realtime.gateway.ts",
+          "objectType": "blob",
+          "atPin": "ffd70a7faa90a670f61c6ebd6d8b8ab48ed943bf",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/device-sessions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "7926ed65d6f3cae1ed82d87384a35242bbce0607",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-06",
+      "requirement": "Logout confirmation on web and Android",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/panel/shell.tsx",
+          "objectType": "blob",
+          "atPin": "9dde8fd2a945876a091a9b15386ff1a0dd9c8ed9",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/broker-settings.tsx",
+          "objectType": "blob",
+          "atPin": "34a3cb6e213c1cecf2566cca52b28e345b9a487b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(user)/profile.tsx",
+          "objectType": "blob",
+          "atPin": "d8a91b40de4e4346a14934ba00a881a23cfb776e",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-07",
+      "requirement": "Account changes clear private caches",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/src/lib/api.ts",
+          "objectType": "blob",
+          "atPin": "7731e5a439c0d50b4dfe2889df9dc701a71eae5e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/auth.ts",
+          "objectType": "blob",
+          "atPin": "84a94007e54efd7c4c3aaaa8dae183624022416b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/account-cache.test.ts",
+          "objectType": "blob",
+          "atPin": "721bc36298df7cf8e59be003660542670b4a691a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/api.ts",
+          "objectType": "blob",
+          "atPin": "9091bf1471f6857f22c708540896c1f41f158989",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/auth.tsx",
+          "objectType": "blob",
+          "atPin": "608812fad99ef09dfbef59b407fd7650ebdb3f0f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/providers.tsx",
+          "objectType": "blob",
+          "atPin": "c2da7f529f58abbfbc745bd528b15906fc26b698",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/local-reminders.ts",
+          "objectType": "blob",
+          "atPin": "41520bdaeb940ae6bc324c35ba65b029e247969b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-navigation.tsx",
+          "objectType": "blob",
+          "atPin": "64592b002e60b4f4a04c9c9e2fb3762997c8e3cc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+          "objectType": "blob",
+          "atPin": "a179779881d3aca2dfc61f7a7867d94b58bca02d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/push-registration.test.ts",
+          "objectType": "blob",
+          "atPin": "6ae8eb55a3d74bf68592cee828afda57c734254c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/launch/drafts.ts",
+          "objectType": "blob",
+          "atPin": "04aa1e6c4881dddadacae2f8e5f24de539081f52",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/inbox-drafts.ts",
+          "objectType": "blob",
+          "atPin": "bc8f9b5629d9439eb5ce98891d7378ae89e6afa2",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/launch/module-gate.tsx",
+          "objectType": "blob",
+          "atPin": "042220f419d51fcd6962a54743e5945b5c10d6af",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/launch/__tests__/draft-scope.test.ts",
+          "objectType": "blob",
+          "atPin": "a5f53b5080ac2f905a106fcd42d16ef94fc5ac74",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/private-drafts.ts",
+          "objectType": "blob",
+          "atPin": "e484497deed251ab4f40a6ffc88dad7ac986364a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/inbox-drafts.ts",
+          "objectType": "blob",
+          "atPin": "7a0709b99f3f91cd7c0aa73ab96cdbe2ad68e703",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/use-inbox-draft.ts",
+          "objectType": "blob",
+          "atPin": "c82e4f5c91a585cec33b3dfa5255b2bfaa8e6bf2",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/panel/module-access.tsx",
+          "objectType": "blob",
+          "atPin": "6d4c4f5888f48ae1871933a07f9a1fae36568063",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/tests/private-scope.test.ts",
+          "objectType": "blob",
+          "atPin": "980ea8f3c6ad399061514c8713e2184bdcacb093",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-01",
+      "requirement": "Reproducible Android release capture protection",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/plugins/with-screen-protection.js",
+          "objectType": "blob",
+          "atPin": "c528e2642db4f95de598e3704f0c840c2c8e1581",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app.config.ts",
+          "objectType": "blob",
+          "atPin": "c24895e66b90127c26b3045d2fe2a506bc0dc3f4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/verify-android-artifact.py",
+          "objectType": "blob",
+          "atPin": "6814df380c30a691b251befaac5eb285b61c67c6",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "7ab7c2d",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-02",
+      "requirement": "Web print/privacy controls with accurate limitations",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/app/globals.css",
+          "objectType": "blob",
+          "atPin": "3185ea8cf29de409a531116fae51aec660b393b8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/privacy/privacy.tsx",
+          "objectType": "blob",
+          "atPin": "60681fbe210b5ad11e21b994c28ac618dc97bfc0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-03",
+      "requirement": "Every screen/action follows role permissions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/test/route-roles.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "ea00f0d76e25ac005ef9266c3230307a4b8d8832",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "3eef6d0",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "e5ba668",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-04",
+      "requirement": "Direct API and URL authorization",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/route-roles.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "ea00f0d76e25ac005ef9266c3230307a4b8d8832",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/layout.tsx",
+          "objectType": "blob",
+          "atPin": "96ae76b7ec69eca82be721ef4d861a31c93e70aa",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/admin/layout.tsx",
+          "objectType": "blob",
+          "atPin": "39c84bf05d0f983fe7d5263035c53f4522726b8d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-05",
+      "requirement": "Firm/record ownership and cross-firm denial",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/team-query.ts",
+          "objectType": "blob",
+          "atPin": "088459702e5c43eb1a004ede4f20f589f0889ce5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/route-roles.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "ea00f0d76e25ac005ef9266c3230307a4b8d8832",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "3eef6d0",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "bf7ab70",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-06",
+      "requirement": "Search/export/realtime/notification/AI scope",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/realtime/realtime.gateway.ts",
+          "objectType": "blob",
+          "atPin": "ffd70a7faa90a670f61c6ebd6d8b8ab48ed943bf",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inbox-composer.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "6c99df8fc5534623d7af240ceebeeff242082309",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/reminders.service.ts",
+          "objectType": "blob",
+          "atPin": "b1ca78f1361a8853635f6df0a9cb85aef11b79b4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/notifications/notifications.service.ts",
+          "objectType": "blob",
+          "atPin": "da2a0878060e775d163c79c4e7618882d34f32b3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/me/me.controller.ts",
+          "objectType": "blob",
+          "atPin": "7693d40e0925f60011551315c341441ad741ac2e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/reminders-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3361de056ba74e11f3fbf7d7a91ce0ec1526f13c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/automation.service.ts",
+          "objectType": "blob",
+          "atPin": "38b1155fa1d833835f733bff65af0baf6eece3d0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-07",
+      "requirement": "Promotion/demotion invalidates stale privileges",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/guards/auth.guard.ts",
+          "objectType": "blob",
+          "atPin": "a26c2a74e494c215797c5578db4c1f2b2394977d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/realtime/realtime.gateway.ts",
+          "objectType": "blob",
+          "atPin": "ffd70a7faa90a670f61c6ebd6d8b8ab48ed943bf",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/admin-business.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "6173a9f1f491807da50e3683e5308b77351c3d83",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/account-cache.test.ts",
+          "objectType": "blob",
+          "atPin": "721bc36298df7cf8e59be003660542670b4a691a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-08",
+      "requirement": "Last active firm administrator protection",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "SECURITY-09",
+      "requirement": "Private KYC upload and authenticated previews",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/local-storage.service.ts",
+          "objectType": "blob",
+          "atPin": "1dcb7145702880016900de3d6c40edb71f5edccc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/kyc-view.ts",
+          "objectType": "blob",
+          "atPin": "34bf852739ca421b95560decc02575ee26a2c1b6",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "fe70dd5a296f6dbcbb2e22e5cd3c15dddefe8399",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-01",
+      "requirement": "Web table/card opens complete property detail",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "6fc7b5f4cc7d85f1e370ec8c5dc062ce3ac84844",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-details.tsx",
+          "objectType": "blob",
+          "atPin": "4b493208ea23548ec8bf560bbafcdcd261053f13",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.controller.ts",
+          "objectType": "blob",
+          "atPin": "dfc2ee8ad96c9388a5b424bc8e6beeca75430920",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-02",
+      "requirement": "Native details and edit field parity",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/app/inventory/[id].tsx",
+          "objectType": "blob",
+          "atPin": "4c59dcec468454ecb9136d463ecaab1201a0e1e1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/inventory-edit.tsx",
+          "objectType": "blob",
+          "atPin": "14ab848f5178e9c8ec2459c07f98d46e2e0d5a4c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/launch/property-extras.tsx",
+          "objectType": "blob",
+          "atPin": "f53f441b58b9c4dc2ebb87c1bea7876326b67579",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory-presentation.ts",
+          "objectType": "blob",
+          "atPin": "96943842ee69c4263bd67e6ee059e796dc21fa7f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-03",
+      "requirement": "Sparse PATCH preserves unrelated data and explicit clears",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/inventory-edit.tsx",
+          "objectType": "blob",
+          "atPin": "14ab848f5178e9c8ec2459c07f98d46e2e0d5a4c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-04",
+      "requirement": "Creator default assignment and admin reassignment",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inventory-admin.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8f9410d25f855446207cdbbba069db05775af808",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/inventory-edit.tsx",
+          "objectType": "blob",
+          "atPin": "14ab848f5178e9c8ec2459c07f98d46e2e0d5a4c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-05",
+      "requirement": "Agent own/assigned inventory only",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.controller.ts",
+          "objectType": "blob",
+          "atPin": "dfc2ee8ad96c9388a5b424bc8e6beeca75430920",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inventory-admin.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8f9410d25f855446207cdbbba069db05775af808",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "3eef6d0",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-06",
+      "requirement": "Distinct floors and units remain distinct",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/inventory/[id].tsx",
+          "objectType": "blob",
+          "atPin": "4c59dcec468454ecb9136d463ecaab1201a0e1e1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-details.tsx",
+          "objectType": "blob",
+          "atPin": "4b493208ea23548ec8bf560bbafcdcd261053f13",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-07",
+      "requirement": "Purpose-aware rent and sale fields",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory-presentation.ts",
+          "objectType": "blob",
+          "atPin": "96943842ee69c4263bd67e6ee059e796dc21fa7f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/inventory-edit.tsx",
+          "objectType": "blob",
+          "atPin": "14ab848f5178e9c8ec2459c07f98d46e2e0d5a4c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inventory-admin.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8f9410d25f855446207cdbbba069db05775af808",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-08",
+      "requirement": "Dataset-wide search filtering and sorting",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/inventory.controller.ts",
+          "objectType": "blob",
+          "atPin": "dfc2ee8ad96c9388a5b424bc8e6beeca75430920",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inventory-admin.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8f9410d25f855446207cdbbba069db05775af808",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-09",
+      "requirement": "Original source/register evidence and page84 exclusion preserved",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/REGISTER_RECONCILIATION.md",
+          "objectType": "blob",
+          "atPin": "730eb0609052a7ff599b992314f10ef7bf2b0934",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INVENTORY-10",
+      "requirement": "Compact table/cards and meaningful actions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "6fc7b5f4cc7d85f1e370ec8c5dc062ce3ac84844",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-details.tsx",
+          "objectType": "blob",
+          "atPin": "4b493208ea23548ec8bf560bbafcdcd261053f13",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/inventory.tsx",
+          "objectType": "blob",
+          "atPin": "47021fae645c42cacffc89c487c7bde3abd090ed",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/inventory/[id].tsx",
+          "objectType": "blob",
+          "atPin": "4c59dcec468454ecb9136d463ecaab1201a0e1e1",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-01",
+      "requirement": "Manual lead creation including agent self-assignment",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/leads.controller.ts",
+          "objectType": "blob",
+          "atPin": "d52f21a12835816b41ce538e1752ea33c8266d4a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/add-lead.tsx",
+          "objectType": "blob",
+          "atPin": "e558a812b1ed0e8cc296a928c3a598442e0e4030",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/add-lead.tsx",
+          "objectType": "blob",
+          "atPin": "1dca630bf0050b3a44346fb52732b262c6a72ce1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-02",
+      "requirement": "Duplicate phone and existing-assignee handling",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/add-lead.tsx",
+          "objectType": "blob",
+          "atPin": "e558a812b1ed0e8cc296a928c3a598442e0e4030",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/add-lead.tsx",
+          "objectType": "blob",
+          "atPin": "1dca630bf0050b3a44346fb52732b262c6a72ce1",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-03",
+      "requirement": "NOT_INTERESTED stage and reasons in both clients",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/lead-export.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8eccc9769a2342a463d41c13612874400de5c696",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/pipeline/page.tsx",
+          "objectType": "blob",
+          "atPin": "ab4ef2ab9725641e8d9ff3450c52e47b5eccd824",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/pipeline.tsx",
+          "objectType": "blob",
+          "atPin": "3e74e94ed49336c98634a44aa540527332f454b6",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-04",
+      "requirement": "Internal inbox from list/detail/swipe/share",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/inbox-composer.ts",
+          "objectType": "blob",
+          "atPin": "e98dade98fffcfd95750421606e232ad010770cf",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/inbox-composer.ts",
+          "objectType": "blob",
+          "atPin": "5bc505085839caa2bfffaa71ef3b59e645a8daf3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/inbox-drafts.ts",
+          "objectType": "blob",
+          "atPin": "bc8f9b5629d9439eb5ce98891d7378ae89e6afa2",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-05",
+      "requirement": "Source/stage/temperature/owner/custom-date filters",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/lead-query.ts",
+          "objectType": "blob",
+          "atPin": "8d11e723dc1d6bf2f95ac1831bb7d3d90cff648e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/lead-export.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8eccc9769a2342a463d41c13612874400de5c696",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/page.tsx",
+          "objectType": "blob",
+          "atPin": "2b6a77ec01a4863f171c8721d6fd39f477732ff8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/leads.tsx",
+          "objectType": "blob",
+          "atPin": "c831b0e3aa57ecc568d208595f6b5243135fba97",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-06",
+      "requirement": "Pipeline and follow-up action parity",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/tasks.controller.ts",
+          "objectType": "blob",
+          "atPin": "75ac1172453278c93fe41788bb5d44ff3a184842",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/lead/[id].tsx",
+          "objectType": "blob",
+          "atPin": "798f903a75969e4204fb0ae407f21c2a7d64a246",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/follow-ups/page.tsx",
+          "objectType": "blob",
+          "atPin": "9df747ee48c57bfa44a7f6aa897c160a21283e89",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "bfba3a1",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-07",
+      "requirement": "Paginated unrestricted visit-property search",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/visits.service.ts",
+          "objectType": "blob",
+          "atPin": "f66ad4395e56c0c7b2fa61793cf11de9e9463825",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/prisma/migrations/20261101100000_visit_inventory_association/migration.sql",
+          "objectType": "blob",
+          "atPin": "de67cdd874fc377791a249750521a991b64770e2",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/visit-property-picker.tsx",
+          "objectType": "blob",
+          "atPin": "e51430663318663ae8b5bf2fee5c86472703bd96",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/visit-property-picker.tsx",
+          "objectType": "blob",
+          "atPin": "c9b5caa08faa4cfdd4a6ba7107ec223a88c981f9",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-08",
+      "requirement": "Visit durable property association and address snapshot",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/visits.service.ts",
+          "objectType": "blob",
+          "atPin": "f66ad4395e56c0c7b2fa61793cf11de9e9463825",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/prisma/migrations/20261101100000_visit_inventory_association/migration.sql",
+          "objectType": "blob",
+          "atPin": "de67cdd874fc377791a249750521a991b64770e2",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/visit-property-picker.tsx",
+          "objectType": "blob",
+          "atPin": "e51430663318663ae8b5bf2fee5c86472703bd96",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/visit-property-picker.tsx",
+          "objectType": "blob",
+          "atPin": "c9b5caa08faa4cfdd4a6ba7107ec223a88c981f9",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-09",
+      "requirement": "Custom visit address and valid IST date/time",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/visits.service.ts",
+          "objectType": "blob",
+          "atPin": "f66ad4395e56c0c7b2fa61793cf11de9e9463825",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/prisma/migrations/20261101100000_visit_inventory_association/migration.sql",
+          "objectType": "blob",
+          "atPin": "de67cdd874fc377791a249750521a991b64770e2",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/visit-property-picker.tsx",
+          "objectType": "blob",
+          "atPin": "e51430663318663ae8b5bf2fee5c86472703bd96",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/visit-property-picker.tsx",
+          "objectType": "blob",
+          "atPin": "c9b5caa08faa4cfdd4a6ba7107ec223a88c981f9",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-10",
+      "requirement": "Reschedule/cancel/complete and reminder deduplication",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/automation/reminders.service.ts",
+          "objectType": "blob",
+          "atPin": "b1ca78f1361a8853635f6df0a9cb85aef11b79b4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/notifications/notifications.service.ts",
+          "objectType": "blob",
+          "atPin": "da2a0878060e775d163c79c4e7618882d34f32b3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/me/me.controller.ts",
+          "objectType": "blob",
+          "atPin": "7693d40e0925f60011551315c341441ad741ac2e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/reminders-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3361de056ba74e11f3fbf7d7a91ce0ec1526f13c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/automation.service.ts",
+          "objectType": "blob",
+          "atPin": "38b1155fa1d833835f733bff65af0baf6eece3d0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/local-reminders.ts",
+          "objectType": "blob",
+          "atPin": "41520bdaeb940ae6bc324c35ba65b029e247969b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-navigation.tsx",
+          "objectType": "blob",
+          "atPin": "64592b002e60b4f4a04c9c9e2fb3762997c8e3cc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+          "objectType": "blob",
+          "atPin": "a179779881d3aca2dfc61f7a7867d94b58bca02d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/push-registration.test.ts",
+          "objectType": "blob",
+          "atPin": "6ae8eb55a3d74bf68592cee828afda57c734254c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-11",
+      "requirement": "Microsite enquiry and QR capture",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/enquiries/enquiries.service.ts",
+          "objectType": "blob",
+          "atPin": "c757daa174639ce8e113d4b235bc6a96611dd5a6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/site/microsite-actions.tsx",
+          "objectType": "blob",
+          "atPin": "45a48e608cfbb2487f1abfe44243ff5a379eef90",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/settings/page.tsx",
+          "objectType": "blob",
+          "atPin": "e89dee508b695e5474f1f4a5b842011e86a2b066",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/broker-settings.tsx",
+          "objectType": "blob",
+          "atPin": "34a3cb6e213c1cecf2566cca52b28e345b9a487b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/microsite-qr.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8054572452f4586d22c1bc3e25bc0b8687841080",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-12",
+      "requirement": "Reviewed voice entry",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/app.config.ts",
+          "objectType": "blob",
+          "atPin": "c24895e66b90127c26b3045d2fe2a506bc0dc3f4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/assistant.tsx",
+          "objectType": "blob",
+          "atPin": "12a8e78ab45cba004c2a68b333083f347d51eb32",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "a99406d",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "LEADS-13",
+      "requirement": "Share/paste quick capture",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/app/handle-share.tsx",
+          "objectType": "blob",
+          "atPin": "3dc824494854d5d94434ddb5bfd3ecd6187c5730",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/capture-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "3217ba552b2482cac0b5890350102b08fb4fe2d1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.controller.ts",
+          "objectType": "blob",
+          "atPin": "f8648ef1d2f886cc454b08a80664a156853512e5",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-01",
+      "requirement": "All group imports enter separate Requirements workspace",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/requirements.controller.ts",
+          "objectType": "blob",
+          "atPin": "8317f4688d51f17cc6aa1bd5a650fe779a3e557a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/requirements/page.tsx",
+          "objectType": "blob",
+          "atPin": "9394be2f4a517ed3d4bdc82813e75c38f8426c57",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/requirements.tsx",
+          "objectType": "blob",
+          "atPin": "ba4c9cf176cea5f3d059ca63991256ab1d85ac22",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-02",
+      "requirement": "Demand/offer/unknown typed records",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/requirements.controller.ts",
+          "objectType": "blob",
+          "atPin": "8317f4688d51f17cc6aa1bd5a650fe779a3e557a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/requirements/page.tsx",
+          "objectType": "blob",
+          "atPin": "9394be2f4a517ed3d4bdc82813e75c38f8426c57",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/requirements.tsx",
+          "objectType": "blob",
+          "atPin": "ba4c9cf176cea5f3d059ca63991256ab1d85ac22",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-03",
+      "requirement": "Multi-property messages split independently",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/capture.ts",
+          "objectType": "blob",
+          "atPin": "57884d43fd99861f77dd5e15f4f8c7119b993817",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/__tests__/capture.test.ts",
+          "objectType": "blob",
+          "atPin": "332998ff9c68299c867ebfe8f0a714108e1f34de",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-04",
+      "requirement": "Sender/group/original timestamp/source/media retained",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/capture-stream.ts",
+          "objectType": "blob",
+          "atPin": "a8904287a45b7dd610fe9f1753c987491f12b778",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/archive-review.ts",
+          "objectType": "blob",
+          "atPin": "d447ca259d91a709e8c1c9fca8d958c91aab2c8c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-05",
+      "requirement": "Group system messages ignored",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/requirements.controller.ts",
+          "objectType": "blob",
+          "atPin": "8317f4688d51f17cc6aa1bd5a650fe779a3e557a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/requirements/page.tsx",
+          "objectType": "blob",
+          "atPin": "9394be2f4a517ed3d4bdc82813e75c38f8426c57",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/requirements.tsx",
+          "objectType": "blob",
+          "atPin": "ba4c9cf176cea5f3d059ca63991256ab1d85ac22",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-06",
+      "requirement": "No invented price phone locality rooms availability",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/capture.ts",
+          "objectType": "blob",
+          "atPin": "57884d43fd99861f77dd5e15f4f8c7119b993817",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-07",
+      "requirement": "Manual idempotent offer-to-inventory conversion",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/requirements.controller.ts",
+          "objectType": "blob",
+          "atPin": "8317f4688d51f17cc6aa1bd5a650fe779a3e557a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/requirements/page.tsx",
+          "objectType": "blob",
+          "atPin": "9394be2f4a517ed3d4bdc82813e75c38f8426c57",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/requirements.tsx",
+          "objectType": "blob",
+          "atPin": "ba4c9cf176cea5f3d059ca63991256ab1d85ac22",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-08",
+      "requirement": "Converted source remains independent and auditable",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/requirements.controller.ts",
+          "objectType": "blob",
+          "atPin": "8317f4688d51f17cc6aa1bd5a650fe779a3e557a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/requirements/page.tsx",
+          "objectType": "blob",
+          "atPin": "9394be2f4a517ed3d4bdc82813e75c38f8426c57",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/requirements.tsx",
+          "objectType": "blob",
+          "atPin": "ba4c9cf176cea5f3d059ca63991256ab1d85ac22",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-09",
+      "requirement": "Demand cannot silently become inventory",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/inventory/requirements.controller.ts",
+          "objectType": "blob",
+          "atPin": "8317f4688d51f17cc6aa1bd5a650fe779a3e557a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/leads/requirements/page.tsx",
+          "objectType": "blob",
+          "atPin": "9394be2f4a517ed3d4bdc82813e75c38f8426c57",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/requirements.tsx",
+          "objectType": "blob",
+          "atPin": "ba4c9cf176cea5f3d059ca63991256ab1d85ac22",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-10",
+      "requirement": "300MB chunked resumable uploads and integrity",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/import-upload.ts",
+          "objectType": "blob",
+          "atPin": "def25bcb3e55cdef4248f3f7321d30763f41ce8e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/__tests__/import-upload.test.ts",
+          "objectType": "blob",
+          "atPin": "c673aeda38d6f5cab88273473ff71763eccc6928",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/import-uploads.service.ts",
+          "objectType": "blob",
+          "atPin": "0fa4990be61d8cbc205d3f8ecef8105fb3e26f82",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-11",
+      "requirement": "Overlapping exports/retries deduplicate",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/import-uploads.service.ts",
+          "objectType": "blob",
+          "atPin": "0fa4990be61d8cbc205d3f8ecef8105fb3e26f82",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-12",
+      "requirement": "Source preview edit ignore retry and extraction versioning",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.controller.ts",
+          "objectType": "blob",
+          "atPin": "f8648ef1d2f886cc454b08a80664a156853512e5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/imports/[id]/page.tsx",
+          "objectType": "blob",
+          "atPin": "de773344a24f2a7b4b6cd94f6e847236e33194b1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/import-review/[id].tsx",
+          "objectType": "blob",
+          "atPin": "a722f243eb626ef5ce6125d7104395fba822673d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-13",
+      "requirement": "ZIP image OCR associated with message",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/archive-media.ts",
+          "objectType": "blob",
+          "atPin": "8d5c606f1922ed5fdde234455055501721322bee",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/archive-review.ts",
+          "objectType": "blob",
+          "atPin": "d447ca259d91a709e8c1c9fca8d958c91aab2c8c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/ocr-process-client.ts",
+          "objectType": "blob",
+          "atPin": "f6dddb16c392e87554d89fccd5388dcfcc9dc2fa",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/imports/[id]/page.tsx",
+          "objectType": "blob",
+          "atPin": "de773344a24f2a7b4b6cd94f6e847236e33194b1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/import-review/[id].tsx",
+          "objectType": "blob",
+          "atPin": "a722f243eb626ef5ce6125d7104395fba822673d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "IMPORTS-14",
+      "requirement": "Historical availability never auto-confirms current stock",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-01",
+      "requirement": "Publish never creates a Requirement",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-02",
+      "requirement": "Verified firm admin direct publication",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-03",
+      "requirement": "Unverified firm Super Admin publication only",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-04",
+      "requirement": "Agent submission follows firm approval hierarchy",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-05",
+      "requirement": "Explicit pending/published/rejected/withdrawn states",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-06",
+      "requirement": "Public preview excludes private sources and contacts",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-07",
+      "requirement": "Rent and normal sale search/detail/share/microsite parity",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "27b629c",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-08",
+      "requirement": "RENTED/SOLD and withdrawal remove current availability",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "27b629c",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "PUBLISH-09",
+      "requirement": "Atomic revision-safe repeat publication",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/publishing.ts",
+          "objectType": "blob",
+          "atPin": "1b3e88882e052903051573418e35c567f7f8ec65",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/listings/listings.service.ts",
+          "objectType": "blob",
+          "atPin": "e9ab7cd190ff89a5c3e677b5f0de3b233b145c41",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/public-publish.tsx",
+          "objectType": "blob",
+          "atPin": "5e2d2f0d32e70403b22032d0d7edf297d2261683",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/publish-rental.tsx",
+          "objectType": "blob",
+          "atPin": "a12406eca108bd1c50df8233d4e6e7faa28fda33",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-01",
+      "requirement": "Website/WhatsApp channel parity",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/whatsapp/inbox-scope.ts",
+          "objectType": "blob",
+          "atPin": "6cef39c9b38e139614efa9ab357060fcb6c98865",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inbox-query.ts",
+          "objectType": "blob",
+          "atPin": "d8afd642e75c42773867116421d9dc23b08958b5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inbox-pagination.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "a8f6b4ccc5a5639c8ce792f436fd438aecb23a71",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/legacy/inbox-page.tsx",
+          "objectType": "blob",
+          "atPin": "2fa45ec94bd742ee7540cda8a1db5d5a8e63f962",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/inbox.tsx",
+          "objectType": "blob",
+          "atPin": "bd9bc5441372e6d7ee275c492ee928371e42fcd8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-02",
+      "requirement": "Housing-linked conversation filtering preserved",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/whatsapp/inbox-scope.ts",
+          "objectType": "blob",
+          "atPin": "6cef39c9b38e139614efa9ab357060fcb6c98865",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inbox-query.ts",
+          "objectType": "blob",
+          "atPin": "d8afd642e75c42773867116421d9dc23b08958b5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inbox-pagination.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "a8f6b4ccc5a5639c8ce792f436fd438aecb23a71",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/legacy/inbox-page.tsx",
+          "objectType": "blob",
+          "atPin": "2fa45ec94bd742ee7540cda8a1db5d5a8e63f962",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/inbox.tsx",
+          "objectType": "blob",
+          "atPin": "bd9bc5441372e6d7ee275c492ee928371e42fcd8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-03",
+      "requirement": "Read/receive/delete counts reconcile",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/whatsapp/inbox-scope.ts",
+          "objectType": "blob",
+          "atPin": "6cef39c9b38e139614efa9ab357060fcb6c98865",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inbox-query.ts",
+          "objectType": "blob",
+          "atPin": "d8afd642e75c42773867116421d9dc23b08958b5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inbox-pagination.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "a8f6b4ccc5a5639c8ce792f436fd438aecb23a71",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/legacy/inbox-page.tsx",
+          "objectType": "blob",
+          "atPin": "2fa45ec94bd742ee7540cda8a1db5d5a8e63f962",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/inbox.tsx",
+          "objectType": "blob",
+          "atPin": "bd9bc5441372e6d7ee275c492ee928371e42fcd8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-04",
+      "requirement": "Unread chats vs messages labelled",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/whatsapp/inbox-scope.ts",
+          "objectType": "blob",
+          "atPin": "6cef39c9b38e139614efa9ab357060fcb6c98865",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inbox-query.ts",
+          "objectType": "blob",
+          "atPin": "d8afd642e75c42773867116421d9dc23b08958b5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inbox-pagination.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "a8f6b4ccc5a5639c8ce792f436fd438aecb23a71",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/legacy/inbox-page.tsx",
+          "objectType": "blob",
+          "atPin": "2fa45ec94bd742ee7540cda8a1db5d5a8e63f962",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/inbox.tsx",
+          "objectType": "blob",
+          "atPin": "bd9bc5441372e6d7ee275c492ee928371e42fcd8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-05",
+      "requirement": "Agent conversation scope including unlinked records",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/whatsapp/inbox-scope.ts",
+          "objectType": "blob",
+          "atPin": "6cef39c9b38e139614efa9ab357060fcb6c98865",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inbox-query.ts",
+          "objectType": "blob",
+          "atPin": "d8afd642e75c42773867116421d9dc23b08958b5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inbox-pagination.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "a8f6b4ccc5a5639c8ce792f436fd438aecb23a71",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/legacy/inbox-page.tsx",
+          "objectType": "blob",
+          "atPin": "2fa45ec94bd742ee7540cda8a1db5d5a8e63f962",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/inbox.tsx",
+          "objectType": "blob",
+          "atPin": "bd9bc5441372e6d7ee275c492ee928371e42fcd8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-06",
+      "requirement": "Message delivery/failure states",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.service.ts",
+          "objectType": "blob",
+          "atPin": "2eb3ab4f4150e2a6d68e84c80259458b3e5a6654",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/whatsapp-receipts.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "94e25124aebe94446f6165f8ba53ae0042955beb",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2e091d1",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-07",
+      "requirement": "Delete chat preserves lead",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.controller.ts",
+          "objectType": "blob",
+          "atPin": "1c625c1d23f11adff4ad241718bce20071757b24",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/chat/chat.controller.ts",
+          "objectType": "blob",
+          "atPin": "42cedbe5266f5b3a71911c7a05af2445ba0d6a44",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-08",
+      "requirement": "Canned replies and internal property sharing",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "docs/production/PROPERTY_INBOX_SHARE_20261104.md",
+          "objectType": "blob",
+          "atPin": "fced75351d5c7684881c4a26e427af224a723176",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/messaging/messaging.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2e64971178a24f517dad110bbf763fec90147b0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-09",
+      "requirement": "No duplicate webhook/outbound echo",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.service.ts",
+          "objectType": "blob",
+          "atPin": "2eb3ab4f4150e2a6d68e84c80259458b3e5a6654",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/whatsapp-receipts.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "94e25124aebe94446f6165f8ba53ae0042955beb",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2e091d1",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-10",
+      "requirement": "No sender self-notification",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/whatsapp/whatsapp.service.ts",
+          "objectType": "blob",
+          "atPin": "2eb3ab4f4150e2a6d68e84c80259458b3e5a6654",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/messaging/gmail.service.ts",
+          "objectType": "blob",
+          "atPin": "efc411aa388c445dde559fc811935fca7797a312",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/notifications-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8c3380962826e7aa16c9e6ea9caacc9c23bde54e",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-11",
+      "requirement": "Push tokens deduplicated",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/notifications/notifications.service.ts",
+          "objectType": "blob",
+          "atPin": "da2a0878060e775d163c79c4e7618882d34f32b3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/notifications-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8c3380962826e7aa16c9e6ea9caacc9c23bde54e",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "INBOX-12",
+      "requirement": "Foreground/background/killed-app push deep links",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/automation/reminders.service.ts",
+          "objectType": "blob",
+          "atPin": "b1ca78f1361a8853635f6df0a9cb85aef11b79b4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/notifications/notifications.service.ts",
+          "objectType": "blob",
+          "atPin": "da2a0878060e775d163c79c4e7618882d34f32b3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/me/me.controller.ts",
+          "objectType": "blob",
+          "atPin": "7693d40e0925f60011551315c341441ad741ac2e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/reminders-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3361de056ba74e11f3fbf7d7a91ce0ec1526f13c",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/local-reminders.ts",
+          "objectType": "blob",
+          "atPin": "41520bdaeb940ae6bc324c35ba65b029e247969b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-navigation.tsx",
+          "objectType": "blob",
+          "atPin": "64592b002e60b4f4a04c9c9e2fb3762997c8e3cc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+          "objectType": "blob",
+          "atPin": "a179779881d3aca2dfc61f7a7867d94b58bca02d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/push-registration.test.ts",
+          "objectType": "blob",
+          "atPin": "6ae8eb55a3d74bf68592cee828afda57c734254c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-01",
+      "requirement": "Agent own KYC and firm status screen",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-02",
+      "requirement": "Firm submission and correct approval hierarchy",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-03",
+      "requirement": "Aadhaar/PAN inputs and validation",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-04",
+      "requirement": "Upload failure retry and rejected resubmission",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-05",
+      "requirement": "Verified fields locked by frontend and API",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-06",
+      "requirement": "Complete document/face previews and no blank cards",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/common/kyc-view.ts",
+          "objectType": "blob",
+          "atPin": "34bf852739ca421b95560decc02575ee26a2c1b6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/launch/kyc-media.tsx",
+          "objectType": "blob",
+          "atPin": "cde13dcce3af4082bb67b9374d5c657b7000dd0b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/kyc-media.tsx",
+          "objectType": "blob",
+          "atPin": "d1efaf47d1697ea200feecbfc4c12fe0b5b5dc15",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-07",
+      "requirement": "Actual on-device face pose and blink gating",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/modules/brokeriq-face-capture",
+          "objectType": "tree",
+          "atPin": "af017257c8882b22b9eced877d5e391073179df6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/native-face-capture.ts",
+          "objectType": "blob",
+          "atPin": "8ebf15498bc0d4d67374ec281be9050ff90f2570",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-08",
+      "requirement": "Capture review/retake and camera shutdown",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/modules/brokeriq-face-capture",
+          "objectType": "tree",
+          "atPin": "af017257c8882b22b9eced877d5e391073179df6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/native-face-capture.ts",
+          "objectType": "blob",
+          "atPin": "8ebf15498bc0d4d67374ec281be9050ff90f2570",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-09",
+      "requirement": "Member reviews restricted to authorized firm admins",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/media/kyc.service.ts",
+          "objectType": "blob",
+          "atPin": "b88d4c76373d124db915649c99ebad524341dd37",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/kyc-privacy.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "fcd0a9ae2cc82de49a206743b89a853e84c3b771",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/kyc.tsx",
+          "objectType": "blob",
+          "atPin": "81fc5d802f745dbeec752add0d420f8892a149e8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "fe70dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "KYC-10",
+      "requirement": "Sensitive media migration preserves document content",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/media/kyc-migration.ts",
+          "objectType": "blob",
+          "atPin": "e93fd9e67e5fef100a4a3e43e25d55532ab923f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/ops/kyc-private-migration.ts",
+          "objectType": "blob",
+          "atPin": "4d8372798acbf21f90df7d69ef04e23b87d93ebe",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/KYC_MIGRATION_REHEARSAL.md",
+          "objectType": "blob",
+          "atPin": "09ce663e274433f815914f2fb3eed1966463209d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "e90cc8cfdba9ca0f67ddb2ce8f7acc4e7765fef6",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-01",
+      "requirement": "Invite/accept/expire/resend flows",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "3367306",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-02",
+      "requirement": "Promote/demote/suspend/remove flows",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-03",
+      "requirement": "Reassign pending work when membership changes",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/reminders.service.ts",
+          "objectType": "blob",
+          "atPin": "b1ca78f1361a8853635f6df0a9cb85aef11b79b4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/automation.service.ts",
+          "objectType": "blob",
+          "atPin": "38b1155fa1d833835f733bff65af0baf6eece3d0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/reminders-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3361de056ba74e11f3fbf7d7a91ce0ec1526f13c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-04",
+      "requirement": "Separate member detail/edit pages with back navigation",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/team-member/[id].tsx",
+          "objectType": "blob",
+          "atPin": "9a23a0a056854d4b093ede9e16c44f0b1e65f786",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/[id]/page.tsx",
+          "objectType": "blob",
+          "atPin": "ae3ea1299ba27ad7aee1e05c92f3eee65da48d97",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-05",
+      "requirement": "Editable permitted profile and targets",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/team-member/[id].tsx",
+          "objectType": "blob",
+          "atPin": "9a23a0a056854d4b093ede9e16c44f0b1e65f786",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/[id]/page.tsx",
+          "objectType": "blob",
+          "atPin": "ae3ea1299ba27ad7aee1e05c92f3eee65da48d97",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-06",
+      "requirement": "Real target fulfillment and zero-state metrics",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/team-query.ts",
+          "objectType": "blob",
+          "atPin": "088459702e5c43eb1a004ede4f20f589f0889ce5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/dashboard/dashboard.service.ts",
+          "objectType": "blob",
+          "atPin": "62771235f70497d2eedd5b35022a3f5cecc22c4b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/team-member/[id].tsx",
+          "objectType": "blob",
+          "atPin": "9a23a0a056854d4b093ede9e16c44f0b1e65f786",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-07",
+      "requirement": "Separate leaderboard screen for each permitted role",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/app/broker/team/leaderboard/page.tsx",
+          "objectType": "blob",
+          "atPin": "de4af9e60ab83c3912a96bd3c4af32d7f195771e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/admin/team/leaderboard/page.tsx",
+          "objectType": "blob",
+          "atPin": "852103d47939aca52caec097da60779af4235bf8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/leaderboard.tsx",
+          "objectType": "blob",
+          "atPin": "de5ca033471a776ace97ddecc04e7d74b5c69e61",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-08",
+      "requirement": "Agent leaderboard excludes admin/private team data",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/broker/team/team-leaderboard.tsx",
+          "objectType": "blob",
+          "atPin": "d7f3f3bd0679a3d55d3f62e0c895651c7f61123e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/leaderboard.tsx",
+          "objectType": "blob",
+          "atPin": "de5ca033471a776ace97ddecc04e7d74b5c69e61",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/team-query.ts",
+          "objectType": "blob",
+          "atPin": "088459702e5c43eb1a004ede4f20f589f0889ce5",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-09",
+      "requirement": "Team/KYC role status member search and date filters",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/team-query.ts",
+          "objectType": "blob",
+          "atPin": "088459702e5c43eb1a004ede4f20f589f0889ce5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/page.tsx",
+          "objectType": "blob",
+          "atPin": "f54e7fdc29c41aaab752bdb1fb5381c500bcd297",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/kyc/page.tsx",
+          "objectType": "blob",
+          "atPin": "094780d9860ef493c9f9055d6569434f8dae5684",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/team.tsx",
+          "objectType": "blob",
+          "atPin": "919667ea243b1c23978ce974f9d900abc3f4aa1a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/agent-kyc.tsx",
+          "objectType": "blob",
+          "atPin": "ef78972d9d8401d5ace953330011de6e20f7f91a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-10",
+      "requirement": "CSV/XLSX/PDF selected and filtered exports",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/team-export.spec.ts",
+          "objectType": "blob",
+          "atPin": "3ffe758b9586e65cda46b137f000370dce98d295",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/team.tsx",
+          "objectType": "blob",
+          "atPin": "919667ea243b1c23978ce974f9d900abc3f4aa1a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-11",
+      "requirement": "Applicable web tables numeric/date/text sorting",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/ui/sortable-header.tsx",
+          "objectType": "blob",
+          "atPin": "75098d7b7fcf450d73ffc6d49a3fdefc88060eba",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/page.tsx",
+          "objectType": "blob",
+          "atPin": "f54e7fdc29c41aaab752bdb1fb5381c500bcd297",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/team-query.ts",
+          "objectType": "blob",
+          "atPin": "088459702e5c43eb1a004ede4f20f589f0889ce5",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TEAM-12",
+      "requirement": "Location address accuracy and freshness displayed",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/organizations/team-query.ts",
+          "objectType": "blob",
+          "atPin": "088459702e5c43eb1a004ede4f20f589f0889ce5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/time-logging/page.tsx",
+          "objectType": "blob",
+          "atPin": "90e00fe7b5d1aec0a335da6bc082a1348a95bd75",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/team-member/[id].tsx",
+          "objectType": "blob",
+          "atPin": "9a23a0a056854d4b093ede9e16c44f0b1e65f786",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-01",
+      "requirement": "Agent web route and native shift screen access",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-02",
+      "requirement": "Single active shift under concurrent actions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-03",
+      "requirement": "Manual pause distinct from GPS/interruption pause",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-04",
+      "requirement": "Real Android background task and foreground notification",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-05",
+      "requirement": "Permission/GPS/battery/network/restart recovery",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-06",
+      "requirement": "Original capture time and server receive time",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-07",
+      "requirement": "Idempotent account/shift-bound offline event replay",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-08",
+      "requirement": "No stale location labelled live",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-09",
+      "requirement": "Agent/admin/Super Admin history scopes",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "TRACKING-10",
+      "requirement": "Browser background limitations represented honestly",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/time-logging/time-logging.service.ts",
+          "objectType": "blob",
+          "atPin": "dad40756b7dfa81b220158eccf40b537cc472fda",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/shift-location-outbox.ts",
+          "objectType": "blob",
+          "atPin": "f00d9d79b8c497655f44081f51e7b37c8ead08be",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-01",
+      "requirement": "Module-wise sidebar accordions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/panel/shell.tsx",
+          "objectType": "blob",
+          "atPin": "9dde8fd2a945876a091a9b15386ff1a0dd9c8ed9",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/layout.tsx",
+          "objectType": "blob",
+          "atPin": "96ae76b7ec69eca82be721ef4d861a31c93e70aa",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/modules.ts",
+          "objectType": "blob",
+          "atPin": "13c6b9503ee52e8f7dd8c19f3d32172a045e1ec0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "6c2fa7fff0881ef7762a334382281475e5ddaff0",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "bef8cdea8f68872a214a60425de0dcc916e4f139",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-02",
+      "requirement": "Global search language theme notifications only in topbar",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/panel/shell.tsx",
+          "objectType": "blob",
+          "atPin": "9dde8fd2a945876a091a9b15386ff1a0dd9c8ed9",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/layout.tsx",
+          "objectType": "blob",
+          "atPin": "96ae76b7ec69eca82be721ef4d861a31c93e70aa",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "6c2fa7fff0881ef7762a334382281475e5ddaff0",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-03",
+      "requirement": "Settings near profile/logout",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/panel/shell.tsx",
+          "objectType": "blob",
+          "atPin": "9dde8fd2a945876a091a9b15386ff1a0dd9c8ed9",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-04",
+      "requirement": "Active tools discoverable and Coming Soon disabled",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/panel/shell.tsx",
+          "objectType": "blob",
+          "atPin": "9dde8fd2a945876a091a9b15386ff1a0dd9c8ed9",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/modules.ts",
+          "objectType": "blob",
+          "atPin": "13c6b9503ee52e8f7dd8c19f3d32172a045e1ec0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/panel/module-access.tsx",
+          "objectType": "blob",
+          "atPin": "6d4c4f5888f48ae1871933a07f9a1fae36568063",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "bef8cdea8f68872a214a60425de0dcc916e4f139",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "b9d12b3b7b6c2c67bbf29fbe30c0389d1cf43105",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-05",
+      "requirement": "Native navigation compact headers and touch controls",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/src/ui/index.tsx",
+          "objectType": "blob",
+          "atPin": "1eb1196c3bda6ac5c1bbd7d207fb867b1c9d4327",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-bell.tsx",
+          "objectType": "blob",
+          "atPin": "e4a1f191057ad56e162d4f937b5742898653fc83",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/launch/screen.tsx",
+          "objectType": "blob",
+          "atPin": "ff9b35060300252fa21fa1370b1a4bc97dd9575f",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c762513e4bf6f85e8a26269f5f178bc9f1d1772",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "b5c70ff",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-06",
+      "requirement": "All enabled languages preserved",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/i18n/languages.ts",
+          "objectType": "blob",
+          "atPin": "1d44bd7a5a363829552d14015732b759f1466f05",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/i18n/locales/hi.json",
+          "objectType": "blob",
+          "atPin": "8ae3eb0045adccac484d89309e9f9e047075a86d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/i18n/locales/en.json",
+          "objectType": "blob",
+          "atPin": "4e9d22ec9e85d066647519b7bbe12e272a48a0d1",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-07",
+      "requirement": "Dialogs/errors/placeholders/export labels translated",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/i18n/translate.ts",
+          "objectType": "blob",
+          "atPin": "b4c576ea83cba78530814a62278a266a9febd9dc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/i18n/locales/hi.json",
+          "objectType": "blob",
+          "atPin": "8ae3eb0045adccac484d89309e9f9e047075a86d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/i18n/locales/en.json",
+          "objectType": "blob",
+          "atPin": "4e9d22ec9e85d066647519b7bbe12e272a48a0d1",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-08",
+      "requirement": "Dark/light contrast and active tabs",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/app/globals.css",
+          "objectType": "blob",
+          "atPin": "3185ea8cf29de409a531116fae51aec660b393b8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/ui/theme-toggle.tsx",
+          "objectType": "blob",
+          "atPin": "c8fa0354001473e1a93b7f6876881328b1e65f3d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/theme.ts",
+          "objectType": "blob",
+          "atPin": "b8dd8f9335a959a7ec7bc485a93f969783f0050e",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "UI-09",
+      "requirement": "Role-specific actionable dashboard and correct drilldowns",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/dashboard/dashboard.service.ts",
+          "objectType": "blob",
+          "atPin": "62771235f70497d2eedd5b35022a3f5cecc22c4b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/dashboard/dashboard.tsx",
+          "objectType": "blob",
+          "atPin": "cd0cd7fcfca6be3d94f963c2b758d4aaf2b3f33b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/(broker)/dashboard.tsx",
+          "objectType": "blob",
+          "atPin": "1e3d5783311dfbfe80e62e815d5ab0f38ee88380",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/dashboard.ts",
+          "objectType": "blob",
+          "atPin": "0875ee2f01a702e3a0ed8997bdd8e10ba53dd5a5",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-01",
+      "requirement": "Reuse bounded local Qwen without changing other products",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/ai/ai.service.spec.ts",
+          "objectType": "blob",
+          "atPin": "8c8dde45700a78523ba607bbe980716d55082617",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/ai/ai.service.ts",
+          "objectType": "blob",
+          "atPin": "c81c19ff04299e2529dca9335d53032a7c21e76a",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "e00f46b",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-02",
+      "requirement": "Free-only provider/capability fallback",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/ai/ai.service.ts",
+          "objectType": "blob",
+          "atPin": "c81c19ff04299e2529dca9335d53032a7c21e76a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/ai/ai.service.spec.ts",
+          "objectType": "blob",
+          "atPin": "8c8dde45700a78523ba607bbe980716d55082617",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-03",
+      "requirement": "Durable resumable import jobs",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/jobs/jobs.service.ts",
+          "objectType": "blob",
+          "atPin": "b7b9514ab3b561a13d423ff0aecdfd7898968f00",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/JOB_QUEUE_20261102.md",
+          "objectType": "blob",
+          "atPin": "b47101b6b4401576b1c97376df262256218e199d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "c8becef1f23512d381b8f739721798d919c7c3aa",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-04",
+      "requirement": "Real group evaluation and holdout",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "docs/production/LOCAL_QWEN_20261102.md",
+          "objectType": "blob",
+          "atPin": "4c6e9a9782478572c5638b33f79742650749edc4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/ZIP_PHOTO_OCR_20261104.md",
+          "objectType": "blob",
+          "atPin": "738a6830ce5de8e2be814f4d9505dc64062298e5",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-05",
+      "requirement": "Meaningful structured titles and uncertain-field review",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/assistant/tools.ts",
+          "objectType": "blob",
+          "atPin": "070c83349f45fe2b5bea6d4d349dfc14e381efd1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/capture.ts",
+          "objectType": "blob",
+          "atPin": "57884d43fd99861f77dd5e15f4f8c7119b993817",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "cc1fb7f",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-06",
+      "requirement": "Tenant-scoped corrections/examples without raw-chat training",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/ZIP_PHOTO_OCR_20261104.md",
+          "objectType": "blob",
+          "atPin": "738a6830ce5de8e2be814f4d9505dc64062298e5",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-07",
+      "requirement": "Draft approval default and admin-only mode control",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/assistant/assistant.service.ts",
+          "objectType": "blob",
+          "atPin": "b73d7dae68bbd70c805a82625d54d8b22fecd1f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/assistant.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "78e073557d931ddc372c57a6b5faed22358747a1",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-08",
+      "requirement": "Allowlisted autonomous follow-up and CRM actions",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/leads/leads.service.ts",
+          "objectType": "blob",
+          "atPin": "4fe0ceffa2ca456d82fb9152231f5d7e728c44a0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/automation.service.ts",
+          "objectType": "blob",
+          "atPin": "38b1155fa1d833835f733bff65af0baf6eece3d0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/reminders.service.ts",
+          "objectType": "blob",
+          "atPin": "b1ca78f1361a8853635f6df0a9cb85aef11b79b4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/team-release.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "adec05807cdf2da54c4641b4a34edbfae276ce8b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/reminders-production.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3361de056ba74e11f3fbf7d7a91ce0ec1526f13c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-09",
+      "requirement": "RBAC audited idempotent actions pause and quiet hours",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/assistant/assistant.service.ts",
+          "objectType": "blob",
+          "atPin": "b73d7dae68bbd70c805a82625d54d8b22fecd1f7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/automation/reminders.service.ts",
+          "objectType": "blob",
+          "atPin": "b1ca78f1361a8853635f6df0a9cb85aef11b79b4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/assistant.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "78e073557d931ddc372c57a6b5faed22358747a1",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AI-10",
+      "requirement": "No automatic outreach from imported group posts",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/source-ledger.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "3b64fb10fca297164cd8f3072c5e51d68b469df8",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-01",
+      "requirement": "All-firms view without first-firm fallback",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/admin/admin-business.controller.ts",
+          "objectType": "blob",
+          "atPin": "b7239f0ba72a5bc9a35b25d2726dcbb5d4040337",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/admin/admin-business.service.ts",
+          "objectType": "blob",
+          "atPin": "90502d8bddc84b03175d750fb63458a15c7f062f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/admin/business-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "3acc8584d3adf4d6498ee52f4f15dbfd2d098567",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/admin-business.ts",
+          "objectType": "blob",
+          "atPin": "41d8c1725018365901d72b0da9db031256c69365",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-02",
+      "requirement": "Explicit firm/member hierarchy and selectors",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/admin/admin-business.controller.ts",
+          "objectType": "blob",
+          "atPin": "b7239f0ba72a5bc9a35b25d2726dcbb5d4040337",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/admin/admin-business.service.ts",
+          "objectType": "blob",
+          "atPin": "90502d8bddc84b03175d750fb63458a15c7f062f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/inventory/inventory.service.ts",
+          "objectType": "blob",
+          "atPin": "23ab03b4c4862244b3961b0fcbe768dd5985ea9e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/inventory-admin.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "8f9410d25f855446207cdbbba069db05775af808",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/admin/team/page.tsx",
+          "objectType": "blob",
+          "atPin": "c8c59f62897d3b4df3b6807eb7f85b25c6b92213",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/time-logging/page.tsx",
+          "objectType": "blob",
+          "atPin": "90e00fe7b5d1aec0a335da6bc082a1348a95bd75",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/admin/business-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "3acc8584d3adf4d6498ee52f4f15dbfd2d098567",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "6fc7b5f4cc7d85f1e370ec8c5dc062ce3ac84844",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/admin-business.ts",
+          "objectType": "blob",
+          "atPin": "41d8c1725018365901d72b0da9db031256c69365",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/team.ts",
+          "objectType": "blob",
+          "atPin": "afde1efb4ace03f71c36764824eac5c0f83ab489",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-03",
+      "requirement": "All active business modules drill down",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/admin/admin-business.controller.ts",
+          "objectType": "blob",
+          "atPin": "b7239f0ba72a5bc9a35b25d2726dcbb5d4040337",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/admin/admin-business.service.ts",
+          "objectType": "blob",
+          "atPin": "90502d8bddc84b03175d750fb63458a15c7f062f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/admin/business-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "3acc8584d3adf4d6498ee52f4f15dbfd2d098567",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/admin-business.ts",
+          "objectType": "blob",
+          "atPin": "41d8c1725018365901d72b0da9db031256c69365",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-04",
+      "requirement": "Counts search pagination archive and exports reconcile",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/admin/admin-business.controller.ts",
+          "objectType": "blob",
+          "atPin": "b7239f0ba72a5bc9a35b25d2726dcbb5d4040337",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/admin/admin-business.service.ts",
+          "objectType": "blob",
+          "atPin": "90502d8bddc84b03175d750fb63458a15c7f062f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/admin/business-workspace.tsx",
+          "objectType": "blob",
+          "atPin": "3acc8584d3adf4d6498ee52f4f15dbfd2d098567",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/admin-business.ts",
+          "objectType": "blob",
+          "atPin": "41d8c1725018365901d72b0da9db031256c69365",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-05",
+      "requirement": "Credentials masked and sensitive views audited",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/settings/settings.service.ts",
+          "objectType": "blob",
+          "atPin": "549e034d6e0ad4c5017e3318d378223da1cc533a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/organizations/organizations.controller.ts",
+          "objectType": "blob",
+          "atPin": "b2513e5c3493d5e5f1bc499eb7715c0360d9fcbb",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/route-roles.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "ea00f0d76e25ac005ef9266c3230307a4b8d8832",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-06",
+      "requirement": "Existing invoices numbering and exports verified",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/invoices/invoices.service.ts",
+          "objectType": "blob",
+          "atPin": "b2cb46c5df3fefbef8cb0deb3f09ddd81873f2b0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/growth.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "1fbf171135500b51356109d9aaf91ca01d0ade3b",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-07",
+      "requirement": "SMTP encrypted configuration and actual delivery",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "docs/production/EMAIL_INTEGRATION.md",
+          "objectType": "blob",
+          "atPin": "8811b8c991f5e7b06d97445c444007dbe81fab55",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "a40f80a",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-08",
+      "requirement": "Housing WhatsApp FCM media and AI live acceptance",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "docs/production/PROVIDER_AND_ROUTE_CHECKPOINT_20261104.md",
+          "objectType": "blob",
+          "atPin": "3c8b8b99d64a186c8ba2c80d7dfae8be382d869a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/STAGING_ACCEPTANCE_20261102.md",
+          "objectType": "blob",
+          "atPin": "d0a398765247074c40de5630c3e0467fb7ba9c61",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADMIN-09",
+      "requirement": "Settings-linked integration errors",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/errors.ts",
+          "objectType": "blob",
+          "atPin": "3ad2161f4b0cc6a225dd046c2930a3f4b0356721",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/ui/api-error.tsx",
+          "objectType": "blob",
+          "atPin": "74e48b6f1eab791e57741a8ff306b551fd368d0f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/messaging/gmail.service.ts",
+          "objectType": "blob",
+          "atPin": "efc411aa388c445dde559fc811935fca7797a312",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-01",
+      "requirement": "Safe server cache cleanup with all-service health proof",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "docs/production/SERVER_CLEANUP.md",
+          "objectType": "blob",
+          "atPin": "964052ed7039f9cae2c9332f169fe7c15404dc38",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/evidence/production-20261101/server-cleanup-before.json",
+          "objectType": "blob",
+          "atPin": "1f1c8191cb578cf219bd1e374fa9e98f4454e5c5",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/evidence/production-20261101/server-cleanup-after.json",
+          "objectType": "blob",
+          "atPin": "de8e5754735297dc674a2b4f8f7013824de5c8dd",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "de27f34",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-02",
+      "requirement": "Real API/PostgreSQL release tests never simulator fallback",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/jest.config.js",
+          "objectType": "blob",
+          "atPin": "9a5b2741ae9bf27fa3311baa4fa7e2ceab511230",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/setup-db.sh",
+          "objectType": "blob",
+          "atPin": "3dab8bbd1b3e8b7f0d9d5b65d7558423b352df0b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/production-permissions.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "d97762b2eed5a8437cba64f3cb60bca26adf5ab0",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "a675735",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "511817d",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-03",
+      "requirement": "Tracked native configuration survives clean prebuild",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/plugins/with-screen-protection.js",
+          "objectType": "blob",
+          "atPin": "c528e2642db4f95de598e3704f0c840c2c8e1581",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/plugins/screen-protection.test.cjs",
+          "objectType": "blob",
+          "atPin": "ba8f78c8e8c519c846fb9f2ac188448134399422",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/build-android-release.sh",
+          "objectType": "blob",
+          "atPin": "91aab3a40f05426c611907db0af5ac1d7024541f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/verify-android-artifact.py",
+          "objectType": "blob",
+          "atPin": "6814df380c30a691b251befaac5eb285b61c67c6",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "7ab7c2d",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "a99406d",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "92b1b16",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-04",
+      "requirement": "Fresh immutable candidate built from exact tested commit",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "ops/prepare-staging-source.sh",
+          "objectType": "blob",
+          "atPin": "ab204631c3b60cb7b561cdc7269662508fb4b8e6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/prepare-staging-candidate.sh",
+          "objectType": "blob",
+          "atPin": "2af09637c9abe84b618b58fc83383b27f768a51e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/activate-staging-release.sh",
+          "objectType": "blob",
+          "atPin": "b18fab6b5a2f767002e77e98d0231a7d2037aed8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/start-pinned-processes.cjs",
+          "objectType": "blob",
+          "atPin": "ffd494e5bb52bf85d69f102f8b122974db07e313",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "be21ed4",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "c425aa8",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "08e8a7d",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-05",
+      "requirement": "Backward-compatible reviewed migrations and verified restore",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "ops/verify-private-backup.py",
+          "objectType": "blob",
+          "atPin": "d90730acdaa879cfbce4a6bd2fea7eb215a10705",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/backup-delta-private.py",
+          "objectType": "blob",
+          "atPin": "ef15b1124c52d08e16edaddcd50338b8bbce9646",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/activate-staging-release.sh",
+          "objectType": "blob",
+          "atPin": "b18fab6b5a2f767002e77e98d0231a7d2037aed8",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/rollback-api-build45-db43.cjs",
+          "objectType": "blob",
+          "atPin": "1a257afcc694cb7b9ce5df4b5418adb34f0e640e",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "4b521ad",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "92b1b16",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "c425aa8",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "f27ba0d",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-06",
+      "requirement": "Existing Android signing identity and upgrade preservation",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/plugins/with-release-signing.js",
+          "objectType": "blob",
+          "atPin": "497f9111f5e83ec88d3fdf2c5d53167da6261606",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/build-android-release.sh",
+          "objectType": "blob",
+          "atPin": "91aab3a40f05426c611907db0af5ac1d7024541f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/verify-android-artifact.py",
+          "objectType": "blob",
+          "atPin": "6814df380c30a691b251befaac5eb285b61c67c6",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "8afcf2c",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "a99406d",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "92b1b16",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-07",
+      "requirement": "Artifact hash/embedded identity/public download agree",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "ops/verify-active-staging-release.cjs",
+          "objectType": "blob",
+          "atPin": "63f8c39eb41d40238a6080e37026121e8299e02a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/verify-android-artifact.py",
+          "objectType": "blob",
+          "atPin": "6814df380c30a691b251befaac5eb285b61c67c6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/prepublish-staging-apk.cjs",
+          "objectType": "blob",
+          "atPin": "6ce3162df595f31aba44d106f61577f152843b19",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "679d940",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "92b1b16",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "f0c0b5f",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-08",
+      "requirement": "Release manifest drives versions timestamps and links",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "ops/prepare-staging-candidate.sh",
+          "objectType": "blob",
+          "atPin": "2af09637c9abe84b618b58fc83383b27f768a51e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/update-active-release.cjs",
+          "objectType": "blob",
+          "atPin": "4801240201f14cc8cf99db5c9d2fe813e864c15f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(site)/page.tsx",
+          "objectType": "blob",
+          "atPin": "635fb8a921e893bbcaa2511dc6dae440568ba26d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/release.ts",
+          "objectType": "blob",
+          "atPin": "83828f6fdfd586be85f677092ef3010a3ba4b7ec",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/release.json/route.ts",
+          "objectType": "blob",
+          "atPin": "8b7f94fa2b4cc3b1c441d30a3f6aeee1b17f9050",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "be21ed4",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "08e8a7d",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "ef1ac65",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-09",
+      "requirement": "Actual new screenshots with build provenance",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/app/(site)/page.tsx",
+          "objectType": "blob",
+          "atPin": "635fb8a921e893bbcaa2511dc6dae440568ba26d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/render-user-guides.py",
+          "objectType": "blob",
+          "atPin": "ee5b88f0db91b8499a7ea76d46b55324a3b6949d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-10",
+      "requirement": "Accurate Terms/Privacy/support and disclosure content",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/prisma/legal-pages.ts",
+          "objectType": "blob",
+          "atPin": "95ceec7e4427128be7c96af8a2a699c6184d06ac",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/prisma/update-launch-policies.ts",
+          "objectType": "blob",
+          "atPin": "c3b66a2faeba8714c06f61623ada4c5101a1d55b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/app-config.ts",
+          "objectType": "blob",
+          "atPin": "beffbde2a953dc31b2e6fe72637d01ad9608acd4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(site)/contact/page.tsx",
+          "objectType": "blob",
+          "atPin": "c510e2b4b9b21c2aecf369817cb1885261b87ee3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(site)/account-deletion/page.tsx",
+          "objectType": "blob",
+          "atPin": "b957e52399950bb660189289644b536fd9b4b5b0",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/edit-profile.tsx",
+          "objectType": "blob",
+          "atPin": "c18e8f981a7c45368f49e96c2e8b19578b7de423",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "65f0fb4",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-11",
+      "requirement": "Hindi/English Broker and Super Admin PDF manuals",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "docs/production/manuals/broker.json",
+          "objectType": "blob",
+          "atPin": "8ab0d10a5e0c6e87759ce78fc0a3801d2b2a1a3f",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/manuals/super-admin.json",
+          "objectType": "blob",
+          "atPin": "02f3ac6c00152500ac21d7abff4ea61a137770d6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/render-user-guides.py",
+          "objectType": "blob",
+          "atPin": "ee5b88f0db91b8499a7ea76d46b55324a3b6949d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-12",
+      "requirement": "20 concurrent CRM sessions and representative soak",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/test/crm-load.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "15916b2108200250eb70a11ff8cb79e95a3f80e4",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "RELEASE-13",
+      "requirement": "Backup off-host copy rollback monitoring and operations handoff",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "ops/backup-delta-private.py",
+          "objectType": "blob",
+          "atPin": "ef15b1124c52d08e16edaddcd50338b8bbce9646",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "ops/verify-private-backup.py",
+          "objectType": "blob",
+          "atPin": "d90730acdaa879cfbce4a6bd2fea7eb215a10705",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/BACKUP_RESTORE_20261101.md",
+          "objectType": "blob",
+          "atPin": "8b1fbabbd7a247eacd9fb0151754c03d0d41d114",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "docs/production/STAGING_RELEASE_RUNBOOK.md",
+          "objectType": "blob",
+          "atPin": "4a5df32f72313f5b77ed06383667a4bd401abdeb",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "92b1b16",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "4b521ad",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "c425aa8",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-NOTIFY-01",
+      "requirement": "Correct notification/push navigation across foreground/background/cold start and bare app links",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/notification-links.ts",
+          "objectType": "blob",
+          "atPin": "e1220dc305decab1220dcdc07404c02622f05410",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-navigation.tsx",
+          "objectType": "blob",
+          "atPin": "64592b002e60b4f4a04c9c9e2fb3762997c8e3cc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-bell.tsx",
+          "objectType": "blob",
+          "atPin": "e4a1f191057ad56e162d4f937b5742898653fc83",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/me/me.controller.ts",
+          "objectType": "blob",
+          "atPin": "7693d40e0925f60011551315c341441ad741ac2e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(site)/notification/page.tsx",
+          "objectType": "blob",
+          "atPin": "158f0ed6d9702ee5e665acd0fe6da17cf713c4f6",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/local-reminders.ts",
+          "objectType": "blob",
+          "atPin": "41520bdaeb940ae6bc324c35ba65b029e247969b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/local-reminders.test.ts",
+          "objectType": "blob",
+          "atPin": "a179779881d3aca2dfc61f7a7867d94b58bca02d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/__tests__/push-registration.test.ts",
+          "objectType": "blob",
+          "atPin": "6ae8eb55a3d74bf68592cee828afda57c734254c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c76251",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-NOTIFY-02",
+      "requirement": "Mobile top-header notification bell and consistent unread/read states",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/notification-links.ts",
+          "objectType": "blob",
+          "atPin": "e1220dc305decab1220dcdc07404c02622f05410",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-navigation.tsx",
+          "objectType": "blob",
+          "atPin": "64592b002e60b4f4a04c9c9e2fb3762997c8e3cc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/notification-bell.tsx",
+          "objectType": "blob",
+          "atPin": "e4a1f191057ad56e162d4f937b5742898653fc83",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/me/me.controller.ts",
+          "objectType": "blob",
+          "atPin": "7693d40e0925f60011551315c341441ad741ac2e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(site)/notification/page.tsx",
+          "objectType": "blob",
+          "atPin": "158f0ed6d9702ee5e665acd0fe6da17cf713c4f6",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "2c76251",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-CRM-EMAIL-01",
+      "requirement": "Gmail Inbox, replies and complete permitted Lead communication trail",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/gmail/gmail.client.ts",
+          "objectType": "blob",
+          "atPin": "bd2dd158cf4cdf7ee85b510d0965b099783f2bf7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/messaging/gmail.service.ts",
+          "objectType": "blob",
+          "atPin": "efc411aa388c445dde559fc811935fca7797a312",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/gmail-authorization.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "1a8b66e54344f93d8cd7e40d32b09526ce0e068b",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/sms-thread.tsx",
+          "objectType": "blob",
+          "atPin": "7ad7a55a6c4294eccfd9a5d8a8351e5057013c50",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/connectors/page.tsx",
+          "objectType": "blob",
+          "atPin": "230fe4e8959d12f837c1e2fa2608c22473f1fbd7",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/wa/[id].tsx",
+          "objectType": "blob",
+          "atPin": "7fc76b20122d4cd88c54c0dd48622425fb523af4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/connectors.tsx",
+          "objectType": "blob",
+          "atPin": "f4a03f82369ce0e172b8cb94cf0796dd2e448199",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-CRM-SMS-01",
+      "requirement": "Verified recurring-free SMS connector, delivery/reply trail and process integration",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/prisma/migrations/20261101152000_multichannel_messages",
+          "objectType": "tree",
+          "atPin": "1942d115bdd6eddc4931d64ca217e75ba0fbea43",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/core/sms",
+          "objectType": "tree",
+          "atPin": "1471575b9511b428036b6aed0cf57002d7768909",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/leads/tasks.controller.ts",
+          "objectType": "blob",
+          "atPin": "75ac1172453278c93fe41788bb5d44ff3a184842",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/messaging",
+          "objectType": "tree",
+          "atPin": "4256827828d2d5f41863ec339f0fd6f58e30d66d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/connectors.tsx",
+          "objectType": "blob",
+          "atPin": "f4a03f82369ce0e172b8cb94cf0796dd2e448199",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/lead/[id].tsx",
+          "objectType": "blob",
+          "atPin": "798f903a75969e4204fb0ae407f21c2a7d64a246",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/wa/[id].tsx",
+          "objectType": "blob",
+          "atPin": "7fc76b20122d4cd88c54c0dd48622425fb523af4",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/sms-thread.tsx",
+          "objectType": "blob",
+          "atPin": "7ad7a55a6c4294eccfd9a5d8a8351e5057013c50",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/enums.ts",
+          "objectType": "blob",
+          "atPin": "ff717fd9157326f7ab5d077b5d2bca43f8951c17",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "7672830",
+          "ancestorOfPin": true
+        },
+        {
+          "commit": "a5b6535",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-AUTH-OTP-01",
+      "requirement": "Password followed by registered-email OTP before final session issuance",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/auth/login-verification.service.ts",
+          "objectType": "blob",
+          "atPin": "cd35851cd299fbf951c2fb3ae29a361ea31f9a86",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/prisma/migrations/20261101133000_login_email_factor/migration.sql",
+          "objectType": "blob",
+          "atPin": "414cc277d520432e2c0c2fe8929c5c23bb8c3f8a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/site/login-otp-dialog.tsx",
+          "objectType": "blob",
+          "atPin": "be8f33fdf2ad7543f912c9d1625170a96cf16198",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/components/login-otp-form.tsx",
+          "objectType": "blob",
+          "atPin": "ebe26b092ce8f303d9e402afbd5b46938ccba1eb",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-AUTH-OTP-02",
+      "requirement": "Extensible later verified-phone/SMS factor without making phone mandatory now",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/modules/auth/login-verification.service.ts",
+          "objectType": "blob",
+          "atPin": "cd35851cd299fbf951c2fb3ae29a361ea31f9a86",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/test/login-email-factor.e2e-spec.ts",
+          "objectType": "blob",
+          "atPin": "2a1f5ef9d91c7e31c50598d7c3812ca0353570d7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "AUTH-GOOGLE-URL",
+      "requirement": "Restore the valid Google Identity script URL",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/web/src/components/site/google-button.tsx",
+          "objectType": "blob",
+          "atPin": "39c133687b4782e5666563917ebe7e560b26f52c",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-PHOTOS-01",
+      "requirement": "Authorized Admin or assigned Agent can upload and retain property photos on web and mobile",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/app/inventory/[id].tsx",
+          "objectType": "blob",
+          "atPin": "4c59dcec468454ecb9136d463ecaab1201a0e1e1",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/launch/inventory-details.tsx",
+          "objectType": "blob",
+          "atPin": "4b493208ea23548ec8bf560bbafcdcd261053f13",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/inventory.ts",
+          "objectType": "blob",
+          "atPin": "ddbecf6f0723e5fa534ca00a15f4ae595e3798f7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "d15c0d3",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-PHOTOS-02",
+      "requirement": "Own account profile-photo upload preserves account identity during asynchronous upload",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/app/edit-profile.tsx",
+          "objectType": "blob",
+          "atPin": "c18e8f981a7c45368f49e96c2e8b19578b7de423",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/panel/profile-form.tsx",
+          "objectType": "blob",
+          "atPin": "915778fed35d5dfc86f917bd9152ad0c5f2099d7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "d15c0d3",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-PHOTOS-03",
+      "requirement": "Share selected saved property photos with a client from the permitted Lead communication flow",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/mobile/src/components/inventory-lead-share.tsx",
+          "objectType": "blob",
+          "atPin": "fce5c589ee8ed4cbec0b28baae5685f3fa6b29cc",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/inventory-whatsapp-dialog.tsx",
+          "objectType": "blob",
+          "atPin": "29bd8c79e045d092b6b77d17a419894198703005",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "d15c0d3",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-LANDING-01",
+      "requirement": "Restore landing language and theme controls and responsive layout",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/landing/src/index.tsx",
+          "objectType": "blob",
+          "atPin": "b01919fa9a1000df426f06f5add6da9a5ccc6508",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/(site)/page.tsx",
+          "objectType": "blob",
+          "atPin": "635fb8a921e893bbcaa2511dc6dae440568ba26d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "packages/shared/src/i18n/locales/hi.json",
+          "objectType": "blob",
+          "atPin": "8ae3eb0045adccac484d89309e9f9e047075a86d",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "8f716dd5",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-AI-FREE-01",
+      "requirement": "OpenRouter free models first with zero-cost provider restrictions; hosted model fallback; evaluated capture only",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "apps/api/src/core/ai/ai.service.ts",
+          "objectType": "blob",
+          "atPin": "c81c19ff04299e2529dca9335d53032a7c21e76a",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/api/src/modules/imports/imports.service.ts",
+          "objectType": "blob",
+          "atPin": "fb15aae367f8c289274437a7fdd22425205cb1e7",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [
+        {
+          "commit": "980e4ee",
+          "ancestorOfPin": true
+        }
+      ],
+      "workflowAcceptanceInferred": false
+    },
+    {
+      "id": "ADD-LOCATION-10MIN",
+      "requirement": "Refresh authorized agent location views every ten minutes on Broker Admin and Super Admin web/mobile, with fresh capture timestamps and correct stale state",
+      "status": "REFERENCED_FILES_AUDITED",
+      "files": [
+        {
+          "path": "packages/shared/src/time-logging.ts",
+          "objectType": "blob",
+          "atPin": "13d08b7429318967f5ab5a41a6ece94da5634576",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/src/lib/background-shift-tracking.ts",
+          "objectType": "blob",
+          "atPin": "d4bc2a50ceb01dcc7c6d079e93cbabc054384c7d",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/mobile/app/time-logging.tsx",
+          "objectType": "blob",
+          "atPin": "8c4b86fa011d08d6b7d37af387b3e50b2d3e43b3",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/lib/shift-location-poller.ts",
+          "objectType": "blob",
+          "atPin": "c96aa610cffa3caa08feeb0e768e9442b2884d8e",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/components/broker/agent-location-tracker.tsx",
+          "objectType": "blob",
+          "atPin": "88a0ab1b1f7d87f9989ca3afc80e61ca63996bcf",
+          "workingTreeMatchesPin": true
+        },
+        {
+          "path": "apps/web/src/app/broker/team/time-logging/page.tsx",
+          "objectType": "blob",
+          "atPin": "90e00fe7b5d1aec0a335da6bc082a1348a95bd75",
+          "workingTreeMatchesPin": true
+        }
+      ],
+      "declaredCommits": [],
+      "workflowAcceptanceInferred": false
+    }
+  ],
+  "fullProductSignoff": false
+}

@@ -2,7 +2,11 @@
 
 Baseline: feat/production, 93bb8a0. Existing live data is production data; never seed test records into it.
 
-## Current checkpoint — 13 November 2026
+## Current checkpoint — 14 November 2026
+
+Build 62 / v2.3.21 is live on staging from `4d8ec106451235cf4a4ff75d7a6790101db56213`, published at **11:14:12 IST**. API, web, signed public APK and in-app update agree. Authorized location views refresh every ten minutes on web and Android. Android includes a read-only Super Admin time-logging monitor across firms. Free OpenRouter capture is enabled for reviewed drafts after the frozen evaluation passed the numeric text thresholds and both live sample checks passed. Google visibly accepted the scope review submission. Final approval remains pending. The two-hour stability run is in progress. See [Build 62](STAGING_BUILD62_20261114.md).
+
+## Historical checkpoint — 13 November 2026
 
 Staging serves Build 61 / v2.3.20 from `980e4ee709683db2984a8e97628863addc7384c2`, published **16:18:58 IST**. API/web/public APK/in-app update match; independent full-byte APK and live landing preference checks passed. Property/profile photo changes, internal photo-link drafts, landing preferences and guide supplements are shipped. Free OpenRouter assistance is enabled and its live-settings text/tool diagnostic reported unchanged zero key usage. Capture quality approval remains OFF. Gmail is submitted and visibly under review. See `STAGING_BUILD61_20261113.md` for exact evidence and remaining boundaries. Post-pin capture unit/list hardening is separate unshipped source until a subsequent verified release.
 

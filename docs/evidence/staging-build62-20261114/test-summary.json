@@ -1,0 +1,39 @@
+{
+  "releaseCommit": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+  "normalMode": {
+    "passed": 500,
+    "skipped": 33,
+    "failed": 0,
+    "reportSha256": "36316895e6fb5cda928b77e38ed9a408adea99185524b6cd6c5aa36aa61985f3"
+  },
+  "brokerFirstConditionalSuites": [
+    {
+      "suite": "team-release.e2e-spec.ts",
+      "passed": 11
+    },
+    {
+      "suite": "enterprise.e2e-spec.ts",
+      "passed": 6
+    },
+    {
+      "suite": "broker-first.e2e-spec.ts",
+      "passed": 4
+    },
+    {
+      "suite": "source-ledger.e2e-spec.ts",
+      "passed": 10
+    }
+  ],
+  "conditionalEvidenceBoundary": "Only these 31 cases are accepted from the earlier mixed-mode run. Its 82 normal-mode signup/growth failures are not represented as passing. API and shared runtime code are unchanged between that run and the release; media test fixture gained isolated storage setup.",
+  "mobile": {
+    "testsPassed": 127,
+    "suitesPassed": 17
+  },
+  "workspaceTypechecks": "passed",
+  "changedSourceLint": {
+    "errors": 0,
+    "warnings": 32
+  },
+  "physicalDeviceAcceptance": false,
+  "fullProductSignoff": false
+}
