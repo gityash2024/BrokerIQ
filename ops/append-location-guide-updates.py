@@ -23,10 +23,7 @@ TEXT = {'en': [('Build 62 - location and source review',
          'notification are required on Android. Manual pause, punch-out and logout stop tracking. Battery restrictions, GPS or '
          'network loss can delay delivery; a screen refresh cannot create a missing fix.'),
         ('Review team location history',
-         'Broker Admin: open Team & Agents, then Time Logging and choose the permitted member and IST date. Super Admin: choose '
-         'the firm or all firms, then explicitly select a member. Web history refreshes automatically; mobile history also '
-         'reloads when reopened or brought to the foreground. Check the original capture time and accuracy. An old point is '
-         'recorded history, not a new live location.'),
+         'Broker Admin: open Team & Agents, then Time Logging and choose a member and IST date. Super Admin: web supports firm or all-firm selection; Android opens a read-only location monitor after login. Select a member explicitly. Other platform controls remain on web. History refreshes every ten minutes and on return to the screen. Check the original capture time and accuracy; an old point is recorded history, not a new live location.'),
         ('Review AI property proposals',
          'Read every proposed property against its original message or photo. A client requirement and an available property are '
          'different record types. Premium, book value, a per-area rate and the total sale price are different quotes. Missing '
@@ -44,14 +41,11 @@ TEXT = {'en': [('Build 62 - location and source review',
          'tracking notification ज़रूरी हैं। Manual pause, punch-out और logout से tracking रुकती है। Battery restriction, GPS या '
          'network की समस्या से delivery देर से हो सकती है; screen refresh से नया GPS fix नहीं बनता।'),
         ('Team की location history देखें',
-         'Broker Admin: Team & Agents में Time Logging खोलकर अधिकृत member और IST date चुनें। Super Admin: firm या all firms '
-         'चुनकर member स्वयं select करें। Web history अपने आप refresh होती है; mobile पर screen खोलने और app foreground में आने '
-         'पर भी दोबारा load होती है। मूल capture time और accuracy देखें। पुराना point recorded history है, नई live location '
-         'नहीं।'),
+         'Broker Admin: Team & Agents में Time Logging खोलकर member और IST date चुनें। Super Admin: web पर firm या all firms चुनें। Android में login के बाद read-only location monitor खुलता है; member स्वयं select करें। बाकी platform controls web पर हैं। History हर दस मिनट और screen पर लौटने पर refresh होती है। मूल capture time और accuracy देखें; पुराना point नई live location नहीं है।'),
         ('AI की property proposals जाँचें',
          'हर proposal को मूल message या photo से मिलाएँ। Client requirement और उपलब्ध property अलग प्रकार के records हैं। '
          'Premium, book value, per-area rate और total sale price अलग quotes हैं। Unit या amount अस्पष्ट हो तो review करें। लंबी '
-         'post में कई सीमित requests लग सकती हैं; बीच में रुका extraction पूरा नहीं माना जाता।'),
+         'post में अधिक समय लग सकता है; बीच में रुका extraction पूरा नहीं माना जाता।'),
         ('Free AI और सुरक्षित app update',
          'OpenRouter calls केवल free models और शून्य कीमत वाले endpoints पर जाती हैं। Provider availability और model quality अलग '
          'जाँची जाती हैं। Rate limit पर configured fallback चलता है। Conversion, publication या message भेजने से पहले draft '

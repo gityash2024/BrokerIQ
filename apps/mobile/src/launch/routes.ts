@@ -1,5 +1,15 @@
 import { moduleForPath } from '@brokeriq/shared';
 
+/** Only the explicitly supported platform location monitor is native-admin capable. */
+export function nativePlatformMonitorAllowed(path: string, role: string) {
+  return role === 'SUPER_ADMIN' && path === '/time-logging';
+}
+export function nativeHomeForRole(role?: string) {
+  if (!role || role === 'USER') return '/(user)/home' as const;
+  if (role === 'SUPER_ADMIN') return '/time-logging' as const;
+  return ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role) ? '/(broker)/dashboard' as const : '/login' as const;
+}
+
 export const nativeConsumerPath =
   /^\/(home|search|saved|messages|profile|property|locality|broker|post-property|my-listings|my-visits|enquiries|customer-requirements|customer-overview|chat)(\/|$)/;
 export const nativeGuestPath = /^\/(home|search|profile|property|locality|broker)(\/|$)/;

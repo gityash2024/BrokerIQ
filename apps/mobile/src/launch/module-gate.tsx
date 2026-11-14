@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { BrokerScreen } from './screen';
 import { Txt, Button } from '@/ui';
-import { nativeConsumerPath as consumer, nativeGuestPath as guest, nativeModuleKey } from './routes';
+import { nativeConsumerPath as consumer, nativeGuestPath as guest, nativeModuleKey, nativePlatformMonitorAllowed } from './routes';
 const essential = [
   '/',
   '/login',
@@ -44,7 +44,7 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const allowed =
     config.loaded &&
     moduleAllowed(config.modules, key, role) &&
-    (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : broker && !!user?.organization?.id);
+    (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : nativePlatformMonitorAllowed(path, role) || (broker && !!user?.organization?.id));
   if (allowed) return <Fragment key={screenScope}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;

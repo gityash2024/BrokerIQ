@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Alert, Linking, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, AppState, Linking, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { type BrokerTeamResponse, timeAgo } from '@brokeriq/shared';
+import { type BrokerTeamResponse, timeAgo, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { api, patch, del } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
@@ -13,10 +13,20 @@ export default function TeamMemberPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const q = useQuery({
-    queryKey: ['team', 'member', id],
+    queryKey: ['team', 'member', user?.id, id],
     queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`),
     enabled: !!id && user?.role === 'BROKER_ADMIN',
+    refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
+    refetchOnReconnect: 'always',
   });
+  const refreshLocation = useCallback(() => {
+    if (id && user?.role === 'BROKER_ADMIN') void q.refetch();
+  }, [id, user?.id, user?.role, q.refetch]);
+  useFocusEffect(refreshLocation);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') refreshLocation(); });
+    return () => subscription.remove();
+  }, [refreshLocation]);
   return (
     <Screen keyboard contentStyle={{ padding: 16, gap: 14 }}>
       <Header title="सदस्य विवरण" subtitle="Team & Agents / Member" />

@@ -3,12 +3,14 @@ import { Image } from 'expo-image';
 import { View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
-import { ChevronLeft, Languages, Moon, MoreHorizontal, Sun, UserRound } from 'lucide-react-native';
+import { ChevronLeft, Languages, LogOut, Moon, MoreHorizontal, Sun, UserRound } from 'lucide-react-native';
 import { Button, Card, IconBtn, Sheet, Txt } from '@/ui';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { LanguageSheet } from '@/components/language';
 import { NotificationBell } from '@/components/notification-bell';
+import { alert } from '@/lib/i18n';
+import { showError } from '@/lib/hooks';
 
 export function BrokerScreen({
   title,
@@ -27,7 +29,12 @@ export function BrokerScreen({
   const setMode = useThemeMode((s) => s.setMode);
   const [langSheetOpen, setLangSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const broker = useAuth().isBroker;
+  const { isBroker: broker, user, logout } = useAuth();
+  const platformMonitor = user?.role === 'SUPER_ADMIN';
+  const confirmLogout = () => alert('Log out?', 'Sign out of this device?', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Log out', onPress: () => logout().catch(showError) },
+  ]);
   const path = usePathname();
   const profilePath = broker ? '/broker-settings' : '/profile';
   const { width, fontScale } = useWindowDimensions();
@@ -56,7 +63,7 @@ export function BrokerScreen({
         {back && (
           <IconBtn
             accessibilityLabel="Back"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace(broker ? '/(broker)/dashboard' : '/(user)/home'))}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace(platformMonitor ? '/time-logging' : broker ? '/(broker)/dashboard' : '/(user)/home'))}
             style={{ backgroundColor: c.surface2, flexShrink: 0 }}
           >
             <ChevronLeft size={20} color={c.fg} />
@@ -127,7 +134,7 @@ export function BrokerScreen({
                 >
                   <Languages size={18} color={c.brand} />
                 </IconBtn>
-                {path !== profilePath && (
+                {!platformMonitor && path !== profilePath && (
                   <IconBtn
                     accessibilityLabel="Profile & settings"
                     onPress={() => router.push(broker ? '/broker-settings' : '/(user)/profile')}
@@ -145,6 +152,7 @@ export function BrokerScreen({
                     <UserRound size={18} color={c.fg} />
                   </IconBtn>
                 )}
+                {platformMonitor && <IconBtn accessibilityLabel="Log out" onPress={confirmLogout} style={{ backgroundColor: c.surface2 }}><LogOut size={18} color={c.fg} /></IconBtn>}
               </>
             ))
           )}
@@ -167,7 +175,7 @@ export function BrokerScreen({
             setLangSheetOpen(true);
           }}
         />
-        {path !== profilePath && (
+        {!platformMonitor && path !== profilePath && (
           <Button
             title="Profile & settings"
             variant="secondary"
@@ -178,6 +186,7 @@ export function BrokerScreen({
             }}
           />
         )}
+        {platformMonitor && <Button title="Log out" variant="secondary" icon={<LogOut size={20} color={c.fg} />} onPress={confirmLogout} />}
       </Sheet>
       <LanguageSheet open={langSheetOpen} onClose={() => setLangSheetOpen(false)} />
       {children}

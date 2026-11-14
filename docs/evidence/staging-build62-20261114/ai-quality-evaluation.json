@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "scope": "Human-reviewed import drafts only; no publication, KYC decisions, deletion or financial execution",
+  "sourceCommit": "f01afabe02d16a3aa7f8aefb8bf24fe5861b175e",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "completedAt": "2026-11-14T00:11:34.589Z",
+  "referenceSha256": "7fa71ce823d4edde46bc0d2f9c2440b1ed4b4beb29b371073f960bae7a2a34c7",
+  "privateResultsSha256": "a73b7571b0c54bf56f0300306e52df396cf1b22e0b07e3ddfbde96337b18a1dd",
+  "privateScoreSha256": "4bba1ee7e1272d5f33ad55fd8d56ebf721d91b7c1222d177b7d9a15a450d28bb",
+  "text": {
+    "tp": 484,
+    "fp": 11,
+    "fn": 55,
+    "expectedRecords": 107,
+    "producedRecords": 106,
+    "matchedRecords": 103,
+    "businessExpected": 103,
+    "businessMatched": 99,
+    "precision": 0.9777777777777777,
+    "fieldRecall": 0.8979591836734694,
+    "recordRecall": 0.9611650485436893
+  },
+  "photos": {
+    "tp": 21,
+    "fp": 0,
+    "fn": 3,
+    "expectedRecords": 5,
+    "producedRecords": 5,
+    "matchedRecords": 5,
+    "businessExpected": 5,
+    "businessMatched": 5,
+    "precision": 1.0,
+    "fieldRecall": 0.875,
+    "recordRecall": 1.0
+  },
+  "httpRequests": 41,
+  "chargedKeyUsageBefore": {
+    "usage": 0,
+    "usageDaily": 0
+  },
+  "chargedKeyUsageAfter": {
+    "usage": 0,
+    "usageDaily": 0
+  },
+  "settingsUnchangedDuringDiagnostic": true,
+  "productionSettingsChanged": false,
+  "toolsExecuted": false,
+  "sourceFileHashes": {
+    "apps/api/dist/src/modules/imports/capture-ai.js": "ba9084a16f8c457e4791a62f783b5ffc11d8d9335b6214c82b25b57847fe7e42",
+    "apps/api/dist/src/modules/imports/imports.service.js": "95382cc847f7f89d81f8e0e0ce71d4a24507a2bf9a8f4041fcd2403df34cc875",
+    "apps/api/dist/src/core/ai/ai.service.js": "070e343f8111c1914bda7b991362334de103422c9ad8b98c75f1f7013b3477bb",
+    "packages/shared/dist/capture.js": "16650fd6736bfaf6442aa8fcfd98a89cab568e3fb70746a6e599321bfb7f7c81"
+  },
+  "referenceOrigin": "Assistant manually transcribed original source before model generation; not independently human-approved",
+  "sourceGroups": 36,
+  "knownSourceExclusions": 223,
+  "preGenerationExclusions": 22,
+  "thresholds": {
+    "criticalPrecision": 0.95,
+    "businessRecordRecall": 0.9,
+    "minimumManuallyLabelledTextRecords": 100
+  },
+  "thresholdsPassed": true,
+  "limitations": [
+    "Assistant-transcribed reference, not independently human-approved.",
+    "Fresh text sources exclude prior development source IDs and templates with normalized token Jaccard at least0.65; related repost templates remain within this holdout.",
+    "Fresh text set covers advertised offers and unrelated posts; it is not separate demand-only acceptance.",
+    "Five photo cases are a small repeated original-image regression set, not an independent100-image study.",
+    "Text score contains11 falsely populated or misclassified critical-field atoms; missing fields are recorded separately. Passing thresholds is not100percent correctness.",
+    "Text field recall89.80percent; photo field recall87.50percent. Unknown/omitted fields require source review.",
+    "No autonomous CRM mutation or outreach was executed by this diagnostic."
+  ],
+  "runtimeVerification": "All four evaluated compiled file hashes must match the deployed candidate before enabling draft capture.",
+  "photoSampleInsufficientForGeneralizedAccuracyClaim": true
+}

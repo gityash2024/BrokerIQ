@@ -2,11 +2,10 @@ import { router } from 'expo-router';
 import type { AuthResponse, AuthUser } from '@brokeriq/shared';
 import { api, authStore, captureAccountContext, assertAccountContext, useSession } from './api';
 import { unregisterPush } from './push';
+import { nativeHomeForRole } from '@/launch/routes';
 
 export function homeFor(user: AuthUser | null | undefined) {
-  if (!user) return '/(user)/home' as const;
-  if (['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role)) return '/(broker)/dashboard' as const;
-  return user.role === 'USER' ? ('/(user)/home' as const) : ('/login' as const);
+  return nativeHomeForRole(user?.role);
 }
 
 export function useAuth() {

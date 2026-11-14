@@ -7,12 +7,17 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { LocalStorageService } from '../src/core/media/local-storage.service';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('Inventory all-firms hierarchy, complete exports and safe assignment (real PostgreSQL)', () => {
   let app: INestApplication, db: PrismaService;
   let org: string, other: string, sa: string, broker: string, agent: string, outsider: string;
   let agentId: string, foreignId: string, item: any, foreign: any;
   const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  let mediaRoot: string, restoreMediaRoot: (() => void) | undefined;
   const h = (token = sa) => ({ Authorization: 'Bearer ' + token });
   const get = (path: string, token = sa) =>
     request(app.getHttpServer())
@@ -24,6 +29,11 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
     configureApp(app);
     // Reuse one loopback listener for the twenty simultaneous requests.
     await app.listen(0, '127.0.0.1');
+    // This suite exercises real local uploads in both platform modes. Do not
+    // depend on BROKER_FIRST or a previous suite's MEDIA_ROOT configuration.
+    mediaRoot = await mkdtemp(join(tmpdir(), 'brokeriq-inventory-media-'));
+    const storage = jest.replaceProperty(app.get(LocalStorageService) as unknown as { root: string | undefined }, 'root', mediaRoot);
+    restoreMediaRoot = () => storage.restore();
     db = app.get(PrismaService);
     org = (await db.organization.create({ data: { name: 'Inventory firm ' + uid, slug: 'inventory-admin-' + uid } })).id;
     other = (await db.organization.create({ data: { name: 'Other inventory firm ' + uid, slug: 'inventory-other-' + uid } })).id;
@@ -80,6 +90,8 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
   });
   afterAll(async () => {
     await app?.close();
+    restoreMediaRoot?.();
+    if (mediaRoot) await rm(mediaRoot, { recursive: true, force: true });
   });
 
   it('creates one inventory record and contact across twenty simultaneous first-save retries', async () => {

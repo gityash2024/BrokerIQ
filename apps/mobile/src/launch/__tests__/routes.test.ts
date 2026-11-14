@@ -1,7 +1,19 @@
 import { defaultModulePolicies, moduleAllowed } from '@brokeriq/shared';
-import { nativeModuleKey } from '../routes';
+import { nativeHomeForRole, nativeModuleKey, nativePlatformMonitorAllowed } from '../routes';
 
 describe('native module routes', () => {
+  it('gives Super Admin an explicit location monitor without granting other native admin routes', () => {
+    expect(nativeHomeForRole('SUPER_ADMIN')).toBe('/time-logging');
+    expect(nativePlatformMonitorAllowed('/time-logging', 'SUPER_ADMIN')).toBe(true);
+    for (const role of ['USER', 'BROKER_AGENT', 'SUPPORT', 'MODERATOR', 'PUBLIC']) expect(nativePlatformMonitorAllowed('/time-logging', role)).toBe(false);
+    for (const path of ['/team', '/inventory', '/time-logging/unknown', '/connectors']) expect(nativePlatformMonitorAllowed(path, 'SUPER_ADMIN')).toBe(false);
+    expect(moduleAllowed(defaultModulePolicies(), 'time_logging', 'SUPER_ADMIN')).toBe(true);
+    expect(moduleAllowed({ time_logging: { state: 'HIDDEN', roles: ['SUPER_ADMIN'] } }, 'time_logging', 'SUPER_ADMIN')).toBe(false);
+    expect(nativeHomeForRole('BROKER_ADMIN')).toBe('/(broker)/dashboard');
+    expect(nativeHomeForRole('BROKER_AGENT')).toBe('/(broker)/dashboard');
+    expect(nativeHomeForRole('USER')).toBe('/(user)/home');
+    expect(nativeHomeForRole('SUPPORT')).toBe('/login');
+  });
   it.each([
     ['/dashboard', 'today'],
     ['/inventory', 'inventory'],

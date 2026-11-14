@@ -2,7 +2,7 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { type BrokerTeamResponse } from '@brokeriq/shared';
+import { type BrokerTeamResponse, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { ArrowLeft, MapPin, ShieldCheck, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -21,7 +21,7 @@ const targetInputs = (member: Member) =>
 export default function TeamMemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
-  const q = useQuery({ queryKey: ['team', 'member', id], queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`) });
+  const q = useQuery({ queryKey: ['team', 'member', user?.id, id], queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`), enabled: !!user && !!id, refetchInterval: SHIFT_LOCATION_INTERVAL_MS, refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' });
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (!q.data) return <Skeleton className="h-64 rounded-xl" />;
   return <Editor key={`${user?.id}:${id}`} member={q.data.member} />;
