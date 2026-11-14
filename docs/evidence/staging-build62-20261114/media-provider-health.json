@@ -1,0 +1,8 @@
+{
+  "at": "2026-11-14T06:54:48.468Z",
+  "provider": "cloudinary",
+  "status": "ok",
+  "directPropertyAndAvatarUploadProvider": true,
+  "kycUsesPrivateSelfHostedStorage": true,
+  "accountPlanVerified": false
+}
