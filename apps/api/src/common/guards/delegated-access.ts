@@ -13,6 +13,11 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
     : /^\/broker\/(profile|business-hours)(\/|$)/.test(path) ? 'team' : moduleForPath(path, 'api');
   // These surfaces can act across several business modules or return firm-wide
   // aggregates and credentials. They require their own scoped implementation.
+  if (path === '/chat/threads/:id') {
+    const action = method === 'GET' || method === 'HEAD' ? 'view' : method === 'POST' ? 'send' : method === 'DELETE' ? 'delete' : null;
+    return action ? { module: 'inbox', actions: [action] } : null;
+  }
+  if (path === '/chat/threads/:id/report' && method === 'POST') return { module: 'inbox', actions: ['edit'] };
   if (path === '/media/kyc/:id' && ['GET', 'HEAD'].includes(method)) return { module: 'kyc', actions: ['view'] };
   if (path === '/broker/today' && method === 'GET') return { module: 'today', actions: ['view'] };
   if (method === 'POST' && /^\/assistant\/(chat|cancel|confirm|transcribe)$/.test(path))

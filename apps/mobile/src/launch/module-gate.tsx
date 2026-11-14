@@ -39,9 +39,9 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
   if (essential.includes(path)) return <Fragment key={screenScope}>{children}</Fragment>;
-  const key = path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const key = delegated && path.startsWith('/chat/') ? 'inbox' : path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
-  const delegated = role === 'SUB_BROKER_ADMIN';
   const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : config.modules;
   const allowed =
     config.loaded &&

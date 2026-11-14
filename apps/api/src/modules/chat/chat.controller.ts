@@ -89,7 +89,7 @@ export class ChatController {
       take: 300,
       include: { sender: { select: { id: true, name: true } } },
     });
-    if (!isUser) {
+    if (!isUser && (!user.delegatedActor || user.delegatedPermissions?.includes('inbox:edit'))) {
       await this.prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } });
       if (c.organizationId) {
         this.realtime.toOrg(c.organizationId, 'chat:read', { conversationId: id, userId: user.id });
