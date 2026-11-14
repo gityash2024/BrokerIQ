@@ -12,6 +12,7 @@ import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brok
 import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { api, qs } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -200,12 +201,13 @@ export default function Leads() {
   });
   useRealtime('notification', () => list.refetch());
 
+  const { user } = useAuth();
   return (
     <BrokerScreen title="Leads & Requirements" subtitle={list.data ? `${list.data.pages[0].total} contacts` : 'Contacts, follow-ups and visits.'}>
       <View style={{ paddingHorizontal: 20, gap: 10, paddingBottom: 12 }}>
         <Input value={text} onChangeText={setText} placeholder="Name / phone" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Button title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
+          {hasDelegatedAccess(user, 'leads', 'create') && <Button title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />}
           <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />
           <Button
             title={activeCount > 0 ? `Filters (${activeCount})` : 'Filters'}

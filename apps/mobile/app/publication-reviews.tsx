@@ -1,6 +1,7 @@
 import { FlatList, ActivityIndicator } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { LedgerItem } from '@brokeriq/shared';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BrokerScreen } from '@/launch/screen';
@@ -8,7 +9,8 @@ import { PublicationReview } from '@/launch/publication-review';
 import { Txt, ErrorView } from '@/ui';
 export default function PublicationQueue() {
   const { user } = useAuth();
-  const allowed = user?.role === 'BROKER_ADMIN';
+  const allowed = (user?.role === 'BROKER_ADMIN') ||
+    (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'view', 'approve'));
   const query = useInfiniteQuery({
     queryKey: ['publication-queue', user?.id],
     queryFn: ({ pageParam }) =>

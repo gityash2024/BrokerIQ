@@ -31,6 +31,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
       </div>
     );
   const actionAllowed = !delegated || (path !== '/broker/onboarding' &&
+    (path !== '/broker/publications' || hasDelegatedAccess(user, 'inventory', 'approve')) &&
     (path !== '/broker/connectors' || hasDelegatedAccess(user, 'automation', 'connection_status')));
   if (actionAllowed && ((delegated && path === '/broker') || !key || (!!config.modules && moduleAllowed(policies, key, role)))) return <Fragment key={screenScope}>{children}</Fragment>;
   const policy = key ? config.modules?.[key] ?? defaultModulePolicies()[key] : undefined;

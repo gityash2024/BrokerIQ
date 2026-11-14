@@ -75,8 +75,10 @@ function Inner({ children }: { children: React.ReactNode }) {
     {
       items: brokerWorkspaceGroups(policies, delegated ? 'BROKER_ADMIN' : user?.role ?? '').map((group) => ({
         ...group,
-        links: group.links.filter((link) => !delegated || link.href !== '/broker/connectors' ||
-          user.delegatedPermissions?.includes('automation:connection_status')),
+        links: group.links.filter((link) => !delegated || (
+          (link.href !== '/broker/connectors' || user.delegatedPermissions?.includes('automation:connection_status')) &&
+          (link.href !== '/broker/publications' || user.delegatedPermissions?.includes('inventory:approve'))
+        )),
       })).filter((group) => group.links.length).map((group) => ({
         href: group.links[0].href,
         label: group.label,
