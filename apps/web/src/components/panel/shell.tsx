@@ -20,7 +20,7 @@ import { ThemeToggle } from '../ui/theme-toggle';
 import { LanguagePicker } from '../i18n/language-picker';
 import { ModuleAccess } from './module-access';
 import { ProductCatalog } from './product-catalog';
-import { brokerUpcomingModules, catalogModules, moduleAllowed, moduleForPath } from '@brokeriq/shared';
+import { delegatedModulePolicies, brokerUpcomingModules, catalogModules, moduleAllowed, moduleForPath } from '@brokeriq/shared';
 
 export interface NavItem {
   href: string;
@@ -224,8 +224,11 @@ function NavEntry({
 function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   const query = useSearchParams();
-  const config = useConfig();
-  const role = useAuth().user?.role;
+  const baseConfig = useConfig();
+  const actor = useAuth().user;
+  const delegated = actor?.role === 'SUB_BROKER_ADMIN';
+  const config = delegated ? { ...baseConfig, modules: delegatedModulePolicies(baseConfig.modules, actor.delegatedPermissions ?? []) } : baseConfig;
+  const role = delegated ? 'BROKER_ADMIN' : actor?.role;
   const [search, setSearch] = useState('');
   const term = search.trim().toLocaleLowerCase();
   const canShow = (item: NavItem) =>

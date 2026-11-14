@@ -18,6 +18,8 @@ export interface RequestUser {
   role: Role;
   orgId: string | null;
   email: string;
+  delegatedActor?: boolean;
+  delegatedPermissions?: string[];
 }
 
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext): RequestUser | undefined => {

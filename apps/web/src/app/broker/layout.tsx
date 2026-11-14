@@ -9,7 +9,7 @@ import { useRealtime } from '@/lib/realtime';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
-import { brokerWorkspaceGroups } from '@brokeriq/shared';
+import { brokerWorkspaceGroups, delegatedModulePolicies } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
@@ -18,11 +18,13 @@ function Inner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const config = useConfig();
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : config.modules;
   const dash = useQuery({
     queryKey: ['broker-dashboard'],
     queryFn: () => api<any>('/broker/dashboard'),
     refetchInterval: 60_000,
-    enabled: pathname !== '/broker/onboarding',
+    enabled: !delegated && pathname !== '/broker/onboarding',
   });
 
   useRealtime('wa:message', () => dash.refetch());
@@ -70,7 +72,7 @@ function Inner({ children }: { children: React.ReactNode }) {
   };
   const groups: NavGroup[] = [
     {
-      items: brokerWorkspaceGroups(config.modules, user?.role ?? '').map((group) => ({
+      items: brokerWorkspaceGroups(policies, delegated ? 'BROKER_ADMIN' : user?.role ?? '').map((group) => ({
         href: group.links[0].href,
         label: group.label,
         exact: group.key === 'today',
@@ -96,14 +98,16 @@ function Inner({ children }: { children: React.ReactNode }) {
   return (
     <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={<QuickLeadSearch />}>
       <AgentLocationTracker />
-      <div className="protected-view">{children}</div>
+      <div className="protected-view">{delegated && pathname === '/broker'
+        ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1><p>Open an assigned module from the sidebar.</p></div>
+        : children}</div>
     </PanelShell>
   );
 }
 
 export default function BrokerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RequireAuth roles={['BROKER_ADMIN', 'BROKER_AGENT']}>
+    <RequireAuth roles={['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT']}>
       <Inner>{children}</Inner>
     </RequireAuth>
   );

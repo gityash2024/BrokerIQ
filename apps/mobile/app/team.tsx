@@ -1,3 +1,5 @@
+import { DelegatedPermissions } from '@/components/delegated-permissions';
+import { firmRoleLabel } from '@brokeriq/shared';
 import { useState } from 'react';
 import { ChoiceField } from '@/launch/form';
 import { ManagementExport } from '@/components/management-export';
@@ -24,18 +26,20 @@ export default function Team() {
 
   // Invite form state
   const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
-  const invite = useApiMutation(() => post<{ link: string; emailed: boolean }>('/broker/team/invite', f), {
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const invite = useApiMutation(() => post<{ link: string; emailed: boolean }>('/broker/team/invite', { ...f, ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}) }), {
     invalidate: inv,
     success: (r) => (r.emailed ? 'Invite email भेजी गई' : 'Invite link बना — share करें'),
     onSuccess: (r) => {
       setInviteOpen(false);
+      setPermissions([]);
       Share.share({ message: `${f.name}, हमारी BrokerIQ team join करें: ${r.link}` });
       setF({ name: '', email: '', role: 'BROKER_AGENT' });
     },
   });
 
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT' | 'SUB_BROKER_ADMIN'>('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [kycFilter, setKycFilter] = useState<string | null>(null);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
@@ -135,7 +139,7 @@ export default function Team() {
                   <Card key={i.id} style={{ padding: 12 }}>
                     <Txt v="bodyStrong">{i.name}</Txt>
                     <Txt v="caption" color="muted">
-                      {i.email} · {i.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}
+                      {i.email} · {firmRoleLabel(i.role)}
                     </Txt>
                   </Card>
                 ))}
@@ -205,7 +209,7 @@ export default function Team() {
                         {m.role === 'BROKER_ADMIN' ? (
                           <Badge label="Admin" color={c.brand} icon={<Crown size={10} color={c.brand} />} />
                         ) : (
-                          <Badge label="Agent" color="#3B82F6" />
+                          <Badge label={m.role === 'SUB_BROKER_ADMIN' ? 'Sub-Broker Admin' : 'Agent'} color="#3B82F6" />
                         )}
                         {m.status === 'SUSPENDED' && <Badge label="Suspended" color="#EF4444" />}
                       </View>
@@ -294,7 +298,7 @@ export default function Team() {
         <ChoiceField
           label="Role"
           value={roleFilter === 'ALL' ? null : roleFilter}
-          choices={['BROKER_ADMIN', 'BROKER_AGENT']}
+          choices={['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN']}
           emptyLabel="All roles"
           onChange={(value) => setRoleFilter((value || 'ALL') as any)}
         />
@@ -346,10 +350,12 @@ export default function Team() {
       <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)} title="Team member invite करें">
         <Input label="नाम" value={f.name} onChangeText={(v) => setF({ ...f, name: v })} />
         <Input label="Email" value={f.email} onChangeText={(v) => setF({ ...f, email: v })} keyboardType="email-address" autoCapitalize="none" />
-        <Row>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Chip label="Agent" active={f.role === 'BROKER_AGENT'} onPress={() => setF({ ...f, role: 'BROKER_AGENT' })} />
           <Chip label="Admin" active={f.role === 'BROKER_ADMIN'} onPress={() => setF({ ...f, role: 'BROKER_ADMIN' })} />
-        </Row>
+          <Chip label="Sub-Broker Admin" active={f.role === 'SUB_BROKER_ADMIN'} onPress={() => setF({ ...f, role: 'SUB_BROKER_ADMIN' })} />
+        </View>
+        {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
         <Button
           title="Invite भेजें"
           icon={<Send size={17} color="#fff" />}

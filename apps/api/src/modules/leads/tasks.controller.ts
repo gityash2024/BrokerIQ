@@ -156,7 +156,7 @@ export class TasksController {
       if (user.role === 'BROKER_AGENT' && assignedToId !== user.id) throw new ForbiddenException('Only Admin can assign another member');
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${assignedToId} FOR UPDATE`;
       const assignee = await tx.user.findFirst({
-        where: { id: assignedToId, organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
+        where: { id: assignedToId, organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
       });
       if (!assignee) throw new BadRequestException('Assignee must be an active firm member');
       if (assignee.role === 'BROKER_AGENT' && lead.assignedToId !== assignee.id)

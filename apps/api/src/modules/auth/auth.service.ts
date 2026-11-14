@@ -76,6 +76,7 @@ export class AuthService implements OnApplicationBootstrap {
       phone: u.phone,
       avatarUrl: u.avatarUrl,
       role: u.role,
+      ...(u.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: u.delegatedPermissions } : {}),
       organizationId: u.organizationId,
       emailVerified: u.emailVerified,
       locale: u.locale,
@@ -88,8 +89,8 @@ export class AuthService implements OnApplicationBootstrap {
   private assertEligible(user: UserWithOrg) {
     if (
       env().BROKER_FIRST &&
-      (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role) ||
-        (['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.organizationId))
+      (!['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role) ||
+        (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.organizationId))
     )
       throw new ForbiddenException('यह account अभी broker launch के लिए सक्षम नहीं है।');
     if (user.deletedAt) throw new ForbiddenException('यह account active नहीं है। Support से संपर्क करें।');

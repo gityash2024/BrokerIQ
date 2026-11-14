@@ -56,8 +56,8 @@ export class WhatsAppController {
       connected: !!creds,
       scope: creds?.scope ?? null,
       displayPhone: creds?.values.displayPhone ?? null,
-      webhookUrl: user.role === 'BROKER_ADMIN' ? `${env().PUBLIC_API_URL}/api/webhooks/whatsapp/${org.webhookKey}` : undefined,
-      verifyToken: user.role === 'BROKER_ADMIN' ? this.wa.orgVerifyToken(org.webhookKey) : undefined,
+      webhookUrl: user.role === 'BROKER_ADMIN' && !user.delegatedActor ? `${env().PUBLIC_API_URL}/api/webhooks/whatsapp/${org.webhookKey}` : undefined,
+      verifyToken: user.role === 'BROKER_ADMIN' && !user.delegatedActor ? this.wa.orgVerifyToken(org.webhookKey) : undefined,
     };
   }
 

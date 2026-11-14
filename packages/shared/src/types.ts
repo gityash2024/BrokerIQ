@@ -12,8 +12,9 @@ export interface AuthUser {
   email: string;
   phone: string | null;
   avatarUrl: string | null;
-  role: 'SUPER_ADMIN' | 'MODERATOR' | 'SUPPORT' | 'BROKER_ADMIN' | 'BROKER_AGENT' | 'USER';
+  role: 'SUPER_ADMIN' | 'MODERATOR' | 'SUPPORT' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'USER';
   organizationId: string | null;
+  delegatedPermissions?: string[];
   emailVerified: boolean;
   locale: string;
   organization?: { id: string; name: string; slug: string; logoUrl: string | null; onboarded: boolean } | null;

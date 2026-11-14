@@ -25,12 +25,12 @@ export class AutomationController {
 
   @Post()
   create(@CurrentUser() user: RequestUser, @Body(new ZodPipe(automationRuleSchema)) body: z.infer<typeof automationRuleSchema>) {
-    return this.automation.create(requireOrg(user), body);
+    return this.automation.create(requireOrg(user), body, user.delegatedActor ? user.delegatedPermissions ?? [] : undefined);
   }
 
   @Patch(':id')
   update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(automationRuleSchema.partial())) body: any) {
-    return this.automation.update(requireOrg(user), id, body);
+    return this.automation.update(requireOrg(user), id, body, user.delegatedActor ? user.delegatedPermissions ?? [] : undefined);
   }
 
   @Delete(':id')

@@ -26,6 +26,7 @@ enum Role {
    */
   SUPPORT
   BROKER_ADMIN
+  SUB_BROKER_ADMIN
   BROKER_AGENT
   USER
 }
@@ -432,6 +433,7 @@ model User {
   googleId            String?    @unique
   avatarUrl           String?
   role                Role       @default(USER)
+  delegatedPermissions String[] @default([])
   status              UserStatus @default(ACTIVE)
   emailVerified       Boolean    @default(false)
   locale              String     @default("en")
@@ -704,6 +706,7 @@ model Invite {
   email          String
   name           String
   role           Role      @default(BROKER_AGENT)
+  delegatedPermissions String[] @default([])
   tokenHash      String    @unique
   expiresAt      DateTime
   acceptedAt     DateTime?

@@ -79,6 +79,7 @@ export class AssistantService {
     const L = languageOf(lang);
     const roleText: Record<Role, string> = {
       USER: 'a renter / property owner using the BrokerIQ marketplace',
+      SUB_BROKER_ADMIN: 'Delegated broker administrator',
       BROKER_ADMIN: 'a broker firm admin using the BrokerIQ CRM',
       BROKER_AGENT: 'a broker agent using the BrokerIQ CRM',
       SUPER_ADMIN: 'the BrokerIQ platform Super Admin',

@@ -38,8 +38,8 @@ export class RealtimeGateway implements OnGatewayConnection {
         current.deletedAt ||
         (current.role !== 'SUPER_ADMIN' && current.organization?.status === 'SUSPENDED') ||
         (env().BROKER_FIRST &&
-          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(current.role) ||
-            (['BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) && !current.organizationId)))
+          (!['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(current.role) ||
+            (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) && !current.organizationId)))
       ) {
         client.disconnect(true);
         return;

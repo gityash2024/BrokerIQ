@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ModulesService } from '../../core/features/modules.service';
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Prisma, type AutomationRule, type AutomationTrigger, type Lead } from '@prisma/client';
 import { LEAD_SOURCE_LABELS, renderTemplate, type AutomationRuleInput } from '@brokeriq/shared';
@@ -85,7 +85,8 @@ export class AutomationService implements OnModuleInit {
     return this.prisma.automationRule.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: 'desc' } });
   }
 
-  async create(orgId: string, input: AutomationRuleInput) {
+  async create(orgId: string, input: AutomationRuleInput, delegatedPermissions?: readonly string[]) {
+    this.assertDelegatedActions(input.actions, delegatedPermissions);
     const count = await this.prisma.automationRule.count({ where: { organizationId: orgId, isActive: true } });
     if (input.isActive) await this.usage.assert(orgId, 'automations', count);
     this.validate(input);
@@ -95,9 +96,10 @@ export class AutomationService implements OnModuleInit {
     });
   }
 
-  async update(orgId: string, id: string, input: Partial<AutomationRuleInput>) {
+  async update(orgId: string, id: string, input: Partial<AutomationRuleInput>, delegatedPermissions?: readonly string[]) {
     const rule = await this.prisma.automationRule.findFirst({ where: { id, organizationId: orgId } });
     if (!rule) throw new NotFoundException();
+    this.assertDelegatedActions((input.actions ?? rule.actions) as unknown as Action[], delegatedPermissions);
     if (input.isActive && !rule.isActive) {
       const count = await this.prisma.automationRule.count({ where: { organizationId: orgId, isActive: true } });
       await this.usage.assert(orgId, 'automations', count);
@@ -126,6 +128,24 @@ export class AutomationService implements OnModuleInit {
       take: 100,
       include: { lead: { select: { id: true, name: true } } },
     });
+  }
+
+  private assertDelegatedActions(actions: readonly { type: string }[], permissions?: readonly string[]) {
+    if (!permissions) return;
+    const actionGrants: Record<string, string> = {
+      SEND_WHATSAPP_TEXT: 'inbox:send',
+      SEND_WHATSAPP_TEMPLATE: 'inbox:send',
+      SEND_EMAIL: 'inbox:send',
+      ASSIGN_ROUND_ROBIN: 'leads:assign',
+      ASSIGN_TO: 'leads:assign',
+      CREATE_FOLLOW_UP: 'leads:create',
+      ADD_TAG: 'leads:edit',
+      SET_STAGE: 'leads:edit',
+      NOTIFY_TEAM: 'leads:send',
+    };
+    if (actions.some(({ type }) => !permissions.includes(actionGrants[type]))) {
+      throw new ForbiddenException('One or more rule actions require additional grants');
+    }
   }
 
   private async checkOutbound(orgId: string, actions: { type: string; params?: Record<string, unknown> }[]) {

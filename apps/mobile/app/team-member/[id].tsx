@@ -1,27 +1,29 @@
+import { DelegatedPermissions } from '@/components/delegated-permissions';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, Linking, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { type BrokerTeamResponse, timeAgo, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
+import { type BrokerTeamResponse, firmRoleLabel, timeAgo, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { api, patch, del } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
-import { Avatar, Badge, Button, Card, ErrorView, Header, Input, Row, Screen, Skeleton, Txt } from '@/ui';
+import { Avatar, Badge, Button, Card, ErrorView, Header, Input, Row, Screen, Sheet, Skeleton, Txt } from '@/ui';
 
 type Member = BrokerTeamResponse['members'][number] & { updatedAt: string; organization?: { name: string } };
 export default function TeamMemberPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const canView = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('team:view'));
   const q = useQuery({
     queryKey: ['team', 'member', user?.id, id],
     queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`),
-    enabled: !!id && user?.role === 'BROKER_ADMIN',
+    enabled: !!id && !!canView,
     refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
     refetchOnReconnect: 'always',
   });
   const refreshLocation = useCallback(() => {
-    if (id && user?.role === 'BROKER_ADMIN') void q.refetch();
-  }, [id, user?.id, user?.role, q.refetch]);
+    if (id && canView) void q.refetch();
+  }, [id, canView, q.refetch]);
   useFocusEffect(refreshLocation);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') refreshLocation(); });
@@ -30,7 +32,7 @@ export default function TeamMemberPage() {
   return (
     <Screen keyboard contentStyle={{ padding: 16, gap: 14 }}>
       <Header title="सदस्य विवरण" subtitle="Team & Agents / Member" />
-      {q.isError ? (
+      {!canView ? <Txt color="muted">सदस्य विवरण देखने की अनुमति नहीं है।</Txt> : q.isError ? (
         <ErrorView error={q.error} onRetry={() => q.refetch()} />
       ) : q.data ? (
         <MemberEditor key={`${user?.id}:${id}`} member={q.data.member} refresh={() => q.refetch()} />
@@ -43,6 +45,8 @@ export default function TeamMemberPage() {
 function MemberEditor({ member, refresh }: { member: Member; refresh: () => Promise<unknown> }) {
   const router = useRouter();
   const { user } = useAuth();
+  const [delegating, setDelegating] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [baseline, setBaseline] = useState(member.updatedAt);
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phone || '');
@@ -61,6 +65,7 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
       success: 'सदस्य अपडेट हो गया',
       onSuccess: (result) => {
         setBaseline(result.updatedAt);
+        setDelegating(false);
         refresh();
       },
     },
@@ -71,6 +76,7 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
     onSuccess: () => router.replace('/team'),
   });
   const self = member.id === user?.id;
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const location = member.lastLocation;
   const invalid = Object.entries(targets).some(
     ([key, value]) => value !== '' && (!Number.isFinite(Number(value)) || Number(value) < 0 || (key === 'commissionPct' && Number(value) > 100)),
@@ -89,11 +95,12 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
           </View>
         </Row>
         <Row gap={8}>
-          <Badge label={member.role} />
+          <Badge label={delegated || member.role === 'SUB_BROKER_ADMIN' ? firmRoleLabel(member.role) : member.role} />
           <Badge label={member.status} />
-          <Badge label={`KYC: ${member.kycStatus}`} />
+          {(!delegated || user.delegatedPermissions?.includes('kyc:view')) && <Badge label={`KYC: ${member.kycStatus}`} />}
         </Row>
       </Card>
+      {!delegated && <>
       {member.updatedAt !== baseline && (
         <Card style={{ padding: 14, gap: 8 }}>
           <Txt color="danger">इस सदस्य में दूसरे बदलाव आए हैं। अपना draft देखकर नए बदलाव लें; पुराना edit save नहीं होगा।</Txt>
@@ -179,14 +186,25 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
           })
         }
       />
-      <Card style={{ padding: 16, gap: 10 }}>
+      </>}
+      {!delegated && <Card style={{ padding: 16, gap: 10 }}>
         <Txt v="bodyStrong">KYC और समय</Txt>
         <Button title="KYC module खोलें" variant="secondary" onPress={() => router.push(`/(broker)/kyc?member=${member.id}` as any)} />
         <Button title="Time logging खोलें" variant="secondary" onPress={() => router.push(`/time-logging?memberId=${member.id}` as any)} />
-      </Card>
-      {!self && (
+      </Card>}
+      {!self && !delegated && (
         <Card style={{ padding: 16, gap: 10 }}>
           <Txt v="bodyStrong">Team actions</Txt>
+          {member.role !== 'BROKER_ADMIN' && (
+            <Button title={member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
+              variant="secondary" disabled={busy || baseline !== member.updatedAt}
+              onPress={() => { setPermissions(member.delegatedPermissions ?? []); setDelegating(true); }} />
+          )}
+          <Sheet open={delegating} onClose={() => setDelegating(false)} title="Sub-Broker Admin permissions">
+            <DelegatedPermissions value={permissions} onChange={setPermissions} />
+            <Button title="Save permissions" loading={update.isPending} disabled={busy || baseline !== member.updatedAt}
+              onPress={() => update.mutate({ role: 'SUB_BROKER_ADMIN', delegatedPermissions: permissions })} />
+          </Sheet>
           <Button
             title={member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
             variant="secondary"

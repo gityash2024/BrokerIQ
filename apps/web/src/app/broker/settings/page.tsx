@@ -23,7 +23,7 @@ const DAYS = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुर�
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  if (user?.role === 'BROKER_AGENT')
+  if (user?.role === 'BROKER_AGENT' || user?.role === 'SUB_BROKER_ADMIN')
     return (
       <>
         <PageHeader title="My account" subtitle="Your personal profile and account settings" />

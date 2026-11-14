@@ -217,7 +217,7 @@ export class DashboardService {
       const org = user.orgId;
       const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
       const policies = await this.modules.all();
-      const on = (key: string) => policies[key]?.state === 'ACTIVE' && policies[key].roles.includes(user.role);
+      const on = (key: string) => policies[key]?.state === 'ACTIVE' && policies[key].roles.some((role) => role === user.role);
       const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
         on('inventory')
           ? this.db.inventoryItem.groupBy({

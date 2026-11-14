@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES } from '@brokeriq/shared';
+import { delegatedModulePolicies, moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES } from '@brokeriq/shared';
 import { Clock3, LockKeyhole, EyeOff } from 'lucide-react';
 import { useConfig, useConfigStatus } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
@@ -15,7 +15,9 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
   const user = useAuth().user;
   const context = captureAccountContext();
   const screenScope = `${context.scope}:${context.revision}`;
-  const role = user?.role ?? 'PUBLIC';
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const role = delegated ? 'BROKER_ADMIN' : user?.role ?? 'PUBLIC';
+  const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : config.modules;
   const key = moduleForPath(path);
   if (key && !status.loaded)
     return (
@@ -28,7 +30,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
         )}
       </div>
     );
-  if (!key || (!!config.modules && moduleAllowed(config.modules, key, role))) return <Fragment key={screenScope}>{children}</Fragment>;
+  if (!key || (!!config.modules && moduleAllowed(policies, key, role))) return <Fragment key={screenScope}>{children}</Fragment>;
   const policy = config.modules?.[key] ?? defaultModulePolicies()[key];
   const upcoming = policy?.state === 'COMING_SOON';
   const hidden = policy?.state === 'HIDDEN';

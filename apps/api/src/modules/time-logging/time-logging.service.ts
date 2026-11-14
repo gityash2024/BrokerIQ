@@ -623,7 +623,7 @@ export class TimeLoggingService {
     const members = await this.prisma.user.findMany({
       where: {
         organizationId,
-        role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+        role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
         deletedAt: null,
         ...(query.agentId ? { id: query.agentId } : {}),
       },

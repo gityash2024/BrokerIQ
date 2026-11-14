@@ -20,8 +20,10 @@ export default function TimeLogging() {
   const [member, setMember] = useState<string | null>(params.memberId || null);
   const [date, setDate] = useState<Date | null>(new Date());
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const canReadTeam = isSuperAdmin || (user?.role === 'BROKER_ADMIN' && moduleAllowed(modules, 'team', user.role));
-  const team = useQuery({ queryKey: ['team-time-picker', user?.id], queryFn: () => api<any>('/broker/team'), enabled: canReadTeam, refetchInterval: SHIFT_LOCATION_INTERVAL_MS, refetchOnReconnect: 'always' });
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canLogTime = !delegated || user.delegatedPermissions?.includes('time_logging:create');
+  const canReadTeam = isSuperAdmin || (delegated && user.delegatedPermissions?.includes('time_logging:view')) || (user?.role === 'BROKER_ADMIN' && moduleAllowed(modules, 'team', user.role));
+  const team = useQuery({ queryKey: ['team-time-picker', user?.id], queryFn: () => api<any>(delegated ? '/time-logging/members' : '/broker/team'), enabled: canReadTeam, refetchInterval: SHIFT_LOCATION_INTERVAL_MS, refetchOnReconnect: 'always' });
   const agentId = canReadTeam && member ? member : isSuperAdmin ? null : user?.id;
   const day = date ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date) : '';
   const query = useQuery({
@@ -50,7 +52,7 @@ export default function TimeLogging() {
           <Txt color="muted">Choose a member across firms. Platform management remains in the web Admin Portal.</Txt>
           <Button title="Open Admin web portal" variant="secondary" onPress={() => Linking.openURL(`${app.siteUrl.replace(/\/$/, '')}/admin`).catch(showError)} />
         </Card>}
-        {!isSuperAdmin && <TimeLoggingCard />}
+        {!isSuperAdmin && canLogTime && <TimeLoggingCard />}
         {canReadTeam && (
           <ChoiceField
             label="Team member"

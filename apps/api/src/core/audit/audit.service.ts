@@ -13,7 +13,7 @@ export class AuditService {
       await this.prisma.auditLog.create({
         data: {
           actorId: actor?.id ?? null,
-          actorRole: actor?.role ?? null,
+          actorRole: actor?.delegatedActor ? 'SUB_BROKER_ADMIN' : actor?.role ?? null,
           organizationId: actor?.orgId ?? null,
           action,
           entity,

@@ -47,6 +47,7 @@ export class JwtAuthGuard implements CanActivate {
           id: true,
           role: true,
           organizationId: true,
+          delegatedPermissions: true,
           email: true,
           status: true,
           deletedAt: true,
@@ -66,6 +67,7 @@ export class JwtAuthGuard implements CanActivate {
         delete req.user;
       } else {
         req.sessionId = sessionId;
+        req.delegatedPermissions = current.delegatedPermissions;
         req.user = { id: current.id, role: current.role, orgId: current.organizationId, email: current.email } satisfies RequestUser;
       }
     }
@@ -87,6 +89,7 @@ export class RolesGuard implements CanActivate {
     const user: RequestUser | undefined = context.switchToHttp().getRequest().user;
     if (!user) throw new UnauthorizedException('Login required');
     if (user.role === 'SUPER_ADMIN' || roles.includes(user.role)) return true;
+    if (user.role === 'SUB_BROKER_ADMIN' && roles.includes('BROKER_ADMIN')) return true;
     throw new ForbiddenException('आपके account को यह access नहीं है');
   }
 }

@@ -15,7 +15,7 @@ export function useAuth() {
   return {
     user,
     ready,
-    isBroker: !!user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role),
+    isBroker: !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role),
     isBrokerAdmin: user?.role === 'BROKER_ADMIN',
     setSession: (r: AuthResponse) => authStore.set({ accessToken: r.accessToken, refreshToken: r.refreshToken, user: r.user }),
     refreshMe: async () => {

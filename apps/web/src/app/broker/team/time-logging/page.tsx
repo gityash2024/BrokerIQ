@@ -140,6 +140,8 @@ function TimeLoggingContent() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isAgent = user?.role === 'BROKER_AGENT';
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canLogTime = !delegated || user.delegatedPermissions?.includes('time_logging:create');
 
   const params = useSearchParams();
   // Filters State
@@ -152,7 +154,7 @@ function TimeLoggingContent() {
   // The all-firms response includes the complete firm hierarchy; no first-page firm lookup.
   const teamQuery = useQuery({
     queryKey: ['broker-team-time-logging', user?.id],
-    queryFn: () => api<BrokerTeamResponse>('/broker/team'),
+    queryFn: () => api<BrokerTeamResponse>(delegated ? '/time-logging/members' : '/broker/team'),
     enabled: !isAgent,
   });
   const allMembers = teamQuery.data?.members ?? [];
@@ -441,7 +443,7 @@ function TimeLoggingContent() {
                 </div>
 
                 {/* Quick Web Actions for logged-in user */}
-                {isMe && !statusQuery.isLoading && (
+                {isMe && canLogTime && !statusQuery.isLoading && (
                   <div className="flex items-center gap-1.5">
                     {statusData?.status === 'ACTIVE' ? (
                       <Button
@@ -746,7 +748,7 @@ function TimeLoggingContent() {
 
 export default function TimeLoggingPage() {
   return (
-    <RequireAuth roles={['BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN']}>
+    <RequireAuth roles={['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN']}>
       <Suspense fallback={<Skeleton className="h-32" />}>
         <TimeLoggingContent />
       </Suspense>

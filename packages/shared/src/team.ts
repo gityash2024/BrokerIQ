@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const teamRole = z.enum(['BROKER_ADMIN', 'BROKER_AGENT']);
+const teamRole = z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT']);
 export interface AgentTargets {
   monthlyDeals?: number;
   monthlyRevenue?: number;
@@ -28,6 +28,7 @@ export const brokerTeamResponseSchema = z.object({
         phone: z.string().nullable(),
         avatarUrl: z.string().nullable(),
         role: teamRole,
+        delegatedPermissions: z.array(z.string()).optional(),
         status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']),
         lastLoginAt: z.string().nullable(),
         createdAt: z.string(),

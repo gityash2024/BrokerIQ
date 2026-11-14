@@ -365,7 +365,7 @@ export class InventoryService {
     const where: Prisma.UserWhereInput = {
       deletedAt: null,
       organizationId: q.organizationId ?? { not: null },
-      role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+      role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
       ...(q.search ? { name: { contains: q.search, mode: 'insensitive' } } : {}),
     };
     const [items, total] = await this.prisma.$transaction([
@@ -476,7 +476,7 @@ export class InventoryService {
       const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
       if (assignedToId) {
         const assignee = await db.user.findFirst({
-          where: { id: assignedToId, organizationId, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] }, status: 'ACTIVE', deletedAt: null },
+          where: { id: assignedToId, organizationId, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] }, status: 'ACTIVE', deletedAt: null },
         });
         if (!assignee) throw new BadRequestException('Assigned user not found in organization');
       }
@@ -514,7 +514,7 @@ export class InventoryService {
             where: {
               id: input.assignedToId,
               organizationId: current.organizationId,
-              role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+              role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
               ...(input.assignedToId !== current.assignedToId ? { status: 'ACTIVE', deletedAt: null } : {}),
             },
           });

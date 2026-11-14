@@ -1,4 +1,6 @@
 'use client';
+import { DelegatedPermissions } from '@/components/broker/team/delegated-permissions';
+import { firmRoleLabel } from '@brokeriq/shared';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -432,7 +434,7 @@ export default function TeamPage() {
                 <option value="ALL">सभी सदस्य (All Agents)</option>
                 {members.map((m: any) => (
                   <option key={m.id} value={m.id}>
-                    {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                    {m.name} ({firmRoleLabel(m.role)})
                   </option>
                 ))}
               </Select>
@@ -715,7 +717,7 @@ export default function TeamPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{i.name}</p>
                   <p className="truncate text-xs text-muted">
-                    {i.email} · {i.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'} · expires {formatDate(i.expiresAt, { day: 'numeric', month: 'short' })}
+                    {i.email} · {firmRoleLabel(i.role)} · expires {formatDate(i.expiresAt, { day: 'numeric', month: 'short' })}
                   </p>
                 </div>
                 {user?.role === 'BROKER_ADMIN' && (
@@ -745,7 +747,7 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
 
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
-  const [editRole, setEditRole] = useState<'BROKER_ADMIN' | 'BROKER_AGENT'>('BROKER_AGENT');
+  const [editRole, setEditRole] = useState<'BROKER_ADMIN' | 'BROKER_AGENT' | 'SUB_BROKER_ADMIN'>('BROKER_AGENT');
   const [dealsTarget, setDealsTarget] = useState<number>(0);
   const [revenueTarget, setRevenueTarget] = useState<number>(0);
   const [leadsTarget, setLeadsTarget] = useState<number>(0);
@@ -784,7 +786,7 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
     saveMutation.mutate({
       name: editName.trim(),
       phone: editPhone.trim() || null,
-      role: editRole,
+      ...(editRole !== agent.role && editRole !== 'SUB_BROKER_ADMIN' ? { role: editRole } : {}),
       targets: {
         monthlyDeals: Number(dealsTarget) || 0,
         monthlyRevenue: Number(revenueTarget) || 0,
@@ -834,7 +836,7 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge tone={agent.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>{agent.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}</Badge>
+            <Badge tone={agent.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>{firmRoleLabel(agent.role)}</Badge>
             <Badge tone={agent.kycStatus === 'VERIFIED' ? 'success' : agent.kycStatus === 'PENDING' ? 'warning' : 'neutral'}>
               {agent.kycStatus || 'UNVERIFIED'}
             </Badge>
@@ -972,6 +974,7 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
                 <Select value={editRole} onChange={(e) => setEditRole(e.target.value as any)}>
                   <option value="BROKER_AGENT">Agent</option>
                   <option value="BROKER_ADMIN">Admin</option>
+                  {agent.role === 'SUB_BROKER_ADMIN' && <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>}
                 </Select>
               </Field>
             )}
@@ -984,8 +987,9 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
 
 function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [result, setResult] = useState<{ link: string; emailed: boolean } | null>(null);
-  const send = useApiMutation(() => post<{ link: string; emailed: boolean }>('/broker/team/invite', f), {
+  const send = useApiMutation(() => post<{ link: string; emailed: boolean }>('/broker/team/invite', { ...f, ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}) }), {
     invalidate: [['team']],
     onSuccess: (r) => {
       setResult(r);
@@ -996,6 +1000,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
     onOpenChange(v);
     if (!v) {
       setResult(null);
+      setPermissions([]);
       setF({ name: '', email: '', role: 'BROKER_AGENT' });
     }
   };
@@ -1040,8 +1045,10 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
             <Select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
               <option value="BROKER_AGENT">Agent</option>
               <option value="BROKER_ADMIN">Admin</option>
+              <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
             </Select>
           </Field>
+          {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
         </div>
       )}
     </Dialog>

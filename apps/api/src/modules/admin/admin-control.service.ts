@@ -349,7 +349,7 @@ export class AdminControlService {
   async removeMember(actor: RequestUser, orgId: string, userId: string) {
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
-      const member = await tx.user.findFirst({ where: { id: userId, organizationId: orgId, deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } } });
+      const member = await tx.user.findFirst({ where: { id: userId, organizationId: orgId, deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } } });
       if (!member) throw new NotFoundException('Member नहीं मिला');
       if (member.role === 'BROKER_ADMIN' && member.status === 'ACTIVE' && !(await hasAnotherActiveBrokerAdmin(tx, orgId, userId)))
         throw new ConflictException('Firm must retain at least one active Broker Admin');

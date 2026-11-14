@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { Roles, CurrentUser, type RequestUser } from '../../common/decorators';
+import { PrismaService } from '../../prisma/prisma.service';
+import { requireOrg } from '../../common/utils';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { TimeLoggingService } from './time-logging.service';
 import {
@@ -24,7 +26,22 @@ import {
 @Controller('time-logging')
 @Roles('BROKER_AGENT', 'BROKER_ADMIN', 'SUPER_ADMIN')
 export class TimeLoggingController {
-  constructor(private readonly service: TimeLoggingService) {}
+  constructor(private readonly service: TimeLoggingService, private readonly prisma: PrismaService) {}
+
+  @Roles('BROKER_ADMIN')
+  @Get('members')
+  async members(@CurrentUser() user: RequestUser) {
+    const members = await this.prisma.user.findMany({
+      where: {
+        organizationId: requireOrg(user),
+        deletedAt: null,
+        role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
+      },
+      select: { id: true, name: true, role: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    return { members };
+  }
 
   @Post('punch-in')
   async punchIn(@CurrentUser() user: RequestUser, @Body(new ZodPipe(punchInSchema)) body: PunchInDto) {

@@ -416,7 +416,7 @@ export class LeadsService {
 
   async assertMember(orgId: string, userId: string) {
     const m = await this.prisma.user.findFirst({
-      where: { id: userId, organizationId: orgId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
+      where: { id: userId, organizationId: orgId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
     });
     if (!m) throw new BadRequestException('यह user आपकी team में नहीं है');
     return m;
@@ -432,7 +432,7 @@ export class LeadsService {
       if (assigneeId) await tx.$queryRaw`SELECT id FROM "User" WHERE id=${assigneeId} FOR UPDATE`;
       const assignee = assigneeId
         ? await tx.user.findFirst({
-            where: { id: assigneeId, organizationId: lead.organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] } },
+            where: { id: assigneeId, organizationId: lead.organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
           })
         : null;
       if (assigneeId && !assignee) throw new BadRequestException('Assigned member is not active in this firm');
@@ -480,7 +480,7 @@ export class LeadsService {
         organizationId: orgId,
         status: 'ACTIVE',
         deletedAt: null,
-        role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+        role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
         organization: { status: 'ACTIVE' },
         ...(memberIds?.length ? { id: { in: memberIds } } : {}),
       },

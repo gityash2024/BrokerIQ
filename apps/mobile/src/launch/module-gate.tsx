@@ -1,7 +1,7 @@
 import { usePathname, router } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
-import { moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
+import { delegatedModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
 import { captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -36,15 +36,18 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const { user } = useAuth();
   const context = captureAccountContext();
   const screenScope = `${context.scope}:${context.epoch}`;
-  const broker = !!user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
+  const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
   if (essential.includes(path)) return <Fragment key={screenScope}>{children}</Fragment>;
   const key = path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
+  const delegated = role === 'SUB_BROKER_ADMIN';
+  const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : config.modules;
   const allowed =
     config.loaded &&
-    moduleAllowed(config.modules, key, role) &&
+    moduleAllowed(policies, key, delegated ? 'BROKER_ADMIN' : role) &&
     (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : nativePlatformMonitorAllowed(path, role) || (broker && !!user?.organization?.id));
+  if (delegated && path === '/dashboard') return <BrokerScreen title="Sub-Broker Admin"><View style={{ padding: 24, gap: 12 }}><Txt>Open an assigned module.</Txt><Button title="Product tools" onPress={() => router.push('/product-tools')} /></View></BrokerScreen>;
   if (allowed) return <Fragment key={screenScope}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;
