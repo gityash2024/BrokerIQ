@@ -53,7 +53,7 @@ export class DashboardService {
       where: {
         ...(agent ? { id: user.id } : {}),
         ...(organizationId ? { organizationId } : {}),
-        role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+        role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
         status: 'ACTIVE',
         deletedAt: null,
         organization: { status: 'ACTIVE' },

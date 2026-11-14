@@ -1,3 +1,4 @@
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { Interval } from '@nestjs/schedule';
 import { ModulesService } from '../../core/features/modules.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -244,9 +245,10 @@ export class GmailService {
 
   private async conversation(user: RequestUser, id: string) {
     const actor = await this.prisma.user.findFirst({
-      where: { id: user.id, organizationId: requireOrg(user), role: user.role, status: 'ACTIVE', deletedAt: null, organization: { status: 'ACTIVE' } },
+      where: { id: user.id, organizationId: requireOrg(user), role: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role, status: 'ACTIVE', deletedAt: null, organization: { status: 'ACTIVE' } },
     });
-    if (!actor || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(actor.role)) throw new ForbiddenException('Account permissions changed');
+    if (!actor || !['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(actor.role))
+      throw new ForbiddenException('Account permissions changed');
     const conv = await this.prisma.conversation.findFirst({
       where: { id, organizationId: requireOrg(user), channel: 'EMAIL', blockedAt: null },
       include: { lead: true },
@@ -340,19 +342,21 @@ export class GmailService {
     let accepted = false;
     try {
       if (!orgId || !message.sender) throw new ForbiddenException();
-      const actor = { id: message.sender.id, role: message.sender.role, email: message.sender.email, orgId };
+      const actor: RequestUser = { id: message.sender.id, role: message.sender.role, email: message.sender.email, orgId };
       const currentUser = await this.prisma.user.findFirst({
         where: {
           id: actor.id,
           organizationId: orgId,
           status: 'ACTIVE',
           deletedAt: null,
-          role: { in: ['BROKER_ADMIN', 'BROKER_AGENT'] },
+          role: { in: ['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'] },
           organization: { status: 'ACTIVE' },
         },
       });
-      if (!currentUser) throw new ForbiddenException();
-      actor.role = currentUser.role;
+      if (!currentUser || !hasDelegatedAccess(currentUser, 'inbox', 'send') ||
+          (currentUser.role === 'SUB_BROKER_ADMIN' && !(await this.modules.enabled('inbox')))) throw new ForbiddenException();
+      actor.delegatedActor = currentUser.role === 'SUB_BROKER_ADMIN';
+      actor.role = actor.delegatedActor ? 'BROKER_ADMIN' : currentUser.role;
       const connection = await this.connection(orgId);
       if (connection.mailbox !== (message.meta as any)?.mailbox) throw new ConflictException('Business mailbox changed');
       const latest = await this.conversation(actor, conv.id);
@@ -456,7 +460,7 @@ export class GmailService {
       const changed = await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${externalId}))`;
         if (await tx.message.findUnique({ where: { externalId } })) return false;
-        const currentActor = await tx.user.findFirst({ where: { id: user.id, organizationId: orgId, role: user.role, status: 'ACTIVE', deletedAt: null } });
+        const currentActor = await tx.user.findFirst({ where: { id: user.id, organizationId: orgId, role: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role, status: 'ACTIVE', deletedAt: null } });
         const currentLead = await tx.lead.findFirst({
           where: { id: conv.leadId!, organizationId: orgId, deletedAt: null, ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}) },
         });

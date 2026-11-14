@@ -3,7 +3,7 @@ import { NotificationsService } from '../../core/notifications/notifications.ser
 import { WebPushService } from '../../core/notifications/web-push.service';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type MessageStatus } from '@prisma/client';
-import { normalizeIndianPhone } from '@brokeriq/shared';
+import { hasDelegatedAccess, normalizeIndianPhone } from '@brokeriq/shared';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
@@ -20,6 +20,7 @@ import {
   TextbeeRequestError,
   verifyTextbeeSignature,
 } from '../../core/sms/textbee.client';
+import { ModulesService } from '../../core/features/modules.service';
 import { env } from '../../config/env';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -33,6 +34,7 @@ export class MessagingService {
     private readonly access: AccessService,
     private readonly notifications: NotificationsService,
     private readonly webPush: WebPushService,
+    private readonly modules: ModulesService,
   ) {
     jobs.register('sms.dispatch', async (payload) => this.dispatch(payload.messageId));
     jobs.register('sms.event', async (payload) => this.processEvent(payload.eventId));
@@ -124,7 +126,8 @@ export class MessagingService {
         sender.deletedAt ||
         sender.status !== 'ACTIVE' ||
         sender.organizationId !== conv.organizationId ||
-        !['BROKER_ADMIN', 'BROKER_AGENT'].includes(sender.role) ||
+        !['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(sender.role) ||
+        !hasDelegatedAccess(sender, 'inbox', 'send') ||
         (sender.role === 'BROKER_AGENT' && conv.lead.assignedToId !== sender.id) ||
         normalizeIndianPhone(conv.lead.phone) !== conv.contactPhone
       ) {
@@ -158,7 +161,9 @@ export class MessagingService {
           !activeOrg ||
           !currentConversation ||
           !current ||
-          !['BROKER_ADMIN', 'BROKER_AGENT'].includes(current.role) ||
+          !['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(current.role) ||
+          !hasDelegatedAccess(current, 'inbox', 'send') ||
+          (current.role === 'SUB_BROKER_ADMIN' && !(await this.modules.enabled('inbox'))) ||
           !currentLead ||
           (current.role === 'BROKER_AGENT' && currentLead.assignedToId !== current.id) ||
           normalizeIndianPhone(currentLead.phone) !== conv.contactPhone

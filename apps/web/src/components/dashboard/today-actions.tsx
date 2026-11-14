@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ShieldCheck, ShieldAlert, Clock, ArrowRight } from 'lucide-react';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -62,7 +63,7 @@ export function TodayActions() {
 
       <h2 className="font-display text-lg font-bold">Today’s next actions</h2>
       {q.error && <ApiErrorState error={q.error} onRetry={() => q.refetch()} />}
-      <div className="grid gap-5 lg:grid-cols-2">
+      {hasDelegatedAccess(user, 'leads', 'view') && <div className="grid gap-5 lg:grid-cols-2">
         {[
           ['Follow-ups', q.data?.followUps, '/broker/follow-ups'],
           ['Site visits', q.data?.visits, '/broker/visits'],
@@ -93,7 +94,7 @@ export function TodayActions() {
             )}
           </section>
         ))}
-      </div>
+      </div>}
     </>
   );
 }

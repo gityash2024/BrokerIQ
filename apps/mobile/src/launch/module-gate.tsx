@@ -47,6 +47,8 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
     (path === '/inventory-edit' ? hasDelegatedAccess(user, 'inventory', 'view') &&
       (hasDelegatedAccess(user, 'inventory', 'create') || hasDelegatedAccess(user, 'inventory', 'edit'))
     : path === '/add-lead' ? hasDelegatedAccess(user, 'leads', 'create')
+    : path === '/scanner' ? hasDelegatedAccess(user, 'inventory', 'create')
+    : path === '/publish-rental' ? hasDelegatedAccess(user, 'inventory', 'publish')
     : path === '/connectors' ? hasDelegatedAccess(user, 'automation', 'connection_status')
     : true);
   const allowed = actionAllowed &&

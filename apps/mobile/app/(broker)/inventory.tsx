@@ -5,6 +5,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Plus, SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
 import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger } from '@brokeriq/shared';
 import { api, qs, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -110,7 +111,7 @@ export default function Inventory() {
     <BrokerScreen
       title="Inventory"
       subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}
-      action={
+      action={hasDelegatedAccess(user, 'inventory', 'create') ? (
         <Pressable
           accessibilityLabel="Add property"
           onPress={() => router.push('/inventory-edit')}
@@ -130,20 +131,20 @@ export default function Inventory() {
         >
           <Plus color="white" size={23} />
         </Pressable>
-      }
+      ) : undefined}
     >
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 12 }}>
-        {user?.role === 'BROKER_ADMIN' && <Button title="Publication reviews" variant="secondary" onPress={() => router.push('/publication-reviews' as any)} />}
+        {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'approve'))) && <Button title="Publication reviews" variant="secondary" onPress={() => router.push('/publication-reviews' as any)} />}
         {/* Top Quick Actions */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />
-          <Button
+          {hasDelegatedAccess(user, 'inventory', 'create') && <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />}
+          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && <Button
             title="Paste / chat export"
             size="sm"
             variant="secondary"
             style={{ flex: 1 }}
             onPress={() => router.push('/capture?target=INVENTORY' as any)}
-          />
+          />}
         </View>
 
         {/* CRED Luxury Metrics Cards */}
@@ -423,14 +424,14 @@ export default function Inventory() {
               <Txt color="muted" style={{ textAlign: 'center' }}>
                 Change filters, capture a source or add a property.
               </Txt>
-              <Button title="Capture source" variant="secondary" onPress={() => router.push('/capture')} />
+              {hasDelegatedAccess(user, 'inbox', 'view', 'create') && <Button title="Capture source" variant="secondary" onPress={() => router.push('/capture')} />}
             </View>
           )
         }
         ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={c.brand} style={{ padding: 20 }} /> : null}
       />
 
-      {selected.length > 0 && (
+      {selected.length > 0 && hasDelegatedAccess(user, 'inventory', 'edit', 'publish') && (
         <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
           <Txt v="caption">{`${selected.length} selected`}</Txt>
           <View style={{ flexDirection: 'row', gap: 8 }}>
