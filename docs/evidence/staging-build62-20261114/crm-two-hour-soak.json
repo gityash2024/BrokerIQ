@@ -1,0 +1,89 @@
+{
+  "startedAt": "2026-11-14T06:15:35.498Z",
+  "finishedAt": "2026-11-14T08:16:08.821Z",
+  "sourceCommit": "4d8ec106451235cf4a4ff75d7a6790101db56213",
+  "testDatabase": "brokeriq_test_load62_20261114",
+  "isolatedCrmTestExitCode": 0,
+  "liveSamples": 122,
+  "liveFailures": [],
+  "minAvailableDiskBytes": 20632883200,
+  "maxDbLatencyMs": 9,
+  "productionBusinessRecordsCreated": 0,
+  "providersStarted": false,
+  "measurements": {
+    "CRM_LOAD": {
+      "kind": "CRM_LOAD",
+      "environment": "ISOLATED_LOCAL_NEST_POSTGRESQL",
+      "concurrentSessions": 20,
+      "rounds": 5,
+      "elapsedSeconds": 9.171929558,
+      "summary": {
+        "list": {
+          "requests": 200,
+          "p50Ms": 425.2987150000008,
+          "p95Ms": 707.3418899999997,
+          "maxMs": 893.4193120000018
+        },
+        "detail": {
+          "requests": 100,
+          "p50Ms": 359.987637000002,
+          "p95Ms": 503.52610300000015,
+          "maxMs": 604.7813389999974
+        },
+        "mutation": {
+          "requests": 100,
+          "p50Ms": 402.7104010000003,
+          "p95Ms": 520.0999699999993,
+          "maxMs": 544.4087370000016
+        },
+        "refresh": {
+          "requests": 20,
+          "p50Ms": 443.5433460000022,
+          "p95Ms": 533.2077559999998,
+          "maxMs": 533.9136879999969
+        }
+      },
+      "stagingAcceptance": false,
+      "providerOrDeviceAcceptance": false
+    },
+    "CRM_TWO_HOUR_SOAK": {
+      "kind": "CRM_TWO_HOUR_SOAK",
+      "environment": "ISOLATED_LOCAL_NEST_POSTGRESQL",
+      "concurrentSessions": 20,
+      "rounds": 622,
+      "elapsedSeconds": 7206.061082317,
+      "summary": {
+        "list": {
+          "requests": 24880,
+          "p50Ms": 391.83290300052613,
+          "p95Ms": 798.206638999749,
+          "maxMs": 6669.143167000031
+        },
+        "detail": {
+          "requests": 12440,
+          "p50Ms": 474.47446299996227,
+          "p95Ms": 904.3618109999225,
+          "maxMs": 3944.012822999852
+        },
+        "mutation": {
+          "requests": 2100,
+          "p50Ms": 423.9546050000936,
+          "p95Ms": 855.4685579994693,
+          "maxMs": 2437.4547369999345
+        },
+        "refresh": {
+          "requests": 240,
+          "p50Ms": 212.91336799995042,
+          "p95Ms": 358.6035170000978,
+          "maxMs": 453.8042980004102
+        }
+      },
+      "cadence": {
+        "maxGapSeconds": 21.143
+      },
+      "stagingAcceptance": false,
+      "providerOrDeviceAcceptance": false
+    }
+  },
+  "passed": true
+}

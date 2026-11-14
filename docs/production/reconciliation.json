@@ -4702,11 +4702,11 @@
         "11882",
         "latest-approved-plan"
       ],
-      "backend": "PENDING",
+      "backend": "ISOLATED_NEST_LOAD_AND_TWO_HOUR_SOAK_PASSED",
       "web": "PENDING",
       "androidSource": "PENDING",
-      "shippedBuild": "LOCAL_LOAD_VERIFIED_CONTINUOUS_SOAK_OPEN",
-      "verification": "20 sessions, 257 rounds and 10,280 list reads over 8,093 elapsed seconds. Continuous cadence and staging load acceptance remain open.",
+      "shippedBuild": "BUILD62_ISOLATED_HOST_SOAK_VERIFIED_LIVE_HEALTH",
+      "verification": "20 authenticated sessions, 622 rounds in 7206 seconds, list/detail/mutation p95 of 798/904/855 ms, maximum cadence gap 21.143 seconds and 122 successful live health checks.",
       "notes": [],
       "roles": [
         "TO_RECONCILE"
@@ -4715,9 +4715,9 @@
         "apps/api/test/crm-load.e2e-spec.ts"
       ],
       "commits": [],
-      "database": "PENDING",
+      "database": "ISOLATED_POSTGRESQL",
       "rootCause": null,
-      "releaseEvidence": "docs/evidence/staging-build53-20261104/local-crm-soak.json"
+      "releaseEvidence": "docs/evidence/staging-build62-20261114/crm-two-hour-soak.json"
     },
     {
       "id": "RELEASE-13",
@@ -5181,7 +5181,7 @@
     "gmailReview": "SUBMITTED_UNDER_REVIEW_VERIFIED_20261114",
     "captureQuality": "EXACT_FREE_MODEL_APPROVED_FOR_REVIEWED_DRAFTS",
     "fullProductSignoff": false,
-    "loadSoak": "RUNNING"
+    "loadSoak": "TWO_HOUR_ISOLATED_HOST_SOAK_PASSED"
   },
   "latestSourceAudit": {
     "commit": "4d8ec106451235cf4a4ff75d7a6790101db56213",

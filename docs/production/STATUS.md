@@ -4,7 +4,7 @@ Baseline: feat/production, 93bb8a0. Existing live data is production data; never
 
 ## Current checkpoint — 14 November 2026
 
-Build 62 / v2.3.21 is live on staging from `4d8ec106451235cf4a4ff75d7a6790101db56213`, published at **11:14:12 IST**. API, web, signed public APK and in-app update agree. Authorized location views refresh every ten minutes on web and Android. Android includes a read-only Super Admin time-logging monitor across firms. Free OpenRouter capture is enabled for reviewed drafts after the frozen evaluation passed the numeric text thresholds and both live sample checks passed. Google visibly accepted the scope review submission. Final approval remains pending. The two-hour stability run is in progress. See [Build 62](STAGING_BUILD62_20261114.md).
+Build 62 / v2.3.21 is live on staging from `4d8ec106451235cf4a4ff75d7a6790101db56213`, published at **11:14:12 IST**. API, web, signed public APK and in-app update agree. Authorized location views refresh every ten minutes on web and Android. Android includes a read-only Super Admin time-logging monitor across firms. Free OpenRouter capture is enabled for reviewed drafts after the frozen evaluation passed the numeric text thresholds and both live sample checks passed. Google visibly accepted the scope review submission. Final approval remains pending. The two-hour stability run passed with 20 concurrent sessions, 622 rounds and 122 successful live health checks. See [Build 62](STAGING_BUILD62_20261114.md).
 
 ## Historical checkpoint — 13 November 2026
 
