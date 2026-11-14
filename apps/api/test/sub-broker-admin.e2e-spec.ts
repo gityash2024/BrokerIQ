@@ -46,6 +46,9 @@ describe('Sub-Broker Admin authorization on real PostgreSQL', () => {
     await api().post('/api/leads').set(delegatedHeader).send({ name: 'Denied', phone: '9811199913' }).expect(403);
     await api().get('/api/leads/export').set(delegatedHeader).expect(403);
     await api().get('/api/inventory').set(delegatedHeader).expect(403);
+    await api().get('/api/leads/assignees').set(delegatedHeader).expect(403);
+    await api().get('/api/broker/dashboard/metrics?days=30').set(delegatedHeader).expect(403);
+    await api().get('/api/inventory/assignees').set(delegatedHeader).expect(403);
     await api().get('/api/broker/team').set(delegatedHeader).expect(200);
     await api().patch('/api/broker/team/' + owner.id + '/').set(delegatedHeader).send({ role: 'BROKER_AGENT' }).expect(403);
     await api().post('/api/broker/team/invite').set(delegatedHeader).send({ name: 'Denied', email: 'denied@e2e.test' }).expect(403);
@@ -61,6 +64,39 @@ describe('Sub-Broker Admin authorization on real PostgreSQL', () => {
     expect(picker.body.members).toContainEqual({ id: owner.id, name: owner.name, role: owner.role });
     expect(picker.body.members.every((row: object) => Object.keys(row).length === 3)).toBe(true);
     await api().post('/api/time-logging/punch-in').set(newHeader).send({}).expect(403);
+  });
+
+  it('opens delegated dashboard, leaderboard and assignment screens and runs a complete shift', async () => {
+    const firm = await db.organization.create({ data: { name: 'Full grants firm', slug: 'full-grants-' + stamp, restrictions: [] } });
+    const owner = await db.user.create({ data: { name: 'Firm owner', email: 'full.owner.' + stamp + '@e2e.test', role: 'BROKER_ADMIN', organizationId: firm.id }, include: { organization: true } });
+    const member = await db.user.create({
+      data: { name: 'Firm delegate', email: 'full.delegate.' + stamp + '@e2e.test', role: 'SUB_BROKER_ADMIN', organizationId: firm.id,
+        delegatedPermissions: ['today:view', 'team:view', 'leads:view', 'leads:assign', 'inventory:view', 'inventory:assign', 'time_logging:view', 'time_logging:create'] },
+      include: { organization: true },
+    });
+    const headers = header((await auth.issue(member)).accessToken);
+    for (const path of ['/broker/today', '/broker/dashboard/metrics?days=30', '/broker/dashboard/records?days=30&chart=leads',
+      '/broker/performance?range=MONTH', '/broker/team', '/time-logging/members', '/time-logging/status', '/time-logging/timeline', '/time-logging/history']) {
+      const response = await api().get('/api' + path).set(headers);
+      expect([path, response.status]).toEqual([path, 200]);
+    }
+    for (const path of ['/leads/assignees', '/inventory/assignees']) {
+      const response = await api().get('/api' + path).set(headers).expect(200);
+      expect(response.body.members).toContainEqual({ id: owner.id, name: owner.name, role: owner.role });
+      expect(response.body.members).toHaveLength(2);
+    }
+    const lead = await db.lead.create({ data: { organizationId: firm.id, name: 'Delegated assignment', phone: '9811199914' } });
+    await api().patch('/api/leads/' + lead.id + '/assign').set(headers).send({ assignedToId: owner.id }).expect(200);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).assignedToId).toBe(owner.id);
+    const location = { latitude: 28.42, longitude: 77.08, accuracy: 12, address: 'Sector 57, Gurugram' };
+    await api().post('/api/time-logging/punch-in').set(headers).send(location).expect(201);
+    await api().post('/api/time-logging/location').set(headers).send(location).expect(201);
+    await api().post('/api/time-logging/pause').set(headers).send({ reason: 'MANUAL' }).expect(201);
+    await api().post('/api/time-logging/resume').set(headers).send(location).expect(201);
+    await api().post('/api/time-logging/punch-out').set(headers).send(location).expect(201);
+    await api().get('/api/time-logging/timeline').set(headers).expect(200);
+    await api().get('/api/broker/dashboard/records?days=30&chart=enquiries').set(headers).expect(403);
+    await api().get('/api/whatsapp/conversations').set(headers).expect(403);
   });
 
   it('allows Super Admin to promote an existing firm agent without extending invitation or grant editing rights', async () => {

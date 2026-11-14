@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { UserPlus } from 'lucide-react-native';
 import { LEAD_SOURCE_LABELS } from '@brokeriq/shared';
 import { post } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { useAssignees } from '@/components/crm';
@@ -13,7 +14,8 @@ const SOURCES = ['WALK_IN', 'CALL', 'REFERRAL', 'WHATSAPP', 'HOUSING', 'ACRES99'
 
 export default function AddLead() {
   const qc = useQueryClient();
-  const { isBrokerAdmin } = useAuth();
+  const { isBrokerAdmin, user } = useAuth();
+  const canAssign = isBrokerAdmin || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const team = useAssignees();
   const [f, setF] = useState({
     name: '',
@@ -34,7 +36,7 @@ export default function AddLead() {
         email: f.email || '',
         source: f.source,
         notes: f.notes || null,
-        assignedToId: f.assignedToId || null,
+        ...(user?.role !== 'SUB_BROKER_ADMIN' || f.assignedToId ? { assignedToId: f.assignedToId || null } : {}),
         requirement: { purpose: f.purpose, bedrooms: f.bedrooms, maxBudget: f.maxBudget ? Number(f.maxBudget) : null, propertyTypes: [], localityIds: [] },
       }),
     {
@@ -89,7 +91,7 @@ export default function AddLead() {
         keyboardType="numeric"
         containerStyle={{ marginTop: 12 }}
       />
-      {isBrokerAdmin && (
+      {canAssign && (
         <>
           <Txt v="label" color="subtle" style={{ marginTop: 16, marginBottom: 8 }}>
             Assign to
@@ -97,7 +99,7 @@ export default function AddLead() {
           <Row wrap>
             <Chip label="Auto / मुझे" active={!f.assignedToId} onPress={() => setF({ ...f, assignedToId: '' })} />
             {(team.data?.members ?? [])
-              .filter((m: any) => m.status === 'ACTIVE')
+              .filter((m: any) => !m.status || m.status === 'ACTIVE')
               .map((m: any) => (
                 <Chip key={m.id} label={m.name} active={f.assignedToId === m.id} onPress={() => setF({ ...f, assignedToId: m.id })} />
               ))}

@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Phone, MessageCircle } from 'lucide-react';
 import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, formatINR } from '@brokeriq/shared';
 import { api, apiBlob, assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { qs } from '@/lib/utils';
@@ -121,7 +122,12 @@ function LedgerInner() {
     queryKey: ['ledger-sectors', filters.organizationId],
     queryFn: () => api<{ sector: string; count: number }[]>(`/inventory/sectors${qs({ organizationId: filters.organizationId })}`),
   });
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team'), enabled: user?.role === 'BROKER_ADMIN' });
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const team = useQuery({
+    queryKey: ['broker-team', 'inventory-assignees', user?.id],
+    queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'),
+    enabled: user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'inventory', 'assign')),
+  });
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
   async function refresh() {
     await Promise.all(

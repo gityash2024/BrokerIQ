@@ -39,6 +39,14 @@ export class LeadsController {
   @Get('assignees')
   async assignees(@CurrentUser() user: RequestUser) {
     if (!user.orgId) throw new ForbiddenException('A broker firm is required');
+    if (user.delegatedActor) {
+      const members = await this.prisma.user.findMany({
+        where: { organizationId: user.orgId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
+        select: { id: true, name: true, role: true },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      });
+      return { members };
+    }
     return readBrokerTeam(this.prisma, user, true);
   }
 

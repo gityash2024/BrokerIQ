@@ -217,7 +217,9 @@ export class DashboardService {
       const org = user.orgId;
       const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
       const policies = await this.modules.all();
-      const on = (key: string) => policies[key]?.state === 'ACTIVE' && policies[key].roles.some((role) => role === user.role);
+      const on = (key: string) =>
+        policies[key]?.state === 'ACTIVE' && policies[key].roles.some((role) => role === user.role) &&
+        (!user.delegatedActor || user.delegatedPermissions?.includes(key + ':view'));
       const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
         on('inventory')
           ? this.db.inventoryItem.groupBy({
@@ -402,7 +404,7 @@ export class DashboardService {
           result.charts.push(
             await series('Lead', 'createdAt', Prisma.sql`"organizationId"=${org} AND "deletedAt" IS NULL`, '/broker/leads', 'New leads', 'leads'),
           );
-        if (on('consumer'))
+        if (!user.delegatedActor && on('consumer'))
           result.charts.push(await series('Enquiry', 'createdAt', Prisma.sql`"organizationId"=${org}`, '/broker/leads', 'Rental enquiries', 'enquiries'));
         if (availability)
           result.charts.push(

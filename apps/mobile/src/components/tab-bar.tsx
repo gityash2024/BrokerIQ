@@ -4,7 +4,7 @@ import { useTheme } from '@/lib/theme';
 import { Txt } from '@/ui';
 import * as Haptics from 'expo-haptics';
 import { useConfig } from '@/lib/config';
-import { moduleAllowed } from '@brokeriq/shared';
+import { moduleAllowed, delegatedModulePolicies } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 
 const keys: Record<string, string> = {
@@ -26,6 +26,8 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
   const insets = useSafeAreaInsets();
   const { modules } = useConfig();
   const { user } = useAuth();
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const policies = delegated ? delegatedModulePolicies(modules, user.delegatedPermissions ?? []) : modules;
 
   return (
     <View
@@ -55,7 +57,7 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
         }}
       >
         {state.routes
-          .filter((route: any) => keys[route.name] && moduleAllowed(modules, keys[route.name], user?.role ?? 'PUBLIC'))
+          .filter((route: any) => keys[route.name] && (delegated ? route.name === 'dashboard' || moduleAllowed(policies, keys[route.name], 'BROKER_ADMIN') : moduleAllowed(modules, keys[route.name], user?.role ?? 'PUBLIC')))
           .map((route: any) => {
             const options = descriptors[route.key].options;
             const focused = state.routes[state.index]?.key === route.key;

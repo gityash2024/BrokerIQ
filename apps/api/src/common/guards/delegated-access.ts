@@ -19,7 +19,10 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   }
   if (path === '/chat/threads/:id/report' && method === 'POST') return { module: 'inbox', actions: ['edit'] };
   if (path === '/media/kyc/:id' && ['GET', 'HEAD'].includes(method)) return { module: 'kyc', actions: ['view'] };
-  if (path === '/broker/today' && method === 'GET') return { module: 'today', actions: ['view'] };
+  if (method === 'GET' && ['/broker/today', '/broker/dashboard/metrics', '/broker/dashboard/records'].includes(path))
+    return { module: 'today', actions: ['view'] };
+  if (path === '/broker/performance' && method === 'GET') return { module: 'team', actions: ['view'] };
+  if (path === '/inventory/assignees' && method === 'GET') return { module: 'inventory', actions: ['assign'] };
   if (method === 'POST' && /^\/assistant\/(chat|cancel|confirm|transcribe)$/.test(path))
     return { module: 'assistant', actions: [path.endsWith('/confirm') ? 'edit' : 'view'] };
   if (!module || ['legacy', 'assistant', 'today', 'consumer'].includes(module)) return null;
@@ -32,6 +35,8 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (path === '/leads/assignees' && method === 'GET') return { module: 'leads', actions: ['assign'] };
   if (module === 'leads' && method === 'POST' && /\/(activities|ai)$/.test(path)) return { module, actions: ['edit'] };
   if (path === '/broker-requirements/:id/convert' && method === 'POST') return { module, actions: ['edit'] };
+  if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && method === 'GET')
+    return { module: 'leads', actions: ['view'] };
   if (path === '/whatsapp/status' && method === 'GET') return { module: 'inbox', actions: ['view'] };
 
   let actions: DelegatedAction[];

@@ -25,24 +25,25 @@ export default function TimeLogging() {
   const canReadTeam = isSuperAdmin || (delegated && user.delegatedPermissions?.includes('time_logging:view')) || (user?.role === 'BROKER_ADMIN' && moduleAllowed(modules, 'team', user.role));
   const team = useQuery({ queryKey: ['team-time-picker', user?.id], queryFn: () => api<any>(delegated ? '/time-logging/members' : '/broker/team'), enabled: canReadTeam, refetchInterval: SHIFT_LOCATION_INTERVAL_MS, refetchOnReconnect: 'always' });
   const agentId = canReadTeam && member ? member : isSuperAdmin ? null : user?.id;
+  const canRead = !delegated || user.delegatedPermissions?.includes('time_logging:view');
   const day = date ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date) : '';
   const query = useQuery({
     queryKey: ['time-timeline', user?.id, agentId, day],
     queryFn: () => api<any>(`/time-logging/timeline${qs({ agentId, date: day })}`),
-    enabled: !!agentId && !!day,
+    enabled: canRead && !!agentId && !!day,
     refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
     refetchOnReconnect: 'always',
   });
   useFocusEffect(useCallback(() => {
-    if (agentId && day) void query.refetch();
+    if (canRead && agentId && day) void query.refetch();
     if (canReadTeam) void team.refetch();
-  }, [agentId, day, canReadTeam, query.refetch, team.refetch]));
+  }, [canRead, agentId, day, canReadTeam, query.refetch, team.refetch]));
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && agentId && day) void query.refetch();
+      if (state === 'active' && canRead && agentId && day) void query.refetch();
     });
     return () => subscription.remove();
-  }, [agentId, day, query.refetch]);
+  }, [canRead, agentId, day, query.refetch]);
   const members: any[] = team.data?.members ?? [];
   return (
     <BrokerScreen title="Time Logging" subtitle="Shift activity and recorded location history · IST" back>
@@ -64,6 +65,7 @@ export default function TimeLogging() {
           />
         )}
         {team.error && canReadTeam && <ErrorView error={team.error} onRetry={() => team.refetch()} />}
+        {canRead && <>
         <DateTimeField value={date} onChange={setDate} dateOnly />
         <Txt v="small" color="muted">
           Recorded history shows original capture times. A past checkpoint does not indicate a live location.
@@ -100,6 +102,7 @@ export default function TimeLogging() {
             {!query.data?.events?.length && <Txt color="muted">No activity recorded for this date.</Txt>}
           </>
         )}
+        </>}
       </ScrollView>
     </BrokerScreen>
   );

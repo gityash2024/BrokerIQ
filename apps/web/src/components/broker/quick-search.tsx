@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as Pop from '@radix-ui/react-popover';
 import { Search } from 'lucide-react';
-import { inventoryTitle, moduleAllowed, type LedgerItem } from '@brokeriq/shared';
+import { inventoryTitle, moduleAllowed, hasDelegatedAccess, type LedgerItem } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig, useConfigStatus } from '@/lib/config';
@@ -23,8 +23,9 @@ export function QuickLeadSearch() {
   const { user } = useAuth();
   const { modules } = useConfig();
   const { loaded } = useConfigStatus();
-  const leadsAllowed = loaded && !!user && moduleAllowed(modules, 'leads', user.role);
-  const inventoryAllowed = loaded && !!user && moduleAllowed(modules, 'inventory', user.role);
+  const policyRole = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user?.role ?? '';
+  const leadsAllowed = loaded && !!user && moduleAllowed(modules, 'leads', policyRole) && hasDelegatedAccess(user, 'leads', 'view');
+  const inventoryAllowed = loaded && !!user && moduleAllowed(modules, 'inventory', policyRole) && hasDelegatedAccess(user, 'inventory', 'view');
   const searches = [
     {
       key: 'leads',

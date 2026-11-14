@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { delegatedModulePolicies, moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES } from '@brokeriq/shared';
+import { hasDelegatedAccess, delegatedModulePolicies, moduleAllowed, moduleForPath, defaultModulePolicies, PLATFORM_MODULES } from '@brokeriq/shared';
 import { Clock3, LockKeyhole, EyeOff } from 'lucide-react';
 import { useConfig, useConfigStatus } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
@@ -30,8 +30,10 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
         )}
       </div>
     );
-  if ((delegated && path === '/broker') || !key || (!!config.modules && moduleAllowed(policies, key, role))) return <Fragment key={screenScope}>{children}</Fragment>;
-  const policy = config.modules?.[key] ?? defaultModulePolicies()[key];
+  const actionAllowed = !delegated || (path !== '/broker/onboarding' &&
+    (path !== '/broker/connectors' || hasDelegatedAccess(user, 'automation', 'connection_status')));
+  if (actionAllowed && ((delegated && path === '/broker') || !key || (!!config.modules && moduleAllowed(policies, key, role)))) return <Fragment key={screenScope}>{children}</Fragment>;
+  const policy = key ? config.modules?.[key] ?? defaultModulePolicies()[key] : undefined;
   const upcoming = policy?.state === 'COMING_SOON';
   const hidden = policy?.state === 'HIDDEN';
   const Icon = upcoming ? Clock3 : hidden ? EyeOff : LockKeyhole;

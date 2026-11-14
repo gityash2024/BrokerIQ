@@ -3,6 +3,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Pressable, View } from 'react-native';
 import { api } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { Screen, Header, Txt, ErrorView, Button } from '@/ui';
 import { useTheme } from '@/lib/theme';
@@ -11,20 +12,25 @@ export default function Records() {
   const { user } = useAuth();
   const { c } = useTheme();
   const [page, setPage] = useState(1);
-  const role = params.view !== 'user' && user && ['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) ? 'broker' : 'user';
+  const role = params.view !== 'user' && user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) ? 'broker' : 'user';
+  const chart = params.chart || (role === 'broker' ? 'leads' : 'enquiries');
+  const module = ['availability', 'localities'].includes(chart) ? 'inventory'
+    : ['leads', 'sources', 'pipeline'].includes(chart) ? 'leads' : null;
+  const allowed = user?.role !== 'SUB_BROKER_ADMIN' || (!!module && role === 'broker' && hasDelegatedAccess(user, module, 'view'));
   const q = useQuery({
+    enabled: allowed,
     queryKey: ['native-records', user?.id, params, page],
     queryFn: () =>
       api<any>(
         (role === 'broker' ? '/broker/dashboard/records' : '/me/dashboard/records') +
           '?' +
-          new URLSearchParams({ ...params, chart: params.chart || (role === 'broker' ? 'leads' : 'enquiries'), page: String(page) }),
+          new URLSearchParams({ ...params, chart, page: String(page) }),
       ),
   });
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="Activity details" subtitle={params.value} />
-      {q.error ? (
+      {!allowed ? <Txt color="muted">This report is not available to your account.</Txt> : q.error ? (
         <ErrorView error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
         <Txt color="muted">Loading records…</Txt>

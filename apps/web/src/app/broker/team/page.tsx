@@ -1,6 +1,6 @@
 'use client';
 import { DelegatedPermissions } from '@/components/broker/team/delegated-permissions';
-import { firmRoleLabel, type BrokerTeamResponse } from '@brokeriq/shared';
+import { hasDelegatedAccess, firmRoleLabel, type BrokerTeamResponse } from '@brokeriq/shared';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -104,6 +104,7 @@ export default function TeamPage() {
   const teamBase = isSuper ? '/admin/team' : '/broker/team';
   const [firmFilter, setFirmFilter] = useState('');
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const canViewTeam = admin || user?.role === 'SUB_BROKER_ADMIN';
   const q = useTeam();
   const [invite, setInvite] = useState(false);
   const { loaded: permissionsLoaded } = useConfigStatus();
@@ -292,7 +293,7 @@ export default function TeamPage() {
     selectedIds.size > 0;
 
   // Dedicated View for Agents: show ONLY Team Leaderboard (no admin controls, no tracking links)
-  if (!admin) {
+  if (!canViewTeam) {
     return (
       <>
         <PageHeader title="Team Leaderboard" subtitle="अपनी टीम की रैंकिंग, क्लोज़ हुई डील्स व प्रदर्शन बोर्ड" />
@@ -306,8 +307,8 @@ export default function TeamPage() {
   return (
     <>
       <PageHeader
-        title={admin ? 'Team & Agents' : 'My team profile'}
-        subtitle={admin ? 'सदस्य, roles, targets और working history देखें' : 'अपना profile, targets और performance देखें'}
+        title={canViewTeam ? 'Team & Agents' : 'My team profile'}
+        subtitle={canViewTeam ? 'सदस्य, roles, targets और working history देखें' : 'अपना profile, targets और performance देखें'}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -478,7 +479,7 @@ export default function TeamPage() {
 
           {/* Right Action: Export Toolbar & Roster Count */}
           <div className="flex items-center gap-2 shrink-0">
-            <ExportToolbar
+            {hasDelegatedAccess(user, 'team', 'export') && <ExportToolbar
               endpoint="/broker/team/export"
               selectedIds={filteredMembers.filter((member) => !selectedIds.size || selectedIds.has(member.id)).map((member) => member.id)}
               filters={{
@@ -494,7 +495,7 @@ export default function TeamPage() {
               filenamePrefix="team-roster"
               totalCount={members.length}
               filteredCount={filteredMembers.length}
-            />
+            />}
 
             <div className="text-xs font-semibold text-muted">
               दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} सदस्य

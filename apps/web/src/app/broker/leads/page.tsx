@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Download, Filter, Inbox, MessageCircle, Phone, Search, Trash2, Upload, UserPlus, X } from 'lucide-react';
 import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, apiBlob, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { post, useApiMutation } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -28,7 +29,10 @@ function LeadsInner() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const admin = user?.role === 'BROKER_ADMIN';
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const admin = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'assign'));
+  const canDelete = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'delete'));
+  const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
   const team = useAssignees();
   const f = useMemo(() => Object.fromEntries(sp.entries()) as Record<string, string>, [sp]);
   const setF = (patch: Record<string, string | null>) => {
@@ -86,15 +90,15 @@ function LeadsInner() {
         subtitle={q.data ? `${q.data.total} leads — हर portal, ad और WhatsApp से एक जगह` : ' '}
         actions={
           <>
-            <Button size="sm" onClick={() => setAddOpen(true)}>
+            {hasDelegatedAccess(user, 'leads', 'create') && <Button size="sm" onClick={() => setAddOpen(true)}>
               <UserPlus className="size-4" /> Add lead
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
+            </Button>}
+            {hasDelegatedAccess(user, 'leads', 'create') && <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="size-4" /> Import CSV
-            </Button>
-            <Button variant="secondary" size="sm" onClick={exportCsv}>
+            </Button>}
+            {hasDelegatedAccess(user, 'leads', 'export') && <Button variant="secondary" size="sm" onClick={exportCsv}>
               <Download className="size-4" /> Export
-            </Button>
+            </Button>}
           </>
         }
       />
@@ -201,6 +205,7 @@ function LeadsInner() {
               ))}
             </Select>
           )}
+          {canEdit && <>
           <Select
             className="h-9 w-40 border-white/20 bg-white/10 text-sm text-white"
             value=""
@@ -223,7 +228,8 @@ function LeadsInner() {
           >
             + Tag
           </Button>
-          {admin && (
+          </>}
+          {canDelete && (
             <Button size="sm" variant="danger" onClick={() => confirm(`${sel.length} leads delete करें?`) && bulk.mutate({ action: 'delete' })}>
               <Trash2 className="size-4" />
             </Button>
@@ -247,7 +253,7 @@ function LeadsInner() {
           icon={<Inbox className="size-6" />}
           title="यहाँ कोई lead नहीं"
           text={admin ? 'Housing / 99acres / MagicBricks inbox और WhatsApp connect करें — leads अपने-आप आएँगी।' : 'आपको assign होते ही leads यहाँ दिखेंगी।'}
-          action={admin ? <Button href="/broker/connectors">Connectors setup करें</Button> : undefined}
+          action={admin && (!delegated || hasDelegatedAccess(user, 'automation', 'connection_status')) ? <Button href="/broker/connectors">Connectors setup करें</Button> : undefined}
         />
       ) : (
         <div className="card overflow-hidden">

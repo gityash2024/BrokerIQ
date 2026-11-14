@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, moduleAllowed, type LeadStage } from '@brokeriq/shared';
 import { api, del, patch, post } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { showError, useApiMutation } from '@/lib/hooks';
 import { reconcileLocalReminders } from '@/lib/push';
@@ -56,9 +57,11 @@ export default function LeadDetail() {
   const { c } = useTheme();
   const { isBrokerAdmin, user } = useAuth();
   const config = useConfig();
+  const canMatch = hasDelegatedAccess(user, 'inventory', 'view');
   const assistantOn = moduleAllowed(config.modules, 'assistant', user?.role ?? '');
-  const dealsOn = moduleAllowed(config.modules, 'deals', user?.role ?? '');
+  const dealsOn = moduleAllowed(config.modules, 'deals', user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user?.role ?? '') && hasDelegatedAccess(user, 'deals', 'view');
   const qc = useQueryClient();
+  const canAssign = isBrokerAdmin || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
@@ -212,13 +215,13 @@ export default function LeadDetail() {
               );
             })}
           </ScrollView>
-          {isBrokerAdmin && (
+          {canAssign && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               <Txt v="caption" color="subtle" style={{ alignSelf: 'center' }}>
                 Assign:
               </Txt>
               {(team.data?.members ?? [])
-                .filter((m: any) => m.status === 'ACTIVE')
+                .filter((m: any) => !m.status || m.status === 'ACTIVE')
                 .map((m: any) => (
                   <Chip key={m.id} label={m.name.split(' ')[0]} active={l.assignedTo?.id === m.id} onPress={() => assign.mutate(m.id)} />
                 ))}
@@ -298,7 +301,7 @@ export default function LeadDetail() {
             </>
           )}
           {tab === 'tasks' && <Tasks lead={l} onChange={refresh} openSheet={setSheet} />}
-          {tab === 'matches' && <Matches lead={l} onShared={refresh} />}
+          {tab === 'matches' && canMatch && <Matches lead={l} onShared={refresh} />}
           {tab === 'ai' && assistantOn && <Ai lead={l} onDone={refresh} />}
         </View>
       </ScrollView>

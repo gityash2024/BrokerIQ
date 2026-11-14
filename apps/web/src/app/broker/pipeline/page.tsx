@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { KanbanSquare, MessageCircle, Phone, Search } from 'lucide-react';
 import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGE_COLORS, formatPriceShort, timeAgo, type LeadStage } from '@brokeriq/shared';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -29,7 +30,7 @@ interface Column {
 
 export default function PipelinePage() {
   const { user } = useAuth();
-  const admin = user?.role === 'BROKER_ADMIN';
+  const admin = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const team = useAssignees();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');

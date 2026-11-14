@@ -25,6 +25,11 @@ export class ModuleGuard implements CanActivate {
       const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
       if (isPublic || /^\/auth(?:\/|$)/.test(path) || /^\/me(?:$|\/(?:privacy|consent|push-tokens|notifications)(?:\/|$))/.test(path)) return true;
       let permission = delegatedEndpoint(path, req.method, req.body);
+      if (path === '/time-logging/status' && req.method === 'GET' &&
+          (!req.query?.agentId || req.query.agentId === user.id) &&
+          !(req.delegatedPermissions ?? []).includes('time_logging:view')) {
+        permission = { module: 'time_logging', actions: ['create'] };
+      }
       if (path === '/me/uploads/sign') {
         const kind = req.body?.kind;
         if (kind === 'avatar') return true;
@@ -42,6 +47,16 @@ export class ModuleGuard implements CanActivate {
       if (!permission || !available || !permission.actions.every((action) => available.actions.includes(action) && grants.includes(delegatedGrant(permission.module, action)))) {
         throw new ForbiddenException('This action is not assigned to your account');
       }
+      if (path === '/broker/dashboard/records') {
+        const chart = req.query?.chart;
+        const module = ['availability', 'localities'].includes(chart) ? 'inventory'
+          : ['leads', 'sources', 'pipeline'].includes(chart) ? 'leads' : null;
+        if (!module || !has(module, 'view')) throw new ForbiddenException('This chart is not assigned to your account');
+      }
+      if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && !has('inventory', 'view'))
+        throw new ForbiddenException('Inventory view permission is required for property matches');
+      if (path.endsWith('/resolve-lead') && !has('leads', 'view'))
+        throw new ForbiddenException('Leads view permission is required to open a lead conversation');
       // Existing services enforce Broker Admin's firm scoping. Delegated actions
       // must pass the check above before they can use that authorization context.
       if (path === '/broker-requirements/:id/convert' && !has('inventory', 'create'))

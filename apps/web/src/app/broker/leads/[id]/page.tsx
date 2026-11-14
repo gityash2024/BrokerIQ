@@ -45,6 +45,7 @@ import {
   type LocalityListItem,
 } from '@brokeriq/shared';
 import { api, ApiError, authStore, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { API_URL, cn, formatDateTime, img, toLocalInput } from '@/lib/utils';
@@ -79,10 +80,14 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const { user } = useAuth();
   const config = useConfig();
-  const allowed = (key: string) => moduleAllowed(config.modules, key, user?.role ?? '');
+  const allowed = (key: string) => moduleAllowed(config.modules, key, user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user?.role ?? '') &&
+    hasDelegatedAccess(user, key, 'view');
   const router = useRouter();
   const qc = useQueryClient();
-  const admin = user?.role === 'BROKER_ADMIN';
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canAssign = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'assign'));
+  const canDelete = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'delete'));
+  const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>('timeline');
@@ -146,6 +151,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               <Phone className="size-4" /> Call
             </Button>
             {allowed('legacy') && <ClickToCall leadId={l.id} onDone={refresh} />}
+            {hasDelegatedAccess(user, 'inbox', 'view', 'edit') && <>
             <Button variant="whatsapp" href={leadInboxUrl(l.id)}>
               <MessageCircle className="size-4" /> WhatsApp
             </Button>
@@ -155,11 +161,12 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
               Email
             </Button>
-            {admin && (
+            </>}
+            {canAssign && (
               <Select className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
                 <option value="">Unassigned</option>
                 {team.data?.members
-                  .filter((m: any) => m.status === 'ACTIVE')
+                  .filter((m: any) => !m.status || m.status === 'ACTIVE')
                   .map((m: any) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
@@ -212,13 +219,13 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             onChange={setTab}
             options={[
               { value: 'timeline', label: 'Timeline' },
-              { value: 'matches', label: 'Matching properties' },
+              ...(!delegated || allowed('inventory') ? [{ value: 'matches' as const, label: 'Matching properties' }] : []),
               { value: 'tasks', label: 'Follow-ups & visits', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
               { value: 'requirement', label: 'Requirement' },
             ]}
           />
           {tab === 'timeline' && <Timeline lead={l} onChange={refresh} />}
-          {tab === 'matches' && <LeadRequirements lead={l} />}
+          {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
           {tab === 'tasks' && <Tasks lead={l} onChange={refresh} />}
           {tab === 'requirement' && <LeadRequirements lead={l} />}
         </div>
@@ -242,8 +249,8 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               />
             )}
             {l.notes && <p className="rounded-xl bg-surface-2 p-3 text-xs whitespace-pre-line">{l.notes}</p>}
-            <TagEditor lead={l} onChange={refresh} />
-            {admin && (
+            {canEdit && <TagEditor lead={l} onChange={refresh} />}
+            {canDelete && (
               <Button variant="ghost" size="sm" className="text-rose-600" onClick={() => confirm('यह lead delete करें?') && remove.mutate(undefined)}>
                 <Trash2 className="size-4" /> Delete lead
               </Button>

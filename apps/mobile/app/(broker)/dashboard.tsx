@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, ClipboardList, Inbox, CalendarCheck, ArrowRight, ShieldCheck, ShieldAlert, Clock } from 'lucide-react-native';
 import { api, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Txt, Button } from '@/ui';
@@ -93,14 +94,14 @@ export default function Today() {
 
         <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
+          {hasDelegatedAccess(user, 'inventory', 'view', 'create') && <View style={{ flex: 1 }}>
             <Button title="Add property" onPress={() => router.push('/inventory-edit')} />
-          </View>
-          <View style={{ flex: 1 }}>
+          </View>}
+          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && <View style={{ flex: 1 }}>
             <Button title="Capture message" variant="secondary" onPress={() => router.push('/capture')} />
-          </View>
+          </View>}
         </View>
-        <Txt v="h3">Follow-ups</Txt>
+        {hasDelegatedAccess(user, 'leads', 'view') && <Txt v="h3">Follow-ups</Txt>}
         {d?.followUps?.map((item: any) => (
           <NativeCard key={item.id} onPress={() => router.push(`/lead/${item.lead.id}` as any)}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -117,12 +118,12 @@ export default function Today() {
             </View>
           </NativeCard>
         ))}
-        {d?.followUps?.length === 0 && (
+        {hasDelegatedAccess(user, 'leads', 'view') && d?.followUps?.length === 0 && (
           <NativeCard>
             <Txt color="muted">No pending follow-ups today.</Txt>
           </NativeCard>
         )}
-        <Txt v="h3">Site visits</Txt>
+        {hasDelegatedAccess(user, 'leads', 'view') && <Txt v="h3">Site visits</Txt>}
         {d?.visits?.map((item: any) => (
           <NativeCard key={item.id} onPress={() => router.push('/visits')}>
             <Txt v="title">{item.lead.name}</Txt>
@@ -131,7 +132,7 @@ export default function Today() {
             </Txt>
           </NativeCard>
         ))}
-        {d?.visits?.length === 0 && (
+        {hasDelegatedAccess(user, 'leads', 'view') && d?.visits?.length === 0 && (
           <NativeCard>
             <Txt color="muted">No visits scheduled today.</Txt>
           </NativeCard>

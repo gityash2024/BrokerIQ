@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { tr } from '@/lib/i18n';
+import { hasDelegatedAccess, delegatedModulePolicies } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { brokerUpcomingModules, defaultModulePolicies, moduleAllowed, languageOf, type MicrositeShare } from '@brokeriq/shared';
@@ -53,6 +54,10 @@ export default function BrokerSettings() {
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
+
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const policies = delegated ? delegatedModulePolicies(modules, user.delegatedPermissions ?? []) : modules;
+  const role = delegated ? 'BROKER_ADMIN' : user?.role ?? 'PUBLIC';
 
   const currentLangLabel = lang ? languageOf(lang).native : 'हिंग्लिश (Original)';
 
@@ -128,7 +133,7 @@ export default function BrokerSettings() {
               }}
             >
               <Txt v="caption" style={{ color: c.brand, fontWeight: '700' }}>
-                🛡️ {user?.role === 'BROKER_ADMIN' ? 'Broker Administrator' : 'Broker Agent'}
+                🛡️ {user?.role === 'BROKER_ADMIN' ? 'Broker Administrator' : delegated ? 'Sub-Broker Admin' : 'Broker Agent'}
               </Txt>
             </View>
 
@@ -142,13 +147,13 @@ export default function BrokerSettings() {
         </View>
 
         {/* Shift Attendance & Time Logging */}
-        {moduleAllowed(modules, 'time_logging', user?.role ?? '') && (
+        {moduleAllowed(policies, 'time_logging', role) && (
           <Button title="Time Logging" variant="secondary" onPress={() => router.push('/time-logging' as any)} />
         )}
         {user?.role === 'BROKER_ADMIN' && user.organizationId && <MicrositeQr key={`${user.id}:${user.organizationId}`} />}
 
         {/* Agent KYC Verification Card */}
-        <TouchableOpacity
+        {hasDelegatedAccess(user, 'kyc', 'view') && <TouchableOpacity
           onPress={() => router.push('/agent-kyc')}
           style={{
             flexDirection: 'row',
@@ -182,7 +187,7 @@ export default function BrokerSettings() {
             </View>
           </View>
           <ChevronRight size={18} color={c.muted} />
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
         {/* Section 1: Firm & Team */}
         <View style={{ gap: 8 }}>
@@ -199,7 +204,7 @@ export default function BrokerSettings() {
               overflow: 'hidden',
             }}
           >
-            {moduleAllowed(modules, 'team', user?.role ?? 'PUBLIC') && (
+            {moduleAllowed(policies, 'team', role) && (
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => router.push('/team')}

@@ -1,4 +1,6 @@
 'use client';
+import { hasDelegatedAccess } from '@brokeriq/shared';
+import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Snowflake, Sun } from 'lucide-react';
 import {
@@ -64,6 +66,7 @@ export function useTeam(enabled = true) {
   });
 }
 
-export function useAssignees() {
-  return useQuery({ queryKey: ['team', 'assignees'], queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'), staleTime: 60_000 });
+export function useAssignees(needed = true) {
+  const { user } = useAuth();
+  return useQuery({ queryKey: ['team', 'assignees'], enabled: needed && hasDelegatedAccess(user, 'leads', 'assign'), queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'), staleTime: 60_000 });
 }

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LEAD_SOURCE_LABELS, PROPERTY_TYPE_LABELS, type LocalityListItem } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { post, useApiMutation } from '@/lib/hooks';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
@@ -17,7 +18,7 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const router = useRouter();
   const requirementMutationId = useRef<string | null>(null);
   const { user } = useAuth();
-  const team = useAssignees();
+  const team = useAssignees(open);
   const { data: locs } = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
@@ -48,7 +49,7 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         email: f.email || null,
         source: f.source,
         notes: f.notes || null,
-        assignedToId: f.assignedToId || null,
+        ...(user?.role !== 'SUB_BROKER_ADMIN' || f.assignedToId ? { assignedToId: f.assignedToId || null } : {}),
       });
       if (hasRequirement) {
         requirementMutationId.current ??= crypto.randomUUID();
@@ -112,12 +113,12 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
             ))}
           </Select>
         </Field>
-        {user?.role === 'BROKER_ADMIN' && (
+        {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'))) && (
           <Field label="Assign to" className="sm:col-span-2">
             <Select value={f.assignedToId} onChange={(e) => setF({ ...f, assignedToId: e.target.value })}>
               <option value="">Unassigned (automation decide करेगा)</option>
               {team.data?.members
-                .filter((m: any) => m.status === 'ACTIVE')
+                .filter((m: any) => !m.status || m.status === 'ACTIVE')
                 .map((m: any) => (
                   <option key={m.id} value={m.id}>
                     {m.name}

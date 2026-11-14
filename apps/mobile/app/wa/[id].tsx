@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
 import { renderTemplate, type WaTemplate } from '@brokeriq/shared';
 import { readInboxDraft, saveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { authStore, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { showError } from '@/lib/hooks';
@@ -21,6 +22,8 @@ export default function WaThread() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
   const { user } = useAuth();
+  const canSend = hasDelegatedAccess(user, 'inbox', 'send');
+  const canRead = hasDelegatedAccess(user, 'inbox', 'edit');
   const owner = useRef(captureAccountContext()).current;
   const qc = useQueryClient();
   const q = useInfiniteQuery({
@@ -61,14 +64,14 @@ export default function WaThread() {
   useRealtime<any>('wa:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
   useRealtime<any>('wa:status', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
   useEffect(() => {
-    if (thread?.conversation?.unreadCount)
+    if (canRead && thread?.conversation?.unreadCount)
       post(`/whatsapp/conversations/${id}/read`)
         .then(() => qc.invalidateQueries({ queryKey: ['conversations'] }))
         .catch(() => undefined);
     setTimeout(() => list.current?.scrollToEnd({ animated: true }), 120);
-  }, [thread, id, qc]);
+  }, [thread, id, qc, canRead]);
   const send = async (body: Record<string, unknown>) => {
-    if (sending) return false;
+    if (!canSend || sending) return false;
     setSending(true);
     try {
       if (['SMS', 'EMAIL'].includes(thread?.conversation?.channel)) {
@@ -233,7 +236,7 @@ export default function WaThread() {
             SMS business SIM से जाएगा। Queue में पहुँचना delivery नहीं है; अनिश्चित स्थिति में फिर न भेजें।
           </Txt>
         )}
-        {!windowOpen && (
+        {canSend && !windowOpen && (
           <PressableScale
             onPress={() => setTpl(true)}
             style={{
@@ -271,7 +274,7 @@ export default function WaThread() {
               setText(value);
               saveInboxDraft(id, value, owner).catch(showError);
             }}
-            editable={windowOpen && !sending}
+            editable={canSend && windowOpen && !sending}
             placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')}
             placeholderTextColor={c.subtle}
             maxLength={sms ? 1600 : email ? 20_000 : undefined}

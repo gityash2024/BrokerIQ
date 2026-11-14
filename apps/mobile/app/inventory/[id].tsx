@@ -13,6 +13,7 @@ import { Txt, Button, ErrorView, Sheet } from '@/ui';
 import { toast } from '@/lib/toast';
 import { propertyShare } from '@/launch/property-card';
 import { SourceImage } from '@/launch/source-image';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { InventoryLeadShare } from '@/components/inventory-lead-share';
 import {
@@ -37,6 +38,9 @@ export default function PropertyDetail() {
   const { c, isDark } = useTheme();
   const { user } = useAuth();
   const isAdmin = user?.role === 'BROKER_ADMIN';
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canAssign = isAdmin || (delegated && hasDelegatedAccess(user, 'inventory', 'edit', 'assign'));
+  const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const qc = useQueryClient();
 
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -52,9 +56,9 @@ export default function PropertyDetail() {
   });
 
   const team = useQuery({
-    queryKey: ['broker-team'],
-    queryFn: () => api<any>('/broker/team'),
-    enabled: isAdmin,
+    queryKey: ['broker-team', 'inventory-assignees', user?.id],
+    queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'),
+    enabled: canAssign,
   });
 
   const item = q.data;
@@ -296,8 +300,8 @@ export default function PropertyDetail() {
               {/* Assignee Card with 1-Tap Quick Change */}
               <TouchableOpacity
                 activeOpacity={0.75}
-                disabled={!isAdmin}
-                onPress={() => (isAdmin ? setReassignOpen(true) : toast.info('Only Broker Admin can re-assign properties'))}
+                disabled={!canAssign}
+                onPress={() => (canAssign ? setReassignOpen(true) : toast.info('Only Broker Admin can re-assign properties'))}
                 style={{
                   flex: 1,
                   padding: 14,
@@ -324,7 +328,7 @@ export default function PropertyDetail() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Txt v="caption" color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                    {isAdmin ? 'Assignee (Tap to change)' : 'Assignee'}
+                    {canAssign ? 'Assignee (Tap to change)' : 'Assignee'}
                   </Txt>
                   <Txt v="bodyStrong" numberOfLines={1}>
                     {item.assignedTo ? item.assignedTo.name : 'Unassigned'}
@@ -661,7 +665,7 @@ export default function PropertyDetail() {
 
           <Button title="Share" variant="secondary" style={{ flex: 1, height: 48, borderRadius: 16 }} onPress={() => setShareWithLead(true)} />
 
-          <Button title="Edit" style={{ flex: 1.2, height: 48, borderRadius: 16 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
+          {canEdit && <Button title="Edit" style={{ flex: 1.2, height: 48, borderRadius: 16 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />}
         </View>
       )}
 
@@ -679,7 +683,7 @@ export default function PropertyDetail() {
         </View>
       )}
       {/* 1-Tap Quick Assignee Selection Sheet */}
-      <Sheet open={isAdmin && reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
+      <Sheet open={canAssign && reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
         <View style={{ gap: 8, paddingBottom: 20 }}>
           <TouchableOpacity
             onPress={() => handleAssign(null)}

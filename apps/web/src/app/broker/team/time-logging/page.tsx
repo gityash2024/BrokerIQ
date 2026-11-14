@@ -141,6 +141,7 @@ function TimeLoggingContent() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isAgent = user?.role === 'BROKER_AGENT';
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canRead = !delegated || user.delegatedPermissions?.includes('time_logging:view');
   const canLogTime = !delegated || user.delegatedPermissions?.includes('time_logging:create');
 
   const params = useSearchParams();
@@ -155,7 +156,7 @@ function TimeLoggingContent() {
   const teamQuery = useQuery({
     queryKey: ['broker-team-time-logging', user?.id],
     queryFn: () => api<BrokerTeamResponse>(delegated ? '/time-logging/members' : '/broker/team'),
-    enabled: !isAgent,
+    enabled: !isAgent && canRead,
   });
   const allMembers = teamQuery.data?.members ?? [];
   const members =
@@ -177,7 +178,7 @@ function TimeLoggingContent() {
   const timelineQuery = useQuery({
     queryKey: ['time-logging-timeline', activeAgentId, selectedDate],
     queryFn: () => api<TimelineResponse>(`/time-logging/timeline${qs({ agentId: activeAgentId, date: selectedDate })}`),
-    enabled: !!activeAgentId && !!selectedDate,
+    enabled: canRead && !!activeAgentId && !!selectedDate,
     refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
     refetchOnWindowFocus: 'always',
     refetchOnReconnect: 'always',
@@ -187,7 +188,7 @@ function TimeLoggingContent() {
   const historyQuery = useQuery({
     queryKey: ['time-logging-history', activeAgentId, selectedDate],
     queryFn: () => api<HistoryResponse>(`/time-logging/history${qs({ agentId: activeAgentId, date: selectedDate })}`),
-    enabled: !!activeAgentId && !!selectedDate,
+    enabled: canRead && !!activeAgentId && !!selectedDate,
     refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
     refetchOnWindowFocus: 'always',
     refetchOnReconnect: 'always',
@@ -231,8 +232,10 @@ function TimeLoggingContent() {
       teamQuery.refetch();
       return;
     }
-    timelineQuery.refetch();
-    historyQuery.refetch();
+    if (canRead) {
+      timelineQuery.refetch();
+      historyQuery.refetch();
+    }
     statusQuery.refetch();
   };
 
@@ -354,7 +357,7 @@ function TimeLoggingContent() {
                 ) : (
                   members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                      {m.name} ({m.role === 'BROKER_ADMIN' ? 'Admin' : m.role === 'SUB_BROKER_ADMIN' ? 'Sub-Broker Admin' : 'Agent'})
                       {isSuperAdmin && m.organization ? ` · ${(m.organization as { name: string }).name}` : ''}
                     </option>
                   ))

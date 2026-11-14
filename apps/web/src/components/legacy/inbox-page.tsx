@@ -33,6 +33,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 import { moveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { useInboxDraft } from '@/lib/use-inbox-draft';
 import { ApiError, api, errorMessage, captureAccountContext, assertAccountContext } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { post, useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
@@ -85,7 +86,7 @@ function InboxInner() {
   const leadTarget = sp.get('lead');
   const resolve = useQuery({
     queryKey: ['resolve-lead-inbox', user?.id, leadTarget, channel],
-    enabled: !!user && !!leadTarget,
+    enabled: !!user && !!leadTarget && hasDelegatedAccess(user, 'inbox', 'edit') && hasDelegatedAccess(user, 'leads', 'view'),
     retry: false,
     queryFn: () =>
       api<{ conversationId: string }>(['SMS', 'EMAIL'].includes(channel) ? '/messaging/resolve-lead' : '/whatsapp/resolve-lead', {
@@ -170,7 +171,7 @@ function InboxInner() {
   // Optimistic read handler
   const handleSelectChat = (c: any) => {
     setParam({ c: c.id });
-    if (c.unreadCount > 0) {
+    if (c.unreadCount > 0 && hasDelegatedAccess(user, 'inbox', 'edit')) {
       qc.setQueryData(['conversations', 'pages', channel, dq, unreadOnly], (old: InfiniteData<InboxPage<any>> | undefined) => {
         if (!old) return old;
         return {

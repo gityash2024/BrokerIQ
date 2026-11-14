@@ -26,10 +26,21 @@ export function delegableModules(policies: ModulePolicies | undefined) {
     .map((module) => ({ ...module, actions: actionsByModule[module.key] }));
 }
 
+/** For a delegated account, every requested action must be explicitly granted. */
+export function hasDelegatedAccess(
+  user: { role: string; delegatedPermissions?: readonly string[] } | null | undefined,
+  module: string,
+  ...actions: DelegatedAction[]
+) {
+  return user?.role !== 'SUB_BROKER_ADMIN' ||
+    actions.every((action) => user.delegatedPermissions?.includes(delegatedGrant(module, action)));
+}
+
 export function delegatedModulePolicies(policies: ModulePolicies | undefined, grants: readonly string[]): ModulePolicies {
   return Object.fromEntries(
     PLATFORM_MODULES.map(({ key }) => {
-      const permitted = !!actionsByModule[key] && moduleAllowed(policies, key, 'BROKER_ADMIN') && grants.some((grant) => grant.startsWith(key + ':'));
+      const permitted = !!actionsByModule[key] && moduleAllowed(policies, key, 'BROKER_ADMIN') && (grants.includes(delegatedGrant(key, 'view')) ||
+        (key === 'time_logging' && grants.includes('time_logging:create')));
       return [key, { state: permitted ? 'ACTIVE' : 'HIDDEN', roles: permitted ? ['BROKER_ADMIN'] : [] }];
     }),
   );

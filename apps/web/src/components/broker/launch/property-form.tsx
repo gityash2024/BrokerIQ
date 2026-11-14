@@ -9,6 +9,7 @@ import {
   type LedgerItem,
 } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess, firmRoleLabel } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
@@ -53,10 +54,11 @@ export function PropertyForm({
   onDirty?: () => void;
 }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'BROKER_ADMIN';
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const isAdmin = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'inventory', 'assign'));
   const isSuper = user?.role === 'SUPER_ADMIN';
   const [superAssignee, setSuperAssignee] = useState(initial.assignedToId ?? '');
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any>('/broker/team'), enabled: isAdmin });
+  const team = useQuery({ queryKey: ['broker-team', 'inventory-assignees', user?.id], queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'), enabled: isAdmin });
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
   const mutationId = useRef(initial.clientMutationId ?? (typeof crypto !== 'undefined' ? crypto.randomUUID() : undefined));
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>(() => {
@@ -177,7 +179,7 @@ export function PropertyForm({
               <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
               {teamMembers.map((m: any) => (
                 <option key={m.id} value={m.id}>
-                  {m.name || m.email || m.phone} ({m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})
+                  {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
                 </option>
               ))}
             </select>
@@ -188,7 +190,7 @@ export function PropertyForm({
             <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
               {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
             </div>
-            <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+            {!delegated && <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />}
           </div>
         )}
       </div>

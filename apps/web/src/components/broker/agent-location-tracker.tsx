@@ -3,23 +3,25 @@ import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
+import { hasDelegatedAccess, SHIFT_LOCATION_INTERVAL_MS } from '@brokeriq/shared';
 import { startShiftLocationPolling } from '@/lib/shift-location-poller';
 
 /** Browser tracking is limited to an open page and an explicitly active shift. */
 export function AgentLocationTracker() {
   const { user } = useAuth();
   const lastSentRef = useRef(0);
+  const canTrack = !!user && (['BROKER_AGENT', 'BROKER_ADMIN'].includes(user.role) ||
+    (user.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'time_logging', 'create')));
   const status = useQuery({
     queryKey: ['time-logging-status', user?.id],
     queryFn: () => api<{ activeShift: { id: string; status: string; pauseReason?: string } | null }>('/time-logging/status'),
-    enabled: !!user && ['BROKER_AGENT', 'BROKER_ADMIN'].includes(user.role),
+    enabled: canTrack,
     refetchInterval: 30_000,
   });
   const shift = status.data?.activeShift;
   const enabled = shift?.status === 'ACTIVE' || (shift?.status === 'PAUSED' && shift.pauseReason === 'GPS_SIGNAL_LOST');
   useEffect(() => {
-    if (!user || !shift || !enabled || !navigator.geolocation) return;
+    if (!canTrack || !user || !shift || !enabled || !navigator.geolocation) return;
     const owner = user.id;
     lastSentRef.current = 0;
     let cancelled = false;
@@ -62,6 +64,6 @@ export function AgentLocationTracker() {
       document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('online', resume);
     };
-  }, [user?.id, shift?.id, enabled]);
+  }, [canTrack, user?.id, shift?.id, enabled]);
   return null;
 }

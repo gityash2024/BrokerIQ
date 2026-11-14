@@ -10,7 +10,6 @@ import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
 import { brokerWorkspaceGroups, delegatedModulePolicies } from '@brokeriq/shared';
-import { TodayActions } from '@/components/dashboard/today-actions';
 import { useConfig } from '@/lib/config';
 import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
@@ -28,11 +27,11 @@ function Inner({ children }: { children: React.ReactNode }) {
     enabled: !delegated && pathname !== '/broker/onboarding',
   });
 
-  useRealtime('wa:message', () => dash.refetch());
-  useRealtime('chat:message', () => dash.refetch());
-  useRealtime('wa:read', () => dash.refetch());
-  useRealtime('chat:read', () => dash.refetch());
-  useRealtime('wa:conversation_deleted', () => dash.refetch());
+  useRealtime('wa:message', () => { if (!delegated) void dash.refetch(); });
+  useRealtime('chat:message', () => { if (!delegated) void dash.refetch(); });
+  useRealtime('wa:read', () => { if (!delegated) void dash.refetch(); });
+  useRealtime('chat:read', () => { if (!delegated) void dash.refetch(); });
+  useRealtime('wa:conversation_deleted', () => { if (!delegated) void dash.refetch(); });
   useEffect(() => {
     if (user?.role === 'BROKER_ADMIN' && user.organization && !user.organization.onboarded && pathname !== '/broker/onboarding')
       router.replace('/broker/onboarding');
@@ -75,6 +74,10 @@ function Inner({ children }: { children: React.ReactNode }) {
   const groups: NavGroup[] = [
     {
       items: brokerWorkspaceGroups(policies, delegated ? 'BROKER_ADMIN' : user?.role ?? '').map((group) => ({
+        ...group,
+        links: group.links.filter((link) => !delegated || link.href !== '/broker/connectors' ||
+          user.delegatedPermissions?.includes('automation:connection_status')),
+      })).filter((group) => group.links.length).map((group) => ({
         href: group.links[0].href,
         label: group.label,
         exact: group.key === 'today',
@@ -98,10 +101,10 @@ function Inner({ children }: { children: React.ReactNode }) {
     },
   ];
   return (
-    <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={!delegated || user.delegatedPermissions?.includes('leads:view') ? <QuickLeadSearch /> : undefined}>
+    <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={!delegated || user.delegatedPermissions?.some((grant) => grant === 'leads:view' || grant === 'inventory:view') ? <QuickLeadSearch /> : undefined}>
       <AgentLocationTracker />
-      <div className="protected-view">{delegated && pathname === '/broker'
-        ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1>{user.delegatedPermissions?.includes('today:view') ? <TodayActions /> : <p>Open an assigned module from the sidebar.</p>}</div>
+      <div className="protected-view">{delegated && pathname === '/broker' && !user.delegatedPermissions?.includes('today:view')
+        ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1><p>Open an assigned module from the sidebar.</p></div>
         : children}</div>
     </PanelShell>
   );

@@ -9,6 +9,7 @@ import { Crown, Search, Send, Trophy, UserPlus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { timeAgo } from '@brokeriq/shared';
 import { post } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -328,7 +329,7 @@ export default function Team() {
         <Input label="Joined to (IST)" placeholder="YYYY-MM-DD" value={to} onChangeText={setTo} />
         <ChoiceField label="Sort by" value={sort} choices={['NAME', 'ROLE', 'KYC', 'JOINED', 'WON', 'LEADS']} onChange={setSort} />
         <Button title={descending ? 'Descending ↓' : 'Ascending ↑'} variant="secondary" onPress={() => setDescending(!descending)} />
-        <ManagementExport endpoint="/broker/team/export" ids={exportIds} label={selected.size ? 'Selected + filtered' : 'Filtered'} />
+        {hasDelegatedAccess(user, 'team', 'export') && <ManagementExport endpoint="/broker/team/export" ids={exportIds} label={selected.size ? 'Selected + filtered' : 'Filtered'} />}
         <Txt color="muted">किसी card को long press करके अलग records चुनें।</Txt>
         <Button
           title="Filters reset"

@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { inventoryInputSchema, inventoryFilterSchema, availabilitySchema, inventoryPublishSchema, type InventoryPublishInput } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { PrismaService } from '../../prisma/prisma.service';
+import { requireOrg } from '../../common/utils';
 import { InventoryService } from './inventory.service';
 import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemDto } from './inventory.dto';
 
@@ -12,7 +14,17 @@ import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemD
 @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventory: InventoryService) {}
+  constructor(private readonly inventory: InventoryService, private readonly prisma: PrismaService) {}
+  @Roles('BROKER_ADMIN')
+  @Get('assignees')
+  async assignees(@CurrentUser() user: RequestUser) {
+    const members = await this.prisma.user.findMany({
+      where: { organizationId: requireOrg(user), deletedAt: null, status: 'ACTIVE', role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
+      select: { id: true, name: true, role: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    return { members };
+  }
   @Get() findAll(@Query(new ZodPipe(inventoryFilterSchema)) query: InventoryFilterQuery, @CurrentUser() user: RequestUser) {
     return this.inventory.findAll(query, user);
   }

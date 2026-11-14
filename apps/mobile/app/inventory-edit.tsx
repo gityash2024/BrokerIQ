@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, prepareInventoryEditorInput, inventoryEditorPatch } from '@brokeriq/shared';
 import { captureAccountContext, api, errorMessage } from '@/lib/api';
+import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { Txt, Input, Button } from '@/ui';
@@ -20,8 +21,14 @@ export default function InventoryEditor() {
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
-  const team = useQuery({ queryKey: ['broker-team'], queryFn: () => api<any[]>('/broker/team'), enabled: user?.role === 'BROKER_ADMIN' });
-  const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [], assignedToId: user?.id });
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canAssign = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'inventory', 'assign'));
+  const team = useQuery({
+    queryKey: ['broker-team', 'inventory-assignees', user?.id],
+    queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'),
+    enabled: canAssign,
+  });
+  const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [], ...(!delegated || canAssign ? { assignedToId: user?.id } : {}) });
   const [ready, setReady] = useState(false);
   const [startSeparate, setStartSeparate] = useState(false);
   const [error, setError] = useState('');
@@ -48,7 +55,7 @@ export default function InventoryEditor() {
         } else
           initial = id
             ? await api<any>(`/inventory/${id}`, { ownerContext: owner.current })
-            : { availability: 'UNKNOWN', status: 'DRAFT', contacts: [], assignedToId: user?.id };
+            : { availability: 'UNKNOWN', status: 'DRAFT', contacts: [], ...(!delegated || canAssign ? { assignedToId: user?.id } : {}) };
         if (active) {
           baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
           setForm({ ...initial, ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}) });
@@ -154,7 +161,7 @@ export default function InventoryEditor() {
               onChange={(v) => change('furnishing', v)}
             />
             {(() => {
-              const isAdmin = user?.role === 'BROKER_ADMIN';
+              const isAdmin = canAssign;
               const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
               if (!isAdmin) {
                 return (

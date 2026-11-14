@@ -1,7 +1,7 @@
 import { usePathname, router } from 'expo-router';
 import { Fragment } from 'react';
 import { View } from 'react-native';
-import { delegatedModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
+import { hasDelegatedAccess, delegatedModulePolicies, moduleAllowed, defaultModulePolicies } from '@brokeriq/shared';
 import { captureAccountContext } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -38,12 +38,18 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const screenScope = `${context.scope}:${context.epoch}`;
   const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
-  if (essential.includes(path)) return <Fragment key={screenScope}>{children}</Fragment>;
+  if (essential.includes(path) && !(user?.role === 'SUB_BROKER_ADMIN' && ['/agent-kyc', '/kyc', '/drafts', '/broker-onboarding'].includes(path))) return <Fragment key={screenScope}>{children}</Fragment>;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
-  const key = delegated && path.startsWith('/chat/') ? 'inbox' : path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
+  const key = delegated && path === '/performance' ? 'team' : delegated && path === '/drafts' ? 'inventory' : delegated && path.startsWith('/chat/') ? 'inbox' : path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : config.modules;
-  const allowed =
+  const actionAllowed = !delegated ||
+    (path === '/inventory-edit' ? hasDelegatedAccess(user, 'inventory', 'view') &&
+      (hasDelegatedAccess(user, 'inventory', 'create') || hasDelegatedAccess(user, 'inventory', 'edit'))
+    : path === '/add-lead' ? hasDelegatedAccess(user, 'leads', 'create')
+    : path === '/connectors' ? hasDelegatedAccess(user, 'automation', 'connection_status')
+    : true);
+  const allowed = actionAllowed &&
     config.loaded &&
     moduleAllowed(policies, key, delegated ? 'BROKER_ADMIN' : role) &&
     (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : nativePlatformMonitorAllowed(path, role) || (broker && !!user?.organization?.id));
