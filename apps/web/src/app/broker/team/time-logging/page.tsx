@@ -16,7 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
 import type { MapPoint } from '@/components/site/map';
-import { SHIFT_LOCATION_INTERVAL_MS, type BrokerTeamResponse } from '@brokeriq/shared';
+import { SHIFT_LOCATION_INTERVAL_MS, type BrokerTeamResponse, type LocalityListItem } from '@brokeriq/shared';
+
+import { shiftLocationAddress, shiftLocationMapUrl } from '@/lib/shift-location-display';
+
+const refreshMinutes = SHIFT_LOCATION_INTERVAL_MS / 60_000;
 
 // Dynamic Leaflet map import with { ssr: false } to eliminate window reference exceptions
 const DynamicMap = dynamic(() => import('@/components/site/map').then((mod) => mod.Map), {
@@ -191,6 +195,14 @@ function TimeLoggingContent() {
   const historyData = historyQuery.data;
   const statusData = statusQuery.data;
 
+  const { data: localities } = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
+    enabled: !!activeAgentId,
+    staleTime: 600_000,
+  });
+  const selectedPoint = historyData?.points.find((point) => point.id === selectedPointId) ?? historyData?.points.at(-1);
+
   // Format map points with numbered sequence waypoint badges
   const mapPoints: MapPoint[] = useMemo(() => {
     return (historyData?.points ?? []).map((p, idx) => ({
@@ -199,9 +211,9 @@ function TimeLoggingContent() {
       lng: p.longitude,
       label: String(idx + 1), // Numbered sequence waypoint pin
       sublabel: formatTimeOnly(p.capturedAt),
-      address: p.address || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}${p.accuracy ? ` (±${Math.round(p.accuracy)}m)` : ''}`,
+      address: shiftLocationAddress(p.address, p, localities) ?? undefined,
     }));
-  }, [historyData?.points]);
+  }, [historyData?.points, localities]);
 
   // Coordinates polyline connecting breadcrumbs in chronological order
   const polylineCoords: [number, number][] = useMemo(() => {
@@ -298,7 +310,7 @@ function TimeLoggingContent() {
     <div className="space-y-6">
       <PageHeader
         title="Time Logging & Location History"
-        subtitle="Monitor agent working hours, 10-minute breadcrumb coordinates, shift status, and daily activity timelines"
+        subtitle={`Monitor working hours, shift activity, and location history. Location history refreshes every ${refreshMinutes} minutes.`}
       />
 
       {/* Filters Toolbar */}
@@ -548,7 +560,7 @@ function TimeLoggingContent() {
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div>
                   <h3 className="font-display font-bold text-fg">Daily Timeline</h3>
-                  <p className="text-xs text-muted">Chronological shift events & breadcrumbs</p>
+                  <p className="text-xs text-muted">Shift events and recorded locations</p>
                 </div>
                 <Badge tone="brand" className="text-[11px]">
                   {timelineData?.events?.length ?? 0} events
@@ -610,16 +622,26 @@ function TimeLoggingContent() {
                             )}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-bold text-fg">{evt.label}</span>
+                              <span className="text-xs font-bold text-fg">{isCheckpoint ? 'Location recorded' : evt.label}</span>
                               <span className="text-[11px] font-semibold text-subtle">{formatTimeOnly(evt.timestamp)}</span>
                             </div>
 
-                            {/* Coordinates or Address */}
                             {(evt.address || evt.coordinates) && (
-                              <p className="mt-1 text-[11px] text-muted line-clamp-2">
-                                {evt.address || `${evt.coordinates?.latitude.toFixed(5)}, ${evt.coordinates?.longitude.toFixed(5)}`}
-                                {evt.coordinates?.accuracy ? ` (±${Math.round(evt.coordinates.accuracy)}m)` : ''}
+                              <p className="mt-1 break-words text-[11px] text-muted">
+                                {shiftLocationAddress(evt.address, evt.coordinates, localities)}
+                                {evt.coordinates?.accuracy ? ` (±${Math.round(evt.coordinates.accuracy)} m)` : ''}
                               </p>
+                            )}
+                            {evt.coordinates && (
+                              <a
+                                className="mt-1 inline-flex text-xs font-semibold text-brand-600 underline-offset-2 hover:underline"
+                                href={shiftLocationMapUrl(evt.coordinates)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                Open in Google Maps
+                              </a>
                             )}
 
                             {/* Duration or Reason Badges */}
@@ -648,12 +670,12 @@ function TimeLoggingContent() {
               </div>
             </div>
 
-            {/* Right Column: 15-Minute Location History Map (7 of 12 cols) */}
+            {/* Right Column: Location History Map (7 of 12 cols) */}
             <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm lg:col-span-7 flex flex-col">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div>
-                  <h3 className="font-display font-bold text-fg">15-Minute Location History Map</h3>
-                  <p className="text-xs text-muted">Chronological route trace & numbered waypoint markers</p>
+                  <h3 className="font-display font-bold text-fg">Location History Map</h3>
+                  <p className="text-xs text-muted">Recorded route and numbered locations</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-subtle">
@@ -666,6 +688,23 @@ function TimeLoggingContent() {
                 </div>
               </div>
 
+              {selectedPoint && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 break-words text-muted">
+                    {selectedPoint.id === selectedPointId ? 'Selected location' : 'Latest location'} · {formatTimeOnly(selectedPoint.capturedAt)} ·{' '}
+                    {shiftLocationAddress(selectedPoint.address, selectedPoint, localities)}
+                    {selectedPoint.accuracy ? ` (±${Math.round(selectedPoint.accuracy)} m)` : ''}
+                  </span>
+                  <a
+                    className="font-semibold text-brand-600 underline-offset-2 hover:underline"
+                    href={shiftLocationMapUrl(selectedPoint)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open in Google Maps
+                  </a>
+                </div>
+              )}
               <div className="mt-4 flex-1 min-h-[500px] w-full overflow-hidden rounded-xl border border-line relative">
                 {historyQuery.isLoading ? (
                   <div className="flex h-full w-full min-h-[500px] items-center justify-center bg-surface-2 text-muted">
@@ -680,7 +719,7 @@ function TimeLoggingContent() {
                       <Navigation className="size-6" />
                     </div>
                     <h4 className="font-display font-bold text-fg">No GPS breadcrumbs recorded</h4>
-                    <p className="mt-1 max-w-sm text-xs text-muted">No 10-minute location history points were logged for this agent on {selectedDate}.</p>
+                    <p className="mt-1 max-w-sm text-xs text-muted">No location points were recorded for this agent on {selectedDate}.</p>
                   </div>
                 ) : (
                   <DynamicMap

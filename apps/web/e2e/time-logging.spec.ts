@@ -5,8 +5,8 @@ test('both admin workspaces read a new point at the ten-minute timer', async ({ 
   test.setTimeout(120_000);
   const { session: broker } = await createBrokerFixture(request);
   const auth = { Authorization: 'Bearer ' + broker.accessToken };
-  const coords = { latitude: 28.45, longitude: 77.02, accuracy: 15 };
-  const started = await request.post(API + '/time-logging/punch-in', { headers: auth, data: coords });
+  const coords = { latitude: 28.422, longitude: 77.077, accuracy: 15 };
+  const started = await request.post(API + '/time-logging/punch-in', { headers: auth, data: { ...coords, address: 'Recorded test address' } });
   expect(started.status(), await started.text()).toBe(201);
   const shiftId = (await started.json()).shift.id;
   try {
@@ -25,6 +25,9 @@ test('both admin workspaces read a new point at the ten-minute timer', async ({ 
         await page.evaluate((s) => localStorage.setItem('biq.auth', JSON.stringify(s)), session);
         await page.goto(path + '?memberId=' + encodeURIComponent(broker.user.id));
         await expect(page.getByText(count + ' breadcrumbs captured', { exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Location History Map' })).toBeVisible();
+        await expect(page.getByText(/refreshes every 10 minutes/)).toBeVisible();
+        await expect(page.getByText('Recorded test address (±15 m)', { exact: true }).first()).toBeVisible();
         const point = await request.post(API + '/time-logging/location', {
           headers: auth,
           data: { ...coords, shiftId, eventId: 'browser-clock-' + Date.now(), capturedAt: new Date().toISOString() },
@@ -35,6 +38,13 @@ test('both admin workspaces read a new point at the ten-minute timer', async ({ 
         await page.clock.fastForward(600_000);
         await polled;
         await expect(page.getByText(count + 1 + ' breadcrumbs captured', { exact: true })).toBeVisible();
+        const latest = page.getByText(/Latest location/).locator('..');
+        await expect(latest).toContainText('Near Sector 57');
+        await expect(latest.getByRole('link', { name: 'Open in Google Maps' })).toHaveAttribute(
+          'href',
+          'https://www.google.com/maps/search/?api=1&query=28.422%2C77.077',
+        );
+        await expect(page.locator('.leaflet-marker-icon .biq-price-pin').first()).toBeVisible();
         console.log('Location poll and refreshed breadcrumb count verified for ' + session.user.role);
       } finally {
         await context.close();
