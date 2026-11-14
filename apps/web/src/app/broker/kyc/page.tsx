@@ -47,7 +47,7 @@ export default function BrokerKycPage() {
   const { user } = useAuth();
   const params = useSearchParams();
   const router = useRouter();
-  const isAdminOrSuper = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isAdminOrSuper = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('kyc:view'));
 
   if (isAdminOrSuper) {
     if (params.get('view') === 'mine')
@@ -89,7 +89,15 @@ function AdminKycManagementView({ user }: { user: any }) {
   const [rejectingMember, setRejectingMember] = useState<any | null>(null);
   const [rejectNote, setRejectNote] = useState('');
 
-  const teamQuery = useTeam();
+  const delegated = user.role === 'SUB_BROKER_ADMIN';
+  const canApprove = !delegated || user.delegatedPermissions?.includes('kyc:approve');
+  const standardTeam = useTeam(!delegated);
+  const delegatedTeam = useQuery({
+    queryKey: ['team', 'kyc-delegated', user.id],
+    queryFn: () => api<any>('/broker/team/agent-kyc/members'),
+    enabled: delegated,
+  });
+  const teamQuery = delegated ? delegatedTeam : standardTeam;
 
   const reviewMutation = useApiMutation(
     ({ agentId, ...body }: { agentId: string; status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }) =>
@@ -407,7 +415,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                   दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} मेंबर्स
                 </span>
 
-                <ExportToolbar
+                {!delegated && <ExportToolbar
                   endpoint="/admin/kyc/export"
                   baseFilename="kyc-verification-report"
                   selectedIds={selectedDocIds}
@@ -423,7 +431,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                     from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
                     to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
                   }}
-                />
+                />}
               </div>
             </div>
           </div>
@@ -520,7 +528,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                       <div className="flex items-center gap-2 self-end md:self-start">
                         {member.id !== user.id &&
                           (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT') &&
-                          member.kycStatus === 'PENDING' &&
+                          canApprove && member.kycStatus === 'PENDING' &&
                           hasSubmission && (
                             <Button
                               size="sm"
@@ -535,7 +543,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                           )}
                         {member.id !== user.id &&
                           (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT') &&
-                          member.kycStatus === 'PENDING' &&
+                          canApprove && member.kycStatus === 'PENDING' &&
                           hasSubmission && (
                             <Button
                               size="sm"
@@ -738,7 +746,7 @@ function AdminKycManagementView({ user }: { user: any }) {
         </div>
       ) : (
         /* Firm KYC Tab */
-        <FirmKycManagementView user={user} canEdit={true} />
+        <FirmKycManagementView user={user} canEdit={!delegated || user.delegatedPermissions?.includes('kyc:create')} />
       )}
 
       {/* Photo Preview Dialog */}

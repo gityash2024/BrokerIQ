@@ -54,9 +54,10 @@ export function TempBadge({ t }: { t?: string | null }) {
   );
 }
 
-export function useTeam() {
+export function useTeam(enabled = true) {
   return useQuery({
     queryKey: ['team', 'overview'],
+    enabled,
     queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>('/broker/team')),
     staleTime: 10_000,
     refetchInterval: 15_000,

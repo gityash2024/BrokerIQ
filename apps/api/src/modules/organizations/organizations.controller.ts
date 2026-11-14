@@ -858,6 +858,17 @@ export class OrganizationsController {
     return this.kyc.personalView(user);
   }
 
+  @Roles('BROKER_ADMIN')
+  @Get('broker/team/agent-kyc/members')
+  async kycMembers(@CurrentUser() user: RequestUser) {
+    const source = await readBrokerTeam(this.prisma, user, false, undefined, {});
+    return {
+      members: source.members.map(({ id, name, avatarUrl, role, createdAt, kycStatus, kycDocuments }) =>
+        ({ id, name, avatarUrl, role, createdAt, kycStatus, kycDocuments }),
+      ),
+    };
+  }
+
   @Roles('BROKER_ADMIN', 'SUPER_ADMIN')
   @Get('broker/team/agents/:id/kyc')
   async getAgentKycDetails(@CurrentUser() user: RequestUser, @Param('id') agentId: string) {

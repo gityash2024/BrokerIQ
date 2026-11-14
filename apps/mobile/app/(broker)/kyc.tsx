@@ -14,7 +14,7 @@ import AgentKycScreen from '../agent-kyc';
 
 export default function BrokerKycTab() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'BROKER_ADMIN';
+  const isAdmin = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('kyc:view'));
 
   if (!isAdmin) {
     return <AgentKycScreen />;
@@ -27,6 +27,8 @@ function BrokerAdminKycManagement() {
   const { c, isDark } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canApprove = !delegated || user.delegatedPermissions?.includes('kyc:approve');
 
   const params = useLocalSearchParams<{ view?: string; member?: string }>();
   const [rejectingMember, setRejectingMember] = useState<any>(null);
@@ -40,7 +42,7 @@ function BrokerAdminKycManagement() {
 
   const teamQuery = useQuery({
     queryKey: ['team-mobile-kyc'],
-    queryFn: () => api<any>('/broker/team'),
+    queryFn: () => api<any>(delegated ? '/broker/team/agent-kyc/members' : '/broker/team'),
   });
 
   const firmQuery = useQuery({
@@ -329,7 +331,7 @@ function BrokerAdminKycManagement() {
 
                 {(m.role === 'BROKER_AGENT' || m.id === user?.id) && <KycHistory member={m.id} />}
                 {/* Action Buttons */}
-                {hasSubmission && m.role === 'BROKER_AGENT' && m.id !== user?.id && m.kycStatus === 'PENDING' && (
+                {canApprove && hasSubmission && m.role === 'BROKER_AGENT' && m.id !== user?.id && m.kycStatus === 'PENDING' && (
                   <Row gap={8} style={{ marginTop: 2 }}>
                     {m.kycStatus === 'PENDING' && (
                       <TouchableOpacity
