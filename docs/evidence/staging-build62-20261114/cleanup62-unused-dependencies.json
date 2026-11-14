@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-14T06:51:14.103587+00:00",
+  "removed": [
+    "/opt/brokeriq/releases/rc-b750ae05e17b/node_modules"
+  ],
+  "beforeAvailableBytes": 21451161600,
+  "afterAvailableBytes": 21753077760,
+  "reclaimedBytes": 301916160,
+  "liveHealth": "ok",
+  "pinnedRelease": "/opt/brokeriq/releases/rc-4d8ec1064512",
+  "rollbackProtected": true
+}

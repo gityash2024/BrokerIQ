@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-14T06:50:06.715185+00:00",
+  "removed": [
+    "/opt/brokeriq/releases/rc-484c32d0172d/apps/web/.next",
+    "/opt/brokeriq/releases/rc-484c32d0172d/node_modules"
+  ],
+  "beforeAvailableBytes": 20773838848,
+  "afterAvailableBytes": 21451358208,
+  "reclaimedBytes": 677519360,
+  "liveHealth": "ok",
+  "pinnedRelease": "/opt/brokeriq/releases/rc-4d8ec1064512",
+  "rollbackProtected": true,
+  "candidateArtifactVerifiedAndRetained": true
+}
