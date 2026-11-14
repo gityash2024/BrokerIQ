@@ -30,7 +30,7 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
         )}
       </div>
     );
-  if (!key || (!!config.modules && moduleAllowed(policies, key, role))) return <Fragment key={screenScope}>{children}</Fragment>;
+  if ((delegated && path === '/broker') || !key || (!!config.modules && moduleAllowed(policies, key, role))) return <Fragment key={screenScope}>{children}</Fragment>;
   const policy = config.modules?.[key] ?? defaultModulePolicies()[key];
   const upcoming = policy?.state === 'COMING_SOON';
   const hidden = policy?.state === 'HIDDEN';

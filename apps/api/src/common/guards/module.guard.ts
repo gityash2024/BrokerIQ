@@ -28,7 +28,8 @@ export class ModuleGuard implements CanActivate {
       if (path === '/me/uploads/sign') {
         const kind = req.body?.kind;
         if (kind === 'avatar') return true;
-        permission = kind === 'listing' ? { module: 'inventory', actions: ['edit'] } : null;
+        permission = kind === 'listing' ? { module: 'inventory', actions: ['edit'] }
+          : kind === 'kyc' ? { module: 'kyc', actions: ['create'] } : null;
       }
       if (permission && ['inventory', 'leads'].includes(permission.module) &&
           req.body && Object.prototype.hasOwnProperty.call(req.body, 'assignedToId') && !permission.actions.includes('assign')) {

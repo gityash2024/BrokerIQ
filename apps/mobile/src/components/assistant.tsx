@@ -33,6 +33,7 @@ export function AssistantButton() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+  if (user?.role === 'SUB_BROKER_ADMIN' && !user.delegatedPermissions?.includes('assistant:view')) return null;
   if (!user || HIDDEN.some((p) => pathname.startsWith(p)) || pathname.startsWith('/chat/') || pathname.startsWith('/wa/')) return null;
   return (
     <>

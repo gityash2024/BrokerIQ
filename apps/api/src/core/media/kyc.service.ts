@@ -50,7 +50,7 @@ export class KycService {
     const result = await this.store.read(doc.privateKey);
     if (hash(result.body) !== doc.fileSha256) throw new ConflictException('Document integrity check failed. Please contact Super Admin.');
     await this.db.auditLog.create({
-      data: { actorId: user.id, actorRole: user.role, organizationId: user.orgId, action: 'kyc.preview', entity: 'KycDocument', entityId: id },
+      data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role, organizationId: user.orgId, action: 'kyc.preview', entity: 'KycDocument', entityId: id },
     });
     return result;
   }

@@ -173,6 +173,7 @@ export function AssistantWidget() {
     }
   };
 
+  if (user?.role === 'SUB_BROKER_ADMIN' && !user.delegatedPermissions?.includes('assistant:view')) return null;
   const onProperty = pathname.startsWith('/property/');
   const hints = !user
     ? []

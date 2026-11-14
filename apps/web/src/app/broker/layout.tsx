@@ -54,6 +54,7 @@ function Inner({ children }: { children: React.ReactNode }) {
   const kyc = useQuery({
     queryKey: ['agent-kyc-mine-status'],
     queryFn: () => api<any>('/broker/team/agent-kyc/mine'),
+    enabled: !delegated || !!user.delegatedPermissions?.includes('kyc:view'),
     refetchInterval: 60_000,
   });
 
@@ -97,7 +98,7 @@ function Inner({ children }: { children: React.ReactNode }) {
     },
   ];
   return (
-    <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={<QuickLeadSearch />}>
+    <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={!delegated || user.delegatedPermissions?.includes('leads:view') ? <QuickLeadSearch /> : undefined}>
       <AgentLocationTracker />
       <div className="protected-view">{delegated && pathname === '/broker'
         ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1>{user.delegatedPermissions?.includes('today:view') ? <TodayActions /> : <p>Open an assigned module from the sidebar.</p>}</div>

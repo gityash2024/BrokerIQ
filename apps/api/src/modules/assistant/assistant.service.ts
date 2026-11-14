@@ -7,7 +7,7 @@ import { AuditService } from '../../core/audit/audit.service';
 import { env } from '../../config/env';
 import { INTERNAL_CALL_HEADER, INTERNAL_CALL_TOKEN } from '../../common/internal';
 import type { RequestUser } from '../../common/decorators';
-import { TOOLS, toOpenAi, toolsFor, type Call, type Tool, type ToolCtx } from './tools';
+import { toOpenAi, toolsFor, type Call, type ToolCtx } from './tools';
 import { assistantSystem } from '../../core/ai/prompts';
 
 interface Pending {
@@ -98,13 +98,37 @@ export class AssistantService {
     });
   }
 
+  private availableTools(user: RequestUser) {
+    const tools = toolsFor(user.role);
+    if (!user.delegatedActor) return tools;
+    const grants = new Set(user.delegatedPermissions);
+    const requirements: Record<string, string[]> = {
+      list_localities: [],
+      rent_budget: [],
+      move_in_cost: [],
+      my_notifications: [],
+      search_leads: ['leads:view'],
+      get_lead: ['leads:view'],
+      create_lead: ['leads:create'],
+      change_lead_stage: ['leads:edit'],
+      add_lead_note: ['leads:edit'],
+      schedule_follow_up: ['leads:create'],
+      schedule_site_visit: ['leads:create'],
+      todays_agenda: ['leads:view'],
+      assign_lead: ['leads:assign'],
+      team_members: ['team:view'],
+    };
+    return tools.filter((tool) => requirements[tool.name]?.every((grant) => grants.has(grant)) &&
+      (!tool.write || grants.has('assistant:edit')));
+  }
+
   async chat(
     user: RequestUser & { name?: string },
     auth: string,
     body: { messages: { role: 'user' | 'assistant'; content: string }[]; lang: string; context?: { path?: string; entityId?: string } },
     ip?: string,
   ): Promise<AssistantReply> {
-    const allowed = toolsFor(user.role);
+    const allowed = this.availableTools(user);
     const ctx = this.ctx(auth, ip);
     const msgs: any[] = [{ role: 'system', content: this.system(user, body.lang, body.context) }, ...body.messages.slice(-16)];
     const used: string[] = [];
@@ -154,8 +178,8 @@ export class AssistantService {
     if (!p || p.expires < Date.now()) throw new BadRequestException('यह request expire हो गई — दोबारा बोलें');
     if (p.userId !== user.id) throw new ForbiddenException();
     this.pending.delete(token);
-    const tool = TOOLS.find((t) => t.name === p.tool) as Tool;
-    if (!tool.roles.includes(user.role)) throw new ForbiddenException();
+    const tool = this.availableTools(user).find((t) => t.name === p.tool);
+    if (!tool) throw new ForbiddenException();
     let result: unknown;
     let ok = true;
     try {

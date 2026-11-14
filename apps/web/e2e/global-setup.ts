@@ -1,12 +1,21 @@
 import { request } from '@playwright/test';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { GURGAON_LOCALITIES } from '../../api/prisma/data/gurgaon';
 import { API } from './fixtures';
 
 export default async function globalSetup() {
   const { PrismaClient } = createRequire(resolve(__dirname, '../../api/package.json'))('@prisma/client');
   const db = new PrismaClient();
   try {
+    const locality = GURGAON_LOCALITIES.find(({ name }) => name === 'Sector 57');
+    if (!locality) throw new Error('Sector 57 is missing from locality master data');
+    const { name, zone, lat, lng } = locality;
+    await db.locality.upsert({
+      where: { slug: 'sector-57' },
+      create: { name, slug: 'sector-57', zone, latitude: lat, longitude: lng, highlights: [] },
+      update: {},
+    });
     // Minimal public HARERA snapshot used only in the isolated browser database.
     const project = {
       provider: 'HARERA',

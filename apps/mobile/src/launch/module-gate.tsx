@@ -47,7 +47,7 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
     config.loaded &&
     moduleAllowed(policies, key, delegated ? 'BROKER_ADMIN' : role) &&
     (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : nativePlatformMonitorAllowed(path, role) || (broker && !!user?.organization?.id));
-  if (delegated && path === '/dashboard') return <BrokerScreen title="Sub-Broker Admin"><View style={{ padding: 24, gap: 12 }}><Txt>Open an assigned module.</Txt><Button title="Product tools" onPress={() => router.push('/product-tools')} /></View></BrokerScreen>;
+  if (delegated && path === '/dashboard' && !allowed) return <BrokerScreen title="Sub-Broker Admin"><View style={{ padding: 24, gap: 12 }}><Txt>Open an assigned module.</Txt><Button title="Product tools" onPress={() => router.push('/product-tools')} /></View></BrokerScreen>;
   if (allowed) return <Fragment key={screenScope}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;
