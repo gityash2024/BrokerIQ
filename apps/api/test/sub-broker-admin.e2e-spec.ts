@@ -63,6 +63,25 @@ describe('Sub-Broker Admin authorization on real PostgreSQL', () => {
     await api().post('/api/time-logging/punch-in').set(newHeader).send({}).expect(403);
   });
 
+  it('allows Super Admin to promote an existing firm agent without extending invitation or grant editing rights', async () => {
+    const firm = await db.organization.create({ data: { name: 'Promotion firm', slug: 'promotion-' + stamp, restrictions: [] } });
+    const admin = await db.user.create({
+      data: { name: 'Platform admin', email: 'super.' + stamp + '@e2e.test', role: 'SUPER_ADMIN' }, include: { organization: true },
+    });
+    const agent = await db.user.create({
+      data: { name: 'Existing agent', email: 'promotion.' + stamp + '@e2e.test', role: 'BROKER_AGENT', organizationId: firm.id },
+    });
+    const actor = header((await auth.issue(admin)).accessToken);
+    const path = '/api/broker/team/' + agent.id;
+    const promotion = { role: 'SUB_BROKER_ADMIN', expectedUpdatedAt: agent.updatedAt.toISOString() };
+    await api().patch(path).set(actor).send({ ...promotion, delegatedPermissions: ['platform:edit'] }).expect(403);
+    await api().patch(path).set(actor).send({ ...promotion, delegatedPermissions: ['inventory:view'] }).expect(200);
+    const updated = await db.user.findUniqueOrThrow({ where: { id: agent.id } });
+    expect(updated).toMatchObject({ organizationId: firm.id, role: 'SUB_BROKER_ADMIN', delegatedPermissions: ['inventory:view'] });
+    await api().patch(path).set(actor).send({ role: 'SUB_BROKER_ADMIN', delegatedPermissions: ['inventory:edit'] }).expect(403);
+    await api().post('/api/broker/team/invite').set(actor).send({ name: 'Invitee', email: 'no@e2e.test', ...promotion, delegatedPermissions: [] }).expect(403);
+  });
+
   it('creates and accepts a restricted invitation without inheriting unrelated access', async () => {
     const firm = await db.organization.create({ data: { name: 'Invitation firm', slug: 'invite-' + stamp, restrictions: [] } });
     const owner = await db.user.create({ data: { name: 'Inviter', email: 'inviter.' + stamp + '@e2e.test', role: 'BROKER_ADMIN', organizationId: firm.id }, include: { organization: true } });

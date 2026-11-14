@@ -502,12 +502,13 @@ export class OrganizationsController {
     return this.getMember(user, userId);
   }
 
-  private async validateDelegation(user: RequestUser, role: string, permissions?: string[]) {
+  private async validateDelegation(user: RequestUser, role: string, permissions?: string[], existingAgentPromotion = false) {
     if (role !== 'SUB_BROKER_ADMIN') {
       if (permissions?.length) throw new BadRequestException('Permissions require a Sub-Broker Admin role');
       return [];
     }
-    if (user.role !== 'BROKER_ADMIN') throw new ForbiddenException('Only the firm Broker Admin can delegate permissions');
+    if (user.role !== 'BROKER_ADMIN' && !(user.role === 'SUPER_ADMIN' && existingAgentPromotion))
+      throw new ForbiddenException('Only the firm Broker Admin can manage delegated permissions');
     if (!permissions) throw new BadRequestException('Choose permissions explicitly');
     const allowed = new Set(delegableModules(await this.modules?.all()).flatMap((module) => module.actions.map((action) => delegatedGrant(module.key, action))));
     if (permissions.some((grant) => !allowed.has(grant))) throw new ForbiddenException('Module is unavailable for delegation');
@@ -550,7 +551,8 @@ export class OrganizationsController {
         (!['BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(member.role) || userId === user.id))
       throw new ForbiddenException('Only another agent or sub-broker admin can receive these permissions');
     const grants = body.role || body.delegatedPermissions !== undefined
-      ? await this.validateDelegation(user, body.role ?? member.role, body.delegatedPermissions)
+      ? await this.validateDelegation(user, body.role ?? member.role, body.delegatedPermissions,
+          body.role === 'SUB_BROKER_ADMIN' && member.role === 'BROKER_AGENT' && !!member.organizationId)
       : undefined;
     const orgId = member.organizationId || user.orgId;
 

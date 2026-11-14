@@ -1,6 +1,6 @@
 'use client';
 import { DelegatedPermissions } from '@/components/broker/team/delegated-permissions';
-import { firmRoleLabel } from '@brokeriq/shared';
+import { firmRoleLabel, type BrokerTeamResponse } from '@brokeriq/shared';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -45,6 +45,7 @@ import {
 import * as DM from '@radix-ui/react-dropdown-menu';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useConfigStatus } from '@/lib/config';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, safeTimeAgo } from '@/lib/utils';
 import { useReverseGeocode } from '@/lib/reverse-geocode';
@@ -60,6 +61,8 @@ import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 import { TeamLeaderboardView } from '@/components/broker/team/team-leaderboard';
 import { DateRangeFilter, type DateRangeValue, isDateInRange } from '@/components/broker/date-range-filter';
 import { ExportToolbar } from '@/components/broker/export-toolbar';
+
+type PromotionMember = BrokerTeamResponse['members'][number] & { organization?: { name?: string }; updatedAt?: string };
 
 function IndeterminateCheckbox({
   checked,
@@ -103,11 +106,23 @@ export default function TeamPage() {
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const q = useTeam();
   const [invite, setInvite] = useState(false);
+  const { loaded: permissionsLoaded } = useConfigStatus();
+  const [promotion, setPromotion] = useState<PromotionMember | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const inv = [['team']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
     success: 'अपडेट हो गया ✅',
     invalidate: inv,
   });
+  const promote = useApiMutation(
+    ({ member, grants }: { member: PromotionMember; grants: string[] }) =>
+      patch(`/broker/team/${encodeURIComponent(member.id)}`, {
+        expectedUpdatedAt: member.updatedAt,
+        role: 'SUB_BROKER_ADMIN',
+        delegatedPermissions: grants,
+      }),
+    { success: 'Sub-Broker Admin role assigned', invalidate: inv, onSuccess: () => setPromotion(null) },
+  );
   const remove = useApiMutation((id: string) => del(`/broker/team/${id}`), {
     success: 'सदस्य को टीम से हटा दिया गया',
     invalidate: inv,
@@ -121,7 +136,7 @@ export default function TeamPage() {
 
   // Teams & Agents Filters State
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
   const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
@@ -396,6 +411,7 @@ export default function TeamPage() {
               <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as any)} className="h-9 text-xs">
                 <option value="ALL">सभी रोल्स (Role)</option>
                 <option value="BROKER_ADMIN">Admin</option>
+                <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
                 <option value="BROKER_AGENT">Agent</option>
               </Select>
             </div>
@@ -597,7 +613,7 @@ export default function TeamPage() {
                           <Crown className="size-3 mr-1" /> Admin
                         </Badge>
                       ) : (
-                        <Badge>Agent</Badge>
+                        <Badge>{firmRoleLabel(m.role)}</Badge>
                       )}
                       {m.status === 'SUSPENDED' && (
                         <Badge tone="danger" className="ml-1">
@@ -677,6 +693,14 @@ export default function TeamPage() {
                                 >
                                   <Crown className="size-4 text-brand" /> {m.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
                                 </DM.Item>
+                                {m.role === 'BROKER_AGENT' && (
+                                  <DM.Item
+                                    onSelect={() => { setPermissions([]); setPromotion(m); }}
+                                    className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
+                                  >
+                                    <ShieldCheck className="size-4 text-brand" /> Make Sub-Broker Admin
+                                  </DM.Item>
+                                )}
                                 <DM.Item
                                   onSelect={() =>
                                     update.mutate({ id: m.id, expectedUpdatedAt: m.updatedAt, status: m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })
@@ -731,6 +755,19 @@ export default function TeamPage() {
         </div>
       )}
 
+      <Dialog
+        open={!!promotion}
+        onOpenChange={(open) => { if (!open && !promote.isPending) setPromotion(null); }}
+        title="Make Sub-Broker Admin"
+        description={promotion ? `${promotion.name}${promotion.organization?.name ? ` · ${promotion.organization.name}` : ''}` : undefined}
+        footer={<>
+          <Button variant="secondary" disabled={promote.isPending} onClick={() => setPromotion(null)}>Cancel</Button>
+          <Button loading={promote.isPending} disabled={!permissionsLoaded || promote.isPending}
+            onClick={() => promotion && promote.mutate({ member: promotion, grants: permissions })}>Confirm promotion</Button>
+        </>}
+      >
+        <DelegatedPermissions value={permissions} onChange={setPermissions} />
+      </Dialog>
       <InviteDialog open={invite} onOpenChange={setInvite} />
       <AgentDetailsAndTargetModal agent={selectedAgent} open={!!selectedAgent} onOpenChange={(v) => !v && setSelectedAgent(null)} />
     </>

@@ -198,7 +198,7 @@ function Editor({ member }: { member: Member }) {
           </form>
           {canEdit && user?.id !== member.id && (
             <div className="card flex flex-wrap gap-3 p-5">
-              {user.role === 'BROKER_ADMIN' && member.role !== 'BROKER_ADMIN' && (
+              {member.role === 'BROKER_AGENT' || (user.role === 'BROKER_ADMIN' && member.role === 'SUB_BROKER_ADMIN') && (
                 <Button variant="secondary" disabled={busy || conflict} onClick={() => {
                   setPermissions(member.delegatedPermissions ?? []);
                   setAction('delegate');
