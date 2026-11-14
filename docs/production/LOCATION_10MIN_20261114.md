@@ -13,3 +13,9 @@ Native OS delivery is a requested cadence, not a guaranteed wall-clock schedule.
 The final source also adds an explicitly scoped native Super Admin read-only monitor: login opens Time Logging; member selection spans firms with organization labels. Other native platform routes remain denied, the module policy still applies, and platform administration stays on responsive web. Sign-out remains available even on a restricted screen. Web and mobile member detail queries now refresh every ten minutes; native details also refetch on focus/foreground. Account keys, unsaved editor fields and conflict detection are preserved.
 
 Chrome also exercised both admin pages against an isolated API and PostgreSQL. Each page stayed open while the API received a new location point. Advancing the browser clock ten minutes triggered a history request and increased the rendered breadcrumb count without a page reload or a manual refresh. Android OS scheduling still requires a physical handset check.
+
+## Web patch
+
+Published at 14:15:01 IST from web commit `e9b742716d561e2c9381cfd4b9f6233db848f562`. The old map heading was hardcoded. The refresh explanation now reads from the same interval constant as polling. Both admin routes prefer the recorded address and use a labelled nearby locality when a close catalogue point exists. Google Maps uses the precise recorded coordinates with an explicit link. The API and signed APK retain Build 62 identities.
+
+TypeScript, the production Next.js build and the isolated Chrome test passed. Chrome exercised the complete refresh for both admin roles, including the address, nearby locality, visible map pin and link coordinates. Public checks verified both updated route bundles, API health, landing, guides and the original APK byte checksum.
