@@ -13,6 +13,7 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
     : /^\/broker\/(profile|business-hours)(\/|$)/.test(path) ? 'team' : moduleForPath(path, 'api');
   // These surfaces can act across several business modules or return firm-wide
   // aggregates and credentials. They require their own scoped implementation.
+  if (path === '/broker/today' && method === 'GET') return { module: 'today', actions: ['view'] };
   if (!module || ['legacy', 'assistant', 'today', 'consumer'].includes(module)) return null;
   if (/^\/(?:broker\/(?:connectors|integrations|portal-pack|whatsapp)|messaging\/gmail|whatsapp\/connect)(?:\/|$)/.test(path)) return null;
   if (/^\/broker\/profile(?:\/|$)/.test(path)) return null;

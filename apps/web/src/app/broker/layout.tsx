@@ -10,6 +10,7 @@ import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
 import { brokerWorkspaceGroups, delegatedModulePolicies } from '@brokeriq/shared';
+import { TodayActions } from '@/components/dashboard/today-actions';
 import { useConfig } from '@/lib/config';
 import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
@@ -99,7 +100,7 @@ function Inner({ children }: { children: React.ReactNode }) {
     <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={<QuickLeadSearch />}>
       <AgentLocationTracker />
       <div className="protected-view">{delegated && pathname === '/broker'
-        ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1><p>Open an assigned module from the sidebar.</p></div>
+        ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1>{user.delegatedPermissions?.includes('today:view') ? <TodayActions /> : <p>Open an assigned module from the sidebar.</p>}</div>
         : children}</div>
     </PanelShell>
   );

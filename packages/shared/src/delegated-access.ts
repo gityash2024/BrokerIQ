@@ -8,6 +8,7 @@ export const delegatedGrantSchema = z.array(z.string().regex(/^[a-z_]+:(view|cre
 export const delegatedGrant = (module: string, action: DelegatedAction) => `${module}:${action}`;
 
 const actionsByModule: Record<string, readonly DelegatedAction[]> = {
+  today: ['view'],
   directory: ['view'],
   inventory: ['view', 'create', 'edit', 'delete', 'export', 'approve', 'assign', 'publish'],
   leads: ['view', 'create', 'edit', 'delete', 'export', 'assign', 'send'],

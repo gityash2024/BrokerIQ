@@ -16,7 +16,11 @@ export class TodayController {
   @Get() async today(@CurrentUser() user: RequestUser) {
     const organizationId = this.inventory.orgId(user)!;
     const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
-    const [leadsOn, inventoryOn, inboxOn] = await Promise.all(['leads', 'inventory', 'inbox'].map((key) => this.modules.enabled(key)));
+    const [leadsOn, inventoryOn, inboxOn] = await Promise.all(
+      ['leads', 'inventory', 'inbox'].map(async (key) =>
+        (!user.delegatedActor || user.delegatedPermissions?.includes(`${key}:view`)) && await this.modules.enabled(key),
+      ),
+    );
     const now = new Date();
     // Gurgaon workday boundaries are computed explicitly, independently of the host timezone.
     const offset = 330 * 60_000;

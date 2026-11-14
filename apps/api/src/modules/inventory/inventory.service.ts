@@ -507,6 +507,12 @@ export class InventoryService {
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
       if (!current) throw new NotFoundException('Inventory item not found');
       if (input.organizationId && input.organizationId !== current.organizationId) throw new BadRequestException('Property firm cannot be changed');
+      if (user.delegatedActor && current.publishedListingId && !user.delegatedPermissions?.includes('inventory:publish')) {
+        const listing = await tx.listing.findUnique({ where: { id: current.publishedListingId }, select: { status: true, deletedAt: true } });
+        if (listing && !listing.deletedAt && ['ACTIVE', 'PENDING_REVIEW'].includes(listing.status)) {
+          throw new ForbiddenException('Editing this property also requires permission to withdraw its listing');
+        }
+      }
       if (input.assignedToId !== undefined) {
         if (user.role === 'BROKER_AGENT' && input.assignedToId !== user.id) throw new ForbiddenException('Only Admins can re-assign properties');
         if (input.assignedToId) {
