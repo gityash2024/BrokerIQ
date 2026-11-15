@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { followUpDateBoundary, followUpTomorrowAtTen } from '@brokeriq/shared';
+import { followUpCurrentMonth, followUpMonthRange, followUpDateBoundary, followUpTomorrowAtTen } from '@brokeriq/shared';
 import { DateTimeField } from '@/components/date-time-field';
 import { ChoiceField } from '@/launch/form';
 import { useAuth } from '@/lib/auth';
@@ -18,8 +18,10 @@ import { Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, Row, Scre
 
 export default function FollowUps() {
   const { c } = useTheme();
-  const [view, setView] = useState<'today' | 'overdue' | 'upcoming' | 'done' | 'all'>('today');
+  const [view, setView] = useState<'today' | 'overdue' | 'upcoming' | 'future' | 'done' | 'all'>('today');
   const { isBrokerAdmin } = useAuth();
+  const [month, setMonth] = useState(() => followUpCurrentMonth());
+  const monthRange = followUpMonthRange(month);
   const team = useAssignees();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -28,16 +30,16 @@ export default function FollowUps() {
   const [from, setFrom] = useState<Date | null>(null);
   const [to, setTo] = useState<Date | null>(null);
   const calendar = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  const fromDate = from ? followUpDateBoundary(calendar(from)) : undefined;
-  const toDate = to ? followUpDateBoundary(calendar(to), true) : undefined;
-  const invalidDates = !!(fromDate && toDate && fromDate > toDate);
+  const fromDate = view === 'future' ? monthRange?.from : from ? followUpDateBoundary(calendar(from)) : undefined;
+  const toDate = view === 'future' ? monthRange?.to : to ? followUpDateBoundary(calendar(to), true) : undefined;
+  const invalidDates = view === 'future' ? !monthRange : !!(fromDate && toDate && fromDate > toDate);
   const common = { search, assignedToId: agent, from: fromDate, to: toDate };
   const params = {
     ...common,
     paginated: true,
     pageSize: 30,
-    view: view === 'done' ? 'all' : view,
-    status: view === 'done' ? 'DONE' : view === 'all' ? status : undefined,
+    view: view === 'done' || view === 'future' ? 'all' : view,
+    status: view === 'future' ? 'PENDING' : view === 'done' ? 'DONE' : view === 'all' ? status : undefined,
     sortBy: view === 'done' ? 'completedAt' : 'dueAt',
     sortOrder: view === 'done' ? 'desc' : 'asc',
   };
@@ -73,13 +75,22 @@ export default function FollowUps() {
             { value: 'today', label: 'आज तक', count: counts.data?.today },
             { value: 'overdue', label: 'Overdue', count: counts.data?.overdue },
             { value: 'upcoming', label: 'Upcoming' },
+            { value: 'future', label: 'Future / By month' },
             { value: 'done', label: 'Done' },
             { value: 'all', label: 'All' },
           ]}
         />
       </View>
+      {view === 'future' && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 12, gap: 6 }}>
+          <Input label="Follow-up month (YYYY-MM)" value={month} onChangeText={setMonth} placeholder="2026-12" maxLength={7} />
+          <Txt v="caption" color="muted">
+            Selected month के pending follow-ups यहाँ दिखेंगे। Lead details से future date schedule करें।
+          </Txt>
+        </View>
+      )}
       {invalidDates ? (
-        <Txt color="danger">End date start date के बाद चुनें।</Txt>
+        <Txt color="danger">{view === 'future' ? 'Valid month (YYYY-MM) चुनें।' : 'End date start date के बाद चुनें।'}</Txt>
       ) : q.isError && !q.data ? (
         <ErrorView error={q.error} />
       ) : (
@@ -104,7 +115,13 @@ export default function FollowUps() {
             q.isFetchNextPageError ? <Button title="Retry loading more" onPress={() => q.fetchNextPage()} /> : q.isFetchingNextPage ? <Skeleton h={50} /> : null
           }
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 40 }}
-          ListEmptyComponent={q.isLoading ? <Skeleton h={100} /> : <Empty icon={<Check size={28} color={c.success} />} title="सब clear है 🎉" />}
+          ListEmptyComponent={
+            q.isLoading ? (
+              <Skeleton h={100} />
+            ) : (
+              <Empty icon={<Check size={28} color={c.success} />} title={view === 'future' ? 'इस महीने कोई pending follow-up नहीं है' : 'सब clear है 🎉'} />
+            )
+          }
           renderItem={({ item: f, index }) => {
             const overdue = f.status === 'PENDING' && new Date(f.dueAt) < new Date();
             return (
@@ -169,16 +186,21 @@ export default function FollowUps() {
           {view === 'all' && (
             <ChoiceField label="Status" value={status} onChange={setStatus} emptyLabel="All statuses" choices={['PENDING', 'DONE', 'MISSED', 'CANCELLED']} />
           )}
-          <Txt v="caption">Due from (IST)</Txt>
-          <DateTimeField dateOnly value={from} onChange={setFrom} />
-          <Txt v="caption">Due to (IST)</Txt>
-          <DateTimeField dateOnly value={to} onChange={setTo} />
-          {invalidDates && <Txt color="danger">End date start date के बाद चुनें।</Txt>}
+          {view !== 'future' && (
+            <>
+              <Txt v="caption">Due from (IST)</Txt>
+              <DateTimeField dateOnly value={from} onChange={setFrom} />
+              <Txt v="caption">Due to (IST)</Txt>
+              <DateTimeField dateOnly value={to} onChange={setTo} />
+            </>
+          )}
+          {invalidDates && <Txt color="danger">{view === 'future' ? 'Valid month (YYYY-MM) चुनें।' : 'End date start date के बाद चुनें।'}</Txt>}
           <Button
             title="Clear filters"
             variant="secondary"
             onPress={() => {
               setSearch('');
+              setMonth(followUpCurrentMonth());
               setAgent(null);
               setStatus(null);
               setFrom(null);

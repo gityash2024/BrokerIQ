@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { followUpDateBoundary, followUpIstDayEnd, followUpQuerySchema, followUpTomorrowAtTen } from '../follow-ups';
+import { followUpCurrentMonth, followUpMonthRange, followUpDateBoundary, followUpIstDayEnd, followUpQuerySchema, followUpTomorrowAtTen } from '../follow-ups';
 
 test('follow-up calendar boundaries are explicitly IST across UTC midnight/year/leap day', () => {
   assert.equal(followUpIstDayEnd(new Date('2026-12-31T20:00:00Z')).toISOString(), '2027-01-01T18:29:59.999Z');
@@ -27,4 +27,11 @@ test('follow-up queries reject malformed dates, status and unbounded pagination'
   ])
     assert.equal(followUpQuerySchema.safeParse(invalid).success, false);
   assert.equal(followUpQuerySchema.parse({ from: '2026-11-02T10:00:00+05:30' }).pageSize, 30);
+});
+
+test('monthly follow-up filters include the complete IST month across leap years and year boundaries', () => {
+  assert.deepEqual(followUpMonthRange('2026-12'), { from: '2026-11-30T18:30:00.000Z', to: '2026-12-31T18:29:59.999Z' });
+  assert.deepEqual(followUpMonthRange('2028-02'), { from: '2028-01-31T18:30:00.000Z', to: '2028-02-29T18:29:59.999Z' });
+  assert.equal(followUpCurrentMonth(new Date('2026-12-31T19:00:00Z')), '2027-01');
+  for (const value of ['2026-00', '2026-13', '2026-2', 'bad', '']) assert.equal(followUpMonthRange(value), null);
 });

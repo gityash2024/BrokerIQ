@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlarmClock, CalendarPlus, Check, Clock, ListChecks, Mail, MessageCircle, Phone, Trash2, Users, X } from 'lucide-react';
-import { FollowUpType, followUpDateBoundary, followUpIstDayEnd, followUpTomorrowAtTen } from '@brokeriq/shared';
+import { FollowUpType, followUpCurrentMonth, followUpMonthRange, followUpDateBoundary, followUpIstDayEnd, followUpTomorrowAtTen } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { del, patch, useApiMutation } from '@/lib/hooks';
@@ -21,7 +21,7 @@ import { Avatar, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
-type View = 'today' | 'overdue' | 'upcoming' | 'done' | 'all';
+type View = 'today' | 'overdue' | 'upcoming' | 'future' | 'done' | 'all';
 type FollowUpPage = { items: any[]; total: number; page: number; totalPages: number };
 const TYPE_ICON = { CALL: Phone, WHATSAPP: MessageCircle, MEETING: Users, EMAIL: Mail, SMS: MessageCircle, OTHER: ListChecks } as const;
 
@@ -38,6 +38,8 @@ export default function FollowUpsPage() {
   const admin = user?.role === 'BROKER_ADMIN';
   const team = useAssignees();
   const [view, setView] = useState<View>('today');
+  const [month, setMonth] = useState(() => followUpCurrentMonth());
+  const monthRange = followUpMonthRange(month);
   const [agent, setAgent] = useState('');
   const [done, setDone] = useState<any>(null);
   const [outcome, setOutcome] = useState('');
@@ -48,26 +50,26 @@ export default function FollowUpsPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [status, setStatus] = useState('');
-  const fromDate = from ? followUpDateBoundary(from) : undefined;
-  const toDate = to ? followUpDateBoundary(to, true) : undefined;
-  const invalidDates = !!((from && !fromDate) || (to && !toDate) || (fromDate && toDate && fromDate > toDate));
+  const fromDate = view === 'future' ? monthRange?.from : from ? followUpDateBoundary(from) : undefined;
+  const toDate = view === 'future' ? monthRange?.to : to ? followUpDateBoundary(to, true) : undefined;
+  const invalidDates = view === 'future' ? !monthRange : !!((from && !fromDate) || (to && !toDate) || (fromDate && toDate && fromDate > toDate));
   const sharedParams = { search, assignedToId: agent, from: fromDate, to: toDate };
   const params = {
     ...sharedParams,
     paginated: 'true',
     page,
-    view: view === 'done' ? 'all' : view,
-    status: view === 'done' ? 'DONE' : view === 'all' ? status : undefined,
+    view: view === 'done' || view === 'future' ? 'all' : view,
+    status: view === 'future' ? 'PENDING' : view === 'done' ? 'DONE' : view === 'all' ? status : undefined,
     sortBy: view === 'done' ? 'completedAt' : 'dueAt',
     sortOrder: view === 'done' ? 'desc' : 'asc',
   };
   const q = useQuery({
-    queryKey: ['follow-ups', view, agent, page, search, from, to, status],
+    queryKey: ['follow-ups', view, agent, page, search, fromDate, toDate, status],
     queryFn: () => api<FollowUpPage>(`/follow-ups${qs(params)}`),
     enabled: !invalidDates,
   });
   const counts = useQuery({
-    queryKey: ['follow-ups', 'counts', agent, search, from, to],
+    queryKey: ['follow-ups', 'counts', agent, search, fromDate, toDate],
     queryFn: () => api<{ today: number; overdue: number }>(`/follow-ups/summary${qs(sharedParams)}`),
     enabled: !invalidDates,
     refetchInterval: 60000,
@@ -115,6 +117,7 @@ export default function FollowUpsPage() {
             { value: 'today', label: 'आज तक', count: counts.data?.today },
             { value: 'overdue', label: 'Overdue', count: counts.data?.overdue },
             { value: 'upcoming', label: 'Upcoming' },
+            { value: 'future', label: 'Future / By month' },
             { value: 'done', label: 'Done' },
             { value: 'all', label: 'All' },
           ]}
@@ -149,26 +152,41 @@ export default function FollowUpsPage() {
             placeholder="Name, phone, email or note"
           />
         </Field>
-        <Field label="Due from (IST)">
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPage(1);
-            }}
-          />
-        </Field>
-        <Field label="Due to (IST)">
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPage(1);
-            }}
-          />
-        </Field>
+        {view === 'future' ? (
+          <Field label="Follow-up month (IST)">
+            <Input
+              type="month"
+              value={month}
+              onChange={(event) => {
+                setMonth(event.target.value);
+                setPage(1);
+              }}
+            />
+          </Field>
+        ) : (
+          <>
+            <Field label="Due from (IST)">
+              <Input
+                type="date"
+                value={from}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </Field>
+            <Field label="Due to (IST)">
+              <Input
+                type="date"
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </Field>
+          </>
+        )}
         {view === 'all' ? (
           <Field label="Status">
             <Select
@@ -191,6 +209,7 @@ export default function FollowUpsPage() {
             variant="secondary"
             onClick={() => {
               setSearch('');
+              setMonth(followUpCurrentMonth());
               setFrom('');
               setTo('');
               setAgent('');
@@ -219,7 +238,7 @@ export default function FollowUpsPage() {
       )}
       {invalidDates ? (
         <p role="alert" className="mb-5 text-sm text-rose-600">
-          Valid start/end dates चुनें; end date start के बाद होनी चाहिए।
+          {view === 'future' ? 'Valid follow-up month चुनें।' : 'Valid start/end dates चुनें। End date start के बाद होनी चाहिए।'}
         </p>
       ) : q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
@@ -232,7 +251,15 @@ export default function FollowUpsPage() {
       ) : !q.data.items.length ? (
         <Empty
           icon={<Check className="size-7" />}
-          title={view === 'overdue' ? 'कोई overdue follow-up नहीं 🎉' : view === 'done' ? 'अभी कोई completed follow-up नहीं' : 'सब clear है'}
+          title={
+            view === 'future'
+              ? 'इस महीने कोई pending follow-up नहीं है'
+              : view === 'overdue'
+                ? 'कोई overdue follow-up नहीं 🎉'
+                : view === 'done'
+                  ? 'अभी कोई completed follow-up नहीं'
+                  : 'सब clear है'
+          }
           text="Lead detail page से या ऊपर के button से follow-up schedule करें।"
         />
       ) : (

@@ -38,3 +38,19 @@ export function followUpDateBoundary(day: string, end = false): string | null {
   if (value.getUTCFullYear() !== year || value.getUTCMonth() !== month - 1 || value.getUTCDate() !== date) return null;
   return new Date(value.getTime() - IST + (end ? 86400000 - 1 : 0)).toISOString();
 }
+
+/** Inclusive month boundaries in the CRM's IST calendar. */
+export function followUpMonthRange(month: string): { from: string; to: string } | null {
+  if (!/^\d{4}-\d{2}$/.test(month)) return null;
+  const start = followUpDateBoundary(month + '-01');
+  if (!start) return null;
+  const [year, number] = month.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year, number, 0)).getUTCDate();
+  const end = followUpDateBoundary(month + '-' + String(lastDay).padStart(2, '0'), true);
+  return end ? { from: start, to: end } : null;
+}
+
+export function followUpCurrentMonth(now = new Date()): string {
+  const date = new Date(now.getTime() + IST);
+  return date.getUTCFullYear() + '-' + String(date.getUTCMonth() + 1).padStart(2, '0');
+}
