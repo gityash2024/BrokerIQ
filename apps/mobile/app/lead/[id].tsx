@@ -2,7 +2,7 @@ import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
 import { submitTask } from '@/launch/drafts';
 import { VisitPropertyPicker } from '@/components/visit-property-picker';
-import { visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { propertyPhotoDraft, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, FlatList, Linking, ScrollView, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -57,19 +57,26 @@ export default function LeadDetail() {
   const { c } = useTheme();
   const { isBrokerAdmin, user } = useAuth();
   const config = useConfig();
-  const canMatch = hasDelegatedAccess(user, 'inventory', 'view');
+  const policyRole = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
+  const canMatch = moduleAllowed(config.modules, 'inventory', policyRole) && hasDelegatedAccess(user, 'inventory', 'view');
+  const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
+  const canCreateTask = hasDelegatedAccess(user, 'leads', 'create');
+  const canSharePhotos = canMatch && moduleAllowed(config.modules, 'inbox', policyRole) && hasDelegatedAccess(user, 'inbox', 'view', 'edit', 'send');
   const assistantOn = moduleAllowed(config.modules, 'assistant', user?.role ?? '');
-  const dealsOn = moduleAllowed(config.modules, 'deals', user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user?.role ?? '') && hasDelegatedAccess(user, 'deals', 'view');
+  const dealsOn =
+    moduleAllowed(config.modules, 'deals', user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '')) &&
+    hasDelegatedAccess(user, 'deals', 'view');
   const qc = useQueryClient();
   const canAssign = isBrokerAdmin || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
-  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'not_interested' | 'deal'>(null);
+  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'not_interested' | 'deal' | 'photos'>(null);
   const callPending = useRef(false);
   const refresh = () => {
     q.refetch();
     qc.invalidateQueries({ queryKey: ['leads'] });
+    qc.invalidateQueries({ queryKey: ['kanban'] });
     qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
   };
   // After a call, when the broker returns to the app, prompt to log the outcome.
@@ -93,6 +100,8 @@ export default function LeadDetail() {
       </SafeAreaView>
     );
   const l = q.data;
+  const visitCompleted = l.visits.some((visit: { status: string }) => visit.status === 'COMPLETED');
+  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(l.stage);
   const call = () => {
     callPending.current = true;
     Linking.openURL(`tel:${l.phone}`).catch((error) => {
@@ -198,14 +207,27 @@ export default function LeadDetail() {
             size="sm"
             onPress={() => router.push({ pathname: '/requirements', params: { leadId: id } })}
           />
+
+          {((canCreateTask && l.stage === 'CONTACTED') || (canSharePhotos && beforeVisit)) && (
+            <Row wrap gap={8}>
+              {canCreateTask && l.stage === 'CONTACTED' && <Button size="sm" variant="secondary" title="Follow-up" onPress={() => setSheet('followup')} />}
+              {canSharePhotos && beforeVisit && <Button size="sm" variant="secondary" title="Share photos" onPress={() => setSheet('photos')} />}
+            </Row>
+          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
+              if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
+              if (!canEdit && s !== l.stage) return null;
               const on = l.stage === s;
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
                 <PressableScale
                   key={s}
-                  onPress={() => (s === 'LOST' ? setSheet('lost') : s === 'NOT_INTERESTED' ? setSheet('not_interested') : stage.mutate({ stage: s }))}
+                  onPress={
+                    canEdit && !stage.isPending
+                      ? () => (s === 'LOST' ? setSheet('lost') : s === 'NOT_INTERESTED' ? setSheet('not_interested') : stage.mutate({ stage: s }))
+                      : undefined
+                  }
                   style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
                 >
                   <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
@@ -264,6 +286,7 @@ export default function LeadDetail() {
                   size="sm"
                   variant="secondary"
                   icon={<AlarmClock size={19} color={c.fg} />}
+                  disabled={!canCreateTask}
                   onPress={() => setSheet('followup')}
                   style={compactAction}
                 />
@@ -300,7 +323,7 @@ export default function LeadDetail() {
               ))}
             </>
           )}
-          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} openSheet={setSheet} />}
+          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} openSheet={setSheet} canCreate={canCreateTask} canEdit={canEdit} />}
           {tab === 'matches' && canMatch && <Matches lead={l} onShared={refresh} />}
           {tab === 'ai' && assistantOn && <Ai lead={l} onDone={refresh} />}
         </View>
@@ -308,8 +331,9 @@ export default function LeadDetail() {
 
       <NoteSheet open={sheet === 'note'} onClose={() => setSheet(null)} leadId={id} onDone={refresh} />
       <CallSheet open={sheet === 'call'} onClose={() => setSheet(null)} lead={l} onDone={refresh} onFollowUp={() => setSheet('followup')} />
-      <FollowUpSheet open={sheet === 'followup'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
-      <VisitSheet open={sheet === 'visit'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
+      <FollowUpSheet open={canCreateTask && sheet === 'followup'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
+      <VisitSheet open={canCreateTask && sheet === 'visit'} onClose={() => setSheet(null)} lead={l} onDone={refresh} canViewInventory={canMatch} />
+      {canSharePhotos && beforeVisit && sheet === 'photos' && <PropertyPhotoShare leadId={l.id} onClose={() => setSheet(null)} />}
       <LostSheet
         open={sheet === 'lost'}
         onClose={() => setSheet(null)}
@@ -412,7 +436,19 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   );
 }
 
-function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () => void; lead: any; onDone: () => void }) {
+function VisitSheet({
+  open,
+  onClose,
+  lead,
+  onDone,
+  canViewInventory,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lead: any;
+  onDone: () => void;
+  canViewInventory: boolean;
+}) {
   const { c } = useTheme();
   const [at, setAt] = useState<Date | null>(null);
   const [isCustomDate, setIsCustomDate] = useState(false);
@@ -479,17 +515,21 @@ function VisitSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: (
       )}
 
       {isCustomDate && !at && <Txt color="danger">सही तारीख और समय भरें; invalid दिन या समय स्वीकार नहीं होगा।</Txt>}
-      <Txt v="label" color="subtle">
-        Property
-      </Txt>
-      <VisitPropertyPicker
-        open={open}
-        value={property}
-        onChange={(item) => {
-          setProperty(item);
-          if (item) setAddress(item.address || visitInventoryTitle(item));
-        }}
-      />
+      {canViewInventory && (
+        <>
+          <Txt v="label" color="subtle">
+            Property
+          </Txt>
+          <VisitPropertyPicker
+            open={open}
+            value={property}
+            onChange={(item) => {
+              setProperty(item);
+              if (item) setAddress(item.address || visitInventoryTitle(item));
+            }}
+          />
+        </>
+      )}
 
       <Txt v="label" color="subtle" style={{ marginBottom: 4 }}>
         Meeting Point / Custom Address
@@ -578,7 +618,51 @@ function DealSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: ()
   );
 }
 
-function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void; openSheet: (s: 'followup' | 'visit') => void }) {
+function PropertyPhotoShare({ leadId, onClose }: { leadId: string; onClose: () => void }) {
+  const [property, setProperty] = useState<LedgerItem | null>(null);
+  const message = property ? String(visitInventoryTitle(property)) : '';
+  const draft = propertyPhotoDraft(message, property?.photoUrls);
+  return (
+    <Sheet open onClose={onClose} title="Share property photos">
+      <VisitPropertyPicker open value={property} onChange={setProperty} purpose="photos" />
+      {property && draft === message && (
+        <>
+          <Txt color="muted">No shareable photos yet.</Txt>
+          <Button
+            title="Open property"
+            variant="secondary"
+            onPress={() => {
+              onClose();
+              router.push({ pathname: '/inventory/[id]', params: { id: property.id } });
+            }}
+          />
+        </>
+      )}
+      <Button
+        title="Review in Inbox"
+        disabled={!property || draft === message}
+        onPress={() => {
+          onClose();
+          void openLeadInbox(leadId, draft);
+        }}
+      />
+    </Sheet>
+  );
+}
+
+function Tasks({
+  lead,
+  onChange,
+  openSheet,
+  canCreate,
+  canEdit,
+}: {
+  lead: any;
+  onChange: () => void;
+  openSheet: (s: 'followup' | 'visit') => void;
+  canCreate: boolean;
+  canEdit: boolean;
+}) {
   const { c } = useTheme();
   const done = useApiMutation((fid: string) => patch(`/follow-ups/${fid}`, { status: 'DONE' }), {
     success: 'Done ✅',
@@ -587,19 +671,24 @@ function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void;
       void reconcileLocalReminders().catch(() => undefined);
     },
   });
+  const updateVisit = useApiMutation(({ id, status }: { id: string; status: 'COMPLETED' | 'NO_SHOW' | 'CANCELLED' }) => patch(`/visits/${id}`, { status }), {
+    onSuccess: onChange,
+  });
   return (
     <>
-      <Row gap={8}>
-        <Button title="Follow-up" size="sm" icon={<AlarmClock size={15} color="#fff" />} style={{ flex: 1 }} onPress={() => openSheet('followup')} />
-        <Button
-          title="Site visit"
-          size="sm"
-          variant="accent"
-          icon={<CalendarPlus size={15} color="#111" />}
-          style={{ flex: 1 }}
-          onPress={() => openSheet('visit')}
-        />
-      </Row>
+      {canCreate && (
+        <Row gap={8}>
+          <Button title="Follow-up" size="sm" icon={<AlarmClock size={15} color="#fff" />} style={{ flex: 1 }} onPress={() => openSheet('followup')} />
+          <Button
+            title="Site visit"
+            size="sm"
+            variant="accent"
+            icon={<CalendarPlus size={15} color="#111" />}
+            style={{ flex: 1 }}
+            onPress={() => openSheet('visit')}
+          />
+        </Row>
+      )}
       {lead.followUps.map((f: any) => (
         <Card key={f.id} style={{ padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: f.status === 'PENDING' ? 1 : 0.55 }}>
           <AlarmClock size={18} color={f.status === 'PENDING' && new Date(f.dueAt) < new Date() ? c.danger : c.brand} />
@@ -613,7 +702,7 @@ function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void;
               </Txt>
             )}
           </View>
-          {f.status === 'PENDING' ? (
+          {f.status === 'PENDING' && canEdit ? (
             <IconBtn onPress={() => done.mutate(f.id)} style={{ backgroundColor: `${c.success}22` }}>
               <Check size={18} color={c.success} />
             </IconBtn>
@@ -628,6 +717,25 @@ function Tasks({ lead, onChange, openSheet }: { lead: any; onChange: () => void;
           <Txt v="caption" color="muted">
             {v.listing?.title ?? v.address ?? ''} · {v.status}
           </Txt>
+          {canEdit && ['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
+            <Row wrap gap={6}>
+              <Button size="sm" title="Complete" disabled={updateVisit.isPending} onPress={() => updateVisit.mutate({ id: v.id, status: 'COMPLETED' })} />
+              <Button
+                size="sm"
+                title="No show"
+                variant="secondary"
+                disabled={updateVisit.isPending}
+                onPress={() => updateVisit.mutate({ id: v.id, status: 'NO_SHOW' })}
+              />
+              <Button
+                size="sm"
+                title="Cancel visit"
+                variant="ghost"
+                disabled={updateVisit.isPending}
+                onPress={() => updateVisit.mutate({ id: v.id, status: 'CANCELLED' })}
+              />
+            </Row>
+          )}
         </Card>
       ))}
       {!lead.followUps.length && !lead.visits.length && (

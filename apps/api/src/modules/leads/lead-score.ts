@@ -33,6 +33,7 @@ const STAGE_POINTS: Record<string, [number, string]> = {
   CONTACTED: [5, 'बात हो चुकी है'],
   INTERESTED: [12, 'Interested'],
   SITE_VISIT: [18, 'Site visit stage'],
+  SHORTLISTED: [22, 'Property shortlisted'],
   NEGOTIATION: [25, 'Negotiation चल रही है'],
 };
 

@@ -9,7 +9,17 @@ import { useTheme } from '@/lib/theme';
 import { Button, ErrorView, Input, PressableScale, Txt } from '@/ui';
 
 type Result = { items: LedgerItem[]; total: number; totalPages: number };
-export function VisitPropertyPicker({ open, value, onChange }: { open: boolean; value: LedgerItem | null; onChange: (item: LedgerItem | null) => void }) {
+export function VisitPropertyPicker({
+  open,
+  value,
+  onChange,
+  purpose = 'visit',
+}: {
+  open: boolean;
+  value: LedgerItem | null;
+  onChange: (item: LedgerItem | null) => void;
+  purpose?: 'visit' | 'photos';
+}) {
   const { c } = useTheme();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
@@ -28,7 +38,7 @@ export function VisitPropertyPicker({ open, value, onChange }: { open: boolean; 
         <Txt v="caption" color="muted">
           {visitInventoryDetails(value)}
         </Txt>
-        <Button title="Change / custom address" variant="secondary" onPress={() => onChange(null)} />
+        <Button title="{purpose === 'photos' ? 'Change property' : 'Change / custom address'}" variant="secondary" onPress={() => onChange(null)} />
       </>
     );
   return (
@@ -49,7 +59,9 @@ export function VisitPropertyPicker({ open, value, onChange }: { open: boolean; 
               </PressableScale>
             ))}
           {list.isPending && <Txt color="muted">Loading…</Txt>}
-          {list.data?.pages[0].total === 0 && <Txt color="muted">No matching property. Enter a custom meeting address below.</Txt>}
+          {list.data?.pages[0].total === 0 && (
+            <Txt color="muted">{purpose === 'photos' ? 'No matching property.' : 'No matching property. Enter a custom meeting address below.'}</Txt>
+          )}
           {list.hasNextPage && <Button title="Load more" variant="secondary" loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} />}
         </ScrollView>
       )}

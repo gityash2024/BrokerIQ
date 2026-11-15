@@ -212,7 +212,7 @@ function LeadsInner() {
             onChange={(e) => e.target.value && bulk.mutate({ action: 'stage', value: e.target.value })}
           >
             <option value="">Move to stage…</option>
-            {LEAD_STAGES.map((s) => (
+            {LEAD_STAGES.filter((stage) => stage !== 'SHORTLISTED').map((s) => (
               <option key={s} value={s} className="text-fg">
                 {LEAD_STAGE_LABELS[s]}
               </option>

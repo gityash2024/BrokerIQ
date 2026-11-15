@@ -11,7 +11,15 @@ import { Button } from '@/components/ui/button';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 type Result = { items: LedgerItem[]; total: number; totalPages: number };
-export function VisitPropertyPicker({ value, onChange }: { value: LedgerItem | null; onChange: (item: LedgerItem | null) => void }) {
+export function VisitPropertyPicker({
+  value,
+  onChange,
+  purpose = 'visit',
+}: {
+  value: LedgerItem | null;
+  onChange: (item: LedgerItem | null) => void;
+  purpose?: 'visit' | 'photos';
+}) {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
@@ -27,7 +35,7 @@ export function VisitPropertyPicker({ value, onChange }: { value: LedgerItem | n
         <p className="font-semibold">{visitInventoryTitle(value)}</p>
         <p className="text-xs text-muted">{visitInventoryDetails(value)}</p>
         <Button type="button" size="xs" variant="ghost" onClick={() => onChange(null)}>
-          Change / custom address
+          {purpose === 'photos' ? 'Change property' : 'Change / custom address'}
         </Button>
       </div>
     );
@@ -47,7 +55,11 @@ export function VisitPropertyPicker({ value, onChange }: { value: LedgerItem | n
               </button>
             ))}
           {list.isPending && <p className="p-3 text-sm text-muted">Loading…</p>}
-          {list.data?.pages[0].total === 0 && <p className="p-3 text-sm text-muted">No matching property. Enter a custom meeting address below.</p>}
+          {list.data?.pages[0].total === 0 && (
+            <p className="p-3 text-sm text-muted">
+              {purpose === 'photos' ? 'No matching property.' : 'No matching property. Enter a custom meeting address below.'}
+            </p>
+          )}
           {list.hasNextPage && (
             <Button type="button" size="xs" variant="ghost" loading={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>
               Load more

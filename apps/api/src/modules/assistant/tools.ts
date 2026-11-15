@@ -346,7 +346,7 @@ export const TOOLS: Tool[] = [
     roles: BROKERS,
     parameters: obj({
       q: str('name or phone'),
-      stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | NEGOTIATION | WON | LOST'),
+      stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | SHORTLISTED | NEGOTIATION | WON | LOST'),
       view: str('new | due_today | overdue | unassigned | mine | hot'),
     }),
     run: async (a, { call }) => {
@@ -425,7 +425,11 @@ export const TOOLS: Tool[] = [
     roles: BROKERS,
     write: true,
     parameters: obj(
-      { id: str('lead id'), stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | NEGOTIATION | WON | LOST'), lostReason: str('reason when LOST') },
+      {
+        id: str('lead id'),
+        stage: str('NEW | CONTACTED | INTERESTED | SITE_VISIT | SHORTLISTED | NEGOTIATION | WON | LOST'),
+        lostReason: str('reason when LOST'),
+      },
       ['id', 'stage'],
     ),
     summary: (a) => `Lead का stage → ${a.stage}`,

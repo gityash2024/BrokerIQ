@@ -282,7 +282,7 @@ export class LeadsService {
       ...(q.source ? { source: { in: q.source.split(',') as LeadSource[] } } : {}),
       ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] } : {}),
     };
-    const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'NOT_INTERESTED', 'SITE_VISIT', 'NEGOTIATION', 'WON', 'LOST'];
+    const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'NOT_INTERESTED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION', 'WON', 'LOST'];
     const columns = await Promise.all(
       stages.map(async (stage) => {
         const where = {
@@ -291,10 +291,18 @@ export class LeadsService {
           ...(stage === 'WON' || stage === 'LOST' || stage === 'NOT_INTERESTED' ? { stageChangedAt: { gte: new Date(Date.now() - 30 * 86400_000) } } : {}),
         };
         const [items, count] = await Promise.all([
-          this.prisma.lead.findMany({ where, orderBy: [{ stageChangedAt: 'desc' }, { id: 'desc' }], take: 50, include: LEAD_LIST_INCLUDE }),
+          this.prisma.lead.findMany({
+            where,
+            orderBy: [{ stageChangedAt: 'desc' }, { id: 'desc' }],
+            take: 50,
+            include: { ...LEAD_LIST_INCLUDE, _count: { select: { visits: { where: { status: 'COMPLETED' } } } } },
+          }),
           this.prisma.lead.count({ where }),
         ]);
-        return { stage, label: LEAD_STAGE_LABELS[stage], count, items };
+        return {
+          stage, label: LEAD_STAGE_LABELS[stage], count,
+          items: items.map(({ _count, ...item }) => ({ ...item, hasCompletedVisit: _count.visits > 0 })),
+        };
       }),
     );
     return columns;
@@ -383,6 +391,13 @@ export class LeadsService {
       const lead = await tx.lead.findFirst({ where: { id, ...this.scope(user) } });
       if (!lead) throw new NotFoundException('Lead नहीं मिली');
       if (lead.stage === stage) return { lead, from: lead.stage, changed: false };
+      if (stage === 'SHORTLISTED') {
+        const visit = await tx.siteVisit.findFirst({
+          where: { leadId: lead.id, organizationId: lead.organizationId, status: 'COMPLETED' },
+          select: { id: true },
+        });
+        if (!visit) throw new BadRequestException('Complete a site visit before marking this lead Shortlisted.');
+      }
       const isClosedReasonStage = stage === 'LOST' || stage === 'NOT_INTERESTED';
       const closing = ['WON', 'LOST', 'NOT_INTERESTED'].includes(stage);
       const updated = await tx.lead.update({
@@ -432,7 +447,13 @@ export class LeadsService {
       if (assigneeId) await tx.$queryRaw`SELECT id FROM "User" WHERE id=${assigneeId} FOR UPDATE`;
       const assignee = assigneeId
         ? await tx.user.findFirst({
-            where: { id: assigneeId, organizationId: lead.organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
+            where: {
+              id: assigneeId,
+              organizationId: lead.organizationId,
+              status: 'ACTIVE',
+              deletedAt: null,
+              role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
+            },
           })
         : null;
       if (assigneeId && !assignee) throw new BadRequestException('Assigned member is not active in this firm');

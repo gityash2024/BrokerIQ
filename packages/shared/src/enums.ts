@@ -158,13 +158,14 @@ export const LeadStage = {
   INTERESTED: 'INTERESTED',
   NOT_INTERESTED: 'NOT_INTERESTED',
   SITE_VISIT: 'SITE_VISIT',
+  SHORTLISTED: 'SHORTLISTED',
   NEGOTIATION: 'NEGOTIATION',
   WON: 'WON',
   LOST: 'LOST',
 } as const;
 export type LeadStage = (typeof LeadStage)[keyof typeof LeadStage];
 export const LEAD_STAGES = values(LeadStage);
-export const OPEN_LEAD_STAGES: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'NEGOTIATION'];
+export const OPEN_LEAD_STAGES: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'];
 
 export const LeadSource = {
   WEBSITE: 'WEBSITE',

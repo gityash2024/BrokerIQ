@@ -31,7 +31,8 @@ interface Column {
 export default function PipelinePage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
-  const team = useAssignees();
+  const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
+  const team = useAssignees(admin);
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [source, setSource] = useState('');
@@ -56,6 +57,7 @@ export default function PipelinePage() {
       return;
     }
     const lead = from.items.find((i) => i.id === id)!;
+    if (!canEdit || (to === 'SHORTLISTED' && !lead.hasCompletedVisit)) return;
     qc.setQueryData<Column[]>(key, (old) =>
       old?.map((c) =>
         c.stage === from.stage
@@ -125,6 +127,7 @@ export default function PipelinePage() {
                 <div
                   key={col.stage}
                   onDragOver={(e) => {
+                    if (!canEdit || (col.stage === 'SHORTLISTED' && !q.data?.some((column) => column.items.some((lead) => lead.id === dragId && lead.hasCompletedVisit)))) return;
                     e.preventDefault();
                     setOver(col.stage);
                   }}
@@ -162,7 +165,7 @@ export default function PipelinePage() {
                           transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                         >
                           <div
-                            draggable
+                            draggable={canEdit}
                             onDragStart={(e) => {
                               setDragId(l.id);
                               e.dataTransfer.effectAllowed = 'move';

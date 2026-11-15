@@ -4,8 +4,9 @@ import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { ArrowRight } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, type LeadStage } from '@brokeriq/shared';
+import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, hasDelegatedAccess, formatPriceShort, timeAgo, type LeadStage } from '@brokeriq/shared';
 import { api, patch } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
@@ -18,6 +19,7 @@ const W = Dimensions.get('window').width;
 export default function Pipeline() {
   const { c } = useTheme();
   const qc = useQueryClient();
+  const canEdit = hasDelegatedAccess(useAuth().user, 'leads', 'edit');
   const q = useQuery({ queryKey: ['kanban'], queryFn: () => api<any[]>('/leads/kanban') });
   const [move, setMove] = useState<any>(null);
   const doMove = async (lead: any, to: LeadStage) => {
@@ -69,7 +71,7 @@ export default function Pipeline() {
                     <Animated.View entering={FadeInDown.delay(index * 30)} layout={LinearTransition.springify()}>
                       <PressableScale
                         onPress={() => router.push(`/lead/${l.id}`)}
-                        onLongPress={() => setMove(l)}
+                        onLongPress={canEdit ? () => setMove(l) : undefined}
                         delayLongPress={250}
                         style={{ padding: 12, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, gap: 6 }}
                       >
@@ -122,7 +124,7 @@ export default function Pipeline() {
       )}
       <Sheet open={!!move} onClose={() => setMove(null)} title={move ? `${move.name} → stage` : ''}>
         <Row wrap>
-          {LEAD_STAGES.filter((s) => s !== move?.stage).map((s) => (
+          {LEAD_STAGES.filter((s) => s !== move?.stage && (s !== 'SHORTLISTED' || move?.hasCompletedVisit)).map((s) => (
             <Chip
               key={s}
               label={LEAD_STAGE_LABELS[s as LeadStage]}

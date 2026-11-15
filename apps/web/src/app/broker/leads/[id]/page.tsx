@@ -2,7 +2,7 @@
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
-import { parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { parseVisitLocalDateTime, propertyPhotoDraft, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import Link from 'next/link';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -80,24 +80,28 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const { user } = useAuth();
   const config = useConfig();
-  const allowed = (key: string) => moduleAllowed(config.modules, key, user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user?.role ?? '') &&
-    hasDelegatedAccess(user, key, 'view');
+  const allowed = (key: string) =>
+    moduleAllowed(config.modules, key, user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '')) && hasDelegatedAccess(user, key, 'view');
   const router = useRouter();
   const qc = useQueryClient();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const canAssign = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'assign'));
   const canDelete = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'leads', 'delete'));
   const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
+  const canCreateTask = hasDelegatedAccess(user, 'leads', 'create');
+  const canSharePhotos = allowed('inventory') && allowed('inbox') && hasDelegatedAccess(user, 'inbox', 'edit', 'send');
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>('timeline');
   const [lostOpen, setLostOpen] = useState(false);
+  const [photoShareOpen, setPhotoShareOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
   const [notInterestedReason, setNotInterestedReason] = useState('');
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['lead', id] });
     qc.invalidateQueries({ queryKey: ['leads'] });
+    qc.invalidateQueries({ queryKey: ['kanban'] });
     qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
   };
   const stage = useApiMutation((b: { stage: string; lostReason?: string }) => patch(`/leads/${id}/stage`, b), { onSuccess: refresh });
@@ -108,6 +112,8 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   if (q.error) return <ApiErrorState error={q.error} />;
   const l = q.data;
   const stageIdx = LEAD_STAGES.indexOf(l.stage);
+  const visitCompleted = l.visits.some((visit: { status: string }) => visit.status === 'COMPLETED');
+  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(l.stage);
 
   return (
     <div className="space-y-6">
@@ -151,17 +157,19 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               <Phone className="size-4" /> Call
             </Button>
             {allowed('legacy') && <ClickToCall leadId={l.id} onDone={refresh} />}
-            {hasDelegatedAccess(user, 'inbox', 'view', 'edit') && <>
-            <Button variant="whatsapp" href={leadInboxUrl(l.id)}>
-              <MessageCircle className="size-4" /> WhatsApp
-            </Button>
-            <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
-              SMS
-            </Button>
-            <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
-              Email
-            </Button>
-            </>}
+            {hasDelegatedAccess(user, 'inbox', 'view', 'edit') && (
+              <>
+                <Button variant="whatsapp" href={leadInboxUrl(l.id)}>
+                  <MessageCircle className="size-4" /> WhatsApp
+                </Button>
+                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
+                  SMS
+                </Button>
+                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                  Email
+                </Button>
+              </>
+            )}
             {canAssign && (
               <Select className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
                 <option value="">Unassigned</option>
@@ -176,14 +184,30 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             )}
           </div>
         </div>
+        {((canCreateTask && l.stage === 'CONTACTED') || (canSharePhotos && beforeVisit)) && (
+          <div className="flex flex-wrap gap-2 border-t border-line px-6 py-3">
+            {canCreateTask && l.stage === 'CONTACTED' && (
+              <Button size="sm" variant="secondary" onClick={() => setTab('tasks')}>
+                <CalendarPlus className="size-4" /> Follow-up
+              </Button>
+            )}
+            {canSharePhotos && beforeVisit && (
+              <Button size="sm" variant="secondary" onClick={() => setPhotoShareOpen(true)}>
+                <Share2 className="size-4" /> Share photos
+              </Button>
+            )}
+          </div>
+        )}
         {/* Stage stepper */}
         <div className="flex overflow-x-auto border-t border-line scrollbar-none">
           {LEAD_STAGES.map((s, i) => {
+            if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
             const active = s === l.stage;
             const past = i < stageIdx && s !== 'NOT_INTERESTED' && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
               <button
                 key={s}
+                disabled={!canEdit || stage.isPending}
                 onClick={() => {
                   if (s === 'LOST') setLostOpen(true);
                   else if (s === 'NOT_INTERESTED') setNotInterestedOpen(true);
@@ -226,7 +250,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           />
           {tab === 'timeline' && <Timeline lead={l} onChange={refresh} />}
           {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
-          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} />}
+          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} canViewInventory={allowed('inventory')} />}
           {tab === 'requirement' && <LeadRequirements lead={l} />}
         </div>
         <div className="space-y-4">
@@ -259,6 +283,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
+      {canSharePhotos && beforeVisit && photoShareOpen && <PropertyPhotoShare leadId={l.id} onClose={() => setPhotoShareOpen(false)} />}
       <Dialog
         open={lostOpen}
         onOpenChange={setLostOpen}
@@ -495,7 +520,49 @@ function Matches({ lead }: { lead: any }) {
   );
 }
 
-function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
+function PropertyPhotoShare({ leadId, onClose }: { leadId: string; onClose: () => void }) {
+  const [property, setProperty] = useState<LedgerItem | null>(null);
+  const message = property ? String(visitInventoryTitle(property)) : '';
+  const draft = propertyPhotoDraft(message, property?.photoUrls);
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()} title="Share property photos">
+      <div className="space-y-3">
+        <VisitPropertyPicker value={property} onChange={setProperty} purpose="photos" />
+        {property && draft === message && (
+          <p className="text-sm text-muted">
+            No shareable photos yet.{' '}
+            <Link className="font-semibold text-brand-600" href={`/broker/inventory?item=${property.id}`}>
+              Open property
+            </Link>
+          </p>
+        )}
+        <Button
+          disabled={!property || draft === message}
+          onClick={() => {
+            openLeadInbox(leadId, draft);
+            onClose();
+          }}
+        >
+          <Share2 className="size-4" /> Review in Inbox
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
+
+function Tasks({
+  lead,
+  onChange,
+  canCreate,
+  canEdit,
+  canViewInventory,
+}: {
+  lead: any;
+  onChange: () => void;
+  canCreate: boolean;
+  canEdit: boolean;
+  canViewInventory: boolean;
+}) {
   const tomorrow = new Date(Date.now() + 86400_000);
   tomorrow.setHours(11, 0, 0, 0);
   const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
@@ -547,38 +614,43 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         <h3 className="flex items-center gap-2 font-display font-bold">
           <CalendarPlus className="size-5 text-brand-600" /> Follow-up
         </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            ['1 घंटा', 1],
-            ['4 घंटे', 4],
-            ['कल', 20],
-            ['3 दिन', 72],
-          ].map(([l, h]) => (
-            <Chip key={l as string} onClick={() => quick(h as number)}>
-              {l}
-            </Chip>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={fu.type} onChange={(e) => setFu({ ...fu, type: e.target.value })}>
-            {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS', 'OTHER'].map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </Select>
-          <Input type="datetime-local" value={fu.dueAt} onChange={(e) => setFu({ ...fu, dueAt: e.target.value })} />
-        </div>
-        <Input placeholder="Note" value={fu.note} onChange={(e) => setFu({ ...fu, note: e.target.value })} />
-        <Button onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
-          Schedule
-        </Button>
-        <Button variant="secondary" className="ml-2" disabled={addFu.isPending} onClick={() => addFu.mutate(true)}>
-          Retry saved
-        </Button>
+        {canCreate && (
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                ['1 घंटा', 1],
+                ['4 घंटे', 4],
+                ['कल', 20],
+                ['3 दिन', 72],
+              ].map(([l, h]) => (
+                <Chip key={l as string} onClick={() => quick(h as number)}>
+                  {l}
+                </Chip>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={fu.type} onChange={(e) => setFu({ ...fu, type: e.target.value })}>
+                {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS', 'OTHER'].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </Select>
+              <Input type="datetime-local" value={fu.dueAt} onChange={(e) => setFu({ ...fu, dueAt: e.target.value })} />
+            </div>
+            <Input placeholder="Note" value={fu.note} onChange={(e) => setFu({ ...fu, note: e.target.value })} />
+            <Button onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
+              Schedule
+            </Button>
+            <Button variant="secondary" className="ml-2" disabled={addFu.isPending} onClick={() => addFu.mutate(true)}>
+              Retry saved
+            </Button>
+          </>
+        )}
         <div className="space-y-2 pt-2">
           {lead.followUps.map((f: any) => (
             <div key={f.id} className={cn('flex items-center gap-2 rounded-xl border border-line p-2.5 text-sm', f.status !== 'PENDING' && 'opacity-60')}>
               <button
-                onClick={() => f.status === 'PENDING' && doneFu.mutate(f.id)}
+                disabled={!canEdit || f.status !== 'PENDING'}
+                onClick={() => doneFu.mutate(f.id)}
                 className={cn(
                   'grid size-6 shrink-0 place-items-center rounded-full border-2',
                   f.status === 'DONE' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line hover:border-emerald-500',
@@ -602,35 +674,41 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
         <h3 className="flex items-center gap-2 font-display font-bold">
           <CalendarCheck className="size-5 text-brand-600" /> Site visit
         </h3>
-        {videoOn && (
-          <Segmented
-            size="sm"
-            value={vi.mode}
-            onChange={(mode) => setVi({ ...vi, mode })}
-            options={[
-              { value: 'IN_PERSON', label: 'Property पर' },
-              { value: 'VIDEO', label: '🎥 Video call' },
-            ]}
-          />
+        {canCreate && (
+          <>
+            {videoOn && (
+              <Segmented
+                size="sm"
+                value={vi.mode}
+                onChange={(mode) => setVi({ ...vi, mode })}
+                options={[
+                  { value: 'IN_PERSON', label: 'Property पर' },
+                  { value: 'VIDEO', label: '🎥 Video call' },
+                ]}
+              />
+            )}
+            {canViewInventory && (
+              <VisitPropertyPicker
+                value={visitProperty}
+                onChange={(item) => {
+                  setVisitProperty(item);
+                  if (item) setVi({ ...vi, address: item.address || visitInventoryTitle(item) });
+                }}
+              />
+            )}
+            <Input type="datetime-local" value={vi.scheduledAt} onChange={(e) => setVi({ ...vi, scheduledAt: e.target.value })} />
+            {vi.mode === 'IN_PERSON' && (
+              <Input placeholder="Address / meeting point" value={vi.address} onChange={(e) => setVi({ ...vi, address: e.target.value })} />
+            )}
+            <Input placeholder="Note" value={vi.note} onChange={(e) => setVi({ ...vi, note: e.target.value })} />
+            <Button disabled={!parseVisitLocalDateTime(vi.scheduledAt)} onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
+              Schedule visit
+            </Button>
+            <Button variant="secondary" className="ml-2" disabled={addVisit.isPending} onClick={() => addVisit.mutate(true)}>
+              Retry saved
+            </Button>
+          </>
         )}
-        <VisitPropertyPicker
-          value={visitProperty}
-          onChange={(item) => {
-            setVisitProperty(item);
-            if (item) setVi({ ...vi, address: item.address || visitInventoryTitle(item) });
-          }}
-        />
-        <Input type="datetime-local" value={vi.scheduledAt} onChange={(e) => setVi({ ...vi, scheduledAt: e.target.value })} />
-        {vi.mode === 'IN_PERSON' && (
-          <Input placeholder="Address / meeting point" value={vi.address} onChange={(e) => setVi({ ...vi, address: e.target.value })} />
-        )}
-        <Input placeholder="Note" value={vi.note} onChange={(e) => setVi({ ...vi, note: e.target.value })} />
-        <Button disabled={!parseVisitLocalDateTime(vi.scheduledAt)} onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
-          Schedule visit
-        </Button>
-        <Button variant="secondary" className="ml-2" disabled={addVisit.isPending} onClick={() => addVisit.mutate(true)}>
-          Retry saved
-        </Button>
         <div className="space-y-2 pt-2">
           {lead.visits.map((v: any) => (
             <div key={v.id} className="rounded-xl border border-line p-3 text-sm">
@@ -644,15 +722,19 @@ function Tasks({ lead, onChange }: { lead: any; onChange: () => void }) {
               {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <VideoJoin visit={v} size="xs" />
-                  <Button size="xs" variant="success" onClick={() => visitSt.mutate({ id: v.id, status: 'COMPLETED' })}>
-                    Done
-                  </Button>
-                  <Button size="xs" variant="secondary" onClick={() => visitSt.mutate({ id: v.id, status: 'NO_SHOW' })}>
-                    No-show
-                  </Button>
-                  <Button size="xs" variant="ghost" onClick={() => visitSt.mutate({ id: v.id, status: 'CANCELLED' })}>
-                    Cancel
-                  </Button>
+                  {canEdit && (
+                    <>
+                      <Button size="xs" variant="success" disabled={visitSt.isPending} onClick={() => visitSt.mutate({ id: v.id, status: 'COMPLETED' })}>
+                        Done
+                      </Button>
+                      <Button size="xs" variant="secondary" onClick={() => visitSt.mutate({ id: v.id, status: 'NO_SHOW' })}>
+                        No-show
+                      </Button>
+                      <Button size="xs" variant="ghost" onClick={() => visitSt.mutate({ id: v.id, status: 'CANCELLED' })}>
+                        Cancel
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

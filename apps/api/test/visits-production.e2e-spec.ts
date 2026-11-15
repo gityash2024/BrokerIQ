@@ -142,6 +142,11 @@ describe('Production visit association, permissions and retry safety (PostgreSQL
       .set(h())
       .send({ status: 'CANCELLED', expectedUpdatedAt: before.updatedAt.toISOString() })
       .expect(409);
+    await req()
+      .patch('/api/leads/' + lead + '/stage')
+      .set(h())
+      .send({ stage: 'SHORTLISTED' })
+      .expect(400);
     await Promise.all(
       [1, 2].map(() =>
         req()
@@ -152,6 +157,15 @@ describe('Production visit association, permissions and retry safety (PostgreSQL
       ),
     );
     expect(await db.activity.count({ where: { leadId: lead, type: 'SITE_VISIT', content: 'Site visit completed' } })).toBe(1);
+    const shortlisted = await req()
+      .patch('/api/leads/' + lead + '/stage')
+      .set(h())
+      .send({ stage: 'SHORTLISTED' })
+      .expect(200);
+    expect(shortlisted.body.stage).toBe('SHORTLISTED');
+    const pipeline = await req().get('/api/leads/kanban').set(h(admin)).expect(200);
+    expect(JSON.stringify(pipeline.body)).toContain('SHORTLISTED');
+
     await req()
       .patch('/api/visits/' + visitId)
       .set(h())
