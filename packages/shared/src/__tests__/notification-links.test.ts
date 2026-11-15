@@ -10,6 +10,8 @@ test('bare native launch, canonical paths and host-style intents never produce u
   assert.equal(normalizeNativeIntent('brokeriq:///broker/leads/requirements'), '/requirements');
   assert.equal(normalizeNativeIntent('brokeriq://user/property/a-house'), '/property/a-house');
   assert.equal(normalizeNativeIntent('brokeriq://user/search?bedrooms=2'), '/(user)/search?bedrooms=2');
+  assert.equal(normalizeNativeIntent('brokeriq://lead-share-photos?id=lead_1&propertyId=unit_2'), '/lead-share-photos?id=lead_1&propertyId=unit_2');
+  assert.equal(normalizeNativeIntent('brokeriq://inventory/unit_2?share=1'), '/inventory/unit_2?share=1');
   assert.equal(normalizeNativeIntent('brokeriq://expo-sharing'), '/handle-share');
   assert.equal(normalizeNativeIntent('brokeriq:///notification?notification=abc'), '/notifications?notification=abc');
   assert.equal(normalizeNativeIntent('brokeriq:///made-up-path'), '/');

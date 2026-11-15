@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput, propertyPhotoDraft } from '../inventory';
+import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput, propertyPhotoDraft, shareablePropertyPhotoUrls } from '../inventory';
 
 const imported = {
   id: 'private-record',
@@ -60,4 +60,18 @@ test('property photo drafts exclude private source links and keep whole public l
   const expected = `${message}\n\nProperty photos:\n${publicPhoto}`;
   assert.equal(propertyPhotoDraft(message, [privatePhoto, publicPhoto, publicPhoto, alternate], expected.length), expected);
   assert.equal(propertyPhotoDraft(message, [privatePhoto, publicPhoto], expected.length - 1), message);
+});
+
+
+test('photo attachments keep the full ordered set of public images and exclude private media', () => {
+  const photos = Array.from({ length: 50 }, (_, index) => `https://brokeriq.example/api/media/f/listing/org/${index}.jpg`);
+  const unrelated = [
+    'http://brokeriq.example/photo.jpg',
+    'https://brokeriq.example/api/media/f/%73can/org/id.jpg',
+    'https://brokeriq.example/api/media/f/chat/org/message.jpg',
+    'https://brokeriq.example/api/media/download/private.jpg',
+    'https://res.cloudinary.com/org/image/authenticated/v1/id.jpg',
+  ];
+  assert.deepEqual(shareablePropertyPhotoUrls([photos[0] + '#preview', ...photos, ...unrelated]), photos);
+  assert.ok(propertyPhotoDraft('', photos).length <= 2000);
 });

@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["PhotoShareModule"] },
+  "android": { "modules": ["com.brokeriq.photoshare.PhotoShareModule"] }
+}

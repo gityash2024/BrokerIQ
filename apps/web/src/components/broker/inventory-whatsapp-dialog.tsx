@@ -4,10 +4,11 @@ import { Copy, Send, Check, User, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { formatINR, normalizeIndianPhone, floorLabel, propertyPhotoDraft } from '@brokeriq/shared';
+import { formatINR, normalizeIndianPhone, floorLabel, propertyPhotoDraft, shareablePropertyPhotoUrls } from '@brokeriq/shared';
 import { cn } from '@/lib/utils';
 import { captureAccountContext, assertAccountContext, errorMessage } from '@/lib/api';
 import { openLeadInbox } from '@/lib/inbox-composer';
+import { SharePhotoFilesOnMobile } from './share-photo-files-on-mobile';
 import { LeadPicker } from './lead-picker';
 import { useAuth } from '@/lib/auth';
 import type { LeadInboxChannel } from '@brokeriq/shared';
@@ -95,6 +96,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
   }, [item, templateType, generateMessage]);
 
   if (!item) return null;
+  const photos = shareablePropertyPhotoUrls(item.photoUrls);
 
   const handleSend = async () => {
     try {
@@ -187,11 +189,14 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
           <div className="space-y-3">
             <p className="text-xs text-muted">Choose a CRM lead. Review the message in Inbox before sending.</p>
             <LeadPicker value={client} onChange={setClient} />
-            {!!item.photoUrls?.length && (
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={includePhotos} onChange={(event) => setIncludePhotos(event.target.checked)} />
-                Include property photo links
-              </label>
+            {!!photos.length && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={includePhotos} onChange={(event) => setIncludePhotos(event.target.checked)} />
+                  Include property photo links
+                </label>
+                <SharePhotoFilesOnMobile appUrl={`brokeriq://inventory/${encodeURIComponent(item.id)}?share=1`} count={photos.length} />
+              </div>
             )}
             <div className="flex gap-2">
               {(['WHATSAPP', 'SMS', 'EMAIL'] as const).map((value) => (

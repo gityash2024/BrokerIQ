@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { propertyPhotoDraft, type LeadInboxChannel } from '@brokeriq/shared';
+import { propertyPhotoDraft, shareablePropertyPhotoUrls, type LeadInboxChannel } from '@brokeriq/shared';
 import { api, assertAccountContext, captureAccountContext, errorMessage, qs } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { toast } from '@/lib/toast';
+import { SharePhotoFilesButton } from './share-photo-files-button';
 import { Button, Chip, ErrorView, Input, PressableScale, Txt } from '@/ui';
 
 type Lead = { id: string; name: string; phone: string; email?: string | null };
@@ -38,6 +39,7 @@ export function InventoryLeadShare({ message, photoUrls }: { message: string; ph
   };
   return (
     <View style={{ gap: 12 }}>
+      {!!shareablePropertyPhotoUrls(photoUrls).length && <SharePhotoFilesButton urls={photoUrls ?? []} />}
       <Txt color="muted">Choose a CRM lead and review the property message in Inbox before sending.</Txt>
       {selected ? (
         <>

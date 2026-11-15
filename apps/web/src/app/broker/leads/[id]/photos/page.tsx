@@ -4,12 +4,14 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Share2 } from 'lucide-react';
-import { hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { PropertyMedia } from '@/components/broker/launch/property-media';
+import { SharePhotoFilesOnMobile } from '@/components/broker/share-photo-files-on-mobile';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
@@ -33,8 +35,10 @@ export default function Page() {
   const [property, setProperty] = useState<LedgerItem | null>(null);
   const [uploading, setUploading] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const title = property ? String(visitInventoryTitle(property)) : '';
-  const draft = propertyPhotoDraft(title, property?.photoUrls);
+  const photos = shareablePropertyPhotoUrls(property?.photoUrls);
+  const draft = propertyPhotoDraft(title, photos);
   const beforeVisit =
     lead.data && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(lead.data.stage) && !lead.data.visits.some(({ status }) => status === 'COMPLETED');
 
@@ -80,23 +84,28 @@ export default function Page() {
                   void client.invalidateQueries({ queryKey: ['ledger'] });
                 }}
               />
-              {draft === title && <p className="text-sm text-muted">This property has no shareable photos yet.</p>}
+              {!photos.length && <p className="text-sm text-muted">This property has no shareable photos yet.</p>}
             </>
           )}
-          <Button
-            disabled={!property || draft === title || uploading}
-            loading={opening}
-            onClick={async () => {
-              setOpening(true);
-              try {
-                await openLeadInbox(id, draft);
-              } finally {
-                setOpening(false);
-              }
-            }}
-          >
-            <Share2 className="size-4" /> Review in Inbox
+          <Button disabled={!photos.length || uploading} onClick={() => setShareOpen(true)}>
+            <Share2 className="size-4" /> Share photos
           </Button>
+          {property && shareOpen && (
+            <Dialog open onOpenChange={setShareOpen} title="Share property photos">
+              <div className="grid gap-3">
+                <Button loading={opening} disabled={draft === title} onClick={async () => {
+                  setOpening(true);
+                  try {
+                    await openLeadInbox(id, draft);
+                  } finally {
+                    setOpening(false);
+                  }
+                }}>Share as links in BrokerIQ</Button>
+                <p className="text-xs text-muted">Review the WhatsApp message in Inbox before sending.</p>
+                <SharePhotoFilesOnMobile appUrl={`brokeriq://lead-share-photos?id=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(property.id)}`} count={photos.length} />
+              </div>
+            </Dialog>
+          )}
         </section>
       )}
     </div>

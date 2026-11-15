@@ -53,6 +53,7 @@ export function normalizeNativeIntent(value: string): string {
       'broker-settings',
       'agent-kyc',
       'add-lead',
+      'lead-share-photos',
       'requirements',
       'requirement-edit',
       'follow-ups',
