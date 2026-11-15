@@ -634,6 +634,11 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
     try {
       await draft.flush();
       await api('/whatsapp/send', { body: { conversationId: id, ...body }, ownerContext: owner });
+      if (body.mediaUrl || (typeof body.text === 'string' && body.text.includes('https://'))) {
+        void qc.invalidateQueries({ queryKey: ['lead'] });
+        void qc.invalidateQueries({ queryKey: ['leads'] });
+        void qc.invalidateQueries({ queryKey: ['kanban'] });
+      }
       await draft.clear();
       q.refetch();
       onReadRef.current();

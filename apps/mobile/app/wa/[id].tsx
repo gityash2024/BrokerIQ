@@ -107,7 +107,14 @@ export default function WaThread() {
         attempt.current = null;
         setReplyToId(undefined);
         await saveInboxDraft(`sms-attempt:${id}`, '', owner);
-      } else await api('/whatsapp/send', { body: { conversationId: id, ...body }, ownerContext: owner });
+      } else {
+        await api('/whatsapp/send', { body: { conversationId: id, ...body }, ownerContext: owner });
+        if (body.mediaUrl || (typeof body.text === 'string' && body.text.includes('https://'))) {
+          void qc.invalidateQueries({ queryKey: ['lead'] });
+          void qc.invalidateQueries({ queryKey: ['leads'] });
+          void qc.invalidateQueries({ queryKey: ['kanban'] });
+        }
+      }
       await saveInboxDraft(id, '', owner);
       setText('');
       q.refetch();
