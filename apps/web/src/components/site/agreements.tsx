@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { usePathname, useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, ExternalLink, FileSignature, PenLine, Plus, MessageCircle } from 'lucide-react';
 import { formatINR } from '@brokeriq/shared';
@@ -10,6 +11,7 @@ import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
 import { Dialog } from '../ui/dialog';
 import { Badge, Empty, Skeleton } from '../ui/misc';
+import { PageHeader } from '@/components/panel/shell';
 import { useFlag } from '@/lib/config';
 
 const STEPS = [
@@ -25,7 +27,7 @@ const STEPS = [
 /** Draft 11-month rent agreement → PDF, plus the Haryana e-stamp / police verification steps. */
 export function Agreements() {
   const q = useQuery({ queryKey: ['agreements'], queryFn: () => api<any[]>('/agreements') });
-  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const [sign, setSign] = useState<any>(null);
   const esignOn = useFlag('agreement_esign');
   const download = async (id: string) => {
@@ -54,7 +56,7 @@ export function Agreements() {
         ))}
       </div>
       <div className="mb-4 flex justify-end">
-        <Button onClick={() => setOpen(true)}>
+        <Button href={`${pathname}/new`}>
           <Plus className="size-4" /> नया agreement
         </Button>
       </div>
@@ -65,7 +67,7 @@ export function Agreements() {
           icon={<FileSignature className="size-6" />}
           title="अभी कोई agreement नहीं"
           text="Details भरें — 11 महीने का draft PDF तुरंत बनेगा।"
-          action={<Button onClick={() => setOpen(true)}>Agreement बनाएँ</Button>}
+          action={<Button href={`${pathname}/new`}>Agreement बनाएँ</Button>}
         />
       ) : (
         <div className="space-y-3">
@@ -103,13 +105,16 @@ export function Agreements() {
         </div>
       )}
       <p className="mt-6 text-xs text-subtle">यह एक standard template है, legal सलाह नहीं। ज़रूरत हो तो किसी वकील से जाँच करवाएँ।</p>
-      <AgreementDialog open={open} onClose={() => setOpen(false)} onSaved={(id) => (q.refetch(), download(id))} />
       <SignDialog agreement={sign} onClose={() => setSign(null)} onSent={() => q.refetch()} />
     </>
   );
 }
 
-function AgreementDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: (id: string) => void }) {
+export function AgreementCreatePage() {
+  const router = useRouter();
+  const path = usePathname();
+  const back = path.startsWith('/broker/') ? '/broker/agreements' : '/account/agreements';
+  const client = useQueryClient();
   const [f, setF] = useState<Record<string, string>>({
     landlordName: '',
     landlordAddress: '',
@@ -158,8 +163,10 @@ function AgreementDialog({ open, onClose, onSaved }: { open: boolean; onClose: (
         },
       });
       toast.success('Agreement बन गया');
-      onClose();
-      onSaved(a.id);
+      await client.invalidateQueries({ queryKey: ['agreements'] });
+      const { url } = await api<{ url: string }>(`/agreements/${a.id}/link`, { method: 'POST' });
+      window.location.assign(url);
+      router.replace(back);
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -172,47 +179,50 @@ function AgreementDialog({ open, onClose, onSaved }: { open: boolean; onClose: (
     </Field>
   );
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => !v && onClose()}
-      size="lg"
-      title="Rent agreement (11 महीने)"
-      footer={
+    <div className="space-y-5">
+      <PageHeader
+        title="New rent agreement"
+        actions={
+          <Button href={back} variant="secondary">
+            Back to agreements
+          </Button>
+        }
+      />
+      <section className="card mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {inp('landlordName', 'Owner (Licensor) का नाम')}
+          {inp('landlordPhone', 'Owner mobile')}
+          <div className="sm:col-span-2">{inp('landlordAddress', 'Owner का पता')}</div>
+          {inp('tenantName', 'Tenant (Licensee) का नाम')}
+          {inp('tenantPhone', 'Tenant mobile')}
+          <div className="sm:col-span-2">{inp('tenantAddress', 'Tenant का स्थायी पता')}</div>
+          <div className="sm:col-span-2">{inp('propertyAddress', 'Property का पूरा पता')}</div>
+          {inp('rent', 'Rent (₹/month)', { inputMode: 'numeric' })}
+          {inp('deposit', 'Security deposit (₹)', { inputMode: 'numeric' })}
+          {inp('maintenance', 'Maintenance (₹/month)', { inputMode: 'numeric' })}
+          {inp('startDate', 'Start date', { type: 'date' })}
+          {inp('lockInMonths', 'Lock-in (महीने)', { inputMode: 'numeric' })}
+          {inp('noticeMonths', 'Notice period (महीने)', { inputMode: 'numeric' })}
+          {inp('escalationPct', 'Renewal पर बढ़ोतरी (%)', { inputMode: 'numeric' })}
+          <Field label="Furnishing">
+            <Select value={f.furnishing} onChange={(e) => setF({ ...f, furnishing: e.target.value })}>
+              <option value="">—</option>
+              <option value="FULLY_FURNISHED">Fully furnished</option>
+              <option value="SEMI_FURNISHED">Semi-furnished</option>
+              <option value="UNFURNISHED">Unfurnished</option>
+            </Select>
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="और शर्तें (हर line एक)">
+              <Textarea rows={3} value={f.extra} onChange={(e) => setF({ ...f, extra: e.target.value })} />
+            </Field>
+          </div>
+        </div>
         <Button onClick={save} loading={busy} disabled={!f.landlordName || !f.tenantName || !f.propertyAddress || !f.rent || !f.startDate}>
           PDF बनाएँ
         </Button>
-      }
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        {inp('landlordName', 'Owner (Licensor) का नाम')}
-        {inp('landlordPhone', 'Owner mobile')}
-        <div className="sm:col-span-2">{inp('landlordAddress', 'Owner का पता')}</div>
-        {inp('tenantName', 'Tenant (Licensee) का नाम')}
-        {inp('tenantPhone', 'Tenant mobile')}
-        <div className="sm:col-span-2">{inp('tenantAddress', 'Tenant का स्थायी पता')}</div>
-        <div className="sm:col-span-2">{inp('propertyAddress', 'Property का पूरा पता')}</div>
-        {inp('rent', 'Rent (₹/month)', { inputMode: 'numeric' })}
-        {inp('deposit', 'Security deposit (₹)', { inputMode: 'numeric' })}
-        {inp('maintenance', 'Maintenance (₹/month)', { inputMode: 'numeric' })}
-        {inp('startDate', 'Start date', { type: 'date' })}
-        {inp('lockInMonths', 'Lock-in (महीने)', { inputMode: 'numeric' })}
-        {inp('noticeMonths', 'Notice period (महीने)', { inputMode: 'numeric' })}
-        {inp('escalationPct', 'Renewal पर बढ़ोतरी (%)', { inputMode: 'numeric' })}
-        <Field label="Furnishing">
-          <Select value={f.furnishing} onChange={(e) => setF({ ...f, furnishing: e.target.value })}>
-            <option value="">—</option>
-            <option value="FULLY_FURNISHED">Fully furnished</option>
-            <option value="SEMI_FURNISHED">Semi-furnished</option>
-            <option value="UNFURNISHED">Unfurnished</option>
-          </Select>
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label="और शर्तें (हर line एक)">
-            <Textarea rows={3} value={f.extra} onChange={(e) => setF({ ...f, extra: e.target.value })} />
-          </Field>
-        </div>
-      </div>
-    </Dialog>
+      </section>
+    </div>
   );
 }
 

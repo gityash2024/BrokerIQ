@@ -1,5 +1,4 @@
 'use client';
-import { DelegatedPermissions } from '@/components/broker/team/delegated-permissions';
 import { hasDelegatedAccess, firmRoleLabel, type BrokerTeamResponse } from '@brokeriq/shared';
 
 import { useState, useEffect, useRef } from 'react';
@@ -45,7 +44,6 @@ import {
 import * as DM from '@radix-ui/react-dropdown-menu';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useConfigStatus } from '@/lib/config';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, safeTimeAgo } from '@/lib/utils';
 import { useReverseGeocode } from '@/lib/reverse-geocode';
@@ -61,8 +59,6 @@ import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 import { TeamLeaderboardView } from '@/components/broker/team/team-leaderboard';
 import { DateRangeFilter, type DateRangeValue, isDateInRange } from '@/components/broker/date-range-filter';
 import { ExportToolbar } from '@/components/broker/export-toolbar';
-
-type PromotionMember = BrokerTeamResponse['members'][number] & { organization?: { name?: string }; updatedAt?: string };
 
 function IndeterminateCheckbox({
   checked,
@@ -106,23 +102,11 @@ export default function TeamPage() {
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const canViewTeam = admin || user?.role === 'SUB_BROKER_ADMIN';
   const q = useTeam();
-  const { loaded: permissionsLoaded } = useConfigStatus();
-  const [promotion, setPromotion] = useState<PromotionMember | null>(null);
-  const [permissions, setPermissions] = useState<string[]>([]);
   const inv = [['team']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
     success: 'अपडेट हो गया ✅',
     invalidate: inv,
   });
-  const promote = useApiMutation(
-    ({ member, grants }: { member: PromotionMember; grants: string[] }) =>
-      patch(`/broker/team/${encodeURIComponent(member.id)}`, {
-        expectedUpdatedAt: member.updatedAt,
-        role: 'SUB_BROKER_ADMIN',
-        delegatedPermissions: grants,
-      }),
-    { success: 'Sub-Broker Admin role assigned', invalidate: inv, onSuccess: () => setPromotion(null) },
-  );
   const remove = useApiMutation((id: string) => del(`/broker/team/${id}`), {
     success: 'सदस्य को टीम से हटा दिया गया',
     invalidate: inv,
@@ -697,10 +681,7 @@ export default function TeamPage() {
                                 </DM.Item>
                                 {m.role === 'BROKER_AGENT' && (
                                   <DM.Item
-                                    onSelect={() => {
-                                      setPermissions([]);
-                                      setPromotion(m);
-                                    }}
+                                    onSelect={() => router.push(`${teamBase}/${encodeURIComponent(m.id)}/permissions`)}
                                     className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
                                   >
                                     <ShieldCheck className="size-4 text-brand" /> Make Sub-Broker Admin
@@ -760,30 +741,6 @@ export default function TeamPage() {
         </div>
       )}
 
-      <Dialog
-        open={!!promotion}
-        onOpenChange={(open) => {
-          if (!open && !promote.isPending) setPromotion(null);
-        }}
-        title="Make Sub-Broker Admin"
-        description={promotion ? `${promotion.name}${promotion.organization?.name ? ` · ${promotion.organization.name}` : ''}` : undefined}
-        footer={
-          <>
-            <Button variant="secondary" disabled={promote.isPending} onClick={() => setPromotion(null)}>
-              Cancel
-            </Button>
-            <Button
-              loading={promote.isPending}
-              disabled={!permissionsLoaded || promote.isPending}
-              onClick={() => promotion && promote.mutate({ member: promotion, grants: permissions })}
-            >
-              Confirm promotion
-            </Button>
-          </>
-        }
-      >
-        <DelegatedPermissions value={permissions} onChange={setPermissions} />
-      </Dialog>
       <AgentDetailsAndTargetModal agent={selectedAgent} open={!!selectedAgent} onOpenChange={(v) => !v && setSelectedAgent(null)} />
     </>
   );

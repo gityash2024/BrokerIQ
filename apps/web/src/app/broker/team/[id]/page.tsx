@@ -1,5 +1,4 @@
 'use client';
-import { DelegatedPermissions } from '@/components/broker/team/delegated-permissions';
 import { firmRoleLabel } from '@brokeriq/shared';
 import { use, useState } from 'react';
 import Link from 'next/link';
@@ -23,7 +22,14 @@ const targetInputs = (member: Member) =>
 export default function TeamMemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
-  const q = useQuery({ queryKey: ['team', 'member', user?.id, id], queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`), enabled: !!user && !!id, refetchInterval: SHIFT_LOCATION_INTERVAL_MS, refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' });
+  const q = useQuery({
+    queryKey: ['team', 'member', user?.id, id],
+    queryFn: () => api<{ member: Member }>(`/broker/team/${encodeURIComponent(id)}`),
+    enabled: !!user && !!id,
+    refetchInterval: SHIFT_LOCATION_INTERVAL_MS,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
+  });
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (!q.data) return <Skeleton className="h-64 rounded-xl" />;
   return <Editor key={`${user?.id}:${id}`} member={q.data.member} />;
@@ -35,8 +41,7 @@ function Editor({ member }: { member: Member }) {
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phone || '');
   const [targets, setTargets] = useState(targetInputs(member));
-  const [action, setAction] = useState<'role' | 'status' | 'remove' | 'delegate' | null>(null);
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [action, setAction] = useState<'role' | 'status' | 'remove' | null>(null);
   const [removed, setRemoved] = useState(false);
   const update = useApiMutation(
     (body: Record<string, unknown>) => patch<{ updatedAt: string }>(`/broker/team/${member.id}`, { ...body, expectedUpdatedAt: baseline }),
@@ -198,14 +203,12 @@ function Editor({ member }: { member: Member }) {
           </form>
           {canEdit && user?.id !== member.id && (
             <div className="card flex flex-wrap gap-3 p-5">
-              {member.role === 'BROKER_AGENT' || (user.role === 'BROKER_ADMIN' && member.role === 'SUB_BROKER_ADMIN') && (
-                <Button variant="secondary" disabled={busy || conflict} onClick={() => {
-                  setPermissions(member.delegatedPermissions ?? []);
-                  setAction('delegate');
-                }}>
-                  {member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
-                </Button>
-              )}
+              {member.role === 'BROKER_AGENT' ||
+                (user.role === 'BROKER_ADMIN' && member.role === 'SUB_BROKER_ADMIN' && (
+                  <Button variant="secondary" disabled={busy || conflict} href={`${teamBase}/${encodeURIComponent(member.id)}/permissions`}>
+                    {member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
+                  </Button>
+                ))}
               <Button variant="secondary" disabled={busy || conflict} onClick={() => setAction('role')}>
                 {member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
               </Button>
@@ -225,7 +228,6 @@ function Editor({ member }: { member: Member }) {
             ? `${member.name} की firm access समाप्त होगी और assigned काम unassigned होंगे। पहले जरूरी काम reassign करें।`
             : `${member.name} की भूमिका या status बदलने पर permissions और active sessions बदलेंगे।`}
         </p>
-        {action === 'delegate' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
         <div className="mt-4 flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setAction(null)}>
             रद्द करें
@@ -236,7 +238,7 @@ function Editor({ member }: { member: Member }) {
               action === 'remove'
                 ? remove.mutate(undefined)
                 : update.mutate(
-                    action === 'delegate' ? { role: 'SUB_BROKER_ADMIN', delegatedPermissions: permissions } : action === 'role'
+                    action === 'role'
                       ? { role: member.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN' }
                       : { status: member.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' },
                   )
