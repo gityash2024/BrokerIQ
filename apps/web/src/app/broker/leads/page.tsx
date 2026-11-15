@@ -24,6 +24,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { AddLeadDialog } from '@/components/broker/add-lead';
 
+const leadColumns = 'lg:grid-cols-[32px_minmax(0,2fr)_minmax(0,1.2fr)_120px_minmax(0,1.3fr)_120px_13rem]';
+
 function LeadsInner() {
   const sp = useSearchParams();
   const router = useRouter();
@@ -257,7 +259,7 @@ function LeadsInner() {
         />
       ) : (
         <div className="card overflow-hidden">
-          <div className="hidden grid-cols-[32px_minmax(0,2fr)_minmax(0,1.2fr)_120px_minmax(0,1.3fr)_120px_96px] items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-bold text-muted uppercase lg:grid">
+          <div className={cn('hidden items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-bold text-muted uppercase lg:grid', leadColumns)}>
             <input type="checkbox" checked={allSel} onChange={() => setSel(allSel ? [] : items.map((l) => l.id))} aria-label="Select all" />
             <span>Lead</span>
             <span>Source</span>
@@ -273,7 +275,8 @@ function LeadsInner() {
                 <div
                   key={l.id}
                   className={cn(
-                    'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-surface-2 lg:grid-cols-[32px_minmax(0,2fr)_minmax(0,1.2fr)_120px_minmax(0,1.3fr)_120px_96px]',
+                    'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-surface-2',
+                    leadColumns,
                     sel.includes(l.id) && 'bg-brand-50/60 dark:bg-brand-500/10',
                   )}
                 >
@@ -331,7 +334,7 @@ function LeadsInner() {
                           .join(' · ') || '—'
                       : (l.listing?.title ?? '—')}
                   </p>
-                  <div className="hidden items-center gap-2 lg:flex">
+                  <div className="hidden min-w-0 items-center gap-2 lg:flex">
                     {l.assignedTo ? (
                       <>
                         <Avatar name={l.assignedTo.name} src={l.assignedTo.avatarUrl} size={24} />
@@ -343,7 +346,7 @@ function LeadsInner() {
                       </span>
                     )}
                   </div>
-                  <div className="flex justify-end gap-1.5">
+                  <div className="flex min-w-0 justify-end gap-1.5 lg:flex-wrap">
                     <Button size="icon-sm" variant="secondary" href={`tel:${l.phone}`} aria-label="Call">
                       <Phone className="size-4" />
                     </Button>
