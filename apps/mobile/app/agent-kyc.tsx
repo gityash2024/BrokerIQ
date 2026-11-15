@@ -7,10 +7,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, CheckCircle2, Clock, CreditCard, Eye, FileText, Camera, ShieldCheck, ShieldAlert, Shield, Upload, UserCheck, X } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
-import { Txt, Button, Card, Badge, Row } from '@/ui';
+import { Txt, Button, Card, Badge, Row, ErrorView, Loader } from '@/ui';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { api, post, uploadUri } from '@/lib/api';
+import { hasDelegatedAccess, moduleAllowed } from '@brokeriq/shared';
+import { useConfig } from '@/lib/config';
 
 interface KycResponse {
   status: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
@@ -31,6 +33,10 @@ export default function AgentKycScreen() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'my' | 'firm'>('my');
+  const [reVerify, setReVerify] = useState(false);
+  const config = useConfig();
+  const canViewFirm = user?.role !== 'SUB_BROKER_ADMIN' || (hasDelegatedAccess(user, 'kyc', 'view') && moduleAllowed(config.modules, 'kyc', 'BROKER_ADMIN'));
+  const firmTab = activeTab === 'firm' && canViewFirm;
   const [previewPhoto, setPreviewPhoto] = useState<{ title: string; url: string } | null>(null);
 
   const kycQuery = useQuery({
@@ -41,6 +47,7 @@ export default function AgentKycScreen() {
   const firmQuery = useQuery({
     queryKey: ['firm-kyc-agent-mobile'],
     queryFn: () => api<any>('/broker/firm-kyc'),
+    enabled: firmTab,
   });
 
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -58,9 +65,23 @@ export default function AgentKycScreen() {
   const [retryFaceUpload, setRetryFaceUpload] = useState(false);
 
   const kyc = kycQuery.data;
-  const isVerified = kyc?.status === 'VERIFIED';
+  const verified = kyc?.status === 'VERIFIED';
+  const isVerified = verified && !reVerify;
   const isPending = kyc?.status === 'PENDING';
   const isRejected = kyc?.status === 'REJECTED';
+
+  const toggleReVerification = () => {
+    if (reVerify && kyc) {
+      setAadhaarNumber(kyc.aadhaarNumber ?? '');
+      setAadhaarPhotoUrl(kyc.aadhaarPhotoUrl ?? '');
+      setPanNumber(kyc.panNumber ?? '');
+      setPanPhotoUrl(kyc.panPhotoUrl ?? '');
+      setStraightUrl(kyc.livelinessStraightUrl);
+      setLeftUrl(kyc.livelinessLeftUrl);
+      setRightUrl(kyc.livelinessRightUrl);
+    }
+    setReVerify(!reVerify);
+  };
 
   useEffect(() => {
     if (kyc) {
@@ -77,6 +98,7 @@ export default function AgentKycScreen() {
   const submitMutation = useMutation({
     mutationFn: (body: any) => post('/broker/team/agent-kyc', body),
     onSuccess: () => {
+      setReVerify(false);
       Alert.alert('KYC सबमिट हो गया ✅', 'आपका Agent KYC सफलतापूर्वक सबमिट हो चुका है। ब्रोकर एडमिन इसे जल्द वेरिफाई करेंगे।');
       queryClient.invalidateQueries({ queryKey: ['agent-kyc-mine-mobile'] });
     },
@@ -177,6 +199,7 @@ export default function AgentKycScreen() {
       livelinessStraightUrl: finalStraight,
       livelinessLeftUrl: finalLeft,
       livelinessRightUrl: finalRight,
+      ...(reVerify && verified ? { replaceVerified: true } : {}),
     });
   };
 
@@ -185,8 +208,16 @@ export default function AgentKycScreen() {
   const currentPan = panNumber || kyc?.panNumber || '';
   const currentPanDoc = panPhotoUrl || kyc?.panPhotoUrl || '';
 
+  if (kycQuery.isError || kycQuery.isPending) {
+    return (
+      <BrokerScreen title="My KYC">
+        <View style={{ padding: 16 }}>{kycQuery.isError ? <ErrorView error={kycQuery.error} onRetry={() => kycQuery.refetch()} /> : <Loader />}</View>
+      </BrokerScreen>
+    );
+  }
+
   return (
-    <BrokerScreen title="KYC" subtitle={activeTab === 'my' ? 'आधार, पैन व फ़ेस लाइवलीनेस सत्यापन' : 'फर्म का सत्यापन व RERA लाइसेंस'}>
+    <BrokerScreen title="KYC" subtitle={!firmTab ? 'आधार, पैन व फ़ेस लाइवलीनेस सत्यापन' : 'फर्म का सत्यापन व RERA लाइसेंस'}>
       <KycHistory />
       {/* Tab Switch Pills */}
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 }}>
@@ -210,28 +241,30 @@ export default function AgentKycScreen() {
             </Txt>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => setActiveTab('firm')}
-            style={{
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              paddingVertical: 10,
-              borderRadius: 14,
-              backgroundColor: activeTab === 'firm' ? c.brand : isDark ? '#1C2138' : '#F1F5F9',
-            }}
-          >
-            <Building2 size={16} color={activeTab === 'firm' ? '#fff' : c.muted} />
-            <Txt v="small" style={{ fontWeight: '800', color: activeTab === 'firm' ? '#fff' : c.fg }}>
-              Firm KYC
-            </Txt>
-          </TouchableOpacity>
+          {canViewFirm && (
+            <TouchableOpacity
+              onPress={() => setActiveTab('firm')}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: activeTab === 'firm' ? c.brand : isDark ? '#1C2138' : '#F1F5F9',
+              }}
+            >
+              <Building2 size={16} color={activeTab === 'firm' ? '#fff' : c.muted} />
+              <Txt v="small" style={{ fontWeight: '800', color: activeTab === 'firm' ? '#fff' : c.fg }}>
+                Firm KYC
+              </Txt>
+            </TouchableOpacity>
+          )}
         </Row>
       </View>
 
-      {activeTab === 'firm' ? (
+      {firmTab ? (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 50 }}>
           {(() => {
             const firm = firmQuery.data?.organization || user?.organization;
@@ -379,7 +412,7 @@ export default function AgentKycScreen() {
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 50 }}>
           {/* Status Card */}
-          {isVerified ? (
+          {verified && reVerify ? null : isVerified ? (
             <View
               style={{
                 padding: 16,
@@ -460,6 +493,22 @@ export default function AgentKycScreen() {
             </View>
           )}
 
+          {verified && user?.role === 'SUB_BROKER_ADMIN' && (
+            <Card style={{ padding: 14, gap: 8 }}>
+              <Txt v="small" color="muted">
+                {reVerify
+                  ? 'Update a document or capture new face photos. Submission starts a new review.'
+                  : 'Update your identity documents if a new verification is needed.'}
+              </Txt>
+              <Button
+                size="sm"
+                variant="secondary"
+                title={reVerify ? 'Cancel re-verification' : 'Re-verify KYC'}
+                disabled={submitMutation.isPending || uploadingAadhaar || uploadingPan || !!uploadingPose}
+                onPress={toggleReVerification}
+              />
+            </Card>
+          )}
           {/* Section 1: Aadhaar Card */}
           <View
             style={{

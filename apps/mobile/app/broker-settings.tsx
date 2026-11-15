@@ -153,7 +153,7 @@ export default function BrokerSettings() {
         {user?.role === 'BROKER_ADMIN' && user.organizationId && <MicrositeQr key={`${user.id}:${user.organizationId}`} />}
 
         {/* Agent KYC Verification Card */}
-        {hasDelegatedAccess(user, 'kyc', 'view') && <TouchableOpacity
+        {user?.organization?.id && <TouchableOpacity
           onPress={() => router.push('/agent-kyc')}
           style={{
             flexDirection: 'row',

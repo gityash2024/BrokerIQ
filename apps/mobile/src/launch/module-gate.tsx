@@ -38,9 +38,22 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const screenScope = `${context.scope}:${context.epoch}`;
   const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
-  if (essential.includes(path) && !(user?.role === 'SUB_BROKER_ADMIN' && ['/agent-kyc', '/kyc', '/drafts', '/broker-onboarding'].includes(path))) return <Fragment key={screenScope}>{children}</Fragment>;
+  if (user?.role === 'SUB_BROKER_ADMIN' && path === '/kyc' && user.organization?.id) return <Fragment key={screenScope}>{children}</Fragment>;
+  if (essential.includes(path) && !(user?.role === 'SUB_BROKER_ADMIN' && ['/kyc', '/drafts', '/broker-onboarding'].includes(path)))
+    return <Fragment key={screenScope}>{children}</Fragment>;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
-  const key = delegated && path === '/performance' ? 'team' : delegated && path === '/drafts' ? 'inventory' : delegated && path.startsWith('/chat/') ? 'inbox' : path === '/dashboard-records' ? (broker ? 'today' : 'consumer') : nativeModuleKey(path);
+  const key =
+    delegated && path === '/performance'
+      ? 'team'
+      : delegated && path === '/drafts'
+        ? 'inventory'
+        : delegated && path.startsWith('/chat/')
+          ? 'inbox'
+          : path === '/dashboard-records'
+            ? broker
+              ? 'today'
+              : 'consumer'
+            : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : config.modules;
   const actionAllowed = !delegated ||
@@ -55,8 +68,18 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const allowed = actionAllowed &&
     config.loaded &&
     moduleAllowed(policies, key, delegated ? 'BROKER_ADMIN' : role) &&
-    (consumer.test(path) || path === '/dashboard-records' ? !!user || guest.test(path) : nativePlatformMonitorAllowed(path, role) || (broker && !!user?.organization?.id));
-  if (delegated && path === '/dashboard' && !allowed) return <BrokerScreen title="Sub-Broker Admin"><View style={{ padding: 24, gap: 12 }}><Txt>Open an assigned module.</Txt><Button title="Product tools" onPress={() => router.push('/product-tools')} /></View></BrokerScreen>;
+    (consumer.test(path) || path === '/dashboard-records'
+      ? !!user || guest.test(path)
+      : nativePlatformMonitorAllowed(path, role) || (broker && !!user?.organization?.id));
+  if (delegated && path === '/dashboard' && !allowed)
+    return (
+      <BrokerScreen title="Sub-Broker Admin">
+        <View style={{ padding: 24, gap: 12 }}>
+          <Txt>Open an assigned module.</Txt>
+          <Button title="Product tools" onPress={() => router.push('/product-tools')} />
+        </View>
+      </BrokerScreen>
+    );
   if (allowed) return <Fragment key={screenScope}>{children}</Fragment>;
   // Protected children must never mount behind an overlay: their hooks would still fetch/mutate.
   const loading = !config.loaded && !config.error;

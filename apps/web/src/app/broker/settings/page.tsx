@@ -26,7 +26,17 @@ export default function SettingsPage() {
   if (user?.role === 'BROKER_AGENT' || user?.role === 'SUB_BROKER_ADMIN')
     return (
       <>
-        <PageHeader title="My account" subtitle="Your personal profile and account settings" />
+        <PageHeader
+          title="My account"
+          subtitle="Your personal profile and account settings"
+          actions={
+            user.role === 'SUB_BROKER_ADMIN' && (
+              <Button href="/broker/kyc?view=mine" size="sm" variant="secondary">
+                <ShieldCheck className="size-4" /> My KYC
+              </Button>
+            )
+          }
+        />
         <ProfileForm />
       </>
     );

@@ -819,6 +819,7 @@ export class OrganizationsController {
           livelinessStraightUrl: z.string().url('Face liveliness (Straight) photo ज़रूरी है'),
           livelinessLeftUrl: z.string().url('Face liveliness (Turn Left) photo ज़रूरी है'),
           livelinessRightUrl: z.string().url('Face liveliness (Turn Right) photo ज़रूरी है'),
+          replaceVerified: z.boolean().optional(),
         }),
       ),
     )
@@ -830,6 +831,7 @@ export class OrganizationsController {
       livelinessStraightUrl: string;
       livelinessLeftUrl: string;
       livelinessRightUrl: string;
+      replaceVerified?: boolean;
     },
   ) {
     const orgId = requireOrg(user);
@@ -906,7 +908,7 @@ export class OrganizationsController {
         kind: 'KYC_UPDATE',
         title: body.status === 'VERIFIED' ? '✅ आपका Agent KYC Approved हो गया है' : '❌ आपका Agent KYC Reject हुआ',
         body: body.reviewNote,
-        link: '/broker/kyc',
+        link: '/broker/kyc?view=mine',
       });
 
     return result;

@@ -29,6 +29,8 @@ import { toast } from 'sonner';
 import { KycHistory } from '@/components/broker/kyc-history';
 import { KycMedia, KycPreviewButton } from '@/components/broker/kyc-media';
 import { api, uploadFile } from '@/lib/api';
+import { moduleAllowed } from '@brokeriq/shared';
+import { useConfig } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
 import { patch, post, useApiMutation } from '@/lib/hooks';
 import { PageHeader } from '@/components/panel/shell';
@@ -47,7 +49,10 @@ export default function BrokerKycPage() {
   const { user } = useAuth();
   const params = useSearchParams();
   const router = useRouter();
-  const isAdminOrSuper = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('kyc:view'));
+  const config = useConfig();
+  const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const canViewTeam = !!user?.delegatedPermissions?.includes('kyc:view') && moduleAllowed(config.modules, 'kyc', 'BROKER_ADMIN');
+  const isAdminOrSuper = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' || (delegated && canViewTeam);
 
   if (isAdminOrSuper) {
     if (params.get('view') === 'mine')
@@ -62,7 +67,7 @@ export default function BrokerKycPage() {
     return <AdminKycManagementView user={user} />;
   }
 
-  return <AgentKycSubmissionView />;
+  return <AgentKycSubmissionView canViewFirm={!delegated || canViewTeam} />;
 }
 
 /* ========================================================================= */
@@ -74,7 +79,7 @@ function AdminKycManagementView({ user }: { user: any }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'team' | 'firm'>('team');
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('ALL');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_AGENT' | 'BROKER_ADMIN'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_AGENT' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN'>('ALL');
   const [agentFilter, setAgentFilter] = useState<string>('ALL');
   const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: 'ALL' });
   const [searchQuery, setSearchQuery] = useState('');
@@ -338,6 +343,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                 <div className="w-36">
                   <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as any)} className="h-9 text-xs">
                     <option value="ALL">सभी रोल्स (All Roles)</option>
+                    <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
                     <option value="BROKER_AGENT">केवल एजेंट्स (Agents)</option>
                     <option value="BROKER_ADMIN">केवल एडमिन्स (Admins)</option>
                   </Select>
@@ -415,23 +421,25 @@ function AdminKycManagementView({ user }: { user: any }) {
                   दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} मेंबर्स
                 </span>
 
-                {!delegated && <ExportToolbar
-                  endpoint="/admin/kyc/export"
-                  baseFilename="kyc-verification-report"
-                  selectedIds={selectedDocIds}
-                  disabled={selectedDocIds.length === 0}
-                  totalCount={members.length}
-                  filteredCount={filteredMembers.length}
-                  filters={{
-                    status: filter !== 'ALL' ? filter : undefined,
-                    role: roleFilter !== 'ALL' ? roleFilter : undefined,
-                    agentId: agentFilter !== 'ALL' ? agentFilter : undefined,
-                    search: searchQuery.trim() || undefined,
-                    datePreset: dateRange.preset !== 'ALL' ? dateRange.preset.toLowerCase() : undefined,
-                    from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
-                    to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
-                  }}
-                />}
+                {!delegated && (
+                  <ExportToolbar
+                    endpoint="/admin/kyc/export"
+                    baseFilename="kyc-verification-report"
+                    selectedIds={selectedDocIds}
+                    disabled={selectedDocIds.length === 0}
+                    totalCount={members.length}
+                    filteredCount={filteredMembers.length}
+                    filters={{
+                      status: filter !== 'ALL' ? filter : undefined,
+                      role: roleFilter !== 'ALL' ? roleFilter : undefined,
+                      agentId: agentFilter !== 'ALL' ? agentFilter : undefined,
+                      search: searchQuery.trim() || undefined,
+                      datePreset: dateRange.preset !== 'ALL' ? dateRange.preset.toLowerCase() : undefined,
+                      from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
+                      to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -482,7 +490,9 @@ function AdminKycManagementView({ user }: { user: any }) {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold text-base">{member.name}</p>
-                            <Badge tone={member.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>{member.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'}</Badge>
+                            <Badge tone={member.role === 'BROKER_ADMIN' ? 'brand' : 'neutral'}>
+                              {member.role === 'BROKER_ADMIN' ? 'Admin' : member.role === 'SUB_BROKER_ADMIN' ? 'Sub-Broker Admin' : 'Agent'}
+                            </Badge>
                             {member.lastLocation && (
                               <a
                                 href={`https://www.google.com/maps?q=${member.lastLocation.latitude},${member.lastLocation.longitude}`}
@@ -523,12 +533,16 @@ function AdminKycManagementView({ user }: { user: any }) {
                         </div>
                       </div>
 
-                      {(member.role === 'BROKER_AGENT' || member.id === user.id || user.role === 'SUPER_ADMIN') && <KycHistory member={member.id} />}
+                      {(member.role === 'BROKER_AGENT' ||
+                        (!delegated && member.role === 'SUB_BROKER_ADMIN') ||
+                        member.id === user.id ||
+                        user.role === 'SUPER_ADMIN') && <KycHistory member={member.id} />}
                       {/* Review Action Buttons */}
                       <div className="flex items-center gap-2 self-end md:self-start">
                         {member.id !== user.id &&
-                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT') &&
-                          canApprove && member.kycStatus === 'PENDING' &&
+                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT' || (!delegated && member.role === 'SUB_BROKER_ADMIN')) &&
+                          canApprove &&
+                          member.kycStatus === 'PENDING' &&
                           hasSubmission && (
                             <Button
                               size="sm"
@@ -542,8 +556,9 @@ function AdminKycManagementView({ user }: { user: any }) {
                             </Button>
                           )}
                         {member.id !== user.id &&
-                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT') &&
-                          canApprove && member.kycStatus === 'PENDING' &&
+                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT' || (!delegated && member.role === 'SUB_BROKER_ADMIN')) &&
+                          canApprove &&
+                          member.kycStatus === 'PENDING' &&
                           hasSubmission && (
                             <Button
                               size="sm"
@@ -1254,9 +1269,11 @@ interface MyKycResponse {
   reviewedAt: string | null;
 }
 
-function AgentKycSubmissionView() {
+function AgentKycSubmissionView({ canViewFirm = true }: { canViewFirm?: boolean }) {
   const { user } = useAuth();
   const [agentTab, setAgentTab] = useState<'my' | 'firm'>('my');
+  const [reVerify, setReVerify] = useState(false);
+  const firmTab = canViewFirm && agentTab === 'firm';
 
   const kycQuery = useQuery({
     queryKey: ['agent-kyc-mine'],
@@ -1284,9 +1301,21 @@ function AgentKycSubmissionView() {
   const [uploadingPan, setUploadingPan] = useState(false);
 
   const kyc = kycQuery.data;
-  const isVerified = kyc?.status === 'VERIFIED';
+  const verified = kyc?.status === 'VERIFIED';
+  const isVerified = verified && !reVerify;
   const isPending = kyc?.status === 'PENDING';
   const isRejected = kyc?.status === 'REJECTED';
+
+  const toggleReVerification = () => {
+    if (reVerify && kyc) {
+      setAadhaarNumber(kyc.aadhaarNumber ?? '');
+      setAadhaarPhotoUrl(kyc.aadhaarPhotoUrl);
+      setPanNumber(kyc.panNumber ?? '');
+      setPanPhotoUrl(kyc.panPhotoUrl);
+      setLiveliness({ straightUrl: kyc.livelinessStraightUrl, leftUrl: kyc.livelinessLeftUrl, rightUrl: kyc.livelinessRightUrl });
+    }
+    setReVerify(!reVerify);
+  };
 
   useEffect(() => {
     if (kyc) {
@@ -1307,6 +1336,7 @@ function AgentKycSubmissionView() {
   const submitMutation = useApiMutation((body: any) => post('/broker/team/agent-kyc', body), {
     success: 'Agent KYC सफलतापूर्वक सबमिट हो गया है! Admin review करेंगे।',
     invalidate: [['agent-kyc-mine'], ['agent-kyc-mine-status']],
+    onSuccess: () => setReVerify(false),
   });
 
   const handleAadhaarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1384,6 +1414,7 @@ function AgentKycSubmissionView() {
       livelinessStraightUrl: finalStraight,
       livelinessLeftUrl: finalLeft,
       livelinessRightUrl: finalRight,
+      ...(reVerify && verified ? { replaceVerified: true } : {}),
     });
   };
 
@@ -1400,30 +1431,42 @@ function AgentKycSubmissionView() {
     <div className="space-y-4 max-w-4xl">
       <KycHistory />
       <PageHeader
-        title={agentTab === 'my' ? 'Agent KYC' : 'ब्रोकर फर्म KYC'}
+        title={firmTab ? 'ब्रोकर फर्म KYC' : 'My KYC'}
         subtitle={
-          agentTab === 'my'
-            ? 'सुरक्षित ब्रोकर नेटवर्क के लिए आपकी पहचान एवं फेस लाइवलीनेस सत्यापन'
-            : 'आपकी ब्रोकर फर्म के आधिकारिक रजिस्ट्रेशन व RERA सत्यापन विवरण'
+          !firmTab ? 'सुरक्षित ब्रोकर नेटवर्क के लिए आपकी पहचान एवं फेस लाइवलीनेस सत्यापन' : 'आपकी ब्रोकर फर्म के आधिकारिक रजिस्ट्रेशन व RERA सत्यापन विवरण'
         }
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant={agentTab === 'my' ? 'primary' : 'secondary'} onClick={() => setAgentTab('my')}>
               <UserCheck className="size-4" /> मेरा KYC (My KYC)
             </Button>
-            <Button size="sm" variant={agentTab === 'firm' ? 'primary' : 'secondary'} onClick={() => setAgentTab('firm')}>
-              <Building2 className="size-4" /> फर्म KYC (Firm Status)
-            </Button>
+            {canViewFirm && (
+              <Button size="sm" variant={firmTab ? 'primary' : 'secondary'} onClick={() => setAgentTab('firm')}>
+                <Building2 className="size-4" /> फर्म KYC (Firm Status)
+              </Button>
+            )}
           </div>
         }
       />
 
-      {agentTab === 'firm' ? (
+      {firmTab ? (
         <FirmKycManagementView user={user} canEdit={false} />
       ) : (
         <>
+          {verified && user?.role === 'SUB_BROKER_ADMIN' && (
+            <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+              <p className="text-sm text-muted">
+                {reVerify
+                  ? 'Update a document or capture new face photos. Submission starts a new review.'
+                  : 'Update your identity documents if a new verification is needed.'}
+              </p>
+              <Button variant="secondary" disabled={submitMutation.isPending || uploadingAadhaar || uploadingPan} onClick={toggleReVerification}>
+                {reVerify ? 'Cancel re-verification' : 'Re-verify KYC'}
+              </Button>
+            </div>
+          )}
           {/* KYC Status banner */}
-          {isVerified ? (
+          {verified && reVerify ? null : isVerified ? (
             <div className="flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-5 text-emerald-800 dark:text-emerald-300">
               <BadgeCheck className="size-8 text-emerald-600 shrink-0" />
               <div className="flex-1">
@@ -1665,7 +1708,7 @@ function AgentKycSubmissionView() {
                   className="bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold px-8 shadow-md shadow-brand-600/25 transition-all"
                 >
                   <ShieldCheck className="size-5" />
-                  {isRejected ? 'KYC पुनः सबमिट करें (Resubmit)' : 'KYC सत्यापन के लिए सबमिट करें'}
+                  {reVerify ? 'Submit for re-verification' : isRejected ? 'KYC पुनः सबमिट करें (Resubmit)' : 'KYC सत्यापन के लिए सबमिट करें'}
                 </Button>
               )}
             </div>

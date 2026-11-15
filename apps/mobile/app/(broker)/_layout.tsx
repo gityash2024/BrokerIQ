@@ -26,7 +26,7 @@ export default function BrokerTabs() {
       <Tabs.Screen
         name="kyc"
         options={{
-          title: 'KYC', href: show('kyc') ? undefined : null,
+          title: 'KYC',
           tabBarIcon: ({ color }) => <ShieldCheck size={21} color={color} />,
         }}
       />

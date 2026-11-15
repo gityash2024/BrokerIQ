@@ -16,9 +16,10 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
   const context = captureAccountContext();
   const screenScope = `${context.scope}:${context.revision}`;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
-  const role = delegated ? 'BROKER_ADMIN' : user?.role ?? 'PUBLIC';
+  const role = delegated ? 'BROKER_ADMIN' : (user?.role ?? 'PUBLIC');
   const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : config.modules;
   const key = moduleForPath(path);
+  if (delegated && path === '/broker/kyc') return <Fragment key={screenScope}>{children}</Fragment>;
   if (key && !status.loaded)
     return (
       <div className="card mx-auto max-w-lg p-8 text-center" role="status">
@@ -30,11 +31,14 @@ export function ModuleAccess({ children }: { children: React.ReactNode }) {
         )}
       </div>
     );
-  const actionAllowed = !delegated || (path !== '/broker/onboarding' &&
-    (path !== '/broker/publications' || hasDelegatedAccess(user, 'inventory', 'approve')) &&
-    (path !== '/broker/connectors' || hasDelegatedAccess(user, 'automation', 'connection_status')));
-  if (actionAllowed && ((delegated && path === '/broker') || !key || (!!config.modules && moduleAllowed(policies, key, role)))) return <Fragment key={screenScope}>{children}</Fragment>;
-  const policy = key ? config.modules?.[key] ?? defaultModulePolicies()[key] : undefined;
+  const actionAllowed =
+    !delegated ||
+    (path !== '/broker/onboarding' &&
+      (path !== '/broker/publications' || hasDelegatedAccess(user, 'inventory', 'approve')) &&
+      (path !== '/broker/connectors' || hasDelegatedAccess(user, 'automation', 'connection_status')));
+  if (actionAllowed && ((delegated && path === '/broker') || !key || (!!config.modules && moduleAllowed(policies, key, role))))
+    return <Fragment key={screenScope}>{children}</Fragment>;
+  const policy = key ? (config.modules?.[key] ?? defaultModulePolicies()[key]) : undefined;
   const upcoming = policy?.state === 'COMING_SOON';
   const hidden = policy?.state === 'HIDDEN';
   const Icon = upcoming ? Clock3 : hidden ? EyeOff : LockKeyhole;

@@ -10,11 +10,16 @@ import { Txt, Button, Card, Badge, Avatar, Row } from '@/ui';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { api, patch } from '@/lib/api';
+import { moduleAllowed } from '@brokeriq/shared';
+import { useConfig } from '@/lib/config';
 import AgentKycScreen from '../agent-kyc';
 
 export default function BrokerKycTab() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('kyc:view'));
+  const config = useConfig();
+  const isAdmin =
+    user?.role === 'BROKER_ADMIN' ||
+    (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('kyc:view') && moduleAllowed(config.modules, 'kyc', 'BROKER_ADMIN'));
 
   if (!isAdmin) {
     return <AgentKycScreen />;
@@ -329,30 +334,34 @@ function BrokerAdminKycManagement() {
                   </View>
                 )}
 
-                {(m.role === 'BROKER_AGENT' || m.id === user?.id) && <KycHistory member={m.id} />}
+                {(m.role === 'BROKER_AGENT' || (!delegated && m.role === 'SUB_BROKER_ADMIN') || m.id === user?.id) && <KycHistory member={m.id} />}
                 {/* Action Buttons */}
-                {canApprove && hasSubmission && m.role === 'BROKER_AGENT' && m.id !== user?.id && m.kycStatus === 'PENDING' && (
-                  <Row gap={8} style={{ marginTop: 2 }}>
-                    {m.kycStatus === 'PENDING' && (
-                      <TouchableOpacity
-                        onPress={() => handleApprove(m)}
-                        style={{
-                          flex: 1,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                          backgroundColor: '#10B981',
-                          paddingVertical: 9,
-                          borderRadius: 12,
-                        }}
-                      >
-                        <CheckCircle2 size={16} color="#fff" />
-                        <Txt v="small" style={{ color: '#fff', fontWeight: '800' }}>
-                          Approve KYC
-                        </Txt>
-                      </TouchableOpacity>
-                    )}
+                {canApprove &&
+                  hasSubmission &&
+                  (m.role === 'BROKER_AGENT' || (!delegated && m.role === 'SUB_BROKER_ADMIN')) &&
+                  m.id !== user?.id &&
+                  m.kycStatus === 'PENDING' && (
+                    <Row gap={8} style={{ marginTop: 2 }}>
+                      {m.kycStatus === 'PENDING' && (
+                        <TouchableOpacity
+                          onPress={() => handleApprove(m)}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            backgroundColor: '#10B981',
+                            paddingVertical: 9,
+                            borderRadius: 12,
+                          }}
+                        >
+                          <CheckCircle2 size={16} color="#fff" />
+                          <Txt v="small" style={{ color: '#fff', fontWeight: '800' }}>
+                            Approve KYC
+                          </Txt>
+                        </TouchableOpacity>
+                      )}
 
                     {m.kycStatus === 'PENDING' && (
                       <TouchableOpacity

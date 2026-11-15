@@ -13,6 +13,7 @@ import { env } from '../../config/env';
 const hash = (body: Buffer) => createHash('sha256').update(body).digest('hex');
 const keyPattern = /^kyc\/([A-Za-z0-9_-]{1,64})\/\d{6}\/[A-Za-z0-9]{20}$/;
 type SubjectDoc = { userId: string | null; organizationId: string | null; user?: { organizationId: string | null; role: string } | null };
+const isTeamKycSubject = (role?: string) => role === 'BROKER_AGENT' || role === 'SUB_BROKER_ADMIN';
 const poseNames = ['LIVELINESS_STRAIGHT', 'LIVELINESS_LEFT', 'LIVELINESS_RIGHT'];
 export interface PersonalKycInput {
   aadhaarNumber: string;
@@ -22,6 +23,7 @@ export interface PersonalKycInput {
   livelinessStraightUrl: string;
   livelinessLeftUrl: string;
   livelinessRightUrl: string;
+  replaceVerified?: boolean;
 }
 
 @Injectable()
@@ -34,7 +36,11 @@ export class KycService {
   canView(user: RequestUser, doc: SubjectDoc) {
     if (user.role === 'SUPER_ADMIN' || doc.userId === user.id) return true;
     if (user.role !== 'BROKER_ADMIN' || !user.orgId || doc.organizationId !== user.orgId) return false;
-    return !doc.userId || (doc.user?.role === 'BROKER_AGENT' && doc.user.organizationId === user.orgId);
+    return !doc.userId || (doc.user?.organizationId === user.orgId && this.canReviewTeamSubject(user, doc.user.role));
+  }
+
+  private canReviewTeamSubject(user: RequestUser, role: string) {
+    return isTeamKycSubject(role) && (!user.delegatedActor || role === 'BROKER_AGENT');
   }
 
   private async document(id: string, user: RequestUser) {
@@ -50,7 +56,14 @@ export class KycService {
     const result = await this.store.read(doc.privateKey);
     if (hash(result.body) !== doc.fileSha256) throw new ConflictException('Document integrity check failed. Please contact Super Admin.');
     await this.db.auditLog.create({
-      data: { actorId: user.id, actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role, organizationId: user.orgId, action: 'kyc.preview', entity: 'KycDocument', entityId: id },
+      data: {
+        actorId: user.id,
+        actorRole: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role,
+        organizationId: user.orgId,
+        action: 'kyc.preview',
+        entity: 'KycDocument',
+        entityId: id,
+      },
     });
     return result;
   }
@@ -106,7 +119,7 @@ export class KycService {
   }
 
   async personal(user: RequestUser, body: PersonalKycInput) {
-    if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role)) throw new ForbiddenException();
+    if (!['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role)) throw new ForbiddenException();
     if (!/^\d{12}$/.test(body.aadhaarNumber) || !/^[A-Z]{5}\d{4}[A-Z]$/.test(body.panNumber)) throw new BadRequestException('Aadhaar / PAN format invalid है।');
     const organizationId = requireOrg(user),
       subject = { userId: user.id, organizationId };
@@ -125,7 +138,18 @@ export class KycService {
     const result = await this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${user.id} FOR UPDATE`;
       const current = await tx.kycDocument.findMany({ where: { userId: user.id, organizationId, supersededAt: null } });
-      if (current.some((doc) => doc.status === 'VERIFIED')) throw new ConflictException('Verified KYC बदल नहीं सकती। Super Admin से संपर्क करें।');
+      const hasVerified = current.some((doc) => doc.status === 'VERIFIED');
+      if (hasVerified) {
+        const owner =
+          body.replaceVerified && user.role === 'SUB_BROKER_ADMIN'
+            ? await tx.user.findUnique({ where: { id: user.id }, select: { role: true, organizationId: true } })
+            : null;
+        if (owner?.role !== 'SUB_BROKER_ADMIN' || owner.organizationId !== organizationId)
+          throw new ConflictException('Verified KYC बदल नहीं सकती। Super Admin से संपर्क करें।');
+        const verifiedHashes = new Set(current.map((doc) => doc.fileSha256));
+        if (assets.every((asset) => verifiedHashes.has(asset.fileSha256)))
+          throw new BadRequestException('Upload at least one updated document or a new face capture to re-verify.');
+      }
       if (
         current.length === 5 &&
         current.every((doc) => doc.status === 'PENDING') &&
@@ -134,7 +158,7 @@ export class KycService {
         )
       )
         return { docs: current, replayed: true };
-      await tx.kycDocument.updateMany({ where: { userId: user.id, supersededAt: null }, data: { supersededAt: new Date() } });
+      await tx.kycDocument.updateMany({ where: { userId: user.id, organizationId, supersededAt: null }, data: { supersededAt: new Date() } });
       const docs = await tx.kycDocument.createManyAndReturn({
         data: specs.map((spec, index) => ({ ...subject, docType: spec.docType, docNumber: spec.docNumber, ...assets[index], status: 'PENDING' })),
       });
@@ -146,7 +170,7 @@ export class KycService {
           action: 'kyc.personal.submit',
           entity: 'User',
           entityId: user.id,
-          meta: { documentIds: docs.map((d) => d.id) },
+          meta: { documentIds: docs.map((d) => d.id), ...(hasVerified ? { reVerification: true } : {}) },
         },
       });
       return { docs, replayed: false };
@@ -163,7 +187,7 @@ export class KycService {
       !target ||
       (user.role !== 'SUPER_ADMIN' &&
         targetId !== user.id &&
-        (user.role !== 'BROKER_ADMIN' || !user.orgId || target.organizationId !== user.orgId || target.role !== 'BROKER_AGENT'))
+        (user.role !== 'BROKER_ADMIN' || !user.orgId || target.organizationId !== user.orgId || !this.canReviewTeamSubject(user, target.role)))
     )
       throw new NotFoundException('KYC subject unavailable');
     const docs = (
@@ -223,7 +247,8 @@ export class KycService {
       const target = await tx.user.findUnique({ where: { id: targetId } });
       if (
         !target ||
-        (user.role !== 'SUPER_ADMIN' && (user.role !== 'BROKER_ADMIN' || !user.orgId || target.organizationId !== user.orgId || target.role !== 'BROKER_AGENT'))
+        (user.role !== 'SUPER_ADMIN' &&
+          (user.role !== 'BROKER_ADMIN' || !user.orgId || target.organizationId !== user.orgId || !this.canReviewTeamSubject(user, target.role)))
       )
         throw new NotFoundException();
       const docs = await tx.kycDocument.findMany({ where: { userId: targetId, organizationId: target.organizationId, supersededAt: null } });

@@ -24,6 +24,13 @@ export class ModuleGuard implements CanActivate {
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
       const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
       if (isPublic || /^\/auth(?:\/|$)/.test(path) || /^\/me(?:$|\/(?:privacy|consent|push-tokens|notifications)(?:\/|$))/.test(path)) return true;
+      // Personal KYC is bound to the signed-in identity. Team review still requires the firm's grants.
+      if (
+        (path === '/broker/team/agent-kyc/mine' && req.method === 'GET') ||
+        (path === '/broker/team/agent-kyc' && req.method === 'POST') ||
+        (path === '/broker/team/agent-kyc/history' && req.method === 'GET' && (!req.query?.member || req.query.member === user.id))
+      )
+        return true;
       let permission = delegatedEndpoint(path, req.method, req.body);
       if (path === '/time-logging/status' && req.method === 'GET' &&
           (!req.query?.agentId || req.query.agentId === user.id) &&
@@ -32,9 +39,8 @@ export class ModuleGuard implements CanActivate {
       }
       if (path === '/me/uploads/sign') {
         const kind = req.body?.kind;
-        if (kind === 'avatar') return true;
-        permission = kind === 'listing' ? { module: 'inventory', actions: ['edit'] }
-          : kind === 'kyc' ? { module: 'kyc', actions: ['create'] } : null;
+        if (kind === 'avatar' || kind === 'kyc') return true;
+        permission = kind === 'listing' ? { module: 'inventory', actions: ['edit'] } : null;
       }
       if (permission && ['inventory', 'leads'].includes(permission.module) &&
           req.body && Object.prototype.hasOwnProperty.call(req.body, 'assignedToId') && !permission.actions.includes('assign')) {
@@ -43,8 +49,15 @@ export class ModuleGuard implements CanActivate {
       const grants: string[] = req.delegatedPermissions ?? [];
       const catalog = delegableModules(await this.modules.all());
       const available = permission && catalog.find(({ key }) => key === permission.module);
-      const has = (key: string, action: string) => catalog.some((module) => module.key === key && module.actions.some((item) => item === action)) && grants.includes(key + ':' + action);
-      if (!permission || !available || !permission.actions.every((action) => available.actions.includes(action) && grants.includes(delegatedGrant(permission.module, action)))) {
+      const has = (key: string, action: string) =>
+        catalog.some((module) => module.key === key && module.actions.some((item) => item === action)) && grants.includes(key + ':' + action);
+      // Without the team viewing grant, the service accepts only the document owner.
+      if (path === '/media/kyc/:id' && ['GET', 'HEAD'].includes(req.method) && !has('kyc', 'view')) return true;
+      if (
+        !permission ||
+        !available ||
+        !permission.actions.every((action) => available.actions.includes(action) && grants.includes(delegatedGrant(permission.module, action)))
+      ) {
         throw new ForbiddenException('This action is not assigned to your account');
       }
       if (path === '/broker/dashboard/records') {

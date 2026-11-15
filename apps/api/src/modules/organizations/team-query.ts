@@ -216,7 +216,14 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
         ...member,
         delegatedPermissions: user.role === 'BROKER_ADMIN' && !user.delegatedActor ? member.delegatedPermissions : undefined,
         kycStatus,
-        kycDocuments: (!user.delegatedActor || user.delegatedPermissions?.includes('kyc:view')) && (user.role === 'SUPER_ADMIN' || member.id === user.id || member.role === 'BROKER_AGENT') ? kycDocs.map(kycView) : [],
+        kycDocuments:
+          (!user.delegatedActor || user.delegatedPermissions?.includes('kyc:view')) &&
+          (user.role === 'SUPER_ADMIN' ||
+            member.id === user.id ||
+            member.role === 'BROKER_AGENT' ||
+            (!user.delegatedActor && member.role === 'SUB_BROKER_ADMIN'))
+            ? kycDocs.map(kycView)
+            : [],
         lastLocation: !user.delegatedActor || user.delegatedPermissions?.includes('time_logging:view') ? lastLocation : null,
         targets,
         fulfillment: {

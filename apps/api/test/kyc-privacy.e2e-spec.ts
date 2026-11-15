@@ -284,4 +284,68 @@ describe('KYC private transport, ownership and immutable review (real encrypted 
       .set(auth(peer))
       .expect(400);
   });
+  it('preserves a promoted member’s verified documents and permits an audited self re-verification', async () => {
+    const member = await actor('BROKER_AGENT', org);
+    const fixture = await body(member, 20);
+    const http = () => request(app.getHttpServer());
+    await http().post('/api/broker/team/agent-kyc').set(auth(member)).send(fixture.body).expect(201);
+    const previous = await db.kycDocument.findMany({ where: { userId: member.id, supersededAt: null } });
+    const reviewPath = '/api/broker/team/agents/' + member.id + '/kyc';
+    await http()
+      .patch(reviewPath)
+      .set(auth(admin))
+      .send({ status: 'VERIFIED', expectedDocumentIds: previous.map(({ id }) => id) })
+      .expect(200);
+
+    await http()
+      .patch('/api/broker/team/' + member.id)
+      .set(auth(admin))
+      .send({ role: 'SUB_BROKER_ADMIN', delegatedPermissions: [] })
+      .expect(200);
+    const promoted = await db.user.findUniqueOrThrow({ where: { id: member.id }, include: { organization: true } });
+    member.token = (await app.get(AuthService).issue(promoted)).accessToken;
+
+    const mine = await http().get('/api/broker/team/agent-kyc/mine').set(auth(member)).expect(200);
+    expect(mine.body.status).toBe('VERIFIED');
+    const photoPath = new URL(mine.body.aadhaarPhotoUrl).pathname;
+    const preview = await http().get(photoPath).set(auth(member)).expect(200);
+    expect(preview.headers['cache-control']).toBe('private, no-store');
+    await http().get(photoPath).set(auth(admin)).expect(200);
+    await http().get(photoPath).set(auth(outsider)).expect(404);
+    await http().get('/api/broker/team/agent-kyc/members').set(auth(member)).expect(403);
+    await http().get('/api/broker/firm-kyc').set(auth(member)).expect(403);
+    await http().get(reviewPath).set(auth(admin)).expect(200);
+    const team = await http().get('/api/broker/team/agent-kyc/members').set(auth(admin)).expect(200);
+    expect(team.body.members.find((row: any) => row.id === member.id).kycDocuments).toHaveLength(5);
+
+    const updatedPhoto = await upload(member, 190);
+    const replacement = { ...fixture.body, aadhaarPhotoUrl: updatedPhoto.publicUrl };
+    await http().post('/api/broker/team/agent-kyc').set(auth(member)).send(replacement).expect(409);
+    await http()
+      .post('/api/broker/team/agent-kyc')
+      .set(auth(member))
+      .send({ ...fixture.body, replaceVerified: true })
+      .expect(400);
+    await http()
+      .post('/api/broker/team/agent-kyc')
+      .set(auth(member))
+      .send({ ...replacement, replaceVerified: true })
+      .expect(201);
+    const after = await http().get('/api/broker/team/agent-kyc/mine').set(auth(member)).expect(200);
+    expect(after.body.status).toBe('PENDING');
+    expect(after.body.documents).toHaveLength(5);
+    const history = await http().get('/api/broker/team/agent-kyc/history').set(auth(member)).expect(200);
+    expect(history.body.items).toHaveLength(5);
+    expect(history.body.items.every((record: any) => record.status === 'VERIFIED')).toBe(true);
+    await http()
+      .patch(reviewPath)
+      .set(auth(admin))
+      .send({ status: 'VERIFIED', expectedDocumentIds: previous.map(({ id }) => id) })
+      .expect(409);
+    await http()
+      .patch(reviewPath)
+      .set(auth(admin))
+      .send({ status: 'VERIFIED', expectedDocumentIds: after.body.documents.map(({ id }: { id: string }) => id) })
+      .expect(200);
+  });
 });
