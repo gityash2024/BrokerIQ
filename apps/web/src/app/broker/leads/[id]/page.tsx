@@ -3,7 +3,7 @@ import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitItinerary } from '@/components/broker/visit-properties';
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { Fragment, use, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -183,53 +183,59 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             )}
           </div>
         </div>
-        {((canCreateTask && l.stage === 'CONTACTED') || (canSharePhotos && beforeVisit)) && (
-          <div className="flex flex-wrap gap-2 border-t border-line px-6 py-3">
-            {canCreateTask && l.stage === 'CONTACTED' && (
-              <Button size="sm" variant="secondary" onClick={() => setTab('tasks')}>
-                <CalendarPlus className="size-4" /> Follow-up
-              </Button>
-            )}
-            {canSharePhotos && beforeVisit && (
-              <Button size="sm" variant="secondary" href={`/broker/leads/${l.id}/photos`}>
-                <Share2 className="size-4" /> Share photos
-              </Button>
-            )}
-          </div>
-        )}
         {/* Stage stepper */}
-        <div className="flex overflow-x-auto border-t border-line scrollbar-none">
+        <div role="group" aria-label="Lead progress" className="flex overflow-x-auto border-t border-line scrollbar-none">
           {LEAD_STAGES.map((s, i) => {
             if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
             const active = s === l.stage;
             const past = i < stageIdx && s !== 'NOT_INTERESTED' && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
-              <button
-                key={s}
-                disabled={!canEdit || stage.isPending}
-                onClick={() => {
-                  if (s === 'LOST') setLostOpen(true);
-                  else if (s === 'NOT_INTERESTED') setNotInterestedOpen(true);
-                  else stage.mutate({ stage: s });
-                }}
-                className={cn(
-                  'relative flex min-w-28 flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-bold transition',
-                  active ? 'text-white' : past ? 'text-fg' : 'text-subtle hover:bg-surface-2',
+              <Fragment key={s}>
+                {s === 'SITE_VISIT' && canSharePhotos && beforeVisit && (
+                  <Link
+                    href={`/broker/leads/${l.id}/photos`}
+                    className="flex min-w-28 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 py-3 text-xs font-bold text-brand-600 transition hover:bg-surface-2"
+                  >
+                    <Share2 className="size-3.5 shrink-0" /> Share photos
+                  </Link>
                 )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="stage-bg"
-                    className="absolute inset-0"
-                    style={{ background: LEAD_STAGE_COLORS[s] }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                  />
+                <button
+                  aria-pressed={active}
+                  disabled={!canEdit || stage.isPending}
+                  onClick={() => {
+                    if (s === 'LOST') setLostOpen(true);
+                    else if (s === 'NOT_INTERESTED') setNotInterestedOpen(true);
+                    else stage.mutate({ stage: s });
+                  }}
+                  className={cn(
+                    'relative flex min-w-28 flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-bold transition',
+                    active ? 'text-white' : past ? 'text-fg' : 'text-subtle hover:bg-surface-2',
+                  )}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="stage-bg"
+                      className="absolute inset-0"
+                      style={{ background: LEAD_STAGE_COLORS[s] }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                    />
+                  )}
+                  <span className="relative flex items-center gap-1.5">
+                    {past && <Check className="size-3.5" style={{ color: LEAD_STAGE_COLORS[s] }} />}
+                    {LEAD_STAGE_LABELS[s]}
+                  </span>
+                </button>
+                {s === 'CONTACTED' && canCreateTask && (
+                  <button
+                    type="button"
+                    aria-controls="lead-tasks"
+                    onClick={() => setTab('tasks')}
+                    className="flex min-w-28 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 py-3 text-xs font-bold text-brand-600 transition hover:bg-surface-2"
+                  >
+                    <CalendarPlus className="size-3.5 shrink-0" /> Follow-up
+                  </button>
                 )}
-                <span className="relative flex items-center gap-1.5">
-                  {past && <Check className="size-3.5" style={{ color: LEAD_STAGE_COLORS[s] }} />}
-                  {LEAD_STAGE_LABELS[s]}
-                </span>
-              </button>
+              </Fragment>
             );
           })}
         </div>
@@ -249,7 +255,11 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           />
           {tab === 'timeline' && <Timeline lead={l} onChange={refresh} />}
           {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
-          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} />}
+          {tab === 'tasks' && (
+            <section id="lead-tasks" aria-label="Lead follow-ups and visits">
+              <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} />
+            </section>
+          )}
           {tab === 'requirement' && <LeadRequirements lead={l} />}
         </div>
         <div className="space-y-4">

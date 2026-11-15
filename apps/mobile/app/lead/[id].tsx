@@ -2,7 +2,7 @@ import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
 import { submitTask } from '@/launch/drafts';
 import { VisitItinerary } from '@/components/visit-properties';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { AppState, FlatList, Linking, ScrollView, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -207,39 +207,41 @@ export default function LeadDetail() {
             onPress={() => router.push({ pathname: '/requirements', params: { leadId: id } })}
           />
 
-          {((canCreateTask && l.stage === 'CONTACTED') || (canSharePhotos && beforeVisit)) && (
-            <Row wrap gap={8}>
-              {canCreateTask && l.stage === 'CONTACTED' && <Button size="sm" variant="secondary" title="Follow-up" onPress={() => setSheet('followup')} />}
-              {canSharePhotos && beforeVisit && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  title="Share photos"
-                  onPress={() => router.push({ pathname: '/lead-share-photos', params: { id: l.id } })}
-                />
-              )}
-            </Row>
-          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
               if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
-              if (!canEdit && s !== l.stage) return null;
+              const showStage = canEdit || s === l.stage;
               const on = l.stage === s;
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
-                <PressableScale
-                  key={s}
-                  onPress={
-                    canEdit && !stage.isPending
-                      ? () => (s === 'LOST' ? setSheet('lost') : s === 'NOT_INTERESTED' ? setSheet('not_interested') : stage.mutate({ stage: s }))
-                      : undefined
-                  }
-                  style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
-                >
-                  <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
-                    {LEAD_STAGE_LABELS[s as LeadStage]}
-                  </Txt>
-                </PressableScale>
+                <Fragment key={s}>
+                  {s === 'SITE_VISIT' && canSharePhotos && beforeVisit && (
+                    <Button
+                      title="Share photos"
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => router.push({ pathname: '/lead-share-photos', params: { id: l.id } })}
+                    />
+                  )}
+                  {showStage && (
+                    <PressableScale
+                      accessibilityRole="button"
+                      accessibilityLabel={LEAD_STAGE_LABELS[s as LeadStage]}
+                      accessibilityState={{ selected: on, disabled: !canEdit || stage.isPending }}
+                      onPress={
+                        canEdit && !stage.isPending
+                          ? () => (s === 'LOST' ? setSheet('lost') : s === 'NOT_INTERESTED' ? setSheet('not_interested') : stage.mutate({ stage: s }))
+                          : undefined
+                      }
+                      style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
+                    >
+                      <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
+                        {LEAD_STAGE_LABELS[s as LeadStage]}
+                      </Txt>
+                    </PressableScale>
+                  )}
+                  {s === 'CONTACTED' && canCreateTask && <Button title="Follow-up" size="sm" variant="secondary" onPress={() => setSheet('followup')} />}
+                </Fragment>
               );
             })}
           </ScrollView>
