@@ -3,7 +3,7 @@ import { PROPERTY_FIELDS, PROPERTY_AMENITIES, visiblePropertyFields } from '@bro
 export function PropertyExtras({ initial, category }: { initial: Record<string, any>; category?: string | null }) {
   return (
     <details className="rounded-xl border border-line p-4">
-      <summary className="cursor-pointer text-sm font-semibold">Additional property details, facilities & media</summary>
+      <summary className="cursor-pointer text-sm font-semibold">Additional property details & facilities</summary>
       <p className="my-3 text-xs text-muted">
         Only record known facts. Empty fields remain unknown. “Featured dealer” is a source label, not a BrokerIQ endorsement.
       </p>
@@ -49,12 +49,6 @@ export function PropertyExtras({ initial, category }: { initial: Record<string, 
           ))}
         </div>
       </fieldset>
-      {['photoUrls', 'videoUrls'].map((key) => (
-        <label key={key} className="mt-4 block text-xs font-semibold">
-          {key === 'photoUrls' ? 'Photo URLs (one per line)' : 'Video URLs (one per line)'}
-          <textarea name={key} defaultValue={(initial[key] ?? []).join('\n')} rows={3} className="mt-1 w-full rounded-lg border border-line bg-surface p-3" />
-        </label>
-      ))}
     </details>
   );
 }
@@ -68,13 +62,5 @@ export function readPropertyExtras(form: HTMLFormElement) {
   return {
     details,
     amenities: values.getAll('amenities').map(String),
-    photoUrls: String(values.get('photoUrls') ?? '')
-      .split(/\n/)
-      .map((s) => s.trim())
-      .filter(Boolean),
-    videoUrls: String(values.get('videoUrls') ?? '')
-      .split(/\n/)
-      .map((s) => s.trim())
-      .filter(Boolean),
   };
 }

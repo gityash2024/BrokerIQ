@@ -106,7 +106,6 @@ export default function TeamPage() {
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const canViewTeam = admin || user?.role === 'SUB_BROKER_ADMIN';
   const q = useTeam();
-  const [invite, setInvite] = useState(false);
   const { loaded: permissionsLoaded } = useConfigStatus();
   const [promotion, setPromotion] = useState<PromotionMember | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -320,7 +319,7 @@ export default function TeamPage() {
               <Trophy className="size-4 mr-1.5 text-amber-500" /> Leaderboard
             </Button>
             {user?.role === 'BROKER_ADMIN' && (
-              <Button size="sm" onClick={() => setInvite(true)}>
+              <Button size="sm" href="/broker/team/invite">
                 <UserPlus className="size-4 mr-1.5" /> Member invite करें
               </Button>
             )}
@@ -479,23 +478,25 @@ export default function TeamPage() {
 
           {/* Right Action: Export Toolbar & Roster Count */}
           <div className="flex items-center gap-2 shrink-0">
-            {hasDelegatedAccess(user, 'team', 'export') && <ExportToolbar
-              endpoint="/broker/team/export"
-              selectedIds={filteredMembers.filter((member) => !selectedIds.size || selectedIds.has(member.id)).map((member) => member.id)}
-              filters={{
-                orgId: isSuper && firmFilter ? firmFilter : undefined,
-                role: roleFilter !== 'ALL' ? roleFilter : undefined,
-                status: statusFilter !== 'ALL' ? statusFilter : undefined,
-                search: searchQuery.trim() || undefined,
-                agentId: agentFilter !== 'ALL' ? agentFilter : undefined,
-                datePreset: dateRange.preset !== 'ALL' ? dateRange.preset : undefined,
-                from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
-                to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
-              }}
-              filenamePrefix="team-roster"
-              totalCount={members.length}
-              filteredCount={filteredMembers.length}
-            />}
+            {hasDelegatedAccess(user, 'team', 'export') && (
+              <ExportToolbar
+                endpoint="/broker/team/export"
+                selectedIds={filteredMembers.filter((member) => !selectedIds.size || selectedIds.has(member.id)).map((member) => member.id)}
+                filters={{
+                  orgId: isSuper && firmFilter ? firmFilter : undefined,
+                  role: roleFilter !== 'ALL' ? roleFilter : undefined,
+                  status: statusFilter !== 'ALL' ? statusFilter : undefined,
+                  search: searchQuery.trim() || undefined,
+                  agentId: agentFilter !== 'ALL' ? agentFilter : undefined,
+                  datePreset: dateRange.preset !== 'ALL' ? dateRange.preset : undefined,
+                  from: dateRange.preset === 'CUSTOM' ? dateRange.from : undefined,
+                  to: dateRange.preset === 'CUSTOM' ? dateRange.to : undefined,
+                }}
+                filenamePrefix="team-roster"
+                totalCount={members.length}
+                filteredCount={filteredMembers.length}
+              />
+            )}
 
             <div className="text-xs font-semibold text-muted">
               दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} सदस्य
@@ -696,7 +697,10 @@ export default function TeamPage() {
                                 </DM.Item>
                                 {m.role === 'BROKER_AGENT' && (
                                   <DM.Item
-                                    onSelect={() => { setPermissions([]); setPromotion(m); }}
+                                    onSelect={() => {
+                                      setPermissions([]);
+                                      setPromotion(m);
+                                    }}
                                     className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
                                   >
                                     <ShieldCheck className="size-4 text-brand" /> Make Sub-Broker Admin
@@ -758,18 +762,28 @@ export default function TeamPage() {
 
       <Dialog
         open={!!promotion}
-        onOpenChange={(open) => { if (!open && !promote.isPending) setPromotion(null); }}
+        onOpenChange={(open) => {
+          if (!open && !promote.isPending) setPromotion(null);
+        }}
         title="Make Sub-Broker Admin"
         description={promotion ? `${promotion.name}${promotion.organization?.name ? ` · ${promotion.organization.name}` : ''}` : undefined}
-        footer={<>
-          <Button variant="secondary" disabled={promote.isPending} onClick={() => setPromotion(null)}>Cancel</Button>
-          <Button loading={promote.isPending} disabled={!permissionsLoaded || promote.isPending}
-            onClick={() => promotion && promote.mutate({ member: promotion, grants: permissions })}>Confirm promotion</Button>
-        </>}
+        footer={
+          <>
+            <Button variant="secondary" disabled={promote.isPending} onClick={() => setPromotion(null)}>
+              Cancel
+            </Button>
+            <Button
+              loading={promote.isPending}
+              disabled={!permissionsLoaded || promote.isPending}
+              onClick={() => promotion && promote.mutate({ member: promotion, grants: permissions })}
+            >
+              Confirm promotion
+            </Button>
+          </>
+        }
       >
         <DelegatedPermissions value={permissions} onChange={setPermissions} />
       </Dialog>
-      <InviteDialog open={invite} onOpenChange={setInvite} />
       <AgentDetailsAndTargetModal agent={selectedAgent} open={!!selectedAgent} onOpenChange={(v) => !v && setSelectedAgent(null)} />
     </>
   );
@@ -1019,76 +1033,6 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
           </div>
         )}
       </div>
-    </Dialog>
-  );
-}
-
-function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [result, setResult] = useState<{ link: string; emailed: boolean } | null>(null);
-  const send = useApiMutation(() => post<{ link: string; emailed: boolean }>('/broker/team/invite', { ...f, ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}) }), {
-    invalidate: [['team']],
-    onSuccess: (r) => {
-      setResult(r);
-      toast.success(r.emailed ? 'Invite email भेज दी गई' : 'Invite बन गया — link share करें');
-    },
-  });
-  const close = (v: boolean) => {
-    onOpenChange(v);
-    if (!v) {
-      setResult(null);
-      setPermissions([]);
-      setF({ name: '', email: '', role: 'BROKER_AGENT' });
-    }
-  };
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={close}
-      title="Team member invite करें"
-      description="Invite link 7 दिन valid रहता है"
-      footer={
-        !result && (
-          <Button loading={send.isPending} disabled={!f.name || !f.email} onClick={() => send.mutate(undefined)}>
-            <Send className="size-4" /> Invite भेजें
-          </Button>
-        )
-      }
-    >
-      {result ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-            <Link2 className="size-5" />
-            <p className="text-sm font-semibold">
-              {result.emailed
-                ? `${f.email} पर email चला गया। चाहें तो link WhatsApp पर भी भेजें:`
-                : 'Email (SMTP) configure नहीं है — ये link खुद WhatsApp पर भेजें:'}
-            </p>
-          </div>
-          <CopyField label="Invite link" value={result.link} />
-          <Button variant="whatsapp" external href={`https://wa.me/?text=${encodeURIComponent(`${f.name}, हमारी team join करें: ${result.link}`)}`}>
-            WhatsApp पर भेजें
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <Field label="नाम" required>
-            <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          </Field>
-          <Field label="Email" required>
-            <Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-          </Field>
-          <Field label="Role" hint="Admin: billing, connectors, automations, पूरी team की leads। Agent: सिर्फ़ अपनी assigned leads।">
-            <Select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
-              <option value="BROKER_AGENT">Agent</option>
-              <option value="BROKER_ADMIN">Admin</option>
-              <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
-            </Select>
-          </Field>
-          {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
-        </div>
-      )}
     </Dialog>
   );
 }

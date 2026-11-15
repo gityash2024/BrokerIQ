@@ -1,7 +1,4 @@
 'use client';
-import { InventoryWhatsAppDialog } from '@/components/broker/inventory-whatsapp-dialog';
-import { InventoryDetails } from '@/components/broker/launch/inventory-details';
-import { PublicPublish } from '@/components/broker/launch/public-publish';
 import { inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,7 +6,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Phone, MessageCircle } from 'lucide-react';
 import { type LedgerItem, type PagedLedger, INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, formatINR } from '@brokeriq/shared';
-import { api, apiBlob, assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
+import { api, apiBlob, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
@@ -17,7 +14,6 @@ import { qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
 import { AdvancedFilters } from '@/components/broker/launch/advanced-filters';
-import { PropertyForm } from '@/components/broker/launch/property-form';
 import { toast } from 'sonner';
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { SortableTh } from '@/components/ui/sortable-header';
@@ -74,36 +70,15 @@ function LedgerInner() {
     ...initialFilters,
     ...Object.fromEntries(Object.keys(initialFilters).flatMap((key) => (params.get(key) ? [[key, params.get(key)!]] : []))),
   });
-  const [messageItem, setMessageItem] = useState<LedgerItem | null>(null);
-  const [publishing, setPublishing] = useState<LedgerItem | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [sort, setSort] = useState({ sortBy: 'createdAt', sortOrder: 'desc' });
-  const [viewing, setViewing] = useState<LedgerItem | null>(null);
   const [layout, setLayout] = useState<'TABLE' | 'CARDS'>('TABLE');
-  const [editing, setEditing] = useState<LedgerItem | null>(null);
-  const [dirty, setDirty] = useState(false);
   const requestedId = params.get('item');
-  const requested = useQuery({
-    queryKey: ['ledger-deep-link', user?.id, requestedId],
-    queryFn: () => api<LedgerItem>(`/inventory/${requestedId}`),
-    enabled: !!requestedId,
-  });
   useEffect(() => {
-    if (requested.data) setViewing(requested.data);
-  }, [requested.data]);
-  useEffect(() => {
-    const guard = (e: BeforeUnloadEvent) => {
-      if (dirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', guard);
-    return () => window.removeEventListener('beforeunload', guard);
-  }, [dirty]);
-  const [adding, setAdding] = useState(false);
+    if (requestedId) router.replace(`${basePath}/${encodeURIComponent(requestedId)}`);
+  }, [basePath, requestedId, router]);
   const [exporting, setExporting] = useState(false);
   const qc = useQueryClient();
   useEffect(() => {
@@ -201,7 +176,7 @@ function LedgerInner() {
             <button
               disabled={isSuper && !filters.organizationId}
               title={isSuper && !filters.organizationId ? 'Choose a firm before adding a property' : undefined}
-              onClick={() => setAdding(true)}
+              onClick={() => router.push(`${basePath}/new${qs({ organizationId: isSuper ? filters.organizationId : undefined })}`)}
               className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
             >
               <Plus size={16} />
@@ -237,9 +212,6 @@ function LedgerInner() {
             kind="organizations"
             value={filters.organizationId}
             onChange={(organizationId) => {
-              setViewing(null);
-              setEditing(null);
-              setAdding(false);
               setFilters({ ...filters, organizationId, assignedToId: '' });
             }}
           />
@@ -360,7 +332,7 @@ function LedgerInner() {
             return (
               <article
                 key={item.id}
-                onClick={() => setViewing(item)}
+                onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}`)}
                 className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm transition-all hover:border-brand-500/40 hover:shadow-md cursor-pointer"
               >
                 <div>
@@ -454,7 +426,7 @@ function LedgerInner() {
                       </a>
                     )}
                     <button
-                      onClick={() => setViewing(item)}
+                      onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}`)}
                       className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition-colors"
                     >
                       Details →
@@ -536,7 +508,11 @@ function LedgerInner() {
               {query.data?.items.map((item) => {
                 const phone = item.contacts?.find((c) => c.phone)?.phone ?? item.ownerPhone;
                 return (
-                  <tr key={item.id} onClick={() => setViewing(item)} className="hover:bg-surface-2/60 transition-colors cursor-pointer group">
+                  <tr
+                    key={item.id}
+                    onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}`)}
+                    className="hover:bg-surface-2/60 transition-colors cursor-pointer group"
+                  >
                     <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                       <input
                         aria-label={`Select property ${item.houseNo ?? item.id}`}
@@ -635,7 +611,7 @@ function LedgerInner() {
                       <button
                         disabled={!!item.deletedAt}
                         className="font-semibold text-brand-600 hover:underline disabled:text-muted"
-                        onClick={() => setPublishing(item)}
+                        onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}/publish`)}
                       >
                         {item.deletedAt
                           ? 'Archived'
@@ -687,102 +663,6 @@ function LedgerInner() {
           </button>
         </div>
       </div>
-      {requested.error && (
-        <p role="alert" className="text-sm text-rose-600">
-          {errorMessage(requested.error)}
-        </p>
-      )}
-      <Dialog
-        open={!!viewing}
-        onOpenChange={(open) => {
-          if (!open) {
-            setViewing(null);
-            if (requestedId) {
-              const next = new URLSearchParams(params.toString());
-              next.delete('item');
-              router.replace(basePath + (next.size ? '?' + next : ''));
-            }
-          }
-        }}
-        title={viewing ? inventoryTitle(viewing) : 'Property details'}
-        size="xl"
-      >
-        {viewing && (
-          <InventoryDetails
-            item={viewing}
-            onUploadPhoto={async (file) => {
-              const owner = captureAccountContext();
-              const image = await compressImage(file);
-              assertAccountContext(owner);
-              const { url } = await uploadFile(image, 'listing');
-              const updated = await api<LedgerItem>(`/inventory/${viewing.id}`, {
-                method: 'PATCH',
-                ownerContext: owner,
-                body: { photoUrls: [...(viewing.photoUrls ?? []), url], expectedRevision: viewing.revision },
-              });
-              assertAccountContext(owner);
-              setViewing((current) => current?.id === updated.id ? updated : current);
-              await refresh();
-            }}
-            sourceHref={isSuper ? null : undefined}
-            onMessage={() => {
-              setMessageItem(viewing);
-              setViewing(null);
-            }}
-            onArchive={async () => {
-              if (!window.confirm('Archive this private property? Any public listing will be withdrawn.')) return;
-              try {
-                await api(`/inventory/${viewing.id}`, { method: 'DELETE' });
-                setViewing(null);
-                await refresh();
-              } catch (e) {
-                toast.error(errorMessage(e));
-              }
-            }}
-            onRestore={
-              user?.role !== 'BROKER_AGENT'
-                ? async () => {
-                    try {
-                      await api(`/inventory/${viewing.id}/restore`, { method: 'POST', body: {} });
-                      setViewing(null);
-                      await refresh();
-                    } catch (e) {
-                      toast.error(errorMessage(e));
-                    }
-                  }
-                : undefined
-            }
-            onEdit={() => {
-              setEditing(viewing);
-              setViewing(null);
-            }}
-            onPublish={() => {
-              setPublishing(viewing);
-              setViewing(null);
-            }}
-          />
-        )}
-      </Dialog>
-      <InventoryWhatsAppDialog
-        open={!!messageItem}
-        onOpenChange={(open) => !open && setMessageItem(null)}
-        item={messageItem}
-        brokerName={user?.name}
-        brokerFirm={messageItem?.organization?.name ?? user?.organization?.name ?? ''}
-      />
-      <Dialog open={!!publishing} onOpenChange={(v) => !v && setPublishing(null)} title="Public property preview" size="lg">
-        {publishing && (
-          <PublicPublish
-            key={publishing.id}
-            item={publishing}
-            onDone={() => {
-              setPublishing(null);
-              refresh();
-              toast.success('Publication saved; status follows the required review path');
-            }}
-          />
-        )}
-      </Dialog>
       <Dialog open={filterOpen} onOpenChange={setFilterOpen} title="Filter inventory">
         <div className="grid gap-3 sm:grid-cols-2">
           {Object.entries(fields).map(([name, choices]) => (
@@ -837,49 +717,6 @@ function LedgerInner() {
         <button onClick={() => setFilterOpen(false)} className="mt-5 rounded-xl bg-brand-600 px-5 py-2 text-white">
           Show results
         </button>
-      </Dialog>
-      <Dialog
-        open={adding || !!editing}
-        onOpenChange={(value) => {
-          if (!value) {
-            if (dirty && !window.confirm('Discard unsaved property changes?')) return;
-            setDirty(false);
-            setAdding(false);
-            setEditing(null);
-          }
-        }}
-        title={editing ? `Property ${editing.houseNo || ''}` : 'Add property'}
-        size="lg"
-      >
-        {editing?.sourceEntry && (
-          <div className="mb-5 rounded-xl bg-surface-2 p-4">
-            {isSuper ? (
-              <p className="font-semibold">Source · Page {editing.pageNo ?? '—'}</p>
-            ) : (
-              <Link href={`/broker/imports/${editing.sourceEntry.batch?.id}`} className="font-semibold text-brand-600">
-                View source · Page {editing.pageNo ?? '—'}
-              </Link>
-            )}
-            <p className="mt-2 whitespace-pre-wrap text-xs text-muted">{editing.sourceEntry.rawText}</p>
-          </div>
-        )}
-        {(adding || editing) && (
-          <PropertyForm
-            key={editing?.id ?? 'new'}
-            initial={editing ?? (isSuper ? { organizationId: filters.organizationId } : {})}
-            onDirty={() => setDirty(true)}
-            onSave={async (input) => {
-              await api(editing ? `/inventory/${editing.id}` : '/inventory', {
-                method: editing ? 'PATCH' : 'POST',
-                body: !editing && isSuper ? { ...input, organizationId: filters.organizationId } : input,
-              });
-              setDirty(false);
-              setAdding(false);
-              setEditing(null);
-              await refresh();
-            }}
-          />
-        )}
       </Dialog>
     </>
   );

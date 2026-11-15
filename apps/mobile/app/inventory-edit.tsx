@@ -28,10 +28,16 @@ export default function InventoryEditor() {
     queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'),
     enabled: canAssign,
   });
-  const [form, setForm] = useState<Record<string, any>>({ availability: 'UNKNOWN', status: 'DRAFT', contacts: [], ...(!delegated || canAssign ? { assignedToId: user?.id } : {}) });
+  const [form, setForm] = useState<Record<string, any>>({
+    availability: 'UNKNOWN',
+    status: 'DRAFT',
+    contacts: [],
+    ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
+  });
   const [ready, setReady] = useState(false);
   const [startSeparate, setStartSeparate] = useState(false);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draftStatus, setDraftStatus] = useState('');
   const draftId = useRef(Crypto.randomUUID());
@@ -88,6 +94,7 @@ export default function InventoryEditor() {
     if (ready) persist(next);
   }
   async function save() {
+    if (!ready || saving || uploading) return;
     setSaving(true);
     setError('');
     Keyboard.dismiss();
@@ -294,6 +301,8 @@ export default function InventoryEditor() {
           </NativeCard>
           <NativePropertyExtras
             value={form}
+            disabled={!ready || saving}
+            onUploading={setUploading}
             onChange={(next) => {
               setForm(next);
               persist(next);
@@ -310,7 +319,7 @@ export default function InventoryEditor() {
           {error && <Txt color="danger">{error}</Txt>}
         </ScrollView>
         <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
-          <Button title="Save property" loading={saving} disabled={!ready} onPress={save} />
+          <Button title="Save property" loading={saving} disabled={!ready || uploading} onPress={save} />
         </View>
       </KeyboardAvoidingView>
     </BrokerScreen>

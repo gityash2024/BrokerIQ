@@ -15,10 +15,12 @@ export function VisitPropertyPicker({
   value,
   onChange,
   purpose = 'visit',
+  excluded = [],
 }: {
   value: LedgerItem | null;
   onChange: (item: LedgerItem | null) => void;
   purpose?: 'visit' | 'photos';
+  excluded?: readonly string[];
 }) {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
@@ -41,13 +43,14 @@ export function VisitPropertyPicker({
     );
   return (
     <div className="space-y-2">
-      <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="House / floor / sector / address" />
+      <Input value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search properties" placeholder="House / floor / sector / address" />
       {list.isError ? (
         <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : (
         <div className="max-h-52 overflow-y-auto rounded-xl border border-line">
           {list.data?.pages
             .flatMap((page) => page.items)
+            .filter((item) => !excluded.includes(item.id))
             .map((item) => (
               <button type="button" key={item.id} onClick={() => onChange(item)} className="block w-full border-b border-line p-3 text-left hover:bg-surface-2">
                 <p className="text-sm font-semibold">{visitInventoryTitle(item)}</p>

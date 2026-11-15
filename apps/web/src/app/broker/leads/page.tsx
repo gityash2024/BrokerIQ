@@ -22,7 +22,6 @@ import { Input, Select, Textarea } from '@/components/ui/field';
 import { Avatar, Empty, Skeleton } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
-import { AddLeadDialog } from '@/components/broker/add-lead';
 
 const leadColumns = 'lg:grid-cols-[32px_minmax(0,2fr)_minmax(0,1.2fr)_120px_minmax(0,1.3fr)_120px_13rem]';
 
@@ -45,7 +44,6 @@ function LeadsInner() {
   };
   const [sel, setSel] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
   const q = useQuery({ queryKey: ['leads', f], queryFn: () => api<Paged<LeadRow>>(`/leads${qs({ ...f, pageSize: 30 })}`), placeholderData: (p) => p });
   useRealtime('notification', (n: any) => n?.kind === 'NEW_LEAD' && q.refetch());
   const bulk = useApiMutation((b: { action: string; value?: string | null }) => post('/leads/bulk', { ids: sel, ...b }), {
@@ -92,19 +90,24 @@ function LeadsInner() {
         subtitle={q.data ? `${q.data.total} leads — हर portal, ad और WhatsApp से एक जगह` : ' '}
         actions={
           <>
-            {hasDelegatedAccess(user, 'leads', 'create') && <Button size="sm" onClick={() => setAddOpen(true)}>
-              <UserPlus className="size-4" /> Add lead
-            </Button>}
-            {hasDelegatedAccess(user, 'leads', 'create') && <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
-              <Upload className="size-4" /> Import CSV
-            </Button>}
-            {hasDelegatedAccess(user, 'leads', 'export') && <Button variant="secondary" size="sm" onClick={exportCsv}>
-              <Download className="size-4" /> Export
-            </Button>}
+            {hasDelegatedAccess(user, 'leads', 'create') && (
+              <Button size="sm" href="/broker/leads/new">
+                <UserPlus className="size-4" /> Add lead
+              </Button>
+            )}
+            {hasDelegatedAccess(user, 'leads', 'create') && (
+              <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
+                <Upload className="size-4" /> Import CSV
+              </Button>
+            )}
+            {hasDelegatedAccess(user, 'leads', 'export') && (
+              <Button variant="secondary" size="sm" onClick={exportCsv}>
+                <Download className="size-4" /> Export
+              </Button>
+            )}
           </>
         }
       />
-      <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} />
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-xs text-muted">
           From date
@@ -207,30 +210,32 @@ function LeadsInner() {
               ))}
             </Select>
           )}
-          {canEdit && <>
-          <Select
-            className="h-9 w-40 border-white/20 bg-white/10 text-sm text-white"
-            value=""
-            onChange={(e) => e.target.value && bulk.mutate({ action: 'stage', value: e.target.value })}
-          >
-            <option value="">Move to stage…</option>
-            {LEAD_STAGES.filter((stage) => stage !== 'SHORTLISTED').map((s) => (
-              <option key={s} value={s} className="text-fg">
-                {LEAD_STAGE_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              const t = prompt('Tag');
-              if (t) bulk.mutate({ action: 'tag', value: t });
-            }}
-          >
-            + Tag
-          </Button>
-          </>}
+          {canEdit && (
+            <>
+              <Select
+                className="h-9 w-40 border-white/20 bg-white/10 text-sm text-white"
+                value=""
+                onChange={(e) => e.target.value && bulk.mutate({ action: 'stage', value: e.target.value })}
+              >
+                <option value="">Move to stage…</option>
+                {LEAD_STAGES.filter((stage) => stage !== 'SHORTLISTED').map((s) => (
+                  <option key={s} value={s} className="text-fg">
+                    {LEAD_STAGE_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const t = prompt('Tag');
+                  if (t) bulk.mutate({ action: 'tag', value: t });
+                }}
+              >
+                + Tag
+              </Button>
+            </>
+          )}
           {canDelete && (
             <Button size="sm" variant="danger" onClick={() => confirm(`${sel.length} leads delete करें?`) && bulk.mutate({ action: 'delete' })}>
               <Trash2 className="size-4" />
@@ -255,11 +260,20 @@ function LeadsInner() {
           icon={<Inbox className="size-6" />}
           title="यहाँ कोई lead नहीं"
           text={admin ? 'Housing / 99acres / MagicBricks inbox और WhatsApp connect करें — leads अपने-आप आएँगी।' : 'आपको assign होते ही leads यहाँ दिखेंगी।'}
-          action={admin && (!delegated || hasDelegatedAccess(user, 'automation', 'connection_status')) ? <Button href="/broker/connectors">Connectors setup करें</Button> : undefined}
+          action={
+            admin && (!delegated || hasDelegatedAccess(user, 'automation', 'connection_status')) ? (
+              <Button href="/broker/connectors">Connectors setup करें</Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className="card overflow-hidden">
-          <div className={cn('hidden items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-bold text-muted uppercase lg:grid', leadColumns)}>
+          <div
+            className={cn(
+              'hidden items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-bold text-muted uppercase lg:grid',
+              leadColumns,
+            )}
+          >
             <input type="checkbox" checked={allSel} onChange={() => setSel(allSel ? [] : items.map((l) => l.id))} aria-label="Select all" />
             <span>Lead</span>
             <span>Source</span>

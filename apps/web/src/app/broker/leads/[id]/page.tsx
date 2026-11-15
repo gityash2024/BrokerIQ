@@ -1,11 +1,10 @@
 'use client';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
-import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
-import { parseVisitLocalDateTime, propertyPhotoDraft, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { VisitItinerary } from '@/components/broker/visit-properties';
 import Link from 'next/link';
 import { use, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -92,9 +91,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const canSharePhotos = allowed('inventory') && allowed('inbox') && hasDelegatedAccess(user, 'inbox', 'edit', 'send');
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
-  const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>('timeline');
+  const query = useSearchParams();
+  const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>(query.get('tab') === 'tasks' ? 'tasks' : 'timeline');
   const [lostOpen, setLostOpen] = useState(false);
-  const [photoShareOpen, setPhotoShareOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
   const [notInterestedReason, setNotInterestedReason] = useState('');
@@ -192,7 +191,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               </Button>
             )}
             {canSharePhotos && beforeVisit && (
-              <Button size="sm" variant="secondary" onClick={() => setPhotoShareOpen(true)}>
+              <Button size="sm" variant="secondary" href={`/broker/leads/${l.id}/photos`}>
                 <Share2 className="size-4" /> Share photos
               </Button>
             )}
@@ -250,7 +249,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           />
           {tab === 'timeline' && <Timeline lead={l} onChange={refresh} />}
           {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
-          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} canViewInventory={allowed('inventory')} />}
+          {tab === 'tasks' && <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} />}
           {tab === 'requirement' && <LeadRequirements lead={l} />}
         </div>
         <div className="space-y-4">
@@ -283,7 +282,6 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
-      {canSharePhotos && beforeVisit && photoShareOpen && <PropertyPhotoShare leadId={l.id} onClose={() => setPhotoShareOpen(false)} />}
       <Dialog
         open={lostOpen}
         onOpenChange={setLostOpen}
@@ -520,55 +518,8 @@ function Matches({ lead }: { lead: any }) {
   );
 }
 
-function PropertyPhotoShare({ leadId, onClose }: { leadId: string; onClose: () => void }) {
-  const [property, setProperty] = useState<LedgerItem | null>(null);
-  const message = property ? String(visitInventoryTitle(property)) : '';
-  const draft = propertyPhotoDraft(message, property?.photoUrls);
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()} title="Share property photos">
-      <div className="space-y-3">
-        <VisitPropertyPicker value={property} onChange={setProperty} purpose="photos" />
-        {property && draft === message && (
-          <p className="text-sm text-muted">
-            No shareable photos yet.{' '}
-            <Link className="font-semibold text-brand-600" href={`/broker/inventory?item=${property.id}`}>
-              Open property
-            </Link>
-          </p>
-        )}
-        <Button
-          disabled={!property || draft === message}
-          onClick={() => {
-            openLeadInbox(leadId, draft);
-            onClose();
-          }}
-        >
-          <Share2 className="size-4" /> Review in Inbox
-        </Button>
-      </div>
-    </Dialog>
-  );
-}
-
-function Tasks({
-  lead,
-  onChange,
-  canCreate,
-  canEdit,
-  canViewInventory,
-}: {
-  lead: any;
-  onChange: () => void;
-  canCreate: boolean;
-  canEdit: boolean;
-  canViewInventory: boolean;
-}) {
-  const tomorrow = new Date(Date.now() + 86400_000);
-  tomorrow.setHours(11, 0, 0, 0);
+function Tasks({ lead, onChange, canCreate, canEdit }: { lead: any; onChange: () => void; canCreate: boolean; canEdit: boolean }) {
   const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
-  const [visitProperty, setVisitProperty] = useState<LedgerItem | null>(null);
-  const [vi, setVi] = useState({ scheduledAt: toLocalInput(tomorrow), listingId: '', address: '', note: '', mode: 'IN_PERSON' as 'IN_PERSON' | 'VIDEO' });
-  const videoOn = useFlag('video_visits');
   const addFu = useApiMutation(
     (retry?: boolean) => {
       if (retry) return submitTask('/follow-ups', lead.id);
@@ -584,28 +535,6 @@ function Tasks({
     },
   );
   const doneFu = useApiMutation((id: string) => patch(`/follow-ups/${id}`, { status: 'DONE' }), { onSuccess: onChange });
-  const addVisit = useApiMutation(
-    (retry?: boolean) => {
-      if (retry) return submitTask('/visits', lead.id);
-      const date = parseVisitLocalDateTime(vi.scheduledAt);
-      if (!date) throw new Error('Enter a valid date and time');
-      const payload = {
-        leadId: lead.id,
-        scheduledAt: date.toISOString(),
-        inventoryId: visitProperty?.id ?? null,
-        address: vi.address || null,
-        note: vi.note || null,
-        mode: vi.mode,
-      };
-      return submitTask('/visits', lead.id, payload);
-    },
-    {
-      success: vi.mode === 'VIDEO' ? 'Video visit scheduled 🎥 — link visit पर है' : 'Site visit scheduled 🏠',
-      onSuccess: () => {
-        onChange();
-      },
-    },
-  );
   const visitSt = useApiMutation((v: { id: string; status: string }) => patch(`/visits/${v.id}`, { status: v.status }), { onSuccess: onChange });
   const quick = (h: number) => setFu({ ...fu, dueAt: toLocalInput(new Date(Date.now() + h * 3600_000)) });
   return (
@@ -674,41 +603,7 @@ function Tasks({
         <h3 className="flex items-center gap-2 font-display font-bold">
           <CalendarCheck className="size-5 text-brand-600" /> Site visit
         </h3>
-        {canCreate && (
-          <>
-            {videoOn && (
-              <Segmented
-                size="sm"
-                value={vi.mode}
-                onChange={(mode) => setVi({ ...vi, mode })}
-                options={[
-                  { value: 'IN_PERSON', label: 'Property पर' },
-                  { value: 'VIDEO', label: '🎥 Video call' },
-                ]}
-              />
-            )}
-            {canViewInventory && (
-              <VisitPropertyPicker
-                value={visitProperty}
-                onChange={(item) => {
-                  setVisitProperty(item);
-                  if (item) setVi({ ...vi, address: item.address || visitInventoryTitle(item) });
-                }}
-              />
-            )}
-            <Input type="datetime-local" value={vi.scheduledAt} onChange={(e) => setVi({ ...vi, scheduledAt: e.target.value })} />
-            {vi.mode === 'IN_PERSON' && (
-              <Input placeholder="Address / meeting point" value={vi.address} onChange={(e) => setVi({ ...vi, address: e.target.value })} />
-            )}
-            <Input placeholder="Note" value={vi.note} onChange={(e) => setVi({ ...vi, note: e.target.value })} />
-            <Button disabled={!parseVisitLocalDateTime(vi.scheduledAt)} onClick={() => addVisit.mutate(undefined)} loading={addVisit.isPending}>
-              Schedule visit
-            </Button>
-            <Button variant="secondary" className="ml-2" disabled={addVisit.isPending} onClick={() => addVisit.mutate(true)}>
-              Retry saved
-            </Button>
-          </>
-        )}
+        {canCreate && <Button href={`/broker/visits/new?lead=${encodeURIComponent(lead.id)}`}>Schedule visit</Button>}
         <div className="space-y-2 pt-2">
           {lead.visits.map((v: any) => (
             <div key={v.id} className="rounded-xl border border-line p-3 text-sm">
@@ -719,6 +614,7 @@ function Tasks({
                 </Badge>
               </div>
               <p className="text-xs text-muted">{v.propertySnapshot?.title || v.listing?.title || v.address}</p>
+              <VisitItinerary snapshot={v.propertySnapshot} />
               {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <VideoJoin visit={v} size="xs" />

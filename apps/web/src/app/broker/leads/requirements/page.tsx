@@ -2,17 +2,14 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
-import { RequirementRecordForm } from '@/components/broker/launch/requirement-record-form';
 import { useConfig, useConfigStatus } from '@/lib/config';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
-import { PropertyForm } from '@/components/broker/launch/property-form';
-import { offeredRequirement, moduleAllowed } from '@brokeriq/shared';
+import { moduleAllowed } from '@brokeriq/shared';
 import { formatINR, readableValue } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 export default function RequirementsPage() {
@@ -29,33 +26,14 @@ function RequirementsInner() {
   const config = useConfig();
   const configStatus = useConfigStatus();
   const inventoryAllowed = configStatus.loaded && !!user && moduleAllowed(config.modules, 'inventory', user.role);
-  const [dirty, setDirty] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
-  const [converting, setConverting] = useState<any>(null);
-  const [conversionDirty, setConversionDirty] = useState(false);
   const [search, setSearch] = useState('');
   const [intent, setIntent] = useState('');
-  const [busy, setBusy] = useState(false);
   const [match, setMatch] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const requestedId = params.get('record');
-  const requested = useQuery({
-    queryKey: ['requirement-deep-link', user?.id, requestedId],
-    queryFn: () => api<any>(`/broker-requirements/${requestedId}`),
-    enabled: !!requestedId,
-  });
   useEffect(() => {
-    if (requested.data) setEditing(requested.data);
-  }, [requested.data]);
-  function clearRequested() {
-    if (requestedId) {
-      const next = new URLSearchParams(params.toString());
-      next.delete('record');
-      router.replace('/broker/leads/requirements' + (next.size ? '?' + next : ''));
-    }
-  }
-  const qc = useQueryClient();
+    if (requestedId) router.replace(`/broker/leads/requirements/${encodeURIComponent(requestedId)}/edit`);
+  }, [requestedId, router]);
   const query = useQuery({
     queryKey: ['broker-requirements', page, search, intent],
     queryFn: () => api<any>(`/broker-requirements?page=${page}&search=${encodeURIComponent(search)}${intent ? '&intent=' + intent : ''}`),
@@ -71,9 +49,9 @@ function RequirementsInner() {
             <Link href="/broker/imports?target=REQUIREMENT" className="rounded-xl border border-line px-4 py-2 font-semibold">
               Scan / paste / chat export
             </Link>
-            <button onClick={() => setAdding(true)} className="rounded-xl bg-brand-600 px-4 py-2 font-semibold text-white">
+            <Link href="/broker/leads/requirements/new" className="rounded-xl bg-brand-600 px-4 py-2 font-semibold text-white">
               + Requirement
-            </button>
+            </Link>
           </>
         }
       />
@@ -148,19 +126,13 @@ function RequirementsInner() {
                   ))}
               </dl>
               <div className="mt-4 flex flex-wrap gap-3">
-                <button onClick={() => setEditing(item)} className="text-sm font-semibold text-brand-600">
+                <Link href={`/broker/leads/requirements/${item.id}/edit`} className="text-sm font-semibold text-brand-600">
                   Review / edit
-                </button>
+                </Link>
                 {inventoryAllowed && item.intent === 'OFFER' && !item.convertedAt && item.status === 'OPEN' && (
-                  <button
-                    onClick={() => {
-                      setConverting(item);
-                      setConversionDirty(false);
-                    }}
-                    className="text-sm font-semibold text-brand-600"
-                  >
+                  <Link href={`/broker/leads/requirements/${item.id}/convert`} className="text-sm font-semibold text-brand-600">
                     Review and add to inventory →
-                  </button>
+                  </Link>
                 )}
                 {item.convertedAt && <span className="text-xs text-muted">Independent inventory record created; original source retained</span>}
                 {(item.intent === 'DEMAND' || !item.intent) && (
@@ -189,96 +161,6 @@ function RequirementsInner() {
           Next
         </button>
       </div>
-      {requested.error && (
-        <p role="alert" className="text-sm text-rose-600">
-          {errorMessage(requested.error)}
-        </p>
-      )}
-      <Dialog
-        open={adding || !!editing}
-        onOpenChange={(open) => {
-          if (!open && dirty && !window.confirm('Discard unsaved requirement changes?')) return;
-          setAdding(open);
-          if (!open) {
-            setEditing(null);
-            clearRequested();
-          }
-          if (!open) setDirty(false);
-        }}
-        title={editing ? 'Review requirement' : 'New requirement'}
-        size="lg"
-      >
-        <RequirementRecordForm
-          key={editing?.id || 'new'}
-          initial={editing || {}}
-          onDirty={() => setDirty(true)}
-          onSave={async (body) => {
-            await api(editing ? `/broker-requirements/${editing.id}` : '/broker-requirements', { method: editing ? 'PATCH' : 'POST', body });
-            setAdding(false);
-            setEditing(null);
-            clearRequested();
-            setDirty(false);
-            await qc.invalidateQueries({ queryKey: ['broker-requirements'] });
-          }}
-        />
-      </Dialog>
-      <Dialog
-        open={!!converting}
-        onOpenChange={(open) => {
-          if (!busy && !open) setConverting(null);
-        }}
-        title="Review property before inventory conversion"
-        size="lg"
-      >
-        {converting && (
-          <>
-            <p className="mb-4 text-sm text-muted">
-              Save any corrections first. Conversion creates one independent inventory record and retains this original requirement and source.
-            </p>
-            <PropertyForm
-              key={converting.id}
-              onDirty={() => setConversionDirty(true)}
-              initial={converting.offerDetails || {}}
-              label="Save reviewed property details"
-              onSave={async (data) => {
-                const saved = await api<any>(`/broker-requirements/${converting.id}`, {
-                  method: 'PATCH',
-                  body: { ...offeredRequirement(data), leadId: converting.leadId, expectedRevision: converting.revision },
-                });
-                setConverting(saved);
-                setConversionDirty(false);
-                await qc.invalidateQueries({ queryKey: ['broker-requirements'] });
-                toast.success('Reviewed offer saved');
-              }}
-            />
-            <Button
-              className="mt-4"
-              loading={busy}
-              disabled={conversionDirty}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await api(`/broker-requirements/${converting.id}/convert`, { body: { expectedRevision: converting.revision } });
-                  setConverting(null);
-                  await Promise.all([qc.invalidateQueries({ queryKey: ['broker-requirements'] }), qc.invalidateQueries({ queryKey: ['inventory'] })]);
-                  toast.success('Independent inventory record created');
-                } catch (e) {
-                  toast.error(errorMessage(e));
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Confirm · add to inventory
-            </Button>
-            {conversionDirty && (
-              <p role="status" className="mt-2 text-sm text-muted">
-                Save reviewed changes before adding this offer to Inventory.
-              </p>
-            )}
-          </>
-        )}
-      </Dialog>
       <Dialog
         open={!!match}
         onOpenChange={(open) => {

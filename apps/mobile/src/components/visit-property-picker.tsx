@@ -14,11 +14,13 @@ export function VisitPropertyPicker({
   value,
   onChange,
   purpose = 'visit',
+  excluded = [],
 }: {
   open: boolean;
   value: LedgerItem | null;
   onChange: (item: LedgerItem | null) => void;
   purpose?: 'visit' | 'photos';
+  excluded?: readonly string[];
 }) {
   const { c } = useTheme();
   const { user } = useAuth();
@@ -38,18 +40,19 @@ export function VisitPropertyPicker({
         <Txt v="caption" color="muted">
           {visitInventoryDetails(value)}
         </Txt>
-        <Button title="{purpose === 'photos' ? 'Change property' : 'Change / custom address'}" variant="secondary" onPress={() => onChange(null)} />
+        <Button title={purpose === 'photos' ? 'Change property' : 'Change / custom address'} variant="secondary" onPress={() => onChange(null)} />
       </>
     );
   return (
     <>
-      <Input value={search} onChangeText={setSearch} placeholder="House / floor / sector / address" />
+      <Input value={search} onChangeText={setSearch} accessibilityLabel="Search properties" placeholder="House / floor / sector / address" />
       {list.isError ? (
         <ErrorView error={list.error} />
       ) : (
         <ScrollView nestedScrollEnabled style={{ maxHeight: 220 }}>
           {list.data?.pages
             .flatMap((page) => page.items)
+            .filter((item) => !excluded.includes(item.id))
             .map((item) => (
               <PressableScale key={item.id} onPress={() => onChange(item)} style={{ padding: 12, borderBottomWidth: 1, borderColor: c.line }}>
                 <Txt v="bodyStrong">{visitInventoryTitle(item)}</Txt>

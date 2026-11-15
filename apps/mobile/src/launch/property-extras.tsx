@@ -1,9 +1,27 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { PROPERTY_AMENITIES, visiblePropertyFields } from '@brokeriq/shared';
 import { Button, Txt, Input, Chip } from '@/ui';
 import { ChoiceField } from './form';
-export function NativePropertyExtras({ value, onChange }: { value: Record<string, any>; onChange: (value: Record<string, any>) => void }) {
+import { NativePropertyMedia } from './property-media';
+export function NativePropertyExtras({
+  value,
+  onChange,
+  onUploading,
+  disabled,
+}: {
+  value: Record<string, any>;
+  onChange: (value: Record<string, any>) => void;
+  onUploading?: (busy: boolean) => void;
+  disabled?: boolean;
+}) {
+  const latest = useRef(value);
+  latest.current = value;
+  function changeMedia(key: string, update: (urls: string[]) => string[]) {
+    const next = { ...latest.current, [key]: update(latest.current[key] ?? []) };
+    latest.current = next;
+    onChange(next);
+  }
   const [open, setOpen] = useState(false);
   const fields = visiblePropertyFields(value.category);
   const details = value.details ?? {};
@@ -12,6 +30,14 @@ export function NativePropertyExtras({ value, onChange }: { value: Record<string
   }
   return (
     <View style={{ gap: 14 }}>
+      <NativePropertyMedia
+        photos={value.photoUrls ?? []}
+        videos={value.videoUrls ?? []}
+        disabled={disabled}
+        onUploading={onUploading}
+        onAdd={(key, url) => changeMedia(key, (urls) => [...urls, url])}
+        onRemove={(key, index) => changeMedia(key, (urls) => urls.filter((_, i) => i !== index))}
+      />
       <Button title={open ? 'Hide additional details' : 'Additional property details'} variant="secondary" onPress={() => setOpen(!open)} />
       {open && (
         <>
@@ -53,15 +79,6 @@ export function NativePropertyExtras({ value, onChange }: { value: Record<string
               />
             ))}
           </View>
-          {['photoUrls', 'videoUrls'].map((key) => (
-            <Input
-              key={key}
-              label={key === 'photoUrls' ? 'Photo URLs (one per line)' : 'Video URLs (one per line)'}
-              multiline
-              value={(value[key] ?? []).join('\n')}
-              onChangeText={(v) => onChange({ ...value, [key]: v.split('\n').filter(Boolean) })}
-            />
-          ))}
         </>
       )}
     </View>

@@ -79,10 +79,10 @@ export default function PropertyDetail() {
       });
       assertAccountContext(owner);
       const { url } = await uploadUri(photo.uri, 'listing');
-      await api(`/inventory/${item.id}`, {
+      await api(`/inventory/${item.id}/photos`, {
         method: 'PATCH',
         ownerContext: owner,
-        body: { photoUrls: [...(item.photoUrls ?? []), url], expectedRevision: item.revision },
+        body: { url },
       });
       await Promise.all([qc.invalidateQueries({ queryKey: ['ledger-item', id] }), qc.invalidateQueries({ queryKey: ['ledger'] })]);
       toast.success('Photo saved to this property');
@@ -665,7 +665,9 @@ export default function PropertyDetail() {
 
           <Button title="Share" variant="secondary" style={{ flex: 1, height: 48, borderRadius: 16 }} onPress={() => setShareWithLead(true)} />
 
-          {canEdit && <Button title="Edit" style={{ flex: 1.2, height: 48, borderRadius: 16 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />}
+          {canEdit && (
+            <Button title="Edit" style={{ flex: 1.2, height: 48, borderRadius: 16 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
+          )}
         </View>
       )}
 

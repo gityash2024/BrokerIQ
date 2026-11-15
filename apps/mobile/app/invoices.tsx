@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { router } from 'expo-router';
 import { Linking, Share, View } from 'react-native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { FileText, Plus, Send } from 'lucide-react-native';
@@ -17,7 +18,6 @@ export default function Invoices() {
   const { c } = useTheme();
   const { isBrokerAdmin } = useAuth();
   const [status, setStatus] = useState('');
-  const [create, setCreate] = useState(false);
   const [upi, setUpi] = useState(false);
   const list = useInfiniteQuery({
     queryKey: ['invoices', status],
@@ -48,7 +48,7 @@ export default function Invoices() {
       <Header
         title="Invoices"
         subtitle="Client सीधे आपके UPI पर pay करता है"
-        right={<Button title="नया" size="sm" icon={<Plus size={15} color="#fff" />} onPress={() => setCreate(true)} />}
+        right={<Button title="नया" size="sm" icon={<Plus size={15} color="#fff" />} onPress={() => router.push('/invoices/new')} />}
       />
       {settings.data && !settings.data.upiId && (
         <Card style={{ padding: 12, borderColor: c.warning }} onPress={isBrokerAdmin ? () => setUpi(true) : undefined}>
@@ -74,7 +74,7 @@ export default function Invoices() {
         <Empty
           icon={<FileText size={26} color={c.brand} />}
           title="अभी कोई invoice नहीं"
-          action={<Button title="Invoice बनाएँ" onPress={() => setCreate(true)} />}
+          action={<Button title="Invoice बनाएँ" onPress={() => router.push('/invoices/new')} />}
         />
       ) : (
         invoices.map((i) => (
@@ -103,41 +103,8 @@ export default function Invoices() {
         ))
       )}
       {list.hasNextPage && <Button title="Load more" loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} />}
-      <CreateSheet open={create} onClose={() => setCreate(false)} />
       <UpiSheet open={upi} data={settings.data} onClose={() => setUpi(false)} />
     </Screen>
-  );
-}
-
-function CreateSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [f, setF] = useState({ clientName: '', clientPhone: '', description: 'Brokerage', amount: '', gst: false });
-  const save = useApiMutation(
-    () =>
-      post('/broker/invoices', {
-        clientName: f.clientName,
-        clientPhone: f.clientPhone || undefined,
-        items: [{ description: f.description, amount: Number(f.amount) }],
-        gstPct: f.gst ? 18 : 0,
-      }),
-    {
-      success: 'Invoice बन गया',
-      invalidate: [['invoices']],
-      onSuccess: () => (onClose(), setF({ clientName: '', clientPhone: '', description: 'Brokerage', amount: '', gst: false })),
-    },
-  );
-  return (
-    <Sheet open={open} onClose={onClose} title="नया invoice">
-      <View style={{ gap: 10 }}>
-        <Input label="Client का नाम" value={f.clientName} onChangeText={(v) => setF({ ...f, clientName: v })} />
-        <Input label="Client mobile" value={f.clientPhone} onChangeText={(v) => setF({ ...f, clientPhone: v })} keyboardType="phone-pad" />
-        <Input label="Description" value={f.description} onChangeText={(v) => setF({ ...f, description: v })} />
-        <Input label="Amount (₹)" value={f.amount} onChangeText={(v) => setF({ ...f, amount: v.replace(/\D/g, '') })} keyboardType="number-pad" />
-        <Row>
-          <Chip label="GST 18%" active={f.gst} onPress={() => setF({ ...f, gst: !f.gst })} />
-        </Row>
-        <Button title="Invoice बनाएँ" loading={save.isPending} disabled={!f.clientName || !f.amount} onPress={() => save.mutate(undefined)} />
-      </View>
-    </Sheet>
   );
 }
 

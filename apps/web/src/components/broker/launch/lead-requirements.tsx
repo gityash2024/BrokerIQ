@@ -1,22 +1,19 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { formatINR } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
-import { RequirementForm } from './requirement-form';
 import { useAuth } from '@/lib/auth';
 
 /** Contact-specific requirements use the same inventory matcher as Inbox imports. */
 export function LeadRequirements({ lead }: { lead: { id: string; name: string; phone: string } }) {
   const { user } = useAuth();
-  const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['broker-requirements', 'lead', lead.id, page],
     queryFn: () => api<any>(`/broker-requirements?leadId=${lead.id}&page=${page}`),
@@ -30,7 +27,7 @@ export function LeadRequirements({ lead }: { lead: { id: string; name: string; p
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted">Each requirement is saved separately.</p>
-        <Button size="sm" onClick={() => setAdding(true)}>
+        <Button size="sm" href={`/broker/leads/requirements/new?lead=${encodeURIComponent(lead.id)}`}>
           Add requirement
         </Button>
       </div>
@@ -61,16 +58,6 @@ export function LeadRequirements({ lead }: { lead: { id: string; name: string; p
           Next
         </Button>
       </div>
-      <Dialog open={adding} onOpenChange={setAdding} title="New requirement">
-        <RequirementForm
-          initial={{ leadId: lead.id, contactName: lead.name, contactPhone: lead.phone }}
-          onSave={async (body) => {
-            await api('/broker-requirements', { body });
-            setAdding(false);
-            await qc.invalidateQueries({ queryKey: ['broker-requirements'] });
-          }}
-        />
-      </Dialog>
       <Dialog
         open={!!selected}
         onOpenChange={(open) => {

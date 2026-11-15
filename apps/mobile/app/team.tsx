@@ -21,24 +21,6 @@ export default function Team() {
   const router = useRouter();
   const { user, isBrokerAdmin } = useAuth();
   const q = useTeam();
-  const inv = [['team']];
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-
-  // Invite form state
-  const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const invite = useApiMutation(() => post<{ link: string; emailed: boolean }>('/broker/team/invite', { ...f, ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}) }), {
-    invalidate: inv,
-    success: (r) => (r.emailed ? 'Invite email भेजी गई' : 'Invite link बना — share करें'),
-    onSuccess: (r) => {
-      setInviteOpen(false);
-      setPermissions([]);
-      Share.share({ message: `${f.name}, हमारी BrokerIQ team join करें: ${r.link}` });
-      setF({ name: '', email: '', role: 'BROKER_AGENT' });
-    },
-  });
-
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT' | 'SUB_BROKER_ADMIN'>('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -93,7 +75,7 @@ export default function Team() {
         title="Team & Agents"
         right={
           isBrokerAdmin ? (
-            <IconBtn onPress={() => setInviteOpen(true)} style={{ backgroundColor: c.brand }}>
+            <IconBtn onPress={() => router.push('/team-invite')} style={{ backgroundColor: c.brand }}>
               <UserPlus size={20} color="#fff" />
             </IconBtn>
           ) : undefined
@@ -329,7 +311,9 @@ export default function Team() {
         <Input label="Joined to (IST)" placeholder="YYYY-MM-DD" value={to} onChangeText={setTo} />
         <ChoiceField label="Sort by" value={sort} choices={['NAME', 'ROLE', 'KYC', 'JOINED', 'WON', 'LEADS']} onChange={setSort} />
         <Button title={descending ? 'Descending ↓' : 'Ascending ↑'} variant="secondary" onPress={() => setDescending(!descending)} />
-        {hasDelegatedAccess(user, 'team', 'export') && <ManagementExport endpoint="/broker/team/export" ids={exportIds} label={selected.size ? 'Selected + filtered' : 'Filtered'} />}
+        {hasDelegatedAccess(user, 'team', 'export') && (
+          <ManagementExport endpoint="/broker/team/export" ids={exportIds} label={selected.size ? 'Selected + filtered' : 'Filtered'} />
+        )}
         <Txt color="muted">किसी card को long press करके अलग records चुनें।</Txt>
         <Button
           title="Filters reset"
@@ -346,24 +330,6 @@ export default function Team() {
           }}
         />
         <Button title="सूची देखें" onPress={() => setFilterOpen(false)} />
-      </Sheet>
-      {/* Invite Member Sheet */}
-      <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)} title="Team member invite करें">
-        <Input label="नाम" value={f.name} onChangeText={(v) => setF({ ...f, name: v })} />
-        <Input label="Email" value={f.email} onChangeText={(v) => setF({ ...f, email: v })} keyboardType="email-address" autoCapitalize="none" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Chip label="Agent" active={f.role === 'BROKER_AGENT'} onPress={() => setF({ ...f, role: 'BROKER_AGENT' })} />
-          <Chip label="Admin" active={f.role === 'BROKER_ADMIN'} onPress={() => setF({ ...f, role: 'BROKER_ADMIN' })} />
-          <Chip label="Sub-Broker Admin" active={f.role === 'SUB_BROKER_ADMIN'} onPress={() => setF({ ...f, role: 'SUB_BROKER_ADMIN' })} />
-        </View>
-        {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
-        <Button
-          title="Invite भेजें"
-          icon={<Send size={17} color="#fff" />}
-          loading={invite.isPending}
-          disabled={!f.name || !f.email}
-          onPress={() => invite.mutate(undefined)}
-        />
       </Sheet>
     </Screen>
   );

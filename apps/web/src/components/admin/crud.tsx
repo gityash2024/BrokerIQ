@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -12,7 +13,6 @@ import { PhotoUploader } from '../site/photo-uploader';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
 import { Empty, Skeleton, Switch } from '../ui/misc';
-import { Sheet } from '../ui/dialog';
 import { ApiErrorState } from '../ui/api-error';
 
 export type FieldType = 'text' | 'textarea' | 'richtext' | 'number' | 'switch' | 'select' | 'image' | 'tags' | 'date' | 'json' | 'color' | 'images';
@@ -72,9 +72,20 @@ export function ImageInput({ value, onChange, kind = 'cms' }: { value: string; o
         ) : (
           <ImagePlus className="size-5 text-subtle" />
         )}
-        <input type="file" accept="image/*" hidden onChange={(e) => upload(e.target.files?.[0])} />
+        <input
+          type="file"
+          accept="image/*"
+          aria-label="Upload image"
+          disabled={busy}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            e.currentTarget.value = '';
+            void upload(file);
+          }}
+        />
       </label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="या image URL paste करें" className="text-xs" />
+      <span className="text-xs text-muted">{busy ? 'Uploading…' : value ? 'Choose another image' : 'Choose an image to upload'}</span>
       {value && (
         <button type="button" onClick={() => onChange('')} className="text-subtle hover:text-rose-600" aria-label="Clear">
           <X className="size-4" />
@@ -224,8 +235,16 @@ function JsonInput({ value, onChange, onValidityChange }: { value: any; onChange
   );
 }
 
-/** Config-driven list + create/edit sheet for admin master data and CMS entities. */
-export function AdminCrud({
+/** Config-driven list and routed editor for admin master data and CMS entities. */
+export function AdminCrud(props: Parameters<typeof AdminCrudContent>[0]) {
+  return (
+    <Suspense fallback={<Skeleton className="h-72" />}>
+      <AdminCrudContent {...props} />
+    </Suspense>
+  );
+}
+
+function AdminCrudContent({
   title,
   subtitle,
   endpoint,
@@ -262,6 +281,16 @@ export function AdminCrud({
   headerActions?: React.ReactNode;
   deleteLabel?: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const editor = search.get('editor');
+  const editorUrl = (value?: string) => {
+    const next = new URLSearchParams(search);
+    if (value) next.set('editor', value);
+    else next.delete('editor');
+    return pathname + (next.size ? '?' + next.toString() : '');
+  };
   const key = queryKey ?? endpoint;
   const [q, setQ] = useState('');
   const list = useQuery({
@@ -285,7 +314,7 @@ export function AdminCrud({
   );
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+
   const [dirty, setDirty] = useState(false);
   const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -299,45 +328,115 @@ export function AdminCrud({
   }, [dirty, editing]);
   const isNew = editing && !editing.id;
 
-  const open = async (item: any | null) => {
+  const selected = editor && editor !== 'new' ? rows.find((row) => row.id === editor) : null;
+  const selectedDetail = useQuery({
+    queryKey: [key, 'edit', editor],
+    queryFn: () => loadItem!(editor!),
+    enabled: !!loadItem && !!editor && editor !== 'new',
+  });
+  const selectedRecord = loadItem ? selectedDetail.data : selected;
+  const loading = !!editor && editor !== 'new' && (loadItem ? selectedDetail.isPending : list.isPending);
+  useEffect(() => {
+    if (editor === 'new' && canCreate) {
+      setEditing({});
+      setForm({ ...defaults });
+    } else if (selectedRecord) {
+      setEditing(selectedRecord);
+      setForm(fromItem(selectedRecord));
+    } else {
+      setEditing(null);
+      setForm({});
+    }
     setDirty(false);
     setInvalidFields({});
-    setForm({});
-    if (!item) {
-      setForm({ ...defaults });
-      setEditing({});
-      return;
-    }
-    setEditing(item);
-    if (loadItem) {
-      setLoading(true);
-      try {
-        setForm(fromItem(await loadItem(item.id)));
-      } catch (e) {
-        toast.error(errorMessage(e));
-        setEditing(null);
-      } finally {
-        setLoading(false);
-      }
-    } else setForm(fromItem(item));
-  };
+    // Initialize once when a route resolves. Background refetches must preserve local edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, !!selectedRecord, canCreate]);
 
   const save = useApiMutation(() => (isNew ? post(endpoint, toBody(form, true)) : patch(`${endpoint}/${editing.id}`, toBody(form, false))), {
     success: 'Saved',
     invalidate: [[key]],
     onSuccess: () => {
       setDirty(false);
-      setEditing(null);
+      router.replace(editorUrl());
     },
   });
   const remove = useApiMutation((id: string) => del(`${endpoint}/${id}`), { success: 'Deleted', invalidate: [[key]] });
-  const missing = fields.filter((f) => f.required && (form[f.key] === '' || form[f.key] == null)).map((f) => f.label);
+  const missing = fields.filter((f) => f.required && (!f.createOnly || isNew) && (get(form, f.key) === '' || get(form, f.key) == null)).map((f) => f.label);
   const close = () => {
     if (save.isPending || (dirty && !window.confirm('Discard unsaved changes?'))) return;
     setDirty(false);
-    setEditing(null);
+    router.replace(editorUrl());
   };
 
+  if (editor)
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title={editor === 'new' ? `New ${title}` : itemTitle(editing) || `Edit ${title}`}
+          actions={
+            <Button variant="secondary" disabled={save.isPending} onClick={close}>
+              Back to list
+            </Button>
+          }
+        />
+        <section className="card mx-auto max-w-5xl">
+          {selectedDetail.error ? (
+            <div className="p-4">
+              <ApiErrorState error={selectedDetail.error} onRetry={() => selectedDetail.refetch()} />
+            </div>
+          ) : !loading && !editing ? (
+            <p className="p-4">This record is unavailable.</p>
+          ) : (
+            <div className="flex h-full flex-col">
+              <div className="flex-1 overflow-y-auto p-5">
+                {loading ? (
+                  <Skeleton className="h-96" />
+                ) : (
+                  <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
+                    {fields
+                      .filter((f) => !f.createOnly || isNew)
+                      .map((f) => (
+                        <Field
+                          key={f.key}
+                          label={f.label}
+                          required={f.required}
+                          hint={f.hint}
+                          className={cn((f.wide || ['textarea', 'richtext', 'image', 'images', 'tags', 'json'].includes(f.type ?? '')) && 'sm:col-span-2')}
+                        >
+                          <FieldInput
+                            f={f}
+                            value={get(form, f.key)}
+                            onValidityChange={(valid) => setInvalidFields((previous) => ({ ...previous, [f.key]: !valid }))}
+                            onChange={(v) => {
+                              setDirty(true);
+                              setForm((x: any) => set(x, f.key, v));
+                            }}
+                          />
+                        </Field>
+                      ))}
+                  </fieldset>
+                )}
+              </div>
+              <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-line bg-surface p-4">
+                {dirty && <span className="mr-auto text-xs text-amber-700 dark:text-amber-300">Unsaved changes</span>}
+                <Button variant="secondary" disabled={save.isPending} onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => save.mutate(undefined)}
+                  loading={save.isPending}
+                  disabled={missing.length > 0 || loading || Object.values(invalidFields).some(Boolean)}
+                  title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    );
   return (
     <>
       <PageHeader
@@ -347,7 +446,7 @@ export function AdminCrud({
           <>
             {headerActions}
             {canCreate && (
-              <Button size="sm" onClick={() => open(null)}>
+              <Button size="sm" href={editorUrl('new')}>
                 <Plus className="size-4" /> नया जोड़ें
               </Button>
             )}
@@ -380,7 +479,7 @@ export function AdminCrud({
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <h2 className="font-display text-base font-bold">{itemTitle(row) || title}</h2>
                   <div className="flex gap-1">
-                    <Button size="icon-sm" variant="secondary" onClick={() => open(row)} aria-label={`Edit ${itemTitle(row) || title}`}>
+                    <Button size="icon-sm" variant="secondary" href={editorUrl(row.id)} aria-label={`Edit ${itemTitle(row) || title}`}>
                       <Pencil className="size-4" />
                     </Button>
                     {canDelete && (
@@ -433,7 +532,7 @@ export function AdminCrud({
                       </td>
                     ))}
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <Button size="icon-sm" variant="ghost" onClick={() => open(r)} aria-label="Edit">
+                      <Button size="icon-sm" variant="ghost" href={editorUrl(r.id)} aria-label="Edit">
                         <Pencil className="size-4" />
                       </Button>
                       {canDelete && (
@@ -454,58 +553,6 @@ export function AdminCrud({
           </div>
         </>
       )}
-      <Sheet
-        open={!!editing}
-        onOpenChange={(v) => !v && close()}
-        title={isNew ? `New ${title}` : (editing ? itemTitle(editing) : '') || `Edit ${title}`}
-        className="max-w-2xl"
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex-1 overflow-y-auto p-5">
-            {loading ? (
-              <Skeleton className="h-96" />
-            ) : (
-              <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
-                {fields
-                  .filter((f) => !f.createOnly || isNew)
-                  .map((f) => (
-                    <Field
-                      key={f.key}
-                      label={f.label}
-                      required={f.required}
-                      hint={f.hint}
-                      className={cn((f.wide || ['textarea', 'richtext', 'image', 'images', 'tags', 'json'].includes(f.type ?? '')) && 'sm:col-span-2')}
-                    >
-                      <FieldInput
-                        f={f}
-                        value={get(form, f.key)}
-                        onValidityChange={(valid) => setInvalidFields((previous) => ({ ...previous, [f.key]: !valid }))}
-                        onChange={(v) => {
-                          setDirty(true);
-                          setForm((x: any) => set(x, f.key, v));
-                        }}
-                      />
-                    </Field>
-                  ))}
-              </fieldset>
-            )}
-          </div>
-          <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-line bg-surface p-4">
-            {dirty && <span className="mr-auto text-xs text-amber-700 dark:text-amber-300">Unsaved changes</span>}
-            <Button variant="secondary" disabled={save.isPending} onClick={close}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => save.mutate(undefined)}
-              loading={save.isPending}
-              disabled={missing.length > 0 || loading || Object.values(invalidFields).some(Boolean)}
-              title={missing.length ? `ज़रूरी: ${missing.join(', ')}` : undefined}
-            >
-              Save
-            </Button>
-          </div>
-        </div>
-      </Sheet>
     </>
   );
 }

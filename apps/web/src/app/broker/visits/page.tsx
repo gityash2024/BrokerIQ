@@ -1,5 +1,4 @@
 'use client';
-import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -7,14 +6,13 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { CalendarCheck, CalendarPlus, Check, ChevronLeft, ChevronRight, Clock, MapPin, MessageCircle, Navigation, Phone, Star, X } from 'lucide-react';
-import { VISIT_STATUS_LABELS, parseVisitLocalDateTime, visitInventoryTitle, type LedgerItem, type VisitStatus } from '@brokeriq/shared';
+import { VISIT_STATUS_LABELS, parseVisitLocalDateTime, type VisitStatus } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { patch, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { VisitSlotsButton } from '@/components/broker/visit-slots';
-import { LeadPicker } from '@/components/broker/lead-picker';
-import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
+import { VisitItinerary } from '@/components/broker/visit-properties';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';
@@ -42,7 +40,6 @@ export default function VisitsPage() {
   const [week, setWeek] = useState(() => startOfWeek(new Date()));
   const [day, setDay] = useState<Date | null>(null);
   const [complete, setComplete] = useState<any>(null);
-  const [addOpen, setAddOpen] = useState(false);
   const [reschedule, setReschedule] = useState<any>(null);
   const [rescheduleAt, setRescheduleAt] = useState('');
   const end = new Date(week.getTime() + 7 * 86400_000);
@@ -78,7 +75,7 @@ export default function VisitsPage() {
         actions={
           <div className="flex gap-2">
             <VisitSlotsButton />
-            <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Button size="sm" href="/broker/visits/new">
               <CalendarPlus className="size-4" /> Visit schedule करें
             </Button>
           </div>
@@ -169,6 +166,7 @@ export default function VisitsPage() {
                       <Badge tone={STATUS_TONE[v.status as VisitStatus]}>{VISIT_STATUS_LABELS[v.status as VisitStatus]}</Badge>
                       {v.mode === 'VIDEO' && <Badge tone="info">Video</Badge>}
                     </div>
+                    <VisitItinerary snapshot={v.propertySnapshot} />
                     {v.propertySnapshot && (
                       <p className="mt-1 text-sm text-muted">
                         {v.propertySnapshot.title} · {v.propertySnapshot.bhk != null ? `${v.propertySnapshot.bhk} BHK · ` : ''}
@@ -309,7 +307,6 @@ export default function VisitsPage() {
           <Input type="datetime-local" value={rescheduleAt} onChange={(e) => setRescheduleAt(e.target.value)} />
         </Field>
       </Dialog>
-      <AddVisit open={addOpen} onOpenChange={setAddOpen} />
     </>
   );
 }
@@ -349,80 +346,6 @@ function CompleteVisit({
         ))}
       </div>
       <Textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="जैसे: Layout पसंद आया, price पर negotiate करना चाहते हैं" />
-    </Dialog>
-  );
-}
-
-function AddVisit({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const [lead, setLead] = useState<any>(null);
-  const [property, setProperty] = useState<LedgerItem | null>(null);
-  const [at, setAt] = useState(() => {
-    const d = new Date(Date.now() + 86400_000);
-    d.setHours(11, 0, 0, 0);
-    return toLocalInput(d);
-  });
-  const [address, setAddress] = useState('');
-  const [note, setNote] = useState('');
-  const create = useApiMutation(
-    (retry?: boolean) => {
-      if (retry) return submitTask('/visits', lead.id);
-      const date = parseVisitLocalDateTime(at);
-      if (!date) throw new Error('Enter a valid date and time');
-      const payload = { leadId: lead.id, inventoryId: property?.id ?? null, scheduledAt: date.toISOString(), address: address || null, note: note || null };
-      return submitTask('/visits', lead.id, payload);
-    },
-    {
-      success: 'Visit scheduled — lead stage "Site visit" पर गया',
-      invalidate: [['visits'], ['broker-dashboard'], ['kanban'], ['leads']],
-      onSuccess: () => {
-        onOpenChange(false);
-        setLead(null);
-        setProperty(null);
-        setNote('');
-      },
-    },
-  );
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Site visit schedule करें"
-      footer={
-        <>
-          <Button variant="secondary" disabled={!lead || create.isPending} onClick={() => create.mutate(true)}>
-            Retry saved
-          </Button>
-          <Button disabled={!lead || !parseVisitLocalDateTime(at)} loading={create.isPending} onClick={() => create.mutate(undefined)}>
-            <Clock className="size-4" /> Schedule
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <Field label="Lead" required>
-          <LeadPicker value={lead} onChange={setLead} />
-        </Field>
-        <Field label="Property">
-          <VisitPropertyPicker
-            value={property}
-            onChange={(item) => {
-              setProperty(item);
-              if (item) setAddress(item.address || visitInventoryTitle(item));
-            }}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Date & time" required>
-            <Input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
-          </Field>
-          <Field label="Meeting point">
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="जैसे: Society main gate" />
-          </Field>
-        </div>
-        <Field label="Note">
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
-      </div>
     </Dialog>
   );
 }

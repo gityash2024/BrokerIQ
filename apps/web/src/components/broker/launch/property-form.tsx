@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth';
 
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { PropertyExtras, readPropertyExtras } from './property-extras';
+import { PropertyMedia } from './property-media';
 
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
 const inputs = [
@@ -58,7 +59,11 @@ export function PropertyForm({
   const isAdmin = user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'inventory', 'assign'));
   const isSuper = user?.role === 'SUPER_ADMIN';
   const [superAssignee, setSuperAssignee] = useState(initial.assignedToId ?? '');
-  const team = useQuery({ queryKey: ['broker-team', 'inventory-assignees', user?.id], queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'), enabled: isAdmin });
+  const team = useQuery({
+    queryKey: ['broker-team', 'inventory-assignees', user?.id],
+    queryFn: () => api<any>(delegated ? '/inventory/assignees' : '/broker/team'),
+    enabled: isAdmin,
+  });
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
   const mutationId = useRef(initial.clientMutationId ?? (typeof crypto !== 'undefined' ? crypto.randomUUID() : undefined));
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>(() => {
@@ -66,10 +71,16 @@ export function PropertyForm({
     return normalized.length ? normalized : [{ name: '', phone: '', role: 'UNKNOWN' }];
   });
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
+  const [photos, setPhotos] = useState(initial.photoUrls ?? []);
+  const [videos, setVideos] = useState(initial.videoUrls ?? []);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const uploading = photoUploading || videoUploading;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy || uploading) return;
     setBusy(true);
     setError('');
     const values: Record<string, any> = Object.fromEntries(new FormData(event.currentTarget));
@@ -78,7 +89,7 @@ export function PropertyForm({
     for (const key of Object.keys(values))
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
-    Object.assign(values, readPropertyExtras(event.currentTarget));
+    Object.assign(values, readPropertyExtras(event.currentTarget), { photoUrls: photos, videoUrls: videos });
     // Keep source amenities which have no checkbox in the current taxonomy.
     values.amenities = [
       ...new Set([
@@ -190,7 +201,9 @@ export function PropertyForm({
             <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
               {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
             </div>
-            {!delegated && <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />}
+            {!delegated && (
+              <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+            )}
           </div>
         )}
       </div>
@@ -246,6 +259,35 @@ export function PropertyForm({
           + Add contact
         </button>
       </div>
+      <div className="space-y-5 rounded-xl border border-line p-4">
+        <PropertyMedia
+          urls={photos}
+          onUploading={setPhotoUploading}
+          onAdd={(url) => {
+            setPhotos((current) => [...current, url]);
+            onDirty?.();
+          }}
+          onRemove={(index) => {
+            setPhotos((current) => current.filter((_, i) => i !== index));
+            onDirty?.();
+          }}
+          disabled={busy}
+        />
+        <PropertyMedia
+          video
+          urls={videos}
+          onUploading={setVideoUploading}
+          onAdd={(url) => {
+            setVideos((current) => [...current, url]);
+            onDirty?.();
+          }}
+          onRemove={(index) => {
+            setVideos((current) => current.filter((_, i) => i !== index));
+            onDirty?.();
+          }}
+          disabled={busy}
+        />
+      </div>
       <PropertyExtras initial={initial} category={initial.category} />
       <label className="block text-xs font-semibold text-muted">
         Notes
@@ -262,7 +304,7 @@ export function PropertyForm({
         </p>
       )}
       <div className="sticky -bottom-6 -mx-6 border-t border-line bg-surface/95 p-4 backdrop-blur">
-        <button disabled={busy} className="min-h-11 w-full rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+        <button disabled={busy || uploading} className="min-h-11 w-full rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
           {busy ? 'Saving…' : label}
         </button>
       </div>

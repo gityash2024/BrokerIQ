@@ -1,3 +1,4 @@
+import { VisitItinerary } from '@/components/visit-properties';
 import { DateTimeField } from '@/components/date-time-field';
 import { LeadContactActions } from '@/components/lead-contact-actions';
 import { useState } from 'react';
@@ -116,6 +117,7 @@ export default function Visits() {
                       {v.propertySnapshot.availability}
                     </Txt>
                   )}
+                  <VisitItinerary snapshot={v.propertySnapshot} />
                   {v.checkInAt && (
                     <Txt v="caption" color="success">
                       📍 Checked-in {new Date(v.checkInAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}

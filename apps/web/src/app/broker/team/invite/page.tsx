@@ -1,0 +1,89 @@
+'use client';
+import { useState } from 'react';
+import { Link2, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Field, Input, Select } from '@/components/ui/field';
+import { CopyField } from '@/components/panel/integration-card';
+import { PageHeader } from '@/components/panel/shell';
+import { DelegatedPermissions } from '@/components/broker/team/delegated-permissions';
+import { post, useApiMutation } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
+
+export default function InvitePage() {
+  const { user } = useAuth();
+  const [f, setF] = useState({ name: '', email: '', role: 'BROKER_AGENT' });
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [result, setResult] = useState<{ link: string; emailed: boolean } | null>(null);
+  const send = useApiMutation(
+    () =>
+      post<{ link: string; emailed: boolean }>('/broker/team/invite', {
+        ...f,
+        ...(f.role === 'SUB_BROKER_ADMIN' ? { delegatedPermissions: permissions } : {}),
+      }),
+    {
+      invalidate: [['team']],
+      onSuccess: (r) => {
+        setResult(r);
+        toast.success(r.emailed ? 'Invite email भेज दी गई' : 'Invite बन गया — link share करें');
+      },
+    },
+  );
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="Invite Team Member"
+        subtitle="Invite link is valid for 7 days"
+        actions={
+          <Button variant="secondary" href="/broker/team">
+            Back to team
+          </Button>
+        }
+      />
+      {user?.role === 'BROKER_ADMIN' ? (
+        <section className="card mx-auto max-w-4xl space-y-5 p-4 sm:p-6">
+          {result ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <Link2 className="size-5" />
+                <p className="text-sm font-semibold">
+                  {result.emailed
+                    ? `${f.email} पर email चला गया। चाहें तो link WhatsApp पर भी भेजें:`
+                    : 'Email (SMTP) configure नहीं है — ये link खुद WhatsApp पर भेजें:'}
+                </p>
+              </div>
+              <CopyField label="Invite link" value={result.link} />
+              <Button variant="whatsapp" external href={`https://wa.me/?text=${encodeURIComponent(`${f.name}, हमारी team join करें: ${result.link}`)}`}>
+                WhatsApp पर भेजें
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Field label="नाम" required>
+                <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+              </Field>
+              <Field label="Email" required>
+                <Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+              </Field>
+              <Field label="Role" hint="Admin: billing, connectors, automations, पूरी team की leads। Agent: सिर्फ़ अपनी assigned leads।">
+                <Select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+                  <option value="BROKER_AGENT">Agent</option>
+                  <option value="BROKER_ADMIN">Admin</option>
+                  <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
+                </Select>
+              </Field>
+              {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}
+            </div>
+          )}
+          {!result && (
+            <Button loading={send.isPending} disabled={!f.name || !f.email} onClick={() => send.mutate(undefined)}>
+              <Send className="size-4" /> Send invite
+            </Button>
+          )}
+        </section>
+      ) : (
+        <p role="alert">Broker Admin access required.</p>
+      )}
+    </div>
+  );
+}

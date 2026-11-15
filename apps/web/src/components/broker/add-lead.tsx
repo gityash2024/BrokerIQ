@@ -7,23 +7,22 @@ import { api } from '@/lib/api';
 import { post, useApiMutation } from '@/lib/hooks';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
-import { Dialog } from '../ui/dialog';
+import { PageHeader } from '@/components/panel/shell';
 import { Button } from '../ui/button';
 import { Chip, Field, Input, Select, Textarea } from '../ui/field';
 import { useAssignees } from './bits';
 
 const MANUAL_SOURCES = ['MANUAL', 'CALL', 'WALK_IN', 'REFERRAL', 'HOUSING', 'ACRES99', 'MAGICBRICKS', 'NOBROKER', 'FACEBOOK', 'INSTAGRAM', 'WHATSAPP'] as const;
 
-export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function AddLeadPage() {
   const router = useRouter();
   const requirementMutationId = useRef<string | null>(null);
   const { user } = useAuth();
-  const team = useAssignees(open);
+  const team = useAssignees();
   const { data: locs } = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<LocalityListItem[]>('/public/localities', { auth: false }),
     staleTime: 600_000,
-    enabled: open,
   });
   const [f, setF] = useState({
     name: '',
@@ -74,113 +73,117 @@ export function AddLeadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       success: 'Lead add हो गई',
       invalidate: [['leads'], ['broker-dashboard'], ['kanban']],
       onSuccess: (l) => {
-        onOpenChange(false);
         requirementMutationId.current = null;
         setF({ ...f, name: '', phone: '', email: '', notes: '' });
-        router.push(`/broker/leads/${l.id}`);
+        router.replace(`/broker/leads/${l.id}`);
       },
     },
   );
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="नई lead"
-      size="lg"
-      footer={
-        <Button onClick={() => m.mutate(undefined)} loading={m.isPending} disabled={!f.name || !f.phone}>
-          Save lead
-        </Button>
-      }
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="नाम" required>
-          <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
-        </Field>
-        <Field label="Mobile" required>
-          <Input inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-        </Field>
-        <Field label="Email">
-          <Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-        </Field>
-        <Field label="Source">
-          <Select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>
-            {MANUAL_SOURCES.map((s) => (
-              <option key={s} value={s}>
-                {LEAD_SOURCE_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'))) && (
-          <Field label="Assign to" className="sm:col-span-2">
-            <Select value={f.assignedToId} onChange={(e) => setF({ ...f, assignedToId: e.target.value })}>
-              <option value="">Unassigned (automation decide करेगा)</option>
-              {team.data?.members
-                .filter((m: any) => !m.status || m.status === 'ACTIVE')
-                .map((m: any) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
+    <div className="space-y-5">
+      <PageHeader
+        title="Add lead"
+        actions={
+          <Button href="/broker/leads" variant="secondary">
+            Back to leads
+          </Button>
+        }
+      />
+      <section className="card mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="नाम" required>
+            <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
+          </Field>
+          <Field label="Mobile" required>
+            <Input inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          </Field>
+          <Field label="Email">
+            <Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          </Field>
+          <Field label="Source">
+            <Select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>
+              {MANUAL_SOURCES.map((s) => (
+                <option key={s} value={s}>
+                  {LEAD_SOURCE_LABELS[s]}
+                </option>
+              ))}
             </Select>
           </Field>
-        )}
-      </div>
-      <div className="mt-6 space-y-4 rounded-2xl bg-surface-2 p-4">
-        <p className="text-sm font-bold">Requirement</p>
-        <Select value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })}>
-          <option value="RENT">Rent</option>
-          <option value="SALE">Sale</option>
-        </Select>
-        <div className="flex flex-wrap gap-2">
-          {['APARTMENT', 'BUILDER_FLOOR', 'VILLA', 'PG', 'OFFICE', 'SHOP'].map((t) => (
-            <Chip key={t} active={f.types.includes(t)} onClick={() => setF({ ...f, types: toggle(f.types, t) })}>
-              {PROPERTY_TYPE_LABELS[t as keyof typeof PROPERTY_TYPE_LABELS]}
-            </Chip>
-          ))}
+          {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'))) && (
+            <Field label="Assign to" className="sm:col-span-2">
+              <Select value={f.assignedToId} onChange={(e) => setF({ ...f, assignedToId: e.target.value })}>
+                <option value="">Unassigned (automation decide करेगा)</option>
+                {team.data?.members
+                  .filter((m: any) => !m.status || m.status === 'ACTIVE')
+                  .map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5].map((b) => (
-            <Chip key={b} active={f.bedrooms.includes(b)} onClick={() => setF({ ...f, bedrooms: toggle(f.bedrooms, b) })}>
-              {b} BHK
-            </Chip>
-          ))}
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            inputMode="numeric"
-            placeholder="Min budget (₹)"
-            value={f.minBudget}
-            onChange={(e) => setF({ ...f, minBudget: e.target.value.replace(/\D/g, '') })}
-          />
-          <Input
-            inputMode="numeric"
-            placeholder="Max budget (₹)"
-            value={f.maxBudget}
-            onChange={(e) => setF({ ...f, maxBudget: e.target.value.replace(/\D/g, '') })}
-          />
-        </div>
-        <Select value="" onChange={(e) => e.target.value && setF({ ...f, localityIds: toggle(f.localityIds, e.target.value) })}>
-          <option value="">+ Preferred locality जोड़ें</option>
-          {locs?.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </Select>
-        {f.localityIds.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {f.localityIds.map((id) => (
-              <Chip key={id} active onClick={() => setF({ ...f, localityIds: toggle(f.localityIds, id) })}>
-                {locs?.find((l) => l.id === id)?.name} ✕
+        <div className="mt-6 space-y-4 rounded-2xl bg-surface-2 p-4">
+          <p className="text-sm font-bold">Requirement</p>
+          <Select value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })}>
+            <option value="RENT">Rent</option>
+            <option value="SALE">Sale</option>
+          </Select>
+          <div className="flex flex-wrap gap-2">
+            {['APARTMENT', 'BUILDER_FLOOR', 'VILLA', 'PG', 'OFFICE', 'SHOP'].map((t) => (
+              <Chip key={t} active={f.types.includes(t)} onClick={() => setF({ ...f, types: toggle(f.types, t) })}>
+                {PROPERTY_TYPE_LABELS[t as keyof typeof PROPERTY_TYPE_LABELS]}
               </Chip>
             ))}
           </div>
-        )}
-        <Textarea placeholder="Notes" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
-      </div>
-    </Dialog>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map((b) => (
+              <Chip key={b} active={f.bedrooms.includes(b)} onClick={() => setF({ ...f, bedrooms: toggle(f.bedrooms, b) })}>
+                {b} BHK
+              </Chip>
+            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              inputMode="numeric"
+              placeholder="Min budget (₹)"
+              value={f.minBudget}
+              onChange={(e) => setF({ ...f, minBudget: e.target.value.replace(/\D/g, '') })}
+            />
+            <Input
+              inputMode="numeric"
+              placeholder="Max budget (₹)"
+              value={f.maxBudget}
+              onChange={(e) => setF({ ...f, maxBudget: e.target.value.replace(/\D/g, '') })}
+            />
+          </div>
+          <Select value="" onChange={(e) => e.target.value && setF({ ...f, localityIds: toggle(f.localityIds, e.target.value) })}>
+            <option value="">+ Preferred locality जोड़ें</option>
+            {locs?.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
+          {f.localityIds.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {f.localityIds.map((id) => (
+                <Chip key={id} active onClick={() => setF({ ...f, localityIds: toggle(f.localityIds, id) })}>
+                  {locs?.find((l) => l.id === id)?.name} ✕
+                </Chip>
+              ))}
+            </div>
+          )}
+          <Textarea placeholder="Notes" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={() => m.mutate(undefined)} loading={m.isPending} disabled={!f.name || !f.phone}>
+            Save lead
+          </Button>
+        </div>
+      </section>
+    </div>
   );
 }

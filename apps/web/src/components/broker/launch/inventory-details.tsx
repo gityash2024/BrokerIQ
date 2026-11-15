@@ -1,12 +1,10 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api';
 import { Building2, FileCheck2, MapPin, Phone, MessageCircle, ShieldCheck } from 'lucide-react';
 import { inventoryFactGroups, inventoryPrice, inventoryTitle, readableValue, type LedgerItem } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { PrivateSource } from './private-source';
+import { PropertyMedia } from './property-media';
 export function InventoryDetails({
   item,
   onEdit,
@@ -21,23 +19,11 @@ export function InventoryDetails({
   onMessage?: () => void;
   onArchive?: () => void;
   onRestore?: () => void;
-  onUploadPhoto: (file: File) => Promise<void>;
+  onUploadPhoto?: (url: string) => Promise<void>;
   item: LedgerItem;
-  onEdit: () => void;
-  onPublish: () => void;
+  onEdit?: () => void;
+  onPublish?: () => void;
 }) {
-  const [uploading, setUploading] = useState(false);
-  async function addPhoto(file: File) {
-    setUploading(true);
-    try {
-      await onUploadPhoto(file);
-      toast.success('Photo saved to this property');
-    } catch (error) {
-      toast.error(errorMessage(error));
-    } finally {
-      setUploading(false);
-    }
-  }
   return (
     <div className="space-y-6">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-800 to-brand-600 p-6 text-white">
@@ -74,10 +60,12 @@ export function InventoryDetails({
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Button onClick={onEdit}>Edit property</Button>
-          <Button variant="secondary" onClick={onPublish}>
-            Publish / review property
-          </Button>
+          {onEdit && <Button onClick={onEdit}>Edit property</Button>}
+          {onPublish && (
+            <Button variant="secondary" onClick={onPublish}>
+              Publish / review property
+            </Button>
+          )}
           {onMessage && (
             <Button variant="secondary" onClick={onMessage}>
               Prepare WhatsApp message
@@ -91,33 +79,9 @@ export function InventoryDetails({
         </div>
       )}
       {(!item.deletedAt || !!item.photoUrls?.length) && (
-        <section>
-          <h3 className="mb-3 font-bold">Property photographs</h3>
-          {!item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
-            <label className="mb-3 block text-sm font-semibold">
-              {uploading ? 'Saving photo…' : 'Add property photo'}
-              <input
-                className="mt-2 block w-full text-sm"
-                type="file"
-                accept="image/*"
-                disabled={uploading}
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = '';
-                  if (file) void addPhoto(file);
-                }}
-              />
-            </label>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            {item.photoUrls?.map((url, index) => (
-              <a key={url} href={url} target="_blank" rel="noreferrer">
-                <img src={url} alt={`Property photograph ${index + 1}`} className="aspect-[4/3] w-full rounded-2xl object-cover" loading="lazy" />
-              </a>
-            ))}
-          </div>
-        </section>
+        <PropertyMedia urls={item.photoUrls ?? []} disabled={!!item.deletedAt || !onUploadPhoto} onAdd={(url) => onUploadPhoto?.(url)} />
       )}
+      {!!item.videoUrls?.length && <PropertyMedia video urls={item.videoUrls} disabled onAdd={() => undefined} />}
       {inventoryFactGroups(item).map((group) => (
         <section key={group.title} className="rounded-2xl border border-line p-5">
           <h3 className="mb-4 font-display text-lg font-bold">{group.title}</h3>

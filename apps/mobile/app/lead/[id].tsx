@@ -1,8 +1,7 @@
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
 import { submitTask } from '@/launch/drafts';
-import { VisitPropertyPicker } from '@/components/visit-property-picker';
-import { propertyPhotoDraft, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { VisitItinerary } from '@/components/visit-properties';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, FlatList, Linking, ScrollView, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -71,7 +70,7 @@ export default function LeadDetail() {
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
-  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'visit' | 'lost' | 'not_interested' | 'deal' | 'photos'>(null);
+  const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal'>(null);
   const callPending = useRef(false);
   const refresh = () => {
     q.refetch();
@@ -211,7 +210,14 @@ export default function LeadDetail() {
           {((canCreateTask && l.stage === 'CONTACTED') || (canSharePhotos && beforeVisit)) && (
             <Row wrap gap={8}>
               {canCreateTask && l.stage === 'CONTACTED' && <Button size="sm" variant="secondary" title="Follow-up" onPress={() => setSheet('followup')} />}
-              {canSharePhotos && beforeVisit && <Button size="sm" variant="secondary" title="Share photos" onPress={() => setSheet('photos')} />}
+              {canSharePhotos && beforeVisit && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  title="Share photos"
+                  onPress={() => router.push({ pathname: '/lead-share-photos', params: { id: l.id } })}
+                />
+              )}
             </Row>
           )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
@@ -332,8 +338,6 @@ export default function LeadDetail() {
       <NoteSheet open={sheet === 'note'} onClose={() => setSheet(null)} leadId={id} onDone={refresh} />
       <CallSheet open={sheet === 'call'} onClose={() => setSheet(null)} lead={l} onDone={refresh} onFollowUp={() => setSheet('followup')} />
       <FollowUpSheet open={canCreateTask && sheet === 'followup'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
-      <VisitSheet open={canCreateTask && sheet === 'visit'} onClose={() => setSheet(null)} lead={l} onDone={refresh} canViewInventory={canMatch} />
-      {canSharePhotos && beforeVisit && sheet === 'photos' && <PropertyPhotoShare leadId={l.id} onClose={() => setSheet(null)} />}
       <LostSheet
         open={sheet === 'lost'}
         onClose={() => setSheet(null)}
@@ -436,111 +440,6 @@ function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose
   );
 }
 
-function VisitSheet({
-  open,
-  onClose,
-  lead,
-  onDone,
-  canViewInventory,
-}: {
-  open: boolean;
-  onClose: () => void;
-  lead: any;
-  onDone: () => void;
-  canViewInventory: boolean;
-}) {
-  const { c } = useTheme();
-  const [at, setAt] = useState<Date | null>(null);
-  const [isCustomDate, setIsCustomDate] = useState(false);
-  const [property, setProperty] = useState<LedgerItem | null>(null);
-  const [address, setAddress] = useState('');
-
-  const save = useApiMutation(
-    () => {
-      if (!at) throw new Error('Enter a valid date and time');
-      const payload = { leadId: lead.id, inventoryId: property?.id ?? null, scheduledAt: at.toISOString(), address: address || null };
-      return submitTask('SITE_VISIT_CREATE', payload);
-    },
-    {
-      onSuccess: (saved) => {
-        if (saved.state === 'FAILED') toast.error(saved.error ?? 'Task needs attention. Open Saved drafts.');
-        else toast.success(saved.state === 'SYNCED' ? 'Site visit scheduled' : 'Site visit saved on this device. It will sync when connected.');
-        setProperty(null);
-        setAddress('');
-        setAt(null);
-        onClose();
-        onDone();
-      },
-    },
-  );
-
-  return (
-    <Sheet open={open} onClose={onClose} title="Site visit schedule करें">
-      <Txt v="label" color="subtle">
-        कब (Date & Time)
-      </Txt>
-      <Row wrap gap={6} style={{ marginTop: 4, marginBottom: 8 }}>
-        {timePresets().map((p) => {
-          const active = !isCustomDate && at?.getTime() === p.at.getTime();
-          return (
-            <Chip
-              key={p.label}
-              label={p.label}
-              active={active}
-              onPress={() => {
-                setIsCustomDate(false);
-                setAt(p.at);
-              }}
-            />
-          );
-        })}
-        <Chip
-          label="📅 Custom Date / Time"
-          active={isCustomDate}
-          onPress={() => {
-            setIsCustomDate(true);
-          }}
-        />
-      </Row>
-
-      {isCustomDate && <DateTimeField value={at} onChange={setAt} />}
-
-      {at && (
-        <Row gap={6} style={{ alignItems: 'center', marginBottom: 10 }}>
-          <CalendarPlus size={16} color={c.brand} />
-          <Txt v="small" color="brand" style={{ fontWeight: '600' }}>
-            Scheduled for: {at.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
-          </Txt>
-        </Row>
-      )}
-
-      {isCustomDate && !at && <Txt color="danger">सही तारीख और समय भरें; invalid दिन या समय स्वीकार नहीं होगा।</Txt>}
-      {canViewInventory && (
-        <>
-          <Txt v="label" color="subtle">
-            Property
-          </Txt>
-          <VisitPropertyPicker
-            open={open}
-            value={property}
-            onChange={(item) => {
-              setProperty(item);
-              if (item) setAddress(item.address || visitInventoryTitle(item));
-            }}
-          />
-        </>
-      )}
-
-      <Txt v="label" color="subtle" style={{ marginBottom: 4 }}>
-        Meeting Point / Custom Address
-      </Txt>
-      <Input value={address} onChangeText={setAddress} placeholder="Gate No., Land mark, या कोई भी नया address लिखें…" />
-
-      <Button title="Schedule visit" loading={save.isPending} disabled={!at} style={{ marginTop: 14 }} onPress={() => save.mutate(undefined)} />
-    </Sheet>
-  );
-}
-
 function NotInterestedSheet({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (r: string) => void }) {
   const [r, setR] = useState('');
   return (
@@ -618,38 +517,6 @@ function DealSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: ()
   );
 }
 
-function PropertyPhotoShare({ leadId, onClose }: { leadId: string; onClose: () => void }) {
-  const [property, setProperty] = useState<LedgerItem | null>(null);
-  const message = property ? String(visitInventoryTitle(property)) : '';
-  const draft = propertyPhotoDraft(message, property?.photoUrls);
-  return (
-    <Sheet open onClose={onClose} title="Share property photos">
-      <VisitPropertyPicker open value={property} onChange={setProperty} purpose="photos" />
-      {property && draft === message && (
-        <>
-          <Txt color="muted">No shareable photos yet.</Txt>
-          <Button
-            title="Open property"
-            variant="secondary"
-            onPress={() => {
-              onClose();
-              router.push({ pathname: '/inventory/[id]', params: { id: property.id } });
-            }}
-          />
-        </>
-      )}
-      <Button
-        title="Review in Inbox"
-        disabled={!property || draft === message}
-        onPress={() => {
-          onClose();
-          void openLeadInbox(leadId, draft);
-        }}
-      />
-    </Sheet>
-  );
-}
-
 function Tasks({
   lead,
   onChange,
@@ -659,7 +526,7 @@ function Tasks({
 }: {
   lead: any;
   onChange: () => void;
-  openSheet: (s: 'followup' | 'visit') => void;
+  openSheet: (s: 'followup') => void;
   canCreate: boolean;
   canEdit: boolean;
 }) {
@@ -685,7 +552,7 @@ function Tasks({
             variant="accent"
             icon={<CalendarPlus size={15} color="#111" />}
             style={{ flex: 1 }}
-            onPress={() => openSheet('visit')}
+            onPress={() => router.push({ pathname: '/schedule-visit', params: { id: lead.id } })}
           />
         </Row>
       )}
@@ -715,8 +582,9 @@ function Tasks({
         <Card key={v.id} style={{ padding: 12, gap: 2 }}>
           <Txt v="bodyStrong">🏠 {new Date(v.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Txt>
           <Txt v="caption" color="muted">
-            {v.listing?.title ?? v.address ?? ''} · {v.status}
+            {v.propertySnapshot?.title ?? v.listing?.title ?? v.address ?? ''} · {v.status}
           </Txt>
+          <VisitItinerary snapshot={v.propertySnapshot} />
           {canEdit && ['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
             <Row wrap gap={6}>
               <Button size="sm" title="Complete" disabled={updateVisit.isPending} onPress={() => updateVisit.mutate({ id: v.id, status: 'COMPLETED' })} />
