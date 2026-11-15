@@ -1,6 +1,7 @@
 'use client';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
@@ -29,6 +30,7 @@ interface Column {
 }
 
 export default function PipelinePage() {
+  const router = useRouter();
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
@@ -58,6 +60,10 @@ export default function PipelinePage() {
     }
     const lead = from.items.find((i) => i.id === id)!;
     if (!canEdit || (to === 'SHORTLISTED' && !lead.hasCompletedVisit)) return;
+    if (to === 'SHORTLISTED') {
+      router.push(`/broker/leads/${encodeURIComponent(id)}?tab=shortlist`);
+      return;
+    }
     qc.setQueryData<Column[]>(key, (old) =>
       old?.map((c) =>
         c.stage === from.stage

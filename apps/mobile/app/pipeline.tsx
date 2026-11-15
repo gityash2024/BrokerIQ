@@ -24,6 +24,7 @@ export default function Pipeline() {
   const [move, setMove] = useState<any>(null);
   const doMove = async (lead: any, to: LeadStage) => {
     setMove(null);
+    if (to === 'SHORTLISTED') return router.push({ pathname: '/lead/[id]', params: { id: lead.id, tab: 'shortlist' } });
     if (to === 'LOST' || to === 'WON' || to === 'NOT_INTERESTED') return router.push(`/lead/${lead.id}`);
     try {
       await patch(`/leads/${lead.id}/stage`, { stage: to });

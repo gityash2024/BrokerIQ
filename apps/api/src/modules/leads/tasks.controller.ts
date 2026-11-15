@@ -26,6 +26,7 @@ import {
   type FollowUpQuery,
   visitInputSchema,
   visitUpdateSchema,
+  visitShortlistSchema,
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LeadsService } from './leads.service';
@@ -285,6 +286,15 @@ export class TasksController {
   createVisit(@CurrentUser() user: RequestUser, @Body(new ZodPipe(visitInputSchema)) body: z.infer<typeof visitInputSchema>) {
     return this.visitService.create(user, body);
   }
+  @Patch('visits/:id/shortlist')
+  shortlistVisit(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(visitShortlistSchema)) body: z.infer<typeof visitShortlistSchema>,
+  ) {
+    return this.visitService.shortlist(user, id, body);
+  }
+
   @Patch('visits/:id')
   updateVisit(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(visitUpdateSchema)) body: z.infer<typeof visitUpdateSchema>) {
     return this.visitService.update(user, id, body);

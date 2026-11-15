@@ -1,7 +1,7 @@
 'use client';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
-import { VisitItinerary } from '@/components/broker/visit-properties';
+import { VisitItinerary, VisitShortlist } from '@/components/broker/visit-properties';
 import Link from 'next/link';
 import { Fragment, use, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -32,6 +32,7 @@ import {
 import {
   FURNISHING_LABELS,
   LEAD_STAGES,
+  visitShortlistedIds,
   LEAD_STAGE_COLORS,
   LEAD_STAGE_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -92,7 +93,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const query = useSearchParams();
-  const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>(query.get('tab') === 'tasks' ? 'tasks' : 'timeline');
+  const [tab, setTab] = useState<'timeline' | 'shortlist' | 'matches' | 'tasks' | 'requirement'>(
+    query.get('tab') === 'shortlist' ? 'shortlist' : query.get('tab') === 'tasks' ? 'tasks' : 'timeline',
+  );
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
   const openFollowUpStage = () => {
     setAdvanceFollowUpStage(canEdit);
@@ -207,10 +210,13 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
                 )}
                 <button
                   aria-pressed={active}
-                  disabled={!canEdit || stage.isPending || (s === 'FOLLOW_UP' && !canCreateTask) || (s === 'PHOTOS_SHARED' && !canSharePhotos)}
+                  disabled={
+                    (!canEdit && s !== 'SHORTLISTED') || stage.isPending || (s === 'FOLLOW_UP' && !canCreateTask) || (s === 'PHOTOS_SHARED' && !canSharePhotos)
+                  }
                   onClick={() => {
                     if (s === 'FOLLOW_UP') openFollowUpStage();
                     else if (s === 'PHOTOS_SHARED') router.push(`/broker/leads/${l.id}/photos`);
+                    else if (s === 'SHORTLISTED') setTab('shortlist');
                     else if (s === 'SITE_VISIT' && canCreateTask) router.push(`/broker/visits/new?lead=${encodeURIComponent(l.id)}`);
                     else if (s === 'LOST') setLostOpen(true);
                     else if (s === 'NOT_INTERESTED') setNotInterestedOpen(true);
@@ -262,9 +268,11 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               { value: 'timeline', label: 'Timeline' },
               ...(!delegated || allowed('inventory') ? [{ value: 'matches' as const, label: 'Matching properties' }] : []),
               { value: 'tasks', label: 'Follow-ups & visits', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
+              ...(visitCompleted ? [{ value: 'shortlist' as const, label: 'Shortlisted' }] : []),
               { value: 'requirement', label: 'Requirement' },
             ]}
           />
+          {tab === 'shortlist' && <VisitShortlist visits={l.visits} canEdit={canEdit} onChange={refresh} />}
           {tab === 'timeline' && <Timeline lead={l} onChange={refresh} />}
           {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
           {tab === 'tasks' && (
@@ -653,8 +661,10 @@ function Tasks({
                   {VISIT_STATUS_LABELS[v.status as keyof typeof VISIT_STATUS_LABELS]}
                 </Badge>
               </div>
-              <p className="text-xs text-muted">{v.propertySnapshot?.title || v.listing?.title || v.address}</p>
-              <VisitItinerary snapshot={v.propertySnapshot} />
+              <p className="text-xs text-muted">
+                {visitShortlistedIds(v.propertySnapshot).length ? null : v.propertySnapshot?.title || v.listing?.title || v.address}
+              </p>
+              <VisitItinerary snapshot={v.propertySnapshot} remainingOnly />
               {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <VideoJoin visit={v} size="xs" />

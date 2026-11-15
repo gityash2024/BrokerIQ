@@ -28,7 +28,11 @@ jest.mock('@/components/crm', () => ({
   StageBadge: () => null,
   useAssignees: () => ({ data: { members: [] } }),
 }));
-jest.mock('@/components/visit-properties', () => ({ VisitItinerary: () => null }));
+jest.mock('@/components/visit-properties', () => ({
+  VisitItinerary: () => null,
+  VisitShortlist: ({ canEdit }: { canEdit: boolean }) =>
+    require('react').createElement(require('react-native').View, { accessibilityLabel: canEdit ? 'Editable shortlist' : 'Read-only shortlist' }),
+}));
 jest.mock('@/components/date-time-field', () => ({ DateTimeField: () => null }));
 jest.mock('@/components/notification-bell', () => ({ NotificationBell: () => null }));
 jest.mock('@/components/listing', () => ({ ListingRow: () => null }));
@@ -106,7 +110,7 @@ it('places actions in stage order and opens follow-up and the correct photo page
   expect(mockMutate).not.toHaveBeenCalled();
 });
 
-it('enables Shortlisted only after a completed visit and submits the existing stage mutation', () => {
+it('enables Shortlisted only after a completed visit and opens the property shortlist', () => {
   mockLead.visits = [{ status: 'SCHEDULED' }];
   render();
   expect(button('Shortlisted')).toBeUndefined();
@@ -114,7 +118,8 @@ it('enables Shortlisted only after a completed visit and submits the existing st
   act(() => tree.update(<LeadDetail />));
   expect(button('Share photos')).toBeUndefined();
   act(() => button('Shortlisted').props.onPress());
-  expect(mockMutate).toHaveBeenCalledWith({ stage: 'SHORTLISTED' });
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Editable shortlist' }).length).toBeGreaterThan(0);
+  expect(mockMutate).not.toHaveBeenCalled();
 });
 
 it('retains legacy Shortlisted selection and applies delegated create and inbox permissions', () => {

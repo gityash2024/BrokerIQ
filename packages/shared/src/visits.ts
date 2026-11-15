@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { LedgerItem } from './inventory';
 import { inventoryPrice } from './inventory-presentation';
 
@@ -5,8 +6,41 @@ export const MAX_VISIT_PROPERTIES = 20;
 
 export type VisitPropertyStop = { id: string; title: string; address?: string | null; sector?: string | null };
 
+export type VisitPropertySnapshot = Partial<VisitPropertyStop> & {
+  stops?: VisitPropertyStop[];
+  shortlistedPropertyIds?: string[];
+};
+export type VisitPropertySelection = {
+  id: string;
+  status: string;
+  scheduledAt: string;
+  updatedAt: string;
+  propertySnapshot?: VisitPropertySnapshot | null;
+};
+
+export const visitShortlistSchema = z
+  .object({
+    propertyIds: z.array(z.string().trim().min(1).max(100)).max(MAX_VISIT_PROPERTIES),
+    expectedUpdatedAt: z.string().datetime({ offset: true }),
+  })
+  .refine(({ propertyIds }) => new Set(propertyIds).size === propertyIds.length, {
+    path: ['propertyIds'],
+    message: 'Select each property only once',
+  });
+
 export function visitPropertyStops(snapshot?: { stops?: VisitPropertyStop[] } | null): VisitPropertyStop[] {
   return snapshot?.stops ?? [];
+}
+
+export function visitShortlistStops(snapshot?: VisitPropertySnapshot | null): VisitPropertyStop[] {
+  const stops = visitPropertyStops(snapshot);
+  if (stops.length) return stops;
+  if (!snapshot?.id || !snapshot.title) return [];
+  return [{ id: snapshot.id, title: snapshot.title, address: snapshot.address, sector: snapshot.sector }];
+}
+
+export function visitShortlistedIds(snapshot?: VisitPropertySnapshot | null): string[] {
+  return snapshot?.shortlistedPropertyIds ?? [];
 }
 
 /** IDs identify distinct units; a shared house number never merges floors. */

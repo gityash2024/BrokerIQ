@@ -221,4 +221,55 @@ describe('Production visit association, permissions and retry safety (PostgreSQL
     expect(history.body.items.find((visit: { id: string }) => visit.id === first.body.id).propertySnapshot.stops).toHaveLength(20);
     await create({ ...payload, inventoryIds: payload.inventoryIds.slice().reverse() }).expect(409);
   });
+  it('shortlists a subset of 20 visit properties with delegated authorization and preserves the itinerary', async () => {
+    const member = await db.user.create({
+      data: {
+        organizationId: org,
+        name: 'Shortlist delegate',
+        email: 'shortlist-' + uid + '@e2e.test',
+        role: 'SUB_BROKER_ADMIN',
+        delegatedPermissions: ['leads:view', 'leads:edit'],
+      },
+      include: { organization: true },
+    });
+    const session = await app.get(AuthService).issue(member);
+    const delegated = { Authorization: 'Bearer ' + session.accessToken };
+    const ids = (await db.inventoryItem.findMany({ where: { organizationId: org, houseNo: { startsWith: 'pagination-' + uid } }, take: 20 })).map(
+      ({ id }) => id,
+    );
+    await db.lead.update({ where: { id: lead }, data: { stage: 'SITE_VISIT' } });
+    const visit = (await req().post('/api/visits').set(h()).send({ leadId: lead, inventoryIds: ids, scheduledAt: at }).expect(201)).body;
+    const save = (propertyIds: string[], expectedUpdatedAt = visit.updatedAt, headers = delegated) =>
+      req()
+        .patch('/api/visits/' + visit.id + '/shortlist')
+        .set(headers)
+        .send({ propertyIds, expectedUpdatedAt });
+    await save(ids.slice(0, 2)).expect(400);
+    const done = (
+      await req()
+        .patch('/api/visits/' + visit.id)
+        .set(h())
+        .send({ status: 'COMPLETED' })
+        .expect(200)
+    ).body;
+    await save([foreign], done.updatedAt).expect(400);
+    await save(ids, done.updatedAt, h(outsider)).expect(404);
+    const chosen = ids.slice(0, 2);
+    await save(chosen, done.updatedAt).expect(200);
+    await save(chosen, done.updatedAt).expect(200);
+    await save(ids, done.updatedAt).expect(409);
+    const detail = (
+      await req()
+        .get('/api/leads/' + lead)
+        .set(delegated)
+        .expect(200)
+    ).body;
+    expect(detail.stage).toBe('SHORTLISTED');
+    const saved = detail.visits.find((item: { id: string }) => item.id === visit.id);
+    expect(saved.propertySnapshot.shortlistedPropertyIds).toEqual(chosen);
+    expect(saved.propertySnapshot.stops.map(({ id }: { id: string }) => id)).toEqual(ids);
+    await save([], saved.updatedAt).expect(200);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('SITE_VISIT');
+    expect((await db.siteVisit.findUniqueOrThrow({ where: { id: visit.id } })).status).toBe('COMPLETED');
+  });
 });

@@ -2,7 +2,17 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { LEAD_STAGE_LABELS, visitInventoryTitle, videoRoomUrl, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
+import {
+  LEAD_STAGE_LABELS,
+  visitInventoryTitle,
+  videoRoomUrl,
+  visitInputSchema,
+  visitUpdateSchema,
+  visitShortlistSchema,
+  visitShortlistStops,
+  visitShortlistedIds,
+  type VisitPropertySnapshot,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { FeaturesService } from '../../core/features/features.service';
@@ -235,6 +245,63 @@ export class VisitsService {
     }
     return result.visit;
   }
+  async shortlist(user: RequestUser, id: string, body: z.infer<typeof visitShortlistSchema>) {
+    const result = await this.db.$transaction(async (tx) => {
+      const initial = await tx.siteVisit.findFirst({ where: { id, ...this.scope(user) }, select: { leadId: true } });
+      if (!initial) throw new NotFoundException('Visit not found');
+      const lead = await this.lockLead(tx, user, initial.leadId);
+      await tx.$queryRaw`SELECT id FROM "SiteVisit" WHERE id=${id} FOR UPDATE`;
+      const visit = await tx.siteVisit.findFirst({ where: { id, ...this.scope(user) } });
+      if (!visit) throw new NotFoundException('Visit not found');
+      if (visit.status !== 'COMPLETED') throw new BadRequestException('Complete this visit first');
+      const snapshot = visit.propertySnapshot as VisitPropertySnapshot | null;
+      const stops = visitShortlistStops(snapshot);
+      const selected = new Set(body.propertyIds);
+      const shortlistedPropertyIds = stops.filter(({ id }) => selected.has(id)).map(({ id }) => id);
+      if (shortlistedPropertyIds.length !== selected.size) throw new BadRequestException('Select only properties from this visit');
+      const previous = visitShortlistedIds(snapshot);
+      if (previous.length === shortlistedPropertyIds.length && previous.every((id) => selected.has(id))) return null;
+      if (visit.updatedAt.getTime() !== new Date(body.expectedUpdatedAt).getTime()) throw new ConflictException('Visit changed. Refresh before saving.');
+      const updated = await tx.siteVisit.update({
+        where: { id },
+        data: { propertySnapshot: { ...(visit.propertySnapshot as Prisma.JsonObject), shortlistedPropertyIds } },
+      });
+      const otherVisits = shortlistedPropertyIds.length
+        ? []
+        : await tx.siteVisit.findMany({
+            where: { leadId: lead.id, organizationId: lead.organizationId, id: { not: id }, status: 'COMPLETED' },
+            select: { propertySnapshot: true },
+          });
+      const anySelected =
+        shortlistedPropertyIds.length > 0 ||
+        otherVisits.some(({ propertySnapshot }) => visitShortlistedIds(propertySnapshot as VisitPropertySnapshot | null).length > 0);
+      const nextStage = anySelected && lead.stage === 'SITE_VISIT' ? 'SHORTLISTED' : !anySelected && lead.stage === 'SHORTLISTED' ? 'SITE_VISIT' : lead.stage;
+      if (nextStage !== lead.stage) {
+        await tx.lead.update({ where: { id: lead.id }, data: { stage: nextStage, stageChangedAt: new Date(), lastActivityAt: new Date() } });
+        await tx.activity.create({
+          data: {
+            organizationId: lead.organizationId,
+            leadId: lead.id,
+            userId: user.id,
+            type: 'STAGE_CHANGE',
+            content: LEAD_STAGE_LABELS[lead.stage] + ' → ' + LEAD_STAGE_LABELS[nextStage],
+            meta: { from: lead.stage, to: nextStage, visitId: id },
+          },
+        });
+      }
+      return { updated, lead, nextStage };
+    });
+    if (result && result.nextStage !== result.lead.stage)
+      this.events.emit('lead.stage_changed', {
+        leadId: result.lead.id,
+        orgId: result.lead.organizationId,
+        from: result.lead.stage,
+        to: result.nextStage,
+        userId: user.id,
+      });
+    return { updatedAt: result?.updated.updatedAt ?? body.expectedUpdatedAt };
+  }
+
   async update(user: RequestUser, id: string, body: z.infer<typeof visitUpdateSchema>) {
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`visit:${id}`}))`;

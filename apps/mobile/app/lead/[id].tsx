@@ -1,7 +1,7 @@
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
 import { submitTask } from '@/launch/drafts';
-import { VisitItinerary } from '@/components/visit-properties';
+import { VisitItinerary, VisitShortlist } from '@/components/visit-properties';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { AppState, FlatList, Linking, Share, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -26,7 +26,16 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_STAGE_LABELS, formatPriceShort, timeAgo, moduleAllowed, type LeadStage } from '@brokeriq/shared';
+import {
+  LEAD_STAGES,
+  visitShortlistedIds,
+  LEAD_STAGE_COLORS,
+  LEAD_STAGE_LABELS,
+  formatPriceShort,
+  timeAgo,
+  moduleAllowed,
+  type LeadStage,
+} from '@brokeriq/shared';
 import { api, del, patch, post } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
@@ -53,7 +62,7 @@ const OUTCOMES = [
 ];
 
 export default function LeadDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
   const { c } = useTheme();
   const { isBrokerAdmin, user } = useAuth();
   const config = useConfig();
@@ -70,7 +79,7 @@ export default function LeadDetail() {
   const canAssign = isBrokerAdmin || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
-  const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
+  const [tab, setTab] = useState<'timeline' | 'shortlist' | 'tasks' | 'matches' | 'ai'>(initialTab === 'shortlist' ? 'shortlist' : 'timeline');
   const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal'>(null);
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
   const openFollowUpStage = () => {
@@ -217,8 +226,9 @@ export default function LeadDetail() {
             {LEAD_STAGES.map((s) => {
               if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
               if (s === 'PHOTOS_SHARED' && !beforeVisit && l.stage !== s) return null;
-              const showStage = canEdit || s === l.stage;
-              const enabled = canEdit && !stage.isPending && (s !== 'FOLLOW_UP' || canCreateTask) && (s !== 'PHOTOS_SHARED' || canSharePhotos);
+              const showStage = canEdit || s === l.stage || s === 'SHORTLISTED';
+              const enabled =
+                (canEdit || s === 'SHORTLISTED') && !stage.isPending && (s !== 'FOLLOW_UP' || canCreateTask) && (s !== 'PHOTOS_SHARED' || canSharePhotos);
               const on = l.stage === s;
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
@@ -241,6 +251,7 @@ export default function LeadDetail() {
                           ? () => {
                               if (s === 'FOLLOW_UP') openFollowUpStage();
                               else if (s === 'PHOTOS_SHARED') router.push({ pathname: '/lead-share-photos', params: { id: l.id } });
+                              else if (s === 'SHORTLISTED') setTab('shortlist');
                               else if (s === 'SITE_VISIT' && canCreateTask) router.push({ pathname: '/schedule-visit', params: { id: l.id } });
                               else if (s === 'LOST') setSheet('lost');
                               else if (s === 'NOT_INTERESTED') setSheet('not_interested');
@@ -282,11 +293,13 @@ export default function LeadDetail() {
             options={[
               { value: 'timeline', label: 'Timeline' },
               { value: 'tasks', label: 'Tasks', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
+              ...(visitCompleted ? [{ value: 'shortlist' as const, label: 'Shortlisted' }] : []),
               ...(assistantOn ? [{ value: 'ai' as const, label: '✨ AI' }] : []),
             ]}
           />
         </View>
         <View style={{ paddingHorizontal: 16, gap: 10 }}>
+          {tab === 'shortlist' && <VisitShortlist visits={l.visits} canEdit={canEdit} onChange={refresh} />}
           {tab === 'timeline' && (
             <>
               <Row gap={8}>
@@ -622,9 +635,9 @@ function Tasks({
         <Card key={v.id} style={{ padding: 12, gap: 2 }}>
           <Txt v="bodyStrong">🏠 {new Date(v.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Txt>
           <Txt v="caption" color="muted">
-            {v.propertySnapshot?.title ?? v.listing?.title ?? v.address ?? ''} · {v.status}
+            {visitShortlistedIds(v.propertySnapshot).length ? v.status : (v.propertySnapshot?.title ?? v.listing?.title ?? v.address ?? '') + ' · ' + v.status}
           </Txt>
-          <VisitItinerary snapshot={v.propertySnapshot} />
+          <VisitItinerary snapshot={v.propertySnapshot} remainingOnly />
           {canEdit && ['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
             <Row wrap gap={6}>
               <Button size="sm" title="Complete" disabled={updateVisit.isPending} onPress={() => updateVisit.mutate({ id: v.id, status: 'COMPLETED' })} />
