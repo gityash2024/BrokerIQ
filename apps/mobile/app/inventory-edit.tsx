@@ -1,6 +1,7 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, View, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Platform, Keyboard } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, prepareInventoryEditorInput, inventoryEditorPatch } from '@brokeriq/shared';
@@ -136,7 +137,7 @@ export default function InventoryEditor() {
   );
   return (
     <BrokerScreen title={id ? 'Edit property' : 'Add property'} subtitle="Missing fields can stay unknown." back>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 14, paddingBottom: 30 }}>
           <Txt v="caption" color="muted">
             {draftStatus}
@@ -321,7 +322,7 @@ export default function InventoryEditor() {
         <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
           <Button title="Save property" loading={saving} disabled={!ready || uploading} onPress={save} />
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </BrokerScreen>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
+
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { visitInventoryDetails, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { api, qs } from '@/lib/api';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useQuery } from '@tanstack/react-query';
 import type { PerformanceData, PerformanceQuery } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';

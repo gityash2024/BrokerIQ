@@ -1,6 +1,7 @@
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { FlatList, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -164,7 +165,7 @@ export default function WaThread() {
           />
         </View>
       )}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={'padding'}>
         {q.hasNextPage && <Button title="पुराने संदेश लोड करें" variant="secondary" loading={q.isFetchingNextPage} onPress={() => q.fetchNextPage()} />}
         <FlatList
           ref={list}

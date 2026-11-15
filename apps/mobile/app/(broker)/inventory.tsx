@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, FlatList, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, FlatList, Pressable, ActivityIndicator } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
@@ -111,40 +112,48 @@ export default function Inventory() {
     <BrokerScreen
       title="Inventory"
       subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}
-      action={hasDelegatedAccess(user, 'inventory', 'create') ? (
-        <Pressable
-          accessibilityLabel="Add property"
-          onPress={() => router.push('/inventory-edit')}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 14,
-            backgroundColor: c.brand,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: c.brand,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 6,
-            elevation: 4,
-          }}
-        >
-          <Plus color="white" size={23} />
-        </Pressable>
-      ) : undefined}
+      action={
+        hasDelegatedAccess(user, 'inventory', 'create') ? (
+          <Pressable
+            accessibilityLabel="Add property"
+            onPress={() => router.push('/inventory-edit')}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              backgroundColor: c.brand,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: c.brand,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            <Plus color="white" size={23} />
+          </Pressable>
+        ) : undefined
+      }
     >
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 12 }}>
-        {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'approve'))) && <Button title="Publication reviews" variant="secondary" onPress={() => router.push('/publication-reviews' as any)} />}
+        {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'approve'))) && (
+          <Button title="Publication reviews" variant="secondary" onPress={() => router.push('/publication-reviews' as any)} />
+        )}
         {/* Top Quick Actions */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {hasDelegatedAccess(user, 'inventory', 'create') && <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />}
-          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && <Button
-            title="Paste / chat export"
-            size="sm"
-            variant="secondary"
-            style={{ flex: 1 }}
-            onPress={() => router.push('/capture?target=INVENTORY' as any)}
-          />}
+          {hasDelegatedAccess(user, 'inventory', 'create') && (
+            <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />
+          )}
+          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && (
+            <Button
+              title="Paste / chat export"
+              size="sm"
+              variant="secondary"
+              style={{ flex: 1 }}
+              onPress={() => router.push('/capture?target=INVENTORY' as any)}
+            />
+          )}
         </View>
 
         {/* CRED Luxury Metrics Cards */}
@@ -424,7 +433,9 @@ export default function Inventory() {
               <Txt color="muted" style={{ textAlign: 'center' }}>
                 Change filters, capture a source or add a property.
               </Txt>
-              {hasDelegatedAccess(user, 'inbox', 'view', 'create') && <Button title="Capture source" variant="secondary" onPress={() => router.push('/capture')} />}
+              {hasDelegatedAccess(user, 'inbox', 'view', 'create') && (
+                <Button title="Capture source" variant="secondary" onPress={() => router.push('/capture')} />
+              )}
             </View>
           )
         }

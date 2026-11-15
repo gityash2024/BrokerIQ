@@ -1,5 +1,6 @@
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, KeyboardAvoidingView, Modal, Platform, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, TextInput, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
@@ -167,10 +168,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Dimensions.get('screen').height, backgroundColor: c.bg }}
-      >
+      <KeyboardAvoidingView behavior={'padding'} style={{ flex: 1, backgroundColor: c.bg }}>
         <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#3730A3' }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Row gap={10} style={{ flex: 1 }}>

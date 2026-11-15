@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FlatList, Linking, Modal, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import { FlatList, Linking, Modal, RefreshControl, TextInput, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import {

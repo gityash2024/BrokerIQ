@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { post } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';

@@ -1,6 +1,7 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, View, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { SourceImage } from '@/launch/source-image';
 import { WorkspaceHero, WorkspaceTag } from '@/launch/workspace';
 import { router, useLocalSearchParams } from 'expo-router';

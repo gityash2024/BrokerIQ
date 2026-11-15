@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { PROPERTY_AMENITIES, INVENTORY_SORTS, visiblePropertyFields } from '@brokeriq/shared';
 import { Input, Txt, Chip } from '@/ui';
 import { ChoiceField } from './form';

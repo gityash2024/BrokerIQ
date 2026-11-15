@@ -1,3 +1,4 @@
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useState } from 'react';
 import { FlatList, Platform, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -202,7 +203,7 @@ function NewFeedback({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <Animated.ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
       <Row wrap>
         {FEEDBACK_TYPES.map((t) => (
           <Chip key={t} label={FEEDBACK_TYPE_LABELS[t]} active={f.type === t} onPress={() => setF({ ...f, type: t })} />
@@ -259,7 +260,7 @@ function NewFeedback({ onDone }: { onDone: () => void }) {
         disabled={f.title.length < 4 || f.description.length < 10 || (!user && !f.contactEmail)}
         onPress={submit}
       />
-    </Animated.ScrollView>
+    </ScrollView>
   );
 }
 

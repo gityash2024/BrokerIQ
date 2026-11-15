@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import Svg, { Path, Rect, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';

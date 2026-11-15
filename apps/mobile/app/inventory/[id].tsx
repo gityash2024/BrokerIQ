@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, View, Linking, Share, ActivityIndicator, Pressable, TouchableOpacity } from 'react-native';
+import { View, Linking, Share, ActivityIndicator, Pressable, TouchableOpacity } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';

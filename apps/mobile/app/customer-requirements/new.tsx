@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, Switch, View } from 'react-native';
+import { Switch, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { LocalityListItem } from '@brokeriq/shared';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Linking, ScrollView, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { WebView } from 'react-native-webview';
 import { useQuery } from '@tanstack/react-query';
 import { Car, ShieldAlert, Star, TrainFront } from 'lucide-react-native';

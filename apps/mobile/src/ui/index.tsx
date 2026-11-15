@@ -1,13 +1,11 @@
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { NotificationBell } from '@/components/notification-bell';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +17,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import Animated, {
   FadeInDown,
   FadeOutUp,
@@ -110,8 +109,8 @@ export function Screen({
   );
   return (
     <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: c.bg }, style]}>
-      {keyboard ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {keyboard && !scroll ? (
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={'padding'}>
           {body}
         </KeyboardAvoidingView>
       ) : (
@@ -752,7 +751,7 @@ export function Sheet({
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       {/* Use the modal's actual available height; physical screen height can put
           footer buttons underneath Android's navigation bar. */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={'padding'} style={{ flex: 1 }}>
         <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
         {open && (
           <View

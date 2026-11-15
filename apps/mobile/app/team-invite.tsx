@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, Share, View } from 'react-native';
+import { Share, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { DelegatedPermissions } from '@/components/delegated-permissions';

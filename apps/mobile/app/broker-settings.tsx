@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, ScrollView, View, Linking, TouchableOpacity, Share } from 'react-native';
+import { Alert, View, Linking, TouchableOpacity, Share } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -57,7 +58,7 @@ export default function BrokerSettings() {
 
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const policies = delegated ? delegatedModulePolicies(modules, user.delegatedPermissions ?? []) : modules;
-  const role = delegated ? 'BROKER_ADMIN' : user?.role ?? 'PUBLIC';
+  const role = delegated ? 'BROKER_ADMIN' : (user?.role ?? 'PUBLIC');
 
   const currentLangLabel = lang ? languageOf(lang).native : 'हिंग्लिश (Original)';
 
@@ -153,41 +154,43 @@ export default function BrokerSettings() {
         {user?.role === 'BROKER_ADMIN' && user.organizationId && <MicrositeQr key={`${user.id}:${user.organizationId}`} />}
 
         {/* Agent KYC Verification Card */}
-        {user?.organization?.id && <TouchableOpacity
-          onPress={() => router.push('/agent-kyc')}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 16,
-            borderRadius: 20,
-            backgroundColor: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)',
-            borderWidth: 1,
-            borderColor: 'rgba(16,185,129,0.3)',
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                backgroundColor: '#10B981',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ShieldCheck size={22} color="#FFFFFF" />
+        {user?.organization?.id && (
+          <TouchableOpacity
+            onPress={() => router.push('/agent-kyc')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: 16,
+              borderRadius: 20,
+              backgroundColor: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)',
+              borderWidth: 1,
+              borderColor: 'rgba(16,185,129,0.3)',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: '#10B981',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ShieldCheck size={22} color="#FFFFFF" />
+              </View>
+              <View style={{ gap: 2 }}>
+                <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>Agent KYC Verification</Txt>
+                <Txt v="caption" color="muted">
+                  आधार, पैन व 3-स्टेप चेहरा सत्यापन
+                </Txt>
+              </View>
             </View>
-            <View style={{ gap: 2 }}>
-              <Txt style={{ fontWeight: '800', fontSize: 14, color: c.fg }}>Agent KYC Verification</Txt>
-              <Txt v="caption" color="muted">
-                आधार, पैन व 3-स्टेप चेहरा सत्यापन
-              </Txt>
-            </View>
-          </View>
-          <ChevronRight size={18} color={c.muted} />
-        </TouchableOpacity>}
+            <ChevronRight size={18} color={c.muted} />
+          </TouchableOpacity>
+        )}
 
         {/* Section 1: Firm & Team */}
         <View style={{ gap: 8 }}>

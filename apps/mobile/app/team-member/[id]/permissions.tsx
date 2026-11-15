@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
+
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import type { BrokerTeamResponse } from '@brokeriq/shared';

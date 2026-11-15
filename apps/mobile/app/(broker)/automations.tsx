@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Switch, View } from 'react-native';
+import { ActivityIndicator, Switch, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Clock3, History, Workflow, Zap } from 'lucide-react-native';

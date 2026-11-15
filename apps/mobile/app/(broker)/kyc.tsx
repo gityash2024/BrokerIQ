@@ -2,7 +2,8 @@ import { KycHistory } from '@/launch/kyc-history';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KycMedia } from '@/launch/kyc-media';
 import { useState, useEffect } from 'react';
-import { Alert, FlatList, Modal, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Modal, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, CheckCircle2, CreditCard, Eye, FileText, Shield, ShieldCheck, Users, X, XCircle } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
@@ -363,28 +364,28 @@ function BrokerAdminKycManagement() {
                         </TouchableOpacity>
                       )}
 
-                    {m.kycStatus === 'PENDING' && (
-                      <TouchableOpacity
-                        onPress={() => handleReject(m)}
-                        style={{
-                          flex: 1,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                          backgroundColor: isDark ? '#3D1C24' : '#FEE2E2',
-                          paddingVertical: 9,
-                          borderRadius: 12,
-                        }}
-                      >
-                        <XCircle size={16} color="#EF4444" />
-                        <Txt v="small" style={{ color: '#EF4444', fontWeight: '800' }}>
-                          Reject KYC
-                        </Txt>
-                      </TouchableOpacity>
-                    )}
-                  </Row>
-                )}
+                      {m.kycStatus === 'PENDING' && (
+                        <TouchableOpacity
+                          onPress={() => handleReject(m)}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            backgroundColor: isDark ? '#3D1C24' : '#FEE2E2',
+                            paddingVertical: 9,
+                            borderRadius: 12,
+                          }}
+                        >
+                          <XCircle size={16} color="#EF4444" />
+                          <Txt v="small" style={{ color: '#EF4444', fontWeight: '800' }}>
+                            Reject KYC
+                          </Txt>
+                        </TouchableOpacity>
+                      )}
+                    </Row>
+                  )}
               </Card>
             );
           }}

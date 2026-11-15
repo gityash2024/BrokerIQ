@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, ScrollView } from 'react-native';
+import { Pressable } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { Image } from 'expo-image';
 import { privateMediaPath } from '@brokeriq/shared';
 import { API_URL } from '@/lib/api';

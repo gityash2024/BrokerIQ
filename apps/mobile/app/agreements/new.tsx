@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Linking, ScrollView } from 'react-native';
+import { Linking } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { post } from '@/lib/api';

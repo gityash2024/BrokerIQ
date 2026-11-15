@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { propertyPhotoDraft, shareablePropertyPhotoUrls, type LeadInboxChannel } from '@brokeriq/shared';
 import { api, assertAccountContext, captureAccountContext, errorMessage, qs } from '@/lib/api';

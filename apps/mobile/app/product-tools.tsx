@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { ArrowUpRight, Blocks, Clock3 } from 'lucide-react-native';
 import { delegatedModulePolicies, brokerWorkspaceGroups, brokerUpcomingModules, catalogModules } from '@brokeriq/shared';
@@ -17,7 +18,10 @@ export default function ProductTools() {
   const role = user?.role ?? 'PUBLIC';
   const items = catalogModules(modules, role).filter((m) => `${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase()));
   const broker = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(role);
-  const groups = brokerWorkspaceGroups(role === 'SUB_BROKER_ADMIN' ? delegatedModulePolicies(modules, user?.delegatedPermissions ?? []) : modules, role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : role)
+  const groups = brokerWorkspaceGroups(
+    role === 'SUB_BROKER_ADMIN' ? delegatedModulePolicies(modules, user?.delegatedPermissions ?? []) : modules,
+    role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : role,
+  )
     .map((group) => ({
       ...group,
       links: group.links.filter((link) => link.nativeHref && (!search || `${group.label} ${link.label}`.toLowerCase().includes(search.toLowerCase()))),

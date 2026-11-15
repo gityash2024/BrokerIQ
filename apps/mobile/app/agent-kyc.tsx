@@ -2,7 +2,8 @@ import { captureGuidedFaces, hasPendingFaceCaptures, discardFaceCaptures } from 
 import { KycHistory } from '@/launch/kyc-history';
 import { KycMedia } from '@/launch/kyc-media';
 import { useState, useEffect } from 'react';
-import { Alert, Modal, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, CheckCircle2, Clock, CreditCard, Eye, FileText, Camera, ShieldCheck, ShieldAlert, Shield, Upload, UserCheck, X } from 'lucide-react-native';

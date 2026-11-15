@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Linking, ScrollView, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { Image } from 'expo-image';
 import { Building2, MapPin, ShieldCheck } from 'lucide-react-native';
 import { directoryProfile, type DirectoryRecord } from '@brokeriq/shared';

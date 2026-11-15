@@ -1,6 +1,7 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { offeredRequirement, brokerRequirementSchema, inventoryInputSchema } from '@brokeriq/shared';
@@ -84,7 +85,7 @@ export default function RequirementEditor() {
   }
   return (
     <BrokerScreen title={recordId ? 'Review requirement' : 'Add requirement'} subtitle="Independent source records; conversion is a separate review." back>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 15, paddingBottom: 40 }}>
           <Txt v="caption" color="muted">
             {status}
@@ -102,7 +103,7 @@ export default function RequirementEditor() {
         <View style={{ padding: 16 }}>
           <Button title="Save requirement" disabled={!ready} loading={busy} onPress={save} />
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </BrokerScreen>
   );
 }

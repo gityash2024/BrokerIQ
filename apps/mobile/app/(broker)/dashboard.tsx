@@ -1,5 +1,6 @@
 import { NativeDashboard } from '@/launch/dashboard';
-import { ScrollView, View, RefreshControl } from 'react-native';
+import { View, RefreshControl } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, ClipboardList, Inbox, CalendarCheck, ArrowRight, ShieldCheck, ShieldAlert, Clock } from 'lucide-react-native';
@@ -94,12 +95,16 @@ export default function Today() {
 
         <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {hasDelegatedAccess(user, 'inventory', 'view', 'create') && <View style={{ flex: 1 }}>
-            <Button title="Add property" onPress={() => router.push('/inventory-edit')} />
-          </View>}
-          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && <View style={{ flex: 1 }}>
-            <Button title="Capture message" variant="secondary" onPress={() => router.push('/capture')} />
-          </View>}
+          {hasDelegatedAccess(user, 'inventory', 'view', 'create') && (
+            <View style={{ flex: 1 }}>
+              <Button title="Add property" onPress={() => router.push('/inventory-edit')} />
+            </View>
+          )}
+          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && (
+            <View style={{ flex: 1 }}>
+              <Button title="Capture message" variant="secondary" onPress={() => router.push('/capture')} />
+            </View>
+          )}
         </View>
         {hasDelegatedAccess(user, 'leads', 'view') && <Txt v="h3">Follow-ups</Txt>}
         {d?.followUps?.map((item: any) => (

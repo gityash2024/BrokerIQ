@@ -1,3 +1,4 @@
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import '@/lib/background-shift-tracking';
 import { useEffect } from 'react';
 import { AppState, Linking, View } from 'react-native';
@@ -120,26 +121,28 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <QueryClientProvider client={qc}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <Gate>
-            <Stack
-              screenLayout={NativeScreenLayout}
-              screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}
-            >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-              <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-              <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
-            </Stack>
-          </Gate>
-          <NotificationNavigation />
-          <DraftPump />
-          <LanguageSuggestion />
-          <Toaster />
-        </QueryClientProvider>
+        <KeyboardProvider preload={false}>
+          <QueryClientProvider client={qc}>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <Gate>
+              <Stack
+                screenLayout={NativeScreenLayout}
+                screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }}
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+                <Stack.Screen name="login" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="data-consent" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+                <Stack.Screen name="(user)" options={{ animation: 'fade' }} />
+                <Stack.Screen name="(broker)" options={{ animation: 'fade' }} />
+              </Stack>
+            </Gate>
+            <NotificationNavigation />
+            <DraftPump />
+            <LanguageSuggestion />
+            <Toaster />
+          </QueryClientProvider>
+        </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

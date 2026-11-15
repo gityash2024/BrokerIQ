@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
+
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
@@ -40,7 +41,7 @@ export default function LeadSharePhotos() {
     enabled: !!beforeVisit && !!propertyId && /^[A-Za-z0-9_-]+$/.test(propertyId),
   });
   const preselected = initialProperty.data?.deletedAt ? null : initialProperty.data;
-  const property = selected === undefined ? preselected ?? null : selected;
+  const property = selected === undefined ? (preselected ?? null) : selected;
   const title = property ? String(visitInventoryTitle(property)) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);
   const draft = propertyPhotoDraft(title, photos);
@@ -91,17 +92,30 @@ export default function LeadSharePhotos() {
               )}
               <Button title="Share photos" disabled={!photos.length || uploading} onPress={() => setShareOpen(true)} />
               {shareOpen && (
-                <Sheet open title="Share property photos" onClose={() => { if (!opening) setShareOpen(false); }}>
-                  <Button title="Share as links in BrokerIQ" loading={opening} disabled={draft === title} onPress={async () => {
-                    setOpening(true);
-                    try {
-                      await openLeadInbox(id, draft);
-                      setShareOpen(false);
-                    } finally {
-                      setOpening(false);
-                    }
-                  }} />
-                  <Txt v="caption" color="muted">Review the WhatsApp message in Inbox before sending.</Txt>
+                <Sheet
+                  open
+                  title="Share property photos"
+                  onClose={() => {
+                    if (!opening) setShareOpen(false);
+                  }}
+                >
+                  <Button
+                    title="Share as links in BrokerIQ"
+                    loading={opening}
+                    disabled={draft === title}
+                    onPress={async () => {
+                      setOpening(true);
+                      try {
+                        await openLeadInbox(id, draft);
+                        setShareOpen(false);
+                      } finally {
+                        setOpening(false);
+                      }
+                    }}
+                  />
+                  <Txt v="caption" color="muted">
+                    Review the WhatsApp message in Inbox before sending.
+                  </Txt>
                   <SharePhotoFilesButton urls={photos} disabled={opening} />
                 </Sheet>
               )}

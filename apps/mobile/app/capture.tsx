@@ -1,6 +1,7 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, View, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
+import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
@@ -125,7 +126,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   }
   return (
     <BrokerScreen title={scanner ? 'Scanner & import' : 'Capture workspace'} subtitle="Inventory, requirements and original sources." back>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 16, paddingBottom: 40 }}>
           <WorkspaceHero
             label="CAPTURE → REVIEW → SAVE"
@@ -250,7 +251,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
             </Txt>
           </Row>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </BrokerScreen>
   );
 }
