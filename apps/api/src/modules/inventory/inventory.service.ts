@@ -209,7 +209,7 @@ export class InventoryService {
             lead: {
               organizationId: { in: organizationIds },
               ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
-              stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'] },
+              stage: { in: ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'] },
               deletedAt: null,
             },
           },

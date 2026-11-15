@@ -13,6 +13,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
+import { patch, useApiMutation } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { openLeadInbox } from '@/lib/inbox-composer';
@@ -36,11 +37,19 @@ export default function Page() {
   const [uploading, setUploading] = useState(false);
   const [opening, setOpening] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const canConfirm = hasDelegatedAccess(user, 'leads', 'edit');
+  const confirm = useApiMutation((inventoryId: string) => patch(`/leads/${id}/photos-shared`, { inventoryId }), {
+    success: 'Photo sharing recorded',
+    invalidate: [['lead', id], ['leads'], ['kanban'], ['broker-dashboard']],
+    onSuccess: () => setShareOpen(false),
+  });
   const title = property ? String(visitInventoryTitle(property)) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);
   const draft = propertyPhotoDraft(title, photos);
   const beforeVisit =
-    lead.data && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(lead.data.stage) && !lead.data.visits.some(({ status }) => status === 'COMPLETED');
+    lead.data &&
+    ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(lead.data.stage) &&
+    !lead.data.visits.some(({ status }) => status === 'COMPLETED');
 
   return (
     <div className="space-y-5">
@@ -93,16 +102,30 @@ export default function Page() {
           {property && shareOpen && (
             <Dialog open onOpenChange={setShareOpen} title="Share property photos">
               <div className="grid gap-3">
-                <Button loading={opening} disabled={draft === title} onClick={async () => {
-                  setOpening(true);
-                  try {
-                    await openLeadInbox(id, draft);
-                  } finally {
-                    setOpening(false);
-                  }
-                }}>Share as links in BrokerIQ</Button>
+                <Button
+                  loading={opening}
+                  disabled={draft === title}
+                  onClick={async () => {
+                    setOpening(true);
+                    try {
+                      await openLeadInbox(id, draft);
+                    } finally {
+                      setOpening(false);
+                    }
+                  }}
+                >
+                  Share as links in BrokerIQ
+                </Button>
                 <p className="text-xs text-muted">Review the WhatsApp message in Inbox before sending.</p>
-                <SharePhotoFilesOnMobile appUrl={`brokeriq://lead-share-photos?id=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(property.id)}`} count={photos.length} />
+                <SharePhotoFilesOnMobile
+                  appUrl={`brokeriq://lead-share-photos?id=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(property.id)}`}
+                  count={photos.length}
+                />
+                {canConfirm && (
+                  <Button variant="secondary" loading={confirm.isPending} onClick={() => confirm.mutate(property.id)}>
+                    Confirm photos already sent outside BrokerIQ
+                  </Button>
+                )}
               </div>
             </Dialog>
           )}

@@ -191,7 +191,7 @@ export class VisitsService {
         },
         include,
       });
-      const changeStage = ['NEW', 'CONTACTED', 'INTERESTED'].includes(lead.stage);
+      const changeStage = ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED'].includes(lead.stage);
       await tx.lead.update({
         where: { id: lead.id },
         data: {
@@ -224,7 +224,7 @@ export class VisitsService {
     });
     if (result.created) {
       this.events.emit('visit.scheduled', { visitId: result.visit.id, orgId: result.visit.organizationId, leadId: result.visit.leadId });
-      if (['NEW', 'CONTACTED', 'INTERESTED'].includes(result.from))
+      if (['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED'].includes(result.from))
         this.events.emit('lead.stage_changed', {
           leadId: result.visit.leadId,
           orgId: result.visit.organizationId,

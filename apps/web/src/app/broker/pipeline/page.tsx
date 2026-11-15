@@ -127,7 +127,12 @@ export default function PipelinePage() {
                 <div
                   key={col.stage}
                   onDragOver={(e) => {
-                    if (!canEdit || (col.stage === 'SHORTLISTED' && !q.data?.some((column) => column.items.some((lead) => lead.id === dragId && lead.hasCompletedVisit)))) return;
+                    if (
+                      !canEdit ||
+                      col.stage === 'PHOTOS_SHARED' ||
+                      (col.stage === 'SHORTLISTED' && !q.data?.some((column) => column.items.some((lead) => lead.id === dragId && lead.hasCompletedVisit)))
+                    )
+                      return;
                     e.preventDefault();
                     setOver(col.stage);
                   }}

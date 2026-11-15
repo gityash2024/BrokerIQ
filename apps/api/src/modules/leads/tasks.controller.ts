@@ -20,6 +20,8 @@ import {
   dealInputSchema,
   followUpInputSchema,
   followUpQuerySchema,
+  hasDelegatedAccess,
+  LEAD_STAGE_LABELS,
   followUpIstDayEnd,
   type FollowUpQuery,
   visitInputSchema,
@@ -133,10 +135,11 @@ export class TasksController {
           dueAt: new Date(body.dueAt).toISOString(),
           note: body.note ?? null,
           assignedToId: body.assignedToId ?? null,
+          ...(body.advanceStage ? { advanceStage: true } : {}),
         }),
       )
       .digest('hex');
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       if (body.clientMutationId)
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`followup-submission:${organizationId}:${body.clientMutationId}`}))`;
       // Serialize with assignment, completion and snooze; check current ownership after acquiring the lock.
@@ -149,7 +152,7 @@ export class TasksController {
         });
         if (previous) {
           if (previous.requestHash !== requestHash) throw new ConflictException('Submission already used for a different follow-up');
-          return previous;
+          return { followUp: previous, from: lead.stage, changed: false };
         }
       }
       const assignedToId = body.assignedToId ?? lead.assignedToId ?? user.id;
@@ -184,8 +187,29 @@ export class TasksController {
         },
       });
       await this.refreshFollowUp(tx, lead.id);
-      return fu;
+      const actor = { ...user, role: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role };
+      const changed = !!body.advanceStage && ['NEW', 'CONTACTED', 'INTERESTED'].includes(lead.stage) && hasDelegatedAccess(actor, 'leads', 'edit');
+      if (changed) {
+        await tx.lead.update({
+          where: { id: lead.id },
+          data: { stage: 'FOLLOW_UP', stageChangedAt: new Date(), lastActivityAt: new Date(), firstResponseAt: lead.firstResponseAt ?? new Date() },
+        });
+        await tx.activity.create({
+          data: {
+            organizationId,
+            leadId: lead.id,
+            userId: user.id,
+            type: 'STAGE_CHANGE',
+            content: LEAD_STAGE_LABELS[lead.stage] + ' → ' + LEAD_STAGE_LABELS.FOLLOW_UP,
+            meta: { from: lead.stage, to: 'FOLLOW_UP' },
+          },
+        });
+      }
+      return { followUp: fu, from: lead.stage, changed };
     });
+    if (result.changed)
+      this.events.emit('lead.stage_changed', { leadId: body.leadId, orgId: organizationId, from: result.from, to: 'FOLLOW_UP', userId: user.id });
+    return result.followUp;
   }
 
   @Patch('follow-ups/:id')

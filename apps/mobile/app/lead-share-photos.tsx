@@ -8,7 +8,8 @@ import { SharePhotoFilesButton } from '@/components/share-photo-files-button';
 import { VisitPropertyPicker } from '@/components/visit-property-picker';
 import { NativePropertyMedia } from '@/launch/property-media';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
-import { api } from '@/lib/api';
+import { api, patch } from '@/lib/api';
+import { useApiMutation } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { openLeadInbox } from '@/lib/inbox-composer';
@@ -32,9 +33,21 @@ export default function LeadSharePhotos() {
   const [shareOpen, setShareOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [externalShareProperty, setExternalShareProperty] = useState<string | null>(null);
+  const canConfirm = hasDelegatedAccess(user, 'leads', 'edit');
+  const confirm = useApiMutation((inventoryId: string) => patch(`/leads/${id}/photos-shared`, { inventoryId }), {
+    success: 'Photo sharing recorded',
+    invalidate: [['lead', id], ['leads'], ['kanban'], ['broker-dashboard']],
+    onSuccess: () => {
+      setShareOpen(false);
+      setExternalShareProperty(null);
+    },
+  });
   const canUpload = hasDelegatedAccess(user, 'inventory', 'edit');
   const beforeVisit =
-    lead.data && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(lead.data.stage) && !lead.data.visits.some(({ status }) => status === 'COMPLETED');
+    lead.data &&
+    ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(lead.data.stage) &&
+    !lead.data.visits.some(({ status }) => status === 'COMPLETED');
   const initialProperty = useQuery({
     queryKey: ['ledger-item', user?.id, propertyId],
     queryFn: () => api<LedgerItem>(`/inventory/${encodeURIComponent(propertyId!)}`),
@@ -116,7 +129,10 @@ export default function LeadSharePhotos() {
                   <Txt v="caption" color="muted">
                     Review the WhatsApp message in Inbox before sending.
                   </Txt>
-                  <SharePhotoFilesButton urls={photos} disabled={opening} />
+                  <SharePhotoFilesButton urls={photos} disabled={opening} onShareOpened={() => setExternalShareProperty(property?.id ?? null)} />
+                  {canConfirm && externalShareProperty && externalShareProperty === property?.id && (
+                    <Button title="Confirm photos sent" loading={confirm.isPending} onPress={() => confirm.mutate(externalShareProperty)} />
+                  )}
                 </Sheet>
               )}
             </>

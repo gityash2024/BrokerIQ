@@ -31,6 +31,8 @@ const HIGH_INTENT_SOURCES = new Set(['WEBSITE', 'MICROSITE', 'REFERRAL', 'WALK_I
 const PORTAL_SOURCES = new Set(['HOUSING', 'ACRES99', 'MAGICBRICKS', 'NOBROKER', 'FACEBOOK', 'INSTAGRAM']);
 const STAGE_POINTS: Record<string, [number, string]> = {
   CONTACTED: [5, 'बात हो चुकी है'],
+  FOLLOW_UP: [5, 'Follow-up scheduled'],
+  PHOTOS_SHARED: [12, 'Property photos shared'],
   INTERESTED: [12, 'Interested'],
   SITE_VISIT: [18, 'Site visit stage'],
   SHORTLISTED: [22, 'Property shortlisted'],

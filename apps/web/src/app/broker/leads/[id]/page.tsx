@@ -93,6 +93,11 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const query = useSearchParams();
   const [tab, setTab] = useState<'timeline' | 'matches' | 'tasks' | 'requirement'>(query.get('tab') === 'tasks' ? 'tasks' : 'timeline');
+  const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
+  const openFollowUpStage = () => {
+    setAdvanceFollowUpStage(canEdit);
+    setTab('tasks');
+  };
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
@@ -112,7 +117,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const l = q.data;
   const stageIdx = LEAD_STAGES.indexOf(l.stage);
   const visitCompleted = l.visits.some((visit: { status: string }) => visit.status === 'COMPLETED');
-  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(l.stage);
+  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(l.stage);
 
   return (
     <div className="space-y-6">
@@ -187,6 +192,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div role="group" aria-label="Lead progress" className="flex overflow-x-auto border-t border-line scrollbar-none">
           {LEAD_STAGES.map((s, i) => {
             if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
+            if (s === 'PHOTOS_SHARED' && !beforeVisit && l.stage !== s) return null;
             const active = s === l.stage;
             const past = i < stageIdx && s !== 'NOT_INTERESTED' && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
@@ -201,9 +207,12 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
                 )}
                 <button
                   aria-pressed={active}
-                  disabled={!canEdit || stage.isPending}
+                  disabled={!canEdit || stage.isPending || (s === 'FOLLOW_UP' && !canCreateTask) || (s === 'PHOTOS_SHARED' && !canSharePhotos)}
                   onClick={() => {
-                    if (s === 'LOST') setLostOpen(true);
+                    if (s === 'FOLLOW_UP') openFollowUpStage();
+                    else if (s === 'PHOTOS_SHARED') router.push(`/broker/leads/${l.id}/photos`);
+                    else if (s === 'SITE_VISIT' && canCreateTask) router.push(`/broker/visits/new?lead=${encodeURIComponent(l.id)}`);
+                    else if (s === 'LOST') setLostOpen(true);
                     else if (s === 'NOT_INTERESTED') setNotInterestedOpen(true);
                     else stage.mutate({ stage: s });
                   }}
@@ -225,14 +234,14 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
                     {LEAD_STAGE_LABELS[s]}
                   </span>
                 </button>
-                {s === 'CONTACTED' && canCreateTask && (
+                {s === 'FOLLOW_UP' && canCreateTask && (
                   <button
                     type="button"
                     aria-controls="lead-tasks"
-                    onClick={() => setTab('tasks')}
+                    onClick={openFollowUpStage}
                     className="flex min-w-28 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 py-3 text-xs font-bold text-brand-600 transition hover:bg-surface-2"
                   >
-                    <CalendarPlus className="size-3.5 shrink-0" /> Follow-up
+                    <CalendarPlus className="size-3.5 shrink-0" /> Schedule follow-up
                   </button>
                 )}
               </Fragment>
@@ -245,7 +254,10 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div className="min-w-0 space-y-4">
           <Segmented
             value={tab}
-            onChange={setTab}
+            onChange={(value) => {
+              setAdvanceFollowUpStage(false);
+              setTab(value);
+            }}
             options={[
               { value: 'timeline', label: 'Timeline' },
               ...(!delegated || allowed('inventory') ? [{ value: 'matches' as const, label: 'Matching properties' }] : []),
@@ -257,7 +269,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
           {tab === 'matches' && (!delegated || allowed('inventory')) && <LeadRequirements lead={l} />}
           {tab === 'tasks' && (
             <section id="lead-tasks" aria-label="Lead follow-ups and visits">
-              <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} />
+              <Tasks lead={l} onChange={refresh} canCreate={canCreateTask} canEdit={canEdit} advanceStage={advanceFollowUpStage} />
             </section>
           )}
           {tab === 'requirement' && <LeadRequirements lead={l} />}
@@ -528,12 +540,30 @@ function Matches({ lead }: { lead: any }) {
   );
 }
 
-function Tasks({ lead, onChange, canCreate, canEdit }: { lead: any; onChange: () => void; canCreate: boolean; canEdit: boolean }) {
+function Tasks({
+  lead,
+  onChange,
+  canCreate,
+  canEdit,
+  advanceStage,
+}: {
+  lead: any;
+  onChange: () => void;
+  canCreate: boolean;
+  canEdit: boolean;
+  advanceStage: boolean;
+}) {
   const [fu, setFu] = useState({ type: 'CALL', dueAt: toLocalInput(new Date(Date.now() + 2 * 3600_000)), note: '' });
   const addFu = useApiMutation(
     (retry?: boolean) => {
       if (retry) return submitTask('/follow-ups', lead.id);
-      const payload = { leadId: lead.id, type: fu.type, dueAt: new Date(fu.dueAt).toISOString(), note: fu.note || null };
+      const payload = {
+        leadId: lead.id,
+        type: fu.type,
+        dueAt: new Date(fu.dueAt).toISOString(),
+        note: fu.note || null,
+        ...(advanceStage ? { advanceStage: true } : {}),
+      };
       return submitTask('/follow-ups', lead.id, payload);
     },
     {

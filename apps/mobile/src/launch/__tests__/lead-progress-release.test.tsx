@@ -91,8 +91,10 @@ it('places actions in stage order and opens follow-up and the correct photo page
   expect(labels.slice(labels.indexOf('Contacted'), labels.indexOf('Site visit') + 1)).toEqual([
     'Contacted',
     'Follow-up',
+    'Schedule follow-up',
     'Interested',
     'Not interested',
+    'Photos shared',
     'Share photos',
     'Site visit',
   ]);

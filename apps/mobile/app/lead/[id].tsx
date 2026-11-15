@@ -72,6 +72,11 @@ export default function LeadDetail() {
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const [tab, setTab] = useState<'timeline' | 'tasks' | 'matches' | 'ai'>('timeline');
   const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal'>(null);
+  const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
+  const openFollowUpStage = () => {
+    setAdvanceFollowUpStage(true);
+    setSheet('followup');
+  };
   const callPending = useRef(false);
   const refresh = () => {
     q.refetch();
@@ -101,7 +106,7 @@ export default function LeadDetail() {
     );
   const l = q.data;
   const visitCompleted = l.visits.some((visit: { status: string }) => visit.status === 'COMPLETED');
-  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT'].includes(l.stage);
+  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(l.stage);
   const call = () => {
     callPending.current = true;
     Linking.openURL(`tel:${l.phone}`).catch((error) => {
@@ -211,7 +216,9 @@ export default function LeadDetail() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
               if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
+              if (s === 'PHOTOS_SHARED' && !beforeVisit && l.stage !== s) return null;
               const showStage = canEdit || s === l.stage;
+              const enabled = canEdit && !stage.isPending && (s !== 'FOLLOW_UP' || canCreateTask) && (s !== 'PHOTOS_SHARED' || canSharePhotos);
               const on = l.stage === s;
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
@@ -228,10 +235,17 @@ export default function LeadDetail() {
                     <PressableScale
                       accessibilityRole="button"
                       accessibilityLabel={LEAD_STAGE_LABELS[s as LeadStage]}
-                      accessibilityState={{ selected: on, disabled: !canEdit || stage.isPending }}
+                      accessibilityState={{ selected: on, disabled: !enabled }}
                       onPress={
-                        canEdit && !stage.isPending
-                          ? () => (s === 'LOST' ? setSheet('lost') : s === 'NOT_INTERESTED' ? setSheet('not_interested') : stage.mutate({ stage: s }))
+                        enabled
+                          ? () => {
+                              if (s === 'FOLLOW_UP') openFollowUpStage();
+                              else if (s === 'PHOTOS_SHARED') router.push({ pathname: '/lead-share-photos', params: { id: l.id } });
+                              else if (s === 'SITE_VISIT' && canCreateTask) router.push({ pathname: '/schedule-visit', params: { id: l.id } });
+                              else if (s === 'LOST') setSheet('lost');
+                              else if (s === 'NOT_INTERESTED') setSheet('not_interested');
+                              else stage.mutate({ stage: s });
+                            }
                           : undefined
                       }
                       style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
@@ -241,7 +255,9 @@ export default function LeadDetail() {
                       </Txt>
                     </PressableScale>
                   )}
-                  {s === 'CONTACTED' && canCreateTask && <Button title="Follow-up" size="sm" variant="secondary" onPress={() => setSheet('followup')} />}
+                  {s === 'FOLLOW_UP' && canCreateTask && (
+                    <Button title="Schedule follow-up" size="sm" variant="secondary" onPress={canEdit ? openFollowUpStage : () => setSheet('followup')} />
+                  )}
                 </Fragment>
               );
             })}
@@ -340,7 +356,16 @@ export default function LeadDetail() {
 
       <NoteSheet open={sheet === 'note'} onClose={() => setSheet(null)} leadId={id} onDone={refresh} />
       <CallSheet open={sheet === 'call'} onClose={() => setSheet(null)} lead={l} onDone={refresh} onFollowUp={() => setSheet('followup')} />
-      <FollowUpSheet open={canCreateTask && sheet === 'followup'} onClose={() => setSheet(null)} lead={l} onDone={refresh} />
+      <FollowUpSheet
+        open={canCreateTask && sheet === 'followup'}
+        advanceStage={advanceFollowUpStage}
+        onClose={() => {
+          setAdvanceFollowUpStage(false);
+          setSheet(null);
+        }}
+        lead={l}
+        onDone={refresh}
+      />
       <LostSheet
         open={sheet === 'lost'}
         onClose={() => setSheet(null)}
@@ -395,14 +420,26 @@ function CallSheet({ open, onClose, lead, onDone, onFollowUp }: { open: boolean;
   );
 }
 
-function FollowUpSheet({ open, onClose, lead, onDone }: { open: boolean; onClose: () => void; lead: any; onDone: () => void }) {
+function FollowUpSheet({
+  open,
+  onClose,
+  lead,
+  onDone,
+  advanceStage,
+}: {
+  open: boolean;
+  advanceStage: boolean;
+  onClose: () => void;
+  lead: any;
+  onDone: () => void;
+}) {
   const [type, setType] = useState('CALL');
   const [note, setNote] = useState('');
   const [at, setAt] = useState<Date | null>(null);
   const presets = timePresets();
   const save = useApiMutation(
     () => {
-      const payload = { leadId: lead.id, type, dueAt: at!.toISOString(), note: note || null };
+      const payload = { leadId: lead.id, type, dueAt: at!.toISOString(), note: note || null, ...(advanceStage ? { advanceStage: true } : {}) };
       return submitTask('FOLLOW_UP_CREATE', payload);
     },
     {

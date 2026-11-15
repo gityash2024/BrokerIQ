@@ -333,7 +333,7 @@ export class TrustService {
       await this.prisma.listing.update({ where: { id: t.listingId }, data: { tokenReceivedAt: new Date() } });
       if (t.leadId) {
         const lead = await this.prisma.lead.findUnique({ where: { id: t.leadId }, select: { stage: true } });
-        if (lead && ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'SHORTLISTED'].includes(lead.stage))
+        if (lead && ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT', 'SHORTLISTED'].includes(lead.stage))
           await this.leads.changeStage(t.leadId, 'NEGOTIATION', user).catch(() => undefined);
       }
     } else {

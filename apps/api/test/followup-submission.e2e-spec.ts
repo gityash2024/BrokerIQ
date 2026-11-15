@@ -6,6 +6,7 @@ import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { LeadsService } from '../src/modules/leads/leads.service';
+import { WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
 
 describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
   let app: INestApplication, db: PrismaService, org: string, otherOrg: string, lead: string;
@@ -58,6 +59,65 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
     for (const dueAt of ['invalid', '2026-02-30T10:00:00Z', '2026-12-06', '2026-12-06T10:00:00']) await post({ ...payload(), dueAt }).expect(400);
     expect(await db.followUp.count({ where: { leadId: lead } })).toBe(1);
   });
+  it('advances an explicitly scheduled follow-up and retries without a duplicate stage change', async () => {
+    await db.lead.update({ where: { id: lead }, data: { stage: 'CONTACTED' } });
+    const body = { ...payload(), clientMutationId: 'progress-' + uid, advanceStage: true };
+    const first = await post(body).expect(201);
+    expect((await post(body).expect(201)).body.id).toBe(first.body.id);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('FOLLOW_UP');
+    expect(await db.activity.count({ where: { leadId: lead, type: 'STAGE_CHANGE' } })).toBe(1);
+    const monthly = await request(app.getHttpServer())
+      .get('/api/follow-ups')
+      .set(headers())
+      .query({
+        view: 'all',
+        status: 'PENDING',
+        paginated: 'true',
+        from: '2026-11-30T18:30:00.000Z',
+        to: '2026-12-31T18:29:59.999Z',
+      })
+      .expect(200);
+    expect(monthly.body.items.map((item: { id: string }) => item.id)).toContain(first.body.id);
+    await db.$transaction([
+      db.activity.deleteMany({ where: { leadId: lead, type: 'STAGE_CHANGE' } }),
+      db.followUp.delete({ where: { id: first.body.id } }),
+      db.lead.update({ where: { id: lead }, data: { stage: 'NEW' } }),
+    ]);
+  });
+
+  it('records photos only after a successful outbound send or confirmation from the assigned agent', async () => {
+    const photo = 'https://example.test/api/media/f/listing/property/one.jpg';
+    const inventory = await db.inventoryItem.create({ data: { organizationId: org, createdById: agent.id, photoUrls: [photo] } });
+    const confirm = (actor = agent) =>
+      request(app.getHttpServer())
+        .patch('/api/leads/' + lead + '/photos-shared')
+        .set(headers(actor))
+        .send({ inventoryId: inventory.id });
+    await db.lead.update({ where: { id: lead }, data: { stage: 'FOLLOW_UP' } });
+    await confirm(outsider).expect(404);
+    const wa = app.get(WhatsAppService);
+    const credentials = jest.spyOn(wa, 'requireCreds').mockResolvedValue({ scope: 'organization', values: {} });
+    const transport = jest
+      .spyOn(wa as any, 'graphSend')
+      .mockRejectedValueOnce(new Error('Provider rejected send'))
+      .mockResolvedValueOnce('photo-' + uid);
+    try {
+      const send = () => wa.send(org, '+919876543210', { type: 'text', text: 'Property photos:\n' + photo }, { leadId: lead, userId: agent.id });
+      await expect(send()).rejects.toThrow('Provider rejected');
+      expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('FOLLOW_UP');
+      const sent = await send();
+      expect(sent.status).toBe('SENT');
+      expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('PHOTOS_SHARED');
+      await db.lead.update({ where: { id: lead }, data: { stage: 'INTERESTED' } });
+      expect((await confirm().expect(200)).body.stage).toBe('PHOTOS_SHARED');
+    } finally {
+      credentials.mockRestore();
+      transport.mockRestore();
+      await db.message.deleteMany({ where: { conversation: { organizationId: org } } });
+      await db.lead.update({ where: { id: lead }, data: { stage: 'NEW' } });
+    }
+  });
+
   it('preserves compatibility for old installed clients without a submission key', async () => {
     const { clientMutationId, ...old } = payload();
     const saved = await post({ ...old, dueAt: '2026-12-05T04:30:00Z' }).expect(201);

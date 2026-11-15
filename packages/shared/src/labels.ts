@@ -85,8 +85,10 @@ export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
 export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
   NEW: 'New',
   CONTACTED: 'Contacted',
+  FOLLOW_UP: 'Follow-up',
   INTERESTED: 'Interested',
   NOT_INTERESTED: 'Not interested',
+  PHOTOS_SHARED: 'Photos shared',
   SITE_VISIT: 'Site visit',
   SHORTLISTED: 'Shortlisted',
   NEGOTIATION: 'Negotiation',
@@ -97,8 +99,10 @@ export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
 export const LEAD_STAGE_COLORS: Record<LeadStage, string> = {
   NEW: '#6366F1',
   CONTACTED: '#0EA5E9',
+  FOLLOW_UP: '#0EA5E9',
   INTERESTED: '#14B8A6',
   NOT_INTERESTED: '#64748B',
+  PHOTOS_SHARED: '#14B8A6',
   SITE_VISIT: '#F59E0B',
   SHORTLISTED: '#7C3AED',
   NEGOTIATION: '#A855F7',

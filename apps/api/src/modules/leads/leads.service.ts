@@ -3,6 +3,8 @@ import { parseLeadQuery } from './lead-query';
 import { csvCell } from '../../common/csv';
 import { Prisma, type LeadSource, type LeadStage } from '@prisma/client';
 import {
+  hasDelegatedAccess,
+  shareablePropertyPhotoUrls,
   LEAD_SOURCE_LABELS,
   LEAD_STAGE_LABELS,
   followUpIstDayEnd,
@@ -282,7 +284,19 @@ export class LeadsService {
       ...(q.source ? { source: { in: q.source.split(',') as LeadSource[] } } : {}),
       ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }] } : {}),
     };
-    const stages: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'NOT_INTERESTED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION', 'WON', 'LOST'];
+    const stages: LeadStage[] = [
+      'NEW',
+      'CONTACTED',
+      'FOLLOW_UP',
+      'INTERESTED',
+      'NOT_INTERESTED',
+      'PHOTOS_SHARED',
+      'SITE_VISIT',
+      'SHORTLISTED',
+      'NEGOTIATION',
+      'WON',
+      'LOST',
+    ];
     const columns = await Promise.all(
       stages.map(async (stage) => {
         const where = {
@@ -300,7 +314,9 @@ export class LeadsService {
           this.prisma.lead.count({ where }),
         ]);
         return {
-          stage, label: LEAD_STAGE_LABELS[stage], count,
+          stage,
+          label: LEAD_STAGE_LABELS[stage],
+          count,
           items: items.map(({ _count, ...item }) => ({ ...item, hasCompletedVisit: _count.visits > 0 })),
         };
       }),
@@ -391,6 +407,11 @@ export class LeadsService {
       const lead = await tx.lead.findFirst({ where: { id, ...this.scope(user) } });
       if (!lead) throw new NotFoundException('Lead नहीं मिली');
       if (lead.stage === stage) return { lead, from: lead.stage, changed: false };
+      if (stage === 'PHOTOS_SHARED') throw new BadRequestException('Share the property photos or confirm that they were sent first.');
+      if (stage === 'FOLLOW_UP') {
+        const followUp = await tx.followUp.findFirst({ where: { leadId: id, organizationId: lead.organizationId, status: 'PENDING' }, select: { id: true } });
+        if (!followUp) throw new BadRequestException('Schedule a follow-up before moving this lead to Follow-up.');
+      }
       if (stage === 'SHORTLISTED') {
         const visit = await tx.siteVisit.findFirst({
           where: { leadId: lead.id, organizationId: lead.organizationId, status: 'COMPLETED' },
@@ -427,6 +448,125 @@ export class LeadsService {
     if (result.changed)
       this.events.emit('lead.stage_changed', { leadId: id, orgId: result.lead.organizationId, from: result.from, to: stage, userId: user.id });
     return result.lead;
+  }
+
+  async confirmPropertyPhotosShared(id: string, inventoryId: string, user: RequestUser, messageId?: string) {
+    const actor = { ...user, role: user.delegatedActor ? 'SUB_BROKER_ADMIN' : user.role };
+    if (!hasDelegatedAccess(actor, 'inventory', 'view') || !hasDelegatedAccess(actor, 'leads', 'edit'))
+      throw new ForbiddenException('Photo sharing and lead edit permissions are required');
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Lead" WHERE id = ${id} FOR UPDATE`;
+      const lead = await tx.lead.findFirst({ where: { id, ...this.scope(user) } });
+      if (!lead) throw new NotFoundException('Lead not found');
+      if (!['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(lead.stage)) {
+        if (messageId) return { lead, changed: false, from: lead.stage };
+        throw new BadRequestException('This lead has already moved past photo sharing');
+      }
+      const inventory = await tx.inventoryItem.findFirst({
+        where: {
+          id: inventoryId,
+          organizationId: lead.organizationId,
+          deletedAt: null,
+          ...(user.role === 'BROKER_AGENT' ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] } : {}),
+        },
+        select: { id: true, photoUrls: true },
+      });
+      if (!inventory || !shareablePropertyPhotoUrls(inventory.photoUrls).length) throw new NotFoundException('Property photos not found');
+      const completed = await tx.siteVisit.findFirst({ where: { leadId: id, organizationId: lead.organizationId, status: 'COMPLETED' }, select: { id: true } });
+      if (completed && !messageId) throw new BadRequestException('This lead already has a completed site visit.');
+      if (completed || lead.stage === 'PHOTOS_SHARED') return { lead, changed: false, from: lead.stage };
+      if (lead.stage === 'SITE_VISIT') {
+        const recorded = await tx.activity.findFirst({
+          where: {
+            leadId: id,
+            organizationId: lead.organizationId,
+            type: 'PROPERTY_SHARED',
+            meta: { path: messageId ? ['messageId'] : ['inventoryId'], equals: messageId ?? inventoryId },
+          },
+          select: { id: true },
+        });
+        if (recorded) return { lead, changed: false, from: lead.stage };
+      }
+      // Sharing photos for an already scheduled visit must not move the lead backwards.
+      const nextStage = lead.stage === 'SITE_VISIT' ? lead.stage : 'PHOTOS_SHARED';
+      const changed = nextStage !== lead.stage;
+      const updated = await tx.lead.update({
+        where: { id },
+        data: {
+          stage: nextStage,
+          ...(changed ? { stageChangedAt: new Date() } : {}),
+          lastActivityAt: new Date(),
+          activities: {
+            create: {
+              organizationId: lead.organizationId,
+              userId: user.id,
+              type: 'PROPERTY_SHARED',
+              content: messageId ? 'Property photos sent from BrokerIQ' : 'Agent confirmed property photos sent outside BrokerIQ',
+              meta: { inventoryId, messageId: messageId ?? null, channel: messageId ? 'BROKERIQ_WHATSAPP' : 'EXTERNAL_CONFIRMATION' },
+            },
+          },
+        },
+      });
+      if (changed)
+        await tx.activity.create({
+          data: {
+            organizationId: lead.organizationId,
+            leadId: id,
+            userId: user.id,
+            type: 'STAGE_CHANGE',
+            content: LEAD_STAGE_LABELS[lead.stage] + ' → ' + LEAD_STAGE_LABELS.PHOTOS_SHARED,
+            meta: { from: lead.stage, to: 'PHOTOS_SHARED' },
+          },
+        });
+      return { lead: updated, changed, from: lead.stage };
+    });
+    if (result.changed)
+      this.events.emit('lead.stage_changed', { leadId: id, orgId: result.lead.organizationId, from: result.from, to: 'PHOTOS_SHARED', userId: user.id });
+    return result.lead;
+  }
+
+  /** Uses only a successfully persisted outbound message and current firm permissions. */
+  async recordSentPropertyPhotos(messageId: string): Promise<void> {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId }, include: { conversation: true } });
+    if (
+      !message ||
+      message.direction !== 'OUTBOUND' ||
+      !['SENT', 'DELIVERED', 'READ'].includes(message.status) ||
+      !message.senderUserId ||
+      !message.conversation.leadId ||
+      !message.conversation.organizationId
+    )
+      return;
+    const photos = shareablePropertyPhotoUrls([...(message.body?.match(/https:\/\/[^\s<>]+/g) ?? []), ...(message.mediaUrl ? [message.mediaUrl] : [])]);
+    if (!photos.length) return;
+    const actor = await this.prisma.user.findFirst({
+      where: { id: message.senderUserId, organizationId: message.conversation.organizationId, status: 'ACTIVE', deletedAt: null },
+    });
+    if (
+      !actor ||
+      !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(actor.role) ||
+      !hasDelegatedAccess(actor, 'leads', 'edit') ||
+      !hasDelegatedAccess(actor, 'inventory', 'view')
+    )
+      return;
+    const inventory = await this.prisma.inventoryItem.findFirst({
+      where: {
+        organizationId: actor.organizationId!,
+        deletedAt: null,
+        photoUrls: { hasSome: photos },
+        ...(actor.role === 'BROKER_AGENT' ? { OR: [{ assignedToId: actor.id }, { createdById: actor.id }] } : {}),
+      },
+      select: { id: true },
+    });
+    if (!inventory) return;
+    const user: RequestUser = {
+      id: actor.id,
+      email: actor.email!,
+      orgId: actor.organizationId,
+      role: actor.role,
+      delegatedPermissions: actor.delegatedPermissions,
+    };
+    await this.confirmPropertyPhotosShared(message.conversation.leadId, inventory.id, user, messageId);
   }
 
   async assertMember(orgId: string, userId: string) {

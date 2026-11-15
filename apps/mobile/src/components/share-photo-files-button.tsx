@@ -4,7 +4,7 @@ import { errorMessage } from '@/lib/api';
 import { canSharePropertyPhotoFiles, sharePropertyPhotoFiles } from '@/lib/property-photo-share';
 import { Button, Txt } from '@/ui';
 
-export function SharePhotoFilesButton({ urls, disabled }: { urls: readonly string[]; disabled?: boolean }) {
+export function SharePhotoFilesButton({ urls, disabled, onShareOpened }: { urls: readonly string[]; disabled?: boolean; onShareOpened?: () => void }) {
   const active = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -20,6 +20,7 @@ export function SharePhotoFilesButton({ urls, disabled }: { urls: readonly strin
     setError('');
     try {
       await sharePropertyPhotoFiles(photos, task.signal, 'Share property photos');
+      if (!task.signal.aborted) onShareOpened?.();
     } catch (cause) {
       if (!task.signal.aborted) setError(errorMessage(cause));
     } finally {
@@ -40,7 +41,11 @@ export function SharePhotoFilesButton({ urls, disabled }: { urls: readonly strin
       <Txt v="caption" color="muted">
         {canSharePropertyPhotoFiles ? 'Choose WhatsApp or another app, then select the client.' : 'Update the BrokerIQ app to share photo files.'}
       </Txt>
-      {!!error && <Txt color="danger" accessibilityRole="alert">{error}</Txt>}
+      {!!error && (
+        <Txt color="danger" accessibilityRole="alert">
+          {error}
+        </Txt>
+      )}
     </>
   );
 }

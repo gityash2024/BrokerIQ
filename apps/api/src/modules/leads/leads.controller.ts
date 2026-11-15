@@ -94,6 +94,15 @@ export class LeadsController {
     return this.leads.changeStage(id, body.stage, user, body.lostReason);
   }
 
+  @Patch(':id/photos-shared')
+  photosShared(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ inventoryId: z.string().trim().min(1).max(100) }))) body: { inventoryId: string },
+  ) {
+    return this.leads.confirmPropertyPhotosShared(id, body.inventoryId, user);
+  }
+
   @Patch(':id/assign')
   assign(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(assignSchema)) body: z.infer<typeof assignSchema>) {
     return this.leads.assign(id, body.assignedToId, user);

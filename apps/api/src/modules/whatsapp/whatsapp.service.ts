@@ -42,6 +42,7 @@ export class WhatsAppService {
     private readonly jobs: JobsService,
     private readonly storage: LocalStorageService,
   ) {
+    this.jobs.register('whatsapp.photo-stage', (payload) => this.leads.recordSentPropertyPhotos(payload.messageId));
     this.jobs.register('whatsapp.event', (payload) => this.processEvent(payload.eventId));
   }
 
@@ -180,6 +181,13 @@ export class WhatsAppService {
         await this.prisma.lead.updateMany({ where: { id: opts.leadId, firstResponseAt: null }, data: { firstResponseAt: new Date() } });
       }
       this.emit(conv.organizationId, 'wa:message', { conversationId: conv.id, message: saved });
+      if (opts.userId && opts.leadId && (msg.type === 'image' || /https:\/\//.test(body))) {
+        await this.leads.recordSentPropertyPhotos(saved.id).catch(async () => {
+          await this.jobs
+            .enqueue('whatsapp.photo-stage', { messageId: saved.id, orgId: conv.organizationId }, { key: 'whatsapp-photo-stage:' + saved.id })
+            .catch(() => this.logger.error('Photo stage update needs retry for message ' + saved.id));
+        });
+      }
       return saved;
     } catch (e) {
       const failed = await this.prisma.message.update({ where: { id: record.id }, data: { status: 'FAILED', error: (e as Error).message.slice(0, 500) } });

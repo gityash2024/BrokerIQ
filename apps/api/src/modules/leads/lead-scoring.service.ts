@@ -8,7 +8,7 @@ import { JobsService } from '../../core/jobs/jobs.service';
 import { env } from '../../config/env';
 import { scoreLead, type LeadScore } from './lead-score';
 
-const OPEN_STAGES = ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'] as const;
+const OPEN_STAGES = ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'] as const;
 
 /**
  * Keeps Lead.score / scoreReasons / temperature up to date: after lead events (debounced through

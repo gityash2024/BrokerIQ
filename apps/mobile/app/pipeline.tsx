@@ -124,7 +124,7 @@ export default function Pipeline() {
       )}
       <Sheet open={!!move} onClose={() => setMove(null)} title={move ? `${move.name} → stage` : ''}>
         <Row wrap>
-          {LEAD_STAGES.filter((s) => s !== move?.stage && (s !== 'SHORTLISTED' || move?.hasCompletedVisit)).map((s) => (
+          {LEAD_STAGES.filter((s) => s !== 'PHOTOS_SHARED' && s !== move?.stage && (s !== 'SHORTLISTED' || move?.hasCompletedVisit)).map((s) => (
             <Chip
               key={s}
               label={LEAD_STAGE_LABELS[s as LeadStage]}

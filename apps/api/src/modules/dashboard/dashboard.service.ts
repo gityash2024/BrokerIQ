@@ -218,7 +218,8 @@ export class DashboardService {
       const assigned = user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {};
       const policies = await this.modules.all();
       const on = (key: string) =>
-        policies[key]?.state === 'ACTIVE' && policies[key].roles.some((role) => role === user.role) &&
+        policies[key]?.state === 'ACTIVE' &&
+        policies[key].roles.some((role) => role === user.role) &&
         (!user.delegatedActor || user.delegatedPermissions?.includes(key + ':view'));
       const [availability, sectors, requirements, leads, overdue, visits, sources, stages, pendingReview] = await Promise.all([
         on('inventory')
@@ -292,7 +293,7 @@ export class DashboardService {
               organizationId: org,
               assignedToId: user.id,
               deletedAt: null,
-              stage: { in: ['NEW', 'CONTACTED', 'INTERESTED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'] },
+              stage: { in: ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT', 'SHORTLISTED', 'NEGOTIATION'] },
             },
           }),
           this.db.lead.count({ where: { ...own, stage: 'WON', stageChangedAt: d } }),
@@ -311,7 +312,7 @@ export class DashboardService {
             'myActiveLeads',
             'My active leads',
             activeLeads,
-            '/broker/leads?stage=NEW,CONTACTED,INTERESTED,SITE_VISIT,SHORTLISTED,NEGOTIATION',
+            '/broker/leads?stage=NEW,CONTACTED,FOLLOW_UP,INTERESTED,PHOTOS_SHARED,SITE_VISIT,SHORTLISTED,NEGOTIATION',
             'Assigned open leads in active pipeline',
           ),
           this.metric('newLeads', 'New assigned leads', leads, periodHref, 'Leads assigned to you in selected period'),

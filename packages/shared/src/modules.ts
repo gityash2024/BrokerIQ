@@ -129,7 +129,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/inbox',
     ['/broker/inbox', '/broker/imports'],
     ['/whatsapp', '/broker/whatsapp', '/webhooks/whatsapp', '/messaging', '/webhooks/textbee', '/webhooks/gmail', '/chat', '/imports'],
-    ['import.extract', 'whatsapp.event', 'sms.dispatch', 'sms.event', 'sms.notify', 'gmail.dispatch', 'gmail.notify', 'gmail.sync'],
+    ['import.extract', 'whatsapp.event', 'whatsapp.photo-stage', 'sms.dispatch', 'sms.event', 'sms.notify', 'gmail.dispatch', 'gmail.notify', 'gmail.sync'],
   ),
   core(
     'automation',
