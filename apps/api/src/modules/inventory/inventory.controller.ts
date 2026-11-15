@@ -14,7 +14,10 @@ import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemD
 @Roles('SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT')
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventory: InventoryService, private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly inventory: InventoryService,
+    private readonly prisma: PrismaService,
+  ) {}
   @Roles('BROKER_ADMIN')
   @Get('assignees')
   async assignees(@CurrentUser() user: RequestUser) {
@@ -90,6 +93,13 @@ export class InventoryController {
   }
   @Patch(':id') update(@Param('id') id: string, @Body(new ZodPipe(inventoryInputSchema)) dto: UpdateInventoryItemDto, @CurrentUser() user: RequestUser) {
     return this.inventory.update(id, dto, user);
+  }
+  @Patch(':id/photos') addPhoto(
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ url: inventoryInputSchema.shape.photoUrls.unwrap().element }))) body: { url: string },
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.inventory.addPhoto(id, body.url, user);
   }
   @Delete(':id') delete(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.inventory.delete(id, user);

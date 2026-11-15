@@ -195,4 +195,30 @@ describe('Production visit association, permissions and retry safety (PostgreSQL
       .expect(404);
     expect((await req().get('/api/visits?paginated=true').set(h(admin)).expect(200)).body.total).toBe(2);
   });
+  it('saves 20 authorized stops in selection order on one retryable visit', async () => {
+    const stops = await db.inventoryItem.findMany({
+      where: { organizationId: org, assignedToId: agent.id, houseNo: { startsWith: 'pagination-' + uid } },
+      orderBy: { houseNo: 'desc' },
+      take: 21,
+    });
+    const ids = stops.map((item) => item.id);
+    const payload = { leadId: lead, scheduledAt: at, inventoryIds: ids.slice(0, 20), clientMutationId: 'route-' + uid };
+    await db.lead.update({ where: { id: lead }, data: { assignedToId: agent.id } });
+    const create = (body: unknown) =>
+      req()
+        .post('/api/visits')
+        .set(h())
+        .send(body as object);
+    await create({ ...payload, inventoryIds: ids }).expect(400);
+    await create({ ...payload, inventoryIds: [own, own] }).expect(400);
+    await create({ ...payload, inventoryIds: [own, foreign] }).expect(404);
+    const [first, retry] = await Promise.all([create(payload).expect(201), create(payload).expect(201)]);
+    expect(retry.body.id).toBe(first.body.id);
+    expect(first.body.inventoryId).toBe(ids[0]);
+    expect(first.body.propertySnapshot.stops.map((stop: { id: string }) => stop.id)).toEqual(payload.inventoryIds);
+    expect(first.body.propertySnapshot.stops.every((stop: { sector: string }) => stop.sector === 'Sector 38')).toBe(true);
+    const history = await req().get('/api/visits?paginated=true').set(h()).expect(200);
+    expect(history.body.items.find((visit: { id: string }) => visit.id === first.body.id).propertySnapshot.stops).toHaveLength(20);
+    await create({ ...payload, inventoryIds: payload.inventoryIds.slice().reverse() }).expect(409);
+  });
 });

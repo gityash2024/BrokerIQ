@@ -268,4 +268,18 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
     expect(restored.ownerPhone).toBe(item.ownerPhone);
     expect(restored.isPublished).toBe(false);
   });
+  it('appends only new photos and keeps all concurrent uploads under the property scope', async () => {
+    const old = 'https://example.test/existing-property.jpg';
+    const added = ['https://example.test/new-property-1.jpg', 'https://example.test/new-property-2.jpg'];
+    await db.inventoryItem.update({ where: { id: item.id }, data: { photoUrls: [old] } });
+    const upload = (url: string, token = agent) => request(app.getHttpServer()).patch(`/api/inventory/${item.id}/photos`).set(h(token)).send({ url });
+    await upload(added[0], outsider).expect(404);
+    await upload('file:///tmp/property.jpg').expect(400);
+    const before = await db.inventoryItem.findUniqueOrThrow({ where: { id: item.id } });
+    await Promise.all([upload(added[0]).expect(200), upload(added[1]).expect(200), upload(added[0]).expect(200)]);
+    const saved = await db.inventoryItem.findUniqueOrThrow({ where: { id: item.id } });
+    expect(saved.photoUrls[0]).toBe(old);
+    expect(saved.photoUrls.slice(1).sort()).toEqual(added);
+    expect(saved.revision).toBe(before.revision + 2);
+  });
 });

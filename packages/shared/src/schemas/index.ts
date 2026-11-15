@@ -1,3 +1,4 @@
+import { MAX_VISIT_PROPERTIES } from '../visits';
 import { delegatedGrantSchema } from '../delegated-access';
 import { z } from 'zod';
 import {
@@ -299,18 +300,29 @@ export const followUpInputSchema = z.object({
   note: z.string().max(1000).optional().nullable(),
   assignedToId: z.string().optional().nullable(),
 });
-export const visitInputSchema = z.object({
-  leadId: z.string(),
-  listingId: z.string().optional().nullable(),
-  inventoryId: z.string().min(1).optional().nullable(),
-  clientMutationId: z.string().min(8).max(100).optional(),
-  scheduledAt: z.string().datetime({ offset: true }),
-  address: z.string().max(300).optional().nullable(),
-  note: z.string().max(1000).optional().nullable(),
-  assignedToId: z.string().optional().nullable(),
-  /** VIDEO = free Jitsi Meet room instead of meeting at the property */
-  mode: z.enum(['IN_PERSON', 'VIDEO']).default('IN_PERSON'),
-});
+export const visitInputSchema = z
+  .object({
+    leadId: z.string(),
+    listingId: z.string().optional().nullable(),
+    inventoryId: z.string().min(1).optional().nullable(),
+    inventoryIds: z
+      .array(z.string().min(1).max(100))
+      .min(1)
+      .max(MAX_VISIT_PROPERTIES)
+      .refine((ids) => new Set(ids).size === ids.length, 'Select each property once')
+      .optional(),
+    clientMutationId: z.string().min(8).max(100).optional(),
+    scheduledAt: z.string().datetime({ offset: true }),
+    address: z.string().max(300).optional().nullable(),
+    note: z.string().max(1000).optional().nullable(),
+    assignedToId: z.string().optional().nullable(),
+    /** VIDEO = free Jitsi Meet room instead of meeting at the property */
+    mode: z.enum(['IN_PERSON', 'VIDEO']).default('IN_PERSON'),
+  })
+  .refine((data) => !data.inventoryIds || !data.inventoryId || data.inventoryIds[0] === data.inventoryId, {
+    message: 'The primary property must match the first visit stop',
+    path: ['inventoryIds'],
+  });
 export const visitUpdateSchema = z
   .object({
     status: enumOf(VisitStatus).optional(),

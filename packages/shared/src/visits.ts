@@ -1,6 +1,14 @@
 import type { LedgerItem } from './inventory';
 import { inventoryPrice } from './inventory-presentation';
 
+export const MAX_VISIT_PROPERTIES = 20;
+
+export type VisitPropertyStop = { id: string; title: string; address?: string | null; sector?: string | null };
+
+export function visitPropertyStops(snapshot?: { stops?: VisitPropertyStop[] } | null): VisitPropertyStop[] {
+  return snapshot?.stops ?? [];
+}
+
 /** IDs identify distinct units; a shared house number never merges floors. */
 export function visitInventoryTitle(item: Pick<LedgerItem, 'houseNo' | 'unitLabel' | 'floor' | 'sector' | 'address'>): string {
   return (

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { LEAD_STAGE_LABELS, videoRoomUrl, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
+import { LEAD_STAGE_LABELS, visitInventoryTitle, videoRoomUrl, visitInputSchema, visitUpdateSchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { FeaturesService } from '../../core/features/features.service';
@@ -100,7 +100,13 @@ export class VisitsService {
       if (user.role === 'BROKER_AGENT' && assignedToId !== user.id) throw new ForbiddenException('Only an administrator can assign another member');
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${assignedToId} FOR UPDATE`;
       const assignee = await tx.user.findFirst({
-        where: { id: assignedToId, organizationId: lead.organizationId, status: 'ACTIVE', deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] } },
+        where: {
+          id: assignedToId,
+          organizationId: lead.organizationId,
+          status: 'ACTIVE',
+          deletedAt: null,
+          role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
+        },
         select: { id: true, role: true },
       });
       if (!assignee) throw new BadRequestException('Assignee must be an active firm member');
@@ -108,31 +114,40 @@ export class VisitsService {
         throw new BadRequestException('पहले lead इस Agent को assign करें, फिर उसकी site visit बनाएँ।');
       let snapshot: Prisma.InputJsonObject | undefined;
       let listingId = body.listingId;
-      if (body.inventoryId) {
-        const item = await tx.inventoryItem.findFirst({
+      const inventoryIds = body.inventoryIds ?? (body.inventoryId ? [body.inventoryId] : []);
+      if (inventoryIds.length) {
+        if (user.delegatedActor && !user.delegatedPermissions?.includes('inventory:view'))
+          throw new ForbiddenException('Inventory viewing permission is required to add visit properties');
+        const items = await tx.inventoryItem.findMany({
           where: {
-            id: body.inventoryId,
+            id: { in: inventoryIds },
             organizationId: lead.organizationId,
             deletedAt: null,
             ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
           },
         });
-        if (!item) throw new NotFoundException('Inventory property not found');
-        if (listingId && listingId !== item.publishedListingId) throw new BadRequestException('Inventory and listing refer to different properties');
-        listingId = item.publishedListingId;
-        const title = [item.houseNo, item.unitLabel, item.floor, item.sector].filter(Boolean).join(' · ') || item.address || 'Property';
-        snapshot = {
-          kind: 'INVENTORY',
-          id: item.id,
-          title,
-          address: item.address,
-          purpose: item.purpose,
-          bhk: item.bhk,
-          floor: item.floor,
-          unitLabel: item.unitLabel,
-          price: item.purpose === 'SALE' ? Number(item.totalSalePrice ?? item.price ?? 0) || null : Number(item.monthlyRent ?? item.rent ?? 0) || null,
-          availability: item.availability,
-        };
+        if (items.length !== inventoryIds.length) throw new NotFoundException('One or more inventory properties are unavailable');
+        const byId = new Map(items.map((item) => [item.id, item]));
+        const first = byId.get(inventoryIds[0])!;
+        if (listingId && listingId !== first.publishedListingId) throw new BadRequestException('Inventory and listing refer to different properties');
+        listingId = first.publishedListingId;
+        const stops = inventoryIds.map((id) => {
+          const item = byId.get(id)!;
+          return {
+            kind: 'INVENTORY',
+            id,
+            title: visitInventoryTitle(item),
+            address: item.address,
+            sector: item.sector,
+            purpose: item.purpose,
+            bhk: item.bhk,
+            floor: item.floor,
+            unitLabel: item.unitLabel,
+            price: item.purpose === 'SALE' ? Number(item.totalSalePrice ?? item.price ?? 0) || null : Number(item.monthlyRent ?? item.rent ?? 0) || null,
+            availability: item.availability,
+          };
+        });
+        snapshot = { ...stops[0], ...(stops.length > 1 ? { stops } : {}) };
       } else if (listingId) {
         const listing = await tx.listing.findFirst({
           where: {
@@ -162,7 +177,7 @@ export class VisitsService {
         data: {
           organizationId: lead.organizationId,
           leadId: lead.id,
-          inventoryId: body.inventoryId,
+          inventoryId: inventoryIds[0] ?? body.inventoryId,
           listingId,
           propertySnapshot: snapshot,
           clientMutationId: body.clientMutationId,
@@ -190,7 +205,7 @@ export class VisitsService {
           leadId: lead.id,
           userId: user.id,
           type: 'SITE_VISIT',
-          content: `Site visit scheduled: ${scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${snapshot?.title ? ` — ${snapshot.title}` : ''}`,
+          content: `Site visit scheduled: ${scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${snapshot?.title ? ` — ${snapshot.title}` : ''}${inventoryIds.length > 1 ? ` (+${inventoryIds.length - 1} properties)` : ''}`,
           meta: { visitId: visit.id },
         },
       });
