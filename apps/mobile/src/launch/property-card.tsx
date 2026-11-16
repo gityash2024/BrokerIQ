@@ -1,4 +1,4 @@
-import { floorLabel, inventoryTitle, inventoryPrice, readableValue, formatINR, type LedgerItem } from '@brokeriq/shared';
+import { floorLabel, inventoryTitle, inventoryPrice, readableValue, formatINR, hasDelegatedAccess, type LedgerItem } from '@brokeriq/shared';
 import { Image } from 'expo-image';
 import { View, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
@@ -24,6 +24,7 @@ import { Txt } from '@/ui';
 import { toast } from '@/lib/toast';
 import { api, errorMessage } from '@/lib/api';
 import { NativeCard } from './screen';
+import { useAuth } from '@/lib/auth';
 
 export function propertyShare(item: LedgerItem) {
   const parts = [
@@ -43,6 +44,7 @@ export function propertyShare(item: LedgerItem) {
 
 export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; selected?: boolean; onSelect?: () => void }) {
   const { c } = useTheme();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const phone = item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone;
 
@@ -237,7 +239,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
             </View>
           )}
 
-          {isStale && (
+          {isStale && hasDelegatedAccess(user, 'inventory', 'edit') && (
             <Pressable
               onPress={quickConfirmAvailable}
               style={{

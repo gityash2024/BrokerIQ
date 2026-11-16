@@ -52,8 +52,8 @@ import {
   submitTask,
   holdFailedTask,
 } from '../drafts';
-const login = (id = 'scoped-owner', firm = 'firm-a', role = 'BROKER_ADMIN') =>
-  authStore.set({ accessToken: 'test', refreshToken: 'test', user: { id, role, organization: { id: firm } } } as any);
+const login = (id = 'scoped-owner', firm = 'firm-a', role = 'BROKER_ADMIN', delegatedPermissions: string[] = []) =>
+  authStore.set({ accessToken: 'test', refreshToken: 'test', user: { id, role, delegatedPermissions, organization: { id: firm } } } as any);
 beforeEach(async () => {
   await login();
 });
@@ -160,6 +160,34 @@ it('paginates beyond the former 100-row cap with stable ties and no dropped draf
   expect(new Set([...first, ...second, ...third].map((r) => r.id)).size).toBe(121);
 });
 
+it('syncs a previously queued delegated inventory edit only with its grant and firm', async () => {
+  await login('delegated-inventory', 'firm-a', 'SUB_BROKER_ADMIN', ['inventory:view']);
+  const record = { id: 'owned-property', directoryMonth: '2026-11', expectedRevision: 3 };
+  const move = await saveDraft('PROPERTY_EDIT', record.id, record);
+  const unrelated = await saveDraft('REQUIREMENT_CREATE', 'requirement', { title: 'Unrelated draft' });
+  await queueDraft(move);
+  await queueDraft(unrelated);
+  const request = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({ id: record.id })));
+  try {
+    await syncDrafts();
+    expect(request).not.toHaveBeenCalled();
+    const grants = ['inventory:view', 'inventory:edit'];
+    await login('delegated-inventory', 'firm-b', 'SUB_BROKER_ADMIN', grants);
+    await syncDrafts();
+    expect(request).not.toHaveBeenCalled();
+    await login('delegated-inventory', 'firm-a', 'SUB_BROKER_ADMIN', grants);
+    await expect(syncDrafts()).resolves.toEqual({ leadIds: [], inventoryChanged: true });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][0]).toMatch(/\/inventory\/owned-property$/);
+    expect(request.mock.calls[0][1]?.method).toBe('PATCH');
+    expect(JSON.parse(String(request.mock.calls[0][1]?.body))).toEqual({ directoryMonth: '2026-11', expectedRevision: 3 });
+    expect((await getLocalDraft(move))?.state).toBe('SYNCED');
+    expect((await getLocalDraft(unrelated))?.state).toBe('QUEUED');
+  } finally {
+    request.mockRestore();
+  }
+});
+
 it('fences every resumable upload chunk using the original workspace', async () => {
   await login('chunk-owner');
   const id = await saveDraft('CAPTURE', 'upload', { sourceType: 'CHAT_EXPORT', fileName: 'source.txt' }, undefined, captureAccountContext(), {
@@ -237,7 +265,7 @@ it('retains the original task identity and payload after a lost response and rep
     await login('task-retry-owner');
     const db = await privateDraftDatabase();
     await db.runAsync('UPDATE local_mutations SET next_at=0 WHERE id=?', saved.id);
-    await expect(syncDrafts()).resolves.toEqual([body.leadId]);
+    await expect(syncDrafts()).resolves.toEqual({ leadIds: [body.leadId], inventoryChanged: false });
     expect((await getLocalDraft(saved.id))?.server_id).toBe('task-saved');
     const requests = request.mock.calls.map(([url, opts]) => ({ url, body: JSON.parse(String(opts?.body)) }));
     expect(requests[0]).toEqual(requests[1]);

@@ -72,6 +72,11 @@ function LedgerInner() {
   const { user } = useAuth();
   const router = useRouter();
   const isSuper = user?.role === 'SUPER_ADMIN';
+  const canCreate = hasDelegatedAccess(user, 'inventory', 'create');
+  const canExport = hasDelegatedAccess(user, 'inventory', 'export');
+  const canBulkEdit = hasDelegatedAccess(user, 'inventory', 'edit', 'publish');
+  const canPublish = hasDelegatedAccess(user, 'inventory', 'publish');
+  const canReviewPublication = hasDelegatedAccess(user, 'inventory', 'approve');
   const basePath = isSuper ? '/admin/inventory' : '/broker/inventory';
   const params = useSearchParams();
   const [search, setSearch] = useState(params.get('search') ?? '');
@@ -171,18 +176,22 @@ function LedgerInner() {
         }
         actions={
           <>
-            <button disabled={exporting} onClick={() => exportCsv()} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
-              {exporting ? 'Exporting…' : 'Export filtered CSV'}
-            </button>
-            <button
-              disabled={isSuper && !filters.organizationId}
-              title={isSuper && !filters.organizationId ? 'Choose a firm before adding a property' : undefined}
-              onClick={() => router.push(`${basePath}/new${qs({ organizationId: isSuper ? filters.organizationId : undefined })}`)}
-              className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              <Plus size={16} />
-              Add property
-            </button>
+            {canExport && (
+              <button disabled={exporting} onClick={() => exportCsv()} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
+                {exporting ? 'Exporting…' : 'Export filtered CSV'}
+              </button>
+            )}
+            {canCreate && (
+              <button
+                disabled={isSuper && !filters.organizationId}
+                title={isSuper && !filters.organizationId ? 'Choose a firm before adding a property' : undefined}
+                onClick={() => router.push(`${basePath}/new${qs({ organizationId: isSuper ? filters.organizationId : undefined })}`)}
+                className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                <Plus size={16} />
+                Add property
+              </button>
+            )}
           </>
         }
       />
@@ -293,19 +302,25 @@ function LedgerInner() {
       {!!selected.length && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-800">
           <b>{selected.length} selected</b>
-          <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'ACTIVE' })}>
-            Make active
-          </button>
-          <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'DRAFT' })}>
-            Make draft
-          </button>
-          <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'INACTIVE' })}>
-            Make inactive
-          </button>
+          {canBulkEdit && (
+            <>
+              <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'ACTIVE' })}>
+                Make active
+              </button>
+              <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'DRAFT' })}>
+                Make draft
+              </button>
+              <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'INACTIVE' })}>
+                Make inactive
+              </button>
+            </>
+          )}
 
-          <button disabled={exporting} onClick={() => exportCsv(true)}>
-            Export selected CSV
-          </button>
+          {canExport && (
+            <button disabled={exporting} onClick={() => exportCsv(true)}>
+              Export selected CSV
+            </button>
+          )}
           <button onClick={() => setSelected([])}>Clear</button>
         </div>
       )}
@@ -609,21 +624,23 @@ function LedgerInner() {
                       )}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        disabled={!!item.deletedAt}
-                        className="font-semibold text-brand-600 hover:underline disabled:text-muted"
-                        onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}/publish`)}
-                      >
-                        {item.deletedAt
-                          ? 'Archived'
-                          : item.publishedListing?.status === 'ACTIVE'
-                            ? 'Live · update ↗'
-                            : item.publishedListing?.status === 'PENDING_REVIEW'
-                              ? 'Pending review'
-                              : item.publishedListing?.status === 'REJECTED'
-                                ? 'Rejected · resubmit'
-                                : 'Publish ↗'}
-                      </button>
+                      {(canPublish || (canReviewPublication && item.publishedListing?.status === 'PENDING_REVIEW')) && (
+                        <button
+                          disabled={!!item.deletedAt}
+                          className="font-semibold text-brand-600 hover:underline disabled:text-muted"
+                          onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}/publish`)}
+                        >
+                          {item.deletedAt
+                            ? 'Archived'
+                            : item.publishedListing?.status === 'ACTIVE'
+                              ? 'Live · update ↗'
+                              : item.publishedListing?.status === 'PENDING_REVIEW'
+                                ? 'Pending review'
+                                : item.publishedListing?.status === 'REJECTED'
+                                  ? 'Rejected · resubmit'
+                                  : 'Publish ↗'}
+                        </button>
+                      )}
                       {!isSuper && !item.deletedAt && hasDelegatedAccess(user, 'inventory', 'edit') && <InventoryStatusActions itemId={item.id} />}
                     </td>
                   </tr>

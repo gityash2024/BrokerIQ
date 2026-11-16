@@ -5,6 +5,7 @@ import {
   prepareInventoryEditorInput,
   captureContentType,
   followUpInputSchema,
+  hasDelegatedAccess,
   visitInputSchema,
 } from '@brokeriq/shared';
 import * as SQLite from 'expo-sqlite';
@@ -349,19 +350,33 @@ const syncing = new Set<string>();
 export async function syncDrafts() {
   const session = authStore.get();
   const owner = contextNow();
-  if (!session || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(session.user.role) || syncing.has(owner.scope)) return;
+  if (!session || syncing.has(owner.scope)) return;
+  const { user } = session;
+  const allKinds = user.role === 'BROKER_ADMIN' || user.role === 'BROKER_AGENT';
+  const delegated = user.role === 'SUB_BROKER_ADMIN';
+  const create = delegated && hasDelegatedAccess(user, 'inventory', 'create');
+  const edit = delegated && hasDelegatedAccess(user, 'inventory', 'edit');
+  const publish = delegated && hasDelegatedAccess(user, 'inventory', 'publish');
+  if (!(allKinds || create || edit || publish)) return;
   syncing.add(owner.scope);
   const completedTaskLeads = new Set<string>();
+  let inventoryChanged = false;
   try {
     const database = await db();
     assertAccountContext(owner);
     while (true) {
       assertAccountContext(owner);
       const rows = await database.getAllAsync<LocalDraft>(
-        "SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=? ORDER BY updated_at ASC LIMIT 10",
+        `SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=?
+         AND (? OR (kind='PROPERTY_CREATE' AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?))
+         ORDER BY updated_at ASC LIMIT 10`,
         session.user.id,
         owner.scope,
         Date.now(),
+        Number(allKinds),
+        Number(create),
+        Number(edit),
+        Number(publish),
       );
       if (!rows.length) break;
       for (const row of rows) {
@@ -451,6 +466,7 @@ export async function syncDrafts() {
             owner.scope,
           );
           if (captureAccountContext().epoch !== owner.epoch) return;
+          if (row.kind === 'PROPERTY_CREATE' || row.kind === 'PROPERTY_EDIT' || row.kind === 'PUBLIC_PUBLISH') inventoryChanged = true;
           if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') completedTaskLeads.add(row.draft_key);
           if (row.kind === 'FOLLOW_UP_CREATE' && result.status === 'PENDING') {
             await scheduleReminder({ id: result.id, kind: 'FOLLOW_UP', leadId: result.leadId, at: result.dueAt }, 15).catch(() => undefined);
@@ -483,7 +499,7 @@ export async function syncDrafts() {
   } finally {
     syncing.delete(owner.scope);
   }
-  return [...completedTaskLeads];
+  return { leadIds: [...completedTaskLeads], inventoryChanged };
 }
 
 export async function getLocalDraft(id: string, owner = contextNow()) {

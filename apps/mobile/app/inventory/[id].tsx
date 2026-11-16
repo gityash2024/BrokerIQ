@@ -391,7 +391,7 @@ export default function PropertyDetail() {
                     Verify with owner before sharing with buyers.
                   </Txt>
                 </View>
-                <Button title="Verify now" size="sm" onPress={handleConfirmAvailable} />
+                {canEdit && <Button title="Verify now" size="sm" onPress={handleConfirmAvailable} />}
               </View>
             )}
 
@@ -527,7 +527,7 @@ export default function PropertyDetail() {
               </NativeCard>
             )}
 
-            {!item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
+            {canEdit && !item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
               <Button title="Add property photo" variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
             )}
             {/* Photos & Videos */}
@@ -666,11 +666,13 @@ export default function PropertyDetail() {
             Publication: {item.publishedListing?.status || 'Not submitted'}
             {item.publishedListing?.reviewRequiredRole ? ' · ' + item.publishedListing.reviewRequiredRole : ''}
           </Txt>
-          <Button
-            title={isAdmin && item.publishedListing?.reviewRequiredRole === 'BROKER_ADMIN' ? 'Review publication' : 'Public preview / publish'}
-            variant="secondary"
-            onPress={() => router.push(`/publish-rental?id=${id}` as any)}
-          />
+          {hasDelegatedAccess(user, 'inventory', 'publish') && (
+            <Button
+              title={isAdmin && item.publishedListing?.reviewRequiredRole === 'BROKER_ADMIN' ? 'Review publication' : 'Public preview / publish'}
+              variant="secondary"
+              onPress={() => router.push(`/publish-rental?id=${id}` as any)}
+            />
+          )}
         </View>
       )}
       {/* 1-Tap Quick Assignee Selection Sheet */}

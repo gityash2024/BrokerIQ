@@ -5,18 +5,20 @@ import { syncDrafts } from './drafts';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 export function DraftPump() {
-  const { user } = useAuth();
+  const { user, isBroker } = useAuth();
   const lastError = useRef('');
   const qc = useQueryClient();
   useEffect(() => {
-    if (!user || !['BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role)) return;
+    if (!isBroker) return;
     let active = true;
     const pump = async () => {
       try {
         const completed = await syncDrafts();
         if (active) {
-          const keys = ['local-drafts', 'ledger', 'imports'].map((key) => [key]);
-          if (completed?.length) keys.push(['follow-ups'], ['visits'], ['broker-dashboard'], ...completed.map((id) => ['lead', id]));
+          const delegated = user?.role === 'SUB_BROKER_ADMIN';
+          const keys = delegated ? [['local-drafts']] : [['local-drafts'], ['ledger'], ['imports']];
+          if (completed?.inventoryChanged) keys.push(['ledger'], ['ledger-stats'], ['ledger-item'], ['inventory-folders'], ['inventory-folder-items']);
+          if (completed?.leadIds.length) keys.push(['follow-ups'], ['visits'], ['broker-dashboard'], ...completed.leadIds.map((id) => ['lead', id]));
           await Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
         }
       } catch (e) {
@@ -36,6 +38,6 @@ export function DraftPump() {
       clearInterval(interval);
       subscription.remove();
     };
-  }, [user?.id, user?.role, user?.organization?.id, qc]);
+  }, [isBroker, user?.id, user?.role, user?.organization?.id, qc]);
   return null;
 }
