@@ -175,6 +175,26 @@ export class InventoryService {
         })),
       });
     } else if (q.areaUnit) where.areaUnit = q.areaUnit;
+    // Use the same completeness fields as the editor so folder counts and paginated records agree.
+    const complete: Prisma.InventoryItemWhereInput = {
+      sector: { not: '' },
+      category: { not: '' },
+      propertyType: { not: '' },
+      area: { gt: 0 },
+      areaUnit: { not: '' },
+      AND: [
+        { OR: [{ address: { not: '' } }, { houseNo: { not: '' } }] },
+        { OR: [{ category: { not: 'RESIDENTIAL' } }, { roomKind: { in: ['RK', 'STUDIO'] } }, { roomKind: 'BHK', bhk: { gt: 0 } }] },
+        { OR: [{ category: { notIn: ['RESIDENTIAL', 'COMMERCIAL'] } }, { furnishing: { not: '' } }] },
+        { OR: [{ propertyType: { not: 'BUILDER_FLOOR' } }, { floor: { not: '' } }, { unitLabel: { not: '' } }] },
+        {
+          OR: [
+            { purpose: 'RENT', OR: [{ monthlyRent: { gt: 0 } }, { monthlyRent: null, rent: { gt: 0 } }] },
+            { purpose: 'SALE', totalSalePrice: { gt: 0 } },
+          ],
+        },
+      ],
+    };
     const placed: Prisma.InventoryItemWhereInput = {
       directoryMonth: { not: null },
       status: 'ACTIVE',
@@ -183,7 +203,7 @@ export class InventoryService {
     };
     const rented: Prisma.InventoryItemWhereInput = { OR: [{ availability: 'RENTED' }, { status: 'RENTED' }] };
     if (q.folderMode === 'AVAILABLE') {
-      and.push(placed);
+      and.push(placed, complete);
       if (q.folderMonth) and.push({ directoryMonth: q.folderMonth });
       else if (q.folderYear) and.push({ directoryMonth: { startsWith: q.folderYear + '-' } });
       if (q.folderRoom && !q.folderRoom.startsWith('TYPE:'))
@@ -200,7 +220,7 @@ export class InventoryService {
       }
       if (q.folderFurnishing) and.push({ furnishing: q.folderFurnishing === 'OTHER' ? null : q.folderFurnishing });
     } else if (q.folderMode === 'RENTED') {
-      and.push(rented);
+      and.push(rented, complete, { verificationStatus: 'VERIFIED' });
       if (q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
     } else if (q.folderMode === 'REVIEW') {
       and.push({
@@ -519,16 +539,25 @@ export class InventoryService {
     const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
     if (input.ownerPhone && !primaryPhone) throw new BadRequestException('Invalid Indian phone number');
     const effective = { ...previous, ...data, ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}) };
+    const markRented = input.availability === 'RENTED' && input.status === 'RENTED';
+    if (markRented) {
+      const missing = missingInventoryFolderFields(effective);
+      if (missing.length) throw new BadRequestException('Fill these fields to mark the property Rented out: ' + missing.join(', '));
+      data.verificationStatus = 'VERIFIED';
+    }
     if (input.directoryMonth) {
       const missing = missingInventoryFolderFields(effective);
       if (missing.length) throw new BadRequestException(`Fill these fields to make the property Available: ${missing.join(', ')}`);
       data.status = 'ACTIVE';
       data.availability = 'AVAILABLE';
       data.verificationStatus = 'VERIFIED';
-    } else if (previous?.directoryMonth && effective.status === 'ACTIVE' && effective.availability === 'AVAILABLE') {
+    } else if (
+      (previous?.directoryMonth && effective.status === 'ACTIVE' && effective.availability === 'AVAILABLE') ||
+      (previous?.verificationStatus === 'VERIFIED' && effective.availability === 'RENTED')
+    ) {
       const priorMissing = new Set(missingInventoryFolderFields(previous));
       const removed = missingInventoryFolderFields(effective).filter((field) => !priorMissing.has(field));
-      if (removed.length) throw new BadRequestException(`Available properties need: ${removed.join(', ')}`);
+      if (removed.length) throw new BadRequestException(`Verified properties need: ${removed.join(', ')}`);
     }
     const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
     const price = effective.purpose === 'RENT' ? (effective.monthlyRent ?? effective.rent) : effective.purpose === 'SALE' ? effective.totalSalePrice : null;

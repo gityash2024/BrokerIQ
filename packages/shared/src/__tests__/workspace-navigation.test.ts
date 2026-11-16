@@ -46,3 +46,17 @@ test('Dashboard drill-downs deny Admin routes and disabled modules; unknown nati
   assert.equal(nativeDashboardPath('/unexpected/report'), null);
   assert.equal(nativeDashboardPath('/broker/inventory?availability=AVAILABLE'), '/(broker)/inventory?availability=AVAILABLE');
 });
+
+test('inventory sections preserve separate folder and full-data entry points and remove the retired directory', () => {
+  const group = brokerWorkspaceGroups(defaultModulePolicies(), 'BROKER_ADMIN').find((entry) => entry.key === 'inventory');
+  assert.deepEqual(
+    group?.links.map((link) => link.label),
+    ['All Properties', 'All Data', 'Publication Review', 'Publish Listing', 'Scan / WhatsApp Import'],
+  );
+  assert.equal(group?.links.find((link) => link.label === 'All Data')?.nativeHref, '/inventory?view=ledger');
+  assert.ok(
+    !brokerWorkspaceGroups(defaultModulePolicies(), 'BROKER_ADMIN')
+      .flatMap((entry) => entry.links)
+      .some((link) => link.module === 'directory'),
+  );
+});

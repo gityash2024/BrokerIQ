@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, isDirectionsLink, readableValue } from '@brokeriq/shared';
+import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, inventoryNavigation, readableValue } from '@brokeriq/shared';
 import { api, API_URL, assertAccountContext, authStore, captureAccountContext, errorMessage, uploadUri } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
@@ -45,12 +45,12 @@ export default function PropertyDetail() {
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const qc = useQueryClient();
 
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [matchLeadsOpen, setMatchLeadsOpen] = useState(false);
   const [shareWithLead, setShareWithLead] = useState(share === '1');
   const [updatingAssignee, setUpdatingAssignee] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [confirmingAvail, setConfirmingAvail] = useState(false);
 
   const q = useQuery({
     queryKey: ['ledger-item', id],
@@ -117,25 +117,8 @@ export default function PropertyDetail() {
     }
   }
 
-  async function handleConfirmAvailable() {
-    if (!item) return;
-    setConfirmingAvail(true);
-    try {
-      await api(`/inventory/${id}`, {
-        method: 'PATCH',
-        body: {
-          availability: 'AVAILABLE',
-          expectedRevision: item.revision,
-        },
-      });
-      await qc.invalidateQueries({ queryKey: ['ledger-item', id] });
-      await qc.invalidateQueries({ queryKey: ['ledger'] });
-      toast.success('Marked as AVAILABLE');
-    } catch (err) {
-      toast.error(errorMessage(err));
-    } finally {
-      setConfirmingAvail(false);
-    }
+  function handleConfirmAvailable() {
+    router.push({ pathname: '/inventory-edit', params: { id, makeAvailable: '1' } });
   }
 
   return (
@@ -408,18 +391,15 @@ export default function PropertyDetail() {
                     Verify with owner before sharing with buyers.
                   </Txt>
                 </View>
-                <Button title="Verify now" size="sm" loading={confirmingAvail} onPress={handleConfirmAvailable} />
+                <Button title="Verify now" size="sm" onPress={handleConfirmAvailable} />
               </View>
             )}
 
             {/* Primary Contacts Card */}
-            {item.directionsUrl && isDirectionsLink(item.directionsUrl) && (
-              <Button
-                title="Open property directions"
-                variant="secondary"
-                onPress={() => Linking.openURL(item.directionsUrl!).catch(() => toast.error('Unable to open the maps link'))}
-              />
-            )}
+            <Button title="Navigation" variant="secondary" icon={<Compass size={17} color={c.brand} />} onPress={() => setNavigationOpen(true)} />
+            <Sheet open={navigationOpen} onClose={() => setNavigationOpen(false)} title="Navigation">
+              <PropertyNavigationActions item={item} />
+            </Sheet>
             <NativeCard style={{ gap: 14 }}>
               <Txt v="h3">Contacts & Owner</Txt>
               {item.contacts && item.contacts.length > 0 ? (
@@ -780,5 +760,19 @@ export default function PropertyDetail() {
         </View>
       </Sheet>
     </BrokerScreen>
+  );
+}
+
+function PropertyNavigationActions({ item }: { item: LedgerItem }) {
+  const { route, exact, sectorMap } = inventoryNavigation(item);
+  function open(url: string) {
+    void Linking.openURL(url).catch(() => toast.error('Unable to open the maps link'));
+  }
+  return (
+    <View style={{ gap: 10 }}>
+      {route && <Button title={exact ? 'Navigate to property' : 'Directions from recorded address'} onPress={() => open(route)} />}
+      {sectorMap && <Button title="ABC Buildcon sector map" variant="secondary" onPress={() => open(sectorMap)} />}
+      {!route && <Txt color="muted">Add a Maps link or property address for door-to-door directions.</Txt>}
+    </View>
   );
 }

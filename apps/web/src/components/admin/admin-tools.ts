@@ -30,7 +30,6 @@ export const adminToolGroups: { title: string; icon: typeof Activity; tools: Too
     icon: Database,
     tools: [
       { title: 'Private inventory & source review', href: '/admin/inventory', description: 'Firm records, imports and extraction review' },
-      { title: 'Area Directory', href: '/admin/inventory/directory', description: 'Official project records, detailed facts and source geometry' },
       { title: 'Public listings', href: '/admin/listings', description: 'Published and submitted consumer listings' },
       { title: 'Moderation queue', href: '/admin/moderation', description: 'Approve or reject submitted listings with recorded reasons' },
       { title: 'Enquiries', href: '/admin/enquiries', description: 'Customer enquiries and routing information' },

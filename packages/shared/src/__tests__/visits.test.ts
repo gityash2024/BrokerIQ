@@ -8,6 +8,7 @@ import {
   visitUpdateSchema,
   visitShortlistStops,
   inventoryInputSchema,
+  inventoryNavigation,
 } from '../index';
 test('calendar validation rejects rollover, incomplete inputs and invalid 12-hour times', () => {
   for (const input of ['2026-02-29T11:00', '2026-04-31T11:00', '2026-11-01T24:00', '', '2026-1-1T11:00']) assert.equal(parseVisitLocalDateTime(input), null);
@@ -41,4 +42,17 @@ test('directions links are private inventory fields preserved on single-stop and
   const second = { id: 'second', title: 'Second stop', directionsUrl: 'https://maps.apple.com/place?coordinate=28.46,77.08' };
   assert.equal(visitShortlistStops(first)[0].directionsUrl, directionsUrl);
   assert.deepEqual(visitShortlistStops({ ...first, stops: [first, second] }), [first, second]);
+});
+
+test('property navigation uses the saved entrance link and keeps sector-only records on the sector map', () => {
+  const exact = 'https://maps.app.goo.gl/EntranceLink';
+  const property = { sector: 'Sector 45', houseNo: '384', directionsUrl: exact };
+  assert.equal(inventoryNavigation(property).route, exact);
+  assert.equal(inventoryNavigation(property).exact, true);
+  const fallback = inventoryNavigation({ sector: 'Sector 45', houseNo: '384' });
+  assert.equal(fallback.exact, false);
+  assert.equal(new URL(fallback.route!).searchParams.get('destination'), '384, Sector 45, Gurugram');
+  assert.equal(fallback.sectorMap, 'https://www.abcbuildcon.in/maps/sector-45');
+  assert.equal(inventoryNavigation({ sector: 'Sector 45' }).route, null);
+  assert.equal(inventoryNavigation({ directionsUrl: 'javascript:alert(1)' }).route, null);
 });

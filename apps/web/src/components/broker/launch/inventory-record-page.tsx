@@ -35,7 +35,8 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
   const client = useQueryClient();
   const { user } = useAuth();
   const organizationId = search.get('organizationId') || '';
-  const makeAvailable = search.get('makeAvailable') === '1' || (mode === 'new' && base === '/broker/inventory');
+  const makeRented = mode === 'edit' && search.get('makeRented') === '1';
+  const makeAvailable = !makeRented && (search.get('makeAvailable') === '1' || (mode === 'new' && base === '/broker/inventory'));
   const requestedMonth = inventoryMonthSchema.safeParse(search.get('directoryMonth'));
   const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth();
   const defaults = inventoryFolderDefaults(search.get('folderRoom'), search.get('furnishing'));
@@ -153,6 +154,8 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                   key={item?.id ?? organizationId}
                   initial={item ?? (superAdmin ? { organizationId } : makeAvailable ? { purpose: 'RENT', ...defaults } : {})}
                   activateInMonth={makeAvailable ? folderMonth : undefined}
+                  markRented={makeRented}
+                  label={makeRented ? 'Save as rented out' : undefined}
                   onDirty={() => setDirty(true)}
                   onSave={async (input) => {
                     const created = await api<LedgerItem>(item ? `/inventory/${item.id}` : '/inventory', {

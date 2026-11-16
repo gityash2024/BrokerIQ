@@ -1,4 +1,6 @@
 'use client';
+
+import { InventoryStatusActions } from './inventory-status-actions';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -16,6 +18,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
 import { AdvancedFilters } from '@/components/broker/launch/advanced-filters';
 import { toast } from 'sonner';
+import { InventoryTabs } from './inventory-tabs';
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { SortableTh } from '@/components/ui/sortable-header';
 
@@ -160,26 +163,17 @@ function LedgerInner() {
   return (
     <>
       <PageHeader
-        title={isSuper ? 'All firms · Inventory' : 'Inventory'}
-        subtitle="हर property, contact और source एक जगह"
+        title={isSuper ? 'All firms · Inventory' : 'All Data'}
+        subtitle={
+          isSuper
+            ? undefined
+            : 'Find every record here, including older or incomplete entries. Review the details before moving a property to Available or Rented out.'
+        }
         actions={
           <>
-            {user?.role === 'BROKER_ADMIN' && (
-              <Link href="/broker/publications" className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
-                Publication reviews
-              </Link>
-            )}
             <button disabled={exporting} onClick={() => exportCsv()} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
               {exporting ? 'Exporting…' : 'Export filtered CSV'}
             </button>
-            <Link href={`${basePath}/directory`} className="text-sm font-semibold text-brand-600">
-              Area Directory
-            </Link>
-            {!isSuper && (
-              <Link href="/broker/scanner?target=INVENTORY" className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
-                Scan / import
-              </Link>
-            )}
             <button
               disabled={isSuper && !filters.organizationId}
               title={isSuper && !filters.organizationId ? 'Choose a firm before adding a property' : undefined}
@@ -192,6 +186,7 @@ function LedgerInner() {
           </>
         }
       />
+      {!isSuper && <InventoryTabs active="/broker/inventory/data" />}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface/80 px-4 py-2 text-xs shadow-sm">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <span className="font-semibold text-fg">
@@ -307,9 +302,7 @@ function LedgerInner() {
           <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'INACTIVE' })}>
             Make inactive
           </button>
-          <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ availability: 'AVAILABLE' })}>
-            Confirm available
-          </button>
+
           <button disabled={exporting} onClick={() => exportCsv(true)}>
             Export selected CSV
           </button>
@@ -438,6 +431,7 @@ function LedgerInner() {
                     >
                       Details →
                     </button>
+                    {!isSuper && !item.deletedAt && hasDelegatedAccess(user, 'inventory', 'edit') && <InventoryStatusActions itemId={item.id} />}
                   </div>
                 </div>
               </article>
@@ -630,6 +624,7 @@ function LedgerInner() {
                                 ? 'Rejected · resubmit'
                                 : 'Publish ↗'}
                       </button>
+                      {!isSuper && !item.deletedAt && hasDelegatedAccess(user, 'inventory', 'edit') && <InventoryStatusActions itemId={item.id} />}
                     </td>
                   </tr>
                 );

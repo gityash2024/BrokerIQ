@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Alert, FlatList, Pressable, Switch, View } from 'react-native';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Folder, Plus } from 'lucide-react-native';
+import { CalendarDays, Folder, Plus } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
   inventoryMonth,
@@ -21,9 +22,10 @@ import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
-import { Button, Chip, ErrorView, Input, Row, Sheet, Txt } from '@/ui';
+import { Button, Chip, ErrorView, Input, Row, Segmented, Sheet, Txt } from '@/ui';
 import { BrokerScreen, NativeCard } from './screen';
 import { ChoiceField } from './form';
+import { NativeInventoryTabs } from './inventory-tabs';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 function normalizeDate(value: string, end = false) {
@@ -39,7 +41,7 @@ export function NativeInventoryFolders() {
   const qc = useQueryClient();
   const current = inventoryMonth();
   const [year, setYear] = useState(current.slice(0, 4));
-  const [mode, setMode] = useState<InventoryFolderMode>('AVAILABLE');
+  const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
   const [path, setPath] = useState<InventoryFolder[]>([]);
   const [search, setSearch] = useState('');
   const [openFilters, setOpenFilters] = useState(false);
@@ -59,7 +61,7 @@ export function NativeInventoryFolders() {
         ? { folderYear: year, folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
         : { folderSector: path[0]?.key }),
   };
-  const leaf = Boolean(term) || mode === 'REVIEW' || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = Boolean(term) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const folders = useQuery({
     queryKey: ['inventory-folders', user?.id, query],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs(query)}`),
@@ -74,11 +76,10 @@ export function NativeInventoryFolders() {
   });
   const active = leaf ? records : folders;
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
-  const canCapture = hasDelegatedAccess(user, 'inventory', 'create') && hasDelegatedAccess(user, 'inbox', 'view', 'create');
   const canCreate = hasDelegatedAccess(user, 'inventory', 'create');
   const rows: (InventoryFolder | LedgerItem)[] = leaf ? (records.data?.pages.flatMap((page) => page.items) ?? []) : (folders.data?.folders ?? []);
 
-  function setShelf(next: InventoryFolderMode) {
+  function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
     setMode(next);
     setPath([]);
   }
@@ -115,7 +116,7 @@ export function NativeInventoryFolders() {
 
   return (
     <BrokerScreen
-      title="Inventory"
+      title="All Properties"
       action={
         canCreate ? (
           <Pressable
@@ -150,38 +151,18 @@ export function NativeInventoryFolders() {
         }}
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
-            <Row gap={10} wrap>
-              <Txt v="bodyStrong" color={mode === 'AVAILABLE' ? 'brand' : 'muted'}>
-                Available
-              </Txt>
-              <Switch
-                value={mode === 'AVAILABLE'}
-                accessibilityLabel="Show available inventory"
-                onValueChange={(available) => setShelf(available ? 'AVAILABLE' : 'RENTED')}
-              />
-              <Txt v="bodyStrong" color={mode === 'AVAILABLE' ? 'muted' : 'brand'}>
-                Rented out
-              </Txt>
-              <Button
-                title="All records"
-                size="sm"
-                variant="secondary"
-                onPress={() => router.push({ pathname: '/(broker)/inventory', params: { view: 'ledger' } })}
-              />
-            </Row>
-            {canCapture && (
-              <Button
-                title="Scan / WhatsApp import"
-                size="sm"
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: '/capture',
-                    params: { target: 'INVENTORY', directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current },
-                  })
-                }
-              />
-            )}
+            <NativeInventoryTabs active="/broker/inventory" />
+            <Segmented
+              value={mode}
+              onChange={setShelf}
+              options={[
+                { value: 'AVAILABLE', label: 'Available' },
+                { value: 'RENTED', label: 'Rented out' },
+              ]}
+            />
+            <Txt color="muted" v="caption">
+              Browse properties with complete details. Review older or incomplete records in All Data.
+            </Txt>
             {mode === 'AVAILABLE' ? (
               <ChoiceField
                 label="Year"
@@ -194,12 +175,7 @@ export function NativeInventoryFolders() {
                   }
                 }}
               />
-            ) : (
-              <Row wrap gap={6}>
-                <Chip label="Rented properties" active={mode === 'RENTED'} onPress={() => setShelf('RENTED')} />
-                <Chip label="Needs verification" active={mode === 'REVIEW'} onPress={() => setShelf('REVIEW')} />
-              </Row>
-            )}
+            ) : null}
             <Row gap={8}>
               <Input
                 accessibilityLabel="Search inventory"
@@ -241,12 +217,16 @@ export function NativeInventoryFolders() {
         renderItem={({ item }) =>
           'id' in item ? (
             <NativeCard style={{ gap: 8 }}>
+              {!!item.photoUrls?.[0] && <Image source={item.photoUrls[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />}
+              <Txt v="h3">{inventoryPrice(item)}</Txt>
               <Txt color="brand" v="title" onPress={() => router.push(`/inventory/${item.id}`)}>
                 {inventoryTitle(item)}
               </Txt>
               <Row gap={8} wrap>
                 <Txt color="muted" style={{ flex: 1 }}>
-                  {inventoryPrice(item)} · {readableValue(item.availability ?? 'UNKNOWN')}
+                  {item.sector}
+                  {item.bhk ? ' · ' + item.bhk + ' BHK' : ''}
+                  {item.furnishing ? ' · ' + readableValue(item.furnishing) : ''}
                 </Txt>
                 {canEdit && (
                   <Switch
@@ -264,7 +244,7 @@ export function NativeInventoryFolders() {
             <NativeCard onPress={() => setPath([...path, item])}>
               <Row gap={12}>
                 <View style={{ width: 52, height: 52, backgroundColor: c.brandSoft, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
-                  <Folder size={29} color={c.brand} />
+                  {mode === 'AVAILABLE' && !path.length ? <CalendarDays size={24} color={c.brand} /> : <Folder size={24} color={c.brand} />}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Txt v="title">{item.label}</Txt>

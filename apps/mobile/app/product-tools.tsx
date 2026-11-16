@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { ArrowUpRight, Blocks, Clock3 } from 'lucide-react-native';
-import { delegatedModulePolicies, brokerWorkspaceGroups, brokerUpcomingModules, catalogModules } from '@brokeriq/shared';
+import { delegatedModulePolicies, brokerWorkspaceGroups, brokerUpcomingModules, catalogModules, hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { useTheme } from '@/lib/theme';
@@ -24,7 +24,14 @@ export default function ProductTools() {
   )
     .map((group) => ({
       ...group,
-      links: group.links.filter((link) => link.nativeHref && (!search || `${group.label} ${link.label}`.toLowerCase().includes(search.toLowerCase()))),
+      links: group.links.filter(
+        (link) =>
+          link.nativeHref &&
+          (link.href !== '/broker/publications' || hasDelegatedAccess(user, 'inventory', 'approve')) &&
+          (link.href !== '/broker/imports?target=INVENTORY' ||
+            (hasDelegatedAccess(user, 'inventory', 'create') && hasDelegatedAccess(user, 'inbox', 'create'))) &&
+          (!search || `${group.label} ${link.label}`.toLowerCase().includes(search.toLowerCase())),
+      ),
     }))
     .filter((group) => group.links.length);
   const upcoming = brokerUpcomingModules(modules, role).filter((item) => `${item.name} ${item.description}`.toLowerCase().includes(search.toLowerCase()));
@@ -68,7 +75,6 @@ export default function ProductTools() {
           consumer: '/home',
           today: '/dashboard',
           inventory: '/inventory',
-          directory: '/area-directory',
           leads: '/leads',
           inbox: '/inbox',
           automation: '/automations',

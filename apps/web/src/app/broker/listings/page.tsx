@@ -1,22 +1,15 @@
 'use client';
-import { ScanLine } from 'lucide-react';
+
 import { PageHeader } from '@/components/panel/shell';
 import { MyListings } from '@/components/site/my-listings';
-import { Button } from '@/components/ui/button';
+import { InventoryTabs } from '@/components/broker/launch/inventory-tabs';
 
 export default function BrokerListings() {
   return (
     <>
-      <PageHeader
-        title="Inventory"
-        subtitle="Firm की सारी listings — marketplace पर live, views, enquiries और boost"
-        actions={
-          <Button size="sm" variant="secondary" href="/broker/scanner">
-            <ScanLine className="size-4" /> Book scan से import
-          </Button>
-        }
-      />
-      <MyListings base="/broker/listings" newHref="/broker/listings/new" />
+      <PageHeader title="Publish Listing" subtitle="Properties live on the BrokerIQ marketplace." />
+      <InventoryTabs active="/broker/listings" />
+      <MyListings base="/broker/listings" newHref="/broker/listings/new" activeOnly />
     </>
   );
 }

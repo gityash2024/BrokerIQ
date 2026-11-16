@@ -48,8 +48,9 @@ const TONES: Record<string, any> = {
   BLOCKED: 'danger',
 };
 
-export function MyListings({ base, newHref }: { base: string; newHref: string }) {
-  const [status, setStatus] = useState('');
+export function MyListings({ base, newHref, activeOnly = false }: { base: string; newHref: string; activeOnly?: boolean }) {
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState(activeOnly ? 'ACTIVE' : '');
   const [search, setSearch] = useState('');
   const [boost, setBoost] = useState<any>(null);
   const [pack, setPack] = useState<string | null>(null);
@@ -67,8 +68,11 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
     },
   });
   const q = useQuery({
-    queryKey: ['my-listings', status, search],
-    queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+    queryKey: ['my-listings', status, search, activeOnly ? page : 1],
+    queryFn: () =>
+      api<any>(
+        `/listings/mine?pageSize=50&page=${activeOnly ? page : 1}${status ? `&status=${status}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`,
+      ),
   });
   const setSt = useApiMutation((v: { id: string; status: string }) => patch(`/listings/${v.id}/status`, { status: v.status }), {
     invalidate: [['my-listings']],
@@ -94,19 +98,29 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Segmented
-          value={status}
-          onChange={setStatus}
-          options={[
-            { value: '', label: 'All' },
-            { value: 'ACTIVE', label: 'Live', count: c.ACTIVE },
-            { value: 'PENDING_REVIEW', label: 'In review', count: c.PENDING_REVIEW },
-            { value: 'DRAFT', label: 'Drafts', count: c.DRAFT },
-            { value: 'REJECTED', label: 'Rejected', count: c.REJECTED },
-            { value: 'EXPIRED', label: 'Expired', count: c.EXPIRED },
-          ]}
+        {!activeOnly && (
+          <Segmented
+            value={status}
+            onChange={setStatus}
+            options={[
+              { value: '', label: 'All' },
+              { value: 'ACTIVE', label: 'Live', count: c.ACTIVE },
+              { value: 'PENDING_REVIEW', label: 'In review', count: c.PENDING_REVIEW },
+              { value: 'DRAFT', label: 'Drafts', count: c.DRAFT },
+              { value: 'REJECTED', label: 'Rejected', count: c.REJECTED },
+              { value: 'EXPIRED', label: 'Expired', count: c.EXPIRED },
+            ]}
+          />
+        )}
+        <Input
+          className="h-10 w-56"
+          placeholder="Search…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
         />
-        <Input className="h-10 w-56" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <Button href={newHref} className="ml-auto">
           <Plus className="size-4" /> New listing
         </Button>
@@ -217,6 +231,23 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
       )}
       {isBroker && <PortalPackDialog listingId={pack} onClose={() => setPack(null)} />}
       {isBroker && <ShareKitDialog listingId={kit} onClose={() => setKit(null)} />}
+      {activeOnly && (q.data?.totalPages ?? 0) > 1 && (
+        <div className="mt-5 flex items-center gap-3">
+          <button className="rounded-xl border border-line px-3 py-2 text-sm disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </button>
+          <span className="text-sm text-muted">
+            Page {page} of {q.data.totalPages}
+          </span>
+          <button
+            className="rounded-xl border border-line px-3 py-2 text-sm disabled:opacity-50"
+            disabled={page >= q.data.totalPages}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
       <Dialog
         open={!!boost}
         onOpenChange={(v) => !v && setBoost(null)}

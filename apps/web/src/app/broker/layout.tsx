@@ -27,11 +27,21 @@ function Inner({ children }: { children: React.ReactNode }) {
     enabled: !delegated && pathname !== '/broker/onboarding',
   });
 
-  useRealtime('wa:message', () => { if (!delegated) void dash.refetch(); });
-  useRealtime('chat:message', () => { if (!delegated) void dash.refetch(); });
-  useRealtime('wa:read', () => { if (!delegated) void dash.refetch(); });
-  useRealtime('chat:read', () => { if (!delegated) void dash.refetch(); });
-  useRealtime('wa:conversation_deleted', () => { if (!delegated) void dash.refetch(); });
+  useRealtime('wa:message', () => {
+    if (!delegated) void dash.refetch();
+  });
+  useRealtime('chat:message', () => {
+    if (!delegated) void dash.refetch();
+  });
+  useRealtime('wa:read', () => {
+    if (!delegated) void dash.refetch();
+  });
+  useRealtime('chat:read', () => {
+    if (!delegated) void dash.refetch();
+  });
+  useRealtime('wa:conversation_deleted', () => {
+    if (!delegated) void dash.refetch();
+  });
   useEffect(() => {
     if (user?.role === 'BROKER_ADMIN' && user.organization && !user.organization.onboarded && pathname !== '/broker/onboarding')
       router.replace('/broker/onboarding');
@@ -73,41 +83,74 @@ function Inner({ children }: { children: React.ReactNode }) {
   };
   const groups: NavGroup[] = [
     {
-      items: brokerWorkspaceGroups(policies, delegated ? 'BROKER_ADMIN' : user?.role ?? '').map((group) => ({
-        ...group,
-        links: group.links.filter((link) => !delegated || (
-          (link.href !== '/broker/connectors' || user.delegatedPermissions?.includes('automation:connection_status')) &&
-          (link.href !== '/broker/publications' || user.delegatedPermissions?.includes('inventory:approve'))
-        )),
-      })).filter((group) => group.links.length).map((group) => ({
-        href: group.links[0].href,
-        label: group.label,
-        exact: group.key === 'today',
-        icon: icons[group.key as keyof typeof icons] ?? Layers,
-        badge:
-          group.key === 'leads'
-            ? k?.newToday
-            : group.key === 'inbox'
-              ? k?.unreadMessages
-              : group.key === 'kyc'
-                ? kycStatus === 'VERIFIED'
-                  ? 'Verified'
-                  : kycStatus === 'PENDING'
-                    ? 'Under Review'
-                    : kycStatus === 'REJECTED'
-                      ? 'Rejected'
-                      : 'Required'
-                : null,
-        children: group.links.length > 1 ? group.links.map((link) => ({ href: link.href, label: link.label, exact: true })) : undefined,
-      })),
+      items: brokerWorkspaceGroups(policies, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''))
+        .map((group) => ({
+          ...group,
+          links: group.links.filter(
+            (link) =>
+              !delegated ||
+              ((link.href !== '/broker/connectors' || user.delegatedPermissions?.includes('automation:connection_status')) &&
+                (link.href !== '/broker/publications' || user.delegatedPermissions?.includes('inventory:approve')) &&
+                (link.href !== '/broker/imports?target=INVENTORY' ||
+                  ['inventory:create', 'inbox:create'].every((grant) => user.delegatedPermissions?.includes(grant)))),
+          ),
+        }))
+        .filter((group) => group.links.length)
+        .map((group) => ({
+          href: group.links[0].href,
+          label: group.label,
+          exact: group.key === 'today',
+          icon: icons[group.key as keyof typeof icons] ?? Layers,
+          badge:
+            group.key === 'leads'
+              ? k?.newToday
+              : group.key === 'inbox'
+                ? k?.unreadMessages
+                : group.key === 'kyc'
+                  ? kycStatus === 'VERIFIED'
+                    ? 'Verified'
+                    : kycStatus === 'PENDING'
+                      ? 'Under Review'
+                      : kycStatus === 'REJECTED'
+                        ? 'Rejected'
+                        : 'Required'
+                  : null,
+          children:
+            group.links.length > 1
+              ? group.links.map((link) => ({
+                  href: link.href,
+                  label: link.label,
+                  exact: true,
+                  ...(link.href === '/broker/imports?target=INVENTORY'
+                    ? { activeQuery: { key: 'target', value: 'INVENTORY', defaultValue: '' } }
+                    : link.href === '/broker/imports'
+                      ? { activeQuery: { key: 'target', value: '', defaultValue: '' } }
+                      : {}),
+                }))
+              : undefined,
+        })),
     },
   ];
   return (
-    <PanelShell groups={groups} title="Broker" notificationsHref="/broker/notifications" headerExtra={!delegated || user.delegatedPermissions?.some((grant) => grant === 'leads:view' || grant === 'inventory:view') ? <QuickLeadSearch /> : undefined}>
+    <PanelShell
+      groups={groups}
+      title="Broker"
+      notificationsHref="/broker/notifications"
+      headerExtra={
+        !delegated || user.delegatedPermissions?.some((grant) => grant === 'leads:view' || grant === 'inventory:view') ? <QuickLeadSearch /> : undefined
+      }
+    >
       <AgentLocationTracker />
-      <div className="protected-view">{delegated && pathname === '/broker' && !user.delegatedPermissions?.includes('today:view')
-        ? <div className="card p-6"><h1 className="text-xl font-semibold">Sub-Broker Admin</h1><p>Open an assigned module from the sidebar.</p></div>
-        : children}</div>
+      <div className="protected-view">
+        {delegated && pathname === '/broker' && !user.delegatedPermissions?.includes('today:view') ? (
+          <div className="card p-6">
+            <h1 className="text-xl font-semibold">Sub-Broker Admin</h1>
+            <p>Open an assigned module from the sidebar.</p>
+          </div>
+        ) : (
+          children
+        )}
+      </div>
     </PanelShell>
   );
 }

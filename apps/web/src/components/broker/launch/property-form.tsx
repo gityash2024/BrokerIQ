@@ -53,6 +53,7 @@ export function PropertyForm({
   label = 'Save property',
   onDirty,
   activateInMonth,
+  markRented = false,
   requireAvailability = false,
 }: {
   initial?: InventoryInput | LedgerItem;
@@ -60,6 +61,7 @@ export function PropertyForm({
   label?: string;
   onDirty?: () => void;
   activateInMonth?: string;
+  markRented?: boolean;
   requireAvailability?: boolean;
 }) {
   const { user } = useAuth();
@@ -117,8 +119,22 @@ export function PropertyForm({
         const missing = missingInventoryFolderFields({ ...initial, ...values });
         if (missing.length) throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
       }
+      if (markRented) {
+        const missing = missingInventoryFolderFields({ ...initial, ...values });
+        if (missing.length) throw new Error('Fill these fields to mark the property Rented out: ' + missing.join(', '));
+        if (
+          'publishedListing' in initial &&
+          initial.publishedListing?.status === 'ACTIVE' &&
+          !window.confirm('Mark rented out and withdraw the public listing?')
+        )
+          return;
+      }
       const payload = 'revision' in initial ? inventoryEditorPatch(values, initial) : values;
-      await onSave({ ...payload, ...(activate ? { directoryMonth: values.directoryMonth } : {}) } as InventoryInput);
+      await onSave({
+        ...payload,
+        ...(activate ? { directoryMonth: values.directoryMonth } : {}),
+        ...(markRented ? { status: 'RENTED', availability: 'RENTED' } : {}),
+      } as InventoryInput);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -127,6 +143,7 @@ export function PropertyForm({
   }
   return (
     <form onSubmit={submit} onChange={onDirty} className="space-y-5">
+      {markRented && <p className="rounded-xl bg-surface-2 p-4 text-sm text-muted">Check the property details before marking it rented out.</p>}
       {activateInMonth && (
         <div className="grid gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:grid-cols-2">
           {!requireAvailability && (
@@ -176,7 +193,7 @@ export function PropertyForm({
           />
         </label>
         {Object.entries(options)
-          .filter(([name]) => !activate || !['availability', 'status'].includes(name))
+          .filter(([name]) => (!activate && !markRented) || !['availability', 'status'].includes(name))
           .map(([name, choices]) => (
             <label key={name} className="text-xs font-semibold text-muted">
               {(

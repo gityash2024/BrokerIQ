@@ -1,5 +1,6 @@
+import { NativeInventoryTabs } from '@/launch/inventory-tabs';
 import { InlineLoader } from '@/components/request-loader';
-import { FlatList } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { LedgerItem } from '@brokeriq/shared';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -20,7 +21,10 @@ export default function PublicationQueue() {
     enabled: allowed,
   });
   return (
-    <BrokerScreen title="Publication reviews" subtitle="Review public details · Verified firm Admin approval" back>
+    <BrokerScreen title="Publication Review" subtitle="Review public details · Verified firm Admin approval" back>
+      <View style={{ paddingHorizontal: 16 }}>
+        <NativeInventoryTabs active="/broker/publications" />
+      </View>
       {!allowed ? (
         <Txt>Broker Admin review access required.</Txt>
       ) : (

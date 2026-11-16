@@ -30,11 +30,15 @@ const TONE: Record<string, string> = {
   BLOCKED: '#E11D48',
 };
 
-export function ListingsManager({ header }: { header: React.ReactNode }) {
+export function ListingsManager({ header, activeOnly = false }: { header: React.ReactNode; activeOnly?: boolean }) {
   const freeMode = useFreeMode();
   const { c } = useTheme();
-  const [status, setStatus] = useState('');
-  const q = useQuery({ queryKey: ['my-listings', status], queryFn: () => api<any>(`/listings/mine?pageSize=50${status ? `&status=${status}` : ''}`) });
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState(activeOnly ? 'ACTIVE' : '');
+  const q = useQuery({
+    queryKey: ['my-listings', status, activeOnly ? page : 1],
+    queryFn: () => api<any>(`/listings/mine?pageSize=50&page=${activeOnly ? page : 1}${status ? `&status=${status}` : ''}`),
+  });
   const setSt = useApiMutation((b: { id: string; status: string }) => patch(`/listings/${b.id}/status`, { status: b.status }), {
     success: 'Updated',
     invalidate: [['my-listings']],
@@ -99,26 +103,39 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
   return (
     <Screen scroll={false} padded={false}>
       {header}
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={['', 'ACTIVE', 'PENDING_REVIEW', 'DRAFT', 'REJECTED', 'SOLD', 'RENTED', 'EXPIRED']}
-        keyExtractor={(x) => x || 'all'}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 12 }}
-        style={{ flexGrow: 0 }}
-        renderItem={({ item }) => (
-          <Chip
-            label={`${item ? LISTING_STATUS_LABELS[item as ListingStatus] : 'All'}${item && counts[item] ? ` ${counts[item]}` : ''}`}
-            active={status === item}
-            onPress={() => setStatus(item)}
-          />
-        )}
-      />
+      {!activeOnly && (
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={['', 'ACTIVE', 'PENDING_REVIEW', 'DRAFT', 'REJECTED', 'SOLD', 'RENTED', 'EXPIRED']}
+          keyExtractor={(x) => x || 'all'}
+          contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 12 }}
+          style={{ flexGrow: 0 }}
+          renderItem={({ item }) => (
+            <Chip
+              label={`${item ? LISTING_STATUS_LABELS[item as ListingStatus] : 'All'}${item && counts[item] ? ` ${counts[item]}` : ''}`}
+              active={status === item}
+              onPress={() => setStatus(item)}
+            />
+          )}
+        />
+      )}
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
         <FlatList
           data={q.data?.items ?? []}
+          ListFooterComponent={
+            activeOnly && (q.data?.totalPages ?? 0) > 1 ? (
+              <Row gap={8} wrap>
+                <Button title="Previous" size="sm" variant="secondary" disabled={page <= 1} onPress={() => setPage(page - 1)} />
+                <Txt color="muted">
+                  Page {page} of {q.data.totalPages}
+                </Txt>
+                <Button title="Next" size="sm" variant="secondary" disabled={page >= q.data.totalPages} onPress={() => setPage(page + 1)} />
+              </Row>
+            ) : undefined
+          }
           keyExtractor={(x) => x.id}
           refreshing={q.isRefetching}
           onRefresh={() => q.refetch()}

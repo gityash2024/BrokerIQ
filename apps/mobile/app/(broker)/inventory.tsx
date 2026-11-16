@@ -12,11 +12,12 @@ import { useAuth } from '@/lib/auth';
 import { useDebounced } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
-import { Txt, Input, Button, Sheet, Chip } from '@/ui';
+import { Txt, Input, Button, Sheet, Chip, Row } from '@/ui';
 import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { NativeAdvancedFilters } from '@/launch/advanced-filters';
 import { PropertyCard } from '@/launch/property-card';
+import { NativeInventoryTabs } from '@/launch/inventory-tabs';
 import { NativeInventoryFolders } from '@/launch/inventory-folders';
 
 const initial = {
@@ -125,7 +126,7 @@ function InventoryLedger() {
 
   return (
     <BrokerScreen
-      title="Inventory"
+      title="All Data"
       subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}
       action={
         hasDelegatedAccess(user, 'inventory', 'create') ? (
@@ -152,24 +153,10 @@ function InventoryLedger() {
       }
     >
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 12 }}>
-        {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'approve'))) && (
-          <Button title="Publication reviews" variant="secondary" onPress={() => router.push('/publication-reviews' as any)} />
-        )}
-        {/* Top Quick Actions */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {hasDelegatedAccess(user, 'inventory', 'create') && (
-            <Button title="Scan / import" size="sm" style={{ flex: 1 }} onPress={() => router.push('/scanner?target=INVENTORY' as any)} />
-          )}
-          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && (
-            <Button
-              title="Paste / chat export"
-              size="sm"
-              variant="secondary"
-              style={{ flex: 1 }}
-              onPress={() => router.push('/capture?target=INVENTORY' as any)}
-            />
-          )}
-        </View>
+        <NativeInventoryTabs active="/broker/inventory/data" />
+        <Txt v="caption" color="muted">
+          Find every record here, including older or incomplete entries. Review the details before moving a property to Available or Rented out.
+        </Txt>
 
         {/* CRED Luxury Metrics Cards */}
         {stats.data && (
@@ -419,14 +406,32 @@ function InventoryLedger() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 28 }}
         renderItem={({ item }) => (
-          <PropertyCard
-            item={item}
-            selected={selecting ? selected.includes(item.id) : undefined}
-            onSelect={() => {
-              if (!selecting) setSelecting(true);
-              setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id]);
-            }}
-          />
+          <View style={{ gap: 6 }}>
+            <PropertyCard
+              item={item}
+              selected={selecting ? selected.includes(item.id) : undefined}
+              onSelect={() => {
+                if (!selecting) setSelecting(true);
+                setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id]);
+              }}
+            />
+            {!selecting && hasDelegatedAccess(user, 'inventory', 'edit') && (
+              <Row wrap gap={8}>
+                <Button
+                  title="Make available"
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
+                />
+                <Button
+                  title="Mark rented out"
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeRented: '1' } })}
+                />
+              </Row>
+            )}
+          </View>
         )}
         refreshing={query.isRefetching}
         onRefresh={() => {
@@ -461,7 +466,6 @@ function InventoryLedger() {
         <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
           <Txt v="caption">{`${selected.length} selected`}</Txt>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button title="Available" size="sm" style={{ flex: 1 }} onPress={() => bulk({ availability: 'AVAILABLE' })} />
             <Button title="Draft" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => bulk({ status: 'DRAFT' })} />
             <Button title="Inactive" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => bulk({ status: 'INACTIVE' })} />
           </View>

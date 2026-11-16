@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { Building2, FileCheck2, MapPin, Phone, MessageCircle, ShieldCheck } from 'lucide-react';
-import { inventoryFactGroups, inventoryPrice, inventoryTitle, isDirectionsLink, readableValue, type LedgerItem } from '@brokeriq/shared';
+import { Building2, FileCheck2, MapPin, Phone, MessageCircle, Navigation, Pencil, Share2, Archive, ShieldCheck } from 'lucide-react';
+import { inventoryFactGroups, inventoryPrice, inventoryTitle, inventoryNavigation, readableValue, type LedgerItem } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { PrivateSource } from './private-source';
 import { PropertyMedia } from './property-media';
@@ -24,23 +24,39 @@ export function InventoryDetails({
   onEdit?: () => void;
   onPublish?: () => void;
 }) {
+  const navigation = inventoryNavigation(item);
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-800 to-brand-600 p-6 text-white">
-        <Building2 className="absolute -right-5 -top-4 size-44 text-white/5" aria-hidden />
-        <p className="text-xs font-bold uppercase tracking-widest text-indigo-200">Private property record</p>
-        <h2 className="mt-3 font-display text-3xl font-extrabold">{inventoryPrice(item)}</h2>
-        <p className="mt-3 flex items-center gap-2 text-sm text-indigo-100">
+      <section className="relative overflow-hidden rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <Building2 className="absolute -right-5 -top-4 size-36 text-brand-500/5" aria-hidden />
+        <p className="text-xs font-semibold text-muted">Private property record</p>
+        <h2 className="mt-2 font-display text-2xl font-bold text-fg">{inventoryPrice(item)}</h2>
+        <p className="mt-3 flex items-center gap-2 text-sm text-muted">
           <MapPin className="size-4 shrink-0" />
           {item.sector || 'Locality not recorded'}
         </p>
-        <p className="mt-2 text-sm text-indigo-100">{inventoryTitle(item)}</p>
-        {item.directionsUrl && isDirectionsLink(item.directionsUrl) && (
-          <a className="mt-3 inline-flex items-center gap-2 text-sm font-semibold underline" href={item.directionsUrl} target="_blank" rel="noreferrer">
-            <MapPin className="size-4" />
-            Open property directions
-          </a>
-        )}
+        <p className="mt-2 text-sm text-muted">{inventoryTitle(item)}</p>
+        <a href="#property-navigation" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-brand-600">
+          <Navigation className="size-4" /> Navigation
+        </a>
+      </section>
+      <section id="property-navigation" aria-labelledby="navigation-heading" className="scroll-mt-24 rounded-2xl border border-line bg-surface p-4">
+        <h3 id="navigation-heading" className="mb-2 font-semibold">
+          Navigation
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {navigation.route && (
+            <Button href={navigation.route} external>
+              <Navigation className="size-4" /> {navigation.exact ? 'Navigate to property' : 'Directions from recorded address'}
+            </Button>
+          )}
+          {navigation.sectorMap && (
+            <Button href={navigation.sectorMap} variant="secondary" external>
+              <MapPin className="size-4" /> ABC Buildcon sector map
+            </Button>
+          )}
+        </div>
+        {!navigation.route && <p className="mt-2 text-sm text-muted">Add a Maps link or property address for door-to-door directions.</p>}
       </section>
       <div className="flex flex-wrap gap-2">
         <span
@@ -65,21 +81,25 @@ export function InventoryDetails({
           Archived property · retained privately. {onRestore && <Button onClick={onRestore}>Restore private property</Button>}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {onEdit && <Button onClick={onEdit}>Edit property</Button>}
+        <div className="flex flex-wrap gap-2">
+          {onEdit && (
+            <Button onClick={onEdit} size="sm">
+              <Pencil className="size-4" /> Edit property
+            </Button>
+          )}
           {onPublish && (
-            <Button variant="secondary" onClick={onPublish}>
+            <Button variant="secondary" size="sm" onClick={onPublish}>
               Publish / review property
             </Button>
           )}
           {onMessage && (
-            <Button variant="secondary" onClick={onMessage}>
-              Prepare WhatsApp message
+            <Button variant="secondary" size="sm" onClick={onMessage}>
+              <Share2 className="size-4" /> Share property
             </Button>
           )}
           {onArchive && (
-            <Button variant="secondary" onClick={onArchive}>
-              Archive property
+            <Button variant="ghost" size="sm" onClick={onArchive}>
+              <Archive className="size-4" /> Archive property
             </Button>
           )}
         </div>

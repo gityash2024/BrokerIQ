@@ -31,6 +31,7 @@ export default function InventoryEditor() {
     id,
     draft: requestedDraft,
     makeAvailable,
+    makeRented,
     directoryMonth,
     folderRoom,
     furnishing,
@@ -38,12 +39,14 @@ export default function InventoryEditor() {
     id?: string;
     draft?: string;
     makeAvailable?: string;
+    makeRented?: string;
     directoryMonth?: string;
     folderRoom?: string;
     furnishing?: string;
   }>();
   const defaultFolder = inventoryMonthSchema.safeParse(directoryMonth);
   const selectedMonth = defaultFolder.success ? defaultFolder.data : inventoryMonth();
+  const markRented = Boolean(id && makeRented === '1');
   const directoryEnabled = makeAvailable === '1' || (!id && !requestedDraft);
   const { user } = useAuth();
   const { c } = useTheme();
@@ -143,7 +146,7 @@ export default function InventoryEditor() {
     Keyboard.dismiss();
     try {
       const effective = { ...form };
-      if (form._activateInDirectory) {
+      if (!markRented && form._activateInDirectory) {
         if (!inventoryMonthSchema.safeParse(form.directoryMonth).success) throw new Error('Choose the year and month for this property.');
         const missing = missingInventoryFolderFields(effective);
         if (missing.length) throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
@@ -151,7 +154,13 @@ export default function InventoryEditor() {
         delete effective.directoryMonth;
       }
       const input = id && baseline.current ? inventoryEditorPatch(effective, baseline.current) : prepareInventoryEditorInput(effective);
-      if (form._activateInDirectory) input.directoryMonth = form.directoryMonth;
+      if (!markRented && form._activateInDirectory) input.directoryMonth = form.directoryMonth;
+      if (markRented) {
+        const missing = missingInventoryFolderFields(effective);
+        if (missing.length) throw new Error('Fill these fields to mark the property Rented out: ' + missing.join(', '));
+        input.availability = 'RENTED';
+        input.status = 'RENTED';
+      }
       const checked = inventoryInputSchema.safeParse(input);
       if (!checked.success) {
         const issue = checked.error.issues[0];
@@ -197,7 +206,8 @@ export default function InventoryEditor() {
           <Txt v="caption" color="muted">
             {draftStatus}
           </Txt>
-          {(directoryEnabled || form._activateInDirectory) && (
+          {markRented && <Txt color="muted">Check the property details. Saving as rented out withdraws its public listing.</Txt>}
+          {!markRented && (directoryEnabled || form._activateInDirectory) && (
             <NativeCard style={{ gap: 10 }}>
               <Row gap={10}>
                 <Txt v="bodyStrong" style={{ flex: 1 }}>
@@ -307,7 +317,7 @@ export default function InventoryEditor() {
               choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
               onChange={(v) => change('areaUnit', v)}
             />
-            {!form._activateInDirectory && (
+            {!markRented && !form._activateInDirectory && (
               <ChoiceField
                 label="Availability"
                 value={form.availability}
@@ -402,7 +412,7 @@ export default function InventoryEditor() {
           {error && <Txt color="danger">{error}</Txt>}
         </ScrollView>
         <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
-          <Button title="Save property" loading={saving} disabled={!ready || uploading} onPress={save} />
+          <Button title={markRented ? 'Save as rented out' : 'Save property'} loading={saving} disabled={!ready || uploading} onPress={save} />
         </View>
       </View>
     </BrokerScreen>

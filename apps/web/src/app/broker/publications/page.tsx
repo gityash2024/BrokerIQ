@@ -1,4 +1,5 @@
 'use client';
+import { InventoryTabs } from '@/components/broker/launch/inventory-tabs';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -27,7 +28,8 @@ export default function PublicationQueue() {
   if (!allowed) return <p role="alert">Broker Admin or Super Admin review access required.</p>;
   return (
     <>
-      <PageHeader title="Publication reviews" subtitle="Review the submitted public details before approval. Unverified firms require Super Admin approval." />
+      <PageHeader title="Publication Review" subtitle="Review the submitted public details before approval. Unverified firms require Super Admin approval." />
+      <InventoryTabs active="/broker/publications" />
       {query.error && <ApiErrorState error={query.error} onRetry={() => query.refetch()} />}
       <div className="space-y-5">
         {query.data?.items.map((listing) => (

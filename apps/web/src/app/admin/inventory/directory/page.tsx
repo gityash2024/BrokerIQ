@@ -1,1 +1,5 @@
-export { default } from '../../../broker/inventory/directory/page';
+import { redirect } from 'next/navigation';
+
+export default function DirectoryRedirect() {
+  redirect('/admin/inventory');
+}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Folder, Plus, Search } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder, MapPin, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
@@ -26,6 +26,8 @@ import { useDebounced } from '@/lib/hooks';
 import { qs } from '@/lib/utils';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Dialog } from '@/components/ui/dialog';
+import { InventoryTabs } from './inventory-tabs';
 
 const initial = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 const inputClass = 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm';
@@ -54,10 +56,12 @@ export function InventoryFoldersPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [year, setYear] = useState(current.slice(0, 4));
-  const [mode, setMode] = useState<InventoryFolderMode>('AVAILABLE');
+  const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
   const [path, setPath] = useState<InventoryFolder[]>([]);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(initial);
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [dates, setDates] = useState({ from: '', to: '' });
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState('');
   const term = useDebounced(search);
@@ -75,7 +79,7 @@ export function InventoryFoldersPage() {
     dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999+05:30').toISOString() : '',
     search: term,
   };
-  const leaf = Boolean(term) || mode === 'REVIEW' || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = Boolean(term) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const folders = useQuery({
     queryKey: ['inventory-folders', user?.id, shelf, filter],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs({ ...filter, ...shelf })}`),
@@ -87,18 +91,17 @@ export function InventoryFoldersPage() {
     enabled: !!user && leaf,
   });
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
-  const canCapture = hasDelegatedAccess(user, 'inventory', 'create') && hasDelegatedAccess(user, 'inbox', 'view', 'create');
   const canCreate = hasDelegatedAccess(user, 'inventory', 'create');
   const folderMonth = mode === 'AVAILABLE' && path[0] ? path[0].key : current;
   const createUrl = `/broker/inventory/new${qs({ makeAvailable: '1', directoryMonth: folderMonth, folderRoom: mode === 'AVAILABLE' ? path[1]?.key : undefined, furnishing: mode === 'AVAILABLE' ? path[2]?.key : undefined })}`;
   const activeQuery = leaf ? records : folders;
-  const advancedUrl = `/broker/inventory${qs({ view: 'ledger', ...filter, ...shelf })}`;
+  const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', ...filter, ...shelf })}`;
 
   function changePath(next: InventoryFolder[]) {
     setPath(next);
     setPage(1);
   }
-  function setShelf(next: InventoryFolderMode) {
+  function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
     setMode(next);
     changePath([]);
   }
@@ -130,44 +133,37 @@ export function InventoryFoldersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Inventory"
+        title="All Properties"
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button href="/broker/inventory?view=ledger" variant="secondary">
-              All records
+          canCreate && (
+            <Button href={createUrl}>
+              <Plus className="size-4" /> Add property
             </Button>
-            {canCapture && (
-              <Button href={`/broker/imports${qs({ target: 'INVENTORY', directoryMonth: folderMonth })}`} variant="secondary">
-                Scan / WhatsApp import
-              </Button>
-            )}
-            {canCreate && (
-              <Button href={createUrl}>
-                <Plus className="size-4" /> Add property
-              </Button>
-            )}
-          </div>
+          )
         }
       />
-      <div className="rounded-2xl border border-line bg-surface p-4">
+      <InventoryTabs active="/broker/inventory" />
+      <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={mode === 'AVAILABLE' ? 'font-bold text-brand-600' : 'text-muted'}>Available</span>
-          <AvailabilitySwitch
-            active={mode === 'AVAILABLE'}
-            label="Show available inventory"
-            onToggle={() => setShelf(mode === 'AVAILABLE' ? 'RENTED' : 'AVAILABLE')}
-          />
-          <span className={mode !== 'AVAILABLE' ? 'font-bold text-brand-600' : 'text-muted'}>Rented out</span>
-          {mode !== 'AVAILABLE' && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={mode === 'RENTED' ? 'primary' : 'secondary'} onClick={() => setShelf('RENTED')}>
-                Rented properties
-              </Button>
-              <Button size="sm" variant={mode === 'REVIEW' ? 'primary' : 'secondary'} onClick={() => setShelf('REVIEW')}>
-                Needs verification
-              </Button>
-            </div>
-          )}
+          <div className="inline-flex rounded-xl bg-surface-2 p-1" role="group" aria-label="Availability">
+            {(['AVAILABLE', 'RENTED'] as const).map((status) => (
+              <button
+                key={status}
+                aria-pressed={mode === status}
+                onClick={() => setShelf(status)}
+                className={`min-h-10 rounded-lg px-4 text-sm font-semibold ${mode === status ? 'bg-brand-600 text-white shadow-sm' : 'text-muted hover:text-fg'}`}
+              >
+                {status === 'AVAILABLE' ? 'Available' : 'Rented out'}
+              </button>
+            ))}
+          </div>
+          <p className="basis-full text-sm text-muted sm:order-last">
+            Browse properties with complete details. Review older or incomplete records in{' '}
+            <Link href="/broker/inventory/data" className="font-semibold text-brand-600">
+              All Data
+            </Link>
+            .
+          </p>
           {mode === 'AVAILABLE' && (
             <label className="ml-auto flex items-center gap-2 text-sm">
               Year
@@ -186,8 +182,8 @@ export function InventoryFoldersPage() {
             </label>
           )}
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-          <label className="relative xl:col-span-2">
+        <div className="mt-4 grid grid-cols-2 items-start gap-2 xl:grid-cols-6">
+          <label className="relative col-span-2 xl:col-span-2">
             <span className="sr-only">Search inventory</span>
             <Search className="absolute left-3 top-3 size-4 text-muted" />
             <input
@@ -202,7 +198,7 @@ export function InventoryFoldersPage() {
           </label>
           <input
             aria-label="Sector / locality"
-            className={inputClass}
+            className={inputClass + ' col-span-2 xl:col-span-1'}
             placeholder="Sector / locality"
             value={filters.sector}
             onChange={(event) => {
@@ -234,35 +230,18 @@ export function InventoryFoldersPage() {
               setPage(1);
             }}
           />
-          <details className="rounded-xl border border-line px-3 py-2">
-            <summary className="cursor-pointer text-sm">Record dates</summary>
-            <label className="mt-2 block text-xs">
-              From{' '}
-              <input
-                className={inputClass}
-                type="date"
-                value={filters.dateFrom}
-                onChange={(event) => {
-                  setFilters({ ...filters, dateFrom: event.target.value });
-                  setPage(1);
-                }}
-              />
-            </label>
-            <label className="mt-2 block text-xs">
-              Through{' '}
-              <input
-                className={inputClass}
-                type="date"
-                value={filters.dateTo}
-                onChange={(event) => {
-                  setFilters({ ...filters, dateTo: event.target.value });
-                  setPage(1);
-                }}
-              />
-            </label>
-          </details>
-          <Link href={advancedUrl} className="text-sm font-semibold text-brand-600 xl:col-span-6">
-            Advanced filters
+          <button
+            type="button"
+            className={inputClass + ' col-span-2 flex items-center gap-2 text-left xl:col-span-1'}
+            onClick={() => {
+              setDates({ from: filters.dateFrom, to: filters.dateTo });
+              setDatesOpen(true);
+            }}
+          >
+            <CalendarDays className="size-4 shrink-0" /> {filters.dateFrom || filters.dateTo ? 'Record dates applied' : 'Record dates'}
+          </button>
+          <Link href={advancedUrl} className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
+            <SlidersHorizontal className="size-4" /> Advanced filters
           </Link>
         </div>
       </div>
@@ -290,25 +269,46 @@ export function InventoryFoldersPage() {
           {!records.data?.items.length && <p className="rounded-2xl border border-line p-6 text-muted">No properties match this view.</p>}
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {records.data?.items.map((item) => (
-              <article key={item.id} className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
-                <div className="min-w-0">
-                  <Link className="break-words font-semibold text-brand-600" href={`/broker/inventory/${encodeURIComponent(item.id)}`}>
-                    {inventoryTitle(item)}
+              <article key={item.id} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+                <Link className="block" href={`/broker/inventory/${encodeURIComponent(item.id)}`}>
+                  {item.photoUrls?.[0] ? (
+                    // Real property media supplied by the firm.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.photoUrls[0]} alt="" loading="lazy" className="h-32 w-full object-cover" />
+                  ) : (
+                    <div className="flex h-20 items-center bg-brand-500/5 px-5 text-brand-600">
+                      <Building2 className="size-7" />
+                    </div>
+                  )}
+                  <div className="space-y-1 p-4 pb-2">
+                    <p className="text-lg font-bold">{inventoryPrice(item)}</p>
+                    <h3 className="break-words font-semibold">{inventoryTitle(item)}</h3>
+                    <p className="flex items-center gap-1 text-sm text-muted">
+                      <MapPin className="size-3.5 shrink-0" /> {item.sector}
+                    </p>
+                    <p className="text-sm text-muted">
+                      {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                </Link>
+                <div className="mx-4 flex items-center justify-between border-t border-line py-2">
+                  <Link
+                    href={`/broker/inventory/${encodeURIComponent(item.id)}`}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
+                  >
+                    View details <ArrowUpRight className="size-4" />
                   </Link>
-                  <p className="mt-1 text-sm text-muted">
-                    {inventoryPrice(item)} · {readableValue(item.availability ?? 'UNKNOWN')}
-                  </p>
+                  {canEdit && (
+                    <AvailabilitySwitch
+                      active={mode === 'AVAILABLE'}
+                      label={mode === 'AVAILABLE' ? 'Mark property rented out' : 'Make property available'}
+                      disabled={!!busy}
+                      onToggle={() =>
+                        mode === 'AVAILABLE' ? void rentOut(item) : router.push(`/broker/inventory/${encodeURIComponent(item.id)}/edit?makeAvailable=1`)
+                      }
+                    />
+                  )}
                 </div>
-                {canEdit && (
-                  <AvailabilitySwitch
-                    active={mode === 'AVAILABLE'}
-                    label={mode === 'AVAILABLE' ? 'Mark property rented out' : 'Make property available'}
-                    disabled={!!busy}
-                    onToggle={() =>
-                      mode === 'AVAILABLE' ? void rentOut(item) : router.push(`/broker/inventory/${encodeURIComponent(item.id)}/edit?makeAvailable=1`)
-                    }
-                  />
-                )}
               </article>
             ))}
           </div>
@@ -327,23 +327,76 @@ export function InventoryFoldersPage() {
           )}
         </>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
           {folders.data?.folders.map((folder) => (
             <button
               key={folder.key}
               onClick={() => changePath([...path, folder])}
-              className="flex min-h-32 min-w-0 flex-col justify-center gap-2 rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand-600"
+              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-sm hover:border-brand-500 sm:p-4"
             >
-              <Folder className="size-9 fill-indigo-200 text-brand-600" aria-hidden />
-              <span className="break-words text-sm font-semibold">{folder.label}</span>
-              <span className="text-xs text-muted">
-                {folder.count} {folder.count === 1 ? 'property' : 'properties'}
+              <span
+                className={`grid size-10 shrink-0 place-items-center rounded-xl ${folder.count ? 'bg-brand-500/10 text-brand-600' : 'bg-surface-2 text-muted'}`}
+              >
+                {mode === 'AVAILABLE' && !path.length ? <CalendarDays className="size-5" /> : <Folder className="size-5" />}
               </span>
+              <span className="min-w-0 flex-1">
+                <span className="break-words text-sm font-semibold">{folder.label}</span>
+                <span className="block text-xs text-muted">
+                  {folder.count} {folder.count === 1 ? 'property' : 'properties'}
+                </span>
+              </span>
+              <ChevronRight className="hidden size-4 shrink-0 text-muted sm:block" />
             </button>
           ))}
           {!folders.data?.folders.length && <p className="col-span-full py-6 text-muted">No folders match this view.</p>}
         </div>
       )}
+      <Dialog open={datesOpen} onOpenChange={setDatesOpen} title="Record dates" size="sm">
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setFilters({ ...filters, dateFrom: dates.from, dateTo: dates.to });
+            setPage(1);
+            setDatesOpen(false);
+          }}
+        >
+          <label className="block text-sm">
+            From
+            <input
+              type="date"
+              max={dates.to || undefined}
+              className={inputClass}
+              value={dates.from}
+              onChange={(e) => setDates({ ...dates, from: e.target.value })}
+            />
+          </label>
+          <label className="block text-sm">
+            Through
+            <input
+              type="date"
+              min={dates.from || undefined}
+              className={inputClass}
+              value={dates.to}
+              onChange={(e) => setDates({ ...dates, to: e.target.value })}
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setFilters({ ...filters, dateFrom: '', dateTo: '' });
+                setPage(1);
+                setDatesOpen(false);
+              }}
+            >
+              Clear
+            </Button>
+            <Button type="submit">Apply dates</Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

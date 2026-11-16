@@ -82,6 +82,13 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     const review = await api().get('/api/inventory?folderMode=REVIEW').set(headers(agent)).expect(200);
     expect(review.body.items.map((item: { id: string }) => item.id)).toContain(draft.body.id);
     await api().patch(path).set(headers(agent)).send({ directoryMonth: '2026-12', expectedRevision: draft.body.revision }).expect(400);
+    await api().patch(path).set(headers(agent)).send({ status: 'RENTED', availability: 'RENTED', expectedRevision: draft.body.revision }).expect(400);
+    const legacy = await db.inventoryItem.create({
+      data: { organizationId: firmId, sector: unit.sector, verificationStatus: 'VERIFIED', status: 'RENTED', availability: 'RENTED' },
+    });
+    const allData = await api().get('/api/inventory').set(headers()).expect(200);
+    expect(allData.body.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: legacy.id })]));
+
     const available = await api()
       .patch(path)
       .set(headers(agent))

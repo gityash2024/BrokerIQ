@@ -59,10 +59,11 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
       key: 'inventory',
       label: 'Inventory',
       links: [
-        { label: 'All properties', href: '/broker/inventory', nativeHref: '/inventory', module: 'inventory' },
-        { label: 'Publication reviews', href: '/broker/publications', nativeHref: '/publication-reviews', module: 'inventory', adminOnly: true },
-        { label: 'Public listings', href: '/broker/listings', nativeHref: '/my-listings', module: 'consumer' },
-        { label: 'Area Directory', href: '/broker/inventory/directory', nativeHref: '/area-directory', module: 'directory' },
+        { label: 'All Properties', href: '/broker/inventory', nativeHref: '/inventory', module: 'inventory' },
+        { label: 'All Data', href: '/broker/inventory/data', nativeHref: '/inventory?view=ledger', module: 'inventory' },
+        { label: 'Publication Review', href: '/broker/publications', nativeHref: '/publication-reviews', module: 'inventory', adminOnly: true },
+        { label: 'Publish Listing', href: '/broker/listings', nativeHref: '/inventory-listings', module: 'consumer' },
+        { label: 'Scan / WhatsApp Import', href: '/broker/imports?target=INVENTORY', nativeHref: '/capture?target=INVENTORY', module: 'inbox' },
       ],
     },
     {
@@ -124,7 +125,7 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
     .filter((group) => group.links.length);
   const represented = new Set(visible.flatMap((group) => group.links.map((link) => link.module)));
   const additional = catalogModules(policies, role).filter(
-    (item) => item.state === 'ACTIVE' && !represented.has(item.key) && item.href?.startsWith('/broker/'),
+    (item) => item.state === 'ACTIVE' && !represented.has(item.key) && item.key !== 'directory' && item.href?.startsWith('/broker/'),
   );
   if (additional.length)
     visible.push({ key: 'tools', label: 'Other tools', links: additional.map((item) => ({ label: item.name, href: item.href!, module: item.key })) });
