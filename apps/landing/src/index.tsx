@@ -113,7 +113,7 @@ export function BrokerIQLanding({
             </div>
             <span aria-hidden>↗</span>
           </a>
-          <a href="/login?next=/broker" data-biq-reveal data-biq-delay="1">
+          <a href="/admin" target="_blank" rel="noopener noreferrer" data-biq-reveal data-biq-delay="1">
             <span className="biq-portal-icon">▦</span>
             <div>
               <small>FOR YOUR WORKING DAY</small>

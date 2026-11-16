@@ -12,7 +12,7 @@ import { patch, useApiMutation } from '@/lib/hooks';
 import { cn, formatDate, img, qs, toLocalInput } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { VisitSlotsButton } from '@/components/broker/visit-slots';
-import { VisitItinerary } from '@/components/broker/visit-properties';
+import { VisitItinerary } from '@/components/broker/visit-itinerary';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Badge, Empty, Skeleton } from '@/components/ui/misc';

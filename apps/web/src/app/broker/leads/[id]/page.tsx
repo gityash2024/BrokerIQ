@@ -1,7 +1,8 @@
 'use client';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
-import { VisitItinerary, VisitShortlist } from '@/components/broker/visit-properties';
+import { VisitItinerary } from '@/components/broker/visit-itinerary';
+import { VisitShortlist } from '@/components/broker/visit-shortlist';
 import Link from 'next/link';
 import { Fragment, use, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
