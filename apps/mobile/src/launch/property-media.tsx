@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Image, Linking, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Button, Txt } from '@/ui';
 import { assertAccountContext, captureAccountContext, errorMessage, img, uploadUri } from '@/lib/api';

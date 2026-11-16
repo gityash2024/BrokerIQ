@@ -55,10 +55,10 @@ export default function BrokerKycPage() {
   const isAdminOrSuper = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN' || (delegated && canViewTeam);
 
   if (isAdminOrSuper) {
-    if (params.get('view') === 'mine')
+    if (params.get('view') === 'mine' || (delegated && !params.get('view') && !params.get('member')))
       return (
         <>
-          <Button variant="secondary" onClick={() => router.push('/broker/kyc')}>
+          <Button variant="secondary" onClick={() => router.push(delegated ? '/broker/kyc?view=team' : '/broker/kyc')}>
             टीम / Firm KYC
           </Button>
           <AgentKycSubmissionView />

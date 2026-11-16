@@ -4,7 +4,7 @@ import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, readableValue } from '@brokeriq/shared';
 import { api, API_URL, assertAccountContext, authStore, captureAccountContext, errorMessage, uploadUri } from '@/lib/api';

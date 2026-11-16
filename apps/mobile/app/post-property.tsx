@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInRight, FadeOutLeft, useAnimatedStyle, withTiming } from 'react-native-reanimated';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, Camera, FileUp, Lock, Trash2 } from 'lucide-react-native';

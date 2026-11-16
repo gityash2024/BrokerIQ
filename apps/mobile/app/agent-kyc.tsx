@@ -1,17 +1,19 @@
 import { captureGuidedFaces, hasPendingFaceCaptures, discardFaceCaptures } from '@/lib/native-face-capture';
 import { KycHistory } from '@/launch/kyc-history';
 import { KycMedia } from '@/launch/kyc-media';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert, Modal, TextInput, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
-import * as ImagePicker from 'expo-image-picker';
+import { requestCameraPermissionsAsync } from 'expo-image-picker';
+import { getDocumentAsync } from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, CheckCircle2, Clock, CreditCard, Eye, FileText, Camera, ShieldCheck, ShieldAlert, Shield, Upload, UserCheck, X } from 'lucide-react-native';
 import { BrokerScreen } from '@/launch/screen';
 import { Txt, Button, Card, Badge, Row, ErrorView, Loader } from '@/ui';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
-import { api, post, uploadUri } from '@/lib/api';
+import { api, post, uploadUri, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { hasDelegatedAccess, moduleAllowed } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 
@@ -28,7 +30,7 @@ interface KycResponse {
   reviewedAt: string | null;
 }
 
-export default function AgentKycScreen() {
+export default function AgentKycScreen({ onOpenTeam }: { onOpenTeam?: () => void } = {}) {
   const { c, isDark } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -60,6 +62,7 @@ export default function AgentKycScreen() {
   const [leftUrl, setLeftUrl] = useState<string | null>(null);
   const [rightUrl, setRightUrl] = useState<string | null>(null);
 
+  const choosingDocument = useRef(false);
   const [uploadingAadhaar, setUploadingAadhaar] = useState(false);
   const [uploadingPan, setUploadingPan] = useState(false);
   const [uploadingPose, setUploadingPose] = useState<string | null>(null);
@@ -110,29 +113,36 @@ export default function AgentKycScreen() {
 
   // Pick/Capture Document (Aadhaar / PAN)
   const pickDocument = async (type: 'aadhaar' | 'pan') => {
-    if (isVerified) return;
+    if (isVerified || choosingDocument.current) return;
+    choosingDocument.current = true;
+    const owner = captureAccountContext();
+    const setUploading = type === 'aadhaar' ? setUploadingAadhaar : setUploadingPan;
+    const setPhoto = type === 'aadhaar' ? setAadhaarPhotoUrl : setPanPhotoUrl;
+    let file: File | undefined;
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-      if (res.canceled || !res.assets[0]?.uri) return;
-
-      if (type === 'aadhaar') {
-        setUploadingAadhaar(true);
-        const { url } = await uploadUri(res.assets[0].uri, 'kyc');
-        setAadhaarPhotoUrl(url);
-      } else {
-        setUploadingPan(true);
-        const { url } = await uploadUri(res.assets[0].uri, 'kyc');
-        setPanPhotoUrl(url);
-      }
-    } catch (e: any) {
-      Alert.alert('Upload Error', e?.message || 'फ़ोटो अपलोड नहीं हो पाई');
+      const supported = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      const result = await getDocumentAsync({ type: supported, copyToCacheDirectory: true });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset) return;
+      file = new File(asset.uri);
+      const mime = asset.mimeType?.toLowerCase();
+      if (!mime || !supported.includes(mime)) throw new Error('JPG, PNG, WebP या PDF document चुनें।');
+      assertAccountContext(owner);
+      setUploading(true);
+      const { url } = await uploadUri(asset.uri, 'kyc', mime);
+      assertAccountContext(owner);
+      setPhoto(url);
+    } catch (error) {
+      Alert.alert('Upload Error', error instanceof Error ? error.message : 'दस्तावेज़ अपलोड नहीं हो पाया');
     } finally {
-      setUploadingAadhaar(false);
-      setUploadingPan(false);
+      try {
+        file?.delete();
+      } catch {
+        /* The OS may already have removed the temporary cache file. */
+      }
+      choosingDocument.current = false;
+      setUploading(false);
     }
   };
 
@@ -140,7 +150,7 @@ export default function AgentKycScreen() {
   const capturePose = async (_pose: 'STRAIGHT' | 'LEFT' | 'RIGHT') => {
     if (isVerified || !user || uploadingPose) return;
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status } = await requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('कैमरा परमिशन आवश्यक', 'चेहरे की तस्वीरें लेने के लिए कैमरा परमिशन दें।');
         return;
@@ -218,7 +228,11 @@ export default function AgentKycScreen() {
   }
 
   return (
-    <BrokerScreen title="KYC" subtitle={!firmTab ? 'आधार, पैन व फ़ेस लाइवलीनेस सत्यापन' : 'फर्म का सत्यापन व RERA लाइसेंस'}>
+    <BrokerScreen
+      title="KYC"
+      subtitle={!firmTab ? 'आधार, पैन व फ़ेस लाइवलीनेस सत्यापन' : 'फर्म का सत्यापन व RERA लाइसेंस'}
+      action={onOpenTeam ? <Button title="Team KYC" size="sm" variant="secondary" onPress={onOpenTeam} /> : undefined}
+    >
       <KycHistory />
       {/* Tab Switch Pills */}
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 }}>

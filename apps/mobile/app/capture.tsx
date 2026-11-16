@@ -5,7 +5,7 @@ import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from '@/lib/image-picker';
 import DocumentScanner from 'react-native-document-scanner-plugin';
 import { Camera, ClipboardPaste, FileArchive, Images, ScanLine, ShieldCheck } from 'lucide-react-native';
 import { BrokerScreen, NativeCard } from '@/launch/screen';

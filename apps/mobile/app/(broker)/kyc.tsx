@@ -18,18 +18,24 @@ import AgentKycScreen from '../agent-kyc';
 export default function BrokerKycTab() {
   const { user } = useAuth();
   const config = useConfig();
+  const { member, view } = useLocalSearchParams<{ member?: string; view?: string }>();
+  const [showTeam, setShowTeam] = useState(false);
   const isAdmin =
     user?.role === 'BROKER_ADMIN' ||
     (user?.role === 'SUB_BROKER_ADMIN' && user.delegatedPermissions?.includes('kyc:view') && moduleAllowed(config.modules, 'kyc', 'BROKER_ADMIN'));
+
+  if (isAdmin && user?.role === 'SUB_BROKER_ADMIN' && !showTeam && !member && view !== 'firm') {
+    return <AgentKycScreen onOpenTeam={() => setShowTeam(true)} />;
+  }
 
   if (!isAdmin) {
     return <AgentKycScreen />;
   }
 
-  return <BrokerAdminKycManagement />;
+  return <BrokerAdminKycManagement onOpenMine={user?.role === 'SUB_BROKER_ADMIN' && !member && view !== 'firm' ? () => setShowTeam(false) : undefined} />;
 }
 
-function BrokerAdminKycManagement() {
+function BrokerAdminKycManagement({ onOpenMine }: { onOpenMine?: () => void }) {
   const { c, isDark } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -107,7 +113,7 @@ function BrokerAdminKycManagement() {
     <BrokerScreen
       title="KYC"
       subtitle="टीम का सत्यापन व फर्म स्टेटस"
-      action={<Button title="मेरा KYC" size="sm" variant="secondary" onPress={() => router.push('/agent-kyc')} />}
+      action={<Button title="मेरा KYC" size="sm" variant="secondary" onPress={onOpenMine ?? (() => router.push('/agent-kyc'))} />}
     >
       {/* Header with Tab switcher */}
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, gap: 10 }}>
