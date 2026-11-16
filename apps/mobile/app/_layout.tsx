@@ -1,3 +1,4 @@
+import { RequestLoader } from '@/components/request-loader';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import '@/lib/background-shift-tracking';
 import { useEffect } from 'react';
@@ -141,6 +142,7 @@ export default function RootLayout() {
             <DraftPump />
             <LanguageSuggestion />
             <Toaster />
+            <RequestLoader />
           </QueryClientProvider>
         </KeyboardProvider>
       </SafeAreaProvider>

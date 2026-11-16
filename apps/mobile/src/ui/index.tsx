@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { NotificationBell } from '@/components/notification-bell';
 import { useEffect, useState } from 'react';
@@ -825,10 +826,5 @@ export function Toaster() {
 }
 
 export function Loader() {
-  const { c } = useTheme();
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-      <ActivityIndicator size="large" color={c.brand} />
-    </View>
-  );
+  return <LoadingArtwork />;
 }

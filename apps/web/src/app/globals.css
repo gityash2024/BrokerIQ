@@ -305,3 +305,22 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
   -ms-user-select: none;
   user-select: none;
 }
+
+.biq-request-progress {
+  width: 42%;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #4f46e5, #818cf8 75%, #ffb52c);
+  animation: biq-request-progress 1.2s ease-in-out infinite;
+}
+
+@keyframes biq-request-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(240%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biq-request-progress {
+    animation: none;
+  }
+}

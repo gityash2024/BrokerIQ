@@ -11,6 +11,7 @@ import { AssistantWidget } from '@/components/assistant/assistant';
 import { I18nProvider } from '@/lib/i18n';
 import { installGlobalErrorHandlers } from '@/lib/report-error';
 import { captureReferral } from '@/lib/referral';
+import { RequestLoader } from '@/components/ui/request-loader';
 import { WebPushPrompt } from '@/components/site/web-push';
 
 export function Providers({ children, config }: { children: React.ReactNode; config: PublicConfig | null }) {
@@ -48,6 +49,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
         <AuthProvider>
           <I18nProvider>
             {children}
+            <RequestLoader />
             <OptionalWidgets />
             <Toaster position="top-center" richColors closeButton />
           </I18nProvider>

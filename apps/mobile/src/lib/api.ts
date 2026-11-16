@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import { isApiErrorBody, type ApiErrorBody, type AuthResponse, type AuthUser } from '@brokeriq/shared';
+import { createRequestActivity, isApiErrorBody, type ApiErrorBody, type AuthResponse, type AuthUser } from '@brokeriq/shared';
 import { create } from './store';
 import { queryClient } from './query';
 import { tr } from './i18n';
@@ -126,6 +126,8 @@ async function refresh(): Promise<boolean> {
   refreshing = { epoch: context.epoch, task };
   return task;
 }
+export const requestActivity = createRequestActivity();
+
 type Opts = {
   method?: string;
   body?: unknown;
@@ -136,7 +138,11 @@ type Opts = {
   responseType?: 'bytes';
 };
 
-export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
+export function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
+  return requestActivity.track(() => request<T>(path, opts));
+}
+
+async function request<T>(path: string, opts: Opts): Promise<T> {
   const { body, auth = true, method = body === undefined ? 'GET' : 'POST', headers } = opts;
   const context = opts.ownerContext ?? captureAccountContext();
   const assertOwner = () => {
@@ -207,14 +213,18 @@ export const qs = (o: Record<string, unknown>) => {
 };
 
 /** Direct upload (Cloudinary / S3) of a local file uri via a server signature. */
-export async function uploadUri(uri: string, kind: string, mime = 'image/jpeg'): Promise<{ url: string; publicId?: string }> {
+export function uploadUri(uri: string, kind: string, mime = 'image/jpeg'): Promise<{ url: string; publicId?: string }> {
+  return requestActivity.track(() => upload(uri, kind, mime));
+}
+
+async function upload(uri: string, kind: string, mime = 'image/jpeg'): Promise<{ url: string; publicId?: string }> {
   const context = captureAccountContext();
   const assertOwner = () => {
     assertAccountContext(context);
     if (!context.userId) throw new AccountScopeChangedError('Sign in before uploading.');
   };
   assertOwner();
-  const sig = await api<any>('/me/uploads/sign', { body: { kind, contentType: mime }, ownerContext: context });
+  const sig = await request<any>('/me/uploads/sign', { body: { kind, contentType: mime }, ownerContext: context });
   assertOwner();
   if (sig.provider === 'cloudinary') {
     const fd = new FormData();

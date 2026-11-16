@@ -45,11 +45,11 @@ import {
   moduleAllowed,
   type LocalityListItem,
 } from '@brokeriq/shared';
-import { api, ApiError, authStore, errorMessage } from '@/lib/api';
+import { api, apiBlob, ApiError, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
-import { API_URL, cn, formatDateTime, img, toLocalInput } from '@/lib/utils';
+import { cn, formatDateTime, img, toLocalInput } from '@/lib/utils';
 import { SourceBadge, TempBadge, useAssignees } from '@/components/broker/bits';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -964,9 +964,8 @@ function CallsCard({ leadId }: { leadId: string }) {
   if (!q.data?.length) return null;
   const play = async (id: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/calls/${id}/recording`, { headers: { Authorization: `Bearer ${authStore.get()?.accessToken ?? ''}` } });
-      if (!res.ok) throw new Error('Recording नहीं मिली');
-      const url = URL.createObjectURL(new Blob([await res.arrayBuffer()], { type: res.headers.get('content-type') ?? 'audio/mpeg' }));
+      const recording = await apiBlob(`/calls/${id}/recording`);
+      const url = URL.createObjectURL(recording.type ? recording : new Blob([recording], { type: 'audio/mpeg' }));
       setAudio((a) => ({ ...a, [id]: url }));
     } catch (e) {
       toast.error(errorMessage(e));

@@ -2,10 +2,10 @@
 import { use, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Lock, Search } from 'lucide-react';
-import { API_URL, formatDate, qs } from '@/lib/utils';
+import { formatDate, qs } from '@/lib/utils';
 import { useDebounced } from '@/lib/hooks';
 import { timeAgo } from '@brokeriq/shared';
-import { api, authStore } from '@/lib/api';
+import { api, apiBlob } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
@@ -19,9 +19,7 @@ export default function UserDataDetail({ params }: { params: Promise<{ id: strin
   const dq = useDebounced(search);
   const q = useQuery({ queryKey: ['admin-user-data', id, dq], queryFn: () => api<any>(`/admin/user-data/${id}${qs({ q: dq })}`), placeholderData: (p) => p });
   const exportCsv = async () => {
-    const token = authStore.get()?.accessToken;
-    const r = await fetch(`${API_URL}/api/admin/user-data/${id}/contacts.csv`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    const url = URL.createObjectURL(await r.blob());
+    const url = URL.createObjectURL(await apiBlob(`/admin/user-data/${id}/contacts.csv`));
     const a = document.createElement('a');
     a.href = url;
     a.download = `contacts-${id}.csv`;

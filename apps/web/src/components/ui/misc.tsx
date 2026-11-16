@@ -2,6 +2,7 @@
 import * as SwitchPrim from '@radix-ui/react-switch';
 import { Inbox, Loader2 } from 'lucide-react';
 import { initials } from '@brokeriq/shared';
+import { LoadingArtwork } from './request-loader';
 import { cn, img } from '@/lib/utils';
 
 const tones = {
@@ -61,11 +62,7 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 export function PageLoader() {
-  return (
-    <div className="grid min-h-[40vh] place-items-center">
-      <Spinner className="size-7" />
-    </div>
-  );
+  return <LoadingArtwork />;
 }
 
 export function Empty({

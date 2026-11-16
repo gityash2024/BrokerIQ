@@ -1,5 +1,5 @@
 'use client';
-import { isApiErrorBody, privateMediaPath, type ApiErrorBody, type AuthResponse } from '@brokeriq/shared';
+import { createRequestActivity, isApiErrorBody, privateMediaPath, type ApiErrorBody, type AuthResponse } from '@brokeriq/shared';
 import { API_URL } from './utils';
 
 const KEY = 'biq.auth';
@@ -110,9 +110,15 @@ async function refresh(): Promise<boolean> {
   refreshing = { revision: context.revision, task };
   return task;
 }
+export const requestActivity = createRequestActivity();
+
 type Opts = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean; raw?: boolean; ownerId?: string; ownerContext?: AccountContext };
 
-export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
+export function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
+  return requestActivity.track(() => request<T>(path, opts));
+}
+
+async function request<T>(path: string, opts: Opts): Promise<T> {
   const { body, auth = true, raw, headers, ownerId, ownerContext, ...rest } = opts;
   const context = ownerContext ?? captureAccountContext();
   const assertOwner = () => {
@@ -171,16 +177,22 @@ export function errorMessage(e: unknown): string {
 }
 
 /** Direct upload to Cloudinary / S3 using a server signature. Returns the public URL. */
-export async function uploadFile(file: File | Blob, kind: string, onProgress?: (pct: number) => void): Promise<{ url: string; publicId?: string }> {
+export function uploadFile(file: File | Blob, kind: string, onProgress?: (pct: number) => void): Promise<{ url: string; publicId?: string }> {
+  return requestActivity.track(() => upload(file, kind, onProgress));
+}
+
+async function upload(file: File | Blob, kind: string, onProgress?: (pct: number) => void): Promise<{ url: string; publicId?: string }> {
   const context = captureAccountContext();
   assertAccountContext(context);
   const contentType = (file as File).type || 'image/jpeg';
-  const sig = await api<any>('/me/uploads/sign', { method: 'POST', body: { kind, contentType }, ownerContext: context });
+  const sig = await request<any>('/me/uploads/sign', { method: 'POST', body: { kind, contentType }, ownerContext: context });
   assertAccountContext(context);
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
     xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.onabort = () => reject(new Error('Upload cancelled'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out'));
     if (sig.provider === 'cloudinary') {
       const fd = new FormData();
       Object.entries(sig.fields as Record<string, string>).forEach(([k, v]) => fd.append(k, v));
@@ -230,7 +242,11 @@ export async function compressImage(file: File, maxW = 1920, quality = 0.82): Pr
 }
 
 /** Authenticated binary reads for private source images and exports. */
-export async function apiBlob(path: string): Promise<Blob> {
+export function apiBlob(path: string): Promise<Blob> {
+  return requestActivity.track(() => requestBlob(path));
+}
+
+async function requestBlob(path: string): Promise<Blob> {
   // Exports use relative API paths; absolute binary URLs must belong to this API.
   const safePath = path.startsWith('/') && !path.startsWith('//') && !path.includes('://') ? path : privateMediaPath(path, API_URL);
   if (!safePath) throw new Error('Untrusted private media URL');
