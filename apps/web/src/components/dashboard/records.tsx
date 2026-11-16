@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -36,7 +37,7 @@ function Records({ role }: { role: 'admin' | 'broker' | 'user' }) {
       {q.error ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <p className="text-sm text-muted">Loading records…</p>
+        <LoadingArtwork className="h-16" label="Loading records…" />
       ) : (
         <>
           <p className="mb-4 text-xs text-muted">{q.data.total.toLocaleString('en-IN')} matching records · IST</p>

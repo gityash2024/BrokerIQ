@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
-import { Skeleton } from '../ui/misc';
 import { Segmented } from '../ui/tabs';
 import { useFlag } from '@/lib/config';
 
@@ -80,7 +80,7 @@ export function SlotBooking({
       }
     >
       {q.isLoading ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : !days.length ? (
         <p className="text-sm text-muted">अगले 7 दिन में कोई slot खाली नहीं — enquiry भेजें, broker समय तय करेंगे।</p>
       ) : (
@@ -177,7 +177,7 @@ export function TokenDialog({ listingId, open, onClose }: { listingId: string; o
       }
     >
       {!d ? (
-        <Skeleton className="h-32" />
+        <LoadingArtwork className="h-32" />
       ) : (
         <div className="space-y-3">
           <SafetyNote />

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { apiBlob, errorMessage } from '@/lib/api';
@@ -33,7 +34,7 @@ export function KycMedia({ src, alt, className }: { src: string; alt: string; cl
         {error}
       </p>
     );
-  if (!result || result.src !== src || result.scope !== scope) return <p className="p-2 text-xs text-muted">दस्तावेज़ खुल रहा है…</p>;
+  if (!result || result.src !== src || result.scope !== scope) return <LoadingArtwork className="h-16" label="दस्तावेज़ खुल रहा है…" />;
   return result.type === 'application/pdf' ? (
     <iframe src={result.url} title={alt} className={className || 'h-[65vh] w-full'} />
   ) : (

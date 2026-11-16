@@ -1,8 +1,9 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Building, Building2, Clock, Loader2, MapPin, Search, User } from 'lucide-react';
+import { Building, Building2, Clock, MapPin, Search, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useDebounced } from '@/lib/hooks';
@@ -122,7 +123,7 @@ export function SearchInput({
           )}
           aria-label="Search"
         />
-        {isFetching && <Loader2 className="size-4 animate-spin text-subtle" />}
+        {isFetching && <InlineLoader className="size-4 text-subtle" />}
         <button
           type="submit"
           className={cn(

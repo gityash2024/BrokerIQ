@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { FieldInput } from '@/components/admin/crud';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
-import { Badge, Skeleton, Switch } from '@/components/ui/misc';
+import { Badge, Switch } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -75,7 +76,7 @@ export function HomepageBuilder() {
       {q.isError ? (
         <ApiErrorState error={q.error} />
       ) : !q.data ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : (
         <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
           {items.map((s, i) => (
@@ -152,7 +153,7 @@ export function HomepageSectionPage() {
       {sections.error ? (
         <ApiErrorState error={sections.error} onRetry={() => sections.refetch()} />
       ) : sections.isPending ? (
-        <Skeleton className="h-96" />
+        <LoadingArtwork className="h-96" />
       ) : section ? (
         <SectionEditor key={id} section={section} onClose={() => router.replace('/admin/homepage')} />
       ) : (

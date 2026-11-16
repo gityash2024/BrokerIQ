@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { formatINR } from '@brokeriq/shared';
@@ -7,7 +8,7 @@ import { formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
 import { Segmented } from '@/components/ui/tabs';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function Page() {
@@ -37,7 +38,7 @@ export default function Page() {
       {q.isError ? (
         <ApiErrorState error={q.error} />
       ) : !q.data ? (
-        <Skeleton className="h-72 rounded-2xl" />
+        <LoadingArtwork className="h-72 rounded-2xl" />
       ) : !q.data.items.length ? (
         <Empty title="कोई subscription नहीं" />
       ) : (

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -119,7 +120,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
         <ApiErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : (
         <>
-          {mode !== 'new' && !item && <p role="status">Loading property…</p>}
+          {mode !== 'new' && !item && <LoadingArtwork className="h-16" label="Loading property…" />}
           {(mode === 'new' || (mode === 'edit' && item && !item.deletedAt)) &&
             (superAdmin && mode === 'new' && !organizationId ? (
               <p role="alert">Choose a firm in Inventory before adding a property.</p>

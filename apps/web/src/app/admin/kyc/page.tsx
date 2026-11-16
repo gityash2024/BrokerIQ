@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -13,7 +14,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 function KycContent() {
@@ -63,7 +64,7 @@ function KycContent() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-48 rounded-2xl" />
+        <LoadingArtwork className="h-48 rounded-2xl" />
       ) : !q.data.length ? (
         <Empty icon={<BadgeCheck className="size-7" />} title="कोई document नहीं" />
       ) : (
@@ -137,7 +138,7 @@ function KycContent() {
 
 export default function KycPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-48 rounded-2xl" />}>
+    <Suspense fallback={<LoadingArtwork className="h-48 rounded-2xl" />}>
       <KycContent />
     </Suspense>
   );

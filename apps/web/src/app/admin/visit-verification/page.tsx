@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import { api, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { img } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Empty, Skeleton } from '@/components/ui/misc';
+import { Empty } from '@/components/ui/misc';
 
 const getPosition = () =>
   new Promise<GeolocationPosition>((resolve, reject) => {
@@ -61,7 +62,7 @@ export default function VisitVerificationPage() {
       />
       <input ref={pick} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && verify(e.target.files[0])} />
       {q.isLoading ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !q.data?.length ? (
         <Empty icon={<MapPin className="size-6" />} title="सब listings verified हैं" />
       ) : (

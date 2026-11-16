@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Search } from 'lucide-react';
@@ -9,7 +10,7 @@ import { cn, formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
 import { Input, Select } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { UserActions, UserSheet } from '@/components/admin/controls';
 
@@ -58,7 +59,7 @@ export default function UsersPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : !q.data.items.length ? (
         <Empty title="कोई user नहीं मिला" />
       ) : (

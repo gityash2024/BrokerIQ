@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
@@ -8,7 +9,7 @@ import { formatPriceShort, timeAgo, whatsappLink } from '@brokeriq/shared';
 import { api, patch } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
-import { Badge, Card, Empty, ErrorView, Header, IconBtn, Row, Screen, Segmented, Skeleton, Txt } from '@/ui';
+import { Badge, Card, Empty, ErrorView, Header, IconBtn, Row, Screen, Segmented, Txt } from '@/ui';
 
 const TONE: Record<string, string> = { NEW: '#4F46E5', RESPONDED: '#10B981', CLOSED: '#94A3B8' };
 
@@ -41,7 +42,7 @@ export default function Enquiries() {
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 40 }}
           ListEmptyComponent={
             q.isLoading ? (
-              <Skeleton h={90} />
+              <LoadingArtwork h={90} />
             ) : (
               <Empty
                 icon={<Send size={28} color={c.brand} />}

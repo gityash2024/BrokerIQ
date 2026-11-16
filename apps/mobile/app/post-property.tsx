@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -456,7 +457,7 @@ export default function PostProperty() {
                       style={{ width: '100%', height: '100%', opacity: p.uploading ? 0.5 : 1 }}
                       contentFit="cover"
                     />
-                    {p.uploading && <ActivityIndicator style={{ position: 'absolute', top: '40%', alignSelf: 'center' }} color={c.brand} />}
+                    {p.uploading && <InlineLoader style={{ position: 'absolute', top: '40%', alignSelf: 'center' }} />}
                     {!p.uploading && (
                       <>
                         <PressableScale

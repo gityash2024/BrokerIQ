@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,7 +10,7 @@ import { formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const KINDS = [
@@ -60,7 +61,7 @@ export default function BlocklistPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !q.data.length ? (
         <Empty icon={<Ban className="size-6" />} title="Blocklist खाली है" />
       ) : (

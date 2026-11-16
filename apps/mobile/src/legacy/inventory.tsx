@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, Linking, Modal, RefreshControl, TextInput, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -30,7 +31,7 @@ import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { alert } from '@/lib/i18n';
 import { ListingsManager } from '@/components/listings-manager';
-import { Badge, Button, Card, Chip, Empty, IconBtn, PressableScale, Row, Skeleton, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, IconBtn, PressableScale, Row, Txt } from '@/ui';
 
 interface InventoryItem {
   id: string;
@@ -438,9 +439,9 @@ export default function Inventory() {
           {/* Inventory Items List */}
           {inventoryQuery.isLoading ? (
             <View style={{ padding: 16, gap: 12 }}>
-              <Skeleton style={{ height: 100, borderRadius: 16 }} />
-              <Skeleton style={{ height: 100, borderRadius: 16 }} />
-              <Skeleton style={{ height: 100, borderRadius: 16 }} />
+              <LoadingArtwork style={{ height: 100, borderRadius: 16 }} />
+              <LoadingArtwork style={{ height: 100, borderRadius: 16 }} />
+              <LoadingArtwork style={{ height: 100, borderRadius: 16 }} />
             </View>
           ) : !data?.items?.length ? (
             <Empty title="कोई लेजर रिकॉर्ड नहीं मिला" text="फिल्टर बदलें या AI Scanner से नए पेज स्कैन करें।" />
@@ -449,7 +450,15 @@ export default function Inventory() {
               data={data.items}
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 60 }}
-              refreshControl={<RefreshControl refreshing={inventoryQuery.isRefetching} onRefresh={() => inventoryQuery.refetch()} />}
+              refreshControl={
+                <RefreshControl
+                  refreshing={inventoryQuery.isRefetching}
+                  onRefresh={() => inventoryQuery.refetch()}
+                  tintColor="transparent"
+                  colors={['transparent']}
+                  progressBackgroundColor="transparent"
+                />
+              }
               renderItem={({ item, index }) => (
                 <Card style={{ padding: 14 }}>
                   {/* Row 1: Sector, House No, Page No, Status Badge */}

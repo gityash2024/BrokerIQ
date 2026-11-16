@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, LifeBuoy, Mail, MessageCircle, Phone, RotateCcw } from 'lucide-react';
@@ -10,7 +11,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/field';
-import { Empty, Skeleton } from '@/components/ui/misc';
+import { Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function SupportPage() {
@@ -33,7 +34,7 @@ export default function SupportPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-48 rounded-2xl" />
+        <LoadingArtwork className="h-48 rounded-2xl" />
       ) : !q.data.length ? (
         <Empty icon={<LifeBuoy className="size-7" />} title="Inbox खाली है" />
       ) : (

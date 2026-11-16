@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -9,7 +10,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 function Stars({ n, size = 'size-4' }: { n: number; size?: string }) {
@@ -33,7 +34,7 @@ export default function ReviewsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-64 rounded-2xl" />
+        <LoadingArtwork className="h-64 rounded-2xl" />
       ) : !items.length ? (
         <Empty
           icon={<Star className="size-7" />}

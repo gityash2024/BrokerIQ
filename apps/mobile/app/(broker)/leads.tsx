@@ -18,7 +18,7 @@ import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge } from '@/components/crm';
-import { Avatar, Chip, Empty, ErrorView, IconBtn, Input, PressableScale, Row, Skeleton, Txt, Button, Sheet } from '@/ui';
+import { Avatar, Chip, Empty, ErrorView, IconBtn, Input, PressableScale, Row, Txt, Button, Sheet } from '@/ui';
 
 function Action({ color, icon, label, align }: { color: string; icon: React.ReactNode; label: string; align: 'left' | 'right' }) {
   return (

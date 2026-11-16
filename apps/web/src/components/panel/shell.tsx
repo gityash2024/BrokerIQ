@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -356,7 +357,7 @@ export function NotificationsBell({ href }: { href: string }) {
                 Notifications नहीं मिलीं · Retry
               </button>
             )}
-            {isLoading && <p className="p-4 text-sm">Loading…</p>}
+            {isLoading && <LoadingArtwork className="h-16" label="Loading…" />}
             {!isError && !isLoading && !data?.items?.length && <p className="p-6 text-center text-sm text-muted">कोई notification नहीं</p>}
           </div>
           <Link href={href} className="block px-4 py-3 text-center text-sm font-semibold text-brand-600 hover:bg-surface-2">

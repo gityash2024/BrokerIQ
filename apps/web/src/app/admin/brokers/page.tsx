@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +15,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { CreateBroker } from '@/components/admin/create-broker';
@@ -64,7 +65,7 @@ export default function BrokersPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : !q.data.items.length ? (
         <Empty title="कोई firm नहीं" />
       ) : (
@@ -157,7 +158,7 @@ function OrgSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   return (
     <Sheet open={!!id} onOpenChange={(v) => !v && onClose()} className="max-w-xl">
       {!o ? (
-        <Skeleton className="m-5 h-96" />
+        <LoadingArtwork className="m-5 h-96" />
       ) : (
         <div className="h-full overflow-y-auto p-6">
           <div className="flex items-center gap-4">

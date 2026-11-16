@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Scale } from 'lucide-react';
@@ -8,7 +9,6 @@ import { useFlag } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Field, Input, Select } from '../ui/field';
-import { Skeleton } from '../ui/misc';
 
 type Estimate = {
   locality: string;
@@ -148,7 +148,7 @@ export function FairRentTool() {
         {!asked ? (
           <p className="text-sm text-muted">BrokerIQ पर पिछले 12 महीनों की असली listings से — कोई अंदाज़ा नहीं, कोई AI guess नहीं।</p>
         ) : q.isLoading ? (
-          <Skeleton className="h-40" />
+          <LoadingArtwork className="h-40" />
         ) : !e?.enough ? (
           <p className="rounded-2xl bg-surface-2 p-4 text-sm">
             इस locality + BHK के लिए अभी data कम है ({e?.samples ?? 0} listings)। पास के sector या दूसरा BHK देखें।

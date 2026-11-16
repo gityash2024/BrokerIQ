@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import { del, patch, useApiMutation } from '@/lib/hooks';
 import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ListingCard } from '@/components/site/listing-card';
 import { RequirementButton } from '@/components/site/requirement';
 
@@ -36,7 +37,7 @@ function RequirementsInner() {
         actions={<RequirementButton variant="primary" />}
       />
       {list.isLoading ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : !list.data?.length ? (
         <Empty
           icon={<ClipboardList className="size-6" />}
@@ -85,7 +86,7 @@ function RequirementsInner() {
           <div>
             <p className="mb-3 font-display font-bold">Matching properties {matches.data ? `(${matches.data.length})` : ''}</p>
             {matches.isLoading ? (
-              <Skeleton className="h-64" />
+              <LoadingArtwork className="h-64" />
             ) : !matches.data?.length ? (
               <Empty title="अभी कोई matching property नहीं" text="जैसे ही आएगी, हम बताएँगे।" />
             ) : (

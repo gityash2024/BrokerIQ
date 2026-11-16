@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +11,7 @@ import { formatDate } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
 import { Dialog } from '../ui/dialog';
-import { Badge, Empty, Skeleton } from '../ui/misc';
+import { Badge, Empty } from '../ui/misc';
 import { PageHeader } from '@/components/panel/shell';
 import { useFlag } from '@/lib/config';
 
@@ -61,7 +62,7 @@ export function Agreements() {
         </Button>
       </div>
       {q.isLoading ? (
-        <Skeleton className="h-32" />
+        <LoadingArtwork className="h-32" />
       ) : !q.data?.length ? (
         <Empty
           icon={<FileSignature className="size-6" />}

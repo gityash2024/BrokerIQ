@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { VisitItinerary } from '@/components/visit-properties';
 import { DateTimeField } from '@/components/date-time-field';
 import { LeadContactActions } from '@/components/lead-contact-actions';
@@ -14,7 +15,7 @@ import { useApiMutation } from '@/lib/hooks';
 import { reconcileLocalReminders } from '@/lib/push';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, PressableScale, Row, Screen, Sheet, Skeleton, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, PressableScale, Row, Screen, Sheet, Txt } from '@/ui';
 
 const TONE: Record<string, string> = { SCHEDULED: '#4F46E5', CONFIRMED: '#0EA5E9', COMPLETED: '#10B981', CANCELLED: '#94A3B8', NO_SHOW: '#E11D48' };
 
@@ -81,7 +82,7 @@ export default function Visits() {
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 40 }}
           ListEmptyComponent={
             q.isLoading ? (
-              <Skeleton h={120} />
+              <LoadingArtwork h={120} />
             ) : (
               <Empty icon={<CalendarCheck size={28} color={c.brand} />} title="कोई visit नहीं" text="Lead page से visit schedule करें।" />
             )

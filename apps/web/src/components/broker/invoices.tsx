@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +15,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton, Switch } from '@/components/ui/misc';
+import { Badge, Empty, Switch } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 
 const TONE: Record<string, any> = { DRAFT: 'neutral', SENT: 'warning', PAID: 'success', CANCELLED: 'neutral' };
@@ -101,7 +102,7 @@ function InvoicesInner() {
       {list.isError ? (
         <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : list.isLoading ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !list.data?.items.length ? (
         <Empty
           icon={<FileText className="size-6" />}

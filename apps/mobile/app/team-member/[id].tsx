@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, Linking, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -6,7 +7,7 @@ import { type BrokerTeamResponse, firmRoleLabel, timeAgo, SHIFT_LOCATION_INTERVA
 import { api, patch, del } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
-import { Avatar, Badge, Button, Card, ErrorView, Header, Input, Row, Screen, Skeleton, Txt } from '@/ui';
+import { Avatar, Badge, Button, Card, ErrorView, Header, Input, Row, Screen, Txt } from '@/ui';
 
 type Member = BrokerTeamResponse['members'][number] & { updatedAt: string; organization?: { name: string } };
 export default function TeamMemberPage() {
@@ -40,7 +41,7 @@ export default function TeamMemberPage() {
       ) : q.data ? (
         <MemberEditor key={`${user?.id}:${id}`} member={q.data.member} refresh={() => q.refetch()} />
       ) : (
-        <Skeleton h={160} />
+        <LoadingArtwork h={160} />
       )}
     </Screen>
   );

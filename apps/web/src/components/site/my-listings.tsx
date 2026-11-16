@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -28,7 +29,7 @@ import { useConfig, useFlag, useFreeMode } from '@/lib/config';
 import { payWithRazorpay } from '@/lib/razorpay';
 import { cn, img } from '@/lib/utils';
 import { Segmented } from '../ui/tabs';
-import { Badge, Empty, Skeleton } from '../ui/misc';
+import { Badge, Empty } from '../ui/misc';
 import { Button } from '../ui/button';
 import { Input } from '../ui/field';
 import { Dialog } from '../ui/dialog';
@@ -111,11 +112,7 @@ export function MyListings({ base, newHref }: { base: string; newHref: string })
         </Button>
       </div>
       {q.isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
-        </div>
+        <div className="space-y-3">{<LoadingArtwork className="col-span-full h-28" />}</div>
       ) : !q.data?.items.length ? (
         <Empty title="कोई listing नहीं" text="पहली property post करें — free है।" action={<Button href={newHref}>Post property</Button>} />
       ) : (

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import Link from 'next/link';
 import { useState } from 'react';
@@ -11,7 +12,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Empty, Skeleton } from '@/components/ui/misc';
+import { Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { TeamLeaderboardView } from '@/components/broker/team/team-leaderboard';
 
@@ -59,7 +60,7 @@ export default function TeamLeaderboardPage() {
         </Select>
       )}
       {q.isLoading ? (
-        <Skeleton className="h-96 rounded-2xl mt-4" />
+        <LoadingArtwork className="h-96 rounded-2xl mt-4" />
       ) : q.isError ? (
         <div className="mt-4">
           <ApiErrorState error={q.error} onRetry={() => q.refetch()} />

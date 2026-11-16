@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, Linking, Share, View } from 'react-native';
 import { router } from 'expo-router';
@@ -10,7 +11,7 @@ import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
-import { Badge, Button, Card, Chip, Empty, ErrorView, IconBtn, Row, Screen, Skeleton, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, ErrorView, IconBtn, Row, Screen, Txt } from '@/ui';
 import { Image } from 'expo-image';
 import { img } from '@/lib/api';
 import { alert } from '../lib/i18n';
@@ -124,7 +125,7 @@ export function ListingsManager({ header }: { header: React.ReactNode }) {
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 12, paddingBottom: 40 }}
           ListEmptyComponent={
             q.isLoading ? (
-              <Skeleton h={120} />
+              <LoadingArtwork h={120} />
             ) : (
               <Empty
                 icon={<Building2 size={28} color={c.brand} />}

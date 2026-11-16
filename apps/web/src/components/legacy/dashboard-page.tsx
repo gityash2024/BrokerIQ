@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -41,7 +42,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { SourceBadge, StageBadge } from '@/components/broker/bits';
 import { Button } from '@/components/ui/button';
 import { ApiErrorState } from '@/components/ui/api-error';
-import { Empty, Skeleton, Stat } from '@/components/ui/misc';
+import { Empty, Stat } from '@/components/ui/misc';
 import { CountUp } from '@/components/motion/reveal';
 
 function SetupChecklist() {
@@ -179,11 +180,7 @@ export default function BrokerDashboard() {
       </div>
 
       {!d ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">{<LoadingArtwork className="col-span-full h-24" />}</div>
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <Link href="/broker/inventory">

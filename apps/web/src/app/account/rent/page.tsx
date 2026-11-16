@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -8,7 +9,7 @@ import { api } from '@/lib/api';
 import { formatDate, img } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -22,7 +23,7 @@ export default function MyRentPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !q.data.length ? (
         <Empty
           icon={<Home className="size-6" />}

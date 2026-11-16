@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
@@ -11,7 +12,7 @@ import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { StageBadge } from '@/components/crm';
-import { Avatar, Button, Card, Chip, Empty, ErrorView, Input, PressableScale, Row, Segmented, Skeleton, Txt } from '@/ui';
+import { Avatar, Button, Card, Chip, Empty, ErrorView, Input, PressableScale, Row, Segmented, Txt } from '@/ui';
 
 export default function Inbox() {
   const { c } = useTheme();
@@ -82,8 +83,7 @@ export default function Inbox() {
         ListEmptyComponent={
           list.isLoading ? (
             <View style={{ padding: 16, gap: 10 }}>
-              <Skeleton h={64} />
-              <Skeleton h={64} />
+              <LoadingArtwork h={64} />
             </View>
           ) : list.isError ? (
             <ErrorView error={list.error} />

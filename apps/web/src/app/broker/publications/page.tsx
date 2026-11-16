@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { LedgerItem } from '@brokeriq/shared';
@@ -12,7 +13,8 @@ import { Button } from '@/components/ui/button';
 export default function PublicationQueue() {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
-  const allowed = (!!user && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role)) ||
+  const allowed =
+    (!!user && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role)) ||
     (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'view', 'approve'));
   const query = useQuery({
     queryKey: ['publication-queue', user?.id, page],
@@ -38,7 +40,7 @@ export default function PublicationQueue() {
           />
         ))}
       </div>
-      {query.isPending && <p role="status">Loading publication reviews…</p>}
+      {query.isPending && <LoadingArtwork className="h-16" label="Loading publication reviews…" />}
       {query.data?.total === 0 && <p className="card p-8 text-muted">No publications await your approval.</p>}
       <div className="mt-5 flex justify-end gap-3">
         <Button variant="secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -32,7 +33,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { useAssignees } from '@/components/broker/bits';
 import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton, Switch } from '@/components/ui/misc';
+import { Badge, Empty, Switch } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -172,11 +173,7 @@ export function AutomationsPage() {
       {rules.isError ? (
         <ApiErrorState error={rules.error} onRetry={() => rules.refetch()} />
       ) : !rules.data ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-24 rounded-2xl" />
-          ))}
-        </div>
+        <div className="space-y-3">{<LoadingArtwork className="col-span-full h-24 rounded-2xl" />}</div>
       ) : !rules.data.length ? (
         <Empty
           icon={<Workflow className="size-7" />}
@@ -576,7 +573,7 @@ function Runs({ rule, onClose }: { rule: any; onClose: () => void }) {
   return (
     <Dialog open={!!rule} onOpenChange={(v) => !v && onClose()} title="Run history" description={rule?.name} size="lg">
       {!q.data ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : !q.data.length ? (
         <p className="py-8 text-center text-sm text-muted">अभी तक नहीं चली</p>
       ) : (

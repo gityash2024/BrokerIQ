@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck, MessageCircle, Phone, Wallet } from 'lucide-react';
@@ -9,7 +10,7 @@ import { formatDate, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { VideoJoin } from '@/components/site/video-join';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 
 const TOKEN_TONE: Record<string, any> = { CLAIMED: 'warning', RECEIVED: 'success', REFUNDED: 'info', CANCELLED: 'neutral' };
 const TOKEN_LABEL: Record<string, string> = { CLAIMED: 'Broker की पुष्टि बाकी', RECEIVED: 'Broker ने पुष्टि की', REFUNDED: 'Refund', CANCELLED: 'Cancelled' };
@@ -23,7 +24,7 @@ export default function MyVisitsPage() {
       <PageHeader title="Visits & tokens" subtitle="आपकी booked site visits और broker को दिए token का record" />
       <h2 className="mb-3 font-display text-lg font-bold">Site visits</h2>
       {visits.isLoading ? (
-        <Skeleton className="h-32" />
+        <LoadingArtwork className="h-32" />
       ) : !visits.data?.length ? (
         <Empty
           icon={<CalendarCheck className="size-6" />}
@@ -77,7 +78,7 @@ export default function MyVisitsPage() {
       )}
       <h2 className="mt-8 mb-3 font-display text-lg font-bold">Token records</h2>
       {tokens.isLoading ? (
-        <Skeleton className="h-24" />
+        <LoadingArtwork className="h-24" />
       ) : !tokens.data?.length ? (
         <Empty
           icon={<Wallet className="size-6" />}

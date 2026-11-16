@@ -1,4 +1,6 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,7 +12,6 @@ import { useConfig } from '@/lib/config';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ApiErrorState } from '@/components/ui/api-error';
-import { Skeleton } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
 function Link({ href, children, ...props }: { href: string; children: React.ReactNode; className?: string; title?: string }) {
   const { user } = useAuth();
@@ -206,7 +207,7 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
         </div>
         <div className="flex shrink-0 gap-2">
           <Button variant="secondary" size="sm" onClick={() => q.refetch()} aria-label="Refresh dashboard">
-            <RefreshCw className={`size-4 ${q.isFetching ? 'animate-spin' : ''}`} />
+            {q.isFetching ? <InlineLoader className="size-4" /> : <RefreshCw className="size-4" />}
           </Button>
           <Button
             size="sm"
@@ -290,11 +291,7 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
       )}
       {q.error && <ApiErrorState error={q.error} onRetry={() => q.refetch()} />}
       {!d && !q.error ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
-        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{<LoadingArtwork className="col-span-full h-28" />}</div>
       ) : (
         d && (
           <>

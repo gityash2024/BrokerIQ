@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -15,7 +16,7 @@ import { VisitSlotsButton } from '@/components/broker/visit-slots';
 import { VisitItinerary } from '@/components/broker/visit-itinerary';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { VideoJoin } from '@/components/site/video-join';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -127,11 +128,7 @@ export default function VisitsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-40 rounded-2xl" />
-          ))}
-        </div>
+        <div className="grid gap-3 md:grid-cols-2">{<LoadingArtwork className="col-span-full h-40 rounded-2xl" />}</div>
       ) : !list.length ? (
         <Empty
           icon={<CalendarCheck className="size-7" />}

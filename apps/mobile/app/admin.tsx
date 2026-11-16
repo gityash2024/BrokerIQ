@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
@@ -10,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Badge, Button, Card, Empty, ErrorView, Header, Input, Row, Screen, Segmented, Sheet, Skeleton, Txt } from '@/ui';
+import { Badge, Button, Card, Empty, ErrorView, Header, Input, Row, Screen, Segmented, Sheet, Txt } from '@/ui';
 
 type Tab = 'review' | 'reports' | 'listings';
 
@@ -101,7 +102,9 @@ export default function AdminScreen() {
           refreshing={query.isRefetching}
           onRefresh={() => query.refetch()}
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 12, paddingBottom: 40 }}
-          ListEmptyComponent={query.isLoading ? <Skeleton h={140} /> : <Empty icon={<CheckCircle2 size={28} color={c.success} />} title="सब साफ़ है 🎉" />}
+          ListEmptyComponent={
+            query.isLoading ? <LoadingArtwork h={140} /> : <Empty icon={<CheckCircle2 size={28} color={c.success} />} title="सब साफ़ है 🎉" />
+          }
           renderItem={({ item }) => {
             if (tab === 'reports') {
               const r = item;

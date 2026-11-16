@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,7 +16,7 @@ import { LeadPicker, ListingPicker } from '@/components/broker/lead-picker';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton, Stat } from '@/components/ui/misc';
+import { Avatar, Badge, Empty, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { CountUp } from '@/components/motion/reveal';
 import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
@@ -103,7 +104,7 @@ export function DealsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-64 rounded-2xl" />
+        <LoadingArtwork className="h-64 rounded-2xl" />
       ) : !q.data.length ? (
         <Empty
           icon={<Handshake className="size-7" />}

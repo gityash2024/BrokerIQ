@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +11,7 @@ import { qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
 import { Input } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Segmented } from '@/components/ui/tabs';
 import { Map } from '@/components/site/map';
@@ -74,7 +75,7 @@ export default function UserDataPage() {
       ) : q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : !q.data.items.length ? (
         <Empty title="अभी किसी user ने data share नहीं किया" text="Users app/website पर consent देकर location या contacts share करते हैं।" />
       ) : (

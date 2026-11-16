@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useState } from 'react';
 import { FlatList, Platform, View } from 'react-native';
@@ -15,7 +16,7 @@ import { useAuth } from '@/lib/auth';
 import { showError } from '@/lib/hooks';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
-import { Badge, Button, Card, Chip, Empty, Header, Input, PressableScale, Row, Screen, Segmented, Sheet, Skeleton, Txt } from '@/ui';
+import { Badge, Button, Card, Chip, Empty, Header, Input, PressableScale, Row, Screen, Segmented, Sheet, Txt } from '@/ui';
 
 function VoteButton({ item, onVoted }: { item: any; onVoted: () => void }) {
   const { c } = useTheme();
@@ -117,7 +118,7 @@ export default function Feedback() {
           contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 10, paddingBottom: 40 }}
           ListEmptyComponent={
             board.isLoading ? (
-              <Skeleton h={90} />
+              <LoadingArtwork h={90} />
             ) : (
               <Empty
                 title={tab === 'mine' ? 'अभी कोई feedback नहीं दिया' : 'अभी कुछ नहीं'}
@@ -283,7 +284,7 @@ function FeedbackDetail({ id, onClose, onChange }: { id: string | null; onClose:
   return (
     <Sheet open={!!id} onClose={onClose} title={d?.title}>
       {!d ? (
-        <Skeleton h={120} />
+        <LoadingArtwork h={120} />
       ) : (
         <>
           <Row wrap gap={6}>

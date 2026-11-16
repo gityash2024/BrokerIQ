@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { DelegatedPermissions } from '@/components/delegated-permissions';
 import { firmRoleLabel } from '@brokeriq/shared';
 import { useState } from 'react';
@@ -14,7 +15,7 @@ import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { useTeam } from '@/components/crm';
-import { Avatar, Badge, Button, Card, Chip, ErrorView, Header, IconBtn, Input, Row, Screen, Sheet, Skeleton, Txt } from '@/ui';
+import { Avatar, Badge, Button, Card, Chip, ErrorView, Header, IconBtn, Input, Row, Screen, Sheet, Txt } from '@/ui';
 
 export default function Team() {
   const { c, isDark } = useTheme();
@@ -111,7 +112,7 @@ export default function Team() {
           data={filteredMembers}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 60 }}
-          ListEmptyComponent={q.isLoading ? <Skeleton h={100} /> : null}
+          ListEmptyComponent={q.isLoading ? <LoadingArtwork h={100} /> : null}
           ListFooterComponent={
             (q.data?.invites ?? []).length ? (
               <View style={{ gap: 8, marginTop: 10 }}>

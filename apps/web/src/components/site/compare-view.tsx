@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +8,6 @@ import { FURNISHING_LABELS, formatINR } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { formatDate, img } from '@/lib/utils';
 import { Button } from '../ui/button';
-import { Skeleton } from '../ui/misc';
 import { ApiErrorState } from '../ui/api-error';
 
 type Row = [string, (l: any) => React.ReactNode];
@@ -36,7 +36,7 @@ export function CompareView() {
   });
   if (ids.length < 2) return <p className="text-muted">Saved properties में से 2–4 घर चुनकर compare करें.</p>;
   if (q.isError) return <ApiErrorState error={q.error} />;
-  if (!q.data) return <Skeleton className="h-96" />;
+  if (!q.data) return <LoadingArtwork className="h-96" />;
   const cheapest = Math.min(...q.data.map((l) => l.price));
   return (
     <div className="overflow-x-auto">

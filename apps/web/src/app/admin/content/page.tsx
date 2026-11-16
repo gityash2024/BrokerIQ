@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 /** Moderation of user-written content: broker reviews and flatmate profiles. */
@@ -55,7 +56,7 @@ function Reviews() {
         {q.isError ? (
           <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
         ) : !q.data ? (
-          <Skeleton className="h-48" />
+          <LoadingArtwork className="h-48" />
         ) : !q.data.length ? (
           <Empty icon={<Star className="size-6" />} title="कोई review नहीं" />
         ) : (
@@ -112,7 +113,7 @@ function Flatmates() {
     invalidate: [['admin-flatmates']],
   });
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
-  if (!q.data) return <Skeleton className="h-48" />;
+  if (!q.data) return <LoadingArtwork className="h-48" />;
   if (!q.data.length) return <Empty icon={<Users className="size-6" />} title="कोई flatmate profile नहीं" />;
   return (
     <div className="space-y-3">
@@ -178,7 +179,7 @@ function Campaigns() {
         {q.isError ? (
           <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
         ) : !q.data ? (
-          <Skeleton className="h-48" />
+          <LoadingArtwork className="h-48" />
         ) : !q.data.length ? (
           <Empty icon={<Megaphone className="size-6" />} title="कोई campaign नहीं" />
         ) : (

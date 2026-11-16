@@ -1,3 +1,4 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -66,7 +67,7 @@ export function InventoryLeadShare({ message, photoUrls }: { message: string; ph
                     </Txt>
                   </PressableScale>
                 ))}
-              {leads.isPending && <Txt color="muted">Loading…</Txt>}
+              {leads.isPending && <InlineLoader />}
               {leads.data?.pages[0].total === 0 && <Txt color="muted">No matching lead.</Txt>}
               {leads.hasNextPage && (
                 <Button title="Load more leads" variant="secondary" loading={leads.isFetchingNextPage} onPress={() => leads.fetchNextPage()} />

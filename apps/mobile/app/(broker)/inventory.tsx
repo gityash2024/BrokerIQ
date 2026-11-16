@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState, useEffect } from 'react';
-import { View, FlatList, Pressable, ActivityIndicator } from 'react-native';
+import { View, FlatList, Pressable } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -424,7 +425,7 @@ export default function Inventory() {
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
           query.isLoading ? (
-            <ActivityIndicator color={c.brand} style={{ padding: 40 }} />
+            <InlineLoader style={{ padding: 40 }} />
           ) : (
             <View style={{ paddingVertical: 40, gap: 10 }}>
               <Txt v="h3" style={{ textAlign: 'center' }}>
@@ -439,7 +440,7 @@ export default function Inventory() {
             </View>
           )
         }
-        ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={c.brand} style={{ padding: 20 }} /> : null}
+        ListFooterComponent={query.isFetchingNextPage ? <InlineLoader style={{ padding: 20 }} /> : null}
       />
 
       {selected.length > 0 && hasDelegatedAccess(user, 'inventory', 'edit', 'publish') && (

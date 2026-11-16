@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, Share, View } from 'react-native';
 import { router } from 'expo-router';
@@ -12,7 +13,7 @@ import { showError, useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { ListingRow, SaveButton } from '@/components/listing';
 import { LoginPrompt } from '@/components/login-prompt';
-import { Button, Card, Empty, ErrorView, IconBtn, Row, Screen, Segmented, Skeleton, Txt } from '@/ui';
+import { Button, Card, Empty, ErrorView, IconBtn, Row, Screen, Segmented, Txt } from '@/ui';
 
 export default function Saved() {
   const { user } = useAuth();
@@ -83,7 +84,7 @@ export default function Saved() {
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 120 }}
           ListEmptyComponent={
             searches.isLoading ? (
-              <Skeleton h={80} />
+              <LoadingArtwork h={80} />
             ) : searches.isError ? (
               <ErrorView error={searches.error} onRetry={() => searches.refetch()} />
             ) : (
@@ -122,7 +123,7 @@ export default function Saved() {
           onRefresh={() => listQ.refetch()}
           ListEmptyComponent={
             listQ.isLoading ? (
-              <Skeleton h={112} />
+              <LoadingArtwork h={112} />
             ) : listQ.isError ? (
               <ErrorView error={listQ.error} />
             ) : (

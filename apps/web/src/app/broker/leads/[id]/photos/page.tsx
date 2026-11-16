@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -66,7 +67,7 @@ export default function Page() {
       ) : lead.error ? (
         <ApiErrorState error={lead.error} onRetry={() => lead.refetch()} />
       ) : !lead.data ? (
-        <p role="status">Loading lead…</p>
+        <LoadingArtwork className="h-16" label="Loading lead…" />
       ) : !beforeVisit ? (
         <p>Property photos can be shared here before the site visit is completed.</p>
       ) : (

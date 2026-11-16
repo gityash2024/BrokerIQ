@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ClipboardCheck, ExternalLink, IndianRupee, MessageCircle, Plus, Receipt, Trash2, X } from 'lucide-react';
@@ -10,7 +11,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { Field, Input, Select, Textarea } from '../ui/field';
-import { Badge, Skeleton } from '../ui/misc';
+import { Badge } from '../ui/misc';
 import { Segmented } from '../ui/tabs';
 import { CopyField } from '../panel/integration-card';
 import { PhotoUploader } from '../site/photo-uploader';
@@ -56,7 +57,7 @@ export function RentDialog({ tenancyId, onClose }: { tenancyId: string | null; o
       description={t ? `${t.tenantName} · ${formatINR(t.rent)}/month` : undefined}
     >
       {!t ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : (
         <div className="space-y-5">
           <div className="rounded-2xl border border-line p-4">

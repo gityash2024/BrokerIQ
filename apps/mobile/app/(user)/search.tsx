@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -22,7 +23,7 @@ import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 import { ListingCard, type ListingCardData } from '@/components/listing';
 import { MapView, toPoints } from '@/components/map';
-import { Button, Chip, ErrorView, Empty, IconBtn, Input, PressableScale, Row, Sheet, Skeleton, Txt } from '@/ui';
+import { Button, Chip, ErrorView, Empty, IconBtn, Input, PressableScale, Row, Sheet, Txt } from '@/ui';
 import { useFlag } from '@/lib/config';
 
 type F = {
@@ -256,11 +257,7 @@ export default function SearchScreen() {
           onRefresh={() => list.refetch()}
           ListEmptyComponent={
             list.isLoading ? (
-              <View style={{ paddingHorizontal: 16, gap: 14 }}>
-                {[0, 1].map((i) => (
-                  <Skeleton key={i} h={300} r={22} />
-                ))}
-              </View>
+              <View style={{ paddingHorizontal: 16, gap: 14 }}>{<LoadingArtwork h={300} />}</View>
             ) : list.isError ? (
               <ErrorView error={list.error} onRetry={() => list.refetch()} />
             ) : (
@@ -270,7 +267,7 @@ export default function SearchScreen() {
           ListFooterComponent={
             list.isFetchingNextPage ? (
               <View style={{ paddingHorizontal: 16 }}>
-                <Skeleton h={300} r={22} />
+                <LoadingArtwork h={300} />
               </View>
             ) : null
           }

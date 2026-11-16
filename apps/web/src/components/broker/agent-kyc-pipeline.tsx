@@ -1,7 +1,8 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Check, X, Sparkles, Lock } from 'lucide-react';
+import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Check, X, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { KycMedia } from './kyc-media';
 import { uploadFile } from '@/lib/api';
@@ -551,7 +552,7 @@ export function AgentKycPipeline({ initialValues, disabled = false, onChange }: 
                     >
                       {detection?.isMatchingPose ? (
                         <>
-                          <Sparkles className="size-3.5 text-emerald-400 animate-spin" />
+                          <InlineLoader className="size-4" />
                           पोज़ लॉक: 1 सेकंड स्थिर रखें... ({holdProgress}%)
                         </>
                       ) : (

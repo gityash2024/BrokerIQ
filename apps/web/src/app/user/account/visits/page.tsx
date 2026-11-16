@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { ApiErrorState } from '@/components/ui/api-error';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +11,7 @@ import { formatDate, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { VideoJoin } from '@/components/site/video-join';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 
 const TOKEN_TONE: Record<string, any> = { CLAIMED: 'warning', RECEIVED: 'success', REFUNDED: 'info', CANCELLED: 'neutral' };
 const TOKEN_LABEL: Record<string, string> = { CLAIMED: 'Broker की पुष्टि बाकी', RECEIVED: 'Broker ने पुष्टि की', REFUNDED: 'Refund', CANCELLED: 'Cancelled' };
@@ -24,7 +25,7 @@ export default function MyVisitsPage() {
       <PageHeader title="My site visits" subtitle="Your upcoming visits and booking history" />
       <h2 className="mb-3 font-display text-lg font-bold">Site visits</h2>
       {visits.isLoading ? (
-        <Skeleton className="h-32" />
+        <LoadingArtwork className="h-32" />
       ) : visits.isError ? (
         <ApiErrorState error={visits.error} onRetry={() => visits.refetch()} />
       ) : !visits.data?.length ? (

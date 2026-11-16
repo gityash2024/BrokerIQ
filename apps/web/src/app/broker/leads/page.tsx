@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
@@ -19,7 +20,7 @@ import { SourceBadge, StageBadge, TempBadge, useAssignees } from '@/components/b
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/field';
-import { Avatar, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -250,11 +251,7 @@ function LeadsInner() {
       {q.error ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : q.isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16" />
-          ))}
-        </div>
+        <div className="space-y-2">{<LoadingArtwork className="col-span-full h-16" />}</div>
       ) : !items.length ? (
         <Empty
           icon={<Inbox className="size-6" />}

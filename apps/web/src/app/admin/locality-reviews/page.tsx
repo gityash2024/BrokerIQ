@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
@@ -8,7 +9,7 @@ import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 
 const DIMS = ['water', 'power', 'safety', 'parking', 'connectivity', 'maintenance'];
 
@@ -33,7 +34,7 @@ export default function LocalityReviewsAdmin() {
         ]}
       />
       {q.isLoading ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : !q.data?.length ? (
         <Empty icon={<Star className="size-6" />} title="कोई review नहीं" />
       ) : (

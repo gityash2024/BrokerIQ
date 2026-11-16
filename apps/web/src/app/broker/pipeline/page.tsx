@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -17,7 +18,7 @@ import { cn, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { SourceBadge, TempBadge, useAssignees } from '@/components/broker/bits';
 import { Input, Select, Textarea } from '@/components/ui/field';
-import { Avatar, Skeleton } from '@/components/ui/misc';
+import { Avatar } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -156,14 +157,14 @@ export default function PipelinePage() {
                 >
                   <div className="flex items-center gap-2 px-3.5 pt-3.5 pb-2">
                     <span className="size-2.5 rounded-full" style={{ background: c }} />
-                    <div className="font-display text-sm font-bold">{col.label || <Skeleton className="h-4 w-20" />}</div>
+                    <div className="font-display text-sm font-bold">{col.label || <LoadingArtwork className="h-4 w-20" />}</div>
                     <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-xs font-bold text-muted">{col.count}</span>
                   </div>
                   <div className="mx-3 mb-2 h-1 rounded-full" style={{ background: `${c}33` }}>
                     <div className="h-full rounded-full" style={{ background: c, width: `${Math.min(100, (col.count / Math.max(1, total)) * 100)}%` }} />
                   </div>
                   <div className="flex max-h-[calc(100dvh-260px)] min-h-40 flex-col gap-2 overflow-y-auto p-2.5">
-                    {!q.data && [0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+                    {!q.data && <LoadingArtwork className="col-span-full h-28 rounded-xl" />}
                     <AnimatePresence initial={false}>
                       {col.items.map((l) => (
                         <motion.div

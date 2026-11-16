@@ -25,3 +25,16 @@ test('reports concurrent requests until all have completed, including rejected w
   assert.deepEqual(seen, [1, 2, 1, 0]);
   assert.equal(activity.getSnapshot(), 0);
 });
+
+test('keeps very fast requests visible until the grace period ends', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const activity = createRequestActivity();
+  assert.equal(activity.getVisibility(), false);
+  await activity.track(async () => {});
+  assert.equal(activity.getSnapshot(), 0);
+  assert.equal(activity.getVisibility(), true);
+  t.mock.timers.tick(219);
+  assert.equal(activity.getVisibility(), true);
+  t.mock.timers.tick(1);
+  assert.equal(activity.getVisibility(), false);
+});

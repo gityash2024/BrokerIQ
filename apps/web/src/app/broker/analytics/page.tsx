@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -22,7 +23,7 @@ import { api } from '@/lib/api';
 import { formatDate, qs } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
-import { Avatar, Skeleton, Stat } from '@/components/ui/misc';
+import { Avatar, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { CountUp } from '@/components/motion/reveal';
 
@@ -70,7 +71,7 @@ export default function AnalyticsPage() {
       ) : !d ? (
         <div className="grid gap-4 md:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
-            <Skeleton key={i} className="h-28 rounded-2xl" />
+            <LoadingArtwork key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
       ) : (

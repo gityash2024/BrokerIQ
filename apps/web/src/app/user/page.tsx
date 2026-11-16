@@ -1,10 +1,11 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, BedDouble, Building2, MapPin, Search, Store, Heart } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageShell } from '@/components/site/page-shell';
-import { ListingCard, ListingCardSkeleton } from '@/components/site/listing-card';
+import { ListingCard } from '@/components/site/listing-card';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Empty } from '@/components/ui/misc';
 import type { ListingCard as LC, Paged } from '@/lib/types';
@@ -107,11 +108,7 @@ export default function ConsumerHome() {
         {listings.isError ? (
           <ApiErrorState error={listings.error} onRetry={() => listings.refetch()} />
         ) : listings.isPending ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2].map((i) => (
-              <ListingCardSkeleton key={i} />
-            ))}
-          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{<LoadingArtwork className="col-span-full h-52" />}</div>
         ) : listings.data?.items.length ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {listings.data.items.map((l) => (

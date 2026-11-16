@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton, Switch } from '@/components/ui/misc';
+import { Badge, Empty, Switch } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -85,7 +86,7 @@ export default function FeedbackAdmin() {
       {q.isError ? (
         <ApiErrorState error={q.error} />
       ) : !q.data ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : !q.data.items.length ? (
         <Empty icon={<MessageSquareHeart className="size-7" />} title="कोई feedback नहीं" />
       ) : (

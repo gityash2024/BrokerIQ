@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { LoginPrompt } from '@/components/login-prompt';
-import { Avatar, Button, Empty, ErrorView, PressableScale, Row, Screen, Skeleton, Txt } from '@/ui';
+import { Avatar, Button, Empty, ErrorView, PressableScale, Row, Screen, Txt } from '@/ui';
 
 export default function Messages() {
   const { user } = useAuth();
@@ -31,8 +32,7 @@ export default function Messages() {
         ListEmptyComponent={
           q.isLoading ? (
             <View style={{ padding: 16, gap: 12 }}>
-              <Skeleton h={64} />
-              <Skeleton h={64} />
+              <LoadingArtwork h={64} />
             </View>
           ) : q.isError ? (
             <ErrorView error={q.error} />

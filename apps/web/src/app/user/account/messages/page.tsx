@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -24,7 +25,7 @@ function Inner() {
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : q.isPending ? (
         <p className="py-8 text-sm text-muted" role="status">
-          Loading…
+          <LoadingArtwork className="h-24" />
         </p>
       ) : !q.data?.length ? (
         <Empty

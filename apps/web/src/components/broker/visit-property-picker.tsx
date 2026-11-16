@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { visitInventoryDetails, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
@@ -57,7 +58,7 @@ export function VisitPropertyPicker({
                 <p className="text-xs text-muted">{visitInventoryDetails(item)}</p>
               </button>
             ))}
-          {list.isPending && <p className="p-3 text-sm text-muted">Loading…</p>}
+          {list.isPending && <LoadingArtwork className="h-16" label="Loading…" />}
           {list.data?.pages[0].total === 0 && (
             <p className="p-3 text-sm text-muted">
               {purpose === 'photos' ? 'No matching property.' : 'No matching property. Enter a custom meeting address below.'}

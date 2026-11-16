@@ -1,3 +1,4 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useEffect, useState } from 'react';
 import { View, type StyleProp, type ImageStyle } from 'react-native';
 import { Image } from 'expo-image';
@@ -45,7 +46,7 @@ export function KycMedia({ uri, style }: { uri: string; style?: StyleProp<ImageS
           <Button title="Retry" size="sm" variant="secondary" onPress={() => setAttempt(attempt + 1)} />
         </View>
       ) : !current ? (
-        <Txt v="caption">दस्तावेज़ खुल रहा है…</Txt>
+        <InlineLoader />
       ) : (
         <>
           <Image

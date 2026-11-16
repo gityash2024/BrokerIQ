@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
-import { View, Linking, Share, ActivityIndicator, Pressable, TouchableOpacity } from 'react-native';
+import { View, Linking, Share, Pressable, TouchableOpacity } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -141,7 +142,7 @@ export default function PropertyDetail() {
     <BrokerScreen title={item ? inventoryTitle(item) : 'Property details'} subtitle={item?.sector ? `📍 ${item.sector}` : undefined} back>
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 110 }}>
         {q.error && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
-        {q.isPending && <ActivityIndicator color={c.brand} style={{ padding: 40 }} />}
+        {q.isPending && <InlineLoader style={{ padding: 40 }} />}
 
         {item && (
           <>

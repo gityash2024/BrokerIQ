@@ -1,11 +1,12 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy } from 'lucide-react';
 import type { PerformanceData, PerformanceQuery } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { Avatar, Skeleton } from '@/components/ui/misc';
+import { Avatar } from '@/components/ui/misc';
 import { Select, Input, Field } from '@/components/ui/field';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -66,7 +67,7 @@ export function TeamLeaderboardView({ currentUserId, organizationId }: TeamLeade
       {query.error ? (
         <ApiErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : query.isFetching ? (
-        <Skeleton className="h-44 rounded-xl" />
+        <LoadingArtwork className="h-44 rounded-xl" />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
           <table className="w-full min-w-[640px] text-sm">

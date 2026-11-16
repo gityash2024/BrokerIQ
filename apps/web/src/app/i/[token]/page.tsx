@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { use, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
@@ -6,7 +7,7 @@ import { formatINR } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { cn, formatDate, img } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge, Logo, Skeleton } from '@/components/ui/misc';
+import { Badge, Logo } from '@/components/ui/misc';
 import { Segmented } from '@/components/ui/tabs';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { OtpConfirm } from '@/components/site/otp-confirm';
@@ -26,7 +27,7 @@ export default function InspectionPage({ params }: { params: Promise<{ token: st
         {q.isError ? (
           <ApiErrorState error={q.error} />
         ) : !v ? (
-          <Skeleton className="h-96" />
+          <LoadingArtwork className="h-96" />
         ) : (
           <>
             <div className="card p-5">

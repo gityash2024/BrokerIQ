@@ -1,10 +1,12 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { ImagePlus, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ImagePlus, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { api, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { del, patch, post, useApiMutation } from '@/lib/hooks';
 import { cn, img } from '@/lib/utils';
@@ -12,7 +14,7 @@ import { PageHeader } from '../panel/shell';
 import { PhotoUploader } from '../site/photo-uploader';
 import { Button } from '../ui/button';
 import { Field, Input, Select, Textarea } from '../ui/field';
-import { Empty, Skeleton, Switch } from '../ui/misc';
+import { Empty, Switch } from '../ui/misc';
 import { ApiErrorState } from '../ui/api-error';
 
 export type FieldType = 'text' | 'textarea' | 'richtext' | 'number' | 'switch' | 'select' | 'image' | 'tags' | 'date' | 'json' | 'color' | 'images';
@@ -68,7 +70,7 @@ export function ImageInput({ value, onChange, kind = 'cms' }: { value: string; o
         {value ? (
           <img src={img(value, 200)} alt="" className="h-full w-full object-cover" />
         ) : busy ? (
-          <Loader2 className="size-5 animate-spin text-brand-600" />
+          <InlineLoader className="size-5 text-brand-600" />
         ) : (
           <ImagePlus className="size-5 text-subtle" />
         )}
@@ -238,7 +240,7 @@ function JsonInput({ value, onChange, onValidityChange }: { value: any; onChange
 /** Config-driven list and routed editor for admin master data and CMS entities. */
 export function AdminCrud(props: Parameters<typeof AdminCrudContent>[0]) {
   return (
-    <Suspense fallback={<Skeleton className="h-72" />}>
+    <Suspense fallback={<LoadingArtwork className="h-72" />}>
       <AdminCrudContent {...props} />
     </Suspense>
   );
@@ -391,7 +393,7 @@ function AdminCrudContent({
             <div className="flex h-full flex-col">
               <div className="flex-1 overflow-y-auto p-5">
                 {loading ? (
-                  <Skeleton className="h-96" />
+                  <LoadingArtwork className="h-96" />
                 ) : (
                   <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
                     {fields
@@ -468,7 +470,7 @@ function AdminCrudContent({
       {list.isError ? (
         <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : !list.data ? (
-        <Skeleton className="h-72 rounded-2xl" />
+        <LoadingArtwork className="h-72 rounded-2xl" />
       ) : !filtered.length ? (
         <Empty title="कुछ नहीं मिला" text={canCreate ? 'ऊपर "नया जोड़ें" से शुरू करें।' : undefined} />
       ) : (

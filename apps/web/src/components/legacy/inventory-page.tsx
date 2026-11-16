@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -33,7 +34,7 @@ import { Button } from '@/components/ui/button';
 
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { InventoryWhatsAppDialog } from '@/components/broker/inventory-whatsapp-dialog';
 import { toast } from 'sonner';
@@ -502,7 +503,7 @@ export default function BrokerInventoryPage() {
 
       {/* Spreadsheet Data Table */}
       {inventoryQuery.isLoading ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : inventoryQuery.isError ? (
         <ApiErrorState error={inventoryQuery.error} onRetry={() => inventoryQuery.refetch()} />
       ) : !data?.items?.length ? (

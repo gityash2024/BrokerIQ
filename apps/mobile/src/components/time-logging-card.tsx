@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Alert, Linking, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Alert, Linking, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -219,7 +220,7 @@ export function TimeLoggingCard() {
           <View style={{ width: 70, height: 24, borderRadius: 999, backgroundColor: isDark ? '#1C2033' : '#E2E8F0' }} />
         </View>
         <View style={{ height: 50, borderRadius: 14, backgroundColor: isDark ? '#1C2033' : '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="small" color={c.brand} />
+          <InlineLoader size={24} />
         </View>
       </View>
     );
@@ -446,7 +447,7 @@ export function TimeLoggingCard() {
               }}
             >
               {pausing ? (
-                <ActivityIndicator size="small" color="#F59E0B" />
+                <InlineLoader size={24} />
               ) : (
                 <>
                   <Pause size={16} color="#F59E0B" />
@@ -470,7 +471,7 @@ export function TimeLoggingCard() {
               }}
             >
               {punchingOut ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <InlineLoader size={24} />
               ) : (
                 <>
                   <LogOut size={16} color="#fff" />
@@ -554,7 +555,7 @@ export function TimeLoggingCard() {
               }}
             >
               {resuming ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <InlineLoader size={24} />
               ) : (
                 <>
                   <Play size={16} color="#fff" />
@@ -580,7 +581,7 @@ export function TimeLoggingCard() {
               }}
             >
               {punchingOut ? (
-                <ActivityIndicator size="small" color={c.danger} />
+                <InlineLoader size={24} />
               ) : (
                 <>
                   <LogOut size={16} color={c.danger} />
@@ -679,7 +680,7 @@ export function TimeLoggingCard() {
           >
             {punchingIn ? (
               <>
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <InlineLoader size={24} />
                 <Txt style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>Verifying GPS Location...</Txt>
               </>
             ) : (

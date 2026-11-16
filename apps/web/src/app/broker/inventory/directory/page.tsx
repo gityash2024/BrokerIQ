@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DirectoryDetails } from '@/components/broker/launch/directory-details';
@@ -140,7 +141,7 @@ export default function Directory() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {query.isPending && Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton h-52 rounded-2xl" aria-label="Loading project" />)}
+            {query.isPending && <LoadingArtwork className="col-span-full h-52" label="Loading projects" />}
             {query.data?.items.map((item: any) => (
               <button
                 key={item.id}
@@ -201,7 +202,7 @@ export default function Directory() {
         ) : detail.data ? (
           <DirectoryDetails record={detail.data} />
         ) : (
-          <div className="skeleton h-72" aria-label="Loading source details" />
+          <LoadingArtwork className="h-72" label="Loading source details" />
         )}
       </Dialog>
     </>

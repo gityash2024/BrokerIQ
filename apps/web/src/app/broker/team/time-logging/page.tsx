@@ -1,4 +1,6 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { Suspense, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -14,7 +16,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import type { MapPoint } from '@/components/site/map';
 import { SHIFT_LOCATION_INTERVAL_MS, type BrokerTeamResponse, type LocalityListItem } from '@brokeriq/shared';
 
@@ -28,7 +30,7 @@ const DynamicMap = dynamic(() => import('@/components/site/map').then((mod) => m
   loading: () => (
     <div className="flex h-full w-full min-h-[460px] items-center justify-center rounded-2xl bg-surface-2 text-muted">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+        <InlineLoader className="size-4" />
         Loading location history map...
       </div>
     </div>
@@ -404,7 +406,7 @@ function TimeLoggingContent() {
           className="gap-2 text-xs"
           disabled={!activeAgentId || timelineQuery.isFetching || historyQuery.isFetching}
         >
-          <RefreshCw className={cn('size-3.5', (timelineQuery.isFetching || historyQuery.isFetching) && 'animate-spin')} />
+          {timelineQuery.isFetching || historyQuery.isFetching ? <InlineLoader className="size-4" /> : <RefreshCw className="size-3.5" />}
           Refresh
         </Button>
       </div>
@@ -427,7 +429,7 @@ function TimeLoggingContent() {
               <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   {statusQuery.isLoading ? (
-                    <Skeleton className="h-6 w-24 rounded-full" />
+                    <LoadingArtwork className="h-6 w-24 rounded-full" />
                   ) : statusData?.status === 'ACTIVE' ? (
                     <Badge tone="success" className="px-3 py-1 text-xs uppercase font-bold tracking-wide">
                       <span className="size-2 rounded-full bg-emerald-500 animate-ping inline-block mr-1.5" />
@@ -506,7 +508,7 @@ function TimeLoggingContent() {
               </div>
               <div className="mt-3">
                 {timelineQuery.isLoading ? (
-                  <Skeleton className="h-7 w-20" />
+                  <LoadingArtwork className="h-7 w-20" />
                 ) : (
                   <p className="text-2xl font-bold font-display text-fg">{formatMinutes(timelineData?.summary?.activeMinutes ?? 0)}</p>
                 )}
@@ -524,7 +526,7 @@ function TimeLoggingContent() {
               </div>
               <div className="mt-3">
                 {timelineQuery.isLoading ? (
-                  <Skeleton className="h-7 w-20" />
+                  <LoadingArtwork className="h-7 w-20" />
                 ) : (
                   <p className="text-2xl font-bold font-display text-amber-600 dark:text-amber-400">
                     {formatMinutes(timelineData?.summary?.pausedMinutes ?? 0)}
@@ -574,11 +576,7 @@ function TimeLoggingContent() {
 
               <div className="mt-4 flex-1 overflow-y-auto max-h-[640px] pr-2">
                 {timelineQuery.isLoading ? (
-                  <div className="space-y-4 p-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <Skeleton key={i} className="h-16 w-full rounded-xl" />
-                    ))}
-                  </div>
+                  <div className="space-y-4 p-4">{<LoadingArtwork className="col-span-full h-16 w-full rounded-xl" />}</div>
                 ) : !timelineData?.events || timelineData.events.length === 0 ? (
                   <Empty
                     icon={<Clock className="size-6 text-muted" />}
@@ -714,7 +712,7 @@ function TimeLoggingContent() {
                 {historyQuery.isLoading ? (
                   <div className="flex h-full w-full min-h-[500px] items-center justify-center bg-surface-2 text-muted">
                     <div className="flex items-center gap-2 text-sm font-semibold">
-                      <span className="size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+                      <InlineLoader className="size-4" />
                       Loading GPS breadcrumbs...
                     </div>
                   </div>
@@ -752,7 +750,7 @@ function TimeLoggingContent() {
 export default function TimeLoggingPage() {
   return (
     <RequireAuth roles={['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'SUPER_ADMIN']}>
-      <Suspense fallback={<Skeleton className="h-32" />}>
+      <Suspense fallback={<LoadingArtwork className="h-32" />}>
         <TimeLoggingContent />
       </Suspense>
     </RequireAuth>

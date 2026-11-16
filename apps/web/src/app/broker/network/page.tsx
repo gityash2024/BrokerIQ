@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -13,7 +14,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 
 const STATUS_TONE: Record<string, any> = { PENDING: 'warning', ACCEPTED: 'success', REJECTED: 'danger', CANCELLED: 'neutral', CLOSED: 'info' };
 
@@ -54,11 +55,7 @@ function Network() {
         <Input className="pl-9" placeholder="Sector, society या title…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {list.isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-64" />
-          ))}
-        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{<LoadingArtwork className="col-span-full h-64" />}</div>
       ) : !list.data?.items.length ? (
         <Empty
           icon={<Handshake className="size-6" />}
@@ -121,7 +118,7 @@ function Requests({ box }: { box: 'incoming' | 'outgoing' }) {
       toast.error(errorMessage(e));
     }
   };
-  if (q.isLoading) return <Skeleton className="h-40" />;
+  if (q.isLoading) return <LoadingArtwork className="h-40" />;
   if (!q.data?.length)
     return (
       <Empty

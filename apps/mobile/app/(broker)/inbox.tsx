@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, View, TouchableOpacity, TextInput } from 'react-native';
+import { FlatList, View, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from '@/lib/api';
@@ -155,7 +156,7 @@ export default function Inbox() {
           convs.error ? (
             <ErrorView error={convs.error} onRetry={() => convs.refetch()} />
           ) : convs.isPending ? (
-            <ActivityIndicator color={c.brand} style={{ padding: 40 }} />
+            <InlineLoader style={{ padding: 40 }} />
           ) : (
             <NativeCard style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
               {channel === 'WHATSAPP' ? <MessageCircle size={38} color="#25D366" /> : <Globe size={38} color={c.brand} />}

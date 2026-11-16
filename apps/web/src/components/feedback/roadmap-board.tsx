@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -12,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { Segmented } from '../ui/tabs';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
-import { Badge, Empty, Skeleton } from '../ui/misc';
+import { Badge, Empty } from '../ui/misc';
 import { FeedbackForm } from './feedback-widget';
 
 export function VoteButton({ item, size = 'md' }: { item: { id: string; voteCount: number; voted?: boolean }; size?: 'md' | 'lg' }) {
@@ -84,7 +85,7 @@ export function RoadmapBoard() {
       </div>
       <div className="mt-6 space-y-3">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)
+          <LoadingArtwork className="col-span-full h-24" />
         ) : !data?.items.length ? (
           <Empty title="अभी कोई public idea नहीं" text="पहला idea आप suggest करें!" action={<Button onClick={() => setOpen(true)}>Suggest</Button>} />
         ) : (

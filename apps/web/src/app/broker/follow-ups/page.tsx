@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
@@ -17,7 +18,7 @@ import { LeadPicker } from '@/components/broker/lead-picker';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Avatar, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -243,11 +244,7 @@ export default function FollowUpsPage() {
       ) : q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <div className="space-y-3">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 rounded-2xl" />
-          ))}
-        </div>
+        <div className="space-y-3">{<LoadingArtwork className="col-span-full h-20 rounded-2xl" />}</div>
       ) : !q.data.items.length ? (
         <Empty
           icon={<Check className="size-7" />}

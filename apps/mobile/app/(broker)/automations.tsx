@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
-import { ActivityIndicator, Switch, View } from 'react-native';
+import { Switch, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -74,7 +75,7 @@ export default function Automations() {
         />
         {!!error && <Txt color="danger">{error}</Txt>}
         {rules.error && <ErrorView error={rules.error} onRetry={() => rules.refetch()} />}
-        {rules.isPending && <ActivityIndicator color={c.brand} />}
+        {rules.isPending && <InlineLoader />}
         <Row style={{ justifyContent: 'space-between' }}>
           <Txt v="h3">Your workflows</Txt>
           {rules.data && <WorkspaceTag tone="muted" label={String(rules.data.length)} />}
@@ -129,7 +130,7 @@ export default function Automations() {
           Rules start disabled. Review each action before enabling outbound messages.
         </Txt>
         {presets.error && <ErrorView error={presets.error} onRetry={() => presets.refetch()} />}
-        {presets.isPending && <ActivityIndicator color={c.brand} />}
+        {presets.isPending && <InlineLoader />}
         {presets.data
           ?.filter((p: any) => !rules.data?.some((r) => r.name === p.name))
           .filter((p: any) => !p.actions?.some((a: any) => a.type === 'SEND_EMAIL' || a.type?.startsWith('ASSIGN_')))
@@ -159,7 +160,7 @@ export default function Automations() {
         {runs.error ? (
           <ErrorView error={runs.error} onRetry={() => runs.refetch()} />
         ) : runs.isPending ? (
-          <ActivityIndicator color={c.brand} />
+          <InlineLoader />
         ) : runs.data?.length ? (
           runs.data.map((run: any) => (
             <NativeCard key={run.id}>

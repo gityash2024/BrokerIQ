@@ -1,7 +1,7 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 import { forwardRef } from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const variants = {
@@ -43,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
   const content = (
     <>
-      {loading && <Loader2 className="size-4 animate-spin" />}
+      {loading && <InlineLoader className="size-4" />}
       {children}
     </>
   );

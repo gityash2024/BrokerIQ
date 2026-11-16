@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -27,7 +28,7 @@ export function KycHistory({ member }: { member?: string }) {
         (q.isError ? (
           <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
         ) : q.isPending ? (
-          <p>इतिहास खुल रहा है…</p>
+          <LoadingArtwork className="h-16" label="इतिहास खुल रहा है…" />
         ) : (
           <>
             {!q.data?.pages.some((p) => p.items.length) && <p className="text-sm text-muted">पिछली submission नहीं है।</p>}

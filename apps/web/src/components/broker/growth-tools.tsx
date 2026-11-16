@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -13,7 +14,7 @@ import { API_URL, cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { Field, Input, Select } from '../ui/field';
-import { Badge, Skeleton, Switch } from '../ui/misc';
+import { Badge, Switch } from '../ui/misc';
 import { CopyField } from '../panel/integration-card';
 
 const POSITION_LABEL: Record<(typeof WATERMARK_POSITIONS)[number], string> = {
@@ -44,7 +45,7 @@ export function BrandingSettings({ isAdmin }: { isAdmin: boolean }) {
     invalidate: [['broker-branding']],
   });
   const posts = useQuery({ queryKey: ['social-posts'], queryFn: () => api<any[]>('/broker/social-posts'), enabled: social });
-  if (!q.data || !b) return <Skeleton className="h-64 max-w-2xl" />;
+  if (!q.data || !b) return <LoadingArtwork className="h-64 max-w-2xl" />;
   const firm = q.data.firm as string;
   return (
     <div className="grid max-w-5xl gap-5 lg:grid-cols-2">
@@ -334,7 +335,7 @@ export function ComparisonDialog({
       }
     >
       {matches.isLoading ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !items.length ? (
         <p className="text-sm text-muted">इस lead की requirement से मिलती कोई live property नहीं मिली। Requirement भरें या listings जोड़ें।</p>
       ) : (

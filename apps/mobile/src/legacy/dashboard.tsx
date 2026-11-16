@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { Linking, View } from 'react-native';
 import { router } from 'expo-router';
@@ -38,7 +39,7 @@ import { useAuth } from '@/lib/auth';
 import { useLightStatusBar } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge } from '@/components/crm';
-import { Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
+import { Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Txt, useStatusScrim } from '@/ui';
 
 export default function Dashboard() {
   useLightStatusBar();
@@ -107,7 +108,7 @@ export default function Dashboard() {
                         {s.value ?? 0}
                       </Txt>
                     ) : (
-                      <Skeleton h={22} w={32} />
+                      <LoadingArtwork h={22} w={32} />
                     )}
                     <Txt v="caption" color="rgba(255,255,255,0.75)" style={{ fontSize: 10, textAlign: 'center' }} numberOfLines={1}>
                       {s.label}
@@ -170,7 +171,7 @@ export default function Dashboard() {
             }
           />
           {!d ? (
-            <Skeleton h={120} r={18} />
+            <LoadingArtwork h={120} />
           ) : d.todayFollowUps.length + d.todayVisits.length === 0 ? (
             <Card style={{ padding: 18, alignItems: 'center' }}>
               <Txt color="muted">आज कोई pending task नहीं 🎉</Txt>

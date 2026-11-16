@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -10,7 +11,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton, Switch } from '@/components/ui/misc';
+import { Avatar, Badge, Empty, Switch } from '@/components/ui/misc';
 
 const FOOD: Record<string, string> = { VEG: 'Veg', NONVEG: 'Non-veg', ANY: 'कोई भी' };
 
@@ -202,7 +203,7 @@ function Matches({ hasProfile }: { hasProfile: boolean }) {
     }
   };
   if (!hasProfile) return <Empty icon={<Users className="size-6" />} title="पहले अपनी profile बनाएँ" />;
-  if (q.isLoading) return <Skeleton className="h-48" />;
+  if (q.isLoading) return <LoadingArtwork className="h-48" />;
   if (!q.data?.length) return <Empty icon={<Users className="size-6" />} title="अभी कोई match नहीं" text="इलाके या budget थोड़ा बढ़ाकर देखें।" />;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -250,7 +251,7 @@ function Connections() {
     success: 'Updated',
     invalidate: [['flatmate-connections'], ['flatmate-matches']],
   });
-  if (q.isLoading) return <Skeleton className="h-32" />;
+  if (q.isLoading) return <LoadingArtwork className="h-32" />;
   if (!q.data?.length) return <Empty icon={<Users className="size-6" />} title="कोई request नहीं" />;
   return (
     <div className="space-y-3">

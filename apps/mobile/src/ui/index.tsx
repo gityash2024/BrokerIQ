@@ -1,9 +1,8 @@
-import { LoadingArtwork } from '@/components/request-loader';
+import { InlineLoader, LoadingArtwork } from '@/components/request-loader';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { NotificationBell } from '@/components/notification-bell';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   RefreshControl,
@@ -26,7 +25,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -101,7 +99,17 @@ export function Screen({
       contentContainerStyle={[padded && { padding: 16, paddingBottom: 110 }, contentStyle]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
-      refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.brand} colors={[c.brand]} /> : undefined}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={onRefresh}
+            tintColor="transparent"
+            colors={['transparent']}
+            progressBackgroundColor="transparent"
+          />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>
@@ -409,7 +417,7 @@ export function Button({
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color={fg} /> : icon}
+      {loading ? <InlineLoader size={22} /> : icon}
       {!!title && (
         <Text style={[{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15, flexShrink: 1, textAlign: 'center' }, dir]}>{t(title)}</Text>
       )}
@@ -628,16 +636,6 @@ export function Avatar({ name, uri, size = 40 }: { name?: string | null; uri?: s
       <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: size * 0.38 }}>{initials(name ?? '?')}</Text>
     </View>
   );
-}
-
-export function Skeleton({ h = 16, w = '100%', r = 10, style }: { h?: number; w?: number | `${number}%`; r?: number; style?: StyleProp<ViewStyle> }) {
-  const { c } = useTheme();
-  const o = useSharedValue(0.5);
-  useEffect(() => {
-    o.value = withRepeat(withTiming(1, { duration: 800 }), -1, true);
-  }, [o]);
-  const a = useAnimatedStyle(() => ({ opacity: o.value }));
-  return <Animated.View style={[{ height: h, width: w, borderRadius: r, backgroundColor: c.surface2 }, a, style]} />;
 }
 
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {

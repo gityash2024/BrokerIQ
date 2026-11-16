@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, Download, MessageCircle } from 'lucide-react';
@@ -7,7 +8,6 @@ import { errorMessage } from '@/lib/api';
 import { post } from '@/lib/hooks';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Skeleton } from '../ui/misc';
 
 /** Ready-to-post WhatsApp status / Instagram images + caption with a tracked link. */
 export function ShareKitDialog({ listingId, leadId, onClose }: { listingId: string | null; leadId?: string; onClose: () => void }) {
@@ -35,7 +35,7 @@ export function ShareKitDialog({ listingId, leadId, onClose }: { listingId: stri
       description="WhatsApp status, Instagram post/story के लिए तैयार images — link से आने वाले हर visit की गिनती होती है।"
     >
       {!kit ? (
-        <Skeleton className="h-72" />
+        <LoadingArtwork className="h-72" />
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-[1fr_0.56fr] gap-3">

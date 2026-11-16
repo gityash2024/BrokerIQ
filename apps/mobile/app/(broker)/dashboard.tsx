@@ -29,7 +29,15 @@ export default function Today() {
     <BrokerScreen title="Today" subtitle={user?.organization?.name ?? 'BrokerIQ'}>
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 18, paddingBottom: 30 }}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} tintColor={c.brand} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={q.isRefetching}
+            onRefresh={() => q.refetch()}
+            tintColor="transparent"
+            colors={['transparent']}
+            progressBackgroundColor="transparent"
+          />
+        }
       >
         {isAgent && kycStatus !== 'VERIFIED' && (
           <NativeCard

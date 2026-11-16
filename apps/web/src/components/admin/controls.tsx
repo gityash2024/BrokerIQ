@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -27,7 +28,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Dialog, Sheet } from '../ui/dialog';
 import { Input, Textarea } from '../ui/field';
-import { Avatar, Badge, Skeleton } from '../ui/misc';
+import { Avatar, Badge } from '../ui/misc';
 
 // ------------------------------------------------------------------ small building blocks
 const itemCls = 'flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2';
@@ -286,7 +287,7 @@ export function UserSheet({ id, onClose }: { id: string | null; onClose: () => v
   return (
     <Sheet open={!!id} onOpenChange={(v) => !v && onClose()} className="max-w-xl">
       {!d ? (
-        <Skeleton className="m-5 h-96" />
+        <LoadingArtwork className="m-5 h-96" />
       ) : (
         <div className="h-full overflow-y-auto p-6">
           <div className="flex items-center gap-4">

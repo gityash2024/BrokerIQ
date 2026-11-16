@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const REASON: Record<string, string> = { SPAM: 'Spam', ABUSE: 'Abuse', FRAUD: 'Fraud', OTHER: 'Other' };
@@ -38,7 +39,7 @@ export default function ChatReportsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-48 rounded-2xl" />
+        <LoadingArtwork className="h-48 rounded-2xl" />
       ) : !q.data.length ? (
         <Empty icon={<MessageSquareWarning className="size-7" />} title="कोई report नहीं" />
       ) : (

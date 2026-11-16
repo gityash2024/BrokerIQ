@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { ToggleRight } from 'lucide-react';
@@ -7,7 +8,7 @@ import { patch, useApiMutation } from '@/lib/hooks';
 import { formatDateTime } from '@/lib/utils';
 import { featureName } from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
-import { Empty, Skeleton, Switch } from '@/components/ui/misc';
+import { Empty, Switch } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const LABELS: Record<string, string> = {
@@ -33,7 +34,7 @@ export default function FlagsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <Skeleton className="h-64 rounded-2xl" />
+        <LoadingArtwork className="h-64 rounded-2xl" />
       ) : !q.data.length ? (
         <Empty icon={<ToggleRight className="size-7" />} title="कोई flag नहीं" text="Seed चलाने पर default flags बनते हैं।" />
       ) : (

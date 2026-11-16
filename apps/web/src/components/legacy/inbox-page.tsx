@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { SmsThread } from '@/components/broker/sms-thread';
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -43,7 +44,7 @@ import { ListingPicker } from '@/components/broker/lead-picker';
 import { ChatThread } from '@/components/site/chat-view';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/field';
-import { Empty, PageLoader, Skeleton } from '@/components/ui/misc';
+import { Empty, PageLoader } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { IntegrationBanner } from '@/components/ui/api-error';
 
@@ -367,7 +368,7 @@ function InboxInner() {
 
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto divide-y divide-line/60">
-          {convs.isPending && [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="m-3 h-16 rounded-xl" />)}
+          {convs.isPending && <LoadingArtwork className="col-span-full m-3 h-16 rounded-xl" />}
           {convs.error && <ApiErrorState error={convs.error} onRetry={() => convs.refetch()} />}
           {convs.data && !conversationItems.length && (
             <Empty
@@ -929,7 +930,7 @@ function TemplateDialog({
       }
     >
       {tpls.isLoading ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : !approved.length ? (
         <Empty
           icon={<Plug className="size-6" />}

@@ -1,6 +1,7 @@
+import { InlineLoader } from '@/components/request-loader';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, TextInput, View } from 'react-native';
+import { FlatList, Modal, TextInput, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
@@ -264,7 +265,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
           ListFooterComponent={
             busy ? (
               <Row gap={8}>
-                <ActivityIndicator color={c.brand} />
+                <InlineLoader />
                 <Txt v="small" color="muted">
                   सोच रहा हूँ…
                 </Txt>

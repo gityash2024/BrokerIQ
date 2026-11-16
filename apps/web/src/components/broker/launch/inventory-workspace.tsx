@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -629,7 +630,7 @@ function LedgerInner() {
               })}
             </tbody>
           </table>
-          {query.isLoading && <p className="p-8 text-center text-muted">Loading inventory…</p>}
+          {query.isLoading && <LoadingArtwork className="h-16" label="Loading inventory…" />}
           {query.data?.total === 0 && (
             <div className="p-10 text-center">
               <h2 className="font-semibold">No properties match</h2>

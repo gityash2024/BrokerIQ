@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -10,7 +11,7 @@ import { api } from '@/lib/api';
 import { cn, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Badge, Skeleton, Stat } from '@/components/ui/misc';
+import { Badge, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Segmented } from '@/components/ui/tabs';
 import { patch, post, useApiMutation } from '@/lib/hooks';
@@ -39,7 +40,7 @@ export default function HealthPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !d ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <LoadingArtwork className="h-96 rounded-2xl" />
       ) : (
         <div className="space-y-5">
           <motion.div
@@ -192,7 +193,7 @@ function ErrorsCard() {
         )}
       </div>
       {q.isLoading ? (
-        <Skeleton className="h-24" />
+        <LoadingArtwork className="h-24" />
       ) : !q.data?.length ? (
         <p className="py-6 text-center text-sm text-muted">{status === 'open' ? 'कोई खुली error नहीं 🎉' : 'कुछ नहीं'}</p>
       ) : (
@@ -246,7 +247,7 @@ function CostsCard() {
         OpenRouter free models, Groq/Gemini free tier और free SMTP की रोज़ की limits के अंदर रहें। AI firm-wise daily cap: App config → Free mode, AI.
       </p>
       {!d ? (
-        <Skeleton className="h-24" />
+        <LoadingArtwork className="h-24" />
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-xl bg-surface-2 p-4 text-sm">

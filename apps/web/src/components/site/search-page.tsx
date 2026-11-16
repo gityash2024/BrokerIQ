@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -27,7 +28,7 @@ import { Empty, Switch } from '../ui/misc';
 import { RequirementButton } from './requirement';
 import { Sheet } from '../ui/dialog';
 import { ApiErrorState } from '../ui/api-error';
-import { ListingCard, ListingCardSkeleton } from './listing-card';
+import { ListingCard } from './listing-card';
 import { Map } from './map';
 import { SearchInput } from './search-box';
 import { useFlag } from '@/lib/config';
@@ -333,9 +334,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
             <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
           ) : q.isLoading ? (
             <div className={cn('grid gap-5', view === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1')}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ListingCardSkeleton key={i} />
-              ))}
+              {<LoadingArtwork className="col-span-full h-52" />}
             </div>
           ) : !items.length ? (
             <Empty

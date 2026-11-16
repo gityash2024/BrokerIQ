@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -87,7 +88,7 @@ function RecordContent({ mode }: { mode: Mode }) {
         {record.error || lead.error ? (
           <ApiErrorState error={record.error || lead.error} />
         ) : (id && !item) || (leadId && !lead.data) ? (
-          <p role="status">Loading…</p>
+          <LoadingArtwork className="h-16" label="Loading…" />
         ) : mode !== 'convert' ? (
           leadId && lead.data ? (
             <RequirementForm initial={{ leadId, contactName: lead.data.name, contactPhone: lead.data.phone }} onDirty={() => setDirty(true)} onSave={save} />

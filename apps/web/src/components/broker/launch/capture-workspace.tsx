@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { IMPORT_MAX_BYTES, uploadImport } from '@brokeriq/shared';
 import { useEffect, useRef, useState, Suspense } from 'react';
@@ -389,7 +390,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
           </Button>
         </div>
       ) : query.isPending ? (
-        <div className="skeleton h-24" role="status" aria-label="Loading sources" />
+        <LoadingArtwork className="h-24" label="Loading sources" />
       ) : (
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
           {query.data?.items.map((item: any) => (

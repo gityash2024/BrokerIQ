@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
-import { FlatList, View, ActivityIndicator, Linking, Alert } from 'react-native';
+import { FlatList, View, Linking, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { formatINR, readableValue, moduleAllowed } from '@brokeriq/shared';
@@ -56,7 +57,7 @@ export default function Requirements() {
           list.error ? (
             <ErrorView error={list.error} onRetry={() => list.refetch()} />
           ) : list.isPending ? (
-            <ActivityIndicator style={{ padding: 40 }} />
+            <InlineLoader style={{ padding: 40 }} />
           ) : (
             <NativeCard>
               <Txt v="title">No requirements match</Txt>
@@ -66,7 +67,7 @@ export default function Requirements() {
             </NativeCard>
           )
         }
-        ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={{ padding: 20 }} /> : null}
+        ListFooterComponent={list.isFetchingNextPage ? <InlineLoader style={{ padding: 20 }} /> : null}
         renderItem={({ item }) => (
           <NativeCard>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
@@ -162,7 +163,7 @@ export default function Requirements() {
         {matches.error ? (
           <ErrorView error={matches.error} onRetry={() => matches.refetch()} />
         ) : matches.isPending ? (
-          <ActivityIndicator style={{ padding: 40 }} />
+          <InlineLoader style={{ padding: 40 }} />
         ) : (
           <View style={{ gap: 12 }}>
             {['available', 'unknown'].map((group) => (

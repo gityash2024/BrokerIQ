@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,7 +11,7 @@ import { useFlag } from '@/lib/config';
 import { del, post, useApiMutation } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
-import { ListingCard, ListingCardSkeleton } from '@/components/site/listing-card';
+import { ListingCard } from '@/components/site/listing-card';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Empty } from '@/components/ui/misc';
@@ -59,11 +60,7 @@ export default function SavedPage() {
       />
       {picking && <p className="mb-4 text-sm text-muted">2–4 घर चुनें (card पर tap करें), फिर Compare दबाएँ।</p>}
       {q.isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <ListingCardSkeleton key={i} />
-          ))}
-        </div>
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{<LoadingArtwork className="col-span-full h-52" />}</div>
       ) : q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data?.length ? (

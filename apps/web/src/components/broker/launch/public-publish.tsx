@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { inventoryPublishSchema, RENTABLE_TYPES, PROPERTY_TYPES, PROPERTY_TYPE_LABELS, type LedgerItem, type LocalityListItem } from '@brokeriq/shared';
@@ -90,7 +91,7 @@ export function PublicPublish({ item, onDone }: { item: LedgerItem; onDone: () =
       </p>
       {saved.error && <p role="alert">{errorMessage(saved.error)}</p>}
       {item.publishedListingId && !saved.data ? (
-        <p role="status">Loading saved public details…</p>
+        <LoadingArtwork className="h-16" label="Loading saved public details…" />
       ) : !ready ? (
         <p role="alert" className="text-sm text-amber-700">
           First save this as an active Rent/Sale property and confirm availability.

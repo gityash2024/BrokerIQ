@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -8,7 +9,7 @@ import { api, apiBlob, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
-import { Skeleton, Stat } from '@/components/ui/misc';
+import { Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
 
@@ -94,7 +95,7 @@ export default function ReportsPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !t ? (
-        <Skeleton className="h-64" />
+        <LoadingArtwork className="h-64" />
       ) : (
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

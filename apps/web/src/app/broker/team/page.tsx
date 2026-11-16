@@ -1,4 +1,6 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { hasDelegatedAccess, firmRoleLabel, type BrokerTeamResponse } from '@brokeriq/shared';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,7 +13,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Compass,
   CreditCard,
   Crown,
   Download,
@@ -52,7 +53,7 @@ import { useTeam } from '@/components/broker/bits';
 import { CopyField } from '@/components/panel/integration-card';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { SortableTh, useSortableTable } from '@/components/ui/sortable-header';
@@ -503,7 +504,7 @@ export default function TeamPage() {
       </div>
 
       {!q.data ? (
-        <Skeleton className="h-64 rounded-2xl" />
+        <LoadingArtwork className="h-64 rounded-2xl" />
       ) : filteredMembers.length === 0 ? (
         <Empty
           icon={<Users className="size-8" />}
@@ -856,7 +857,7 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
         <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-bold text-sm">
-              <Compass className="size-4 text-emerald-500 animate-spin" />
+              <InlineLoader className="size-4" />
               <span>लाइव लोकेशन ट्रैकर (Live Location)</span>
             </div>
             {loc ? (

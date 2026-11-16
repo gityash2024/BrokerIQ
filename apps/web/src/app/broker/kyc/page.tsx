@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -37,7 +38,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { useTeam } from '@/components/broker/bits';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
-import { Avatar, Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { AgentKycPipeline } from '@/components/broker/agent-kyc-pipeline';
@@ -446,8 +447,7 @@ function AdminKycManagementView({ user }: { user: any }) {
 
           {teamQuery.isLoading ? (
             <div className="space-y-4">
-              <Skeleton className="h-44 w-full rounded-2xl" />
-              <Skeleton className="h-44 w-full rounded-2xl" />
+              <LoadingArtwork className="h-44 w-full rounded-2xl" />
             </div>
           ) : filteredMembers.length === 0 ? (
             <Empty
@@ -900,7 +900,7 @@ function FirmKycManagementView({ user, canEdit = true }: { user: any; canEdit?: 
   const editable = canEdit && !isVerified;
 
   if (firmKycQuery.isLoading) {
-    return <Skeleton className="h-96 w-full rounded-2xl" />;
+    return <LoadingArtwork className="h-96 w-full rounded-2xl" />;
   }
 
   return (

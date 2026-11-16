@@ -3,7 +3,7 @@ import { fetch } from 'expo/fetch';
 import { Directory, File, Paths } from 'expo-file-system';
 import { randomUUID } from 'expo-crypto';
 import { shareablePropertyPhotoUrls } from '@brokeriq/shared';
-import { assertAccountContext, captureAccountContext } from './api';
+import { assertAccountContext, captureAccountContext, requestActivity } from './api';
 
 const bridge = requireOptionalNativeModule<{ sharePhotos(paths: string[], title: string): Promise<void> }>('BrokerIQPhotoShare');
 const types: Readonly<Record<string, string>> = {
@@ -82,7 +82,7 @@ export async function sharePropertyPhotoFiles(urls: readonly string[], signal: A
       assertAccountContext(owner);
       if (signal.aborted) throw new Error('Photo sharing cancelled.');
       try {
-        const file = await downloadPhoto(url, batch, index, Math.min(remaining, maxPhotoBytes), signal);
+        const file = await requestActivity.track(() => downloadPhoto(url, batch, index, Math.min(remaining, maxPhotoBytes), signal));
         remaining -= file.bytes;
         paths.push(file.uri);
       } catch {

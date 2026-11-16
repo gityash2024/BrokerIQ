@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Wallet } from 'lucide-react';
@@ -8,7 +9,7 @@ import { patch, useApiMutation } from '@/lib/hooks';
 import { formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 
 const TONE: Record<string, any> = { CLAIMED: 'warning', RECEIVED: 'success', REFUNDED: 'info', CANCELLED: 'neutral' };
 
@@ -26,7 +27,7 @@ export default function BrokerTokensPage() {
         subtitle="Tenant ने token/advance देने की जानकारी दी — मिला हो तो 'Received' करें, property पर 'Token मिल चुका' दिखेगा और lead negotiation में जाएगी"
       />
       {q.isLoading ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : !q.data?.length ? (
         <Empty icon={<Wallet className="size-6" />} title="अभी कोई token record नहीं" />
       ) : (

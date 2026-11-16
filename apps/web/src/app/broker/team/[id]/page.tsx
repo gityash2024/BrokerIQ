@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { firmRoleLabel } from '@brokeriq/shared';
 import { use, useState } from 'react';
 import Link from 'next/link';
@@ -10,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { patch, del, useApiMutation } from '@/lib/hooks';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
-import { Avatar, Badge, Skeleton } from '@/components/ui/misc';
+import { Avatar, Badge } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { formatDate, safeTimeAgo } from '@/lib/utils';
@@ -31,7 +32,7 @@ export default function TeamMemberDetailPage({ params }: { params: Promise<{ id:
     refetchOnReconnect: 'always',
   });
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} />;
-  if (!q.data) return <Skeleton className="h-64 rounded-xl" />;
+  if (!q.data) return <LoadingArtwork className="h-64 rounded-xl" />;
   return <Editor key={`${user?.id}:${id}`} member={q.data.member} />;
 }
 function Editor({ member }: { member: Member }) {

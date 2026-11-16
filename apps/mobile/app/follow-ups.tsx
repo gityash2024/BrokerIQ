@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
@@ -14,7 +15,7 @@ import { useApiMutation } from '@/lib/hooks';
 import { reconcileLocalReminders } from '@/lib/push';
 import { useTheme } from '@/lib/theme';
 import { StageBadge, useAssignees } from '@/components/crm';
-import { Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, Row, Screen, Segmented, Sheet, Skeleton, Txt } from '@/ui';
+import { Button, Card, Chip, Empty, ErrorView, Header, IconBtn, Input, Row, Screen, Segmented, Sheet, Txt } from '@/ui';
 
 export default function FollowUps() {
   const { c } = useTheme();
@@ -112,12 +113,16 @@ export default function FollowUps() {
             </Txt>
           }
           ListFooterComponent={
-            q.isFetchNextPageError ? <Button title="Retry loading more" onPress={() => q.fetchNextPage()} /> : q.isFetchingNextPage ? <Skeleton h={50} /> : null
+            q.isFetchNextPageError ? (
+              <Button title="Retry loading more" onPress={() => q.fetchNextPage()} />
+            ) : q.isFetchingNextPage ? (
+              <LoadingArtwork h={50} />
+            ) : null
           }
           contentContainerStyle={{ padding: 16, paddingTop: 0, gap: 10, paddingBottom: 40 }}
           ListEmptyComponent={
             q.isLoading ? (
-              <Skeleton h={100} />
+              <LoadingArtwork h={100} />
             ) : (
               <Empty icon={<Check size={28} color={c.success} />} title={view === 'future' ? 'इस महीने कोई pending follow-up नहीं है' : 'सब clear है 🎉'} />
             )

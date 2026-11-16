@@ -1,6 +1,7 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 import * as SwitchPrim from '@radix-ui/react-switch';
-import { Inbox, Loader2 } from 'lucide-react';
+import { Inbox } from 'lucide-react';
 import { initials } from '@brokeriq/shared';
 import { LoadingArtwork } from './request-loader';
 import { cn, img } from '@/lib/utils';
@@ -51,14 +52,6 @@ export function Switch({ checked, onCheckedChange, disabled }: { checked: boolea
       <SwitchPrim.Thumb className="block size-5 translate-x-0.5 rounded-full bg-white shadow transition data-[state=checked]:translate-x-[22px]" />
     </SwitchPrim.Root>
   );
-}
-
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('skeleton', className)} />;
-}
-
-export function Spinner({ className }: { className?: string }) {
-  return <Loader2 className={cn('size-5 animate-spin text-brand-600', className)} />;
 }
 
 export function PageLoader() {

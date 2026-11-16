@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -12,7 +13,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { OwnerReportCard } from '@/components/broker/growth-tools';
 import { InspectionDialog, OwnerPaymentCard, RentDialog } from '@/components/broker/lease-tools';
@@ -59,7 +60,7 @@ function Owners() {
         </Button>
       </div>
       {list.isLoading ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !list.data?.length ? (
         <Empty icon={<UserRound className="size-6" />} title="अभी कोई owner नहीं" text="Listings में owner का नाम और number भरें — वो यहाँ अपने-आप आ जाएँगे।" />
       ) : (
@@ -92,7 +93,7 @@ function OwnerDialog({ id, onClose }: { id: string | null; onClose: () => void }
   return (
     <Dialog open={!!id} onOpenChange={(v) => !v && onClose()} size="lg" title={o?.name ?? 'Owner'} description={o?.phone}>
       {!o ? (
-        <Skeleton className="h-40" />
+        <LoadingArtwork className="h-40" />
       ) : (
         <div className="space-y-5">
           <div className="flex flex-wrap gap-2">
@@ -209,7 +210,7 @@ function Leases() {
         </Button>
       </div>
       {list.isLoading ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !list.data?.length ? (
         <Empty
           icon={<KeyRound className="size-6" />}

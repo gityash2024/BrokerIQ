@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -25,7 +26,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
-import { Skeleton, Stat } from '@/components/ui/misc';
+import { Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { CountUp } from '@/components/motion/reveal';
 import { useFreeMode } from '@/lib/config';
@@ -84,7 +85,7 @@ export default function AdminDashboard() {
       {!d ? (
         <div className="grid gap-4 md:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
-            <Skeleton key={i} className="h-28 rounded-2xl" />
+            <LoadingArtwork key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
       ) : (

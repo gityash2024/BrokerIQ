@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -9,7 +10,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 
 const CH = { IN_APP: { label: 'In-app', icon: Bell }, PUSH: { label: 'Push + in-app', icon: Smartphone }, EMAIL: { label: 'Email', icon: Mail } } as const;
 
@@ -103,7 +104,7 @@ export default function Page() {
           </div>
           <p className="mb-2 text-sm font-bold">History</p>
           {!list.data ? (
-            <Skeleton className="h-40" />
+            <LoadingArtwork className="h-40" />
           ) : !list.data.length ? (
             <Empty title="अभी कोई broadcast नहीं" />
           ) : (

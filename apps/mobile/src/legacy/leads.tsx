@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { useRef, useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
@@ -15,7 +16,7 @@ import { useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { SourceBadge, StageBadge, TempBadge } from '@/components/crm';
-import { Avatar, Chip, Empty, ErrorView, IconBtn, Input, PressableScale, Row, Skeleton, Txt } from '@/ui';
+import { Avatar, Chip, Empty, ErrorView, IconBtn, Input, PressableScale, Row, Txt } from '@/ui';
 
 function Action({ color, icon, label, align }: { color: string; icon: React.ReactNode; label: string; align: 'left' | 'right' }) {
   return (
@@ -199,11 +200,7 @@ export default function Leads() {
         )}
         ListEmptyComponent={
           list.isLoading ? (
-            <View style={{ gap: 10 }}>
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} h={110} r={18} />
-              ))}
-            </View>
+            <View style={{ gap: 10 }}>{<LoadingArtwork h={110} />}</View>
           ) : list.isError ? (
             <ErrorView error={list.error} onRetry={() => list.refetch()} />
           ) : (

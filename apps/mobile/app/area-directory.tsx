@@ -1,5 +1,6 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, View, Linking } from 'react-native';
+import { FlatList, View, Linking } from 'react-native';
 import WebView from 'react-native-webview';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Building2, ChevronRight, MapPin, Search, SlidersHorizontal } from 'lucide-react-native';
@@ -83,7 +84,7 @@ export default function AreaDirectory() {
               userAgent="BrokerIQ/2.1 (Android; https://brokeriq.mymultimeds.com)"
               javaScriptEnabled
               startInLoadingState
-              renderLoading={() => <ActivityIndicator color={c.brand} style={{ position: 'absolute', inset: 0 }} />}
+              renderLoading={() => <InlineLoader style={{ position: 'absolute', inset: 0 }} />}
               onMessage={(event) => {
                 try {
                   const value = JSON.parse(event.nativeEvent.data);
@@ -95,7 +96,7 @@ export default function AreaDirectory() {
               }
             />
           ) : (
-            <ActivityIndicator color={c.brand} style={{ padding: 40 }} />
+            <InlineLoader style={{ padding: 40 }} />
           )}
         </View>
       ) : (
@@ -110,7 +111,7 @@ export default function AreaDirectory() {
             list.error ? (
               <ErrorView error={list.error} onRetry={() => list.refetch()} />
             ) : list.isPending ? (
-              <ActivityIndicator color={c.brand} style={{ padding: 40 }} />
+              <InlineLoader style={{ padding: 40 }} />
             ) : (
               <NativeCard>
                 <Txt color="muted">No source records match these filters</Txt>
@@ -126,7 +127,7 @@ export default function AreaDirectory() {
               </NativeCard>
             )
           }
-          ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={c.brand} style={{ padding: 16 }} /> : null}
+          ListFooterComponent={list.isFetchingNextPage ? <InlineLoader style={{ padding: 16 }} /> : null}
           renderItem={({ item }) => (
             <NativeCard onPress={() => setSelected(item.id)}>
               <Row style={{ alignItems: 'flex-start' }} gap={12}>
@@ -187,7 +188,7 @@ export default function AreaDirectory() {
         ) : detail.data ? (
           <DirectoryDetails key={detail.data.id} record={detail.data} />
         ) : (
-          <ActivityIndicator color={c.brand} style={{ padding: 30 }} />
+          <InlineLoader style={{ padding: 30 }} />
         )}
       </Sheet>
     </BrokerScreen>

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -54,7 +55,7 @@ export function NotificationsPage() {
           {q.error.message} <button onClick={() => q.refetch()}>Retry</button>
         </p>
       ) : q.isLoading ? (
-        <p className="p-4">Loading notifications…</p>
+        <LoadingArtwork className="h-16" label="Loading notifications…" />
       ) : !items.length ? (
         <Empty icon={<Bell className="size-6" />} title="सब शांत है" text="नई leads, messages और updates यहाँ दिखेंगे।" />
       ) : (

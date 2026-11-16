@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { FlatList, Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
@@ -13,7 +14,7 @@ import { useLightStatusBar } from '@/lib/hooks';
 import { palette, useTheme } from '@/lib/theme';
 import { BrokerCard, LocalityCard, ProjectCard } from '@/components/cards';
 import { ListingCard } from '@/components/listing';
-import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Skeleton, Txt, useStatusScrim } from '@/ui';
+import { Button, Card, ErrorView, IconBtn, PressableScale, Row, SectionTitle, Txt, useStatusScrim } from '@/ui';
 import { showStat, type NotificationsResponse } from '@brokeriq/shared';
 
 // Rental marketplace quick filters (search is always RENT).
@@ -349,12 +350,12 @@ export default function HomeScreen() {
         {q.isError && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {q.isLoading && (
           <View style={{ padding: 16, gap: 12 }}>
-            <Skeleton h={24} w="50%" />
+            <LoadingArtwork h={24} w="50%" />
             <Row gap={12}>
-              <Skeleton h={200} w={168} r={22} />
-              <Skeleton h={200} w={168} r={22} />
+              <LoadingArtwork h={200} w={168} />
+              <LoadingArtwork h={200} w={168} />
             </Row>
-            <Skeleton h={260} r={22} />
+            <LoadingArtwork h={260} />
           </View>
         )}
         {sections

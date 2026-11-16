@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,7 +12,7 @@ import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
 import { openLink } from '@/lib/links';
 import { toast } from '@/lib/toast';
-import { Button, Empty, ErrorView, Header, IconBtn, PressableScale, Screen, Skeleton, Txt } from '@/ui';
+import { Button, Empty, ErrorView, Header, IconBtn, PressableScale, Screen, Txt } from '@/ui';
 
 export default function Notifications() {
   const { c } = useTheme();
@@ -93,7 +94,7 @@ export default function Notifications() {
           ListEmptyComponent={
             q.isLoading ? (
               <View style={{ padding: 16 }}>
-                <Skeleton h={60} />
+                <LoadingArtwork h={60} />
               </View>
             ) : (
               <Empty icon={<Bell size={28} color={c.brand} />} title="कोई notification नहीं" />

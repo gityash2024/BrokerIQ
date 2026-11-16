@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -20,7 +21,7 @@ import { formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 import { Chip, Field, Input, Select, Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton, Stat } from '@/components/ui/misc';
+import { Badge, Empty, Stat } from '@/components/ui/misc';
 import { Segmented } from '@/components/ui/tabs';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -53,7 +54,7 @@ export function CampaignsPage() {
       {list.isError ? (
         <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : !list.data ? (
-        <Skeleton className="h-48" />
+        <LoadingArtwork className="h-48" />
       ) : !list.data.length ? (
         <Empty
           icon={<Megaphone className="size-6" />}
@@ -392,7 +393,7 @@ export function CampaignDetail() {
       />
       <section className="card mx-auto max-w-5xl p-4 sm:p-6">
         {!c ? (
-          <Skeleton className="h-40" />
+          <LoadingArtwork className="h-40" />
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">

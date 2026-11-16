@@ -1,9 +1,10 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Loader2, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { Check, Mic, Send, Sparkles, Square, Volume2, VolumeX, X } from 'lucide-react';
 import { languageOf } from '@brokeriq/shared';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -310,7 +311,7 @@ export function AssistantWidget() {
                   ))}
                   {busy && (
                     <div className="flex items-center gap-2 text-sm text-muted">
-                      <Loader2 className="size-4 animate-spin" /> सोच रहा हूँ…
+                      <InlineLoader className="size-4" /> सोच रहा हूँ…
                     </div>
                   )}
                   <div ref={endRef} />

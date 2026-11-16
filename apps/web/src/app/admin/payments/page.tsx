@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -10,7 +11,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Pager } from '@/components/admin/crud';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge, Empty, Skeleton, Stat } from '@/components/ui/misc';
+import { Badge, Empty, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function Page() {
@@ -58,7 +59,7 @@ export default function Page() {
       {q.isError ? (
         <ApiErrorState error={q.error} />
       ) : !q.data ? (
-        <Skeleton className="h-72 rounded-2xl" />
+        <LoadingArtwork className="h-72 rounded-2xl" />
       ) : !q.data.items.length ? (
         <Empty title="अभी कोई payment नहीं" />
       ) : (

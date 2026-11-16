@@ -1,8 +1,9 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 
 import React, { useState } from 'react';
 import * as DM from '@radix-ui/react-dropdown-menu';
-import { ChevronDown, Download, FileSpreadsheet, FileText, Loader2, Table } from 'lucide-react';
+import { ChevronDown, Download, FileSpreadsheet, FileText, Table } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiBlob } from '@/lib/api';
 import { cn, qs } from '@/lib/utils';
@@ -118,7 +119,7 @@ export function ExportToolbar({
           className="h-9 text-xs"
           title={isSelectionEmpty ? 'चयनित रिकॉर्ड्स में कोई एक्सपोर्ट योग्य डेटा नहीं है' : undefined}
         >
-          {busyFormat === 'xlsx' ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <FileSpreadsheet className="size-3.5 text-emerald-600 mr-1" />}
+          {busyFormat === 'xlsx' ? <InlineLoader className="size-3.5 mr-1" /> : <FileSpreadsheet className="size-3.5 text-emerald-600 mr-1" />}
           Excel
         </Button>
         <Button
@@ -129,7 +130,7 @@ export function ExportToolbar({
           className="h-9 text-xs"
           title={isSelectionEmpty ? 'चयनित रिकॉर्ड्स में कोई एक्सपोर्ट योग्य डेटा नहीं है' : undefined}
         >
-          {busyFormat === 'pdf' ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <FileText className="size-3.5 text-rose-600 mr-1" />}
+          {busyFormat === 'pdf' ? <InlineLoader className="size-3.5 mr-1" /> : <FileText className="size-3.5 text-rose-600 mr-1" />}
           PDF
         </Button>
         <Button
@@ -140,7 +141,7 @@ export function ExportToolbar({
           className="h-9 text-xs"
           title={isSelectionEmpty ? 'चयनित रिकॉर्ड्स में कोई एक्सपोर्ट योग्य डेटा नहीं है' : undefined}
         >
-          {busyFormat === 'csv' ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Table className="size-3.5 text-sky-600 mr-1" />}
+          {busyFormat === 'csv' ? <InlineLoader className="size-3.5 mr-1" /> : <Table className="size-3.5 text-sky-600 mr-1" />}
           CSV
         </Button>
       </div>
@@ -161,7 +162,7 @@ export function ExportToolbar({
           title={isSelectionEmpty ? 'चयनित रिकॉर्ड्स में कोई एक्सपोर्ट योग्य डेटा नहीं है' : undefined}
           className={cn('h-9 text-xs gap-1.5', className)}
         >
-          {busyFormat ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5 text-muted" />}
+          {busyFormat ? <InlineLoader className="size-3.5" /> : <Download className="size-3.5 text-muted" />}
           <span>{isSelectionActive ? `Export Selected (${selectedCount})` : displayCount != null ? `Export (${displayCount})` : 'Export Data'}</span>
           <ChevronDown className="size-3 text-muted" />
         </Button>

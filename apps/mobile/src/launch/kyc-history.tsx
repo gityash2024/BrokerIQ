@@ -1,3 +1,4 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -28,7 +29,7 @@ export function KycHistory({ member }: { member?: string }) {
               <Button title="Retry" onPress={() => q.refetch()} />
             </>
           ) : q.isPending ? (
-            <Txt>इतिहास खुल रहा है…</Txt>
+            <InlineLoader />
           ) : (
             <>
               {!q.data?.pages.some((p) => p.items.length) && <Txt>पिछली submission नहीं है।</Txt>}

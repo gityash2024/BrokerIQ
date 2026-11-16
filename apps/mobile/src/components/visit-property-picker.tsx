@@ -1,3 +1,4 @@
+import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
 
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -62,7 +63,7 @@ export function VisitPropertyPicker({
                 </Txt>
               </PressableScale>
             ))}
-          {list.isPending && <Txt color="muted">Loading…</Txt>}
+          {list.isPending && <InlineLoader />}
           {list.data?.pages[0].total === 0 && (
             <Txt color="muted">{purpose === 'photos' ? 'No matching property.' : 'No matching property. Enter a custom meeting address below.'}</Txt>
           )}

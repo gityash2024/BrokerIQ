@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Copy, Download, ExternalLink, Info } from 'lucide-react';
@@ -6,7 +7,6 @@ import { api } from '@/lib/api';
 import { img } from '@/lib/utils';
 import { Dialog } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Skeleton } from '../ui/misc';
 
 /** Copy-ready listing text + photos for posting the same property on Housing / 99acres / MagicBricks. */
 export function PortalPackDialog({ listingId, onClose }: { listingId: string | null; onClose: () => void }) {
@@ -25,7 +25,7 @@ export function PortalPackDialog({ listingId, onClose }: { listingId: string | n
       description="यही listing Housing / 99acres / MagicBricks पर डालने के लिए सब कुछ तैयार — copy करें और portal पर paste करें।"
     >
       {q.isLoading || !d ? (
-        <Skeleton className="h-64" />
+        <LoadingArtwork className="h-64" />
       ) : (
         <div className="space-y-5">
           <p className="flex items-start gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:bg-sky-500/10 dark:text-sky-300">

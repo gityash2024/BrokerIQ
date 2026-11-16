@@ -1,10 +1,11 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PLATFORM_MODULES, defaultModulePolicies, type ModulePolicies, type ModulePolicy } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Input } from '@/components/ui/field';
-import { Skeleton, Badge } from '@/components/ui/misc';
+import { Badge } from '@/components/ui/misc';
 import { Search, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/panel/shell';
 import { toast } from 'sonner';
@@ -28,7 +29,7 @@ export default function Modules() {
       setSaving(null);
     }
   }
-  if (isLoading) return <Skeleton className="h-96" />;
+  if (isLoading) return <LoadingArtwork className="h-96" />;
   if (error) return <ApiErrorState error={error} onRetry={() => queryClient.invalidateQueries({ queryKey: ['modules'] })} />;
   const policies = { ...defaultModulePolicies(), ...data };
   const visible = PLATFORM_MODULES.filter(

@@ -1,11 +1,12 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useQuery } from '@tanstack/react-query';
 import { Award, Gift, Home, MessageCircle, UserPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { CopyField } from '@/components/panel/integration-card';
 import { Button } from '@/components/ui/button';
-import { Badge, Skeleton, Stat } from '@/components/ui/misc';
+import { Badge, Stat } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 const BADGE_TEXT: Record<string, string> = { Helper: 'Helper — पहला दोस्त जुड़ा', Connector: 'Connector — 5+ दोस्त', Champion: 'Champion — 20+ दोस्त' };
@@ -21,7 +22,7 @@ export default function InvitePage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !r ? (
-        <Skeleton className="h-48 max-w-3xl" />
+        <LoadingArtwork className="h-48 max-w-3xl" />
       ) : (
         <div className="grid max-w-4xl gap-5 lg:grid-cols-[1.4fr_1fr]">
           <div className="card space-y-4 p-6">

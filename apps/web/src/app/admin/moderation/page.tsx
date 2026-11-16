@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Segmented } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/field';
-import { Badge, Empty, Skeleton } from '@/components/ui/misc';
+import { Badge, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
@@ -68,11 +69,7 @@ export default function ModerationPage() {
       {q.isError ? (
         <ApiErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : !q.data ? (
-        <div className="space-y-4">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-64 rounded-2xl" />
-          ))}
-        </div>
+        <div className="space-y-4">{<LoadingArtwork className="col-span-full h-64 rounded-2xl" />}</div>
       ) : !items.length ? (
         <Empty icon={<ListChecks className="size-7" />} title="Queue खाली है 🎉" text="नई listings आते ही यहाँ दिखेंगी।" />
       ) : (

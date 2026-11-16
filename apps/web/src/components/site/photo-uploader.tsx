@@ -1,8 +1,9 @@
 'use client';
+import { InlineLoader } from '@/components/ui/request-loader';
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, Reorder } from 'motion/react';
 import { toast } from 'sonner';
-import { GripVertical, ImagePlus, Loader2, Orbit, Star, Trash2 } from 'lucide-react';
+import { GripVertical, ImagePlus, Orbit, Star, Trash2 } from 'lucide-react';
 import { compressImage, uploadFile, ApiError } from '@/lib/api';
 import { cn, img } from '@/lib/utils';
 import { IntegrationBanner } from '../ui/api-error';
@@ -149,7 +150,7 @@ export function PhotoUploader({
               <img src={u.preview} alt="" className="h-full w-full object-cover opacity-50" />
               <div className="absolute inset-0 grid place-items-center">
                 <div className="flex flex-col items-center gap-1 text-xs font-bold">
-                  <Loader2 className="size-5 animate-spin text-brand-600" /> {u.pct}%
+                  <InlineLoader className="size-5 text-brand-600" /> {u.pct}%
                 </div>
               </div>
               <div className="absolute inset-x-0 bottom-0 h-1 bg-surface-2">

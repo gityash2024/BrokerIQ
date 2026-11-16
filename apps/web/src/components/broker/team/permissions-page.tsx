@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -44,7 +45,7 @@ export function TeamPermissionsPage() {
       ) : member.error ? (
         <ApiErrorState error={member.error} onRetry={() => member.refetch()} />
       ) : !record ? (
-        <p role="status">Loading team member…</p>
+        <LoadingArtwork className="h-16" label="Loading team member…" />
       ) : record.role !== 'BROKER_AGENT' && (isSuper || record.role !== 'SUB_BROKER_ADMIN') ? (
         <p>This member’s permissions cannot be changed here.</p>
       ) : (

@@ -1,4 +1,5 @@
-import { FlatList, ActivityIndicator } from 'react-native';
+import { InlineLoader } from '@/components/request-loader';
+import { FlatList } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { LedgerItem } from '@brokeriq/shared';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -9,8 +10,7 @@ import { PublicationReview } from '@/launch/publication-review';
 import { Txt, ErrorView } from '@/ui';
 export default function PublicationQueue() {
   const { user } = useAuth();
-  const allowed = (user?.role === 'BROKER_ADMIN') ||
-    (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'view', 'approve'));
+  const allowed = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'view', 'approve'));
   const query = useInfiniteQuery({
     queryKey: ['publication-queue', user?.id],
     queryFn: ({ pageParam }) =>
@@ -37,7 +37,7 @@ export default function PublicationQueue() {
             query.error ? (
               <ErrorView error={query.error} onRetry={() => query.refetch()} />
             ) : query.isPending ? (
-              <ActivityIndicator />
+              <InlineLoader />
             ) : (
               <Txt>No publications await your approval.</Txt>
             )

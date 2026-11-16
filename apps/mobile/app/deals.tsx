@@ -1,3 +1,4 @@
+import { LoadingArtwork } from '@/components/request-loader';
 import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ import { formatINR, formatPriceShort } from '@brokeriq/shared';
 import { api, patch } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
-import { Badge, Card, Chip, Empty, ErrorView, Header, Row, Screen, Skeleton, Stat, Txt } from '@/ui';
+import { Badge, Card, Chip, Empty, ErrorView, Header, Row, Screen, Stat, Txt } from '@/ui';
 
 const commission = (d: any) => d.commissionAmount ?? (d.commissionPct ? (d.dealValue * d.commissionPct) / 100 : 0);
 
@@ -52,7 +53,7 @@ export default function Deals() {
           }
           ListEmptyComponent={
             q.isLoading ? (
-              <Skeleton h={100} />
+              <LoadingArtwork h={100} />
             ) : (
               <Empty icon={<Handshake size={28} color={c.brand} />} title="अभी कोई deal नहीं" text="Lead को WON mark करते समय deal जुड़ती है।" />
             )

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useState } from 'react';
 import { apiBlob, errorMessage } from '@/lib/api';
 export function PrivateSource({ path, videoType }: { path: string; videoType?: string }) {
@@ -32,6 +33,6 @@ export function PrivateSource({ path, videoType }: { path: string; videoType?: s
       <img src={url} alt="Original source entry" className="max-h-[65vh] w-full rounded-xl object-contain" />
     </a>
   ) : (
-    <p className="text-sm text-muted">Loading private source…</p>
+    <LoadingArtwork className="h-16" label="Loading private source…" />
   );
 }
