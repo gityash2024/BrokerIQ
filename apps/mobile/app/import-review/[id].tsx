@@ -9,7 +9,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { captureEntryTitle, capturePreviewFacts, type CapturedEntity } from '@brokeriq/shared';
+import {
+  captureEntryTitle,
+  capturePreviewFacts,
+  inventoryMonth,
+  inventoryMonthSchema,
+  missingInventoryFolderFields,
+  type CapturedEntity,
+} from '@brokeriq/shared';
 import { assertAccountContext, captureAccountContext, api, API_URL, authStore, errorMessage } from '@/lib/api';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
@@ -31,6 +38,9 @@ export default function ImportReview() {
   useEffect(() => {
     if (q.data && page > Math.max(1, q.data.totalPages)) setPage(Math.max(1, q.data.totalPages));
   }, [q.data, page]);
+  const inventoryTarget = q.data?.metadata?.requestedTarget === 'INVENTORY';
+  const requestedMonth = inventoryMonthSchema.safeParse(q.data?.metadata?.directoryMonth);
+  const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth(q.data?.createdAt ? new Date(q.data.createdAt) : new Date());
   const previewOfImportId = q.data?.previewOfImportId as string | undefined;
   async function openPreview() {
     setOpeningPreview(true);
@@ -64,7 +74,11 @@ export default function ImportReview() {
           <WorkspaceHero
             label="SOURCE REVIEW"
             title="Check every fact before saving."
-            description="Originals stay preserved. Review extracted fields, add separate properties or requirements, then approve independent requirement records. Property offers require a separate conversion into Inventory."
+            description={
+              inventoryTarget
+                ? 'Confirm each available property and fill its missing details. Each property is saved in its own Inventory record.'
+                : 'Review extracted fields before approving individual Requirements records.'
+            }
           />
         )}
         {q.data?.canPreview && <Button title="Preview latest extraction" variant="secondary" loading={openingPreview} onPress={openPreview} />}
@@ -118,7 +132,7 @@ export default function ImportReview() {
         {['PENDING', 'PROCESSING'].includes(q.data?.status) && <Txt>Source saved. Extraction is processing…</Txt>}
         {q.data && !['PENDING', 'PROCESSING'].includes(q.data.status) && q.data.total === 0 && <Txt color="muted">No entries match this view.</Txt>}
         {q.data?.entries.map((entry: any) => (
-          <Entry key={entry.id} batchId={id} entry={entry} image={q.data.sourceType === 'IMAGE'} />
+          <Entry key={entry.id} batchId={id} entry={entry} image={q.data.sourceType === 'IMAGE'} folderMonth={inventoryTarget ? folderMonth : undefined} />
         ))}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <Button title="Previous" variant="secondary" disabled={page === 1} onPress={() => setPage(page - 1)} />
@@ -128,7 +142,7 @@ export default function ImportReview() {
     </BrokerScreen>
   );
 }
-function Entry({ batchId, entry, image }: { batchId: string; entry: any; image: boolean }) {
+function Entry({ batchId, entry, image, folderMonth }: { batchId: string; entry: any; image: boolean; folderMonth?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <NativeCard>
@@ -140,11 +154,14 @@ function Entry({ batchId, entry, image }: { batchId: string; entry: any; image: 
         {entry.rawText}
       </Txt>
       <Button title={open ? 'Collapse' : 'Review source & fields'} size="sm" variant="secondary" onPress={() => setOpen(!open)} />
-      {open && <EntryEditor batchId={batchId} entry={entry} image={image} />}
+      {entry.inventories?.map((item: { id: string }, index: number) => (
+        <Button key={item.id} title={`Open property ${index + 1}`} size="sm" variant="secondary" onPress={() => router.push(`/inventory/${item.id}`)} />
+      ))}
+      {open && <EntryEditor batchId={batchId} entry={entry} image={image} folderMonth={folderMonth} />}
     </NativeCard>
   );
 }
-function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; image: boolean }) {
+function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; entry: any; image: boolean; folderMonth?: string }) {
   const [previewAttachment, setPreviewAttachment] = useState<number | null>(null);
   const qc = useQueryClient();
   const [entities, setEntities] = useState<any[]>(entry.extracted ?? []);
@@ -205,17 +222,30 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
         ? []
         : entities.map((e) =>
             e.kind === 'INVENTORY'
-              ? { ...e, inventory: prepareEntity(e.inventory ?? {}) }
+              ? {
+                  ...e,
+                  inventory: prepareEntity({
+                    ...e.inventory,
+                    ...(folderMonth ? { directoryMonth: e.inventory?.directoryMonth ?? folderMonth } : {}),
+                  }),
+                }
               : e.kind === 'REQUIREMENT'
                 ? { ...e, requirement: prepareEntity(e.requirement ?? {}, true) }
                 : e,
           );
+      if (folderMonth && approve && !ignore) {
+        for (const [index, entity] of next.entries()) {
+          if (entity.kind !== 'INVENTORY') continue;
+          const missing = missingInventoryFolderFields(entity.inventory ?? {});
+          if (missing.length) throw new Error(`Property ${index + 1}: fill ${missing.join(', ')} before approval.`);
+        }
+      }
       await writes.current;
       await saveDraft('IMPORT_REVIEW', entry.id, { batchId, entryId: entry.id, entities: next, expectedUpdatedAt: version }, draftId.current, owner.current);
       const response = await api<any>(`/imports/entries/${entry.id}${approve ? '/approve' : ''}`, {
         method: approve ? 'POST' : 'PATCH',
         ownerContext: owner.current,
-        body: { entities: next, ignore, expectedUpdatedAt: version },
+        body: { entities: next, ignore, expectedUpdatedAt: version, destination: folderMonth ? 'INVENTORY' : 'REQUIREMENT' },
       });
       if (response.updatedAt) {
         setVersion(response.updatedAt);
@@ -229,7 +259,9 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
       }
       if (approve || ignore) await completeReviewDraft(draftId.current, entry.id, owner.current);
       setStatus(approve ? 'Reviewed and saved' : 'Review saved');
-      await Promise.all(['import', 'ledger', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(
+        ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+      );
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -300,6 +332,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
             {!done && e.kind !== 'UNRELATED' && (
               <EntityFields
                 requirement={e.kind === 'REQUIREMENT'}
+                folderMonth={e.kind === 'INVENTORY' ? folderMonth : undefined}
                 value={e.kind === 'REQUIREMENT' ? (e.requirement ?? {}) : (e.inventory ?? {})}
                 onChange={(value) =>
                   change(entities.map((item, n) => (n === index ? { ...item, [e.kind === 'REQUIREMENT' ? 'requirement' : 'inventory']: value } : item)))
@@ -339,7 +372,7 @@ function EntryEditor({ batchId, entry, image }: { batchId: string; entry: any; i
           {error && <Txt color="danger">{error}</Txt>}
           <Button title="Save review" loading={busy} onPress={() => save()} />
           <Button
-            title="Approve reviewed records"
+            title={folderMonth && entities.some((entity) => entity.kind === 'INVENTORY') ? 'Confirm available & save records' : 'Approve reviewed records'}
             variant="secondary"
             loading={busy}
             disabled={!entities.some((e) => e.kind !== 'UNRELATED')}

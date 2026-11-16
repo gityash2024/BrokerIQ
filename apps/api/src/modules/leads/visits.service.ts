@@ -33,6 +33,8 @@ const querySchema = z
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(50),
     paginated: z.enum(['true', 'false']).optional(),
+    directions: z.enum(['true', 'false']).optional(),
+    upcoming: z.enum(['true', 'false']).optional(),
   })
   .refine((v) => !v.from || !v.to || new Date(v.from) <= new Date(v.to), 'Invalid date range');
 
@@ -56,7 +58,7 @@ export class VisitsService {
     const q = parsed.data;
     const where: Prisma.SiteVisitWhereInput = {
       AND: [this.scope(user), ...(q.assignedToId ? [{ assignedToId: q.assignedToId }] : [])],
-      status: q.status,
+      status: q.status ?? (q.upcoming === 'true' ? { in: ['SCHEDULED', 'CONFIRMED'] } : undefined),
       ...(q.from || q.to ? { scheduledAt: { ...(q.from ? { gte: new Date(q.from) } : {}), ...(q.to ? { lte: new Date(q.to) } : {}) } } : {}),
     };
     // Old installed clients keep the array shape. New clients page through the complete scoped dataset.
@@ -65,7 +67,55 @@ export class VisitsService {
       this.db.siteVisit.findMany({ where, orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }], skip: (q.page - 1) * q.pageSize, take: q.pageSize, include }),
       this.db.siteVisit.count({ where }),
     ]);
-    return { items, total, page: q.page, pageSize: q.pageSize, pages: Math.ceil(total / q.pageSize) };
+    return {
+      items: q.directions === 'true' ? await this.withVisitDirections(items, user) : items,
+      total,
+      page: q.page,
+      pageSize: q.pageSize,
+      pages: Math.ceil(total / q.pageSize),
+    };
+  }
+  private async withVisitDirections<T extends { propertySnapshot: Prisma.JsonValue }>(visits: T[], user: RequestUser): Promise<T[]> {
+    if (user.delegatedActor && !user.delegatedPermissions?.includes('inventory:view')) return visits;
+    const snapshots = visits.map((visit) => visit.propertySnapshot as (VisitPropertySnapshot & { kind?: string }) | null);
+    const ids = [
+      ...new Set(
+        snapshots.flatMap((snapshot) =>
+          snapshot?.kind === 'INVENTORY'
+            ? visitShortlistStops(snapshot)
+                .filter((stop) => !stop.directionsUrl)
+                .map((stop) => stop.id)
+            : [],
+        ),
+      ),
+    ];
+    if (!ids.length) return visits;
+    const rows = await this.db.inventoryItem.findMany({
+      where: {
+        id: { in: ids },
+        organizationId: requireOrg(user),
+        deletedAt: null,
+        directionsUrl: { not: null },
+        ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+      },
+      select: { id: true, directionsUrl: true },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row.directionsUrl]));
+    const includeDirections = <K extends { id?: string; directionsUrl?: string | null }>(stop: K) => {
+      const directionsUrl = stop.id ? byId.get(stop.id) : undefined;
+      return directionsUrl && !stop.directionsUrl ? { ...stop, directionsUrl } : stop;
+    };
+    return visits.map((visit, index) => {
+      const snapshot = snapshots[index];
+      if (snapshot?.kind !== 'INVENTORY') return visit;
+      return {
+        ...visit,
+        propertySnapshot: {
+          ...includeDirections(snapshot),
+          ...(snapshot.stops ? { stops: snapshot.stops.map(includeDirections) } : {}),
+        },
+      };
+    });
   }
   private async lockLead(tx: Prisma.TransactionClient, user: RequestUser, id: string) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`visit-lead:${id}`}))`;
@@ -148,6 +198,7 @@ export class VisitsService {
             id,
             title: visitInventoryTitle(item),
             address: item.address,
+            directionsUrl: item.directionsUrl,
             sector: item.sector,
             purpose: item.purpose,
             bhk: item.bhk,

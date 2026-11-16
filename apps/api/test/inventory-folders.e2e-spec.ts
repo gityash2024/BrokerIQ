@@ -1,0 +1,174 @@
+import { Test } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/bootstrap';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { AuthService } from '../src/modules/auth/auth.service';
+
+describe('Inventory directories, reviewed capture and visit directions', () => {
+  let app: INestApplication;
+  let db: PrismaService;
+  let firmId: string;
+  let agentId: string;
+  let admin: string;
+  let agent: string;
+  let delegate: string;
+  let outsider: string;
+  const stamp = Date.now().toString(36);
+  const headers = (token = admin) => ({ Authorization: 'Bearer ' + token });
+  const api = () => request(app.getHttpServer());
+  const unit = {
+    sector: 'Sector 45',
+    houseNo: '384',
+    purpose: 'RENT',
+    category: 'RESIDENTIAL',
+    propertyType: 'APARTMENT',
+    bhk: 2,
+    roomKind: 'BHK',
+    furnishing: 'SEMI_FURNISHED',
+    area: 1000,
+    areaUnit: 'SQ_FT',
+    monthlyRent: 32000,
+  };
+  const directionsUrl = 'https://www.google.com/maps/dir/?api=1&destination=28.45%2C77.07';
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = module.createNestApplication();
+    configureApp(app);
+    await app.listen(0, '127.0.0.1');
+    db = app.get(PrismaService);
+    firmId = (await db.organization.create({ data: { name: 'Inventory e2e firm', slug: 'inventory-folders-' + stamp } })).id;
+    const secondFirm = await db.organization.create({ data: { name: 'External e2e firm', slug: 'outside-folders-' + stamp } });
+    const actors = [
+      { name: 'admin', role: 'BROKER_ADMIN', organizationId: firmId },
+      { name: 'agent', role: 'BROKER_AGENT', organizationId: firmId },
+      {
+        name: 'delegate',
+        role: 'SUB_BROKER_ADMIN',
+        organizationId: firmId,
+        delegatedPermissions: ['inventory:view', 'inventory:edit', 'inventory:create', 'inbox:view', 'inbox:approve', 'leads:view'],
+      },
+      { name: 'outside', role: 'BROKER_ADMIN', organizationId: secondFirm.id },
+    ] as const;
+    for (const { name, ...actor } of actors) {
+      const user = await db.user.create({
+        data: {
+          ...actor,
+          name,
+          email: `${name}.folders.${stamp}@e2e.test`,
+          delegatedPermissions: 'delegatedPermissions' in actor ? [...actor.delegatedPermissions] : [],
+        },
+        include: { organization: true },
+      });
+      const token = (await app.get(AuthService).issue(user)).accessToken;
+      if (name === 'admin') admin = token;
+      else if (name === 'agent') {
+        agent = token;
+        agentId = user.id;
+      } else if (name === 'delegate') delegate = token;
+      else outsider = token;
+    }
+  });
+
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  it('keeps unknowns in verification and moves complete property records between folders and sectors', async () => {
+    const draft = await api().post('/api/inventory').set(headers(agent)).send({ sector: unit.sector }).expect(201);
+    const path = '/api/inventory/' + draft.body.id;
+    const review = await api().get('/api/inventory?folderMode=REVIEW').set(headers(agent)).expect(200);
+    expect(review.body.items.map((item: { id: string }) => item.id)).toContain(draft.body.id);
+    await api().patch(path).set(headers(agent)).send({ directoryMonth: '2026-12', expectedRevision: draft.body.revision }).expect(400);
+    const available = await api()
+      .patch(path)
+      .set(headers(agent))
+      .send({ ...unit, directoryMonth: '2026-12', expectedRevision: draft.body.revision })
+      .expect(200);
+    expect(available.body).toMatchObject({ directoryMonth: '2026-12', availability: 'AVAILABLE', status: 'ACTIVE', verificationStatus: 'VERIFIED' });
+
+    for (const token of [admin, agent, delegate]) {
+      const months = await api().get('/api/inventory/folders?folderMode=AVAILABLE&folderYear=2026').set(headers(token)).expect(200);
+      expect(months.body.folders).toHaveLength(12);
+      expect(months.body.folders.at(-1)).toMatchObject({ key: '2026-12', count: 1 });
+      const room = await api().get('/api/inventory/folders?folderMode=AVAILABLE&folderMonth=2026-12').set(headers(token)).expect(200);
+      expect(room.body.folders).toEqual([{ key: 'BHK:2', label: '2 BHK', count: 1 }]);
+      const leaf = await api()
+        .get('/api/inventory?folderMode=AVAILABLE&folderMonth=2026-12&folderRoom=BHK%3A2&folderFurnishing=SEMI_FURNISHED&minBudget=31000')
+        .set(headers(token))
+        .expect(200);
+      expect(leaf.body.total).toBe(1);
+      expect(leaf.body.items[0].id).toBe(draft.body.id);
+    }
+    const forbidden = await api().get('/api/inventory?folderMode=AVAILABLE').set(headers(outsider)).expect(200);
+    expect(forbidden.body.total).toBe(0);
+    await api().patch(path).set(headers(delegate)).send({ monthlyRent: null, expectedRevision: available.body.revision }).expect(400);
+    const rented = await api()
+      .patch(path)
+      .set(headers(delegate))
+      .send({ availability: 'RENTED', status: 'RENTED', expectedRevision: available.body.revision })
+      .expect(200);
+    expect(rented.body.directoryMonth).toBeNull();
+    const sectors = await api().get('/api/inventory/folders?folderMode=RENTED').set(headers()).expect(200);
+    expect(sectors.body.folders).toEqual([{ key: unit.sector, label: unit.sector, count: 1 }]);
+  });
+
+  it('rejects partial capture approval atomically and saves one inventory record per reviewed unit across retries', async () => {
+    const batch = await db.importBatch.create({
+      data: {
+        organizationId: firmId,
+        createdById: agentId,
+        sourceType: 'WHATSAPP',
+        sourceHash: stamp,
+        status: 'NEEDS_REVIEW',
+        metadata: { requestedTarget: 'INVENTORY', directoryMonth: '2027-01' },
+      },
+    });
+    const entry = await db.sourceEntry.create({
+      data: { organizationId: firmId, batchId: batch.id, entryKey: 'one', rawText: 'Two source units', extracted: [] },
+    });
+    const path = '/api/imports/entries/' + entry.id + '/approve';
+    const entities = [unit, { ...unit, houseNo: '385', floor: '2', propertyType: 'BUILDER_FLOOR' }].map((inventory) => ({
+      kind: 'INVENTORY',
+      inventory,
+      warnings: [],
+    }));
+    const submission = { destination: 'INVENTORY', expectedUpdatedAt: entry.updatedAt.toISOString(), entities };
+    await api()
+      .post(path)
+      .set(headers(delegate))
+      .send({ ...submission, entities: [entities[0], { ...entities[1], inventory: { sector: unit.sector } }] })
+      .expect(400);
+    expect(await db.inventoryItem.count({ where: { sourceEntryId: entry.id } })).toBe(0);
+    const results = await Promise.all([1, 2].map(() => api().post(path).set(headers(delegate)).send(submission).expect(201)));
+    expect(results.map(({ body }) => body.duplicate).sort()).toEqual([false, true]);
+    const records = await db.inventoryItem.findMany({ where: { sourceEntryId: entry.id }, orderBy: { sourceUnitKey: 'asc' } });
+    expect(records.map((record) => [record.houseNo, record.directoryMonth, record.sourceType])).toEqual([
+      ['384', '2027-01', 'WHATSAPP'],
+      ['385', '2027-01', 'WHATSAPP'],
+    ]);
+    expect(await db.brokerRequirement.count({ where: { sourceEntryId: entry.id } })).toBe(0);
+  });
+
+  it('makes exact directions available for an already scheduled visit without crossing firm boundaries', async () => {
+    const item = await db.inventoryItem.create({ data: { organizationId: firmId, createdById: agentId, assignedToId: agentId, directionsUrl } });
+    const lead = await db.lead.create({ data: { name: 'Visit route e2e', phone: '+919700000111', organizationId: firmId, assignedToId: agentId } });
+    const visit = await db.siteVisit.create({
+      data: {
+        organizationId: firmId,
+        leadId: lead.id,
+        assignedToId: agentId,
+        scheduledAt: new Date(Date.now() + 3600000),
+        propertySnapshot: { kind: 'INVENTORY', id: item.id, title: 'Property entrance' },
+      },
+    });
+    for (const token of [admin, agent, delegate]) {
+      const results = await api().get('/api/visits?paginated=true&upcoming=true&directions=true').set(headers(token)).expect(200);
+      expect(results.body.items.find(({ id }: { id: string }) => id === visit.id).propertySnapshot.directionsUrl).toBe(directionsUrl);
+    }
+    const denied = await api().get('/api/visits?paginated=true&upcoming=true&directions=true').set(headers(outsider)).expect(200);
+    expect(denied.body.items.find(({ id }: { id: string }) => id === visit.id)).toBeUndefined();
+  });
+});

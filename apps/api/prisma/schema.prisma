@@ -2589,6 +2589,8 @@ model InventoryItem {
   sourceType         String    @default("MANUAL")
   sourceEntryId      String?
   sourceUnitKey      String?
+  directionsUrl      String?
+  directoryMonth     String?
   details            Json      @default("{}")
   photoUrls          String[]  @default([])
   videoUrls          String[]  @default([])
@@ -2619,6 +2621,7 @@ model InventoryItem {
   @@index([organizationId, houseNo])
   @@index([organizationId, date])
   @@index([organizationId, createdAt], map: "InventoryItem_org_created_enterprise_idx")
+  @@index([organizationId, directoryMonth])
 }
 
 
@@ -2683,6 +2686,7 @@ model ImportUpload {
   sourceType     String
   groupName      String?
   target         String
+  directoryMonth String?
   totalBytes     Int
   receivedBytes  Int @default(0)
   chunks         Json @default("[]")
@@ -2796,4 +2800,9 @@ model MailboxAuthorization {
   consumedAt DateTime?
   createdAt DateTime @default(now())
   @@index([expiresAt])
+}
+
+model OpenRouterDailyQuota {
+  day      DateTime @id @db.Date
+  attempts Int
 }

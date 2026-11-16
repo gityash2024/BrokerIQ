@@ -7,7 +7,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { hasDelegatedAccess, inventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { hasDelegatedAccess, inventoryFolderDefaults, inventoryMonth, inventoryMonthSchema, inventoryTitle, type LedgerItem } from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,10 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
   const client = useQueryClient();
   const { user } = useAuth();
   const organizationId = search.get('organizationId') || '';
+  const makeAvailable = search.get('makeAvailable') === '1' || (mode === 'new' && base === '/broker/inventory');
+  const requestedMonth = inventoryMonthSchema.safeParse(search.get('directoryMonth'));
+  const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth();
+  const defaults = inventoryFolderDefaults(search.get('folderRoom'), search.get('furnishing'));
   const superAdmin = user?.role === 'SUPER_ADMIN';
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const allowed =
@@ -78,9 +82,16 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
 
   async function refresh() {
     await Promise.all(
-      ['ledger-item', 'ledger', 'ledger-stats', 'ledger-sectors', 'broker-dashboard', 'enterprise-dashboard'].map((prefix) =>
-        client.invalidateQueries({ queryKey: [prefix] }),
-      ),
+      [
+        'ledger-item',
+        'ledger',
+        'ledger-stats',
+        'ledger-sectors',
+        'inventory-folders',
+        'inventory-folder-items',
+        'broker-dashboard',
+        'enterprise-dashboard',
+      ].map((prefix) => client.invalidateQueries({ queryKey: [prefix] })),
     );
   }
 
@@ -140,7 +151,8 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                 )}
                 <PropertyForm
                   key={item?.id ?? organizationId}
-                  initial={item ?? (superAdmin ? { organizationId } : {})}
+                  initial={item ?? (superAdmin ? { organizationId } : makeAvailable ? { purpose: 'RENT', ...defaults } : {})}
+                  activateInMonth={makeAvailable ? folderMonth : undefined}
                   onDirty={() => setDirty(true)}
                   onSave={async (input) => {
                     const created = await api<LedgerItem>(item ? `/inventory/${item.id}` : '/inventory', {

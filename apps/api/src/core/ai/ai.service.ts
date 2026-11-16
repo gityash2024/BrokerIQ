@@ -61,7 +61,12 @@ const list = (v: unknown) =>
 
 /** Errors worth trying the next model/provider for (busy, rate limited, model gone, bad output). */
 class RetryableError extends Error {
-  constructor(message: string, readonly transient = false) { super(message); }
+  constructor(
+    message: string,
+    readonly transient = false,
+  ) {
+    super(message);
+  }
 }
 /** The provider itself is unusable (bad key, no credit) — skip all its models. */
 class ProviderError extends Error {}
@@ -400,11 +405,15 @@ export class AiService {
       // validation/one repair below. No provider/pricing/privacy filter is relaxed.
       if (p.name === 'openrouter' && /^google\/gemma-4-(?:31b|26b-a4b)-it:free$/.test(model)) {
         responseFormat = { type: 'json_object' };
-        messages = [{ role: 'system', content: 'Return ONLY a JSON object matching this schema. Unknown facts must remain null. Schema: ' + JSON.stringify(schema) }, ...messages];
-      } else responseFormat =
-        p.name === 'qwen_local'
-          ? { type: 'json_object', schema }
-          : { type: 'json_schema', json_schema: { name: 'brokeriq_response', strict: opts.strictSchema === true, schema } };
+        messages = [
+          { role: 'system', content: 'Return ONLY a JSON object matching this schema. Unknown facts must remain null. Schema: ' + JSON.stringify(schema) },
+          ...messages,
+        ];
+      } else
+        responseFormat =
+          p.name === 'qwen_local'
+            ? { type: 'json_object', schema }
+            : { type: 'json_schema', json_schema: { name: 'brokeriq_response', strict: opts.strictSchema === true, schema } };
     }
     const key = opts.cacheMs
       ? createHash('sha256')
@@ -481,6 +490,17 @@ export class AiService {
           ...((body.response_format as { type?: string } | undefined)?.type === 'json_schema' ? { require_parameters: true } : {}),
         },
       };
+    }
+    if (p.name === 'openrouter') {
+      // Count upstream requests, including model fallbacks, retries and diagnostics.
+      const reserved = await this.prisma.$queryRaw<{ attempts: number }[]>`
+        INSERT INTO "OpenRouterDailyQuota" ("day", "attempts")
+        VALUES ((CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date, 1)
+        ON CONFLICT ("day") DO UPDATE SET "attempts" = "OpenRouterDailyQuota"."attempts" + 1
+        WHERE "OpenRouterDailyQuota"."attempts" < 1000
+        RETURNING "attempts"
+      `;
+      if (!reserved.length) throw new ProviderError('OpenRouter daily request limit reached');
     }
     let res: Response;
     try {

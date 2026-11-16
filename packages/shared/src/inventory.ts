@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { INVENTORY_PROPERTY_TYPES, propertyDetailsSchema, preparePropertyDetails } from './property-fields';
 import { normalizeIndianPhone } from './utils';
+import { directionsLinkSchema } from './map-directions';
+import { inventoryFolderModeSchema, inventoryMonthSchema } from './inventory-folders';
 
 const text = z.string().trim().max(200).nullable().optional();
 const money = z.number().finite().nonnegative().max(1e13).nullable().optional();
@@ -48,6 +50,8 @@ export const inventoryInputSchema = z
       .optional(),
     sector: text,
     houseNo: text,
+    directionsUrl: directionsLinkSchema.nullable().optional(),
+    directoryMonth: inventoryMonthSchema.optional(),
     address: z.string().max(1000).nullable().optional(),
     unitLabel: text,
     ownerName: text,
@@ -91,6 +95,18 @@ export const inventoryInputSchema = z
   });
 export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const inventoryFilterSchema = z.object({
+  folderMode: inventoryFolderModeSchema.optional(),
+  folderYear: z
+    .string()
+    .regex(/^(?:19|20|21)\d{2}$/)
+    .optional(),
+  folderMonth: inventoryMonthSchema.optional(),
+  folderRoom: z
+    .string()
+    .regex(/^(?:BHK:[1-9][0-9]{0,2}|RK|STUDIO|TYPE:[A-Z_]{1,80}|OTHER)$/)
+    .optional(),
+  folderFurnishing: z.enum(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED', 'OTHER']).optional(),
+  folderSector: z.string().trim().max(200).optional(),
   archived: z.enum(['exclude', 'only', 'include']).optional(),
   review: z.enum(['publication']).optional(),
   detailFilters: z.string().max(12000).optional(),
@@ -207,7 +223,8 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
     notes: data.notes,
   });
 }
-export interface LedgerItem extends Omit<InventoryInput, 'contacts'> {
+export interface LedgerItem extends Omit<InventoryInput, 'contacts' | 'directoryMonth'> {
+  directoryMonth?: string | null;
   localityId?: string | null;
   publishedListingId?: string | null;
   publishedListing?: {
@@ -325,10 +342,11 @@ export function prepareInventoryEditorInput(value: Record<string, any>) {
   }
   // Database identity metadata is not a user-editable value. Imported rows have
   // clientMutationId=null; copying that null into a write caused every save to fail.
-  for (const key of ['clientMutationId', 'date', 'organizationId', 'expectedRevision', 'status', 'availability', 'verificationStatus'])
+  for (const key of ['clientMutationId', 'date', 'organizationId', 'directoryMonth', 'expectedRevision', 'status', 'availability', 'verificationStatus'])
     if (result[key] == null) delete result[key];
   for (const key of ['bhk', 'area', 'monthlyRent', 'rent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'])
     if (key in result) result[key] = result[key] === '' || result[key] == null ? null : Number(result[key]);
+  if (typeof result.directionsUrl === 'string' && !result.directionsUrl.trim()) result.directionsUrl = null;
   if ('monthlyRent' in result) delete result.rent; // monthlyRent is the canonical editor field.
   if (result.details != null) result.details = preparePropertyDetails(result.details);
   else delete result.details;

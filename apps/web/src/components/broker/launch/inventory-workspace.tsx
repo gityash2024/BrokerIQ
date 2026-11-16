@@ -20,6 +20,12 @@ import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { SortableTh } from '@/components/ui/sortable-header';
 
 const initialFilters = {
+  folderMode: '',
+  folderYear: '',
+  folderMonth: '',
+  folderRoom: '',
+  folderFurnishing: '',
+  folderSector: '',
   archived: '',
   organizationId: '',
   status: '',

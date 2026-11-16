@@ -1,15 +1,24 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
-import { View, Platform, Keyboard } from 'react-native';
+import { View, Platform, Keyboard, Switch } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, inventoryInputSchema, prepareInventoryEditorInput, inventoryEditorPatch } from '@brokeriq/shared';
+import {
+  INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
+  inventoryInputSchema,
+  prepareInventoryEditorInput,
+  inventoryEditorPatch,
+  inventoryMonth,
+  inventoryMonthSchema,
+  inventoryFolderDefaults,
+  missingInventoryFolderFields,
+} from '@brokeriq/shared';
 import { captureAccountContext, api, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
-import { Txt, Input, Button } from '@/ui';
+import { Txt, Input, Button, Row } from '@/ui';
 import { toast } from '@/lib/toast';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { NativePropertyExtras } from '@/launch/property-extras';
@@ -18,7 +27,24 @@ import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncD
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
 export default function InventoryEditor() {
-  const { id, draft: requestedDraft } = useLocalSearchParams<{ id?: string; draft?: string }>();
+  const {
+    id,
+    draft: requestedDraft,
+    makeAvailable,
+    directoryMonth,
+    folderRoom,
+    furnishing,
+  } = useLocalSearchParams<{
+    id?: string;
+    draft?: string;
+    makeAvailable?: string;
+    directoryMonth?: string;
+    folderRoom?: string;
+    furnishing?: string;
+  }>();
+  const defaultFolder = inventoryMonthSchema.safeParse(directoryMonth);
+  const selectedMonth = defaultFolder.success ? defaultFolder.data : inventoryMonth();
+  const directoryEnabled = makeAvailable === '1' || (!id && !requestedDraft);
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
@@ -62,10 +88,26 @@ export default function InventoryEditor() {
         } else
           initial = id
             ? await api<any>(`/inventory/${id}`, { ownerContext: owner.current })
-            : { availability: 'UNKNOWN', status: 'DRAFT', contacts: [], ...(!delegated || canAssign ? { assignedToId: user?.id } : {}) };
+            : {
+                availability: 'UNKNOWN',
+                status: 'DRAFT',
+                contacts: [],
+                ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
+                ...(directoryEnabled ? { purpose: 'RENT', ...inventoryFolderDefaults(folderRoom, furnishing) } : {}),
+              };
         if (active) {
           baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
-          setForm({ ...initial, ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}) });
+          setForm({
+            ...initial,
+            monthlyRent: initial.monthlyRent ?? (initial.purpose === 'RENT' ? initial.rent : undefined),
+            ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}),
+            ...(directoryEnabled
+              ? {
+                  directoryMonth: draft && initial.directoryMonth ? initial.directoryMonth : selectedMonth,
+                  _activateInDirectory: initial._activateInDirectory ?? true,
+                }
+              : {}),
+          });
           setReady(true);
           setDraftStatus(draft ? 'Draft restored' : '');
         }
@@ -76,7 +118,7 @@ export default function InventoryEditor() {
     return () => {
       active = false;
     };
-  }, [id, kind, key, requestedDraft, user?.id, startSeparate]);
+  }, [id, kind, key, requestedDraft, user?.id, startSeparate, directoryEnabled, folderRoom, furnishing, selectedMonth]);
   function persist(next: Record<string, any>) {
     setDraftStatus('Saving draft…');
     writes.current = writes.current
@@ -100,7 +142,16 @@ export default function InventoryEditor() {
     setError('');
     Keyboard.dismiss();
     try {
-      const input = id && baseline.current ? inventoryEditorPatch(form, baseline.current) : prepareInventoryEditorInput(form);
+      const effective = { ...form };
+      if (form._activateInDirectory) {
+        if (!inventoryMonthSchema.safeParse(form.directoryMonth).success) throw new Error('Choose the year and month for this property.');
+        const missing = missingInventoryFolderFields(effective);
+        if (missing.length) throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
+      } else {
+        delete effective.directoryMonth;
+      }
+      const input = id && baseline.current ? inventoryEditorPatch(effective, baseline.current) : prepareInventoryEditorInput(effective);
+      if (form._activateInDirectory) input.directoryMonth = form.directoryMonth;
       const checked = inventoryInputSchema.safeParse(input);
       if (!checked.success) {
         const issue = checked.error.issues[0];
@@ -114,7 +165,11 @@ export default function InventoryEditor() {
       const saved = await getLocalDraft(draftId.current, owner.current);
       if (saved?.state === 'FAILED') throw new Error(saved.error ?? 'Save failed. Your changes remain in Saved drafts.');
       toast.success(saved?.state === 'SYNCED' ? 'Property saved' : 'Saved on this device. Sync will resume when connected.');
-      await Promise.all(['ledger', 'ledger-stats', 'local-drafts'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+      await Promise.all(
+        ['ledger', 'ledger-item', 'ledger-stats', 'inventory-folders', 'inventory-folder-items', 'local-drafts'].map((k) =>
+          qc.invalidateQueries({ queryKey: [k] }),
+        ),
+      );
       router.back();
     } catch (e) {
       setError(errorMessage(e));
@@ -142,12 +197,37 @@ export default function InventoryEditor() {
           <Txt v="caption" color="muted">
             {draftStatus}
           </Txt>
+          {(directoryEnabled || form._activateInDirectory) && (
+            <NativeCard style={{ gap: 10 }}>
+              <Row gap={10}>
+                <Txt v="bodyStrong" style={{ flex: 1 }}>
+                  Make available
+                </Txt>
+                <Switch
+                  accessibilityLabel="Make property available"
+                  value={!!form._activateInDirectory}
+                  disabled={!ready || saving}
+                  onValueChange={(value) => change('_activateInDirectory', value)}
+                />
+              </Row>
+              {form._activateInDirectory && (
+                <Input
+                  label="Inventory year and month (YYYY-MM)"
+                  value={form.directoryMonth ?? selectedMonth}
+                  editable={ready && !saving}
+                  maxLength={7}
+                  onChangeText={(value) => change('directoryMonth', value)}
+                />
+              )}
+            </NativeCard>
+          )}
           <NativeCard style={{ gap: 14 }}>
             <Txt v="h3">Location</Txt>
             {field('sector', 'Sector / locality')}
             {field('houseNo', 'House / plot no.')}
             {field('unitLabel', 'Unit')}
             {field('address', 'Address')}
+            {field('directionsUrl', 'Directions link · Google Maps or Apple Maps')}
             {field('floor', 'Floor')}
           </NativeCard>
           <NativeCard style={{ gap: 14 }}>
@@ -227,12 +307,14 @@ export default function InventoryEditor() {
               choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
               onChange={(v) => change('areaUnit', v)}
             />
-            <ChoiceField
-              label="Availability"
-              value={form.availability}
-              choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
-              onChange={(v) => change('availability', v ?? 'UNKNOWN')}
-            />
+            {!form._activateInDirectory && (
+              <ChoiceField
+                label="Availability"
+                value={form.availability}
+                choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
+                onChange={(v) => change('availability', v ?? 'UNKNOWN')}
+              />
+            )}
           </NativeCard>
           <NativeCard style={{ gap: 14 }}>
             <Txt v="h3">Contacts</Txt>

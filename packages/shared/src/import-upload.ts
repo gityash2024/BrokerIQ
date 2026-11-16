@@ -34,6 +34,7 @@ export interface ImportUploadInput {
   sourceType: 'IMAGE' | 'CHAT_EXPORT';
   groupName?: string;
   target?: string;
+  directoryMonth?: string;
 }
 
 export type ImportUploadRequest = <T>(path: string, body?: unknown) => Promise<T>;

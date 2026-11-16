@@ -237,20 +237,28 @@ export async function claimGuestCaptures(owner = contextNow()) {
   );
   assertAccountContext(owner);
 }
-export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO', owner = contextNow()) {
+export async function captureText(text: string, sourceType = 'TEXT', groupName?: string, target = 'AUTO', owner = contextNow(), directoryMonth?: string) {
   const id = Crypto.randomUUID();
   if (text.length > 100_000) {
     const directory = new Directory(Paths.document, 'captures');
     directory.create({ idempotent: true, intermediates: true });
     const file = new File(directory, `${id}-message.txt`);
     file.write(text);
-    return captureFile(file.uri, 'text/plain', 'message.txt', groupName, target, owner);
+    return captureFile(file.uri, 'text/plain', 'message.txt', groupName, target, owner, directoryMonth);
   }
-  const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName, target }, id, owner);
+  const saved = await saveDraft('CAPTURE', id, { sourceType, rawText: text, groupName, target, directoryMonth }, id, owner);
   await queueDraft(saved, owner);
   return saved;
 }
-export async function captureFile(uri: string, mime: string, name?: string, groupName?: string, target = 'AUTO', owner = contextNow()) {
+export async function captureFile(
+  uri: string,
+  mime: string,
+  name?: string,
+  groupName?: string,
+  target = 'AUTO',
+  owner = contextNow(),
+  directoryMonth?: string,
+) {
   assertAccountContext(owner);
   const id = Crypto.randomUUID();
   const directory = new Directory(Paths.document, 'captures');
@@ -273,7 +281,7 @@ export async function captureFile(uri: string, mime: string, name?: string, grou
   const saved = await saveDraft(
     'CAPTURE',
     id,
-    { sourceType: mime.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT', fileName: name ?? safe, groupName, target },
+    { sourceType: mime.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT', fileName: name ?? safe, groupName, target, directoryMonth },
     id,
     owner,
     {
@@ -391,6 +399,7 @@ export async function syncDrafts() {
                     sourceType: contentType.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT',
                     groupName: body.groupName,
                     target: body.target,
+                    directoryMonth: body.directoryMonth,
                   },
                   async (offset, length) => {
                     handle.offset = offset;

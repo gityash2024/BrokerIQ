@@ -74,6 +74,7 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
         { label: 'Pipeline', href: '/broker/pipeline', nativeHref: '/pipeline', module: 'leads' },
         { label: 'Follow-ups', href: '/broker/follow-ups', nativeHref: '/follow-ups', module: 'leads' },
         { label: 'Site visits', href: '/broker/visits', nativeHref: '/visits', module: 'leads' },
+        { label: 'Property Maps', href: '/broker/visits/maps', nativeHref: '/visits-maps', module: 'leads' },
       ],
     },
     { key: 'inbox', label: 'Inbox', links: [{ label: 'Conversations', href: '/broker/inbox', nativeHref: '/inbox', module: 'inbox' }] },

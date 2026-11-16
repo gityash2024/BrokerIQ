@@ -14,12 +14,13 @@ describe('AiService', () => {
       getAppConfig: async () => ({ ai: { providerOrder: order } }),
       resolve: async (key: string) => config[key] ?? null,
     }) as any;
-  const prisma = { aiUsage: { create: jest.fn().mockResolvedValue({}) } } as any;
+  const prisma = { aiUsage: { create: jest.fn().mockResolvedValue({}) }, $queryRaw: jest.fn() } as any;
   const ok = (content: string) => ({ status: 200, json: { choices: [{ message: { content } }], usage: { total_tokens: 10 } } });
 
   beforeEach(() => {
     jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: false });
     calls = [];
+    prisma.$queryRaw.mockReset().mockResolvedValue([{ attempts: 1 }]);
     global.fetch = jest.fn(async (url: any, init: any) => {
       const body = JSON.parse(init.body);
       calls.push({ url: String(url), model: body.model, msgs: body.messages.length });
@@ -34,16 +35,23 @@ describe('AiService', () => {
 
   it('uses supported JSON mode for free Gemma endpoints and still rejects invalid schema values', async () => {
     const bodies: any[] = [];
-    respond = (_url, body) => { bodies.push(body); return ok(JSON.stringify({ intent: 'OFFER' })); };
+    respond = (_url, body) => {
+      bodies.push(body);
+      return ok(JSON.stringify({ intent: 'OFFER' }));
+    };
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'google/gemma-4-31b-it:free' } }), prisma);
     const schema = z.object({ intent: z.enum(['OFFER', 'DEMAND']) });
-    await expect(ai.json([{ role: 'user', content: 'Property available' }], { feature: 'diagnostic', schema, strictSchema: true })).resolves.toEqual({ intent: 'OFFER' });
+    await expect(ai.json([{ role: 'user', content: 'Property available' }], { feature: 'diagnostic', schema, strictSchema: true })).resolves.toEqual({
+      intent: 'OFFER',
+    });
     expect(bodies[0].response_format).toEqual({ type: 'json_object' });
     expect(bodies[0].messages[0].content).toContain('Schema:');
     expect(bodies[0].provider.max_price).toEqual({ prompt: 0, completion: 0, image: 0, request: 0 });
     expect(bodies[0].provider.data_collection).toBe('deny');
     respond = () => ok(JSON.stringify({ intent: 'PUBLISH_WITHOUT_PERMISSION' }));
-    await expect(ai.json([{ role: 'user', content: 'Untrusted post' }], { feature: 'diagnostic', schema, strictSchema: true })).rejects.toMatchObject({ status: 502 });
+    await expect(ai.json([{ role: 'user', content: 'Untrusted post' }], { feature: 'diagnostic', schema, strictSchema: true })).rejects.toMatchObject({
+      status: 502,
+    });
   });
   it('retries one transient free-provider failure without spending credits or changing the model', async () => {
     let attempts = 0;
@@ -55,6 +63,13 @@ describe('AiService', () => {
     await expect(ai.chat([{ role: 'user', content: 'Draft only' }], { feature: 'diagnostic' })).resolves.toBe('Recovered');
     expect(calls.map((call) => call.model)).toEqual(['a:free', 'a:free']);
   });
+  it('stops outbound OpenRouter attempts when its shared daily budget is consumed', async () => {
+    prisma.$queryRaw.mockResolvedValue([]);
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free' } }), prisma);
+    await expect(ai.chat([{ role: 'user', content: 'Draft only' }], { feature: 'diagnostic' })).rejects.toThrow();
+    expect(calls).toHaveLength(0);
+  });
+
   it('uses the next model when one is rate limited', async () => {
     respond = (_u, b) => (b.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('नमस्ते'));
     const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);

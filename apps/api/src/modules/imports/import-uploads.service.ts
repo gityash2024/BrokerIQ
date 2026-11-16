@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Prisma, type ImportUpload } from '@prisma/client';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES } from '@brokeriq/shared';
+import { IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES, inventoryMonthSchema } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { JobsService } from '../../core/jobs/jobs.service';
@@ -17,6 +17,7 @@ export const uploadStartSchema = z
     totalBytes: z.number().int().min(1).max(IMPORT_MAX_BYTES),
     groupName: z.string().max(150).optional(),
     target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT']).default('AUTO'),
+    directoryMonth: inventoryMonthSchema.optional(),
   })
   .refine((value) => (value.sourceType === 'IMAGE') === value.contentType.startsWith('image/'), 'Source type does not match file');
 
@@ -77,6 +78,7 @@ export class ImportUploadsService {
       if (row[name] !== input[name]) throw new ConflictException('Upload identity changed. Keep the original and start a new upload.');
     }
     if ((row.groupName ?? '') !== (input.groupName ?? '')) throw new ConflictException('Upload group changed.');
+    if ((row.directoryMonth ?? '') !== (input.directoryMonth ?? '')) throw new ConflictException('Upload folder month changed.');
     return this.state(row);
   }
 
@@ -144,7 +146,13 @@ export class ImportUploadsService {
             fileName: row.fileName,
             groupName: row.groupName,
             mediaRef,
-            metadata: { contentType: row.contentType, requestedTarget: row.target, totalBytes: row.totalBytes, chunked: true },
+            metadata: {
+              contentType: row.contentType,
+              requestedTarget: row.target,
+              totalBytes: row.totalBytes,
+              chunked: true,
+              ...(row.target === 'INVENTORY' && row.directoryMonth ? { directoryMonth: row.directoryMonth } : {}),
+            },
           },
           update: {},
         });

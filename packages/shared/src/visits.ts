@@ -4,7 +4,13 @@ import { inventoryPrice } from './inventory-presentation';
 
 export const MAX_VISIT_PROPERTIES = 20;
 
-export type VisitPropertyStop = { id: string; title: string; address?: string | null; sector?: string | null };
+export type VisitPropertyStop = {
+  id: string;
+  title: string;
+  address?: string | null;
+  sector?: string | null;
+  directionsUrl?: string | null;
+};
 
 export type VisitPropertySnapshot = Partial<VisitPropertyStop> & {
   stops?: VisitPropertyStop[];
@@ -16,6 +22,11 @@ export type VisitPropertySelection = {
   scheduledAt: string;
   updatedAt: string;
   propertySnapshot?: VisitPropertySnapshot | null;
+};
+
+export type MappedVisit = VisitPropertySelection & {
+  address?: string | null;
+  lead: { name: string };
 };
 
 export const visitShortlistSchema = z
@@ -36,7 +47,15 @@ export function visitShortlistStops(snapshot?: VisitPropertySnapshot | null): Vi
   const stops = visitPropertyStops(snapshot);
   if (stops.length) return stops;
   if (!snapshot?.id || !snapshot.title) return [];
-  return [{ id: snapshot.id, title: snapshot.title, address: snapshot.address, sector: snapshot.sector }];
+  return [
+    {
+      id: snapshot.id,
+      title: snapshot.title,
+      address: snapshot.address,
+      sector: snapshot.sector,
+      ...(snapshot.directionsUrl ? { directionsUrl: snapshot.directionsUrl } : {}),
+    },
+  ];
 }
 
 export function visitShortlistedIds(snapshot?: VisitPropertySnapshot | null): string[] {

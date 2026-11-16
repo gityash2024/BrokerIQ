@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseVisitLocalDateTime, parseVisit12HourDateTime, visitInventoryTitle, visitInputSchema, visitUpdateSchema } from '../index';
+import {
+  parseVisitLocalDateTime,
+  parseVisit12HourDateTime,
+  visitInventoryTitle,
+  visitInputSchema,
+  visitUpdateSchema,
+  visitShortlistStops,
+  inventoryInputSchema,
+} from '../index';
 test('calendar validation rejects rollover, incomplete inputs and invalid 12-hour times', () => {
   for (const input of ['2026-02-29T11:00', '2026-04-31T11:00', '2026-11-01T24:00', '', '2026-1-1T11:00']) assert.equal(parseVisitLocalDateTime(input), null);
   assert.ok(parseVisitLocalDateTime('2028-02-29T00:00'));
@@ -21,4 +29,16 @@ test('same house on separate floors has distinct selection labels', () => {
     visitInventoryTitle({ houseNo: '1994', sector: 'Sector 38', floor: 'Ground floor' }),
     visitInventoryTitle({ houseNo: '1994', sector: 'Sector 38', floor: '2nd floor' }),
   );
+});
+
+test('directions links are private inventory fields preserved on single-stop and multiple-stop visits', () => {
+  const directionsUrl = 'https://www.google.com/maps/dir/?api=1&destination=28.45%2C77.07';
+  assert.equal(inventoryInputSchema.parse({ directionsUrl }).directionsUrl, directionsUrl);
+  for (const url of ['javascript:alert(1)', 'https://www.google.com/redirect', 'https://maps.app.goo.gl.example.org/code']) {
+    assert.equal(inventoryInputSchema.safeParse({ directionsUrl: url }).success, false);
+  }
+  const first = { id: 'first', title: 'First stop', directionsUrl };
+  const second = { id: 'second', title: 'Second stop', directionsUrl: 'https://maps.apple.com/place?coordinate=28.46,77.08' };
+  assert.equal(visitShortlistStops(first)[0].directionsUrl, directionsUrl);
+  assert.deepEqual(visitShortlistStops({ ...first, stops: [first, second] }), [first, second]);
 });

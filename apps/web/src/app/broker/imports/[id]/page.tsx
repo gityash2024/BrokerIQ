@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { captureEntryTitle, capturePreviewFacts, type CapturedEntity } from '@brokeriq/shared';
+import { captureEntryTitle, capturePreviewFacts, inventoryMonth, inventoryMonthSchema, type CapturedEntity } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/panel/shell';
 import { PropertyForm } from '@/components/broker/launch/property-form';
@@ -26,6 +26,9 @@ export default function ReviewPage() {
   useEffect(() => {
     if (query.data && page > Math.max(1, query.data.totalPages)) setPage(Math.max(1, query.data.totalPages));
   }, [query.data, page]);
+  const inventoryTarget = query.data?.metadata?.requestedTarget === 'INVENTORY';
+  const requestedMonth = inventoryMonthSchema.safeParse(query.data?.metadata?.directoryMonth);
+  const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth(query.data?.createdAt ? new Date(query.data.createdAt) : new Date());
   const previewOfImportId = query.data?.previewOfImportId as string | undefined;
   async function openPreview() {
     setOpeningPreview(true);
@@ -39,9 +42,13 @@ export default function ReviewPage() {
     }
   }
   async function approve(entry: any, entities: CapturedEntity[], ignore = false, version?: string) {
-    await api(`/imports/entries/${entry.id}/approve`, { body: { entities, ignore, expectedUpdatedAt: version ?? entry.updatedAt } });
-    await Promise.all(['import', 'ledger', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
-    toast.success(ignore ? 'Source marked unrelated' : 'Saved to Requirements. Review property offers there before converting to Inventory.');
+    await api(`/imports/entries/${entry.id}/approve`, {
+      body: { entities, ignore, expectedUpdatedAt: version ?? entry.updatedAt, destination: inventoryTarget ? 'INVENTORY' : 'REQUIREMENT' },
+    });
+    await Promise.all(
+      ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+    );
+    toast.success(ignore ? 'Source marked unrelated' : inventoryTarget ? 'Reviewed records saved' : 'Saved to Requirements');
   }
   return (
     <>
@@ -146,6 +153,7 @@ export default function ReviewPage() {
             entry={entry}
             batchId={id}
             image={query.data?.sourceType === 'IMAGE'}
+            folderMonth={inventoryTarget ? folderMonth : undefined}
             onApprove={(entities, ignore, version) => approve(entry, entities, ignore, version)}
           />
         ))}
@@ -166,11 +174,13 @@ function Entry({
   entry,
   batchId,
   image,
+  folderMonth,
   onApprove,
 }: {
   entry: any;
   batchId: string;
   image: boolean;
+  folderMonth?: string;
   onApprove: (entities: CapturedEntity[], ignore?: boolean, version?: string) => Promise<void>;
 }) {
   const [entities, setEntities] = useState<CapturedEntity[]>(entry.extracted ?? []);
@@ -179,14 +189,20 @@ function Entry({
   const [error, setError] = useState('');
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   const [version, setVersion] = useState(entry.updatedAt);
+  const [approving, setApproving] = useState(false);
+  const hasProperties = entities.some((entity) => entity.kind === 'INVENTORY');
   const [prepared, setPrepared] = useState<number[]>([]);
   const ready = entities.some((e) => e.kind !== 'UNRELATED') && entities.every((e, i) => e.kind === 'UNRELATED' || prepared.includes(i));
   async function approve() {
+    if (approving) return;
+    setApproving(true);
     setError('');
     try {
       await onApprove(entities, false, version);
     } catch (e) {
       setError(errorMessage(e));
+    } finally {
+      setApproving(false);
     }
   }
   return (
@@ -202,6 +218,15 @@ function Entry({
           {expanded ? 'Collapse' : 'Review source & fields'}
         </button>
       </div>
+      {entry.inventories?.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-3">
+          {entry.inventories.map((item: { id: string }, index: number) => (
+            <Link key={item.id} href={`/broker/inventory/${item.id}`} className="text-sm font-semibold text-brand-600">
+              Property {index + 1}
+            </Link>
+          ))}
+        </div>
+      )}
       <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-xs text-muted">{entry.rawText}</p>
       {expanded && (
         <div className="mt-5 grid gap-6 lg:grid-cols-2">
@@ -265,6 +290,8 @@ function Entry({
                   (entity.kind === 'INVENTORY' ? (
                     <PropertyForm
                       initial={entity.inventory}
+                      activateInMonth={folderMonth ? (entity.inventory?.directoryMonth ?? folderMonth) : undefined}
+                      requireAvailability={Boolean(folderMonth)}
                       onDirty={() => setPrepared(prepared.filter((i) => i !== index))}
                       label="Save reviewed fields"
                       onSave={async (inventory) => {
@@ -316,8 +343,12 @@ function Entry({
                   </button>
                 </div>
                 <div className="flex gap-4">
-                  <button disabled={!ready} onClick={approve} className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white">
-                    Approve saved records
+                  <button
+                    disabled={!ready || approving}
+                    onClick={approve}
+                    className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {folderMonth && hasProperties ? 'Confirm available & save records' : 'Approve saved records'}
                   </button>
                   <button
                     onClick={async () => {

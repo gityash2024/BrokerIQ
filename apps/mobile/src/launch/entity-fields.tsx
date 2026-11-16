@@ -22,11 +22,14 @@ export function prepareEntity(value: Record<string, any>, requirement = false): 
   if (requirement && value.intent === 'UNKNOWN')
     return brokerRequirementSchema.parse({ intent: 'UNKNOWN', title: value.title, notes: value.notes, expectedRevision: value.expectedRevision });
   const input = { ...value };
-  for (const key of requirement
-    ? ['minBudget', 'maxBudget', 'minArea', 'maxArea']
-    : ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'])
+  for (const key of requirement ? ['minBudget', 'maxBudget', 'minArea', 'maxArea'] : ['bhk', 'area', 'totalSalePrice', 'ratePerArea', 'securityDeposit'])
     input[key] = input[key] === '' || input[key] == null ? null : Number(input[key]);
-  if (!requirement) input.details = preparePropertyDetails(input.details);
+  if (!requirement) {
+    input.details = preparePropertyDetails(input.details);
+    const monthly = input.monthlyRent ?? (input.purpose === 'RENT' ? input.rent : null);
+    input.monthlyRent = monthly === '' || monthly == null ? null : Number(monthly);
+    delete input.rent;
+  }
   const schema = requirement ? brokerRequirementSchema : inventoryInputSchema;
   const parsed = schema.safeParse(input);
   if (!parsed.success) throw new Error(parsed.error.issues[0].message);
@@ -36,10 +39,12 @@ export function EntityFields({
   value,
   onChange,
   requirement = false,
+  folderMonth,
 }: {
   value: Record<string, any>;
   onChange: (value: Record<string, any>) => void;
   requirement?: boolean;
+  folderMonth?: string;
 }) {
   const { c } = useTheme();
   const change = (name: string, v: any) =>
@@ -105,6 +110,21 @@ export function EntityFields({
           {field('unitLabel', 'Unit')}
           {field('floor', 'Floor')}
           {field('address', 'Address')}
+          {folderMonth && (
+            <>
+              <Input
+                label="Inventory year and month (YYYY-MM)"
+                value={value.directoryMonth ?? folderMonth}
+                maxLength={7}
+                onChangeText={(month) => change('directoryMonth', month)}
+              />
+              <Input
+                label="Directions link · Google Maps or Apple Maps"
+                value={value.directionsUrl ?? ''}
+                onChangeText={(url) => change('directionsUrl', url || null)}
+              />
+            </>
+          )}
         </>
       )}
       {choice('purpose', 'Purpose', ['RENT', 'SALE'])}

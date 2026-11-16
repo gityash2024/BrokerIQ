@@ -63,6 +63,9 @@ export class InventoryController {
   ) {
     return this.inventory.hierarchy(kind, q, user);
   }
+  @Get('folders') getFolders(@Query(new ZodPipe(inventoryFilterSchema)) query: InventoryFilterQuery, @CurrentUser() user: RequestUser) {
+    return this.inventory.getFolders(query, user);
+  }
   @Get('stats') getStats(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getStats(user, orgId);
   }

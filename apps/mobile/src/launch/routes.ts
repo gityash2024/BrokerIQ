@@ -22,7 +22,8 @@ export function nativeModuleKey(path: string) {
     return path.startsWith('/my-visits') ? 'slot_booking' : path.startsWith('/customer-requirements') ? 'tenant_requirements' : 'consumer';
   if (path.startsWith('/area-directory')) return 'directory';
   if (/^\/(inventory(?:-edit)?|publish-rental|publication-reviews|scanner|listing-scanner)(\/|$)/.test(path)) return 'inventory';
-  if (/^\/(lead|leads|add-lead|lead-share-photos|schedule-visit|pipeline|follow-ups|visits|requirements|requirement-edit)(\/|$)/.test(path)) return 'leads';
+  if (/^\/(lead|leads|add-lead|lead-share-photos|schedule-visit|pipeline|follow-ups|visits|visits-maps|requirements|requirement-edit)(\/|$)/.test(path))
+    return 'leads';
   if (/^\/(inbox|capture|import-review|wa)(\/|$)/.test(path)) return 'inbox';
   if (/^\/(automations|connectors)(\/|$)/.test(path)) return 'automation';
   return path === '/dashboard' ? 'today' : (moduleForPath(path, 'web') ?? 'legacy');

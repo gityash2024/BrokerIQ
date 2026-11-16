@@ -16,6 +16,13 @@ import {
   RENTABLE_TYPES,
   publicationDecision,
   slugify,
+  inventoryMonth,
+  inventoryRoomFolder,
+  NAMED_INVENTORY_TYPES,
+  missingInventoryFolderFields,
+  readableValue,
+  type InventoryFolder,
+  type InventoryFolders,
 } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
@@ -168,9 +175,97 @@ export class InventoryService {
         })),
       });
     } else if (q.areaUnit) where.areaUnit = q.areaUnit;
+    const placed: Prisma.InventoryItemWhereInput = {
+      directoryMonth: { not: null },
+      status: 'ACTIVE',
+      availability: 'AVAILABLE',
+      verificationStatus: 'VERIFIED',
+    };
+    const rented: Prisma.InventoryItemWhereInput = { OR: [{ availability: 'RENTED' }, { status: 'RENTED' }] };
+    if (q.folderMode === 'AVAILABLE') {
+      and.push(placed);
+      if (q.folderMonth) and.push({ directoryMonth: q.folderMonth });
+      else if (q.folderYear) and.push({ directoryMonth: { startsWith: q.folderYear + '-' } });
+      if (q.folderRoom && !q.folderRoom.startsWith('TYPE:'))
+        and.push({ OR: [{ propertyType: null }, { propertyType: { notIn: [...NAMED_INVENTORY_TYPES] } }] });
+      if (q.folderRoom === 'RK' || q.folderRoom === 'STUDIO') and.push({ roomKind: q.folderRoom });
+      else if (q.folderRoom?.startsWith('BHK:')) and.push({ bhk: Number(q.folderRoom.slice(4)), OR: [{ roomKind: 'BHK' }, { roomKind: null }] });
+      else if (q.folderRoom?.startsWith('TYPE:') && NAMED_INVENTORY_TYPES.some((type) => q.folderRoom === `TYPE:${type}`)) {
+        and.push({ propertyType: q.folderRoom.slice(5) });
+      } else if (q.folderRoom) {
+        and.push({
+          OR: [{ bhk: null, OR: [{ roomKind: null }, { roomKind: { notIn: ['RK', 'STUDIO'] } }] }, { roomKind: { notIn: ['BHK', 'RK', 'STUDIO'] } }],
+        });
+        and.push({ propertyType: q.folderRoom.startsWith('TYPE:') ? q.folderRoom.slice(5) : null });
+      }
+      if (q.folderFurnishing) and.push({ furnishing: q.folderFurnishing === 'OTHER' ? null : q.folderFurnishing });
+    } else if (q.folderMode === 'RENTED') {
+      and.push(rented);
+      if (q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
+    } else if (q.folderMode === 'REVIEW') {
+      and.push({
+        OR: [{ directoryMonth: null }, { availability: { not: 'AVAILABLE' } }, { status: { not: 'ACTIVE' } }, { verificationStatus: { not: 'VERIFIED' } }],
+      });
+      and.push({ NOT: rented });
+    }
     if (and.length) where.AND = and;
     if (q.dateFrom || q.dateTo) where.date = { ...(q.dateFrom ? { gte: new Date(q.dateFrom) } : {}), ...(q.dateTo ? { lte: new Date(q.dateTo) } : {}) };
     return where;
+  }
+  async getFolders(q: InventoryFilterQuery, user: RequestUser): Promise<InventoryFolders> {
+    const query = this.filterWhere(q, user);
+    const root = this.filterWhere(
+      { ...q, folderMode: 'AVAILABLE', folderYear: undefined, folderMonth: undefined, folderRoom: undefined, folderFurnishing: undefined },
+      user,
+    );
+    const months = await this.prisma.inventoryItem.groupBy({ by: ['directoryMonth'], where: root, _count: { _all: true } });
+    const current = inventoryMonth();
+    const years = [...new Set([current.slice(0, 4), ...months.flatMap((row) => row.directoryMonth?.slice(0, 4) ?? [])])].sort().reverse();
+    const folders: InventoryFolder[] = [];
+    if (q.folderMode === 'RENTED' && !q.folderSector) {
+      const rows = await this.prisma.inventoryItem.groupBy({ by: ['sector'], where: query, _count: { _all: true }, orderBy: { sector: 'asc' } });
+      folders.push(...rows.map(({ sector, _count }) => ({ key: sector || '__unset__', label: sector || 'Sector not recorded', count: _count._all })));
+    }
+    if (q.folderMode === 'AVAILABLE' && !q.folderMonth) {
+      const year = q.folderYear ?? current.slice(0, 4);
+      const metadata = new Map(months.map((row) => [row.directoryMonth, row._count._all]));
+      for (let month = 1; month <= 12; month += 1) {
+        const key = `${year}-${String(month).padStart(2, '0')}`;
+        const label = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${key}-01T00:00:00Z`));
+        folders.push({ key, label, count: metadata.get(key) ?? 0 });
+      }
+    } else if (q.folderMode === 'AVAILABLE' && !q.folderRoom) {
+      const rows = await this.prisma.inventoryItem.groupBy({ by: ['bhk', 'roomKind', 'propertyType'], where: query, _count: { _all: true } });
+      const counts = new Map<string, number>();
+      for (const row of rows) {
+        const key = inventoryRoomFolder(row);
+        counts.set(key, (counts.get(key) ?? 0) + row._count._all);
+      }
+      for (const [key, count] of [...counts].sort(([a], [b]) => a.localeCompare(b, 'en-IN', { numeric: true }))) {
+        const label = key.startsWith('BHK:')
+          ? `${key.slice(4)} BHK`
+          : key === 'TYPE:BUILDER_FLOOR'
+            ? 'Independent floor'
+            : key.startsWith('TYPE:')
+              ? readableValue(key.slice(5))
+              : key === 'OTHER'
+                ? 'Type not recorded'
+                : key === 'RK'
+                  ? 'RK'
+                  : 'Studio';
+        folders.push({ key, label, count });
+      }
+    } else if (q.folderMode === 'AVAILABLE' && !q.folderFurnishing) {
+      const rows = await this.prisma.inventoryItem.groupBy({ by: ['furnishing'], where: query, _count: { _all: true }, orderBy: { furnishing: 'asc' } });
+      folders.push(
+        ...rows.map(({ furnishing, _count }) => ({
+          key: furnishing || 'OTHER',
+          label: furnishing ? readableValue(furnishing) : 'Furnishing not recorded',
+          count: _count._all,
+        })),
+      );
+    }
+    return { folders, years };
   }
   private orderBy(q: InventoryFilterQuery): Prisma.InventoryItemOrderByWithRelationInput[] {
     if (q.sort && !INVENTORY_SORTS.some((s) => s.value === q.sort)) throw new BadRequestException('Invalid sort');
@@ -424,6 +519,17 @@ export class InventoryService {
     const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
     if (input.ownerPhone && !primaryPhone) throw new BadRequestException('Invalid Indian phone number');
     const effective = { ...previous, ...data, ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}) };
+    if (input.directoryMonth) {
+      const missing = missingInventoryFolderFields(effective);
+      if (missing.length) throw new BadRequestException(`Fill these fields to make the property Available: ${missing.join(', ')}`);
+      data.status = 'ACTIVE';
+      data.availability = 'AVAILABLE';
+      data.verificationStatus = 'VERIFIED';
+    } else if (previous?.directoryMonth && effective.status === 'ACTIVE' && effective.availability === 'AVAILABLE') {
+      const priorMissing = new Set(missingInventoryFolderFields(previous));
+      const removed = missingInventoryFolderFields(effective).filter((field) => !priorMissing.has(field));
+      if (removed.length) throw new BadRequestException(`Available properties need: ${removed.join(', ')}`);
+    }
     const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
     const price = effective.purpose === 'RENT' ? (effective.monthlyRent ?? effective.rent) : effective.purpose === 'SALE' ? effective.totalSalePrice : null;
     const size = effective.area != null && effective.areaUnit ? areaSqft(Number(effective.area), effective.areaUnit) : null;
@@ -443,7 +549,12 @@ export class InventoryService {
       ownerPhone: primaryPhone,
       ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}),
       ...(input.date ? { date: new Date(input.date) } : {}),
-      ...(input.availability ? { availabilityAt: new Date() } : {}),
+      ...(data.availability ? { availabilityAt: new Date() } : {}),
+      ...(!input.directoryMonth &&
+      previous?.directoryMonth &&
+      (effective.availability !== 'AVAILABLE' || effective.status !== 'ACTIVE' || effective.verificationStatus !== 'VERIFIED')
+        ? { directoryMonth: null }
+        : {}),
     };
   }
   private contacts(input: InventoryInput) {
@@ -454,7 +565,12 @@ export class InventoryService {
         : [])
     );
   }
-  async create(input: InventoryInput, user: RequestUser, transaction?: Prisma.TransactionClient) {
+  async create(
+    input: InventoryInput,
+    user: RequestUser,
+    transaction?: Prisma.TransactionClient,
+    source?: { sourceEntryId: string; sourceUnitKey: string; sourceType: string },
+  ) {
     const organizationId = this.orgId(user, input.organizationId)!;
     const persist = async (db: Prisma.TransactionClient) => {
       if (input.clientMutationId) {
@@ -483,10 +599,11 @@ export class InventoryService {
       const item = await db.inventoryItem.create({
         data: {
           ...this.fields(input),
+          ...source,
           organizationId,
           createdById: user.id,
           assignedToId,
-          verificationStatus: input.verificationStatus ?? 'VERIFIED',
+          verificationStatus: input.directoryMonth ? 'VERIFIED' : (input.verificationStatus ?? 'VERIFIED'),
           contacts: { create: this.contacts(input) },
         },
         include,
@@ -507,7 +624,8 @@ export class InventoryService {
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
       if (!current) throw new NotFoundException('Inventory item not found');
       if (input.organizationId && input.organizationId !== current.organizationId) throw new BadRequestException('Property firm cannot be changed');
-      if (user.delegatedActor && current.publishedListingId && !user.delegatedPermissions?.includes('inventory:publish')) {
+      const affectsPublicListing = Object.keys(input).some((key) => !['expectedRevision', 'clientMutationId', 'directionsUrl', 'directoryMonth'].includes(key));
+      if (affectsPublicListing && user.delegatedActor && current.publishedListingId && !user.delegatedPermissions?.includes('inventory:publish')) {
         const listing = await tx.listing.findUnique({ where: { id: current.publishedListingId }, select: { status: true, deletedAt: true } });
         if (listing && !listing.deletedAt && ['ACTIVE', 'PENDING_REVIEW'].includes(listing.status)) {
           throw new ForbiddenException('Editing this property also requires permission to withdraw its listing');
@@ -546,9 +664,7 @@ export class InventoryService {
         else if (contact.name || contact.phone) await tx.inventoryContact.create({ data: { ...contact, inventoryId: id } });
       }
       const updated = await tx.inventoryItem.findUniqueOrThrow({ where: { id }, include });
-      if (updated.availability !== 'AVAILABLE' || updated.status !== 'ACTIVE' || !['RENT', 'SALE'].includes(updated.purpose || ''))
-        await this.withdrawLinked(tx, current);
-      else if (Object.keys(input).some((key) => !['expectedRevision', 'clientMutationId'].includes(key))) await this.withdrawLinked(tx, current);
+      if (affectsPublicListing) await this.withdrawLinked(tx, current);
       return current.publishedListingId ? tx.inventoryItem.findUniqueOrThrow({ where: { id }, include }) : updated;
     });
     await this.audit.log(user, 'inventory.update', 'InventoryItem', id, {
@@ -859,7 +975,12 @@ export class InventoryService {
       for (const item of items) await this.withdrawLinked(tx, item);
       return tx.inventoryItem.updateMany({
         where: { id: { in: unique }, organizationId: items[0].organizationId },
-        data: { ...input, ...(input.availability ? { availabilityAt: new Date() } : {}), revision: { increment: 1 } },
+        data: {
+          ...input,
+          ...(input.availability ? { availabilityAt: new Date() } : {}),
+          ...((input.availability && input.availability !== 'AVAILABLE') || (input.status && input.status !== 'ACTIVE') ? { directoryMonth: null } : {}),
+          revision: { increment: 1 },
+        },
       });
     });
     await this.audit.log(user, 'inventory.bulk_update', 'InventoryItem', unique.join(',').slice(0, 100), { count: count.count, ...input });

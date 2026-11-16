@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { toast } from '@/lib/toast';
 import { patch } from '@/lib/api';
 import { useApiMutation } from '@/lib/hooks';
 import {
   MAX_VISIT_PROPERTIES,
   visitInventoryTitle,
-  visitPropertyStops,
+  isDirectionsLink,
+  gurugramSectorMap,
   visitShortlistStops,
   visitShortlistedIds,
   type LedgerItem,
@@ -46,7 +48,7 @@ export function VisitProperties({ items, onChange }: { items: LedgerItem[]; onCh
 export function VisitItinerary({ snapshot, remainingOnly }: { snapshot?: VisitPropertySnapshot | null; remainingOnly?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const selected = remainingOnly ? visitShortlistedIds(snapshot) : [];
-  const stops = (selected.length ? visitShortlistStops(snapshot) : visitPropertyStops(snapshot)).filter(({ id }) => !selected.includes(id));
+  const stops = visitShortlistStops(snapshot).filter(({ id }) => !selected.includes(id));
   if (!stops.length) return null;
   return (
     <View style={{ gap: 6 }}>
@@ -57,18 +59,37 @@ export function VisitItinerary({ snapshot, remainingOnly }: { snapshot?: VisitPr
         onPress={() => setExpanded((value) => !value)}
       />
       {expanded &&
-        stops.map((stop, index) => (
-          <View key={stop.id}>
-            <Txt>
-              {index + 1}. {stop.title}
-            </Txt>
-            {!!stop.address && stop.address !== stop.title && (
-              <Txt v="caption" color="muted">
-                {stop.address}
+        stops.map((stop, index) => {
+          const sectorMap = stop.sector ? gurugramSectorMap(stop.sector) : null;
+          return (
+            <View key={stop.id} style={{ gap: 4 }}>
+              <Txt>
+                {index + 1}. {stop.title}
               </Txt>
-            )}
-          </View>
-        ))}
+              {!!stop.address && stop.address !== stop.title && (
+                <Txt v="caption" color="muted">
+                  {stop.address}
+                </Txt>
+              )}
+              {stop.directionsUrl && isDirectionsLink(stop.directionsUrl) && (
+                <Button
+                  title="Open property directions"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => Linking.openURL(stop.directionsUrl!).catch(() => toast.error('Unable to open the maps link'))}
+                />
+              )}
+              {sectorMap && (
+                <Button
+                  title="Sector map"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => Linking.openURL(sectorMap).catch(() => toast.error('Unable to open the sector map'))}
+                />
+              )}
+            </View>
+          );
+        })}
     </View>
   );
 }

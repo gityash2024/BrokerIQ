@@ -7,7 +7,9 @@ import {
   capturedEntitySchema,
   extractCapture,
   chatExportMessages,
-  inventoryInputSchema,
+  inventoryMonth,
+  inventoryMonthSchema,
+  missingInventoryFolderFields,
   brokerRequirementSchema,
   type CapturedEntity,
   type CapturedMessage,
@@ -24,6 +26,7 @@ import { z } from 'zod';
 import sharp from 'sharp';
 import { ModulesService } from '../../core/features/modules.service';
 import { openCaptureSource, textMessages, type ArchiveSummary } from './capture-stream';
+import { InventoryService } from '../inventory/inventory.service';
 import { archiveEvidence, prepareArchiveReview, type ReviewAttachment } from './archive-review';
 
 export const captureInputSchema = z
@@ -36,11 +39,13 @@ export const captureInputSchema = z
     senderPhone: z.string().max(25).optional(),
     groupName: z.string().max(150).optional(),
     target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT']).optional(),
+    directoryMonth: inventoryMonthSchema.optional(),
   })
   .refine((s) => !!s.rawText?.trim() || !!s.fileDataUrl, 'Text or a file is required');
 export const reviewSchema = z.object({
   entities: z.array(capturedEntitySchema).max(100),
   ignore: z.boolean().optional(),
+  destination: z.enum(['INVENTORY', 'REQUIREMENT']).optional(),
   expectedUpdatedAt: z.string().datetime().optional(),
 });
 function reviewProvenance(value: Prisma.JsonValue) {
@@ -81,6 +86,7 @@ export class ImportsService {
     private readonly ocr: OcrService,
     private readonly ai: AiService,
     private readonly modules: ModulesService,
+    private readonly inventory: InventoryService,
   ) {
     this.jobs.register('import.extract', (p) => this.extract(p.batchId));
   }
@@ -190,7 +196,11 @@ export class ImportsService {
             senderName: input.senderName,
             senderPhone: input.senderPhone,
             groupName: input.groupName,
-            metadata: { contentType: contentType ?? 'text/plain', requestedTarget: input.target ?? 'AUTO' },
+            metadata: {
+              contentType: contentType ?? 'text/plain',
+              requestedTarget: input.target ?? 'AUTO',
+              ...(input.target === 'INVENTORY' && input.directoryMonth ? { directoryMonth: input.directoryMonth } : {}),
+            },
           },
         });
       } catch (error) {
@@ -502,72 +512,109 @@ export class ImportsService {
   async review(entryId: string, input: z.infer<typeof reviewSchema>, user: RequestUser, approve = false) {
     if (approve && !input.ignore) {
       if (!input.entities.some((e) => e.kind !== 'UNRELATED')) throw new BadRequestException('Approve a property/requirement or choose Ignore');
-      await this.modules.assertPath('/broker-requirements', user.role);
-    }
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${entryId}))`;
-      const entry = await tx.sourceEntry.findFirst({ where: { id: entryId, batch: this.scope(user) }, include: { batch: true } });
-      if (!entry) throw new NotFoundException('Source entry not found');
-      if (previewParent(entry.batch.metadata)) throw new ForbiddenException('Extraction previews are read-only.');
-      if (['APPROVED', 'IGNORED', 'DUPLICATE'].includes(entry.reviewState)) return { state: entry.reviewState, duplicate: true };
-      if (input.expectedUpdatedAt && new Date(input.expectedUpdatedAt).getTime() !== entry.updatedAt.getTime())
-        throw new ConflictException('Entry changed. Reload review.');
-      if (approve && !input.ignore) {
-        for (let index = 0; index < input.entities.length; index++) {
-          const entity = input.entities[index];
-          const sourceUnitKey = String(index);
-          if (entity.kind === 'UNRELATED') continue;
-          if (entity.kind === 'INVENTORY' && !entity.inventory) throw new BadRequestException('Offered property fields required');
-          if (entity.kind === 'REQUIREMENT' && !entity.requirement) throw new BadRequestException('Requirement fields required');
-          const parsed = entity.kind === 'INVENTORY' ? offeredRequirement(entity.inventory!) : brokerRequirementSchema.parse(entity.requirement);
-          const { expectedRevision: _revision, organizationId: _organization, clientMutationId: _mutation, offerDetails, ...data } = parsed;
-          if (
-            data.leadId &&
-            !(await tx.lead.findFirst({
-              where: {
-                id: data.leadId,
-                organizationId: entry.batch.organizationId,
-                deletedAt: null,
-                ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
-              },
-            }))
-          )
-            throw new ForbiddenException('Lead is not accessible');
-          await tx.brokerRequirement.upsert({
-            where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
-            create: {
-              ...data,
-              ...(offerDetails ? { offerDetails: offerDetails as Prisma.InputJsonValue } : {}),
-              organizationId: entry.batch.organizationId,
-              createdById: entry.batch.createdById,
-              assignedToId: user.role === 'BROKER_AGENT' ? user.id : null,
-              sourceEntryId: entry.id,
-              sourceUnitKey,
-              provenance: {
-                rawText: entry.rawText,
-                sourceType: entry.batch.sourceType,
-                fileName: entry.batch.fileName,
-                groupName: entry.batch.groupName,
-                senderName: entry.batch.senderName,
-                senderPhone: entry.batch.senderPhone,
-                message: reviewProvenance(entry.ocr),
-                reviewedAt: new Date().toISOString(),
-                reviewedById: user.id,
-              } as Prisma.InputJsonValue,
-            },
-            update: {},
-          });
-        }
+      const directInventory = input.destination === 'INVENTORY' && input.entities.some((entity) => entity.kind === 'INVENTORY');
+      const needsRequirements = input.entities.some((entity) => entity.kind === 'REQUIREMENT' || (entity.kind === 'INVENTORY' && !directInventory));
+      if (needsRequirements) {
+        await this.modules.assertPath('/broker-requirements', user.role);
+        if (user.delegatedActor && !user.delegatedPermissions?.includes('leads:create')) throw new ForbiddenException('Leads create permission is required');
       }
-      const state = approve ? (input.ignore ? 'IGNORED' : 'APPROVED') : 'NEEDS_REVIEW';
-      const saved = await tx.sourceEntry.update({
-        where: { id: entryId },
-        data: { extracted: input.entities as Prisma.InputJsonValue, reviewState: state, ...(approve ? { reviewedById: user.id, reviewedAt: new Date() } : {}) },
-      });
-      const pending = await tx.sourceEntry.count({ where: { batchId: entry.batchId, reviewState: 'NEEDS_REVIEW' } });
-      if (!pending) await tx.importBatch.update({ where: { id: entry.batchId }, data: { status: 'COMPLETE' } });
-      return { state, duplicate: false, updatedAt: saved.updatedAt };
-    });
+      if (directInventory) {
+        await this.modules.assertPath('/inventory', user.role);
+        if (user.delegatedActor && !user.delegatedPermissions?.includes('inventory:create'))
+          throw new ForbiddenException('Inventory create permission is required');
+      }
+    }
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${entryId}))`;
+        const entry = await tx.sourceEntry.findFirst({ where: { id: entryId, batch: this.scope(user) }, include: { batch: true } });
+        if (!entry) throw new NotFoundException('Source entry not found');
+        if (previewParent(entry.batch.metadata)) throw new ForbiddenException('Extraction previews are read-only.');
+        if (['APPROVED', 'IGNORED', 'DUPLICATE'].includes(entry.reviewState)) return { state: entry.reviewState, duplicate: true };
+        if (input.expectedUpdatedAt && new Date(input.expectedUpdatedAt).getTime() !== entry.updatedAt.getTime())
+          throw new ConflictException('Entry changed. Reload review.');
+        if (approve && !input.ignore) {
+          for (let index = 0; index < input.entities.length; index++) {
+            const entity = input.entities[index];
+            const sourceUnitKey = String(index);
+            if (entity.kind === 'UNRELATED') continue;
+            if (entity.kind === 'INVENTORY' && !entity.inventory) throw new BadRequestException('Offered property fields required');
+            if (entity.kind === 'REQUIREMENT' && !entity.requirement) throw new BadRequestException('Requirement fields required');
+            if (entity.kind === 'INVENTORY' && input.destination === 'INVENTORY') {
+              const unit = entity.inventory!;
+              const missing = missingInventoryFolderFields(unit);
+              if (missing.length) throw new BadRequestException(`Property ${index + 1}: fill ${missing.join(', ')} before approval.`);
+              const preferredMonth = inventoryMonthSchema.safeParse((entry.batch.metadata as { directoryMonth?: unknown } | null)?.directoryMonth);
+              const directoryMonth = unit.directoryMonth ?? (preferredMonth.success ? preferredMonth.data : inventoryMonth(entry.batch.createdAt));
+              const {
+                organizationId: _organizationId,
+                assignedToId: _assignee,
+                clientMutationId: _clientMutationId,
+                expectedRevision: _revision,
+                ...fields
+              } = unit;
+              await this.inventory.create({ ...fields, organizationId: entry.batch.organizationId, directoryMonth }, user, tx, {
+                sourceEntryId: entry.id,
+                sourceUnitKey,
+                sourceType: entry.batch.sourceType,
+              });
+              continue;
+            }
+            const parsed = entity.kind === 'INVENTORY' ? offeredRequirement(entity.inventory!) : brokerRequirementSchema.parse(entity.requirement);
+            const { expectedRevision: _revision, organizationId: _organization, clientMutationId: _mutation, offerDetails, ...data } = parsed;
+            if (
+              data.leadId &&
+              !(await tx.lead.findFirst({
+                where: {
+                  id: data.leadId,
+                  organizationId: entry.batch.organizationId,
+                  deletedAt: null,
+                  ...(user.role === 'BROKER_AGENT' ? { assignedToId: user.id } : {}),
+                },
+              }))
+            )
+              throw new ForbiddenException('Lead is not accessible');
+            await tx.brokerRequirement.upsert({
+              where: { sourceEntryId_sourceUnitKey: { sourceEntryId: entry.id, sourceUnitKey } },
+              create: {
+                ...data,
+                ...(offerDetails ? { offerDetails: offerDetails as Prisma.InputJsonValue } : {}),
+                organizationId: entry.batch.organizationId,
+                createdById: entry.batch.createdById,
+                assignedToId: user.role === 'BROKER_AGENT' ? user.id : null,
+                sourceEntryId: entry.id,
+                sourceUnitKey,
+                provenance: {
+                  rawText: entry.rawText,
+                  sourceType: entry.batch.sourceType,
+                  fileName: entry.batch.fileName,
+                  groupName: entry.batch.groupName,
+                  senderName: entry.batch.senderName,
+                  senderPhone: entry.batch.senderPhone,
+                  message: reviewProvenance(entry.ocr),
+                  reviewedAt: new Date().toISOString(),
+                  reviewedById: user.id,
+                } as Prisma.InputJsonValue,
+              },
+              update: {},
+            });
+          }
+        }
+        const state = approve ? (input.ignore ? 'IGNORED' : 'APPROVED') : 'NEEDS_REVIEW';
+        const saved = await tx.sourceEntry.update({
+          where: { id: entryId },
+          data: {
+            extracted: input.entities as Prisma.InputJsonValue,
+            reviewState: state,
+            ...(approve ? { reviewedById: user.id, reviewedAt: new Date() } : {}),
+          },
+        });
+        const pending = await tx.sourceEntry.count({ where: { batchId: entry.batchId, reviewState: 'NEEDS_REVIEW' } });
+        if (!pending) await tx.importBatch.update({ where: { id: entry.batchId }, data: { status: 'COMPLETE' } });
+        return { state, duplicate: false, updatedAt: saved.updatedAt };
+      },
+      { timeout: 30_000 },
+    );
     await this.audit.log(user, approve ? 'import.approve' : 'import.review_save', 'SourceEntry', entryId, result);
     return result;
   }

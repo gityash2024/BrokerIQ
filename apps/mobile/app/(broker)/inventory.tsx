@@ -17,8 +17,17 @@ import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { NativeAdvancedFilters } from '@/launch/advanced-filters';
 import { PropertyCard } from '@/launch/property-card';
+import { NativeInventoryFolders } from '@/launch/inventory-folders';
 
 const initial = {
+  folderMode: '',
+  folderYear: '',
+  folderMonth: '',
+  folderRoom: '',
+  folderFurnishing: '',
+  folderSector: '',
+  dateFrom: '',
+  dateTo: '',
   detailFilters: '',
   sort: '',
   amenities: '',
@@ -47,12 +56,17 @@ const initial = {
 };
 
 export default function Inventory() {
+  const params = useLocalSearchParams();
+  return params.view === 'ledger' || Object.keys(initial).some((key) => typeof params[key] === 'string') ? <InventoryLedger /> : <NativeInventoryFolders />;
+}
+
+function InventoryLedger() {
   const { user } = useAuth();
   const { c } = useTheme();
-  const [search, setSearch] = useState('');
+  const params = useLocalSearchParams();
+  const [search, setSearch] = useState(typeof params.search === 'string' ? params.search : '');
   const term = useDebounced(search);
   const [filters, setFilters] = useState(initial);
-  const params = useLocalSearchParams();
   const parameterKey = JSON.stringify(Object.fromEntries(Object.keys(initial).flatMap((key) => (typeof params[key] === 'string' ? [[key, params[key]]] : []))));
   useEffect(() => {
     setFilters({ ...initial, ...JSON.parse(parameterKey) });

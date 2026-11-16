@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, readableValue } from '@brokeriq/shared';
+import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, isDirectionsLink, readableValue } from '@brokeriq/shared';
 import { api, API_URL, assertAccountContext, authStore, captureAccountContext, errorMessage, uploadUri } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
@@ -413,6 +413,13 @@ export default function PropertyDetail() {
             )}
 
             {/* Primary Contacts Card */}
+            {item.directionsUrl && isDirectionsLink(item.directionsUrl) && (
+              <Button
+                title="Open property directions"
+                variant="secondary"
+                onPress={() => Linking.openURL(item.directionsUrl!).catch(() => toast.error('Unable to open the maps link'))}
+              />
+            )}
             <NativeCard style={{ gap: 14 }}>
               <Txt v="h3">Contacts & Owner</Txt>
               {item.contacts && item.contacts.length > 0 ? (

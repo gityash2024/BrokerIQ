@@ -14,14 +14,18 @@ import { captureText, captureFile, editableDraft, decodeDraft, saveDraft, syncDr
 import { Input, Txt, Button, Segmented, Row } from '@/ui';
 import { captureAccountContext, errorMessage, authStore } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
+import { inventoryMonth, inventoryMonthSchema } from '@brokeriq/shared';
 
 type Source = { uri: string; mime: string; name: string };
 export default function Capture({ scanner = false }: { scanner?: boolean }) {
-  const { target: requested } = useLocalSearchParams<{ target?: string }>();
+  const { target: requested, directoryMonth: requestedMonth } = useLocalSearchParams<{ target?: string; directoryMonth?: string }>();
+  const suggestedMonth = inventoryMonthSchema.safeParse(requestedMonth);
+  const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const { c } = useTheme();
   const [text, setText] = useState('');
   const [group, setGroup] = useState('');
   const [target, setTarget] = useState(['INVENTORY', 'REQUIREMENT'].includes(requested ?? '') ? requested! : 'AUTO');
+  const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -43,6 +47,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
           setText(saved.text ?? '');
           setGroup(saved.group ?? '');
           if (!requested || saved.entryTarget === requested) setTarget(saved.target ?? 'AUTO');
+          if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
           setStatus('Draft restored');
         }
         setReady(true);
@@ -60,18 +65,18 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
         draftId.current = await saveDraft(
           'CAPTURE_COMPOSE',
           'message-composer',
-          { text, group, target, entryTarget: requested },
+          { text, group, target, directoryMonth, entryTarget: requested },
           draftId.current,
           owner.current,
         );
         setStatus('Draft saved on this device');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, ready]);
+  }, [text, group, target, directoryMonth, ready]);
   async function preserve(files: Source[]) {
     pendingFiles.current = files;
     for (const file of files) {
-      await captureFile(file.uri, file.mime, file.name, group || undefined, target, owner.current);
+      await captureFile(file.uri, file.mime, file.name, group || undefined, target, owner.current, captureMonth);
       pendingFiles.current = pendingFiles.current.filter((p) => p !== file);
       setSources((current) => [...current, file.name]);
     }
@@ -82,6 +87,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     setBusy(true);
     setError('');
     try {
+      if (target === 'INVENTORY' && !inventoryMonthSchema.safeParse(captureMonth).success) throw new Error('Choose the inventory year and month.');
       await action();
     } catch (e) {
       setError(errorMessage(e));
@@ -147,6 +153,15 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
             <Txt v="caption" color="muted">
               This guides review. Mixed messages stay separate; nothing is added before approval.
             </Txt>
+            {target === 'INVENTORY' && (
+              <Input
+                label="Inventory year and month (YYYY-MM)"
+                value={directoryMonth}
+                onChangeText={setDirectoryMonth}
+                maxLength={7}
+                editable={ready && !busy}
+              />
+            )}
             <Input label="Group / source name (optional)" value={group} onChangeText={setGroup} editable={ready && !busy} />
           </NativeCard>
           <NativeCard>
@@ -214,7 +229,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
               onPress={() =>
                 perform(async () => {
                   await writes.current;
-                  await captureText(text, 'WHATSAPP', group || undefined, target, owner.current);
+                  await captureText(text, 'WHATSAPP', group || undefined, target, owner.current, captureMonth);
                   void syncDrafts().catch(() => undefined);
                   setStatus('Message saved. Open saved sources to review.');
                 })

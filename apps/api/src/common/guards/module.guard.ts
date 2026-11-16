@@ -20,7 +20,10 @@ export class ModuleGuard implements CanActivate {
     if (user?.role === 'SUB_BROKER_ADMIN') {
       const registeredPath = req.route?.path;
       if (typeof registeredPath !== 'string') throw new ForbiddenException('This action is not assigned to your account');
-      const path = registeredPath.replace(/^\/api(?=\/|$)/i, '').replace(/\/+$/, '').toLowerCase();
+      const path = registeredPath
+        .replace(/^\/api(?=\/|$)/i, '')
+        .replace(/\/+$/, '')
+        .toLowerCase();
       if (!user.orgId) throw new ForbiddenException('Firm membership required');
       const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
       if (isPublic || /^\/auth(?:\/|$)/.test(path) || /^\/me(?:$|\/(?:privacy|consent|push-tokens|notifications)(?:\/|$))/.test(path)) return true;
@@ -32,9 +35,12 @@ export class ModuleGuard implements CanActivate {
       )
         return true;
       let permission = delegatedEndpoint(path, req.method, req.body);
-      if (path === '/time-logging/status' && req.method === 'GET' &&
-          (!req.query?.agentId || req.query.agentId === user.id) &&
-          !(req.delegatedPermissions ?? []).includes('time_logging:view')) {
+      if (
+        path === '/time-logging/status' &&
+        req.method === 'GET' &&
+        (!req.query?.agentId || req.query.agentId === user.id) &&
+        !(req.delegatedPermissions ?? []).includes('time_logging:view')
+      ) {
         permission = { module: 'time_logging', actions: ['create'] };
       }
       if (path === '/me/uploads/sign') {
@@ -42,8 +48,13 @@ export class ModuleGuard implements CanActivate {
         if (kind === 'avatar' || kind === 'kyc') return true;
         permission = kind === 'listing' ? { module: 'inventory', actions: ['edit'] } : null;
       }
-      if (permission && ['inventory', 'leads'].includes(permission.module) &&
-          req.body && Object.prototype.hasOwnProperty.call(req.body, 'assignedToId') && !permission.actions.includes('assign')) {
+      if (
+        permission &&
+        ['inventory', 'leads'].includes(permission.module) &&
+        req.body &&
+        Object.prototype.hasOwnProperty.call(req.body, 'assignedToId') &&
+        !permission.actions.includes('assign')
+      ) {
         permission.actions.push('assign');
       }
       const grants: string[] = req.delegatedPermissions ?? [];
@@ -62,8 +73,7 @@ export class ModuleGuard implements CanActivate {
       }
       if (path === '/broker/dashboard/records') {
         const chart = req.query?.chart;
-        const module = ['availability', 'localities'].includes(chart) ? 'inventory'
-          : ['leads', 'sources', 'pipeline'].includes(chart) ? 'leads' : null;
+        const module = ['availability', 'localities'].includes(chart) ? 'inventory' : ['leads', 'sources', 'pipeline'].includes(chart) ? 'leads' : null;
         if (!module || !has(module, 'view')) throw new ForbiddenException('This chart is not assigned to your account');
       }
       if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && !has('inventory', 'view'))
@@ -74,10 +84,10 @@ export class ModuleGuard implements CanActivate {
       // must pass the check above before they can use that authorization context.
       if (path === '/broker-requirements/:id/convert' && !has('inventory', 'create'))
         throw new ForbiddenException('Inventory create permission is also required');
-      if (path === '/imports/entries/:id/approve' && !has('leads', 'create'))
-        throw new ForbiddenException('Leads create permission is also required');
       req.user = {
-        ...user, role: 'BROKER_ADMIN', delegatedActor: true,
+        ...user,
+        role: 'BROKER_ADMIN',
+        delegatedActor: true,
         delegatedPermissions: grants.filter((grant) => {
           const [key, action] = grant.split(':');
           return has(key, action);

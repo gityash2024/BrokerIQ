@@ -5,6 +5,9 @@ import {
   INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
   prepareInventoryEditorInput,
   inventoryEditorPatch,
+  inventoryMonth,
+  inventoryMonthSchema,
+  missingInventoryFolderFields,
   type InventoryInput,
   type LedgerItem,
 } from '@brokeriq/shared';
@@ -22,6 +25,7 @@ const inputs = [
   ['houseNo', 'House / plot no.'],
   ['unitLabel', 'Unit'],
   ['address', 'Address'],
+  ['directionsUrl', 'Directions link · Google Maps or Apple Maps'],
   ['floor', 'Floor'],
   ['bhk', 'Rooms'],
   ['area', 'Area'],
@@ -48,11 +52,15 @@ export function PropertyForm({
   onSave,
   label = 'Save property',
   onDirty,
+  activateInMonth,
+  requireAvailability = false,
 }: {
   initial?: InventoryInput | LedgerItem;
   onSave: (input: InventoryInput) => Promise<void>;
   label?: string;
   onDirty?: () => void;
+  activateInMonth?: string;
+  requireAvailability?: boolean;
 }) {
   const { user } = useAuth();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
@@ -70,6 +78,7 @@ export function PropertyForm({
     const normalized = prepareInventoryEditorInput({ contacts: initial.contacts ?? [] }).contacts as NonNullable<InventoryInput['contacts']>;
     return normalized.length ? normalized : [{ name: '', phone: '', role: 'UNKNOWN' }];
   });
+  const [activate, setActivate] = useState(Boolean(activateInMonth));
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
   const [photos, setPhotos] = useState(initial.photoUrls ?? []);
   const [videos, setVideos] = useState(initial.videoUrls ?? []);
@@ -103,7 +112,13 @@ export function PropertyForm({
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
     try {
-      await onSave(('revision' in initial ? inventoryEditorPatch(values, initial) : values) as InventoryInput);
+      if (activate) {
+        if (!inventoryMonthSchema.safeParse(values.directoryMonth).success) throw new Error('Choose the year and month for this property.');
+        const missing = missingInventoryFolderFields({ ...initial, ...values });
+        if (missing.length) throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
+      }
+      const payload = 'revision' in initial ? inventoryEditorPatch(values, initial) : values;
+      await onSave({ ...payload, ...(activate ? { directoryMonth: values.directoryMonth } : {}) } as InventoryInput);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -112,6 +127,28 @@ export function PropertyForm({
   }
   return (
     <form onSubmit={submit} onChange={onDirty} className="space-y-5">
+      {activateInMonth && (
+        <div className="grid gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:grid-cols-2">
+          {!requireAvailability && (
+            <label className="flex items-center gap-2 text-sm font-semibold">
+              <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
+              Make available
+            </label>
+          )}
+          {activate && (
+            <label className="text-xs font-semibold">
+              Inventory year and month
+              <input
+                name="directoryMonth"
+                type="month"
+                required
+                defaultValue={activateInMonth || inventoryMonth()}
+                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+              />
+            </label>
+          )}
+        </div>
+      )}
       <p className="section-kicker">Property & pricing</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {inputs
@@ -124,7 +161,7 @@ export function PropertyForm({
                 type={numeric.includes(name) ? 'number' : 'text'}
                 min={numeric.includes(name) ? 0 : undefined}
                 step={numeric.includes(name) ? 'any' : undefined}
-                defaultValue={(initial as any)[name] ?? ''}
+                defaultValue={(initial as any)[name] ?? (name === 'monthlyRent' ? (initial.rent ?? '') : '')}
                 className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
               />
             </label>
@@ -138,36 +175,38 @@ export function PropertyForm({
             className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
           />
         </label>
-        {Object.entries(options).map(([name, choices]) => (
-          <label key={name} className="text-xs font-semibold text-muted">
-            {(
-              {
-                purpose: 'Transaction',
-                category: 'Category',
-                propertyType: 'Property type',
-                roomKind: 'Room configuration',
-                furnishing: 'Furnishing',
-                areaUnit: 'Area unit',
-                rateAreaUnit: 'Rate area unit',
-                availability: 'Availability',
-                status: 'Record status',
-              } as Record<string, string>
-            )[name] ?? name}
-            <select
-              name={name}
-              onChange={name === 'purpose' ? (e) => setPurpose(e.target.value) : undefined}
-              defaultValue={(initial as any)[name] ?? (name === 'availability' ? 'UNKNOWN' : name === 'status' ? 'DRAFT' : '')}
-              className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-            >
-              {!['availability', 'status'].includes(name) && <option value="">Unknown / not recorded</option>}
-              {choices.map((value) => (
-                <option key={value} value={value}>
-                  {value.replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+        {Object.entries(options)
+          .filter(([name]) => !activate || !['availability', 'status'].includes(name))
+          .map(([name, choices]) => (
+            <label key={name} className="text-xs font-semibold text-muted">
+              {(
+                {
+                  purpose: 'Transaction',
+                  category: 'Category',
+                  propertyType: 'Property type',
+                  roomKind: 'Room configuration',
+                  furnishing: 'Furnishing',
+                  areaUnit: 'Area unit',
+                  rateAreaUnit: 'Rate area unit',
+                  availability: 'Availability',
+                  status: 'Record status',
+                } as Record<string, string>
+              )[name] ?? name}
+              <select
+                name={name}
+                onChange={name === 'purpose' ? (e) => setPurpose(e.target.value) : undefined}
+                defaultValue={(initial as any)[name] ?? (name === 'availability' ? 'UNKNOWN' : name === 'status' ? 'DRAFT' : '')}
+                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+              >
+                {!['availability', 'status'].includes(name) && <option value="">Unknown / not recorded</option>}
+                {choices.map((value) => (
+                  <option key={value} value={value}>
+                    {value.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
         {isSuper ? (
           <InventoryHierarchyPicker
             kind="members"

@@ -1,9 +1,9 @@
 'use client';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
-import { IMPORT_MAX_BYTES, uploadImport } from '@brokeriq/shared';
+import { IMPORT_MAX_BYTES, hasDelegatedAccess, inventoryMonth, inventoryMonthSchema, uploadImport } from '@brokeriq/shared';
 import { useEffect, useRef, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, ClipboardPaste, FileArchive, FileImage, ScanLine, ShieldCheck, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 import { api, errorMessage, captureAccountContext } from '@/lib/api';
@@ -25,26 +25,22 @@ export function CaptureWorkspace({ scanner = false }: { scanner?: boolean }) {
 }
 function Workspace({ scanner }: { scanner: boolean }) {
   const params = useSearchParams();
-  const router = useRouter();
   const { user } = useAuth();
   const owner = useRef(captureAccountContext()).current;
   const [startSeparate, setStartSeparate] = useState(false);
 
-  useEffect(() => {
-    if (scanner && user?.role === 'BROKER_AGENT') {
-      router.replace('/broker/leads');
-    }
-  }, [scanner, user, router]);
-
   const [text, setText] = useState(''),
     [group, setGroup] = useState('');
   const [target, setTarget] = useState<Target>(
-    user?.role === 'BROKER_AGENT'
-      ? 'REQUIREMENT'
-      : ['INVENTORY', 'REQUIREMENT'].includes(params.get('target') ?? '')
-        ? (params.get('target') as Target)
+    ['INVENTORY', 'REQUIREMENT'].includes(params.get('target') ?? '')
+      ? (params.get('target') as Target)
+      : user?.role === 'BROKER_AGENT'
+        ? 'REQUIREMENT'
         : 'AUTO',
   );
+  const suggestedMonth = inventoryMonthSchema.safeParse(params.get('directoryMonth'));
+  const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
+  const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [ready, setReady] = useState(false),
@@ -64,13 +60,18 @@ function Workspace({ scanner }: { scanner: boolean }) {
     let live = true;
     setReady(false);
     if (owner.userId)
-      void readPrivateDraft<{ text: string; group: string; target: Target; entryTarget?: string | null }>(owner, 'capture', startSeparate)
+      void readPrivateDraft<{ text: string; group: string; target: Target; entryTarget?: string | null; directoryMonth?: string }>(
+        owner,
+        'capture',
+        startSeparate,
+      )
         .then((saved) => {
           if (!live) return;
           if (saved) {
             setText(saved.text);
             setGroup(saved.group);
             if (!params.get('target') || saved.entryTarget === params.get('target')) setTarget(saved.target);
+            if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
             setStatus('Private draft restored');
           }
           setReady(true);
@@ -88,14 +89,17 @@ function Workspace({ scanner }: { scanner: boolean }) {
     setStatus('Saving encrypted draft…');
     writes.current = writes.current
       .catch(() => undefined)
-      .then(() => writePrivateDraft(owner, 'capture', { text, group, target, entryTarget: params.get('target') }))
+      .then(() => writePrivateDraft(owner, 'capture', { text, group, target, directoryMonth, entryTarget: params.get('target') }))
       .then(() => {
         if (version === revision.current) setStatus('Encrypted draft saved in this browser');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, ready, owner]);
+  }, [text, group, target, directoryMonth, ready, owner]);
   async function capture(body: Record<string, unknown>, name: string) {
-    const result = await api<{ id: string }>('/imports', { ownerContext: owner, body: { ...body, groupName: group || undefined, target } });
+    const result = await api<{ id: string }>('/imports', {
+      ownerContext: owner,
+      body: { ...body, groupName: group || undefined, target, directoryMonth: captureMonth },
+    });
     setCompleted((rows) => [...rows, { id: result.id, name }]);
     await qc.invalidateQueries({ queryKey: ['imports'] });
     return result.id;
@@ -106,6 +110,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
     setBusy(true);
     setError('');
     try {
+      if (target === 'INVENTORY' && !inventoryMonthSchema.safeParse(captureMonth).success) throw new Error('Choose the inventory year and month.');
       await writes.current;
       await action();
     } catch (e) {
@@ -129,7 +134,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
       const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', fingerprintBytes)), (byte) =>
         byte.toString(16).padStart(2, '0'),
       ).join('');
-      const identity = `${file.name}:${file.size}:${file.lastModified}:${fingerprint}:${group}:${target}`;
+      const identity = `${file.name}:${file.size}:${file.lastModified}:${fingerprint}:${group}:${target}${captureMonth ? ':' + captureMonth : ''}`;
       const identityHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity))), (byte) =>
         byte.toString(16).padStart(2, '0'),
       ).join('');
@@ -149,6 +154,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
           sourceType: text || zip ? 'CHAT_EXPORT' : 'IMAGE',
           groupName: group || undefined,
           target,
+          directoryMonth: captureMonth,
         },
         (offset, length) =>
           new Promise<string>((resolve, reject) => {
@@ -195,7 +201,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
             <h2 className="font-display text-lg font-bold">What are you adding?</h2>
             <div className="my-4 flex flex-wrap gap-2" role="group" aria-label="Review destination">
               {(['AUTO', 'INVENTORY', 'REQUIREMENT'] as const)
-                .filter((v) => user?.role !== 'BROKER_AGENT' || v === 'REQUIREMENT')
+                .filter((v) => v !== 'INVENTORY' || hasDelegatedAccess(user, 'inventory', 'create'))
                 .map((value) => (
                   <button
                     key={value}
@@ -207,6 +213,17 @@ function Workspace({ scanner }: { scanner: boolean }) {
                   </button>
                 ))}
             </div>
+            {target === 'INVENTORY' && (
+              <label className="mb-3 block text-xs font-semibold text-muted">
+                Inventory year and month
+                <input
+                  type="month"
+                  value={directoryMonth}
+                  onChange={(event) => setDirectoryMonth(event.target.value)}
+                  className="mt-2 block rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+                />
+              </label>
+            )}
             <label className="block text-xs font-semibold text-muted">
               Group / source name
               <input

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { Building2, FileCheck2, MapPin, Phone, MessageCircle, ShieldCheck } from 'lucide-react';
-import { inventoryFactGroups, inventoryPrice, inventoryTitle, readableValue, type LedgerItem } from '@brokeriq/shared';
+import { inventoryFactGroups, inventoryPrice, inventoryTitle, isDirectionsLink, readableValue, type LedgerItem } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { PrivateSource } from './private-source';
 import { PropertyMedia } from './property-media';
@@ -35,6 +35,12 @@ export function InventoryDetails({
           {item.sector || 'Locality not recorded'}
         </p>
         <p className="mt-2 text-sm text-indigo-100">{inventoryTitle(item)}</p>
+        {item.directionsUrl && isDirectionsLink(item.directionsUrl) && (
+          <a className="mt-3 inline-flex items-center gap-2 text-sm font-semibold underline" href={item.directionsUrl} target="_blank" rel="noreferrer">
+            <MapPin className="size-4" />
+            Open property directions
+          </a>
+        )}
       </section>
       <div className="flex flex-wrap gap-2">
         <span
