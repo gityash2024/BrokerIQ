@@ -25,15 +25,15 @@ export const palette = {
 };
 
 const light = {
-  bg: '#F7F8FC',
+  bg: '#FAFAFF',
   surface: '#FFFFFF',
-  surface2: '#F1F3F9',
-  line: '#E4E7EF',
+  surface2: '#F1EEFC',
+  line: '#E3DFF1',
   fg: '#0F172A',
   muted: '#475569',
   subtle: '#94A3B8',
-  brand: String(BRAND.primary),
-  brandSoft: palette.brand[50],
+  brand: '#4F20FF',
+  brandSoft: '#EEE9FF',
   accent: String(BRAND.accent),
   success: palette.emerald,
   danger: palette.rose,

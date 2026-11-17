@@ -130,8 +130,8 @@ export default function LeadSharePhotos() {
                     Review the WhatsApp message in Inbox before sending.
                   </Txt>
                   <SharePhotoFilesButton urls={photos} disabled={opening} onShareOpened={() => setExternalShareProperty(property?.id ?? null)} />
-                  {canConfirm && externalShareProperty && externalShareProperty === property?.id && (
-                    <Button title="Confirm photos sent" loading={confirm.isPending} onPress={() => confirm.mutate(externalShareProperty)} />
+                  {externalShareProperty && externalShareProperty === property?.id && (
+                    <Button access={canConfirm} title="Confirm photos sent" loading={confirm.isPending} onPress={() => confirm.mutate(externalShareProperty)} />
                   )}
                 </Sheet>
               )}

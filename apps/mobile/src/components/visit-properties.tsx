@@ -146,7 +146,7 @@ function ShortlistVisit({ visit, canEdit, onChange }: { visit: VisitPropertySele
           </PressableScale>
         );
       })}
-      {canEdit && <Button title="Save shortlist" size="sm" disabled={!changed} loading={save.isPending} onPress={() => save.mutate()} />}
+      <Button access={canEdit} title="Save shortlist" size="sm" disabled={!changed} loading={save.isPending} onPress={() => save.mutate()} />
     </Card>
   );
 }

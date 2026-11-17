@@ -99,6 +99,7 @@ export default function Pipeline() {
                         </Row>
                         <Row wrap gap={6}>
                           <LeadContactActions lead={l} />
+                          <Button title="Move stage" access={canEdit} size="sm" variant="secondary" onPress={() => setMove(l)} />
                         </Row>
                       </PressableScale>
                     </Animated.View>

@@ -109,7 +109,7 @@ function VisitScheduleForm() {
               </Select>
             </Field>
           )}
-          {canViewInventory && (
+          {canViewInventory ? (
             <VisitProperties
               items={properties}
               onChange={(next) => {
@@ -119,6 +119,8 @@ function VisitScheduleForm() {
                 setProperties(next);
               }}
             />
+          ) : (
+            <p className="text-sm text-muted">Property selection · Ask your Broker Admin for inventory view access.</p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Date & time" required>

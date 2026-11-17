@@ -72,8 +72,9 @@ export default function TimeLogging() {
           </Card>
         )}
         {!isSuperAdmin && canLogTime && <TimeLoggingCard />}
-        {canReadTeam && (
+        {
           <ChoiceField
+            access={!!canReadTeam}
             label="Team member"
             value={member}
             choices={members.map((item) => item.id)}
@@ -83,11 +84,12 @@ export default function TimeLogging() {
             emptyLabel={isSuperAdmin ? 'Choose a member' : 'My activity'}
             onChange={setMember}
           />
-        )}
+        }
         {team.error && canReadTeam && <ErrorView error={team.error} onRetry={() => team.refetch()} />}
-        {canRead && (
+        {
           <>
             <DateTimeField value={date} onChange={setDate} dateOnly />
+            {!canRead && <Txt color="muted">Ask your Broker Admin for time logging history access.</Txt>}
             <Txt v="small" color="muted">
               Recorded history shows original capture times. A past checkpoint does not indicate a live location.
             </Txt>
@@ -124,7 +126,7 @@ export default function TimeLogging() {
               </>
             )}
           </>
-        )}
+        }
       </ScrollView>
     </BrokerScreen>
   );

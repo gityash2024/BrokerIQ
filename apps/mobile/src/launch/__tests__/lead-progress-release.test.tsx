@@ -130,7 +130,7 @@ it('retains legacy Shortlisted selection and applies delegated create and inbox 
   mockLead.stage = 'CONTACTED';
   mockUser = { ...mockUser, role: 'SUB_BROKER_ADMIN', delegatedPermissions: ['leads:view', 'leads:edit'] };
   render();
-  expect(button('Share photos')).toBeUndefined();
+  expect(button('Share photos')).toBeDefined();
   expect(
     allButtons()
       .filter((node: any) => node.props.accessibilityLabel === 'Follow-up')

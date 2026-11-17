@@ -75,11 +75,14 @@ export default function Team() {
       <Header
         title="Team & Agents"
         right={
-          isBrokerAdmin ? (
-            <IconBtn onPress={() => router.push('/team-invite')} style={{ backgroundColor: c.brand }}>
-              <UserPlus size={20} color="#fff" />
-            </IconBtn>
-          ) : undefined
+          <IconBtn
+            access={isBrokerAdmin}
+            accessibilityLabel="Invite team member"
+            onPress={() => router.push('/team-invite')}
+            style={{ backgroundColor: c.brand }}
+          >
+            <UserPlus size={20} color="#fff" />
+          </IconBtn>
         }
       />
 
@@ -312,9 +315,14 @@ export default function Team() {
         <Input label="Joined to (IST)" placeholder="YYYY-MM-DD" value={to} onChangeText={setTo} />
         <ChoiceField label="Sort by" value={sort} choices={['NAME', 'ROLE', 'KYC', 'JOINED', 'WON', 'LEADS']} onChange={setSort} />
         <Button title={descending ? 'Descending ↓' : 'Ascending ↑'} variant="secondary" onPress={() => setDescending(!descending)} />
-        {hasDelegatedAccess(user, 'team', 'export') && (
-          <ManagementExport endpoint="/broker/team/export" ids={exportIds} label={selected.size ? 'Selected + filtered' : 'Filtered'} />
-        )}
+        {
+          <ManagementExport
+            access={hasDelegatedAccess(user, 'team', 'export')}
+            endpoint="/broker/team/export"
+            ids={exportIds}
+            label={selected.size ? 'Selected + filtered' : 'Filtered'}
+          />
+        }
         <Txt color="muted">किसी card को long press करके अलग records चुनें।</Txt>
         <Button
           title="Filters reset"

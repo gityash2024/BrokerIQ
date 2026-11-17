@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { StyleSheet, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
 import { ChevronLeft, Languages, LogOut, Moon, MoreHorizontal, Sun, UserRound } from 'lucide-react-native';
@@ -47,18 +47,21 @@ export function BrokerScreen({
 
   return (
     <SafeAreaView edges={back ? ['top', 'bottom'] : ['top']} style={{ flex: 1, backgroundColor: c.bg }}>
+      {!isDark && (
+        <Image pointerEvents="none" source={require('../../assets/workspace/lavender-waves.png')} contentFit="fill" style={[StyleSheet.absoluteFill, { top: 110, bottom: -110 }]} />
+      )}
       <View
         style={{
-          paddingHorizontal: 16,
-          paddingVertical: 10,
+          paddingHorizontal: 21,
+          paddingVertical: 14,
           marginBottom: 8,
           flexDirection: 'row',
           flexWrap: 'nowrap',
           alignItems: 'center',
           gap: 8,
-          backgroundColor: c.surface,
+          backgroundColor: isDark ? c.surface : 'rgba(255,255,255,0.38)',
           borderBottomWidth: 1,
-          borderBottomColor: c.line,
+          borderBottomColor: isDark ? c.line : 'transparent',
         }}
       >
         {back && (
@@ -74,12 +77,12 @@ export function BrokerScreen({
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <Image source={require('../../assets/icon.png')} style={{ width: 16, height: 16, borderRadius: 4 }} />
-            <Txt v="caption" color="muted" style={{ fontSize: 9, letterSpacing: 1 }}>
+            <Image source={require('../../assets/icon.png')} style={{ width: 20, height: 20, borderRadius: 5 }} />
+            <Txt v="caption" color="muted" style={{ fontSize: 12, letterSpacing: 0.1, fontWeight: '700' }}>
               BROKERIQ
             </Txt>
           </View>
-          <Txt v="h2" style={{ fontSize: 20, lineHeight: 26 }} numberOfLines={2}>
+          <Txt v="h2" style={{ fontSize: 23, lineHeight: 30 }} numberOfLines={2}>
             {title}
           </Txt>
           {subtitle && (
@@ -164,11 +167,21 @@ export function BrokerScreen({
         </View>
       </View>
       {action && (
-        <View accessibilityLabel="Page actions" style={{ paddingHorizontal: 16, paddingBottom: 12, gap: 8 }}>
+        <View accessibilityLabel="Page actions" style={{ paddingHorizontal: 10, paddingBottom: 12, gap: 8 }}>
           {action}
         </View>
       )}
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Quick settings">
+        {broker && (
+          <Button
+            title="Product features"
+            variant="secondary"
+            onPress={() => {
+              setSettingsOpen(false);
+              router.push('/product-tools');
+            }}
+          />
+        )}
         <Button
           title={isDark ? 'Light theme' : 'Dark theme'}
           variant="secondary"

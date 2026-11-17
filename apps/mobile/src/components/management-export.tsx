@@ -6,7 +6,7 @@ import { showError } from '@/lib/hooks';
 import { Button, Row, Txt } from '@/ui';
 
 /** Explicit OS share sheet; credentials stay in headers and no public download token is minted. */
-export function ManagementExport({ endpoint, ids, label = 'Filtered' }: { endpoint: string; ids: string[]; label?: string }) {
+export function ManagementExport({ access = true, endpoint, ids, label = 'Filtered' }: { access?: boolean; endpoint: string; ids: string[]; label?: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const tooMany = ids.length > 500;
   const download = async (format: string) => {
@@ -42,6 +42,7 @@ export function ManagementExport({ endpoint, ids, label = 'Filtered' }: { endpoi
         {['csv', 'xlsx', 'pdf'].map((format) => (
           <Button
             key={format}
+            access={access}
             title={format.toUpperCase()}
             variant="secondary"
             size="sm"

@@ -130,18 +130,17 @@ export default function LeadDetail() {
         </IconBtn>
         <View style={{ flex: 1 }} />
         <NotificationBell />
-        {isBrokerAdmin && (
-          <IconBtn
-            accessibilityLabel="Delete lead"
-            onPress={() =>
-              del(`/leads/${id}`)
-                .then(() => (toast.success('Lead हटाई'), qc.invalidateQueries({ queryKey: ['leads'] }), router.back()))
-                .catch(showError)
-            }
-          >
-            <Trash2 size={20} color={c.danger} />
-          </IconBtn>
-        )}
+        <IconBtn
+          access={isBrokerAdmin}
+          accessibilityLabel="Delete lead"
+          onPress={() =>
+            del(`/leads/${id}`)
+              .then(() => (toast.success('Lead हटाई'), qc.invalidateQueries({ queryKey: ['leads'] }), router.back()))
+              .catch(showError)
+          }
+        >
+          <Trash2 size={20} color={c.danger} />
+        </IconBtn>
       </Row>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeIn} style={{ paddingHorizontal: 16, gap: 10 }}>
@@ -228,8 +227,9 @@ export default function LeadDetail() {
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
                 <Fragment key={s}>
-                  {s === 'SITE_VISIT' && canSharePhotos && (
+                  {s === 'SITE_VISIT' && (
                     <Button
+                      access={canSharePhotos}
                       title="Share photos"
                       size="sm"
                       variant="secondary"
@@ -259,25 +259,30 @@ export default function LeadDetail() {
                       {LEAD_STAGE_LABELS[s as LeadStage]}
                     </Txt>
                   </PressableScale>
-                  {s === 'FOLLOW_UP' && canCreateTask && (
-                    <Button title="Schedule follow-up" size="sm" variant="secondary" onPress={canEdit ? openFollowUpStage : () => setSheet('followup')} />
+                  {s === 'FOLLOW_UP' && (
+                    <Button
+                      access={canCreateTask}
+                      title="Schedule follow-up"
+                      size="sm"
+                      variant="secondary"
+                      onPress={canEdit ? openFollowUpStage : () => setSheet('followup')}
+                    />
                   )}
                 </Fragment>
               );
             })}
           </ScrollView>
-          {canAssign && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              <Txt v="caption" color="subtle" style={{ alignSelf: 'center' }}>
-                Assign:
-              </Txt>
-              {(team.data?.members ?? [])
-                .filter((m: any) => !m.status || m.status === 'ACTIVE')
-                .map((m: any) => (
-                  <Chip key={m.id} label={m.name.split(' ')[0]} active={l.assignedTo?.id === m.id} onPress={() => assign.mutate(m.id)} />
-                ))}
-            </ScrollView>
-          )}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            <Txt v="caption" color="subtle" style={{ alignSelf: 'center' }}>
+              Assign:
+            </Txt>
+            {!canAssign && !(team.data?.members ?? []).length && <Chip access={false} label="Assign lead" />}
+            {(team.data?.members ?? [])
+              .filter((m: any) => !m.status || m.status === 'ACTIVE')
+              .map((m: any) => (
+                <Chip access={canAssign} key={m.id} label={m.name.split(' ')[0]} active={l.assignedTo?.id === m.id} onPress={() => assign.mutate(m.id)} />
+              ))}
+          </ScrollView>
         </Animated.View>
         <View style={{ backgroundColor: c.bg, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Segmented
@@ -589,19 +594,25 @@ function Tasks({
   });
   return (
     <>
-      {canCreate && (
-        <Row gap={8}>
-          <Button title="Follow-up" size="sm" icon={<AlarmClock size={15} color="#fff" />} style={{ flex: 1 }} onPress={() => openSheet('followup')} />
-          <Button
-            title="Site visit"
-            size="sm"
-            variant="accent"
-            icon={<CalendarPlus size={15} color="#111" />}
-            style={{ flex: 1 }}
-            onPress={() => router.push({ pathname: '/schedule-visit', params: { id: lead.id } })}
-          />
-        </Row>
-      )}
+      <Row gap={8}>
+        <Button
+          access={canCreate}
+          title="Follow-up"
+          size="sm"
+          icon={<AlarmClock size={15} color="#fff" />}
+          style={{ flex: 1 }}
+          onPress={() => openSheet('followup')}
+        />
+        <Button
+          access={canCreate}
+          title="Site visit"
+          size="sm"
+          variant="accent"
+          icon={<CalendarPlus size={15} color="#111" />}
+          style={{ flex: 1 }}
+          onPress={() => router.push({ pathname: '/schedule-visit', params: { id: lead.id } })}
+        />
+      </Row>
       {lead.followUps.map((f: any) => (
         <Card key={f.id} style={{ padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: f.status === 'PENDING' ? 1 : 0.55 }}>
           <AlarmClock size={18} color={f.status === 'PENDING' && new Date(f.dueAt) < new Date() ? c.danger : c.brand} />
@@ -631,10 +642,17 @@ function Tasks({
             {visitShortlistedIds(v.propertySnapshot).length ? v.status : (v.propertySnapshot?.title ?? v.listing?.title ?? v.address ?? '') + ' · ' + v.status}
           </Txt>
           <VisitItinerary snapshot={v.propertySnapshot} remainingOnly />
-          {canEdit && ['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
+          {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
             <Row wrap gap={6}>
-              <Button size="sm" title="Complete" disabled={updateVisit.isPending} onPress={() => updateVisit.mutate({ id: v.id, status: 'COMPLETED' })} />
               <Button
+                access={canEdit}
+                size="sm"
+                title="Complete"
+                disabled={updateVisit.isPending}
+                onPress={() => updateVisit.mutate({ id: v.id, status: 'COMPLETED' })}
+              />
+              <Button
+                access={canEdit}
                 size="sm"
                 title="No show"
                 variant="secondary"
@@ -642,6 +660,7 @@ function Tasks({
                 onPress={() => updateVisit.mutate({ id: v.id, status: 'NO_SHOW' })}
               />
               <Button
+                access={canEdit}
                 size="sm"
                 title="Cancel visit"
                 variant="ghost"

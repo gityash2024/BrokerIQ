@@ -435,21 +435,38 @@ function InventoryLedger() {
               <Txt color="muted" style={{ textAlign: 'center' }}>
                 Change filters, capture a source or add a property.
               </Txt>
-              {hasDelegatedAccess(user, 'inbox', 'view', 'create') && (
-                <Button title="Capture source" variant="secondary" onPress={() => router.push('/capture')} />
-              )}
+              <Button
+                access={hasDelegatedAccess(user, 'inbox', 'view', 'create')}
+                title="Capture source"
+                variant="secondary"
+                onPress={() => router.push('/capture')}
+              />
             </View>
           )
         }
         ListFooterComponent={query.isFetchingNextPage ? <InlineLoader style={{ padding: 20 }} /> : null}
       />
 
-      {selected.length > 0 && hasDelegatedAccess(user, 'inventory', 'edit', 'publish') && (
+      {selected.length > 0 && (
         <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
           <Txt v="caption">{`${selected.length} selected`}</Txt>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button title="Draft" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => bulk({ status: 'DRAFT' })} />
-            <Button title="Inactive" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => bulk({ status: 'INACTIVE' })} />
+            <Button
+              access={hasDelegatedAccess(user, 'inventory', 'edit', 'publish')}
+              title="Draft"
+              size="sm"
+              variant="secondary"
+              style={{ flex: 1 }}
+              onPress={() => bulk({ status: 'DRAFT' })}
+            />
+            <Button
+              access={hasDelegatedAccess(user, 'inventory', 'edit', 'publish')}
+              title="Inactive"
+              size="sm"
+              variant="secondary"
+              style={{ flex: 1 }}
+              onPress={() => bulk({ status: 'INACTIVE' })}
+            />
           </View>
         </View>
       )}

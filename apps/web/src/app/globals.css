@@ -305,8 +305,12 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
 }
 
 @keyframes biq-request-progress {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(240%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(240%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -320,10 +324,270 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
 }
 
 @keyframes biq-loader-image {
-  from { opacity: 0.62; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.62;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .biq-loader-inline img { animation: none; }
+  .biq-loader-inline img {
+    animation: none;
+  }
+}
+
+/* Broker workspace presentation follows the approved desktop and mobile references. */
+.broker-workspace {
+  --bg: #f9f8ff;
+  --surface-2: #f0edfc;
+  --line: #e3dff5;
+  --color-brand-50: #eee9ff;
+  --color-brand-100: #e4dcff;
+  --color-brand-600: #4e20ff;
+  --color-brand-700: #4215df;
+  background: radial-gradient(ellipse at 72% 38%, #eeebff 0, transparent 52%), #fbfaff;
+}
+.dark .broker-workspace {
+  --bg: #0b0d17;
+  --surface-2: #1c2033;
+  --line: #272c44;
+  background: #0b0d17;
+}
+.broker-workspace .workspace-page-header {
+  min-height: 122px;
+  padding: 20px 24px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(110deg, #fdfcff 8%, #efebff 62%, #f7f4ff);
+  box-shadow: 0 5px 14px #4b2acc0b;
+}
+.broker-workspace .workspace-page-header h1 {
+  font-size: 36px;
+  line-height: 1.25;
+}
+.broker-workspace .workspace-page-header > div {
+  position: relative;
+  z-index: 1;
+}
+.broker-workspace :is(button, a).bg-brand-600 {
+  background-image: linear-gradient(115deg, #5524ff, #441ce8);
+  box-shadow: 0 3px 6px #4319d526;
+}
+.broker-workspace .inventory-filters {
+  padding: 18px 26px 20px;
+  border-radius: 22px;
+  box-shadow: 0 3px 5px #24135b0a;
+}
+.broker-workspace .inventory-filters p {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.broker-workspace .inventory-filters :is(input, button) {
+  font-size: 16px;
+}
+.broker-workspace .inventory-filters input {
+  height: 46px;
+  border-radius: 15px;
+}
+.broker-workspace .inventory-filters [aria-label='Availability'] button {
+  min-height: 48px;
+  font-size: 16px;
+}
+.broker-workspace .inventory-browser > nav {
+  margin-top: -6px;
+}
+.broker-workspace .inventory-browser > nav :is(a, button) {
+  font-size: 17px;
+  padding: 14px 20px;
+}
+.broker-workspace .inventory-folder {
+  min-height: 92px;
+  border-radius: 22px;
+  padding: 16px 24px;
+  box-shadow: 0 3px 4px #24135b10;
+}
+.broker-workspace .inventory-folder .font-semibold {
+  font-size: 20px;
+}
+.broker-workspace .inventory-folder .text-xs {
+  font-size: 16px;
+}
+.broker-workspace .inventory-folder > span:first-child {
+  border-radius: 18px;
+  background: #eee9ff;
+  width: 60px;
+  height: 60px;
+}
+.dark .broker-workspace .workspace-page-header {
+  background: #17172d;
+}
+@media (min-width: 1024px) {
+  .broker-workspace > aside {
+    width: 310px;
+  }
+  .broker-workspace > div.lg\:pl-64 {
+    padding-left: 310px;
+  }
+  .broker-workspace > aside > div > div:first-child {
+    height: 80px;
+  }
+  .broker-workspace > div.lg\:pl-64 > header {
+    height: 80px;
+  }
+  .broker-workspace .workspace-content {
+    padding: 17px 26px;
+  }
+  .broker-workspace nav[aria-label='Workspace navigation'] > div:first-child input {
+    height: 46px;
+    border-radius: 20px;
+    font-size: 14px;
+  }
+  .broker-workspace nav[aria-label='Workspace navigation'] :is(a, button) {
+    font-size: 16px;
+  }
+  .broker-workspace nav[aria-label='Workspace navigation'] .border-l-2 a {
+    font-size: 14px;
+  }
+  .broker-workspace .inventory-browser > div.grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .broker-workspace .workspace-page-header {
+    background-size: 220px 90px;
+    background-position: right top;
+    padding: 18px 16px;
+  }
+  .broker-workspace .workspace-page-header h1 {
+    font-size: 25px;
+  }
+  .broker-workspace .inventory-filters {
+    padding: 16px;
+  }
+  .broker-workspace .inventory-browser > nav :is(a, button) {
+    font-size: 13px;
+    padding: 10px 8px;
+  }
+}
+
+.broker-workspace .workspace-page-header [aria-label='Inventory entry actions'] :is(a, button) {
+  min-height: 54px;
+  font-size: 16px;
+  padding-inline: 22px;
+  border-radius: 15px;
+}
+
+.broker-workspace .workspace-page-header {
+  background-position: 40% center;
+  background-size: 430px 154px;
+}
+.broker-workspace .workspace-page-header p {
+  font-size: 14px;
+  letter-spacing: 0.03em;
+}
+.broker-workspace .workspace-page-header [aria-label='Inventory entry actions'] :is(a, button):nth-child(1) {
+  min-width: 194px;
+}
+.broker-workspace .workspace-page-header [aria-label='Inventory entry actions'] :is(a, button):nth-child(2) {
+  min-width: 190px;
+}
+.broker-workspace .workspace-page-header [aria-label='Inventory entry actions'] :is(a, button):nth-child(3) {
+  min-width: 215px;
+}
+.broker-workspace .inventory-filters {
+  padding-top: 22px;
+  padding-bottom: 26px;
+}
+.broker-workspace .inventory-folder > span:first-child svg {
+  width: 28px;
+  height: 28px;
+  color: #4f20ff;
+}
+.broker-workspace .inventory-folder .font-semibold {
+  color: #090c1c;
+  font-weight: 750;
+}
+.broker-workspace .inventory-browser > .flex.flex-wrap.gap-2 {
+  font-size: 20px;
+  font-weight: 700;
+}
+@media (min-width: 1024px) {
+  .broker-workspace > aside > div > div:first-child {
+    padding-inline: 32px 24px;
+  }
+  .broker-workspace > aside > div > .flex-1 {
+    padding-inline: 20px;
+    padding-top: 12px;
+  }
+  .broker-workspace nav[aria-label='Workspace navigation'] :is(a, button) {
+    padding-block: 9px;
+  }
+  .broker-workspace nav[aria-label='Workspace navigation'] .border-l-2 a {
+    font-size: 15px;
+  }
+}
+@media (max-width: 640px) {
+  .broker-workspace .workspace-page-header [aria-label='Inventory entry actions'] :is(a, button):nth-child(n) {
+    min-width: 0;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+  .broker-workspace .workspace-page-header {
+    background-size: 240px 92px;
+  }
+}
+@media (min-width: 1024px) {
+  .broker-workspace > aside > div > div:first-child {
+    padding-inline: 32px 24px;
+  }
+  .broker-workspace > aside > div > div:first-child svg {
+    width: 44px;
+    height: 44px;
+  }
+  .broker-workspace > aside > div > div:first-child a {
+    font-size: 24px;
+  }
+  .broker-workspace > aside > div > div:nth-child(2) {
+    padding-inline: 20px;
+    padding-top: 12px;
+  }
+  .broker-workspace > aside > div > div:last-child {
+    padding: 16px 20px 28px;
+  }
+  .broker-workspace .workspace-page-header {
+    background-position: 36% center;
+    background-size: 420px 150px;
+  }
+}
+
+.broker-workspace .workspace-page-header::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  width: 420px;
+  height: 150px;
+  left: 36%;
+  top: 50%;
+  transform: translate(-36%, -50%);
+  background: url('/images/workspace/architecture-lavender.png') center / contain no-repeat;
+  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  opacity: 0.6;
+}
+.dark .broker-workspace .workspace-page-header::before {
+  display: none;
+}
+@media (max-width: 640px) {
+  .broker-workspace .workspace-page-header::before {
+    width: 240px;
+    height: 92px;
+    left: auto;
+    right: 0;
+    top: 0;
+    transform: none;
+    opacity: 0.35;
+  }
 }

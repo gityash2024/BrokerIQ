@@ -1,3 +1,4 @@
+import { hasDelegatedAccess } from './delegated-access';
 import { catalogModules, defaultModulePolicies, moduleAllowed, moduleForPath, type ModulePolicies } from './modules';
 
 /** Discovery/drill-down guard; server authorization remains authoritative. */
@@ -51,7 +52,7 @@ export interface WorkspaceGroup {
 }
 
 /** Navigation is derived from authorization; it never enables a module or an action. */
-export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role: string): WorkspaceGroup[] {
+export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role: string, discover = false): WorkspaceGroup[] {
   if (!['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)) return [];
   const groups: WorkspaceGroup[] = [
     { key: 'today', label: "Today's Focus", links: [{ label: "Today's Focus", href: '/broker', nativeHref: '/dashboard', module: 'today' }] },
@@ -120,7 +121,11 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
   const visible = groups
     .map((group) => ({
       ...group,
-      links: group.links.filter((link) => (!link.adminOnly || role === 'BROKER_ADMIN') && moduleAllowed(policies, link.module, role)),
+      links: group.links.filter(
+        (link) =>
+          (!link.adminOnly || discover || role === 'BROKER_ADMIN') &&
+          (moduleAllowed(policies, link.module, role) || (discover && moduleAllowed(policies, link.module, 'BROKER_ADMIN'))),
+      ),
     }))
     .filter((group) => group.links.length);
   const represented = new Set(visible.flatMap((group) => group.links.map((link) => link.module)));
@@ -138,4 +143,23 @@ export function brokerUpcomingModules(policies: ModulePolicies | undefined, role
   return catalogModules(policies, role).filter(
     (item) => item.state === 'COMING_SOON' && (policies?.[item.key] ?? defaults[item.key]).roles.includes(role as 'BROKER_ADMIN' | 'BROKER_AGENT'),
   );
+}
+
+/** Discoverable controls retain their authorization and give a visible access explanation. */
+export function workspaceLinkAccess(
+  user: { role: string; delegatedPermissions?: readonly string[] } | null | undefined,
+  policies: ModulePolicies | undefined,
+  link: WorkspaceLink,
+): string | undefined {
+  if (!user) return 'Sign in to use this workflow.';
+  const role = user.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : user.role;
+  if (!moduleAllowed(policies, link.module, role)) return 'This workflow is not enabled for your account. Contact your Broker Admin.';
+  if (link.adminOnly && user.role === 'BROKER_AGENT') return 'Broker Admin access is required for this workflow.';
+  if (link.href === '/broker/kyc') return undefined;
+  if (!hasDelegatedAccess(user, link.module, 'view')) return 'Ask your Broker Admin for access to this workflow.';
+  const action = link.href === '/broker/publications' ? 'approve' : link.href === '/broker/connectors' ? 'connection_status' : undefined;
+  if (action && !hasDelegatedAccess(user, link.module, action)) return 'Ask your Broker Admin for permission to use this workflow.';
+  if (link.href === '/broker/imports?target=INVENTORY' && (!hasDelegatedAccess(user, 'inventory', 'create') || !hasDelegatedAccess(user, 'inbox', 'create')))
+    return 'Inventory create and capture access are required for this workflow.';
+  return undefined;
 }

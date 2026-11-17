@@ -143,40 +143,40 @@ function ConnectorsInner() {
                 <h2 className="font-bold">Gmail · client Inbox</h2>
                 <p className="text-sm text-muted">{c.description}</p>
                 <p className="text-sm">{c.config?.configured ? `Connected: ${c.config.fields?.mailboxEmail || ''}` : 'Business Gmail connect करें।'}</p>
-                {admin && (
-                  <div className="flex gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    access={admin}
+                    onClick={async () => {
+                      try {
+                        const result = await post<{ authorizationUrl: string }>('/messaging/gmail/connect');
+                        const target = new URL(result.authorizationUrl);
+                        if (target.origin !== 'https://accounts.google.com') throw new Error('Invalid authorization destination');
+                        window.location.assign(target.toString());
+                      } catch (error) {
+                        toast.error(errorMessage(error));
+                      }
+                    }}
+                  >
+                    Connect Gmail
+                  </Button>
+                  {c.config?.configured && (
                     <Button
+                      access={admin}
+                      variant="secondary"
                       onClick={async () => {
                         try {
-                          const result = await post<{ authorizationUrl: string }>('/messaging/gmail/connect');
-                          const target = new URL(result.authorizationUrl);
-                          if (target.origin !== 'https://accounts.google.com') throw new Error('Invalid authorization destination');
-                          window.location.assign(target.toString());
+                          await api('/messaging/gmail/connection', { method: 'DELETE' });
+                          q.refetch();
+                          toast.success('Gmail disconnected');
                         } catch (error) {
                           toast.error(errorMessage(error));
                         }
                       }}
                     >
-                      Connect Gmail
+                      Disconnect Gmail
                     </Button>
-                    {c.config?.configured && (
-                      <Button
-                        variant="secondary"
-                        onClick={async () => {
-                          try {
-                            await api('/messaging/gmail/connection', { method: 'DELETE' });
-                            q.refetch();
-                            toast.success('Gmail disconnected');
-                          } catch (error) {
-                            toast.error(errorMessage(error));
-                          }
-                        }}
-                      >
-                        Disconnect Gmail
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
                 <p className="text-xs text-muted">
                   Google consent में read और send permissions आएँगी। केवल linked client conversations sync होंगी। Google account login का अर्थ यह connection
                   अपने आप तैयार होना नहीं है।
@@ -226,13 +226,13 @@ function ConnectorsInner() {
                   <Badge tone={state.status === 'ACTIVE' ? 'success' : state.status === 'ERROR' ? 'danger' : 'neutral'}>{state.status}</Badge>
                   <span className="text-muted">{state.leadsImported} leads imported</span>
                   {state.lastSyncAt && <span className="text-muted">Last sync {formatDateTime(state.lastSyncAt)}</span>}
-                  {c.key === 'email_inbox' && canSync && c.config?.configured && (
-                    <Button size="xs" variant="secondary" onClick={() => sync.mutate(undefined)} loading={sync.isPending}>
+                  {c.key === 'email_inbox' && c.config?.configured && (
+                    <Button access={canSync} size="xs" variant="secondary" onClick={() => sync.mutate(undefined)} loading={sync.isPending}>
                       <RefreshCw className="size-3.5" /> अभी check करें
                     </Button>
                   )}
-                  {c.key === 'housing_api' && canSync && c.config?.configured && (
-                    <Button size="xs" variant="secondary" onClick={() => syncHousing.mutate(undefined)} loading={syncHousing.isPending}>
+                  {c.key === 'housing_api' && c.config?.configured && (
+                    <Button access={canSync} size="xs" variant="secondary" onClick={() => syncHousing.mutate(undefined)} loading={syncHousing.isPending}>
                       <RefreshCw className="size-3.5" /> अभी sync करें
                     </Button>
                   )}
@@ -296,7 +296,7 @@ function ConnectorsInner() {
               </p>
             </div>
           </div>
-          {admin && d.webhook.url && (
+          {d.webhook.url && (
             <div className="mt-4 space-y-3">
               <CopyField label="Webhook URL (POST)" value={d.webhook.url} hint="इस URL को secret रखें — इसमें आपकी firm की key है" />
               <details className="rounded-xl border border-line p-3 text-sm">
@@ -308,6 +308,7 @@ function ConnectorsInner() {
                 </p>
               </details>
               <Button
+                access={admin}
                 size="sm"
                 variant="ghost"
                 onClick={() => confirm('नया URL बनाएँ? पुराना URL और WhatsApp/Meta webhook URLs बदल जाएँगे।') && rotate.mutate(undefined)}

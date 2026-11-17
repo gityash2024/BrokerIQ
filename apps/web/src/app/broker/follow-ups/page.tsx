@@ -123,23 +123,22 @@ export default function FollowUpsPage() {
             { value: 'all', label: 'All' },
           ]}
         />
-        {admin && (
-          <Select
-            value={agent}
-            onChange={(e) => {
-              setAgent(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 w-44"
-          >
-            <option value="">पूरी team</option>
-            {(team.data?.members ?? []).map((m: any) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-        )}
+        <Select
+          disabled={!admin}
+          value={agent}
+          onChange={(e) => {
+            setAgent(e.target.value);
+            setPage(1);
+          }}
+          className="h-10 w-44"
+        >
+          <option value="">पूरी team</option>
+          {(team.data?.members ?? []).map((m: any) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
       </div>
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

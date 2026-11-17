@@ -463,8 +463,9 @@ export default function TeamPage() {
 
           {/* Right Action: Export Toolbar & Roster Count */}
           <div className="flex items-center gap-2 shrink-0">
-            {hasDelegatedAccess(user, 'team', 'export') && (
+            {
               <ExportToolbar
+                access={hasDelegatedAccess(user, 'team', 'export')}
                 endpoint="/broker/team/export"
                 selectedIds={filteredMembers.filter((member) => !selectedIds.size || selectedIds.has(member.id)).map((member) => member.id)}
                 filters={{
@@ -481,7 +482,7 @@ export default function TeamPage() {
                 totalCount={members.length}
                 filteredCount={filteredMembers.length}
               />
-            )}
+            }
 
             <div className="text-xs font-semibold text-muted">
               दिखे <span className="font-bold text-fg">{filteredMembers.length}</span> / {members.length} सदस्य
@@ -661,7 +662,7 @@ export default function TeamPage() {
                         <Button size="xs" variant="ghost" onClick={() => router.push(`${teamBase}/${m.id}`)}>
                           Details & Target
                         </Button>
-                        {admin && m.id !== user?.id && (
+                        {m.id !== user?.id && (
                           <DM.Root>
                             <DM.Trigger className="rounded-lg p-2 text-subtle hover:bg-surface-2 hover:text-fg" aria-label="Actions">
                               <MoreHorizontal className="size-4" />
@@ -669,6 +670,7 @@ export default function TeamPage() {
                             <DM.Portal>
                               <DM.Content align="end" className="z-50 min-w-52 rounded-xl border border-line bg-surface p-1 shadow-xl">
                                 <DM.Item
+                                  disabled={!admin}
                                   onSelect={() =>
                                     update.mutate({
                                       id: m.id,
@@ -682,6 +684,7 @@ export default function TeamPage() {
                                 </DM.Item>
                                 {m.role === 'BROKER_AGENT' && (
                                   <DM.Item
+                                    disabled={!admin}
                                     onSelect={() => router.push(`${teamBase}/${encodeURIComponent(m.id)}/permissions`)}
                                     className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm outline-none hover:bg-surface-2"
                                   >
@@ -689,6 +692,7 @@ export default function TeamPage() {
                                   </DM.Item>
                                 )}
                                 <DM.Item
+                                  disabled={!admin}
                                   onSelect={() =>
                                     update.mutate({ id: m.id, expectedUpdatedAt: m.updatedAt, status: m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })
                                   }
@@ -697,6 +701,7 @@ export default function TeamPage() {
                                   <X className="size-4 text-amber-500" /> {m.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate करें'}
                                 </DM.Item>
                                 <DM.Item
+                                  disabled={!admin}
                                   onSelect={() => confirm(`${m.name} को टीम से हटाएँ? उनकी सभी leads unassigned हो जाएँगी।`) && remove.mutate(m.id)}
                                   className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 outline-none hover:bg-rose-50 dark:hover:bg-rose-500/10"
                                 >
@@ -716,7 +721,7 @@ export default function TeamPage() {
         </div>
       )}
 
-      {admin && visibleInvites.length > 0 && (
+      {visibleInvites.length > 0 && (
         <div className="mt-6">
           <p className="mb-3 text-sm font-bold">लंबित इनवाइट्स (Pending invites)</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -731,11 +736,11 @@ export default function TeamPage() {
                     {i.email} · {firmRoleLabel(i.role)} · expires {formatDate(i.expiresAt, { day: 'numeric', month: 'short' })}
                   </p>
                 </div>
-                {user?.role === 'BROKER_ADMIN' && (
-                  <Button size="xs" variant="ghost" className="shrink-0" onClick={() => cancel.mutate(i.id)}>
+                {
+                  <Button access={admin && user?.role === 'BROKER_ADMIN'} size="xs" variant="ghost" className="shrink-0" onClick={() => cancel.mutate(i.id)}>
                     रद्द करें
                   </Button>
-                )}
+                }
               </div>
             ))}
           </div>
@@ -824,11 +829,9 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               बंद करें
             </Button>
-            {isAdmin && (
-              <Button loading={saveMutation.isPending} onClick={handleSave} className="bg-brand text-white font-bold">
-                <Save className="size-4" /> बदलाव सेव करें
-              </Button>
-            )}
+            <Button access={isAdmin} loading={saveMutation.isPending} onClick={handleSave} className="bg-brand text-white font-bold">
+              <Save className="size-4" /> बदलाव सेव करें
+            </Button>
           </div>
         </div>
       }
@@ -937,59 +940,69 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
           </div>
 
           {/* Target inputs */}
-          {isAdmin && (
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Field label="Monthly Deals Target">
-                <Input type="number" min="0" value={dealsTarget} onChange={(e) => setDealsTarget(Math.max(0, parseInt(e.target.value) || 0))} />
-              </Field>
-              <Field label="Monthly Leads Target">
-                <Input type="number" min="0" value={leadsTarget} onChange={(e) => setLeadsTarget(Math.max(0, parseInt(e.target.value) || 0))} />
-              </Field>
-              <Field label="Revenue Target (₹)">
-                <Input
-                  type="number"
-                  min="0"
-                  step="10000"
-                  value={revenueTarget}
-                  onChange={(e) => setRevenueTarget(Math.max(0, parseInt(e.target.value) || 0))}
-                />
-              </Field>
-              <Field label="Commission %">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={commissionPct}
-                  onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                />
-              </Field>
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Field label="Monthly Deals Target">
+              <Input
+                disabled={!isAdmin}
+                type="number"
+                min="0"
+                value={dealsTarget}
+                onChange={(e) => setDealsTarget(Math.max(0, parseInt(e.target.value) || 0))}
+              />
+            </Field>
+            <Field label="Monthly Leads Target">
+              <Input
+                disabled={!isAdmin}
+                type="number"
+                min="0"
+                value={leadsTarget}
+                onChange={(e) => setLeadsTarget(Math.max(0, parseInt(e.target.value) || 0))}
+              />
+            </Field>
+            <Field label="Revenue Target (₹)">
+              <Input
+                disabled={!isAdmin}
+                type="number"
+                min="0"
+                step="10000"
+                value={revenueTarget}
+                onChange={(e) => setRevenueTarget(Math.max(0, parseInt(e.target.value) || 0))}
+              />
+            </Field>
+            <Field label="Commission %">
+              <Input
+                disabled={!isAdmin}
+                type="number"
+                min="0"
+                max="100"
+                value={commissionPct}
+                onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+              />
+            </Field>
+          </div>
         </div>
 
         {/* 3. Editable Profile Fields */}
-        {isAdmin && (
-          <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
-            <h4 className="font-bold text-sm text-fg">एजेंट प्रोफाइल विवरण (Edit Profile)</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="नाम">
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-              </Field>
-              <Field label="फ़ोन नंबर">
-                <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="10 अंक" />
-              </Field>
-            </div>
-            {agent.id !== user?.id && (
-              <Field label="रोल (Role)">
-                <Select value={editRole} onChange={(e) => setEditRole(e.target.value as any)}>
-                  <option value="BROKER_AGENT">Agent</option>
-                  <option value="BROKER_ADMIN">Admin</option>
-                  {agent.role === 'SUB_BROKER_ADMIN' && <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>}
-                </Select>
-              </Field>
-            )}
+        <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
+          <h4 className="font-bold text-sm text-fg">एजेंट प्रोफाइल विवरण (Edit Profile)</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="नाम">
+              <Input disabled={!isAdmin} value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </Field>
+            <Field label="फ़ोन नंबर">
+              <Input disabled={!isAdmin} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="10 अंक" />
+            </Field>
           </div>
-        )}
+          {agent.id !== user?.id && (
+            <Field label="रोल (Role)">
+              <Select disabled={!isAdmin} value={editRole} onChange={(e) => setEditRole(e.target.value as any)}>
+                <option value="BROKER_AGENT">Agent</option>
+                <option value="BROKER_ADMIN">Admin</option>
+                {agent.role === 'SUB_BROKER_ADMIN' && <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>}
+              </Select>
+            </Field>
+          )}
+        </div>
       </div>
     </Dialog>
   );

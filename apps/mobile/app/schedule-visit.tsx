@@ -114,7 +114,7 @@ export default function ScheduleVisit() {
               )}
 
               {isCustomDate && !at && <Txt color="danger">सही तारीख और समय भरें; invalid दिन या समय स्वीकार नहीं होगा।</Txt>}
-              {canViewInventory && (
+              {canViewInventory ? (
                 <VisitProperties
                   items={properties}
                   onChange={(next) => {
@@ -124,6 +124,8 @@ export default function ScheduleVisit() {
                     setProperties(next);
                   }}
                 />
+              ) : (
+                <Txt color="muted">Property selection · Ask your Broker Admin for inventory view access.</Txt>
               )}
 
               <Txt v="label" color="subtle" style={{ marginBottom: 4 }}>

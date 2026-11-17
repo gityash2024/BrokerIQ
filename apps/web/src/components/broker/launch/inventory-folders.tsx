@@ -138,10 +138,10 @@ export function InventoryFoldersPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="inventory-browser space-y-5">
       <PageHeader title="Available Inventory" actions={<InventoryEntryActions createHref={createUrl} />} />
       <InventoryTabs active="/broker/inventory" />
-      <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+      <div className="inventory-filters rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-xl bg-surface-2 p-1" role="group" aria-label="Availability">
             {(['AVAILABLE', 'RENTED'] as const).map((status) => (
@@ -316,7 +316,7 @@ export function InventoryFoldersPage() {
             <button
               key={folder.key}
               onClick={() => changePath([...path, folder])}
-              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-sm hover:border-brand-500 sm:p-4"
+              className="inventory-folder group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-sm hover:border-brand-500 sm:p-4"
             >
               <span
                 className={`grid size-10 shrink-0 place-items-center rounded-xl ${folder.count ? 'bg-brand-500/10 text-brand-600' : 'bg-surface-2 text-muted'}`}

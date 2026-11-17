@@ -207,7 +207,7 @@ export default function Leads() {
       <View style={{ paddingHorizontal: 20, gap: 10, paddingBottom: 12 }}>
         <Input value={text} onChangeText={setText} placeholder="Name / phone" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {hasDelegatedAccess(user, 'leads', 'create') && <Button title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />}
+          <Button access={hasDelegatedAccess(user, 'leads', 'create')} title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
           <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />
           <Button
             title={activeCount > 0 ? `Filters (${activeCount})` : 'Filters'}

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { Check, ChevronDown } from 'lucide-react-native';
 import { Txt, Sheet } from '@/ui';
+import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme';
 export function ChoiceField({
+  access = true,
   label,
   value,
   choices,
@@ -11,6 +13,7 @@ export function ChoiceField({
   emptyLabel = 'Not recorded',
   labels,
 }: {
+  access?: boolean;
   label: string;
   value?: string | null;
   choices: string[];
@@ -28,7 +31,7 @@ export function ChoiceField({
       </Txt>
       <Pressable
         accessibilityLabel={label}
-        onPress={() => setOpen(true)}
+        onPress={() => (access ? setOpen(true) : toast.info('Ask your Broker Admin for permission to use this action.'))}
         style={{
           minHeight: 50,
           flexDirection: 'row',

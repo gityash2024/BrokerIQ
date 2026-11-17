@@ -1,3 +1,4 @@
+import { toast } from '@/lib/toast';
 import { captureGuidedFaces, hasPendingFaceCaptures, discardFaceCaptures } from '@/lib/native-face-capture';
 import { KycHistory } from '@/launch/kyc-history';
 import { KycMedia } from '@/launch/kyc-media';
@@ -256,9 +257,9 @@ export default function AgentKycScreen({ onOpenTeam }: { onOpenTeam?: () => void
             </Txt>
           </TouchableOpacity>
 
-          {canViewFirm && (
+          {
             <TouchableOpacity
-              onPress={() => setActiveTab('firm')}
+              onPress={() => (canViewFirm ? setActiveTab('firm') : toast.info('Ask your Broker Admin for firm KYC access.'))}
               style={{
                 flex: 1,
                 flexDirection: 'row',
@@ -275,7 +276,7 @@ export default function AgentKycScreen({ onOpenTeam }: { onOpenTeam?: () => void
                 Firm KYC
               </Txt>
             </TouchableOpacity>
-          )}
+          }
         </Row>
       </View>
 

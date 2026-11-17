@@ -212,8 +212,9 @@ export default function Connectors() {
               )}
               {cn.extra?.webhookUrl && <CopyRow label="Callback URL" value={cn.extra.webhookUrl} />}
               {cn.extra?.verifyToken && <CopyRow label="Verify token" value={cn.extra.verifyToken} />}
-              {cn.key === 'email_inbox' && on && (user?.role !== 'SUB_BROKER_ADMIN' || canSync) && (
+              {cn.key === 'email_inbox' && on && (
                 <Button
+                  access={user?.role !== 'SUB_BROKER_ADMIN' || canSync}
                   title="अभी inbox check करें"
                   size="sm"
                   variant="secondary"
@@ -222,8 +223,9 @@ export default function Connectors() {
                   onPress={() => sync.mutate(undefined)}
                 />
               )}
-              {cn.key === 'housing_api' && on && (user?.role !== 'SUB_BROKER_ADMIN' || canSync) && (
+              {cn.key === 'housing_api' && on && (
                 <Button
+                  access={user?.role !== 'SUB_BROKER_ADMIN' || canSync}
                   title="अभी Housing sync करें"
                   size="sm"
                   variant="secondary"
@@ -232,11 +234,13 @@ export default function Connectors() {
                   onPress={() => syncHousing.mutate(undefined)}
                 />
               )}
-              {cn.key === 'housing_api' && admin && <HousingForm configured={!!on} />}
-              {cn.key === 'gmail' && admin && (
+              {cn.key === 'housing_api' &&
+                (admin ? <HousingForm configured={!!on} /> : <Button access={false} title="Configure Housing" variant="secondary" />)}
+              {cn.key === 'gmail' && (
                 <View style={{ gap: 8 }}>
                   <Txt>{cn.config?.fields?.mailboxEmail || 'Business Gmail connect करें'}</Txt>
                   <Button
+                    access={admin}
                     title="Connect Gmail"
                     onPress={async () => {
                       try {
@@ -251,6 +255,7 @@ export default function Connectors() {
                   />
                   {on && (
                     <Button
+                      access={admin}
                       title="Disconnect Gmail"
                       variant="secondary"
                       onPress={async () => {
@@ -266,7 +271,8 @@ export default function Connectors() {
                 </View>
               )}
 
-              {admin && cn.key === 'textbee' && <SmsSetupForm connector={cn} />}
+              {cn.key === 'textbee' &&
+                (admin ? <SmsSetupForm connector={cn} /> : <Button access={false} title="Configure SMS business SIM" variant="secondary" />)}
               {!on && (
                 <Button
                   title="Setup guide"

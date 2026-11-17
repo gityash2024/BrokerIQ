@@ -122,11 +122,9 @@ export default function Page() {
                   appUrl={`brokeriq://lead-share-photos?id=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(property.id)}`}
                   count={photos.length}
                 />
-                {canConfirm && (
-                  <Button variant="secondary" loading={confirm.isPending} onClick={() => confirm.mutate(property.id)}>
-                    Confirm photos already sent outside BrokerIQ
-                  </Button>
-                )}
+                <Button access={canConfirm} variant="secondary" loading={confirm.isPending} onClick={() => confirm.mutate(property.id)}>
+                  Confirm photos already sent outside BrokerIQ
+                </Button>
               </div>
             </Dialog>
           )}

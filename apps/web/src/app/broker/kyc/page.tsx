@@ -539,12 +539,11 @@ function AdminKycManagementView({ user }: { user: any }) {
                         user.role === 'SUPER_ADMIN') && <KycHistory member={member.id} />}
                       {/* Review Action Buttons */}
                       <div className="flex items-center gap-2 self-end md:self-start">
-                        {member.id !== user.id &&
-                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT' || (!delegated && member.role === 'SUB_BROKER_ADMIN')) &&
-                          canApprove &&
-                          member.kycStatus === 'PENDING' &&
-                          hasSubmission && (
+                        {(member.id !== user.id && user.role === 'SUPER_ADMIN') ||
+                          member.role === 'BROKER_AGENT' ||
+                          (!delegated && member.role === 'SUB_BROKER_ADMIN' && member.kycStatus === 'PENDING' && hasSubmission && (
                             <Button
+                              access={canApprove}
                               size="sm"
                               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                               loading={
@@ -554,13 +553,12 @@ function AdminKycManagementView({ user }: { user: any }) {
                             >
                               <CheckCircle2 className="size-4" /> Approve KYC
                             </Button>
-                          )}
-                        {member.id !== user.id &&
-                          (user.role === 'SUPER_ADMIN' || member.role === 'BROKER_AGENT' || (!delegated && member.role === 'SUB_BROKER_ADMIN')) &&
-                          canApprove &&
-                          member.kycStatus === 'PENDING' &&
-                          hasSubmission && (
+                          ))}
+                        {(member.id !== user.id && user.role === 'SUPER_ADMIN') ||
+                          member.role === 'BROKER_AGENT' ||
+                          (!delegated && member.role === 'SUB_BROKER_ADMIN' && member.kycStatus === 'PENDING' && hasSubmission && (
                             <Button
+                              access={canApprove}
                               size="sm"
                               variant="danger"
                               onClick={() => {
@@ -570,7 +568,7 @@ function AdminKycManagementView({ user }: { user: any }) {
                             >
                               <XCircle className="size-4" /> Reject KYC
                             </Button>
-                          )}
+                          ))}
                       </div>
                     </div>
 
@@ -1440,11 +1438,9 @@ function AgentKycSubmissionView({ canViewFirm = true }: { canViewFirm?: boolean 
             <Button size="sm" variant={agentTab === 'my' ? 'primary' : 'secondary'} onClick={() => setAgentTab('my')}>
               <UserCheck className="size-4" /> मेरा KYC (My KYC)
             </Button>
-            {canViewFirm && (
-              <Button size="sm" variant={firmTab ? 'primary' : 'secondary'} onClick={() => setAgentTab('firm')}>
-                <Building2 className="size-4" /> फर्म KYC (Firm Status)
-              </Button>
-            )}
+            <Button access={canViewFirm} size="sm" variant={firmTab ? 'primary' : 'secondary'} onClick={() => setAgentTab('firm')}>
+              <Building2 className="size-4" /> फर्म KYC (Firm Status)
+            </Button>
           </div>
         }
       />

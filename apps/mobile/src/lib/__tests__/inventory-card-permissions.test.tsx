@@ -57,8 +57,8 @@ function render(role: string, delegatedPermissions: string[] = []) {
   while (control && typeof control.props.onPress !== 'function') control = control.parent;
   return control;
 }
-it('keeps stale read-only cards readable without exposing a mutation control', () => {
-  expect(render('SUB_BROKER_ADMIN', ['inventory:view'])).toBeUndefined();
+it('shows the read-only availability action while keeping it disabled', () => {
+  expect(render('SUB_BROKER_ADMIN', ['inventory:view']).props.disabled).toBe(true);
   expect(router.push).not.toHaveBeenCalled();
 });
 it.each(['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'])('opens a property review for %s before reconfirming availability', (role) => {

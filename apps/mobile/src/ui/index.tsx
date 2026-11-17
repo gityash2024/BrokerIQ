@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { InlineLoader, LoadingArtwork } from '@/components/request-loader';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { NotificationBell } from '@/components/notification-bell';
@@ -36,7 +37,7 @@ import { AlertTriangle, ChevronLeft, CircleCheck, Info, Inbox, Settings2, XCircl
 import { initials } from '@brokeriq/shared';
 import { ApiError, errorMessage, img, useSession } from '../lib/api';
 import { fonts, palette, radius, useTheme } from '../lib/theme';
-import { useToasts } from '../lib/toast';
+import { toast, useToasts } from '../lib/toast';
 import { translateChildren, useT, useTextDir } from '../lib/i18n';
 
 // ------------------------------------------------------------------ Text
@@ -308,12 +309,16 @@ export function PressableScale({
 }
 
 export function IconBtn({
+  access = true,
+  disabled,
   children,
   onPress,
   style,
   badge,
   accessibilityLabel,
 }: {
+  access?: boolean;
+  disabled?: boolean;
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -323,7 +328,8 @@ export function IconBtn({
   const { c } = useTheme();
   return (
     <PressableScale
-      onPress={onPress}
+      disabled={disabled}
+      onPress={access ? onPress : () => toast.info('Ask your Broker Admin for permission to use this action.')}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={[{ width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, style]}
@@ -354,6 +360,7 @@ export function IconBtn({
 
 type BtnVariant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger' | 'success' | 'whatsapp' | 'dark';
 export function Button({
+  access = true,
   title,
   accessibilityLabel,
   onPress,
@@ -366,6 +373,7 @@ export function Button({
   full,
   color,
 }: {
+  access?: boolean;
   color?: string;
   title?: string;
   accessibilityLabel?: string;
@@ -395,7 +403,8 @@ export function Button({
   const h = { sm: 44, md: 48, lg: 56 }[size];
   return (
     <PressableScale
-      onPress={onPress}
+      onPress={access ? onPress : () => toast.info('Ask your Broker Admin for permission to use this action.')}
+      accessibilityHint={!access ? 'Broker Admin permission required' : undefined}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ? t(accessibilityLabel) : undefined}
       disabled={disabled || loading}
@@ -413,10 +422,20 @@ export function Button({
         },
         variant === 'secondary' && { borderWidth: 1, borderColor: c.line },
         variant === 'primary' && { shadowColor: c.brand, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+        !access && { opacity: 0.6 },
         full && { alignSelf: 'stretch' },
         style,
       ]}
     >
+      {variant === 'primary' && !color && (
+        <LinearGradient
+          pointerEvents="none"
+          colors={['#5524FF', '#441CE8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: size === 'lg' ? 18 : 14 }]}
+        />
+      )}
       {loading ? <InlineLoader size={22} /> : icon}
       {!!title && (
         <Text style={[{ color: fg, fontFamily: fonts.bold, fontSize: size === 'sm' ? 13.5 : 15, flexShrink: 1, textAlign: 'center' }, dir]}>{t(title)}</Text>
@@ -490,38 +509,47 @@ export function Input({
 }
 
 export function Chip({
+  access = true,
   label,
   active,
   onPress,
   icon,
   color,
+  style,
+  textStyle,
 }: {
+  access?: boolean;
   label: string;
   active?: boolean;
   onPress?: () => void;
   icon?: React.ReactNode;
   color?: string;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }) {
   const { c } = useTheme();
   const t = useT();
   const dir = useTextDir();
   return (
     <PressableScale
-      onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 14,
-        height: 36,
-        borderRadius: 999,
-        borderWidth: 1.5,
-        borderColor: active ? (color ?? c.brand) : c.line,
-        backgroundColor: active ? (color ? `${color}22` : c.brandSoft) : c.surface,
-      }}
+      onPress={access ? onPress : () => toast.info('Ask your Broker Admin for permission to use this action.')}
+      style={[
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingHorizontal: 14,
+          height: 36,
+          borderRadius: 999,
+          borderWidth: 1.5,
+          borderColor: active ? (color ?? c.brand) : c.line,
+          backgroundColor: active ? (color ? `${color}22` : c.brandSoft) : c.surface,
+        },
+        style,
+      ]}
     >
       {icon}
-      <Text style={[{ fontFamily: fonts.semibold, fontSize: 13, color: active ? (color ?? c.brand) : c.muted }, dir]}>{t(label)}</Text>
+      <Text style={[{ fontFamily: fonts.semibold, fontSize: 13, color: active ? (color ?? c.brand) : c.muted }, dir, textStyle]}>{t(label)}</Text>
     </PressableScale>
   );
 }

@@ -91,21 +91,15 @@ function LeadsInner() {
         subtitle={q.data ? `${q.data.total} leads — हर portal, ad और WhatsApp से एक जगह` : ' '}
         actions={
           <>
-            {hasDelegatedAccess(user, 'leads', 'create') && (
-              <Button size="sm" href="/broker/leads/new">
-                <UserPlus className="size-4" /> Add lead
-              </Button>
-            )}
-            {hasDelegatedAccess(user, 'leads', 'create') && (
-              <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
-                <Upload className="size-4" /> Import CSV
-              </Button>
-            )}
-            {hasDelegatedAccess(user, 'leads', 'export') && (
-              <Button variant="secondary" size="sm" onClick={exportCsv}>
-                <Download className="size-4" /> Export
-              </Button>
-            )}
+            <Button access={hasDelegatedAccess(user, 'leads', 'create')} size="sm" href="/broker/leads/new">
+              <UserPlus className="size-4" /> Add lead
+            </Button>
+            <Button access={hasDelegatedAccess(user, 'leads', 'create')} variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" /> Import CSV
+            </Button>
+            <Button access={hasDelegatedAccess(user, 'leads', 'export')} variant="secondary" size="sm" onClick={exportCsv}>
+              <Download className="size-4" /> Export
+            </Button>
           </>
         }
       />
@@ -168,17 +162,15 @@ function LeadsInner() {
             <option value="WARM">☀️ Warm</option>
             <option value="COLD">❄️ Cold</option>
           </Select>
-          {admin && (
-            <Select className="h-10 w-40 text-sm" value={f.assignedToId ?? ''} onChange={(e) => setF({ assignedToId: e.target.value || null })}>
-              <option value="">Anyone</option>
-              <option value="none">Unassigned</option>
-              {team.data?.members.map((m: any) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
-          )}
+          <Select disabled={!admin} className="h-10 w-40 text-sm" value={f.assignedToId ?? ''} onChange={(e) => setF({ assignedToId: e.target.value || null })}>
+            <option value="">Anyone</option>
+            <option value="none">Unassigned</option>
+            {team.data?.members.map((m: any) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </Select>
           <Select className="h-10 w-40 text-sm" value={f.sort ?? ''} onChange={(e) => setF({ sort: e.target.value || null })}>
             <option value="">Recent activity</option>
             <option value="created">Newest</option>
@@ -196,52 +188,54 @@ function LeadsInner() {
       {sel.length > 0 && (
         <div className="sticky top-16 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-xl">
           <span className="font-semibold">{sel.length} selected</span>
-          {admin && (
+          <Select
+            disabled={!admin}
+            className="h-9 w-44 border-white/20 bg-white/10 text-sm text-white"
+            value=""
+            onChange={(e) => e.target.value && bulk.mutate({ action: 'assign', value: e.target.value === 'none' ? null : e.target.value })}
+          >
+            <option value="">Assign to…</option>
+            <option value="none">Unassign</option>
+            {team.data?.members.map((m: any) => (
+              <option key={m.id} value={m.id} className="text-fg">
+                {m.name}
+              </option>
+            ))}
+          </Select>
+          <>
             <Select
-              className="h-9 w-44 border-white/20 bg-white/10 text-sm text-white"
+              disabled={!canEdit}
+              className="h-9 w-40 border-white/20 bg-white/10 text-sm text-white"
               value=""
-              onChange={(e) => e.target.value && bulk.mutate({ action: 'assign', value: e.target.value === 'none' ? null : e.target.value })}
+              onChange={(e) => e.target.value && bulk.mutate({ action: 'stage', value: e.target.value })}
             >
-              <option value="">Assign to…</option>
-              <option value="none">Unassign</option>
-              {team.data?.members.map((m: any) => (
-                <option key={m.id} value={m.id} className="text-fg">
-                  {m.name}
+              <option value="">Move to stage…</option>
+              {LEAD_STAGES.filter((stage) => stage !== 'SHORTLISTED').map((s) => (
+                <option key={s} value={s} className="text-fg">
+                  {LEAD_STAGE_LABELS[s]}
                 </option>
               ))}
             </Select>
-          )}
-          {canEdit && (
-            <>
-              <Select
-                className="h-9 w-40 border-white/20 bg-white/10 text-sm text-white"
-                value=""
-                onChange={(e) => e.target.value && bulk.mutate({ action: 'stage', value: e.target.value })}
-              >
-                <option value="">Move to stage…</option>
-                {LEAD_STAGES.filter((stage) => stage !== 'SHORTLISTED').map((s) => (
-                  <option key={s} value={s} className="text-fg">
-                    {LEAD_STAGE_LABELS[s]}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  const t = prompt('Tag');
-                  if (t) bulk.mutate({ action: 'tag', value: t });
-                }}
-              >
-                + Tag
-              </Button>
-            </>
-          )}
-          {canDelete && (
-            <Button size="sm" variant="danger" onClick={() => confirm(`${sel.length} leads delete करें?`) && bulk.mutate({ action: 'delete' })}>
-              <Trash2 className="size-4" />
+            <Button
+              access={canEdit}
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const t = prompt('Tag');
+                if (t) bulk.mutate({ action: 'tag', value: t });
+              }}
+            >
+              + Tag
             </Button>
-          )}
+          </>
+          <Button
+            access={canDelete}
+            size="sm"
+            variant="danger"
+            onClick={() => confirm(`${sel.length} leads delete करें?`) && bulk.mutate({ action: 'delete' })}
+          >
+            <Trash2 className="size-4" />
+          </Button>
           <button className="ml-auto" onClick={() => setSel([])} aria-label="Clear selection">
             <X className="size-5" />
           </button>
@@ -258,9 +252,9 @@ function LeadsInner() {
           title="यहाँ कोई lead नहीं"
           text={admin ? 'Housing / 99acres / MagicBricks inbox और WhatsApp connect करें — leads अपने-आप आएँगी।' : 'आपको assign होते ही leads यहाँ दिखेंगी।'}
           action={
-            admin && (!delegated || hasDelegatedAccess(user, 'automation', 'connection_status')) ? (
-              <Button href="/broker/connectors">Connectors setup करें</Button>
-            ) : undefined
+            <Button access={admin && (!delegated || hasDelegatedAccess(user, 'automation', 'connection_status'))} href="/broker/connectors">
+              Connectors setup करें
+            </Button>
           }
         />
       ) : (

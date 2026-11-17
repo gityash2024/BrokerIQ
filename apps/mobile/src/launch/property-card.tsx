@@ -223,8 +223,9 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
             </View>
           )}
 
-          {isStale && hasDelegatedAccess(user, 'inventory', 'edit') && (
+          {isStale && (
             <Pressable
+              disabled={!hasDelegatedAccess(user, 'inventory', 'edit')}
               onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
               style={{
                 flexDirection: 'row',

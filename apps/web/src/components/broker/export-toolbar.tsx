@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 export type ExportFormat = 'xlsx' | 'pdf' | 'csv';
 
 export interface ExportToolbarProps {
+  access?: boolean;
   /** API endpoint path, e.g. '/admin/kyc/export' or '/broker/team/export' */
   endpoint: string;
   /** Active filter query parameters */
@@ -36,6 +37,7 @@ export interface ExportToolbarProps {
 }
 
 export function ExportToolbar({
+  access = true,
   endpoint,
   filters = {},
   selectedIds,
@@ -62,6 +64,10 @@ export function ExportToolbar({
   const effectiveBaseFilename = filenamePrefix || baseFilename;
 
   const downloadExport = async (format: ExportFormat) => {
+    if (!access) {
+      toast.info('Ask your Broker Admin for permission to export these records.');
+      return;
+    }
     if (disabled || busyFormat || isSelectionEmpty) return;
     setBusyFormat(format);
     const toastId = toast.loading(`${format.toUpperCase()} export generate ho raha hai...`);

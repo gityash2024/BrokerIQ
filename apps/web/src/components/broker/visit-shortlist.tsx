@@ -47,11 +47,9 @@ function ShortlistVisit({ visit, canEdit, onChange }: { visit: VisitPropertySele
           <span className="ml-auto shrink-0 text-xs text-muted">{saved.includes(stop.id) ? 'Shortlisted' : 'Site visit'}</span>
         </label>
       ))}
-      {canEdit && (
-        <Button type="button" size="sm" disabled={!changed} loading={save.isPending} onClick={() => save.mutate()}>
-          Save shortlist
-        </Button>
-      )}
+      <Button access={canEdit} type="button" size="sm" disabled={!changed} loading={save.isPending} onClick={() => save.mutate()}>
+        Save shortlist
+      </Button>
     </fieldset>
   );
 }

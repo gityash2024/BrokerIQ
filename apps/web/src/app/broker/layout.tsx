@@ -9,7 +9,7 @@ import { useRealtime } from '@/lib/realtime';
 import { PanelShell, type NavGroup } from '@/components/panel/shell';
 import { RequireAuth } from '@/components/site/require-auth';
 import { QuickLeadSearch } from '@/components/broker/quick-search';
-import { brokerWorkspaceGroups, delegatedModulePolicies } from '@brokeriq/shared';
+import { brokerWorkspaceGroups, workspaceLinkAccess } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
 import { AgentLocationTracker } from '@/components/broker/agent-location-tracker';
 
@@ -19,7 +19,6 @@ function Inner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const config = useConfig();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
-  const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : config.modules;
   const dash = useQuery({
     queryKey: ['broker-dashboard'],
     queryFn: () => api<any>('/broker/dashboard'),
@@ -83,52 +82,41 @@ function Inner({ children }: { children: React.ReactNode }) {
   };
   const groups: NavGroup[] = [
     {
-      items: brokerWorkspaceGroups(policies, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''))
-        .map((group) => ({
-          ...group,
-          links: group.links.filter(
-            (link) =>
-              !delegated ||
-              ((link.href !== '/broker/connectors' || user.delegatedPermissions?.includes('automation:connection_status')) &&
-                (link.href !== '/broker/publications' || user.delegatedPermissions?.includes('inventory:approve')) &&
-                (link.href !== '/broker/imports?target=INVENTORY' ||
-                  ['inventory:create', 'inbox:create'].every((grant) => user.delegatedPermissions?.includes(grant)))),
-          ),
-        }))
-        .filter((group) => group.links.length)
-        .map((group) => ({
-          href: group.links[0].href,
-          label: group.label,
-          exact: group.key === 'today',
-          icon: icons[group.key as keyof typeof icons] ?? Layers,
-          badge:
-            group.key === 'leads'
-              ? k?.newToday
-              : group.key === 'inbox'
-                ? k?.unreadMessages
-                : group.key === 'kyc'
-                  ? kycStatus === 'VERIFIED'
-                    ? 'Verified'
-                    : kycStatus === 'PENDING'
-                      ? 'Under Review'
-                      : kycStatus === 'REJECTED'
-                        ? 'Rejected'
-                        : 'Required'
-                  : null,
-          children:
-            group.links.length > 1
-              ? group.links.map((link) => ({
-                  href: link.href,
-                  label: link.label,
-                  exact: true,
-                  ...(link.href === '/broker/imports?target=INVENTORY'
-                    ? { activeQuery: { key: 'target', value: 'INVENTORY', defaultValue: '' } }
-                    : link.href === '/broker/imports'
-                      ? { activeQuery: { key: 'target', value: '', defaultValue: '' } }
-                      : {}),
-                }))
-              : undefined,
-        })),
+      items: brokerWorkspaceGroups(config.modules, delegated ? 'BROKER_ADMIN' : (user?.role ?? ''), true).map((group) => ({
+        href: group.links[0].href,
+        accessReason: workspaceLinkAccess(user, config.modules, group.links[0]),
+        label: group.label,
+        exact: group.key === 'today',
+        icon: icons[group.key as keyof typeof icons] ?? Layers,
+        badge:
+          group.key === 'leads'
+            ? k?.newToday
+            : group.key === 'inbox'
+              ? k?.unreadMessages
+              : group.key === 'kyc'
+                ? kycStatus === 'VERIFIED'
+                  ? 'Verified'
+                  : kycStatus === 'PENDING'
+                    ? 'Under Review'
+                    : kycStatus === 'REJECTED'
+                      ? 'Rejected'
+                      : 'Required'
+                : null,
+        children:
+          group.links.length > 1
+            ? group.links.map((link) => ({
+                href: link.href,
+                accessReason: workspaceLinkAccess(user, config.modules, link),
+                label: link.label,
+                exact: true,
+                ...(link.href === '/broker/imports?target=INVENTORY'
+                  ? { activeQuery: { key: 'target', value: 'INVENTORY', defaultValue: '' } }
+                  : link.href === '/broker/imports'
+                    ? { activeQuery: { key: 'target', value: '', defaultValue: '' } }
+                    : {}),
+              }))
+            : undefined,
+      })),
     },
   ];
   return (

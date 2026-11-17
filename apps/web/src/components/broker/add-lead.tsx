@@ -110,9 +110,13 @@ export function AddLeadPage() {
               ))}
             </Select>
           </Field>
-          {(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'))) && (
+          {
             <Field label="Assign to" className="sm:col-span-2">
-              <Select value={f.assignedToId} onChange={(e) => setF({ ...f, assignedToId: e.target.value })}>
+              <Select
+                disabled={!(user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign')))}
+                value={f.assignedToId}
+                onChange={(e) => setF({ ...f, assignedToId: e.target.value })}
+              >
                 <option value="">Unassigned (automation decide करेगा)</option>
                 {team.data?.members
                   .filter((m: any) => !m.status || m.status === 'ACTIVE')
@@ -123,7 +127,7 @@ export function AddLeadPage() {
                   ))}
               </Select>
             </Field>
-          )}
+          }
         </div>
         <div className="mt-6 space-y-4 rounded-2xl bg-surface-2 p-4">
           <p className="text-sm font-bold">Requirement</p>

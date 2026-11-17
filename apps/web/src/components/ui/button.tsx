@@ -1,6 +1,7 @@
 'use client';
 import { InlineLoader } from '@/components/ui/request-loader';
 import { forwardRef } from 'react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -29,10 +30,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   loading?: boolean;
   href?: string;
   external?: boolean;
+  access?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading, className, children, href, external, disabled, ...rest },
+  { access = true, variant = 'primary', size = 'md', loading, className, children, href, external, disabled, ...rest },
   ref,
 ) {
   const cls = cn(
@@ -56,6 +58,23 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     tabIndex: rest.tabIndex,
     onClick: rest.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement> | undefined,
   };
+  if (!access)
+    return (
+      <button
+        ref={ref}
+        type="button"
+        aria-disabled="true"
+        className={cn(cls, 'opacity-60')}
+        title="Ask your Broker Admin for permission to use this action."
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          toast.info('Ask your Broker Admin for permission to use this action.');
+        }}
+      >
+        {content}
+      </button>
+    );
   if (href && !disabled && !loading)
     return external ? (
       <a href={href} target="_blank" rel="noopener noreferrer" className={cls} {...linkProps}>

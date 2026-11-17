@@ -111,16 +111,14 @@ export default function PipelinePage() {
             </option>
           ))}
         </Select>
-        {admin && (
-          <Select value={agent} onChange={(e) => setAgent(e.target.value)} className="h-10 w-44">
-            <option value="">पूरी team</option>
-            {(team.data?.members ?? []).map((m: any) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-        )}
+        <Select disabled={!admin} value={agent} onChange={(e) => setAgent(e.target.value)} className="h-10 w-44">
+          <option value="">पूरी team</option>
+          {(team.data?.members ?? []).map((m: any) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {q.isError ? (

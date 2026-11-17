@@ -87,7 +87,7 @@ export default function PhotoBrandingScreen() {
               </Txt>
             </Card>
           )}
-          {isBrokerAdmin && <Button title="Save" full loading={save.isPending} onPress={() => save.mutate(undefined)} />}
+          <Button access={isBrokerAdmin} title="Save" full loading={save.isPending} onPress={() => save.mutate(undefined)} />
         </View>
       )}
     </Screen>

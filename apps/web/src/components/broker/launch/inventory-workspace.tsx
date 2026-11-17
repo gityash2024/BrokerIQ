@@ -177,11 +177,9 @@ function LedgerInner() {
         }
         actions={
           <>
-            {canExport && (
-              <button disabled={exporting} onClick={() => exportCsv()} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
-                {exporting ? 'Exporting…' : 'Export filtered CSV'}
-              </button>
-            )}
+            <button disabled={!canExport || exporting} onClick={() => exportCsv()} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold">
+              {exporting ? 'Exporting…' : 'Export filtered CSV'}
+            </button>
             {isSuper ? (
               <button
                 disabled={isSuper && !filters.organizationId}
@@ -305,25 +303,30 @@ function LedgerInner() {
       {!!selected.length && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-800">
           <b>{selected.length} selected</b>
-          {canBulkEdit && (
-            <>
-              <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'ACTIVE' })}>
-                Make active
-              </button>
-              <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'DRAFT' })}>
-                Make draft
-              </button>
-              <button disabled={query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)} onClick={() => bulk({ status: 'INACTIVE' })}>
-                Make inactive
-              </button>
-            </>
-          )}
-
-          {canExport && (
-            <button disabled={exporting} onClick={() => exportCsv(true)}>
-              Export selected CSV
+          <>
+            <button
+              disabled={!canBulkEdit || query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)}
+              onClick={() => bulk({ status: 'ACTIVE' })}
+            >
+              Make active
             </button>
-          )}
+            <button
+              disabled={!canBulkEdit || query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)}
+              onClick={() => bulk({ status: 'DRAFT' })}
+            >
+              Make draft
+            </button>
+            <button
+              disabled={!canBulkEdit || query.data?.items.some((i) => selected.includes(i.id) && !!i.deletedAt)}
+              onClick={() => bulk({ status: 'INACTIVE' })}
+            >
+              Make inactive
+            </button>
+          </>
+
+          <button disabled={!canExport || exporting} onClick={() => exportCsv(true)}>
+            Export selected CSV
+          </button>
           <button onClick={() => setSelected([])}>Clear</button>
         </div>
       )}
@@ -627,9 +630,10 @@ function LedgerInner() {
                       )}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {(canPublish || (canReviewPublication && item.publishedListing?.status === 'PENDING_REVIEW')) && (
+                      {
                         <button
-                          disabled={!!item.deletedAt}
+                          disabled={!!item.deletedAt || !(canPublish || (canReviewPublication && item.publishedListing?.status === 'PENDING_REVIEW'))}
+                          title={!canPublish && !canReviewPublication ? 'Ask your Broker Admin for publication access.' : undefined}
                           className="font-semibold text-brand-600 hover:underline disabled:text-muted"
                           onClick={() => router.push(`${basePath}/${encodeURIComponent(item.id)}/publish`)}
                         >
@@ -643,7 +647,7 @@ function LedgerInner() {
                                   ? 'Rejected · resubmit'
                                   : 'Publish ↗'}
                         </button>
-                      )}
+                      }
                       {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} itemId={item.id} />}
                     </td>
                   </tr>

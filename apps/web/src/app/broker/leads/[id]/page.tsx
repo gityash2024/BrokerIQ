@@ -163,31 +163,33 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               <Phone className="size-4" /> Call
             </Button>
             {allowed('legacy') && <ClickToCall leadId={l.id} onDone={refresh} />}
-            {hasDelegatedAccess(user, 'inbox', 'view', 'edit') && (
-              <>
-                <Button variant="whatsapp" href={leadInboxUrl(l.id)}>
-                  <MessageCircle className="size-4" /> WhatsApp
-                </Button>
-                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
-                  SMS
-                </Button>
-                <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
-                  Email
-                </Button>
-              </>
-            )}
-            {canAssign && (
-              <Select className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
-                <option value="">Unassigned</option>
-                {team.data?.members
-                  .filter((m: any) => !m.status || m.status === 'ACTIVE')
-                  .map((m: any) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-              </Select>
-            )}
+            <>
+              <Button access={hasDelegatedAccess(user, 'inbox', 'view', 'edit')} variant="whatsapp" href={leadInboxUrl(l.id)}>
+                <MessageCircle className="size-4" /> WhatsApp
+              </Button>
+              <Button
+                access={hasDelegatedAccess(user, 'inbox', 'view', 'edit')}
+                size="xs"
+                variant="secondary"
+                href={leadInboxUrl(l.id, 'SMS')}
+                aria-label="SMS"
+              >
+                SMS
+              </Button>
+              <Button access={hasDelegatedAccess(user, 'inbox', 'view', 'edit')} size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                Email
+              </Button>
+            </>
+            <Select disabled={!canAssign} className="h-11 w-44" value={l.assignedTo?.id ?? ''} onChange={(e) => assign.mutate(e.target.value || null)}>
+              <option value="">Unassigned</option>
+              {team.data?.members
+                .filter((m: any) => !m.status || m.status === 'ACTIVE')
+                .map((m: any) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+            </Select>
           </div>
         </div>
         {/* Stage stepper */}
@@ -197,9 +199,16 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
             const past = i < stageIdx && s !== 'NOT_INTERESTED' && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
               <Fragment key={s}>
-                {s === 'SITE_VISIT' && canSharePhotos && (
+                {s === 'SITE_VISIT' && (
                   <Link
                     href={`/broker/leads/${l.id}/photos`}
+                    aria-disabled={!canSharePhotos || undefined}
+                    onClick={(event) => {
+                      if (!canSharePhotos) {
+                        event.preventDefault();
+                        toast.info('Ask your Broker Admin for permission to share photos.');
+                      }
+                    }}
                     className="flex min-w-28 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 py-3 text-xs font-bold text-brand-600 transition hover:bg-surface-2"
                   >
                     <Share2 className="size-3.5 shrink-0" /> Share photos
@@ -237,8 +246,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
                     {LEAD_STAGE_LABELS[s]}
                   </span>
                 </button>
-                {s === 'FOLLOW_UP' && canCreateTask && (
+                {s === 'FOLLOW_UP' && (
                   <button
+                    disabled={!canCreateTask}
                     type="button"
                     aria-controls="lead-tasks"
                     onClick={openFollowUpStage}
@@ -299,12 +309,16 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               />
             )}
             {l.notes && <p className="rounded-xl bg-surface-2 p-3 text-xs whitespace-pre-line">{l.notes}</p>}
-            {canEdit && <TagEditor lead={l} onChange={refresh} />}
-            {canDelete && (
-              <Button variant="ghost" size="sm" className="text-rose-600" onClick={() => confirm('यह lead delete करें?') && remove.mutate(undefined)}>
-                <Trash2 className="size-4" /> Delete lead
-              </Button>
-            )}
+            <TagEditor access={canEdit} lead={l} onChange={refresh} />
+            <Button
+              access={canDelete}
+              variant="ghost"
+              size="sm"
+              className="text-rose-600"
+              onClick={() => confirm('यह lead delete करें?') && remove.mutate(undefined)}
+            >
+              <Trash2 className="size-4" /> Delete lead
+            </Button>
           </div>
         </div>
       </div>
@@ -588,37 +602,35 @@ function Tasks({
         <h3 className="flex items-center gap-2 font-display font-bold">
           <CalendarPlus className="size-5 text-brand-600" /> Follow-up
         </h3>
-        {canCreate && (
-          <>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                ['1 घंटा', 1],
-                ['4 घंटे', 4],
-                ['कल', 20],
-                ['3 दिन', 72],
-              ].map(([l, h]) => (
-                <Chip key={l as string} onClick={() => quick(h as number)}>
-                  {l}
-                </Chip>
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              ['1 घंटा', 1],
+              ['4 घंटे', 4],
+              ['कल', 20],
+              ['3 दिन', 72],
+            ].map(([l, h]) => (
+              <Chip key={l as string} onClick={() => quick(h as number)}>
+                {l}
+              </Chip>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Select disabled={!canCreate} value={fu.type} onChange={(e) => setFu({ ...fu, type: e.target.value })}>
+              {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS', 'OTHER'].map((t) => (
+                <option key={t}>{t}</option>
               ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Select value={fu.type} onChange={(e) => setFu({ ...fu, type: e.target.value })}>
-                {['CALL', 'WHATSAPP', 'MEETING', 'EMAIL', 'SMS', 'OTHER'].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </Select>
-              <Input type="datetime-local" value={fu.dueAt} onChange={(e) => setFu({ ...fu, dueAt: e.target.value })} />
-            </div>
-            <Input placeholder="Note" value={fu.note} onChange={(e) => setFu({ ...fu, note: e.target.value })} />
-            <Button onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
-              Schedule
-            </Button>
-            <Button variant="secondary" className="ml-2" disabled={addFu.isPending} onClick={() => addFu.mutate(true)}>
-              Retry saved
-            </Button>
-          </>
-        )}
+            </Select>
+            <Input disabled={!canCreate} type="datetime-local" value={fu.dueAt} onChange={(e) => setFu({ ...fu, dueAt: e.target.value })} />
+          </div>
+          <Input disabled={!canCreate} placeholder="Note" value={fu.note} onChange={(e) => setFu({ ...fu, note: e.target.value })} />
+          <Button access={canCreate} onClick={() => addFu.mutate(undefined)} loading={addFu.isPending}>
+            Schedule
+          </Button>
+          <Button access={canCreate} variant="secondary" className="ml-2" disabled={addFu.isPending} onClick={() => addFu.mutate(true)}>
+            Retry saved
+          </Button>
+        </>
         <div className="space-y-2 pt-2">
           {lead.followUps.map((f: any) => (
             <div key={f.id} className={cn('flex items-center gap-2 rounded-xl border border-line p-2.5 text-sm', f.status !== 'PENDING' && 'opacity-60')}>
@@ -648,7 +660,9 @@ function Tasks({
         <h3 className="flex items-center gap-2 font-display font-bold">
           <CalendarCheck className="size-5 text-brand-600" /> Site visit
         </h3>
-        {canCreate && <Button href={`/broker/visits/new?lead=${encodeURIComponent(lead.id)}`}>Schedule visit</Button>}
+        <Button access={canCreate} href={`/broker/visits/new?lead=${encodeURIComponent(lead.id)}`}>
+          Schedule visit
+        </Button>
         <div className="space-y-2 pt-2">
           {lead.visits.map((v: any) => (
             <div key={v.id} className="rounded-xl border border-line p-3 text-sm">
@@ -665,19 +679,23 @@ function Tasks({
               {['SCHEDULED', 'CONFIRMED'].includes(v.status) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <VideoJoin visit={v} size="xs" />
-                  {canEdit && (
-                    <>
-                      <Button size="xs" variant="success" disabled={visitSt.isPending} onClick={() => visitSt.mutate({ id: v.id, status: 'COMPLETED' })}>
-                        Done
-                      </Button>
-                      <Button size="xs" variant="secondary" onClick={() => visitSt.mutate({ id: v.id, status: 'NO_SHOW' })}>
-                        No-show
-                      </Button>
-                      <Button size="xs" variant="ghost" onClick={() => visitSt.mutate({ id: v.id, status: 'CANCELLED' })}>
-                        Cancel
-                      </Button>
-                    </>
-                  )}
+                  <>
+                    <Button
+                      access={canEdit}
+                      size="xs"
+                      variant="success"
+                      disabled={visitSt.isPending}
+                      onClick={() => visitSt.mutate({ id: v.id, status: 'COMPLETED' })}
+                    >
+                      Done
+                    </Button>
+                    <Button access={canEdit} size="xs" variant="secondary" onClick={() => visitSt.mutate({ id: v.id, status: 'NO_SHOW' })}>
+                      No-show
+                    </Button>
+                    <Button access={canEdit} size="xs" variant="ghost" onClick={() => visitSt.mutate({ id: v.id, status: 'CANCELLED' })}>
+                      Cancel
+                    </Button>
+                  </>
                 </div>
               )}
             </div>
@@ -904,7 +922,7 @@ function DealsCard({ lead, onChange }: { lead: any; onChange: () => void }) {
   );
 }
 
-function TagEditor({ lead, onChange }: { lead: any; onChange: () => void }) {
+function TagEditor({ access, lead, onChange }: { access: boolean; lead: any; onChange: () => void }) {
   const [t, setT] = useState('');
   const save = useApiMutation((tags: string[]) => patch(`/leads/${lead.id}`, { tags }), { onSuccess: onChange });
   return (
@@ -913,6 +931,7 @@ function TagEditor({ lead, onChange }: { lead: any; onChange: () => void }) {
         {lead.tags.map((x: string) => (
           <button
             key={x}
+            disabled={!access}
             onClick={() => save.mutate(lead.tags.filter((y: string) => y !== x))}
             className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
           >
@@ -920,8 +939,15 @@ function TagEditor({ lead, onChange }: { lead: any; onChange: () => void }) {
           </button>
         ))}
       </div>
-      <form className="mt-2" onSubmit={(e) => (e.preventDefault(), t.trim() && save.mutate([...lead.tags, t.trim()]), setT(''))}>
-        <Input className="h-9 text-xs" placeholder="+ tag" value={t} onChange={(e) => setT(e.target.value)} />
+      <form className="mt-2" onSubmit={(e) => (e.preventDefault(), access && t.trim() && save.mutate([...lead.tags, t.trim()]), setT(''))}>
+        <Input
+          disabled={!access}
+          title={!access ? 'Lead edit access required' : undefined}
+          className="h-9 text-xs"
+          placeholder="+ tag"
+          value={t}
+          onChange={(e) => setT(e.target.value)}
+        />
       </form>
     </div>
   );

@@ -55,7 +55,13 @@ export default function Invoices() {
           <Txt v="small">अपना UPI ID जोड़ें ताकि invoice पर "UPI से pay करें" दिखे।{isBrokerAdmin ? ' (Tap करें)' : ''}</Txt>
         </Card>
       )}
-      {isBrokerAdmin && settings.data?.upiId && <Txt v="caption" color="brand" onPress={() => setUpi(true)}>{`UPI: ${settings.data.upiId} · बदलें`}</Txt>}
+      {settings.data?.upiId && (
+        <Txt
+          v="caption"
+          color="brand"
+          onPress={() => (isBrokerAdmin ? setUpi(true) : toast.info('Ask your Broker Admin for permission to update payment settings.'))}
+        >{`UPI: ${settings.data.upiId} · बदलें`}</Txt>
+      )}
       <Segmented
         value={status}
         onChange={setStatus}

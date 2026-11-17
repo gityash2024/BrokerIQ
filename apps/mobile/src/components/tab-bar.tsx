@@ -32,10 +32,10 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
   return (
     <View
       style={{
-        backgroundColor: c.bg,
+        backgroundColor: 'transparent',
         paddingBottom: Math.max(insets.bottom, 8),
         paddingTop: 4,
-        paddingHorizontal: 12,
+        paddingHorizontal: 11,
       }}
     >
       <View
@@ -50,14 +50,20 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
           paddingVertical: 6,
           paddingHorizontal: 6,
           shadowColor: '#000',
-          shadowOpacity: isDark ? 0.35 : 0.08,
+          shadowOpacity: isDark ? 0.35 : 0.15,
           shadowRadius: 18,
           shadowOffset: { width: 0, height: 4 },
           elevation: 10,
         }}
       >
         {state.routes
-          .filter((route: any) => keys[route.name] && (delegated ? route.name === 'dashboard' || moduleAllowed(policies, keys[route.name], 'BROKER_ADMIN') : moduleAllowed(modules, keys[route.name], user?.role ?? 'PUBLIC')))
+          .filter(
+            (route: any) =>
+              keys[route.name] &&
+              (delegated
+                ? route.name === 'dashboard' || moduleAllowed(policies, keys[route.name], 'BROKER_ADMIN')
+                : moduleAllowed(modules, keys[route.name], user?.role ?? 'PUBLIC')),
+          )
           .map((route: any) => {
             const options = descriptors[route.key].options;
             const focused = state.routes[state.index]?.key === route.key;

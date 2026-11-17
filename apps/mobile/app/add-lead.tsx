@@ -91,21 +91,19 @@ export default function AddLead() {
         keyboardType="numeric"
         containerStyle={{ marginTop: 12 }}
       />
-      {canAssign && (
-        <>
-          <Txt v="label" color="subtle" style={{ marginTop: 16, marginBottom: 8 }}>
-            Assign to
-          </Txt>
-          <Row wrap>
-            <Chip label="Auto / मुझे" active={!f.assignedToId} onPress={() => setF({ ...f, assignedToId: '' })} />
-            {(team.data?.members ?? [])
-              .filter((m: any) => !m.status || m.status === 'ACTIVE')
-              .map((m: any) => (
-                <Chip key={m.id} label={m.name} active={f.assignedToId === m.id} onPress={() => setF({ ...f, assignedToId: m.id })} />
-              ))}
-          </Row>
-        </>
-      )}
+      <>
+        <Txt v="label" color="subtle" style={{ marginTop: 16, marginBottom: 8 }}>
+          Assign to
+        </Txt>
+        <Row wrap>
+          <Chip access={canAssign} label="Auto / मुझे" active={!f.assignedToId} onPress={() => setF({ ...f, assignedToId: '' })} />
+          {(team.data?.members ?? [])
+            .filter((m: any) => !m.status || m.status === 'ACTIVE')
+            .map((m: any) => (
+              <Chip access={canAssign} key={m.id} label={m.name} active={f.assignedToId === m.id} onPress={() => setF({ ...f, assignedToId: m.id })} />
+            ))}
+        </Row>
+      </>
       <Input label="Notes" value={f.notes} onChangeText={(v) => setF({ ...f, notes: v })} multiline containerStyle={{ marginTop: 12 }} />
       <Button
         title="Lead save करें"

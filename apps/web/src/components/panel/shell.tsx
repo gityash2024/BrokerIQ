@@ -25,6 +25,7 @@ import { delegatedModulePolicies, brokerUpcomingModules, catalogModules, moduleA
 
 export interface NavItem {
   href: string;
+  accessReason?: string;
   label: string;
   icon?: LucideIcon | React.ComponentType<{ className?: string }>;
   iconGradient?: string;
@@ -100,6 +101,7 @@ function NavEntry({
   config,
   role,
   searching,
+  discovery,
 }: {
   item: NavItem;
   pathname: string;
@@ -108,12 +110,14 @@ function NavEntry({
   config: any;
   role?: string;
   searching?: boolean;
+  discovery?: boolean;
 }) {
   const allowedChildren = (item.children ?? []).filter(
     (child) =>
       isGateOpen(config, child.flag) &&
-      (!moduleForPath(child.href) || moduleAllowed(config.modules, moduleForPath(child.href)!, role ?? '')) &&
-      (!child.roles || role === 'SUPER_ADMIN' || (!!role && child.roles.includes(role))),
+      (discovery ||
+        ((!moduleForPath(child.href) || moduleAllowed(config.modules, moduleForPath(child.href)!, role ?? '')) &&
+          (!child.roles || role === 'SUPER_ADMIN' || (!!role && child.roles.includes(role))))),
   );
 
   const hasChildren = allowedChildren.length > 0;
@@ -135,7 +139,14 @@ function NavEntry({
       <Link
         key={item.href}
         href={item.href}
-        onClick={onNavigate}
+        aria-disabled={!!item.accessReason || undefined}
+        title={item.accessReason}
+        onClick={(event) => {
+          if (item.accessReason) {
+            event.preventDefault();
+            toast.info(item.accessReason);
+          } else onNavigate?.();
+        }}
         aria-current={isSelfActive ? 'page' : undefined}
         className={cn(
           'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
@@ -194,7 +205,14 @@ function NavEntry({
               <Link
                 key={child.href}
                 href={child.href}
-                onClick={onNavigate}
+                aria-disabled={!!child.accessReason || undefined}
+                title={child.accessReason}
+                onClick={(event) => {
+                  if (child.accessReason) {
+                    event.preventDefault();
+                    toast.info(child.accessReason);
+                  } else onNavigate?.();
+                }}
                 aria-current={childActive ? 'page' : undefined}
                 className={cn(
                   'group relative flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition',
@@ -232,10 +250,12 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
   const role = delegated ? 'BROKER_ADMIN' : actor?.role;
   const [search, setSearch] = useState('');
   const term = search.trim().toLocaleLowerCase();
+  const discovery = ['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(actor?.role ?? '');
   const canShow = (item: NavItem) =>
     isGateOpen(config, item.flag) &&
-    (!moduleForPath(item.href) || moduleAllowed(config.modules, moduleForPath(item.href)!, role ?? '')) &&
-    (!item.roles || role === 'SUPER_ADMIN' || (!!role && item.roles.includes(role)));
+    (discovery ||
+      ((!moduleForPath(item.href) || moduleAllowed(config.modules, moduleForPath(item.href)!, role ?? '')) &&
+        (!item.roles || role === 'SUPER_ADMIN' || (!!role && item.roles.includes(role)))));
   const visible = groups
     .map((group) => ({
       ...group,
@@ -269,7 +289,17 @@ function Nav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => vo
           {group.title && <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-subtle">{group.title}</p>}
           <div className="space-y-0.5">
             {group.items.map((item) => (
-              <NavEntry key={item.href} item={item} pathname={pathname} query={query} onNavigate={onNavigate} config={config} role={role} searching={!!term} />
+              <NavEntry
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                query={query}
+                onNavigate={onNavigate}
+                config={config}
+                role={role}
+                searching={!!term}
+                discovery={discovery}
+              />
             ))}
           </div>
         </div>
@@ -436,7 +466,7 @@ export function PanelShell({
     </div>
   );
   return (
-    <div className="workspace-shell min-h-dvh">
+    <div className={cn('workspace-shell min-h-dvh', ['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(user?.role ?? '') && 'broker-workspace')}>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-line bg-surface lg:block">{sidebar}</aside>
       <Sheet open={open} onOpenChange={setOpen} title="Workspace navigation" side="left" className="max-w-[280px]">
         {sidebar}

@@ -60,3 +60,42 @@ test('inventory sections preserve separate folder and full-data entry points and
       .some((link) => link.module === 'directory'),
   );
 });
+
+test('workspace discovery shows existing role-restricted tools while access remains explicit', async () => {
+  const { workspaceLinkAccess } = await import('../workspace-navigation');
+  const policies = defaultModulePolicies();
+  for (const role of ['BROKER_ADMIN', 'BROKER_AGENT'] as const) {
+    const links = brokerWorkspaceGroups(policies, role, true).flatMap((group) => group.links);
+    for (const href of ['/broker/team', '/broker/publications', '/broker/connectors', '/broker/automations']) {
+      const link = links.find((item) => item.href === href);
+      assert.ok(link, href);
+      if (role === 'BROKER_AGENT') assert.ok(workspaceLinkAccess({ role }, policies, link));
+      else assert.equal(workspaceLinkAccess({ role }, policies, link), undefined);
+    }
+  }
+  const links = brokerWorkspaceGroups(policies, 'BROKER_ADMIN', true).flatMap((group) => group.links);
+  const delegated = { role: 'SUB_BROKER_ADMIN', delegatedPermissions: ['leads:view', 'leads:create'] };
+  assert.equal(
+    workspaceLinkAccess(
+      delegated,
+      policies,
+      links.find((link) => link.href === '/broker/leads')!,
+    ),
+    undefined,
+  );
+  assert.ok(
+    workspaceLinkAccess(
+      delegated,
+      policies,
+      links.find((link) => link.href === '/broker/team')!,
+    ),
+  );
+  assert.equal(
+    workspaceLinkAccess(
+      delegated,
+      policies,
+      links.find((link) => link.href === '/broker/kyc')!,
+    ),
+    undefined,
+  );
+});

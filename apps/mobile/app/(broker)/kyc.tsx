@@ -343,14 +343,12 @@ function BrokerAdminKycManagement({ onOpenMine }: { onOpenMine?: () => void }) {
 
                 {(m.role === 'BROKER_AGENT' || (!delegated && m.role === 'SUB_BROKER_ADMIN') || m.id === user?.id) && <KycHistory member={m.id} />}
                 {/* Action Buttons */}
-                {canApprove &&
-                  hasSubmission &&
-                  (m.role === 'BROKER_AGENT' || (!delegated && m.role === 'SUB_BROKER_ADMIN')) &&
-                  m.id !== user?.id &&
-                  m.kycStatus === 'PENDING' && (
+                {(hasSubmission && m.role === 'BROKER_AGENT') ||
+                  (!delegated && m.role === 'SUB_BROKER_ADMIN' && m.id !== user?.id && m.kycStatus === 'PENDING' && (
                     <Row gap={8} style={{ marginTop: 2 }}>
                       {m.kycStatus === 'PENDING' && (
                         <TouchableOpacity
+                          disabled={!canApprove}
                           onPress={() => handleApprove(m)}
                           style={{
                             flex: 1,
@@ -372,6 +370,7 @@ function BrokerAdminKycManagement({ onOpenMine }: { onOpenMine?: () => void }) {
 
                       {m.kycStatus === 'PENDING' && (
                         <TouchableOpacity
+                          disabled={!canApprove}
                           onPress={() => handleReject(m)}
                           style={{
                             flex: 1,
@@ -391,7 +390,7 @@ function BrokerAdminKycManagement({ onOpenMine }: { onOpenMine?: () => void }) {
                         </TouchableOpacity>
                       )}
                     </Row>
-                  )}
+                  ))}
               </Card>
             );
           }}

@@ -178,16 +178,15 @@ export default function FollowUps() {
         <View style={{ gap: 12 }}>
           <Txt v="caption">Search lead / note</Txt>
           <Input value={search} onChangeText={setSearch} placeholder="Name, phone, email or note" />
-          {isBrokerAdmin && (
-            <ChoiceField
-              label="Assignee"
-              value={agent}
-              onChange={setAgent}
-              emptyLabel="पूरी team"
-              choices={(team.data?.members ?? []).map((member) => member.id)}
-              labels={Object.fromEntries((team.data?.members ?? []).map((member) => [member.id, member.name]))}
-            />
-          )}
+          <ChoiceField
+            access={isBrokerAdmin}
+            label="Assignee"
+            value={agent}
+            onChange={setAgent}
+            emptyLabel="पूरी team"
+            choices={(team.data?.members ?? []).map((member) => member.id)}
+            labels={Object.fromEntries((team.data?.members ?? []).map((member) => [member.id, member.name]))}
+          />
           {view === 'all' && (
             <ChoiceField label="Status" value={status} onChange={setStatus} emptyLabel="All statuses" choices={['PENDING', 'DONE', 'MISSED', 'CANCELLED']} />
           )}

@@ -196,27 +196,24 @@ function Editor({ member }: { member: Member }) {
                 </Field>
               ))}
             </div>
-            {canEdit && (
-              <Button type="submit" loading={update.isPending} disabled={busy || conflict || invalid || name.trim().length < 2}>
-                <Save className="mr-2 size-4" /> बदलाव सेव करें
-              </Button>
-            )}
+            <Button access={canEdit} type="submit" loading={update.isPending} disabled={busy || conflict || invalid || name.trim().length < 2}>
+              <Save className="mr-2 size-4" /> बदलाव सेव करें
+            </Button>
           </form>
-          {canEdit && user?.id !== member.id && (
+          {user?.id !== member.id && (
             <div className="card flex flex-wrap gap-3 p-5">
-              {member.role === 'BROKER_AGENT' ||
-                (user.role === 'BROKER_ADMIN' && member.role === 'SUB_BROKER_ADMIN' && (
-                  <Button variant="secondary" disabled={busy || conflict} href={`${teamBase}/${encodeURIComponent(member.id)}/permissions`}>
-                    {member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
-                  </Button>
-                ))}
-              <Button variant="secondary" disabled={busy || conflict} onClick={() => setAction('role')}>
+              {(member.role === 'BROKER_AGENT' || (user?.role === 'BROKER_ADMIN' && member.role === 'SUB_BROKER_ADMIN')) && (
+                <Button access={canEdit} variant="secondary" disabled={busy || conflict} href={`${teamBase}/${encodeURIComponent(member.id)}/permissions`}>
+                  {member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
+                </Button>
+              )}
+              <Button access={canEdit} variant="secondary" disabled={busy || conflict} onClick={() => setAction('role')}>
                 {member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
               </Button>
-              <Button variant="secondary" disabled={busy || conflict} onClick={() => setAction('status')}>
+              <Button access={canEdit} variant="secondary" disabled={busy || conflict} onClick={() => setAction('status')}>
                 {member.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate करें'}
               </Button>
-              <Button variant="danger" disabled={busy} onClick={() => setAction('remove')}>
+              <Button access={canEdit} variant="danger" disabled={busy} onClick={() => setAction('remove')}>
                 Team से हटाएँ
               </Button>
             </div>

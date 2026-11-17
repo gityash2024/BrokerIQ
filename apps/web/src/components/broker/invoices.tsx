@@ -58,11 +58,9 @@ function InvoicesInner() {
         subtitle="Brokerage invoice बनाएँ, client को WhatsApp पर भेजें — client सीधे आपके UPI पर pay करता है"
         actions={
           <div className="flex gap-2">
-            {admin && (
-              <Button size="sm" variant="secondary" onClick={() => setSettingsOpen(true)}>
-                <Settings2 className="size-4" /> UPI settings
-              </Button>
-            )}
+            <Button access={admin} size="sm" variant="secondary" onClick={() => setSettingsOpen(true)}>
+              <Settings2 className="size-4" /> UPI settings
+            </Button>
             <Button size="sm" href="/broker/invoices/new">
               <Plus className="size-4" /> नया invoice
             </Button>
@@ -72,11 +70,9 @@ function InvoicesInner() {
       {settings.data && !settings.data.upiId && (
         <div className="mb-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
           अपना UPI ID जोड़ें ताकि invoice पर "UPI से pay करें" बटन और QR दिखे।{' '}
-          {admin && (
-            <button className="font-semibold underline" onClick={() => setSettingsOpen(true)}>
-              अभी जोड़ें
-            </button>
-          )}
+          <button disabled={!admin} className="font-semibold underline" onClick={() => setSettingsOpen(true)}>
+            अभी जोड़ें
+          </button>
         </div>
       )}
       <div className="mb-4 flex flex-wrap items-center gap-3">

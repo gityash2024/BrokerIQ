@@ -136,13 +136,14 @@ export function BrandingSettings({ isAdmin }: { isAdmin: boolean }) {
           )}
         </div>
       )}
-      {isAdmin && (branding || social) && (
-        <div className="lg:col-span-2">
-          <Button onClick={() => save.mutate(undefined)} loading={save.isPending}>
-            Save
-          </Button>
-        </div>
-      )}
+      {branding ||
+        (social && (
+          <div className="lg:col-span-2">
+            <Button access={isAdmin} onClick={() => save.mutate(undefined)} loading={save.isPending}>
+              Save
+            </Button>
+          </div>
+        ))}
     </div>
   );
 }

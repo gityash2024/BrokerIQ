@@ -3,7 +3,7 @@ import { Alert, FlatList, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Folder } from 'lucide-react-native';
+import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
   inventoryDate,
@@ -137,7 +137,7 @@ export function NativeInventoryFolders() {
       <FlatList
         data={rows}
         keyExtractor={(row) => ('id' in row ? row.id : row.key)}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, gap: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28, gap: 10 }}
         keyboardShouldPersistTaps="handled"
         refreshing={active.isRefetching}
         onRefresh={() => active.refetch()}
@@ -160,6 +160,7 @@ export function NativeInventoryFolders() {
             </Txt>
             <Row gap={8}>
               <Input
+                icon={<Search size={18} color={c.muted} />}
                 accessibilityLabel="Search inventory"
                 placeholder="Search house, sector or contact"
                 value={search}
@@ -228,17 +229,30 @@ export function NativeInventoryFolders() {
               )}
             </NativeCard>
           ) : (
-            <NativeCard onPress={() => setPath([...path, item])}>
+            <NativeCard
+              style={{
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderRadius: 22,
+                shadowColor: '#231345',
+                shadowOpacity: 0.1,
+                shadowOffset: { width: 0, height: 4 },
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+              onPress={() => setPath([...path, item])}
+            >
               <Row gap={12}>
-                <View style={{ width: 52, height: 52, backgroundColor: c.brandSoft, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: 48, height: 48, backgroundColor: c.brandSoft, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
                   {mode === 'AVAILABLE' && !path.length ? <CalendarDays size={24} color={c.brand} /> : <Folder size={24} color={c.brand} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Txt v="title">{item.label}</Txt>
-                  <Txt v="caption" color="muted">
+                  <Txt v="h3">{item.label}</Txt>
+                  <Txt v="small" color="muted">
                     {item.count} {item.count === 1 ? 'property' : 'properties'}
                   </Txt>
                 </View>
+                <ChevronRight size={21} color={c.fg} />
               </Row>
             </NativeCard>
           )

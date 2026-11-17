@@ -103,16 +103,17 @@ export default function Today() {
 
         <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {hasDelegatedAccess(user, 'inventory', 'view', 'create') && (
-            <View style={{ flex: 1 }}>
-              <Button title="Add property" onPress={() => router.push('/inventory-edit')} />
-            </View>
-          )}
-          {hasDelegatedAccess(user, 'inbox', 'view', 'create') && (
-            <View style={{ flex: 1 }}>
-              <Button title="Capture message" variant="secondary" onPress={() => router.push('/capture')} />
-            </View>
-          )}
+          <View style={{ flex: 1 }}>
+            <Button access={hasDelegatedAccess(user, 'inventory', 'view', 'create')} title="Add property" onPress={() => router.push('/inventory-edit')} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button
+              access={hasDelegatedAccess(user, 'inbox', 'view', 'create')}
+              title="Capture message"
+              variant="secondary"
+              onPress={() => router.push('/capture')}
+            />
+          </View>
         </View>
         {hasDelegatedAccess(user, 'leads', 'view') && <Txt v="h3">Follow-ups</Txt>}
         {d?.followUps?.map((item: any) => (

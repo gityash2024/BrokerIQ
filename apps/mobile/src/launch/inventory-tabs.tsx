@@ -12,7 +12,7 @@ export function NativeInventoryTabs({ active }: { active: string }) {
   const role = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
   const group = brokerWorkspaceGroups(undefined, 'BROKER_ADMIN').find((entry) => entry.key === 'inventory');
   return (
-    <View accessibilityLabel="Inventory sections" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 6 }}>
+    <View accessibilityLabel="Inventory sections" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 4, paddingBottom: 6 }}>
       {group?.links
         .filter((link) => link.nativeHref && !link.href.includes('?'))
         .map((link) => {
@@ -23,6 +23,8 @@ export function NativeInventoryTabs({ active }: { active: string }) {
           return (
             <Chip
               key={link.href}
+              style={{ minHeight: 38, paddingHorizontal: 22 }}
+              textStyle={{ fontSize: 15, fontWeight: '700' }}
               label={link.label}
               active={active === link.href}
               onPress={() => {
