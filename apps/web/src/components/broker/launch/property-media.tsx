@@ -63,9 +63,17 @@ export function PropertyMedia({
     <section aria-label={label} className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="font-semibold">{label}</h3>
-        {!disabled && urls.length < limit && (
+        {urls.length < limit && (
           <>
-            <Button type="button" variant="secondary" size="sm" loading={pending} onClick={() => input.current?.click()}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={disabled}
+              title={disabled ? 'Upload access is unavailable for this property or account' : undefined}
+              loading={pending}
+              onClick={() => input.current?.click()}
+            >
               {video ? <Video className="size-4" /> : <ImagePlus className="size-4" />}
               {pending ? 'Uploading…' : `Upload ${noun}s`}
             </Button>

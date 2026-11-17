@@ -1,15 +1,21 @@
-import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
-export function InventoryStatusActions({ itemId }: { itemId: string }) {
+export function InventoryStatusActions({ itemId, disabled = false }: { itemId: string; disabled?: boolean }) {
   const route = `/broker/inventory/${encodeURIComponent(itemId)}/edit`;
   return (
-    <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs font-semibold">
-      <Link className="text-brand-600 hover:underline" href={route + '?makeAvailable=1'}>
+    <div className="flex flex-wrap gap-2">
+      <Button
+        size="sm"
+        variant="secondary"
+        href={route + '?makeAvailable=1'}
+        disabled={disabled}
+        title={disabled ? 'Inventory edit access required' : undefined}
+      >
         Make available
-      </Link>
-      <Link className="text-muted hover:text-fg hover:underline" href={route + '?makeRented=1'}>
+      </Button>
+      <Button size="sm" variant="secondary" href={route + '?makeRented=1'} disabled={disabled} title={disabled ? 'Inventory edit access required' : undefined}>
         Mark rented out
-      </Link>
+      </Button>
     </div>
   );
 }

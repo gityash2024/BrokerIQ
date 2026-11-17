@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, Switch, View } from 'react-native';
+import { Alert, FlatList, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Folder, Plus } from 'lucide-react-native';
+import { CalendarDays, Folder } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
   inventoryDate,
@@ -25,6 +25,7 @@ import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { Button, Chip, ErrorView, Input, Row, Segmented, Sheet, Txt } from '@/ui';
 import { BrokerScreen, NativeCard } from './screen';
+import { NativeInventoryEntryActions } from './inventory-entry-actions';
 import { NativeInventoryTabs } from './inventory-tabs';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
@@ -82,7 +83,6 @@ export function NativeInventoryFolders() {
   });
   const active = leaf ? records : folders;
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
-  const canCreate = hasDelegatedAccess(user, 'inventory', 'create');
   const rows: (InventoryFolder | LedgerItem)[] = leaf ? (records.data?.pages.flatMap((page) => page.items) ?? []) : (folders.data?.folders ?? []);
 
   function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
@@ -124,25 +124,14 @@ export function NativeInventoryFolders() {
     <BrokerScreen
       title="Available Inventory"
       action={
-        canCreate ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add property"
-            onPress={() =>
-              router.push({
-                pathname: '/inventory-edit',
-                params: {
-                  makeAvailable: '1',
-                  directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current,
-                  ...(mode === 'AVAILABLE' && path[1] ? { folderRoom: path[1].key } : {}),
-                  ...(mode === 'AVAILABLE' && path[2] ? { furnishing: path[2].key } : {}),
-                },
-              })
-            }
-          >
-            <Plus color={c.brand} size={28} />
-          </Pressable>
-        ) : undefined
+        <NativeInventoryEntryActions
+          params={{
+            makeAvailable: '1',
+            directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current,
+            ...(mode === 'AVAILABLE' && path[1] ? { folderRoom: path[1].key } : {}),
+            ...(mode === 'AVAILABLE' && path[2] ? { furnishing: path[2].key } : {}),
+          }}
+        />
       }
     >
       <FlatList
@@ -221,16 +210,16 @@ export function NativeInventoryFolders() {
                   {item.bhk ? ' · ' + item.bhk + ' BHK' : ''}
                   {item.furnishing ? ' · ' + readableValue(item.furnishing) : ''}
                 </Txt>
-                {canEdit && (
+                {
                   <Switch
                     accessibilityLabel={mode === 'AVAILABLE' ? 'Property is available' : 'Make property available'}
                     value={mode === 'AVAILABLE'}
-                    disabled={!!busy}
+                    disabled={!canEdit || !!busy}
                     onValueChange={() =>
                       mode === 'AVAILABLE' ? moveToRent(item) : router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })
                     }
                   />
-                )}
+                }
               </Row>
               {mode === 'AVAILABLE' && (
                 <Txt v="caption" color="muted">

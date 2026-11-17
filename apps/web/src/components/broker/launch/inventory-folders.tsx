@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder, MapPin, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
@@ -28,6 +28,7 @@ import { qs } from '@/lib/utils';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
+import { InventoryEntryActions } from './inventory-entry-actions';
 import { InventoryTabs } from './inventory-tabs';
 
 const initial = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
@@ -98,7 +99,6 @@ export function InventoryFoldersPage() {
     enabled: !!user && leaf,
   });
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
-  const canCreate = hasDelegatedAccess(user, 'inventory', 'create');
   const folderMonth = mode === 'AVAILABLE' && path[0] ? path[0].key : current;
   const createUrl = `/broker/inventory/new${qs({ makeAvailable: '1', directoryMonth: folderMonth, folderRoom: mode === 'AVAILABLE' ? path[1]?.key : undefined, furnishing: mode === 'AVAILABLE' ? path[2]?.key : undefined })}`;
   const activeQuery = leaf ? records : folders;
@@ -139,16 +139,7 @@ export function InventoryFoldersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Available Inventory"
-        actions={
-          canCreate && (
-            <Button href={createUrl}>
-              <Plus className="size-4" /> Add property
-            </Button>
-          )
-        }
-      />
+      <PageHeader title="Available Inventory" actions={<InventoryEntryActions createHref={createUrl} />} />
       <InventoryTabs active="/broker/inventory" />
       <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
@@ -291,16 +282,16 @@ export function InventoryFoldersPage() {
                   >
                     View details <ArrowUpRight className="size-4" />
                   </Link>
-                  {canEdit && (
+                  {
                     <AvailabilitySwitch
                       active={mode === 'AVAILABLE'}
                       label={mode === 'AVAILABLE' ? 'Mark property rented out' : 'Make property available'}
-                      disabled={!!busy}
+                      disabled={!canEdit || !!busy}
                       onToggle={() =>
                         mode === 'AVAILABLE' ? void rentOut(item) : router.push(`/broker/inventory/${encodeURIComponent(item.id)}/edit?makeAvailable=1`)
                       }
                     />
-                  )}
+                  }
                 </div>
               </article>
             ))}

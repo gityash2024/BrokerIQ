@@ -31,10 +31,11 @@ export function BrokerScreen({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { isBroker: broker, user, logout } = useAuth();
   const platformMonitor = user?.role === 'SUPER_ADMIN';
-  const confirmLogout = () => alert('Log out?', 'Sign out of this device?', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Log out', onPress: () => logout().catch(showError) },
-  ]);
+  const confirmLogout = () =>
+    alert('Log out?', 'Sign out of this device?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log out', onPress: () => logout().catch(showError) },
+    ]);
   const path = usePathname();
   const profilePath = broker ? '/broker-settings' : '/profile';
   const { width, fontScale } = useWindowDimensions();
@@ -63,7 +64,9 @@ export function BrokerScreen({
         {back && (
           <IconBtn
             accessibilityLabel="Back"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace(platformMonitor ? '/time-logging' : broker ? '/(broker)/dashboard' : '/(user)/home'))}
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace(platformMonitor ? '/time-logging' : broker ? '/(broker)/dashboard' : '/(user)/home')
+            }
             style={{ backgroundColor: c.surface2, flexShrink: 0 }}
           >
             <ChevronLeft size={20} color={c.fg} />
@@ -100,11 +103,43 @@ export function BrokerScreen({
               <MoreHorizontal size={20} color={c.fg} />
             </IconBtn>
           ) : (
-            (action ?? (
-              <>
+            <>
+              <IconBtn
+                accessibilityLabel="Toggle Theme"
+                onPress={toggleTheme}
+                style={{
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 12,
+                  backgroundColor: c.surface2,
+                  borderWidth: 1,
+                  borderColor: c.line,
+                }}
+              >
+                {isDark ? <Sun size={18} color={c.accent} /> : <Moon size={18} color={c.fg} />}
+              </IconBtn>
+              <IconBtn
+                accessibilityLabel="Select Language"
+                onPress={() => setLangSheetOpen(true)}
+                style={{
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 12,
+                  backgroundColor: c.surface2,
+                  borderWidth: 1,
+                  borderColor: c.line,
+                }}
+              >
+                <Languages size={18} color={c.brand} />
+              </IconBtn>
+              {!platformMonitor && path !== profilePath && (
                 <IconBtn
-                  accessibilityLabel="Toggle Theme"
-                  onPress={toggleTheme}
+                  accessibilityLabel="Profile & settings"
+                  onPress={() => router.push(broker ? '/broker-settings' : '/(user)/profile')}
                   style={{
                     width: 44,
                     height: 44,
@@ -116,50 +151,24 @@ export function BrokerScreen({
                     borderColor: c.line,
                   }}
                 >
-                  {isDark ? <Sun size={18} color={c.accent} /> : <Moon size={18} color={c.fg} />}
+                  <UserRound size={18} color={c.fg} />
                 </IconBtn>
-                <IconBtn
-                  accessibilityLabel="Select Language"
-                  onPress={() => setLangSheetOpen(true)}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: 12,
-                    backgroundColor: c.surface2,
-                    borderWidth: 1,
-                    borderColor: c.line,
-                  }}
-                >
-                  <Languages size={18} color={c.brand} />
+              )}
+              {platformMonitor && (
+                <IconBtn accessibilityLabel="Log out" onPress={confirmLogout} style={{ backgroundColor: c.surface2 }}>
+                  <LogOut size={18} color={c.fg} />
                 </IconBtn>
-                {!platformMonitor && path !== profilePath && (
-                  <IconBtn
-                    accessibilityLabel="Profile & settings"
-                    onPress={() => router.push(broker ? '/broker-settings' : '/(user)/profile')}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 12,
-                      backgroundColor: c.surface2,
-                      borderWidth: 1,
-                      borderColor: c.line,
-                    }}
-                  >
-                    <UserRound size={18} color={c.fg} />
-                  </IconBtn>
-                )}
-                {platformMonitor && <IconBtn accessibilityLabel="Log out" onPress={confirmLogout} style={{ backgroundColor: c.surface2 }}><LogOut size={18} color={c.fg} /></IconBtn>}
-              </>
-            ))
+              )}
+            </>
           )}
         </View>
       </View>
+      {action && (
+        <View accessibilityLabel="Page actions" style={{ paddingHorizontal: 16, paddingBottom: 12, gap: 8 }}>
+          {action}
+        </View>
+      )}
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Quick settings">
-        {action && <View style={{ alignItems: 'flex-start' }}>{action}</View>}
         <Button
           title={isDark ? 'Light theme' : 'Dark theme'}
           variant="secondary"

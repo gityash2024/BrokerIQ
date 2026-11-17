@@ -89,7 +89,7 @@ describe('shared native header', () => {
     expect(tree.root.findByProps({ children: 'Language choices' })).toBeDefined();
   });
 
-  it('keeps a module action and role-correct profile reachable from the compact menu', () => {
+  it('keeps a module action visible outside the compact settings menu', () => {
     jest.spyOn(require('react-native'), 'useWindowDimensions').mockReturnValue({ width: 360, height: 800, scale: 1, fontScale: 1 });
     act(() => {
       tree = create(
@@ -98,9 +98,10 @@ describe('shared native header', () => {
         </BrokerScreen>,
       );
     });
+    expect(tree.root.findByProps({ accessibilityLabel: 'Page actions' }).findByProps({ children: 'Add property' })).toBeDefined();
     act(() => tree.root.findByProps({ accessibilityLabel: 'More options' }).props.onPress());
     const sheet = tree.root.findByProps({ accessibilityLabel: 'Quick settings' });
-    expect(sheet.findByProps({ children: 'Add property' })).toBeDefined();
+    expect(sheet.findAllByProps({ children: 'Add property' })).toHaveLength(0);
     act(() => sheet.findByProps({ title: 'Profile & settings' }).props.onPress());
     expect(router.push).toHaveBeenCalledWith('/broker-settings');
   });

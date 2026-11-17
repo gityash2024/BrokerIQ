@@ -102,7 +102,7 @@ it('places actions in stage order and opens follow-up and the correct photo page
     'Share photos',
     'Site visit',
   ]);
-  expect(button('Shortlisted')).toBeUndefined();
+  expect(button('Shortlisted')).toBeDefined();
   act(() => button('Share photos').props.onPress());
   expect(router.push).toHaveBeenCalledWith({ pathname: '/lead-share-photos', params: { id: 'lead-id' } });
   act(() => button('Follow-up').props.onPress());
@@ -110,13 +110,13 @@ it('places actions in stage order and opens follow-up and the correct photo page
   expect(mockMutate).not.toHaveBeenCalled();
 });
 
-it('enables Shortlisted only after a completed visit and opens the property shortlist', () => {
+it('keeps Share photos and Shortlisted visible before and after a completed visit', () => {
   mockLead.visits = [{ status: 'SCHEDULED' }];
   render();
-  expect(button('Shortlisted')).toBeUndefined();
+  expect(button('Shortlisted')).toBeDefined();
   mockLead = { ...mockLead, visits: [{ status: 'COMPLETED' }] };
   act(() => tree.update(<LeadDetail />));
-  expect(button('Share photos')).toBeUndefined();
+  expect(button('Share photos')).toBeDefined();
   act(() => button('Shortlisted').props.onPress());
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Editable shortlist' }).length).toBeGreaterThan(0);
   expect(mockMutate).not.toHaveBeenCalled();

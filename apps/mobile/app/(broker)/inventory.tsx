@@ -4,7 +4,7 @@ import { View, FlatList, Pressable } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
+import { SlidersHorizontal, Search, X, Check, Building2, Flame, User } from 'lucide-react-native';
 import { INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES, INVENTORY_FILTER_LABELS, type PagedLedger } from '@brokeriq/shared';
 import { api, qs, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -17,6 +17,7 @@ import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { NativeAdvancedFilters } from '@/launch/advanced-filters';
 import { PropertyCard } from '@/launch/property-card';
+import { NativeInventoryEntryActions } from '@/launch/inventory-entry-actions';
 import { NativeInventoryTabs } from '@/launch/inventory-tabs';
 import { NativeInventoryFolders } from '@/launch/inventory-folders';
 
@@ -129,29 +130,7 @@ function InventoryLedger() {
     <BrokerScreen
       title="All Inventory"
       subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}
-      action={
-        hasDelegatedAccess(user, 'inventory', 'create') ? (
-          <Pressable
-            accessibilityLabel="Add property"
-            onPress={() => router.push('/inventory-edit')}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 14,
-              backgroundColor: c.brand,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: c.brand,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 6,
-              elevation: 4,
-            }}
-          >
-            <Plus color="white" size={23} />
-          </Pressable>
-        ) : undefined
-      }
+      action={<NativeInventoryEntryActions />}
     >
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 12 }}>
         <NativeInventoryTabs active="/broker/inventory/data" />
@@ -416,16 +395,18 @@ function InventoryLedger() {
                 setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id]);
               }}
             />
-            {!selecting && hasDelegatedAccess(user, 'inventory', 'edit') && (
+            {!selecting && (
               <Row wrap gap={8}>
                 <Button
                   title="Make available"
+                  disabled={!hasDelegatedAccess(user, 'inventory', 'edit')}
                   size="sm"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
                 />
                 <Button
                   title="Mark rented out"
+                  disabled={!hasDelegatedAccess(user, 'inventory', 'edit')}
                   size="sm"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeRented: '1' } })}

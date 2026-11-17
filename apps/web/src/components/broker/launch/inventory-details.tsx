@@ -82,26 +82,44 @@ export function InventoryDetails({
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {onEdit && (
-            <Button onClick={onEdit} size="sm">
+          {
+            <Button disabled={!onEdit} title={!onEdit ? 'This action requires permission from your Broker Admin' : undefined} onClick={onEdit} size="sm">
               <Pencil className="size-4" /> Edit property
             </Button>
-          )}
-          {onPublish && (
-            <Button variant="secondary" size="sm" onClick={onPublish}>
+          }
+          {
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!onPublish}
+              title={!onPublish ? 'This action requires permission from your Broker Admin' : undefined}
+              onClick={onPublish}
+            >
               Publish / review property
             </Button>
-          )}
-          {onMessage && (
-            <Button variant="secondary" size="sm" onClick={onMessage}>
+          }
+          {
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!onMessage}
+              title={!onMessage ? 'This action requires permission from your Broker Admin' : undefined}
+              onClick={onMessage}
+            >
               <Share2 className="size-4" /> Share property
             </Button>
-          )}
-          {onArchive && (
-            <Button variant="ghost" size="sm" onClick={onArchive}>
+          }
+          {
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!onArchive}
+              title={!onArchive ? 'This action requires permission from your Broker Admin' : undefined}
+              onClick={onArchive}
+            >
               <Archive className="size-4" /> Archive property
             </Button>
-          )}
+          }
         </div>
       )}
       {(!item.deletedAt || !!item.photoUrls?.length) && (

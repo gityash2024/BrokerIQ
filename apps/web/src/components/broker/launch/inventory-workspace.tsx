@@ -18,6 +18,7 @@ import { PageHeader } from '@/components/panel/shell';
 import { Dialog } from '@/components/ui/dialog';
 import { AdvancedFilters } from '@/components/broker/launch/advanced-filters';
 import { toast } from 'sonner';
+import { InventoryEntryActions } from './inventory-entry-actions';
 import { InventoryTabs } from './inventory-tabs';
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { SortableTh } from '@/components/ui/sortable-header';
@@ -73,7 +74,6 @@ function LedgerInner() {
   const { user } = useAuth();
   const router = useRouter();
   const isSuper = user?.role === 'SUPER_ADMIN';
-  const canCreate = hasDelegatedAccess(user, 'inventory', 'create');
   const canExport = hasDelegatedAccess(user, 'inventory', 'export');
   const canBulkEdit = hasDelegatedAccess(user, 'inventory', 'edit', 'publish');
   const canPublish = hasDelegatedAccess(user, 'inventory', 'publish');
@@ -182,7 +182,7 @@ function LedgerInner() {
                 {exporting ? 'Exporting…' : 'Export filtered CSV'}
               </button>
             )}
-            {canCreate && (
+            {isSuper ? (
               <button
                 disabled={isSuper && !filters.organizationId}
                 title={isSuper && !filters.organizationId ? 'Choose a firm before adding a property' : undefined}
@@ -192,6 +192,8 @@ function LedgerInner() {
                 <Plus size={16} />
                 Add property
               </button>
+            ) : (
+              <InventoryEntryActions createHref={`${basePath}/new`} />
             )}
           </>
         }
@@ -447,7 +449,7 @@ function LedgerInner() {
                     >
                       Details →
                     </button>
-                    {!isSuper && !item.deletedAt && hasDelegatedAccess(user, 'inventory', 'edit') && <InventoryStatusActions itemId={item.id} />}
+                    {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} itemId={item.id} />}
                   </div>
                 </div>
               </article>
@@ -642,7 +644,7 @@ function LedgerInner() {
                                   : 'Publish ↗'}
                         </button>
                       )}
-                      {!isSuper && !item.deletedAt && hasDelegatedAccess(user, 'inventory', 'edit') && <InventoryStatusActions itemId={item.id} />}
+                      {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} itemId={item.id} />}
                     </td>
                   </tr>
                 );

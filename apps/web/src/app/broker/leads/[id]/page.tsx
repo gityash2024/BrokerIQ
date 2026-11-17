@@ -120,8 +120,6 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   if (q.error) return <ApiErrorState error={q.error} />;
   const l = q.data;
   const stageIdx = LEAD_STAGES.indexOf(l.stage);
-  const visitCompleted = l.visits.some((visit: { status: string }) => visit.status === 'COMPLETED');
-  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(l.stage);
 
   return (
     <div className="space-y-6">
@@ -195,13 +193,11 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         {/* Stage stepper */}
         <div role="group" aria-label="Lead progress" className="flex overflow-x-auto border-t border-line scrollbar-none">
           {LEAD_STAGES.map((s, i) => {
-            if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
-            if (s === 'PHOTOS_SHARED' && !beforeVisit && l.stage !== s) return null;
             const active = s === l.stage;
             const past = i < stageIdx && s !== 'NOT_INTERESTED' && l.stage !== 'LOST' && l.stage !== 'NOT_INTERESTED';
             return (
               <Fragment key={s}>
-                {s === 'SITE_VISIT' && canSharePhotos && beforeVisit && (
+                {s === 'SITE_VISIT' && canSharePhotos && (
                   <Link
                     href={`/broker/leads/${l.id}/photos`}
                     className="flex min-w-28 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 py-3 text-xs font-bold text-brand-600 transition hover:bg-surface-2"
@@ -269,7 +265,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
               { value: 'timeline', label: 'Timeline' },
               ...(!delegated || allowed('inventory') ? [{ value: 'matches' as const, label: 'Matching properties' }] : []),
               { value: 'tasks', label: 'Follow-ups & visits', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
-              ...(visitCompleted ? [{ value: 'shortlist' as const, label: 'Shortlisted' }] : []),
+              { value: 'shortlist' as const, label: 'Shortlisted' },
               { value: 'requirement', label: 'Requirement' },
             ]}
           />

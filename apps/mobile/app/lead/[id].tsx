@@ -114,8 +114,6 @@ export default function LeadDetail() {
       </SafeAreaView>
     );
   const l = q.data;
-  const visitCompleted = l.visits.some((visit: { status: string }) => visit.status === 'COMPLETED');
-  const beforeVisit = !visitCompleted && ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(l.stage);
   const call = () => {
     callPending.current = true;
     Linking.openURL(`tel:${l.phone}`).catch((error) => {
@@ -224,16 +222,13 @@ export default function LeadDetail() {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
             {LEAD_STAGES.map((s) => {
-              if (s === 'SHORTLISTED' && !visitCompleted && l.stage !== s) return null;
-              if (s === 'PHOTOS_SHARED' && !beforeVisit && l.stage !== s) return null;
-              const showStage = canEdit || s === l.stage || s === 'SHORTLISTED';
               const enabled =
                 (canEdit || s === 'SHORTLISTED') && !stage.isPending && (s !== 'FOLLOW_UP' || canCreateTask) && (s !== 'PHOTOS_SHARED' || canSharePhotos);
               const on = l.stage === s;
               const col = LEAD_STAGE_COLORS[s as LeadStage];
               return (
                 <Fragment key={s}>
-                  {s === 'SITE_VISIT' && canSharePhotos && beforeVisit && (
+                  {s === 'SITE_VISIT' && canSharePhotos && (
                     <Button
                       title="Share photos"
                       size="sm"
@@ -241,31 +236,29 @@ export default function LeadDetail() {
                       onPress={() => router.push({ pathname: '/lead-share-photos', params: { id: l.id } })}
                     />
                   )}
-                  {showStage && (
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityLabel={LEAD_STAGE_LABELS[s as LeadStage]}
-                      accessibilityState={{ selected: on, disabled: !enabled }}
-                      onPress={
-                        enabled
-                          ? () => {
-                              if (s === 'FOLLOW_UP') openFollowUpStage();
-                              else if (s === 'PHOTOS_SHARED') router.push({ pathname: '/lead-share-photos', params: { id: l.id } });
-                              else if (s === 'SHORTLISTED') setTab('shortlist');
-                              else if (s === 'SITE_VISIT' && canCreateTask) router.push({ pathname: '/schedule-visit', params: { id: l.id } });
-                              else if (s === 'LOST') setSheet('lost');
-                              else if (s === 'NOT_INTERESTED') setSheet('not_interested');
-                              else stage.mutate({ stage: s });
-                            }
-                          : undefined
-                      }
-                      style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
-                    >
-                      <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
-                        {LEAD_STAGE_LABELS[s as LeadStage]}
-                      </Txt>
-                    </PressableScale>
-                  )}
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={LEAD_STAGE_LABELS[s as LeadStage]}
+                    accessibilityState={{ selected: on, disabled: !enabled }}
+                    onPress={
+                      enabled
+                        ? () => {
+                            if (s === 'FOLLOW_UP') openFollowUpStage();
+                            else if (s === 'PHOTOS_SHARED') router.push({ pathname: '/lead-share-photos', params: { id: l.id } });
+                            else if (s === 'SHORTLISTED') setTab('shortlist');
+                            else if (s === 'SITE_VISIT' && canCreateTask) router.push({ pathname: '/schedule-visit', params: { id: l.id } });
+                            else if (s === 'LOST') setSheet('lost');
+                            else if (s === 'NOT_INTERESTED') setSheet('not_interested');
+                            else stage.mutate({ stage: s });
+                          }
+                        : undefined
+                    }
+                    style={{ paddingHorizontal: 12, height: 34, borderRadius: 12, justifyContent: 'center', backgroundColor: on ? col : `${col}18` }}
+                  >
+                    <Txt v="caption" color={on ? 'white' : col} style={{ fontSize: 12 }}>
+                      {LEAD_STAGE_LABELS[s as LeadStage]}
+                    </Txt>
+                  </PressableScale>
                   {s === 'FOLLOW_UP' && canCreateTask && (
                     <Button title="Schedule follow-up" size="sm" variant="secondary" onPress={canEdit ? openFollowUpStage : () => setSheet('followup')} />
                   )}
@@ -293,7 +286,7 @@ export default function LeadDetail() {
             options={[
               { value: 'timeline', label: 'Timeline' },
               { value: 'tasks', label: 'Tasks', count: l.followUps.filter((f: any) => f.status === 'PENDING').length || undefined },
-              ...(visitCompleted ? [{ value: 'shortlist' as const, label: 'Shortlisted' }] : []),
+              { value: 'shortlist' as const, label: 'Shortlisted' },
               ...(assistantOn ? [{ value: 'ai' as const, label: '✨ AI' }] : []),
             ]}
           />

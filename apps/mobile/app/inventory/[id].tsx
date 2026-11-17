@@ -391,7 +391,7 @@ export default function PropertyDetail() {
                     Verify with owner before sharing with buyers.
                   </Txt>
                 </View>
-                {canEdit && <Button title="Verify now" size="sm" onPress={handleConfirmAvailable} />}
+                <Button title="Verify now" disabled={!canEdit} size="sm" onPress={handleConfirmAvailable} />
               </View>
             )}
 
@@ -527,8 +527,8 @@ export default function PropertyDetail() {
               </NativeCard>
             )}
 
-            {canEdit && !item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
-              <Button title="Add property photo" variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
+            {!item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
+              <Button title="Add property photo" disabled={!canEdit} variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
             )}
             {/* Photos & Videos */}
             {(item.photoUrls ?? []).map((uri) => (
@@ -593,6 +593,25 @@ export default function PropertyDetail() {
             )}
           </>
         )}
+        {item && (
+          <View style={{ padding: 16, gap: 8 }}>
+            <Txt v="caption" color="muted">
+              Publication: {item.publishedListing?.status || 'Not submitted'}
+              {item.publishedListing?.reviewRequiredRole ? ' · ' + item.publishedListing.reviewRequiredRole : ''}
+            </Txt>
+            <Button
+              title={isAdmin && item.publishedListing?.reviewRequiredRole === 'BROKER_ADMIN' ? 'Review publication' : 'Public preview / publish'}
+              disabled={!hasDelegatedAccess(user, 'inventory', 'publish')}
+              variant="secondary"
+              onPress={() => router.push(`/publish-rental?id=${id}` as any)}
+            />
+            {!canEdit && (
+              <Txt v="caption" color="muted">
+                Ask your Broker Admin for inventory edit access to change details or upload photos.
+              </Txt>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* Floating 1-Tap Quick Action Dock at Bottom */}
@@ -654,27 +673,15 @@ export default function PropertyDetail() {
 
           <Button title="Share" variant="secondary" style={{ flex: 1, height: 48, borderRadius: 16 }} onPress={() => setShareWithLead(true)} />
 
-          {canEdit && (
-            <Button title="Edit" style={{ flex: 1.2, height: 48, borderRadius: 16 }} onPress={() => router.push(`/inventory-edit?id=${id}` as any)} />
-          )}
+          <Button
+            title="Edit"
+            disabled={!canEdit}
+            style={{ flex: 1.2, height: 48, borderRadius: 16 }}
+            onPress={() => router.push(`/inventory-edit?id=${id}` as any)}
+          />
         </View>
       )}
 
-      {item && (
-        <View style={{ padding: 16, gap: 8 }}>
-          <Txt v="caption" color="muted">
-            Publication: {item.publishedListing?.status || 'Not submitted'}
-            {item.publishedListing?.reviewRequiredRole ? ' · ' + item.publishedListing.reviewRequiredRole : ''}
-          </Txt>
-          {hasDelegatedAccess(user, 'inventory', 'publish') && (
-            <Button
-              title={isAdmin && item.publishedListing?.reviewRequiredRole === 'BROKER_ADMIN' ? 'Review publication' : 'Public preview / publish'}
-              variant="secondary"
-              onPress={() => router.push(`/publish-rental?id=${id}` as any)}
-            />
-          )}
-        </View>
-      )}
       {/* 1-Tap Quick Assignee Selection Sheet */}
       <Sheet open={canAssign && reassignOpen} onClose={() => setReassignOpen(false)} title="Change Assignee">
         <View style={{ gap: 8, paddingBottom: 20 }}>
