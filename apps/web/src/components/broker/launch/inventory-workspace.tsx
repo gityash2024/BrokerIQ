@@ -452,7 +452,7 @@ function LedgerInner() {
                     >
                       Details →
                     </button>
-                    {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} itemId={item.id} />}
+                    {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />}
                   </div>
                 </div>
               </article>
@@ -648,7 +648,7 @@ function LedgerInner() {
                                   : 'Publish ↗'}
                         </button>
                       }
-                      {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} itemId={item.id} />}
+                      {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />}
                     </td>
                   </tr>
                 );

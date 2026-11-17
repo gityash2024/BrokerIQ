@@ -9,7 +9,7 @@ public final class PhotoShareModule: Module {
   public func definition() -> ModuleDefinition {
     Name("BrokerIQPhotoShare")
 
-    AsyncFunction("sharePhotos") { (paths: [String], title: String, promise: Promise) in
+    AsyncFunction("sharePhotos") { (paths: [String], title: String, caption: String, promise: Promise) in
       let files = FileManager.default
       let root = try files.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
         .appendingPathComponent("brokeriq-photo-share").resolvingSymlinksInPath().path
@@ -20,7 +20,9 @@ public final class PhotoShareModule: Module {
         let presenter = self.appContext?.utilities?.currentViewController()
       else { throw PhotoShareException() }
 
-      let sheet = UIActivityViewController(activityItems: urls, applicationActivities: nil)
+      var items: [Any] = urls
+      if !caption.isEmpty { items.append(caption) }
+      let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
       sheet.title = title
       sheet.completionWithItemsHandler = { _, _, _, _ in promise.resolve(nil) }
       sheet.popoverPresentationController?.sourceView = presenter.view

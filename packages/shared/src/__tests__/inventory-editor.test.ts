@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
+import { clientPropertyShare } from '../inventory-presentation';
 import { inventoryDate, inventoryMonth } from '../inventory-folders';
 import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput, propertyPhotoDraft, shareablePropertyPhotoUrls } from '../inventory';
 
@@ -83,4 +84,39 @@ test('photo attachments keep the full ordered set of public images and exclude p
   ];
   assert.deepEqual(shareablePropertyPhotoUrls([photos[0] + '#preview', ...photos, ...unrelated]), photos);
   assert.ok(propertyPhotoDraft('', photos).length <= 2000);
+});
+
+test('client-facing property messages leave private identifiers and floor area in the inventory record', () => {
+  const item = {
+    ...imported,
+    purpose: 'RENT' as const,
+    propertyType: 'BUILDER_FLOOR',
+    houseNo: '340',
+    sector: 'Sector 43, House 340',
+    unitLabel: 'Unit 340 · 2.5BHK',
+    address: 'House 340, Sector 43',
+    notes: 'Show 1000 SQ_FT only on request',
+    area: 1000,
+    bhk: 2,
+    roomKind: 'BHK',
+    floor: '1',
+    furnishing: 'FULLY_FURNISHED',
+    monthlyRent: 40000,
+  } as const;
+  const message = clientPropertyShare(item, 'Broker Agent');
+  assert.match(message, /Builder Floor\n📍 Location: Sector 43/);
+  assert.match(message, /Config: 2 BHK/);
+  assert.match(message, /Floor: 1st floor/);
+  assert.match(message, /₹40,000\/month/);
+  assert.doesNotMatch(message, /340|2\.5BHK|SQ_FT|1000|Property photos:/);
+  assert.doesNotMatch(clientPropertyShare({ ...item, sector: 'Plot 340', floor: 'Floor 1 at House 340' }), /340|Location:|Floor:/);
+});
+
+test('client-facing messages omit per-area price and keep valid locality and configuration', () => {
+  const item = { propertyType: 'APARTMENT', houseNo: '37', sector: 'Sushant Lok Phase 1', roomKind: 'STUDIO', purpose: 'SALE', ratePerArea: 4500 } as const;
+  const message = clientPropertyShare(item);
+  assert.match(message, /Location: Sushant Lok Phase 1/);
+  assert.match(message, /Config: Studio/);
+  assert.match(message, /Price not recorded/);
+  assert.doesNotMatch(message, /4,500|37/);
 });

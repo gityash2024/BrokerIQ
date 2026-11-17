@@ -36,17 +36,27 @@ export default function Requirements() {
   });
   return (
     <BrokerScreen title="Requirements" subtitle="Separate needs, clear matching reasons." back>
-      <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 10 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {['', 'DEMAND', 'OFFER', 'UNKNOWN'].map((kind) => (
-            <Button key={kind} title={kind || 'All records'} size="sm" variant={intent === kind ? 'primary' : 'secondary'} onPress={() => setIntent(kind)} />
-          ))}
-        </View>
-        <Input accessibilityLabel="Search requirements" placeholder="Contact, phone or requirement notes" value={search} onChangeText={setSearch} />
-        <Button title="Scan / paste / WhatsApp export" variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
-        <Button title="Add requirement" onPress={() => router.push({ pathname: '/requirement-edit', params: leadId ? { leadId } : {} } as any)} />
-      </View>
       <FlatList
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={{ paddingBottom: 12, gap: 10 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {['', 'DEMAND', 'OFFER', 'UNKNOWN'].map((kind) => (
+                <Button
+                  key={kind}
+                  title={kind || 'All records'}
+                  size="sm"
+                  variant={intent === kind ? 'primary' : 'secondary'}
+                  onPress={() => setIntent(kind)}
+                />
+              ))}
+            </View>
+            <Input accessibilityLabel="Search requirements" placeholder="Contact, phone or requirement notes" value={search} onChangeText={setSearch} />
+            <Button title="Scan / paste / WhatsApp export" variant="secondary" onPress={() => router.push('/capture?target=REQUIREMENT' as any)} />
+            <Button title="Add requirement" onPress={() => router.push({ pathname: '/requirement-edit', params: leadId ? { leadId } : {} } as any)} />
+          </View>
+        }
         data={list.data?.pages.flatMap((p) => p.items) ?? []}
         keyExtractor={(r) => r.id}
         refreshing={list.isRefetching}

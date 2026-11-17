@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { clientPropertyShare, hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, type LedgerItem } from '@brokeriq/shared';
 import { SharePhotoFilesButton } from '@/components/share-photo-files-button';
 import { VisitPropertyPicker } from '@/components/visit-property-picker';
 import { NativePropertyMedia } from '@/launch/property-media';
@@ -55,7 +55,7 @@ export default function LeadSharePhotos() {
   });
   const preselected = initialProperty.data?.deletedAt ? null : initialProperty.data;
   const property = selected === undefined ? (preselected ?? null) : selected;
-  const title = property ? String(visitInventoryTitle(property)) : '';
+  const title = property ? clientPropertyShare(property) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);
   const draft = propertyPhotoDraft(title, photos);
 
@@ -129,7 +129,12 @@ export default function LeadSharePhotos() {
                   <Txt v="caption" color="muted">
                     Review the WhatsApp message in Inbox before sending.
                   </Txt>
-                  <SharePhotoFilesButton urls={photos} disabled={opening} onShareOpened={() => setExternalShareProperty(property?.id ?? null)} />
+                  <SharePhotoFilesButton
+                    urls={photos}
+                    caption={title}
+                    disabled={opening}
+                    onShareOpened={() => setExternalShareProperty(property?.id ?? null)}
+                  />
                   {externalShareProperty && externalShareProperty === property?.id && (
                     <Button access={canConfirm} title="Confirm photos sent" loading={confirm.isPending} onPress={() => confirm.mutate(externalShareProperty)} />
                   )}

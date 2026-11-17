@@ -15,7 +15,7 @@ class PhotoShareModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("BrokerIQPhotoShare")
 
-    AsyncFunction("sharePhotos") { paths: List<String>, title: String ->
+    AsyncFunction("sharePhotos") { paths: List<String>, title: String, caption: String ->
       require(paths.size in 1..50)
       val activity = appContext.throwingActivity
       val root = File(activity.cacheDir, "brokeriq-photo-share").canonicalFile
@@ -31,6 +31,7 @@ class PhotoShareModule : Module() {
       } else {
         Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, streams)
       }
+      if (caption.isNotBlank()) intent.putExtra(Intent.EXTRA_TEXT, caption)
       intent.type = "image/*"
       intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       intent.clipData = ClipData.newUri(activity.contentResolver, title, streams.first()).apply {

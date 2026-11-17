@@ -121,20 +121,9 @@ export function NativeInventoryFolders() {
   }
 
   return (
-    <BrokerScreen
-      title="Available Inventory"
-      action={
-        <NativeInventoryEntryActions
-          params={{
-            makeAvailable: '1',
-            directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current,
-            ...(mode === 'AVAILABLE' && path[1] ? { folderRoom: path[1].key } : {}),
-            ...(mode === 'AVAILABLE' && path[2] ? { furnishing: path[2].key } : {}),
-          }}
-        />
-      }
-    >
+    <BrokerScreen title="Available Inventory">
       <FlatList
+        style={{ flex: 1 }}
         data={rows}
         keyExtractor={(row) => ('id' in row ? row.id : row.key)}
         contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28, gap: 10 }}
@@ -146,6 +135,14 @@ export function NativeInventoryFolders() {
         }}
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
+            <NativeInventoryEntryActions
+              params={{
+                makeAvailable: '1',
+                directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current,
+                ...(mode === 'AVAILABLE' && path[1] ? { folderRoom: path[1].key } : {}),
+                ...(mode === 'AVAILABLE' && path[2] ? { furnishing: path[2].key } : {}),
+              }}
+            />
             <NativeInventoryTabs active="/broker/inventory" />
             <Segmented
               value={mode}

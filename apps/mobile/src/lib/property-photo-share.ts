@@ -5,7 +5,7 @@ import { randomUUID } from 'expo-crypto';
 import { shareablePropertyPhotoUrls } from '@brokeriq/shared';
 import { assertAccountContext, captureAccountContext, requestActivity } from './api';
 
-const bridge = requireOptionalNativeModule<{ sharePhotos(paths: string[], title: string): Promise<void> }>('BrokerIQPhotoShare');
+const bridge = requireOptionalNativeModule<{ sharePhotos(paths: string[], title: string, caption: string): Promise<void> }>('BrokerIQPhotoShare');
 const types: Readonly<Record<string, string>> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -60,7 +60,7 @@ async function downloadPhoto(url: string, directory: Directory, index: number, m
 }
 
 /** Downloads the complete batch before opening the native recipient picker. */
-export async function sharePropertyPhotoFiles(urls: readonly string[], signal: AbortSignal, title: string) {
+export async function sharePropertyPhotoFiles(urls: readonly string[], signal: AbortSignal, title: string, caption = '') {
   if (!bridge) throw new Error('Update the BrokerIQ app to share image files.');
   const owner = captureAccountContext();
   if (!owner.userId) throw new Error('Sign in to share property photos.');
@@ -91,7 +91,7 @@ export async function sharePropertyPhotoFiles(urls: readonly string[], signal: A
     }
     assertAccountContext(owner);
     if (signal.aborted) throw new Error('Photo sharing cancelled.');
-    await bridge.sharePhotos(paths, title);
+    await bridge.sharePhotos(paths, title, caption);
     // The selected Android app may still be reading the files. Expire them on a later share.
   } catch (error) {
     if (batch.exists) batch.delete();

@@ -4,7 +4,17 @@ import { errorMessage } from '@/lib/api';
 import { canSharePropertyPhotoFiles, sharePropertyPhotoFiles } from '@/lib/property-photo-share';
 import { Button, Txt } from '@/ui';
 
-export function SharePhotoFilesButton({ urls, disabled, onShareOpened }: { urls: readonly string[]; disabled?: boolean; onShareOpened?: () => void }) {
+export function SharePhotoFilesButton({
+  urls,
+  caption,
+  disabled,
+  onShareOpened,
+}: {
+  urls: readonly string[];
+  caption?: string;
+  disabled?: boolean;
+  onShareOpened?: () => void;
+}) {
   const active = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +29,7 @@ export function SharePhotoFilesButton({ urls, disabled, onShareOpened }: { urls:
     setBusy(true);
     setError('');
     try {
-      await sharePropertyPhotoFiles(photos, task.signal, 'Share property photos');
+      await sharePropertyPhotoFiles(photos, task.signal, 'Share property photos', caption);
       if (!task.signal.aborted) onShareOpened?.();
     } catch (cause) {
       if (!task.signal.aborted) setError(errorMessage(cause));

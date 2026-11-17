@@ -41,7 +41,7 @@ export function InventoryLeadShare({ message, photoUrls }: { message: string; ph
   };
   return (
     <View style={{ gap: 12 }}>
-      {!!shareablePropertyPhotoUrls(photoUrls).length && <SharePhotoFilesButton urls={photoUrls ?? []} />}
+      {!!shareablePropertyPhotoUrls(photoUrls).length && <SharePhotoFilesButton urls={photoUrls ?? []} caption={message} />}
       <Txt color="muted">Choose a CRM lead and review the property message in Inbox before sending.</Txt>
       {selected ? (
         <>

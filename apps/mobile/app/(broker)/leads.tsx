@@ -204,47 +204,51 @@ export default function Leads() {
   const { user } = useAuth();
   return (
     <BrokerScreen title="Leads & Requirements" subtitle={list.data ? `${list.data.pages[0].total} contacts` : 'Contacts, follow-ups and visits.'}>
-      <View style={{ paddingHorizontal: 20, gap: 10, paddingBottom: 12 }}>
-        <Input value={text} onChangeText={setText} placeholder="Name / phone" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Button access={hasDelegatedAccess(user, 'leads', 'create')} title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
-          <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />
-          <Button
-            title={activeCount > 0 ? `Filters (${activeCount})` : 'Filters'}
-            size="sm"
-            variant={activeCount > 0 ? 'secondary' : 'ghost'}
-            onPress={() => setFilters(true)}
-          />
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Button title="Pipeline" size="sm" variant="ghost" onPress={() => router.push('/pipeline')} />
-          <Button title="Follow-ups" size="sm" variant="ghost" onPress={() => router.push('/follow-ups')} />
-          <Button title="Visits" size="sm" variant="ghost" onPress={() => router.push('/visits')} />
-        </View>
-
-        {activeCount > 0 && (
-          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            {!!view && <Chip label={`View: ${view}`} active onPress={() => setView('')} />}
-            {!!stage && <Chip label={`Stage: ${stage.replace(/_/g, ' ')}`} active onPress={() => setStage('')} />}
-            {!!source && <Chip label={`Source: ${source}`} active onPress={() => setSource('')} />}
-            {!!temperature && <Chip label={`Temp: ${temperature}`} active onPress={() => setTemperature('')} />}
-            {(!!from || !!to) && (
-              <Chip
-                label={`Date: ${from || '…'} to ${to || '…'}`}
-                active
-                onPress={() => {
-                  setFrom('');
-                  setTo('');
-                  setDateField('createdAt');
-                  setResponseSla('');
-                }}
-              />
-            )}
-            <Button title="Reset all" size="sm" variant="ghost" onPress={resetFilters} />
-          </View>
-        )}
-      </View>
       <FlatList
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={{ gap: 10, paddingBottom: 12 }}>
+            <Input value={text} onChangeText={setText} placeholder="Name / phone" />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <Button access={hasDelegatedAccess(user, 'leads', 'create')} title="Add lead" size="sm" onPress={() => router.push('/add-lead')} />
+              <Button title="Requirements" size="sm" variant="secondary" onPress={() => router.push('/requirements')} />
+              <Button
+                title={activeCount > 0 ? `Filters (${activeCount})` : 'Filters'}
+                size="sm"
+                variant={activeCount > 0 ? 'secondary' : 'ghost'}
+                onPress={() => setFilters(true)}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <Button title="Pipeline" size="sm" variant="ghost" onPress={() => router.push('/pipeline')} />
+              <Button title="Follow-ups" size="sm" variant="ghost" onPress={() => router.push('/follow-ups')} />
+              <Button title="Visits" size="sm" variant="ghost" onPress={() => router.push('/visits')} />
+            </View>
+
+            {activeCount > 0 && (
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {!!view && <Chip label={`View: ${view}`} active onPress={() => setView('')} />}
+                {!!stage && <Chip label={`Stage: ${stage.replace(/_/g, ' ')}`} active onPress={() => setStage('')} />}
+                {!!source && <Chip label={`Source: ${source}`} active onPress={() => setSource('')} />}
+                {!!temperature && <Chip label={`Temp: ${temperature}`} active onPress={() => setTemperature('')} />}
+                {(!!from || !!to) && (
+                  <Chip
+                    label={`Date: ${from || '…'} to ${to || '…'}`}
+                    active
+                    onPress={() => {
+                      setFrom('');
+                      setTo('');
+                      setDateField('createdAt');
+                      setResponseSla('');
+                    }}
+                  />
+                )}
+                <Button title="Reset all" size="sm" variant="ghost" onPress={resetFilters} />
+              </View>
+            )}
+          </View>
+        }
         data={list.data?.pages.flatMap((p) => p.items) ?? []}
         keyExtractor={(l) => l.id}
         contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 12, paddingBottom: 30 }}

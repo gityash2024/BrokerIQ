@@ -1,6 +1,6 @@
 import { InlineLoader } from '@/components/request-loader';
 import { useState, useEffect } from 'react';
-import { View, FlatList, Pressable } from 'react-native';
+import { View, FlatList, Pressable, Switch } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -66,6 +66,7 @@ export default function Inventory() {
 function InventoryLedger() {
   const { user } = useAuth();
   const { c } = useTheme();
+  const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const params = useLocalSearchParams();
   const [search, setSearch] = useState(typeof params.search === 'string' ? params.search : '');
   const term = useDebounced(search);
@@ -127,261 +128,263 @@ function InventoryLedger() {
   };
 
   return (
-    <BrokerScreen
-      title="All Inventory"
-      subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}
-      action={<NativeInventoryEntryActions />}
-    >
-      <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 12 }}>
-        <NativeInventoryTabs active="/broker/inventory/data" />
-        <Txt v="caption" color="muted">
-          Find every record here, including older or incomplete entries. Review the details before moving a property to Available or Rented out.
-        </Txt>
-
-        {/* CRED Luxury Metrics Cards */}
-        {stats.data && (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[
-              { label: 'TOTAL INVENTORY', value: stats.data.total ?? 0, tone: c.fg },
-              { label: 'CONFIRMED AVAIL', value: stats.data.available ?? 0, tone: c.success },
-              { label: 'NEEDS CHECK', value: stats.data.unknown ?? 0, tone: '#F59E0B' },
-            ].map((stat, i) => (
-              <View
-                key={i}
-                style={{
-                  flex: 1,
-                  backgroundColor: c.surface,
-                  borderWidth: 1,
-                  borderColor: `${c.line}90`,
-                  borderRadius: 14,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                }}
-              >
-                <Txt v="caption" color="muted" style={{ fontSize: 9.5, fontWeight: '700', letterSpacing: 0.4 }}>
-                  {stat.label}
-                </Txt>
-                <Txt v="h3" style={{ fontSize: 18, fontWeight: '800', marginTop: 2, color: stat.tone }}>
-                  {Number(stat.value).toLocaleString('en-IN')}
-                </Txt>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Search Bar & Filter Button */}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Input
-            accessibilityLabel="Search inventory"
-            placeholder="House, locality, contact…"
-            value={search}
-            onChangeText={setSearch}
-            icon={<Search size={18} color={c.muted} />}
-            containerStyle={{ flex: 1 }}
-          />
-          <Pressable
-            accessibilityLabel="Filter inventory"
-            onPress={() => setFilterOpen(true)}
-            style={{
-              width: 50,
-              height: 50,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 14,
-              borderWidth: 1,
-              borderColor: count ? c.brand : c.line,
-              backgroundColor: count ? `${c.brand}18` : c.surface,
-            }}
-          >
-            <SlidersHorizontal size={20} color={count ? c.brand : c.fg} />
-          </Pressable>
-        </View>
-
-        {/* CRED-Style Horizontal Quick Filter Carousel */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-          {/* All */}
-          <Pressable
-            onPress={() => setFilters(initial)}
-            style={{
-              paddingHorizontal: 13,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? c.brand : `${c.line}90`,
-              backgroundColor: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? `${c.brand}20` : c.surface,
-            }}
-          >
-            <Txt
-              v="caption"
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? c.brand : c.fg,
-              }}
-            >
-              All
-            </Txt>
-          </Pressable>
-
-          {/* My Properties */}
-          <Pressable
-            onPress={() => setFilters({ ...filters, onlyMine: filters.onlyMine === 'true' ? '' : 'true' })}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 5,
-              paddingHorizontal: 13,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: filters.onlyMine === 'true' ? c.brand : `${c.line}90`,
-              backgroundColor: filters.onlyMine === 'true' ? `${c.brand}20` : c.surface,
-            }}
-          >
-            <User size={13} color={filters.onlyMine === 'true' ? c.brand : c.muted} />
-            <Txt
-              v="caption"
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: filters.onlyMine === 'true' ? c.brand : c.fg,
-              }}
-            >
-              My Properties
-            </Txt>
-          </Pressable>
-
-          {/* Available */}
-          <Pressable
-            onPress={() =>
-              setFilters({
-                ...filters,
-                availability: filters.availability === 'AVAILABLE' ? '' : 'AVAILABLE',
-              })
-            }
-            style={{
-              paddingHorizontal: 13,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: filters.availability === 'AVAILABLE' ? c.success : `${c.line}90`,
-              backgroundColor: filters.availability === 'AVAILABLE' ? `${c.success}20` : c.surface,
-            }}
-          >
-            <Txt
-              v="caption"
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: filters.availability === 'AVAILABLE' ? c.success : c.fg,
-              }}
-            >
-              🟢 Available
-            </Txt>
-          </Pressable>
-
-          {/* Rent */}
-          <Pressable
-            onPress={() => setFilters({ ...filters, purpose: filters.purpose === 'RENT' ? '' : 'RENT' })}
-            style={{
-              paddingHorizontal: 13,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: filters.purpose === 'RENT' ? c.brand : `${c.line}90`,
-              backgroundColor: filters.purpose === 'RENT' ? `${c.brand}20` : c.surface,
-            }}
-          >
-            <Txt
-              v="caption"
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: filters.purpose === 'RENT' ? c.brand : c.fg,
-              }}
-            >
-              🔑 Rent
-            </Txt>
-          </Pressable>
-
-          {/* Sale */}
-          <Pressable
-            onPress={() => setFilters({ ...filters, purpose: filters.purpose === 'SALE' ? '' : 'SALE' })}
-            style={{
-              paddingHorizontal: 13,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: filters.purpose === 'SALE' ? '#F59E0B' : `${c.line}90`,
-              backgroundColor: filters.purpose === 'SALE' ? '#F59E0B20' : c.surface,
-            }}
-          >
-            <Txt
-              v="caption"
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: filters.purpose === 'SALE' ? '#F59E0B' : c.fg,
-              }}
-            >
-              🏷️ Sale
-            </Txt>
-          </Pressable>
-
-          {/* Top 4 Sectors */}
-          {sectors.data?.slice(0, 4).map((s) => (
-            <Pressable
-              key={s.sector}
-              onPress={() => setFilters({ ...filters, sector: filters.sector === s.sector ? '' : s.sector })}
-              style={{
-                paddingHorizontal: 13,
-                paddingVertical: 7,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: filters.sector === s.sector ? c.brand : `${c.line}90`,
-                backgroundColor: filters.sector === s.sector ? `${c.brand}20` : c.surface,
-              }}
-            >
-              <Txt
-                v="caption"
-                style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: filters.sector === s.sector ? c.brand : c.fg,
-                }}
-              >
-                {s.sector} ({s.count})
-              </Txt>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Txt v="caption" color="muted">
-            {count ? `${count} filters applied` : 'All properties'}
-          </Txt>
-          <Pressable
-            onPress={() => {
-              setSelecting(!selecting);
-              setSelected([]);
-            }}
-          >
-            <Txt v="caption" color="brand">
-              {selecting ? 'Cancel selection' : 'Select'}
-            </Txt>
-          </Pressable>
-        </View>
-        {count > 0 && <Button title="Reset filters" size="sm" variant="ghost" onPress={() => setFilters(initial)} />}
-      </View>
-
-      {query.error && (
-        <View style={{ padding: 20, gap: 12 }}>
-          <Txt color="danger">{errorMessage(query.error)}</Txt>
-          <Button title="Retry" variant="secondary" onPress={() => query.refetch()} />
-        </View>
-      )}
-
+    <BrokerScreen title="All Inventory" subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}>
       <FlatList
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <>
+            <View style={{ gap: 12 }}>
+              <NativeInventoryEntryActions />
+              <NativeInventoryTabs active="/broker/inventory/data" />
+              <Txt v="caption" color="muted">
+                Find every record here, including older or incomplete entries. Review the details before moving a property to Available or Rented out.
+              </Txt>
+
+              {/* CRED Luxury Metrics Cards */}
+              {stats.data && (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {[
+                    { label: 'TOTAL INVENTORY', value: stats.data.total ?? 0, tone: c.fg },
+                    { label: 'CONFIRMED AVAIL', value: stats.data.available ?? 0, tone: c.success },
+                    { label: 'NEEDS CHECK', value: stats.data.unknown ?? 0, tone: '#F59E0B' },
+                  ].map((stat, i) => (
+                    <View
+                      key={i}
+                      style={{
+                        flex: 1,
+                        backgroundColor: c.surface,
+                        borderWidth: 1,
+                        borderColor: `${c.line}90`,
+                        borderRadius: 14,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                      }}
+                    >
+                      <Txt v="caption" color="muted" style={{ fontSize: 9.5, fontWeight: '700', letterSpacing: 0.4 }}>
+                        {stat.label}
+                      </Txt>
+                      <Txt v="h3" style={{ fontSize: 18, fontWeight: '800', marginTop: 2, color: stat.tone }}>
+                        {Number(stat.value).toLocaleString('en-IN')}
+                      </Txt>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Search Bar & Filter Button */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Input
+                  accessibilityLabel="Search inventory"
+                  placeholder="House, locality, contact…"
+                  value={search}
+                  onChangeText={setSearch}
+                  icon={<Search size={18} color={c.muted} />}
+                  containerStyle={{ flex: 1 }}
+                />
+                <Pressable
+                  accessibilityLabel="Filter inventory"
+                  onPress={() => setFilterOpen(true)}
+                  style={{
+                    width: 50,
+                    height: 50,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: count ? c.brand : c.line,
+                    backgroundColor: count ? `${c.brand}18` : c.surface,
+                  }}
+                >
+                  <SlidersHorizontal size={20} color={count ? c.brand : c.fg} />
+                </Pressable>
+              </View>
+
+              {/* CRED-Style Horizontal Quick Filter Carousel */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+                {/* All */}
+                <Pressable
+                  onPress={() => setFilters(initial)}
+                  style={{
+                    paddingHorizontal: 13,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? c.brand : `${c.line}90`,
+                    backgroundColor: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? `${c.brand}20` : c.surface,
+                  }}
+                >
+                  <Txt
+                    v="caption"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: !filters.onlyMine && !filters.availability && !filters.purpose && !filters.sector ? c.brand : c.fg,
+                    }}
+                  >
+                    All
+                  </Txt>
+                </Pressable>
+
+                {/* My Properties */}
+                <Pressable
+                  onPress={() => setFilters({ ...filters, onlyMine: filters.onlyMine === 'true' ? '' : 'true' })}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 13,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: filters.onlyMine === 'true' ? c.brand : `${c.line}90`,
+                    backgroundColor: filters.onlyMine === 'true' ? `${c.brand}20` : c.surface,
+                  }}
+                >
+                  <User size={13} color={filters.onlyMine === 'true' ? c.brand : c.muted} />
+                  <Txt
+                    v="caption"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: filters.onlyMine === 'true' ? c.brand : c.fg,
+                    }}
+                  >
+                    My Properties
+                  </Txt>
+                </Pressable>
+
+                {/* Available */}
+                <Pressable
+                  onPress={() =>
+                    setFilters({
+                      ...filters,
+                      availability: filters.availability === 'AVAILABLE' ? '' : 'AVAILABLE',
+                    })
+                  }
+                  style={{
+                    paddingHorizontal: 13,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: filters.availability === 'AVAILABLE' ? c.success : `${c.line}90`,
+                    backgroundColor: filters.availability === 'AVAILABLE' ? `${c.success}20` : c.surface,
+                  }}
+                >
+                  <Txt
+                    v="caption"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: filters.availability === 'AVAILABLE' ? c.success : c.fg,
+                    }}
+                  >
+                    🟢 Available
+                  </Txt>
+                </Pressable>
+
+                {/* Rent */}
+                <Pressable
+                  onPress={() => setFilters({ ...filters, purpose: filters.purpose === 'RENT' ? '' : 'RENT' })}
+                  style={{
+                    paddingHorizontal: 13,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: filters.purpose === 'RENT' ? c.brand : `${c.line}90`,
+                    backgroundColor: filters.purpose === 'RENT' ? `${c.brand}20` : c.surface,
+                  }}
+                >
+                  <Txt
+                    v="caption"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: filters.purpose === 'RENT' ? c.brand : c.fg,
+                    }}
+                  >
+                    🔑 Rent
+                  </Txt>
+                </Pressable>
+
+                {/* Sale */}
+                <Pressable
+                  onPress={() => setFilters({ ...filters, purpose: filters.purpose === 'SALE' ? '' : 'SALE' })}
+                  style={{
+                    paddingHorizontal: 13,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: filters.purpose === 'SALE' ? '#F59E0B' : `${c.line}90`,
+                    backgroundColor: filters.purpose === 'SALE' ? '#F59E0B20' : c.surface,
+                  }}
+                >
+                  <Txt
+                    v="caption"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: filters.purpose === 'SALE' ? '#F59E0B' : c.fg,
+                    }}
+                  >
+                    🏷️ Sale
+                  </Txt>
+                </Pressable>
+
+                {/* Top 4 Sectors */}
+                {sectors.data?.slice(0, 4).map((s) => (
+                  <Pressable
+                    key={s.sector}
+                    onPress={() => setFilters({ ...filters, sector: filters.sector === s.sector ? '' : s.sector })}
+                    style={{
+                      paddingHorizontal: 13,
+                      paddingVertical: 7,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: filters.sector === s.sector ? c.brand : `${c.line}90`,
+                      backgroundColor: filters.sector === s.sector ? `${c.brand}20` : c.surface,
+                    }}
+                  >
+                    <Txt
+                      v="caption"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: filters.sector === s.sector ? c.brand : c.fg,
+                      }}
+                    >
+                      {s.sector} ({s.count})
+                    </Txt>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Txt v="caption" color="muted">
+                  {count ? `${count} filters applied` : 'All properties'}
+                </Txt>
+                <Pressable
+                  onPress={() => {
+                    setSelecting(!selecting);
+                    setSelected([]);
+                  }}
+                >
+                  <Txt v="caption" color="brand">
+                    {selecting ? 'Cancel selection' : 'Select'}
+                  </Txt>
+                </Pressable>
+              </View>
+              {count > 0 && <Button title="Reset filters" size="sm" variant="ghost" onPress={() => setFilters(initial)} />}
+            </View>
+
+            {query.error && (
+              <View style={{ padding: 20, gap: 12 }}>
+                <Txt color="danger">{errorMessage(query.error)}</Txt>
+                <Button title="Retry" variant="secondary" onPress={() => query.refetch()} />
+              </View>
+            )}
+          </>
+        }
         data={rows}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 28 }}
@@ -397,16 +400,32 @@ function InventoryLedger() {
             />
             {!selecting && (
               <Row wrap gap={8}>
+                <Row gap={5}>
+                  <Txt v="caption" color="muted">
+                    {item.availability === 'AVAILABLE' ? 'Available' : item.availability === 'RENTED' ? 'Rented out' : 'Availability'}
+                  </Txt>
+                  <Switch
+                    accessibilityLabel={item.availability === 'AVAILABLE' ? 'Mark rented out' : 'Make property available'}
+                    value={item.availability === 'AVAILABLE'}
+                    disabled={!canEdit || !!item.deletedAt}
+                    onValueChange={() =>
+                      router.push({
+                        pathname: '/inventory-edit',
+                        params: item.availability === 'AVAILABLE' ? { id: item.id, makeRented: '1' } : { id: item.id, makeAvailable: '1' },
+                      })
+                    }
+                  />
+                </Row>
                 <Button
                   title="Make available"
-                  disabled={!hasDelegatedAccess(user, 'inventory', 'edit')}
+                  disabled={!canEdit}
                   size="sm"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
                 />
                 <Button
                   title="Mark rented out"
-                  disabled={!hasDelegatedAccess(user, 'inventory', 'edit')}
+                  disabled={!canEdit}
                   size="sm"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeRented: '1' } })}

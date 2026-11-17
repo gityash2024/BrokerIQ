@@ -86,32 +86,34 @@ export default function Team() {
         }
       />
 
-      {/* Filter and Search Bar */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 }}>
-        <Input
-          placeholder="खोजें — नाम, ईमेल, फ़ोन..."
-          value={search}
-          onChangeText={setSearch}
-          icon={<Search size={16} color={c.muted} />}
-          style={{ minHeight: 40 }}
-        />
-
-        <Row gap={8}>
-          <Button title={`Filters / Sort · ${filteredMembers.length}`} variant="secondary" size="sm" onPress={() => setFilterOpen(true)} />
-          <Button
-            title={selected.size ? 'Selection हटाएँ' : 'दिखे records चुनें'}
-            variant="ghost"
-            size="sm"
-            onPress={() => setSelected(selected.size ? new Set() : new Set(filteredMembers.map((member) => member.id)))}
-          />
-        </Row>
-        {invalidDates && <Txt color="danger">सही date range भरें: YYYY-MM-DD</Txt>}
-      </View>
-
       {q.isError ? (
         <ErrorView error={q.error} />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <View style={{ gap: 8 }}>
+              <Input
+                placeholder="खोजें — नाम, ईमेल, फ़ोन..."
+                value={search}
+                onChangeText={setSearch}
+                icon={<Search size={16} color={c.muted} />}
+                style={{ minHeight: 40 }}
+              />
+
+              <Row gap={8}>
+                <Button title={`Filters / Sort · ${filteredMembers.length}`} variant="secondary" size="sm" onPress={() => setFilterOpen(true)} />
+                <Button
+                  title={selected.size ? 'Selection हटाएँ' : 'दिखे records चुनें'}
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => setSelected(selected.size ? new Set() : new Set(filteredMembers.map((member) => member.id)))}
+                />
+              </Row>
+              {invalidDates && <Txt color="danger">सही date range भरें: YYYY-MM-DD</Txt>}
+            </View>
+          }
           data={filteredMembers}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 60 }}

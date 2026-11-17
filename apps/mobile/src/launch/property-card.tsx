@@ -1,4 +1,13 @@
-import { floorLabel, inventoryTitle, inventoryPrice, readableValue, formatINR, hasDelegatedAccess, type LedgerItem } from '@brokeriq/shared';
+import {
+  clientPropertyShare,
+  floorLabel,
+  inventoryTitle,
+  inventoryPrice,
+  readableValue,
+  formatINR,
+  hasDelegatedAccess,
+  type LedgerItem,
+} from '@brokeriq/shared';
 import { Image } from 'expo-image';
 import { View, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
@@ -24,22 +33,6 @@ import { toast } from '@/lib/toast';
 import { errorMessage } from '@/lib/api';
 import { NativeCard } from './screen';
 import { useAuth } from '@/lib/auth';
-
-export function propertyShare(item: LedgerItem) {
-  const parts = [
-    `🏠 ${inventoryTitle(item)}`,
-    item.sector ? `📍 Location: ${item.sector}` : '',
-    item.purpose ? `🏷️ Transaction: ${readableValue(item.purpose)}` : '',
-    item.bhk ? `🛏️ Config: ${item.bhk} ${item.roomKind || 'rooms'}` : '',
-    item.floor ? `🏢 Floor: ${floorLabel(item.floor)}` : '',
-    item.area ? `📐 Area: ${item.area} ${item.areaUnit || 'unit not recorded'}` : '',
-    item.furnishing ? `🛋️ Furnishing: ${readableValue(item.furnishing)}` : '',
-    `💰 Price: ${inventoryPrice(item)}`,
-    item.assignedTo?.name ? `👤 Managed by: ${item.assignedTo.name}` : '',
-    item.availability === 'AVAILABLE' ? 'Availability recorded as available · reconfirm before visit' : '⚠️ Availability to be confirmed',
-  ];
-  return parts.filter(Boolean).join('\n');
-}
 
 export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; selected?: boolean; onSelect?: () => void }) {
   const { c } = useTheme();
@@ -377,7 +370,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
           <Pressable
             accessibilityLabel="WhatsApp contact"
             onPress={() =>
-              Linking.openURL(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(propertyShare(item))}`).catch((error) =>
+              Linking.openURL(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(clientPropertyShare(item))}`).catch((error) =>
                 toast.error(errorMessage(error)),
               )
             }

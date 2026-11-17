@@ -4,17 +4,27 @@ import { Copy, Send, Check, User, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { formatINR, normalizeIndianPhone, floorLabel, propertyPhotoDraft, shareablePropertyPhotoUrls } from '@brokeriq/shared';
+import {
+  clientPropertyShare,
+  formatINR,
+  hasDelegatedAccess,
+  normalizeIndianPhone,
+  floorLabel,
+  propertyPhotoDraft,
+  shareablePropertyPhotoUrls,
+} from '@brokeriq/shared';
 import { cn } from '@/lib/utils';
 import { captureAccountContext, assertAccountContext, errorMessage } from '@/lib/api';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { SharePhotoFilesOnMobile } from './share-photo-files-on-mobile';
 import { LeadPicker } from './lead-picker';
 import { useAuth } from '@/lib/auth';
-import type { LeadInboxChannel } from '@brokeriq/shared';
+import type { LeadInboxChannel, LedgerItem } from '@brokeriq/shared';
 
 export interface InventoryItemForWhatsApp {
   id: string;
+  propertyType?: LedgerItem['propertyType'];
+  availability?: LedgerItem['availability'];
   photoUrls?: string[];
   sector?: string | null;
   houseNo?: string | null;
@@ -42,9 +52,12 @@ interface InventoryWhatsAppDialogProps {
 
 export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName = 'Broker', brokerFirm = '' }: InventoryWhatsAppDialogProps) {
   const { user } = useAuth();
-  const crmAllowed = user?.role === 'BROKER_ADMIN' || user?.role === 'BROKER_AGENT';
+  const crmAllowed =
+    user?.role === 'BROKER_ADMIN' ||
+    user?.role === 'BROKER_AGENT' ||
+    (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'view') && hasDelegatedAccess(user, 'inbox', 'view', 'send'));
   const owner = useRef(captureAccountContext());
-  const [templateType, setTemplateType] = useState<'owner' | 'client'>('owner');
+  const [templateType, setTemplateType] = useState<'owner' | 'client'>('client');
   const [customText, setCustomText] = useState('');
   const [includePhotos, setIncludePhotos] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -57,6 +70,10 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
   const generateMessage = useCallback(
     (type: 'owner' | 'client') => {
       if (!item) return '';
+      const identity = [brokerName, brokerFirm].filter(Boolean).join(' · ');
+      if (type === 'client') {
+        return clientPropertyShare(item, identity) + '\n\nInterested in scheduling a site visit? Reply to this message or call directly.';
+      }
       const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : "Sir/Ma'am";
       const bhkStr = item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : '';
       const floorStr = item.floor ? floorLabel(item.floor) : '';
@@ -64,24 +81,8 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
       const price = item.purpose === 'SALE' ? item.totalSalePrice : item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : null;
       const priceStr = price != null ? formatINR(price) : 'Price not recorded';
       const transaction = item.purpose === 'SALE' ? 'Sale' : item.purpose === 'RENT' ? 'Rent' : 'Transaction not recorded';
-      const identity = [brokerName, brokerFirm].filter(Boolean).join(' · ');
       const houseStr = item.houseNo && item.houseNo !== '--' ? `House No. ${item.houseNo}` : 'Property';
-      const furnStr = item.furnishing ? item.furnishing.replace(/_/g, ' ').toLowerCase() : 'standard';
-
-      if (type === 'owner') {
-        return `Namaste ${owner}, I am ${identity}. Regarding your property in ${item.sector || 'locality not recorded'} ${houseStr} (${configStr}, ${transaction}: ${priceStr}), is it currently available for deal/visit? Please let me know suitable time for client site visit.`;
-      } else {
-        return (
-          `🏠 *Property in ${item.sector || 'locality not recorded'}*\n` +
-          `• Unit: ${houseStr}\n` +
-          (configStr ? `• Configuration: ${configStr}\n` : '') +
-          (item.furnishing ? `• Furnishing: ${furnStr}\n` : '') +
-          `• ${transaction}: ${priceStr}\n` +
-          (item.tenantPreference ? `• Suitable for: ${item.tenantPreference}\n` : '') +
-          `• Contact: ${identity}\n\n` +
-          `Interested in scheduling a site visit? Reply to this message or call directly.`
-        );
-      }
+      return `Namaste ${owner}, I am ${identity}. Regarding your property in ${item.sector || 'locality not recorded'} ${houseStr} (${configStr}, ${transaction}: ${priceStr}), is it currently available for deal/visit? Please let me know suitable time for client site visit.`;
     },
     [item, brokerName, brokerFirm],
   );
@@ -174,7 +175,6 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
           <button
             type="button"
             onClick={() => setTemplateType('client')}
-            disabled={!crmAllowed}
             className={cn(
               'flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition',
               templateType === 'client' ? 'bg-surface shadow text-brand-600' : 'text-muted hover:text-fg',
@@ -187,15 +187,21 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
         {/* Client messages retain the authorized lead/channel trail in internal Inbox. */}
         {templateType === 'client' && (
           <div className="space-y-3">
-            <p className="text-xs text-muted">Choose a CRM lead. Review the message in Inbox before sending.</p>
-            <LeadPicker value={client} onChange={setClient} />
+            {crmAllowed ? (
+              <>
+                <p className="text-xs text-muted">Choose a CRM lead. Review the message in Inbox before sending.</p>
+                <LeadPicker value={client} onChange={setClient} />
+              </>
+            ) : (
+              <p className="text-xs text-muted">Inbox sharing requires lead and message access. You can copy the property message or share the photos.</p>
+            )}
             {!!photos.length && (
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={includePhotos} onChange={(event) => setIncludePhotos(event.target.checked)} />
                   Include property photo links
                 </label>
-                <SharePhotoFilesOnMobile appUrl={`brokeriq://inventory/${encodeURIComponent(item.id)}?share=1`} count={photos.length} />
+                <SharePhotoFilesOnMobile appUrl={`brokeriq://inventory/${encodeURIComponent(item.id)}?share=photos`} count={photos.length} />
               </div>
             )}
             <div className="flex gap-2">

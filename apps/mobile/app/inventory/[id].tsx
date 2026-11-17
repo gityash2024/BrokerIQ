@@ -7,13 +7,23 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { type LedgerItem, floorLabel, inventoryFactGroups, inventoryTitle, inventoryPrice, inventoryNavigation, readableValue } from '@brokeriq/shared';
+import {
+  clientPropertyShare,
+  shareablePropertyPhotoUrls,
+  type LedgerItem,
+  floorLabel,
+  inventoryFactGroups,
+  inventoryTitle,
+  inventoryPrice,
+  inventoryNavigation,
+  readableValue,
+} from '@brokeriq/shared';
 import { api, API_URL, assertAccountContext, authStore, captureAccountContext, errorMessage, uploadUri } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { Txt, Button, ErrorView, Sheet } from '@/ui';
 import { toast } from '@/lib/toast';
-import { propertyShare } from '@/launch/property-card';
+import { SharePhotoFilesButton } from '@/components/share-photo-files-button';
 import { SourceImage } from '@/launch/source-image';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
@@ -48,6 +58,7 @@ export default function PropertyDetail() {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [matchLeadsOpen, setMatchLeadsOpen] = useState(false);
+  const [shareExternally, setShareExternally] = useState(share === 'photos');
   const [shareWithLead, setShareWithLead] = useState(share === '1');
   const [updatingAssignee, setUpdatingAssignee] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -548,7 +559,10 @@ export default function PropertyDetail() {
             <Button
               title="Share using another app"
               variant="secondary"
-              onPress={() => Share.share({ message: propertyShare(item) }).catch((e) => toast.error(errorMessage(e)))}
+              onPress={() => {
+                if (shareablePropertyPhotoUrls(item.photoUrls).length) setShareExternally(true);
+                else void Share.share({ message: clientPropertyShare(item) }).catch((e) => toast.error(errorMessage(e)));
+              }}
             />
             {item.notes && (
               <NativeCard style={{ gap: 8 }}>
@@ -739,8 +753,20 @@ export default function PropertyDetail() {
       </Sheet>
 
       {/* Matching Leads Sheet */}
+      <Sheet open={shareExternally} onClose={() => setShareExternally(false)} title="Share property">
+        {item && shareExternally && (
+          <>
+            {!!shareablePropertyPhotoUrls(item.photoUrls).length && <SharePhotoFilesButton urls={item.photoUrls ?? []} caption={clientPropertyShare(item)} />}
+            <Button
+              title="Share details only"
+              variant="ghost"
+              onPress={() => void Share.share({ message: clientPropertyShare(item) }).catch((error) => toast.error(errorMessage(error)))}
+            />
+          </>
+        )}
+      </Sheet>
       <Sheet open={shareWithLead} onClose={() => setShareWithLead(false)} title="Share with CRM lead">
-        {shareWithLead && item && <InventoryLeadShare message={propertyShare(item)} photoUrls={item.photoUrls} />}
+        {shareWithLead && item && <InventoryLeadShare message={clientPropertyShare(item)} photoUrls={item.photoUrls} />}
       </Sheet>
       <Sheet open={matchLeadsOpen} onClose={() => setMatchLeadsOpen(false)} title="Matching Buyer Leads">
         <View style={{ gap: 14, paddingBottom: 20 }}>

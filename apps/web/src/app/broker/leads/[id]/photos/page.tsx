@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Share2 } from 'lucide-react';
-import { hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, visitInventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import { clientPropertyShare, hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, type LedgerItem } from '@brokeriq/shared';
 import { PropertyMedia } from '@/components/broker/launch/property-media';
 import { SharePhotoFilesOnMobile } from '@/components/broker/share-photo-files-on-mobile';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
@@ -44,7 +44,7 @@ export default function Page() {
     invalidate: [['lead', id], ['leads'], ['kanban'], ['broker-dashboard']],
     onSuccess: () => setShareOpen(false),
   });
-  const title = property ? String(visitInventoryTitle(property)) : '';
+  const title = property ? clientPropertyShare(property) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);
   const draft = propertyPhotoDraft(title, photos);
   const beforeVisit =

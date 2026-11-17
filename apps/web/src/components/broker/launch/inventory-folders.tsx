@@ -30,27 +30,10 @@ import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
 import { InventoryEntryActions } from './inventory-entry-actions';
 import { InventoryTabs } from './inventory-tabs';
+import { AvailabilitySwitch } from './inventory-status-actions';
 
 const initial = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 const inputClass = 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm';
-
-function AvailabilitySwitch({ active, label, disabled, onToggle }: { active: boolean; label: string; disabled?: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={active}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onToggle}
-      className="grid h-11 min-w-14 shrink-0 place-items-center rounded-lg focus-visible:outline-2 focus-visible:outline-brand-600 disabled:opacity-60"
-    >
-      <span className="relative h-8 w-14 rounded-lg border border-line bg-surface-2 shadow-inner">
-        <span className={`absolute top-1 h-6 w-6 rounded-md shadow-sm transition-all ${active ? 'left-1 bg-brand-600' : 'left-7 bg-surface'}`} />
-      </span>
-    </button>
-  );
-}
 
 export function InventoryFoldersPage() {
   const router = useRouter();
