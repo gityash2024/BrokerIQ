@@ -2,7 +2,6 @@ import { floorLabel, inventoryTitle, inventoryPrice, readableValue, formatINR, h
 import { Image } from 'expo-image';
 import { View, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
   Phone,
@@ -22,7 +21,7 @@ import {
 import { useTheme } from '@/lib/theme';
 import { Txt } from '@/ui';
 import { toast } from '@/lib/toast';
-import { api, errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
 import { NativeCard } from './screen';
 import { useAuth } from '@/lib/auth';
 
@@ -45,7 +44,6 @@ export function propertyShare(item: LedgerItem) {
 export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; selected?: boolean; onSelect?: () => void }) {
   const { c } = useTheme();
   const { user } = useAuth();
-  const qc = useQueryClient();
   const phone = item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone;
 
   // Check if inventory is stale (>7 days since update/verification)
@@ -55,20 +53,6 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
     const diffDays = (Date.now() - dateToCheck.getTime()) / (1000 * 60 * 60 * 24);
     return diffDays > 7;
   })();
-
-  async function quickConfirmAvailable() {
-    try {
-      await api(`/inventory/${item.id}`, {
-        method: 'PATCH',
-        body: { availability: 'AVAILABLE', expectedRevision: item.revision },
-      });
-      await qc.invalidateQueries({ queryKey: ['ledger'] });
-      await qc.invalidateQueries({ queryKey: ['ledger-stats'] });
-      toast.success('Availability confirmed');
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }
 
   const cleanPhone = phone ? phone.replace(/\D/g, '').slice(-10) : '';
 
@@ -241,7 +225,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
 
           {isStale && hasDelegatedAccess(user, 'inventory', 'edit') && (
             <Pressable
-              onPress={quickConfirmAvailable}
+              onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -256,7 +240,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
             >
               <Clock size={12} color="#F59E0B" />
               <Txt v="caption" style={{ color: '#F59E0B', fontWeight: '700', fontSize: 11 }}>
-                Unverified &gt;7d · Tap to Confirm
+                Unverified &gt;7d · Review availability
               </Txt>
             </Pressable>
           )}

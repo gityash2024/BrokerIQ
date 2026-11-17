@@ -67,7 +67,9 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
     mode === 'new'
       ? 'Add property'
       : mode === 'edit'
-        ? 'Edit property'
+        ? makeAvailable
+          ? 'Review property availability'
+          : 'Edit property'
         : mode === 'publish'
           ? 'Publish / review property'
           : item
@@ -153,9 +155,10 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                 <PropertyForm
                   key={item?.id ?? organizationId}
                   initial={item ?? (superAdmin ? { organizationId } : makeAvailable ? { purpose: 'RENT', ...defaults } : {})}
-                  activateInMonth={makeAvailable ? folderMonth : undefined}
+                  activateInMonth={makeAvailable ? (item?.availability === 'AVAILABLE' ? (item.directoryMonth ?? folderMonth) : folderMonth) : undefined}
                   markRented={makeRented}
-                  label={makeRented ? 'Save as rented out' : undefined}
+                  requireAvailability={mode === 'edit' && makeAvailable}
+                  label={makeRented ? 'Save as rented out' : mode === 'edit' && makeAvailable ? 'Confirm availability' : undefined}
                   onDirty={() => setDirty(true)}
                   onSave={async (input) => {
                     const created = await api<LedgerItem>(item ? `/inventory/${item.id}` : '/inventory', {

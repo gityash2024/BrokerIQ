@@ -566,6 +566,17 @@ export class InventoryService {
       const removed = missingInventoryFolderFields(effective).filter((field) => !priorMissing.has(field));
       if (removed.length) throw new BadRequestException(`Verified properties need: ${removed.join(', ')}`);
     }
+    const availability = data.availability ?? previous?.availability;
+    if (input.availableSince !== undefined && availability !== 'AVAILABLE') delete data.availableSince;
+    if (
+      availability === 'AVAILABLE' &&
+      previous?.availability === 'AVAILABLE' &&
+      previous?.availableSince &&
+      input.availableSince !== undefined &&
+      input.availableSince !== previous.availableSince
+    ) {
+      throw new BadRequestException('Available since is fixed while this property is available.');
+    }
     if (data.availability === 'AVAILABLE' && previous?.availability !== 'AVAILABLE' && input.availableSince == null) {
       const today = inventoryDate();
       const folderStart = input.directoryMonth ? `${input.directoryMonth}-01` : today;

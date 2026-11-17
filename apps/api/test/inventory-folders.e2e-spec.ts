@@ -230,11 +230,19 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       .expect(200)
       .expect(({ body }) => expect(body.availableSince).toBe(date));
     const original = await db.inventoryItem.findUniqueOrThrow({ where: { id: available.id } });
+    for (const availableSince of [null, `${current}-01`]) {
+      await api()
+        .patch('/api/inventory/' + available.id)
+        .set(headers(delegate))
+        .send({ availableSince, expectedRevision: original.revision })
+        .expect(400);
+    }
     await api()
       .patch('/api/inventory/' + available.id)
       .set(headers(delegate))
       .send({ availability: 'RENTED', status: 'RENTED', expectedRevision: original.revision })
-      .expect(200);
+      .expect(200)
+      .expect(({ body }) => expect(body.availableSince).toBe(date));
     const empty = (await api().get('/api/inventory/folders').query(query).set(headers(agent)).expect(200)).body;
     expect(empty.folders).toEqual([{ key: current, label: inventoryMonthLabel(current), count: 0 }]);
     const reactivated = (
@@ -245,5 +253,16 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
         .expect(200)
     ).body;
     expect(reactivated.availableSince).toBe(inventoryDate());
+    await api()
+      .patch('/api/inventory/' + available.id)
+      .set(headers(delegate))
+      .send({ availability: 'RENTED', status: 'RENTED', expectedRevision: reactivated.revision })
+      .expect(200);
+    await api()
+      .patch('/api/inventory/' + available.id)
+      .set(headers(delegate))
+      .send({ directoryMonth: current, availableSince: `${current}-01`, monthlyRent: 33000 })
+      .expect(200)
+      .expect(({ body }) => expect(body).toMatchObject({ availableSince: `${current}-01`, monthlyRent: 33000 }));
   });
 });

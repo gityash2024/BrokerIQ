@@ -5,6 +5,8 @@ import {
   INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
   prepareInventoryEditorInput,
   inventoryEditorPatch,
+  inventoryDateSchema,
+  inventoryDateLabel,
   inventoryMonth,
   inventoryMonthSchema,
   missingInventoryFolderFields,
@@ -82,6 +84,9 @@ export function PropertyForm({
   });
   const [activate, setActivate] = useState(Boolean(activateInMonth));
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
+  const [availability, setAvailability] = useState(initial.availability ?? 'UNKNOWN');
+  const showAvailabilityDate = !markRented && (activate || availability === 'AVAILABLE');
+  const lockedDate = initial.availability === 'AVAILABLE' ? initial.availableSince : null;
   const [photos, setPhotos] = useState(initial.photoUrls ?? []);
   const [videos, setVideos] = useState(initial.videoUrls ?? []);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -114,6 +119,14 @@ export function PropertyForm({
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
     try {
+      if (
+        showAvailabilityDate &&
+        !lockedDate &&
+        (activate || initial.availability !== 'AVAILABLE') &&
+        !inventoryDateSchema.safeParse(values.availableSince).success
+      ) {
+        throw new Error('Choose the date this property became available.');
+      }
       if (activate) {
         if (!inventoryMonthSchema.safeParse(values.directoryMonth).success) throw new Error('Choose the year and month for this property.');
         const missing = missingInventoryFolderFields({ ...initial, ...values });
@@ -166,16 +179,27 @@ export function PropertyForm({
           )}
         </div>
       )}
-      {!markRented && (activate || initial.availability === 'AVAILABLE') && (
-        <label className="block max-w-xs text-xs font-semibold text-muted">
-          Available since
-          <input
-            name="availableSince"
-            type="date"
-            defaultValue={initial.availability === 'AVAILABLE' ? (initial.availableSince ?? '') : ''}
-            className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-          />
-        </label>
+      {activate && <p className="text-sm text-muted">Review the details below before making this property available.</p>}
+      {showAvailabilityDate && (
+        <div className="max-w-sm">
+          {lockedDate ? (
+            <>
+              <p className="text-xs font-semibold text-muted">Available since</p>
+              <p className="mt-1 text-sm font-semibold">{inventoryDateLabel(lockedDate)}</p>
+              <p className="mt-1 text-xs text-muted">This date stays fixed while the property is available.</p>
+            </>
+          ) : (
+            <label className="block text-xs font-semibold text-muted">
+              Available since
+              <input
+                name="availableSince"
+                type="date"
+                required={activate || initial.availability !== 'AVAILABLE'}
+                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+              />
+            </label>
+          )}
+        </div>
       )}
       <p className="section-kicker">Property & pricing</p>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -222,7 +246,10 @@ export function PropertyForm({
               )[name] ?? name}
               <select
                 name={name}
-                onChange={name === 'purpose' ? (e) => setPurpose(e.target.value) : undefined}
+                onChange={(event) => {
+                  if (name === 'purpose') setPurpose(event.target.value);
+                  if (name === 'availability') setAvailability(event.target.value as typeof availability);
+                }}
                 defaultValue={(initial as any)[name] ?? (name === 'availability' ? 'UNKNOWN' : name === 'status' ? 'DRAFT' : '')}
                 className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
               >

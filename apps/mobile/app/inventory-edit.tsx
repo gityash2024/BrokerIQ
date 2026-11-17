@@ -9,6 +9,9 @@ import {
   inventoryInputSchema,
   prepareInventoryEditorInput,
   inventoryEditorPatch,
+  inventoryDate,
+  inventoryDateLabel,
+  inventoryDateSchema,
   inventoryMonth,
   inventoryMonthSchema,
   inventoryFolderDefaults,
@@ -23,6 +26,7 @@ import { toast } from '@/lib/toast';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { NativePropertyExtras } from '@/launch/property-extras';
 import { ChoiceField } from '@/launch/form';
+import { DateTimeField } from '@/components/date-time-field';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -47,6 +51,7 @@ export default function InventoryEditor() {
   const defaultFolder = inventoryMonthSchema.safeParse(directoryMonth);
   const selectedMonth = defaultFolder.success ? defaultFolder.data : inventoryMonth();
   const markRented = Boolean(id && makeRented === '1');
+  const availabilityReview = Boolean(id && makeAvailable === '1' && !markRented);
   const directoryEnabled = makeAvailable === '1' || (!id && !requestedDraft);
   const { user } = useAuth();
   const { c } = useTheme();
@@ -76,6 +81,8 @@ export default function InventoryEditor() {
   const baseline = useRef<Record<string, any> | null>(null);
   const kind = id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
   const key = id ?? 'new-property';
+  const lockedDate = baseline.current?.availability === 'AVAILABLE' ? baseline.current.availableSince : null;
+  const showAvailabilityDate = !markRented && (form._activateInDirectory || form.availability === 'AVAILABLE');
 
   useEffect(() => {
     let active = true;
@@ -102,13 +109,13 @@ export default function InventoryEditor() {
           baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
           setForm({
             ...initial,
-            ...(makeAvailable === '1' && initial.availability !== 'AVAILABLE' && !draft ? { availableSince: null } : {}),
+            ...(initial.availability !== 'AVAILABLE' && !draft ? { availableSince: null } : {}),
             monthlyRent: initial.monthlyRent ?? (initial.purpose === 'RENT' ? initial.rent : undefined),
             ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}),
             ...(directoryEnabled
               ? {
-                  directoryMonth: draft && initial.directoryMonth ? initial.directoryMonth : selectedMonth,
-                  _activateInDirectory: initial._activateInDirectory ?? true,
+                  directoryMonth: (draft || initial.availability === 'AVAILABLE') && initial.directoryMonth ? initial.directoryMonth : selectedMonth,
+                  _activateInDirectory: availabilityReview || (initial._activateInDirectory ?? true),
                 }
               : {}),
           });
@@ -122,7 +129,7 @@ export default function InventoryEditor() {
     return () => {
       active = false;
     };
-  }, [id, kind, key, requestedDraft, user?.id, startSeparate, directoryEnabled, folderRoom, furnishing, selectedMonth]);
+  }, [id, kind, key, requestedDraft, user?.id, startSeparate, directoryEnabled, availabilityReview, folderRoom, furnishing, selectedMonth]);
   function persist(next: Record<string, any>) {
     setDraftStatus('Saving draft…');
     writes.current = writes.current
@@ -147,6 +154,15 @@ export default function InventoryEditor() {
     Keyboard.dismiss();
     try {
       const effective = { ...form };
+      if (
+        showAvailabilityDate &&
+        !lockedDate &&
+        (form._activateInDirectory || baseline.current?.availability !== 'AVAILABLE') &&
+        !inventoryDateSchema.safeParse(form.availableSince).success
+      ) {
+        throw new Error('Choose the date this property became available.');
+      }
+      if (!showAvailabilityDate || lockedDate) delete effective.availableSince;
       if (!markRented && form._activateInDirectory) {
         if (!inventoryMonthSchema.safeParse(form.directoryMonth).success) throw new Error('Choose the year and month for this property.');
         const missing = missingInventoryFolderFields(effective);
@@ -201,7 +217,11 @@ export default function InventoryEditor() {
     />
   );
   return (
-    <BrokerScreen title={id ? 'Edit property' : 'Add property'} subtitle="Missing fields can stay unknown." back>
+    <BrokerScreen
+      title={availabilityReview ? 'Review property availability' : id ? 'Edit property' : 'Add property'}
+      subtitle={availabilityReview ? 'Review the saved details and confirm when this property became available.' : 'Missing fields can stay unknown.'}
+      back
+    >
       <View style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 14, paddingBottom: 30 }}>
           <Txt v="caption" color="muted">
@@ -210,17 +230,19 @@ export default function InventoryEditor() {
           {markRented && <Txt color="muted">Check the property details. Saving as rented out withdraws its public listing.</Txt>}
           {!markRented && (directoryEnabled || form._activateInDirectory) && (
             <NativeCard style={{ gap: 10 }}>
-              <Row gap={10}>
-                <Txt v="bodyStrong" style={{ flex: 1 }}>
-                  Make available
-                </Txt>
-                <Switch
-                  accessibilityLabel="Make property available"
-                  value={!!form._activateInDirectory}
-                  disabled={!ready || saving}
-                  onValueChange={(value) => change('_activateInDirectory', value)}
-                />
-              </Row>
+              {!availabilityReview && (
+                <Row gap={10}>
+                  <Txt v="bodyStrong" style={{ flex: 1 }}>
+                    Make available
+                  </Txt>
+                  <Switch
+                    accessibilityLabel="Make property available"
+                    value={!!form._activateInDirectory}
+                    disabled={!ready || saving}
+                    onValueChange={(value) => change('_activateInDirectory', value)}
+                  />
+                </Row>
+              )}
               {form._activateInDirectory && (
                 <Input
                   label="Inventory year and month (YYYY-MM)"
@@ -232,15 +254,29 @@ export default function InventoryEditor() {
               )}
             </NativeCard>
           )}
-          {!markRented && (form._activateInDirectory || form.availability === 'AVAILABLE') && (
-            <Input
-              label="Available since (YYYY-MM-DD)"
-              value={form.availableSince ?? ''}
-              maxLength={10}
-              placeholder="YYYY-MM-DD"
-              editable={ready && !saving}
-              onChangeText={(value) => change('availableSince', value || null)}
-            />
+          {showAvailabilityDate && (
+            <NativeCard style={{ gap: 8 }}>
+              <Txt v="bodyStrong">Available since</Txt>
+              {lockedDate ? (
+                <>
+                  <Txt>{inventoryDateLabel(lockedDate)}</Txt>
+                  <Txt v="caption" color="muted">
+                    This date stays fixed while the property is available.
+                  </Txt>
+                </>
+              ) : ready && !saving ? (
+                <>
+                  <DateTimeField
+                    dateOnly
+                    value={form.availableSince ? new Date(`${form.availableSince}T12:00:00`) : null}
+                    onChange={(chosen) =>
+                      change('availableSince', chosen ? inventoryDate(new Date(Date.UTC(chosen.getFullYear(), chosen.getMonth(), chosen.getDate()))) : null)
+                    }
+                  />
+                  <Button title="Use today" variant="ghost" size="sm" onPress={() => change('availableSince', inventoryDate())} />
+                </>
+              ) : null}
+            </NativeCard>
           )}
           <NativeCard style={{ gap: 14 }}>
             <Txt v="h3">Location</Txt>
@@ -420,10 +456,19 @@ export default function InventoryEditor() {
               setStartSeparate(true);
             }}
           />
-          {error && <Txt color="danger">{error}</Txt>}
         </ScrollView>
-        <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
-          <Button title={markRented ? 'Save as rented out' : 'Save property'} loading={saving} disabled={!ready || uploading} onPress={save} />
+        <View style={{ gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
+          {error && (
+            <Txt color="danger" accessibilityRole="alert">
+              {error}
+            </Txt>
+          )}
+          <Button
+            title={markRented ? 'Save as rented out' : availabilityReview ? 'Confirm availability' : 'Save property'}
+            loading={saving}
+            disabled={!ready || uploading}
+            onPress={save}
+          />
         </View>
       </View>
     </BrokerScreen>
