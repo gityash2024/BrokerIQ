@@ -51,9 +51,9 @@ test('inventory sections preserve separate folder and full-data entry points and
   const group = brokerWorkspaceGroups(defaultModulePolicies(), 'BROKER_ADMIN').find((entry) => entry.key === 'inventory');
   assert.deepEqual(
     group?.links.map((link) => link.label),
-    ['All Properties', 'All Data', 'Publication Review', 'Publish Listing', 'Scan / WhatsApp Import'],
+    ['Available Inventory', 'All Inventory', 'Publication Review', 'Publish Listing', 'Scan / WhatsApp Import'],
   );
-  assert.equal(group?.links.find((link) => link.label === 'All Data')?.nativeHref, '/inventory?view=ledger');
+  assert.equal(group?.links.find((link) => link.label === 'All Inventory')?.nativeHref, '/inventory?view=ledger');
   assert.ok(
     !brokerWorkspaceGroups(defaultModulePolicies(), 'BROKER_ADMIN')
       .flatMap((entry) => entry.links)

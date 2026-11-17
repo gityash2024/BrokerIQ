@@ -1,3 +1,4 @@
+import { inventoryDateLabel, inventoryDateSchema } from './inventory-folders';
 import type { LedgerItem } from './inventory';
 import { PROPERTY_FIELDS } from './property-fields';
 import { floorLabel } from './design';
@@ -42,6 +43,10 @@ export function inventoryFactGroups(item: LedgerItem) {
   add('Location & configuration', 'Rooms', item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : item.roomKind === 'STUDIO' ? 'Studio' : null);
   add('Location & configuration', 'Furnishing', item.furnishing && readableValue(item.furnishing));
   add('Location & configuration', 'Area', item.area != null ? `${item.area} ${item.areaUnit?.replace(/_/g, ' ').toLowerCase() ?? ''}` : null);
+  if (item.availability === 'AVAILABLE') {
+    const since = inventoryDateSchema.safeParse(item.availableSince);
+    add('Price & terms', 'Available since', since.success ? inventoryDateLabel(since.data) : 'Not recorded');
+  }
   add('Price & terms', 'Transaction', item.purpose && readableValue(item.purpose));
   add('Price & terms', 'Monthly rent', item.monthlyRent != null ? formatINR(item.monthlyRent) : null);
   add('Price & terms', 'Sale price', item.totalSalePrice != null ? formatINR(item.totalSalePrice) : null);

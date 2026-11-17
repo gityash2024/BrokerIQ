@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { INVENTORY_PROPERTY_TYPES, propertyDetailsSchema, preparePropertyDetails } from './property-fields';
 import { normalizeIndianPhone } from './utils';
 import { directionsLinkSchema } from './map-directions';
-import { inventoryFolderModeSchema, inventoryMonthSchema } from './inventory-folders';
+import { inventoryDateSchema, inventoryFolderModeSchema, inventoryMonthSchema } from './inventory-folders';
 
 const text = z.string().trim().max(200).nullable().optional();
 const money = z.number().finite().nonnegative().max(1e13).nullable().optional();
@@ -52,6 +52,7 @@ export const inventoryInputSchema = z
     houseNo: text,
     directionsUrl: directionsLinkSchema.nullable().optional(),
     directoryMonth: inventoryMonthSchema.optional(),
+    availableSince: inventoryDateSchema.nullable().optional(),
     address: z.string().max(1000).nullable().optional(),
     unitLabel: text,
     ownerName: text,
@@ -96,6 +97,7 @@ export const inventoryInputSchema = z
 export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const inventoryFilterSchema = z.object({
   folderMode: inventoryFolderModeSchema.optional(),
+  currentInventory: z.literal('true').optional(),
   folderYear: z
     .string()
     .regex(/^(?:19|20|21)\d{2}$/)

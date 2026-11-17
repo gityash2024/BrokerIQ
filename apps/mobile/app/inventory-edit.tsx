@@ -102,6 +102,7 @@ export default function InventoryEditor() {
           baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
           setForm({
             ...initial,
+            ...(makeAvailable === '1' && initial.availability !== 'AVAILABLE' && !draft ? { availableSince: null } : {}),
             monthlyRent: initial.monthlyRent ?? (initial.purpose === 'RENT' ? initial.rent : undefined),
             ...(id ? { id, expectedRevision: initial.expectedRevision ?? initial.revision } : {}),
             ...(directoryEnabled
@@ -230,6 +231,16 @@ export default function InventoryEditor() {
                 />
               )}
             </NativeCard>
+          )}
+          {!markRented && (form._activateInDirectory || form.availability === 'AVAILABLE') && (
+            <Input
+              label="Available since (YYYY-MM-DD)"
+              value={form.availableSince ?? ''}
+              maxLength={10}
+              placeholder="YYYY-MM-DD"
+              editable={ready && !saving}
+              onChangeText={(value) => change('availableSince', value || null)}
+            />
           )}
           <NativeCard style={{ gap: 14 }}>
             <Txt v="h3">Location</Txt>

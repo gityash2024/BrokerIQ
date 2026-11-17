@@ -59,8 +59,8 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
       key: 'inventory',
       label: 'Inventory',
       links: [
-        { label: 'All Properties', href: '/broker/inventory', nativeHref: '/inventory', module: 'inventory' },
-        { label: 'All Data', href: '/broker/inventory/data', nativeHref: '/inventory?view=ledger', module: 'inventory' },
+        { label: 'Available Inventory', href: '/broker/inventory', nativeHref: '/inventory', module: 'inventory' },
+        { label: 'All Inventory', href: '/broker/inventory/data', nativeHref: '/inventory?view=ledger', module: 'inventory' },
         { label: 'Publication Review', href: '/broker/publications', nativeHref: '/publication-reviews', module: 'inventory', adminOnly: true },
         { label: 'Publish Listing', href: '/broker/listings', nativeHref: '/inventory-listings', module: 'consumer' },
         { label: 'Scan / WhatsApp Import', href: '/broker/imports?target=INVENTORY', nativeHref: '/capture?target=INVENTORY', module: 'inbox' },

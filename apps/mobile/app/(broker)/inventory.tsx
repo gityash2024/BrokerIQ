@@ -22,6 +22,7 @@ import { NativeInventoryFolders } from '@/launch/inventory-folders';
 
 const initial = {
   folderMode: '',
+  currentInventory: '',
   folderYear: '',
   folderMonth: '',
   folderRoom: '',
@@ -126,7 +127,7 @@ function InventoryLedger() {
 
   return (
     <BrokerScreen
-      title="All Data"
+      title="All Inventory"
       subtitle={stats.data ? `${stats.data.total} records · ${stats.data.available} available` : 'Property ledger'}
       action={
         hasDelegatedAccess(user, 'inventory', 'create') ? (

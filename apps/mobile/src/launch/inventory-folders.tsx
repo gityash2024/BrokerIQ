@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
@@ -6,7 +6,8 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { CalendarDays, Folder, Plus } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
-  inventoryMonth,
+  inventoryDate,
+  inventoryDateLabel,
   inventoryPrice,
   inventoryTitle,
   readableValue,
@@ -24,7 +25,6 @@ import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { Button, Chip, ErrorView, Input, Row, Segmented, Sheet, Txt } from '@/ui';
 import { BrokerScreen, NativeCard } from './screen';
-import { ChoiceField } from './form';
 import { NativeInventoryTabs } from './inventory-tabs';
 
 const initialFilters = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
@@ -39,10 +39,15 @@ export function NativeInventoryFolders() {
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
-  const current = inventoryMonth();
-  const [year, setYear] = useState(current.slice(0, 4));
+  const [today, setToday] = useState(inventoryDate);
+  const current = today.slice(0, 7);
+  useEffect(() => {
+    const timer = setInterval(() => setToday(inventoryDate()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
   const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
-  const [path, setPath] = useState<InventoryFolder[]>([]);
+  const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
+  const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useState('');
   const [openFilters, setOpenFilters] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
@@ -55,20 +60,21 @@ export function NativeInventoryFolders() {
     dateFrom: normalizeDate(filters.dateFrom),
     dateTo: normalizeDate(filters.dateTo, true),
     folderMode: mode,
+    currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
     ...(term
       ? {}
       : mode === 'AVAILABLE'
-        ? { folderYear: year, folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
+        ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
         : { folderSector: path[0]?.key }),
   };
   const leaf = Boolean(term) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const folders = useQuery({
-    queryKey: ['inventory-folders', user?.id, query],
+    queryKey: ['inventory-folders', user?.id, today, query],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs(query)}`),
     enabled: !!user,
   });
   const records = useInfiniteQuery({
-    queryKey: ['inventory-folder-items', user?.id, query],
+    queryKey: ['inventory-folder-items', user?.id, today, query],
     queryFn: ({ pageParam }) => api<PagedLedger>(`/inventory${qs({ ...query, page: pageParam, pageSize: 30 })}`),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
@@ -116,7 +122,7 @@ export function NativeInventoryFolders() {
 
   return (
     <BrokerScreen
-      title="All Properties"
+      title="Available Inventory"
       action={
         canCreate ? (
           <Pressable
@@ -161,21 +167,8 @@ export function NativeInventoryFolders() {
               ]}
             />
             <Txt color="muted" v="caption">
-              Browse properties with complete details. Review older or incomplete records in All Data.
+              Browse properties with complete details. Review older or incomplete records in All Inventory.
             </Txt>
-            {mode === 'AVAILABLE' ? (
-              <ChoiceField
-                label="Year"
-                value={year}
-                choices={folders.data?.years ?? [year]}
-                onChange={(value) => {
-                  if (value) {
-                    setYear(value);
-                    setPath([]);
-                  }
-                }}
-              />
-            ) : null}
             <Row gap={8}>
               <Input
                 accessibilityLabel="Search inventory"
@@ -195,7 +188,7 @@ export function NativeInventoryFolders() {
               />
             </Row>
             <Row gap={5} wrap>
-              <Chip label={mode === 'AVAILABLE' ? year : readableValue(mode)} onPress={() => setPath([])} />
+              <Chip label={mode === 'AVAILABLE' ? 'Current month' : readableValue(mode)} onPress={() => setPath([])} />
               {path.map((folder, index) => (
                 <Chip key={folder.key} label={folder.label} onPress={() => setPath(path.slice(0, index + 1))} />
               ))}
@@ -239,6 +232,11 @@ export function NativeInventoryFolders() {
                   />
                 )}
               </Row>
+              {mode === 'AVAILABLE' && (
+                <Txt v="caption" color="muted">
+                  Available since: {item.availableSince ? inventoryDateLabel(item.availableSince) : 'Not recorded'}
+                </Txt>
+              )}
             </NativeCard>
           ) : (
             <NativeCard onPress={() => setPath([...path, item])}>

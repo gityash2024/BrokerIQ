@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { inventoryDate, inventoryMonth, inventoryMonthLabel } from '@brokeriq/shared';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -177,5 +178,72 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     }
     const denied = await api().get('/api/visits?paginated=true&upcoming=true&directions=true').set(headers(outsider)).expect(200);
     expect(denied.body.items.find(({ id }: { id: string }) => id === visit.id)).toBeUndefined();
+  });
+
+  it('shows only the current month and carries complete active stock forward without changing its original availability date', async () => {
+    const now = new Date();
+    const current = inventoryMonth(now);
+    const past = inventoryMonth(new Date(now.getTime() - 45 * 86400_000));
+    const future = inventoryMonth(new Date(now.getTime() + 45 * 86400_000));
+    const houseNo = 'carry-forward-' + stamp;
+    const date = `${past}-01`;
+    const available = (
+      await api()
+        .post('/api/inventory')
+        .set(headers(agent))
+        .send({ ...unit, houseNo, directoryMonth: past, availableSince: date })
+        .expect(201)
+    ).body;
+    const upcoming = (
+      await api()
+        .post('/api/inventory')
+        .set(headers(agent))
+        .send({ ...unit, houseNo: houseNo + '-future', directoryMonth: future })
+        .expect(201)
+    ).body;
+    expect(upcoming.availableSince).toBe(`${future}-01`);
+    const query = { folderMode: 'AVAILABLE', currentInventory: 'true', search: houseNo };
+    for (const token of [admin, agent, delegate]) {
+      const folders = (await api().get('/api/inventory/folders').query(query).set(headers(token)).expect(200)).body;
+      expect(folders.folders).toEqual([{ key: current, label: inventoryMonthLabel(current), count: 1 }]);
+      const nested = (
+        await api()
+          .get('/api/inventory/folders')
+          .query({ ...query, folderMonth: current })
+          .set(headers(token))
+          .expect(200)
+      ).body;
+      expect(nested.folders).toEqual([{ key: 'BHK:2', label: '2 BHK', count: 1 }]);
+      const leaf = (
+        await api()
+          .get('/api/inventory')
+          .query({ ...query, folderMonth: current, folderRoom: 'BHK:2', folderFurnishing: 'SEMI_FURNISHED' })
+          .set(headers(token))
+          .expect(200)
+      ).body;
+      expect(leaf.items).toEqual([expect.objectContaining({ id: available.id, directoryMonth: past, availableSince: date, revision: available.revision })]);
+    }
+    await api()
+      .patch('/api/inventory/' + available.id)
+      .set(headers(delegate))
+      .send({ availability: 'AVAILABLE', expectedRevision: available.revision })
+      .expect(200)
+      .expect(({ body }) => expect(body.availableSince).toBe(date));
+    const original = await db.inventoryItem.findUniqueOrThrow({ where: { id: available.id } });
+    await api()
+      .patch('/api/inventory/' + available.id)
+      .set(headers(delegate))
+      .send({ availability: 'RENTED', status: 'RENTED', expectedRevision: original.revision })
+      .expect(200);
+    const empty = (await api().get('/api/inventory/folders').query(query).set(headers(agent)).expect(200)).body;
+    expect(empty.folders).toEqual([{ key: current, label: inventoryMonthLabel(current), count: 0 }]);
+    const reactivated = (
+      await api()
+        .patch('/api/inventory/' + available.id)
+        .set(headers(agent))
+        .send({ directoryMonth: current })
+        .expect(200)
+    ).body;
+    expect(reactivated.availableSince).toBe(inventoryDate());
   });
 });

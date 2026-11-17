@@ -3,14 +3,26 @@ import { INVENTORY_PROPERTY_TYPES } from './property-fields';
 import type { InventoryInput } from './inventory';
 
 export const inventoryMonthSchema = z.string().regex(/^(?:19|20|21)\d{2}-(?:0[1-9]|1[0-2])$/, 'Choose a year and month');
+export const inventoryDateSchema = z.iso.date();
 export const inventoryFolderModeSchema = z.enum(['AVAILABLE', 'RENTED', 'REVIEW']);
 export type InventoryFolderMode = z.infer<typeof inventoryFolderModeSchema>;
 export type InventoryFolder = { key: string; label: string; count: number };
 export type InventoryFolders = { folders: InventoryFolder[]; years: string[] };
 
+export function inventoryDate(date = new Date()): string {
+  return new Date(date.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+}
+
 export function inventoryMonth(date = new Date()): string {
-  const parts = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }).formatToParts(date);
-  return `${parts.find(({ type }) => type === 'year')?.value}-${parts.find(({ type }) => type === 'month')?.value}`;
+  return inventoryDate(date).slice(0, 7);
+}
+
+export function inventoryMonthLabel(month: string): string {
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`));
+}
+
+export function inventoryDateLabel(date: string): string {
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
 }
 
 type FolderProperty = {

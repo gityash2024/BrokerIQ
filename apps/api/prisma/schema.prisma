@@ -2585,6 +2585,7 @@ model InventoryItem {
   rateAreaUnit       String?
   availability       String    @default("UNKNOWN")
   availabilityAt     DateTime?
+  availableSince     String?   // Local calendar date (YYYY-MM-DD) for the current availability period
   verificationStatus String    @default("NEEDS_REVIEW")
   sourceType         String    @default("MANUAL")
   sourceEntryId      String?

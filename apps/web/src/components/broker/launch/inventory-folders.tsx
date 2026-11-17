@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder, MapPin, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
-  inventoryMonth,
+  inventoryDate,
+  inventoryDateLabel,
   inventoryPrice,
   inventoryTitle,
   readableValue,
@@ -52,12 +53,17 @@ function AvailabilitySwitch({ active, label, disabled, onToggle }: { active: boo
 
 export function InventoryFoldersPage() {
   const router = useRouter();
-  const current = inventoryMonth();
+  const [today, setToday] = useState(inventoryDate);
+  const current = today.slice(0, 7);
+  useEffect(() => {
+    const timer = setInterval(() => setToday(inventoryDate()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [year, setYear] = useState(current.slice(0, 4));
   const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
-  const [path, setPath] = useState<InventoryFolder[]>([]);
+  const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
+  const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(initial);
   const [datesOpen, setDatesOpen] = useState(false);
@@ -67,10 +73,11 @@ export function InventoryFoldersPage() {
   const term = useDebounced(search);
   const shelf = {
     folderMode: mode,
+    currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
     ...(term
       ? {}
       : mode === 'AVAILABLE'
-        ? { folderYear: year, folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
+        ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
         : { folderSector: path[0]?.key }),
   };
   const filter = {
@@ -81,12 +88,12 @@ export function InventoryFoldersPage() {
   };
   const leaf = Boolean(term) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const folders = useQuery({
-    queryKey: ['inventory-folders', user?.id, shelf, filter],
+    queryKey: ['inventory-folders', user?.id, today, shelf, filter],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs({ ...filter, ...shelf })}`),
     enabled: !!user,
   });
   const records = useQuery({
-    queryKey: ['inventory-folder-items', user?.id, shelf, filter, page],
+    queryKey: ['inventory-folder-items', user?.id, today, shelf, filter, page],
     queryFn: () => api<PagedLedger>(`/inventory${qs({ ...filter, ...shelf, page, pageSize: 30 })}`),
     enabled: !!user && leaf,
   });
@@ -133,7 +140,7 @@ export function InventoryFoldersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="All Properties"
+        title="Available Inventory"
         actions={
           canCreate && (
             <Button href={createUrl}>
@@ -160,27 +167,10 @@ export function InventoryFoldersPage() {
           <p className="basis-full text-sm text-muted sm:order-last">
             Browse properties with complete details. Review older or incomplete records in{' '}
             <Link href="/broker/inventory/data" className="font-semibold text-brand-600">
-              All Data
+              All Inventory
             </Link>
             .
           </p>
-          {mode === 'AVAILABLE' && (
-            <label className="ml-auto flex items-center gap-2 text-sm">
-              Year
-              <select
-                className="rounded-lg border border-line bg-surface p-2"
-                value={year}
-                onChange={(event) => {
-                  setYear(event.target.value);
-                  changePath([]);
-                }}
-              >
-                {(folders.data?.years ?? [year]).map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
-            </label>
-          )}
         </div>
         <div className="mt-4 grid grid-cols-2 items-start gap-2 xl:grid-cols-6">
           <label className="relative col-span-2 xl:col-span-2">
@@ -247,7 +237,7 @@ export function InventoryFoldersPage() {
       </div>
       <nav aria-label="Inventory folder path" className="flex flex-wrap items-center gap-2 text-sm">
         <button className="font-semibold text-brand-600" onClick={() => changePath([])}>
-          {mode === 'AVAILABLE' ? year : readableValue(mode)}
+          {mode === 'AVAILABLE' ? 'Current month' : readableValue(mode)}
         </button>
         {path.map((folder, index) => (
           <button className="text-muted hover:text-fg" key={folder.key} onClick={() => changePath(path.slice(0, index + 1))}>
@@ -286,6 +276,9 @@ export function InventoryFoldersPage() {
                     <p className="flex items-center gap-1 text-sm text-muted">
                       <MapPin className="size-3.5 shrink-0" /> {item.sector}
                     </p>
+                    {mode === 'AVAILABLE' && (
+                      <p className="text-sm text-muted">Available since: {item.availableSince ? inventoryDateLabel(item.availableSince) : 'Not recorded'}</p>
+                    )}
                     <p className="text-sm text-muted">
                       {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                     </p>

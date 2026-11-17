@@ -166,6 +166,17 @@ export function PropertyForm({
           )}
         </div>
       )}
+      {!markRented && (activate || initial.availability === 'AVAILABLE') && (
+        <label className="block max-w-xs text-xs font-semibold text-muted">
+          Available since
+          <input
+            name="availableSince"
+            type="date"
+            defaultValue={initial.availability === 'AVAILABLE' ? (initial.availableSince ?? '') : ''}
+            className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+          />
+        </label>
+      )}
       <p className="section-kicker">Property & pricing</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {inputs

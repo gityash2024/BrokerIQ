@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
+import { inventoryDate, inventoryMonth } from '../inventory-folders';
 import { inventoryEditorPatch, inventoryInputSchema, prepareInventoryEditorInput, propertyPhotoDraft, shareablePropertyPhotoUrls } from '../inventory';
 
 const imported = {
@@ -52,6 +53,15 @@ test('unchanged imported records and absent numeric fields never acquire destruc
   assert.deepEqual(prepareInventoryEditorInput({ notes: 'Only this field' }), { notes: 'Only this field' });
 });
 
+test('inventory advances to the next month at midnight in India without rewriting availability dates', () => {
+  assert.equal(inventoryMonth(new Date('2026-11-30T18:29:59Z')), '2026-11');
+  assert.equal(inventoryMonth(new Date('2026-11-30T18:30:00Z')), '2026-12');
+  assert.equal(inventoryDate(new Date('2026-12-31T18:30:00Z')), '2027-01-01');
+  const existing = { ...imported, directoryMonth: '2026-11', availableSince: '2026-10-01' };
+  assert.deepEqual(inventoryEditorPatch({ ...existing, directoryMonth: '2026-12' }, existing), { directoryMonth: '2026-12', expectedRevision: 4 });
+  assert.equal(inventoryInputSchema.safeParse({ availableSince: '2026-11-31' }).success, false);
+});
+
 test('property photo drafts exclude private source links and keep whole public links within the message limit', () => {
   const publicPhoto = 'https://brokeriq.example/api/media/f/listing/org/photo.jpg';
   const privatePhoto = 'https://brokeriq.example/api/media/f/scan/org/private.jpg';
@@ -61,7 +71,6 @@ test('property photo drafts exclude private source links and keep whole public l
   assert.equal(propertyPhotoDraft(message, [privatePhoto, publicPhoto, publicPhoto, alternate], expected.length), expected);
   assert.equal(propertyPhotoDraft(message, [privatePhoto, publicPhoto], expected.length - 1), message);
 });
-
 
 test('photo attachments keep the full ordered set of public images and exclude private media', () => {
   const photos = Array.from({ length: 50 }, (_, index) => `https://brokeriq.example/api/media/f/listing/org/${index}.jpg`);

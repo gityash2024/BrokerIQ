@@ -24,6 +24,7 @@ import { SortableTh } from '@/components/ui/sortable-header';
 
 const initialFilters = {
   folderMode: '',
+  currentInventory: '',
   folderYear: '',
   folderMonth: '',
   folderRoom: '',
@@ -168,7 +169,7 @@ function LedgerInner() {
   return (
     <>
       <PageHeader
-        title={isSuper ? 'All firms · Inventory' : 'All Data'}
+        title={isSuper ? 'All firms · Inventory' : 'All Inventory'}
         subtitle={
           isSuper
             ? undefined
