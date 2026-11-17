@@ -4,6 +4,8 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ModulesContainer, Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { delegableModules, defaultModulePolicies } from '@brokeriq/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
@@ -35,10 +37,17 @@ describe('Every registered HTTP route: declared role denial', () => {
     db = app.get(PrismaService);
     const org = await db.organization.create({ data: { name: 'Isolated route role audit', slug: 'route-roles-' + stamp } });
     orgId = org.id;
-    const launchRoles = env().BROKER_FIRST ? [Role.SUPER_ADMIN, Role.BROKER_ADMIN, Role.BROKER_AGENT, Role.USER] : Object.values(Role);
+    const launchRoles = env().BROKER_FIRST ? [Role.SUPER_ADMIN, Role.BROKER_ADMIN, Role.SUB_BROKER_ADMIN, Role.BROKER_AGENT, Role.USER] : Object.values(Role);
     for (const role of launchRoles) {
       const user = await db.user.create({
-        data: { name: role, email: `${role}.${stamp}@e2e.test`, role, organizationId: ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role) ? org.id : null },
+        data: {
+          name: role,
+          email: `${role}.${stamp}@e2e.test`,
+          role,
+          organizationId: ['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(role) ? org.id : null,
+          delegatedPermissions:
+            role === 'SUB_BROKER_ADMIN' ? delegableModules(defaultModulePolicies()).flatMap((m) => m.actions.map((action) => `${m.key}:${action}`)) : [],
+        },
         include: { organization: true },
       });
       tokens.set(role, (await app.get(AuthService).issue(user)).accessToken);
@@ -163,7 +172,7 @@ describe('Every registered HTTP route: declared role denial', () => {
       const url = '/api' + route.path.replace(/:[A-Za-z0-9_]+/g, 'route-audit-missing');
       for (const [role, token] of tokens) {
         // SUPER_ADMIN is deliberately granted the global override; service-specific checks remain separate.
-        if (role === 'SUPER_ADMIN' || route.roles!.includes(role)) continue;
+        if (role === 'SUPER_ADMIN' || route.roles!.includes(role) || (role === 'SUB_BROKER_ADMIN' && route.roles!.includes('BROKER_ADMIN'))) continue;
         // Independent client IPs preserve real rate limits on low-quota endpoints.
         // The test listener is loopback and configureApp enables the same trusted-proxy boundary.
         const ip = `192.0.${Math.floor(requestIndex / 250)}.${1 + (requestIndex++ % 250)}`;
@@ -188,6 +197,29 @@ describe('Every registered HTTP route: declared role denial', () => {
         recordOwnershipCoverage: 'SEPARATE_SUITES',
         stagingOrDeviceAcceptance: false,
       }),
+    );
+  }, 120_000);
+  it('probes every parameter-free GET with each product role and reports unexpected server failures', async () => {
+    const results: { role: string; method: string; path: string; status: number }[] = [];
+    for (const route of routes.filter((route) => route.method === 'GET' && !route.path.includes(':') && !route.path.includes('*'))) {
+      for (const role of [Role.SUPER_ADMIN, Role.BROKER_ADMIN, Role.SUB_BROKER_ADMIN, Role.BROKER_AGENT, Role.USER]) {
+        const token = tokens.get(role);
+        if (!token) throw Error('Missing audit role ' + role);
+        const i = results.length;
+        const result = await request(app.getHttpServer())
+          .get('/api' + route.path)
+          .set('Authorization', 'Bearer ' + token)
+          .set('X-Forwarded-For', `193.0.${Math.floor(i / 250)}.${1 + (i % 250)}`);
+        results.push({ role, method: route.method, path: route.path, status: result.status });
+      }
+    }
+    if (process.env.BROKERIQ_API_AUDIT_OUTPUT)
+      writeFileSync(process.env.BROKERIQ_API_AUDIT_OUTPUT, JSON.stringify({ routes, staticGetRequests: results }, null, 2));
+    const failures = results.filter((result) => result.status >= 500);
+    expect(failures).toEqual([]);
+    expect(results.length).toBeGreaterThan(100);
+    console.log(
+      JSON.stringify({ category: 'ALL_STATIC_GET_ROLES', registeredRoutes: routes.length, requests: results.length, unexpectedServerErrors: failures.length }),
     );
   }, 120_000);
 });

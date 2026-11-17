@@ -4,6 +4,7 @@ import { PROPERTY_AMENITIES, visiblePropertyFields } from '@brokeriq/shared';
 import { Button, Txt, Input, Chip } from '@/ui';
 import { ChoiceField } from './form';
 import { NativePropertyMedia } from './property-media';
+import { PropertyDateField } from './property-date-field';
 export function NativePropertyExtras({
   value,
   onChange,
@@ -46,7 +47,9 @@ export function NativePropertyExtras({
           </Txt>
           {fields.map((f) => (
             <View key={f.key}>
-              {f.options || f.kind === 'boolean' ? (
+              {['possessionDate', 'availableFrom'].includes(f.key) ? (
+                <PropertyDateField label={f.label} value={details[f.key]} onChange={(date) => change(f.key, date)} />
+              ) : f.options || f.kind === 'boolean' ? (
                 <ChoiceField
                   label={f.label}
                   value={details[f.key] == null ? null : String(details[f.key])}

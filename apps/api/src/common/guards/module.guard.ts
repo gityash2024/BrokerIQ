@@ -46,7 +46,9 @@ export class ModuleGuard implements CanActivate {
       if (path === '/me/uploads/sign') {
         const kind = req.body?.kind;
         if (kind === 'avatar' || kind === 'kyc') return true;
-        permission = kind === 'listing' ? { module: 'inventory', actions: ['edit'] } : null;
+        // Creating a property includes its media; signing an asset does not edit an existing record.
+        const listingAction = (req.delegatedPermissions ?? []).includes('inventory:edit') ? 'edit' : 'create';
+        permission = kind === 'listing' ? { module: 'inventory', actions: [listingAction] } : null;
       }
       if (
         permission &&

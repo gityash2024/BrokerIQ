@@ -99,7 +99,7 @@ export function PropertyForm({
     if (busy || uploading) return;
     setBusy(true);
     setError('');
-    const values: Record<string, any> = Object.fromEntries(new FormData(event.currentTarget));
+    let values: Record<string, any> = Object.fromEntries(new FormData(event.currentTarget));
     const originalDate = initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : '';
     if (values.date) values.date = values.date === originalDate ? initial.date : new Date(`${values.date}T00:00:00+05:30`).toISOString();
     for (const key of Object.keys(values))
@@ -115,7 +115,7 @@ export function PropertyForm({
     ];
     if (isSuper) values.assignedToId = superAssignee || null;
     values.contacts = contacts.filter((c) => c.name || c.phone || c.note || c.role !== 'UNKNOWN');
-    Object.assign(values, prepareInventoryEditorInput(values));
+    values = prepareInventoryEditorInput(values);
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
     try {

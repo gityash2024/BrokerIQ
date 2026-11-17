@@ -85,6 +85,14 @@ export const PROPERTY_FIELDS: PropertyField[] = [
   { key: 'advanceMonths', label: 'Advance rent (months)', group: 'Rental', kind: 'number', min: 0, max: 120 },
   { key: 'lockInMonths', label: 'Lock-in (months)', group: 'Rental', kind: 'number', min: 0, max: 600 },
 ];
+/** Accept unambiguous year-first dates from older app forms; keep invalid dates for validation. */
+export function normalizePropertyDate(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const text = value.trim();
+  const match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(text);
+  return match ? `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}` : text;
+}
+export const propertyDateSchema = z.preprocess(normalizePropertyDate, z.string().date('Choose a valid date (YYYY-MM-DD)'));
 const shape: Record<string, z.ZodType> = {};
 for (const field of PROPERTY_FIELDS) {
   let schema: z.ZodType =
@@ -100,7 +108,7 @@ for (const field of PROPERTY_FIELDS) {
         : field.options
           ? z.enum(field.options as [string, ...string[]])
           : z.string().trim().max(200);
-  if (['possessionDate', 'availableFrom'].includes(field.key)) schema = z.string().date();
+  if (['possessionDate', 'availableFrom'].includes(field.key)) schema = propertyDateSchema;
   shape[field.key] = schema.nullable().optional();
 }
 export const propertyDetailsSchema = z.object(shape).strict();
@@ -149,6 +157,7 @@ export function preparePropertyDetails(value: Record<string, any> = {}) {
   for (const f of PROPERTY_FIELDS) {
     if (result[f.key] === undefined) delete result[f.key];
     else if (result[f.key] === '') result[f.key] = null;
+    else if (['possessionDate', 'availableFrom'].includes(f.key) && result[f.key] != null) result[f.key] = normalizePropertyDate(result[f.key]);
     else if (f.kind === 'number' && result[f.key] != null) result[f.key] = Number(result[f.key]);
   }
   return result;

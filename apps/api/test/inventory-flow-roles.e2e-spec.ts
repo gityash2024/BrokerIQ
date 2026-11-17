@@ -170,4 +170,77 @@ describe('Inventory lifecycle and role boundaries', () => {
     expect(address.exact).toBe(false);
     expect(inventoryNavigation({ sector: complete.sector, directionsUrl: 'javascript:alert(1)' })).toMatchObject({ route: null, exact: false });
   });
+  it.each(['admin', 'agent', 'delegate'])('%s creates, edits and reloads the reported dates and complete details', async (actor) => {
+    const body = {
+      ...complete,
+      organizationId: orgId,
+      houseNo: 'dates-' + actor + stamp,
+      details: {
+        possessionDate: '2026/12/1',
+        availableFrom: '2026/12/01',
+        petFriendly: false,
+        maintenanceMonthly: 0,
+        sourceLayout: 'Two Bedroom Study Room Hall Kitchen',
+        additionalRooms: 1,
+      },
+      videoUrls: ['https://example.test/preserved.mp4'],
+      amenities: ['GYM', 'PARK'],
+    };
+    const created = (await api().post('/api/inventory').set(h(actor)).send(body).expect(201)).body;
+    const path = '/api/inventory/' + created.id;
+    const first = (await api().get(path).set(h(actor)).expect(200)).body;
+    expect(first.details).toMatchObject({ ...body.details, possessionDate: '2026-12-01', availableFrom: '2026-12-01' });
+    await api()
+      .patch(path)
+      .set(h(actor))
+      .send({ details: { ...first.details, availableFrom: '2027/1/2' }, notes: 'Updated without losing photos, videos or contacts' })
+      .expect(200);
+    const saved = (await api().get(path).set(h(actor)).expect(200)).body;
+    expect(saved.details.availableFrom).toBe('2027-01-02');
+    expect(saved.details.petFriendly).toBe(false);
+    expect(saved.details.maintenanceMonthly).toBe(0);
+    expect(saved.photoUrls).toEqual(body.photoUrls);
+    expect(saved.videoUrls).toEqual(body.videoUrls);
+    await api()
+      .patch(path)
+      .set(h(actor))
+      .send({ details: { possessionDate: '2026/2/30' } })
+      .expect(400);
+    expect((await api().get(path).set(h(actor)).expect(200)).body.details.availableFrom).toBe('2027-01-02');
+  });
+  it('lets create-only delegated users upload property media without granting record-edit permission', async () => {
+    const member = await db.user.create({
+      data: {
+        name: 'Create only',
+        email: 'create-only.' + stamp + '@e2e.test',
+        role: 'SUB_BROKER_ADMIN',
+        organizationId: orgId,
+        delegatedPermissions: ['inventory:view', 'inventory:create'],
+      },
+      include: { organization: true },
+    });
+    const token = (await app.get(AuthService).issue(member)).accessToken;
+    const { MediaService } = await import('../src/core/media/media.service');
+    const sign = jest.spyOn(app.get(MediaService), 'sign').mockResolvedValueOnce({
+      provider: 'local',
+      method: 'PUT',
+      uploadUrl: 'https://test.invalid/upload',
+      publicUrl: 'https://test.invalid/file',
+      key: 'listing/test',
+      maxBytes: 1024,
+    } as any);
+    try {
+      await api().post('/api/me/uploads/sign').auth(token, { type: 'bearer' }).send({ kind: 'listing', contentType: 'image/jpeg' }).expect(201);
+      expect(sign).toHaveBeenCalledWith('listing', 'image/jpeg', orgId);
+      const item = await api().post('/api/inventory').auth(token, { type: 'bearer' }).send({ sector: 'Sector 45' }).expect(201);
+      await api()
+        .patch('/api/inventory/' + item.body.id)
+        .auth(token, { type: 'bearer' })
+        .send({ notes: 'Not permitted' })
+        .expect(403);
+      await api().post('/api/me/uploads/sign').set(h('readOnly')).send({ kind: 'listing', contentType: 'image/jpeg' }).expect(403);
+    } finally {
+      sign.mockRestore();
+    }
+  });
 });

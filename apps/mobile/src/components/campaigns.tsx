@@ -195,7 +195,7 @@ export function CampaignEditor() {
     queryFn: () => post<any>('/broker/campaigns/preview', { segment }),
     enabled: true,
   });
-  const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: true && f.channel !== 'EMAIL' });
+  const templates = useQuery({ queryKey: ['wa-templates'], queryFn: () => api<WaTemplate[]>('/whatsapp/templates'), enabled: f.channel !== 'EMAIL' });
   const approved = (templates.data ?? []).filter((t) => !t.status || t.status === 'APPROVED');
   const save = useApiMutation(
     () => {

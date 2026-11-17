@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
+import { File } from 'expo-file-system';
 import { createRequestActivity, isApiErrorBody, type ApiErrorBody, type AuthResponse, type AuthUser } from '@brokeriq/shared';
 import { create } from './store';
 import { queryClient } from './query';
@@ -226,19 +227,22 @@ async function upload(uri: string, kind: string, mime = 'image/jpeg'): Promise<{
   assertOwner();
   const sig = await request<any>('/me/uploads/sign', { body: { kind, contentType: mime }, ownerContext: context });
   assertOwner();
+  // Expo's File implements the byte-backed multipart interface; RN Blob cannot wrap binary arrays.
+  const file = new File(uri);
+  if (!file.size) throw new Error('Selected file is empty. Choose the file again.');
   if (sig.provider === 'cloudinary') {
     const fd = new FormData();
     Object.entries(sig.fields as Record<string, string>).forEach(([k, v]) => fd.append(k, v));
-    fd.append('file', { uri, name: `upload.${mime.split('/')[1] ?? 'jpg'}`, type: mime } as any);
+    fd.append('file', file, `upload.${mime.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin'}`);
     const r = await fetch(sig.uploadUrl, { method: 'POST', body: fd });
     const j = await r.json();
     assertOwner();
     if (!r.ok || !j.secure_url) throw new Error(j?.error?.message ?? 'Upload failed');
     return { url: j.secure_url, publicId: j.public_id };
   }
-  const blob = await (await fetch(uri)).blob();
+  const bytes = await file.bytes();
   assertOwner();
-  const r = await fetch(sig.uploadUrl, { method: 'PUT', headers: sig.headers ?? { 'Content-Type': mime }, body: blob });
+  const r = await fetch(sig.uploadUrl, { method: 'PUT', headers: sig.headers ?? { 'Content-Type': mime }, body: bytes as Uint8Array<ArrayBuffer> });
   if (!r.ok) throw new Error('Upload failed');
   assertOwner();
   return { url: sig.publicUrl };
