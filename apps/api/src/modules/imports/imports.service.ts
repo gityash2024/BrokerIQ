@@ -20,7 +20,8 @@ import { JobsService } from '../../core/jobs/jobs.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { AiService, parseJsonLoose } from '../../core/ai/ai.service';
 import { OcrService, OcrInputError } from './ocr.service';
-import { captureFactsSchema, CAPTURE_FACTS_PROMPT, captureTextParts, factsToEntities } from './capture-ai';
+import { registerContext, previousRegisterPage, queueNextRegisterPage } from './register-context';
+import { captureFactsSchema, CAPTURE_FACTS_PROMPT, REGISTER_LAYOUT_PROMPT, registerPageSector, captureTextParts, factsToEntities } from './capture-ai';
 import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
 import sharp from 'sharp';
@@ -324,26 +325,56 @@ export class ImportsService {
       return null;
     }
   }
-  private async extractPhoto(body: Buffer, contentType: string, text: string, organizationId: string, userId?: string): Promise<CapturedEntity[] | null> {
+  private async extractPhoto(
+    body: Buffer,
+    contentType: string,
+    text: string,
+    organizationId: string,
+    userId?: string,
+    register?: { previousSector: string | null; setSector: (sector: string | null) => void },
+  ): Promise<CapturedEntity[] | null> {
     if (!(await this.ai.isAvailable('vision', 'capture'))) return null;
     try {
+      if (register) {
+        const dimensions = await sharp(body).metadata();
+        if (dimensions.width && dimensions.width < 1400) {
+          body = await sharp(body).resize({ width: 1400 }).jpeg({ quality: 95 }).toBuffer();
+          contentType = 'image/jpeg';
+        }
+      }
       const response = await this.ai.vision(
         `data:${contentType};base64,${body.toString('base64')}`,
-        CAPTURE_FACTS_PROMPT + '\nRead the original photo, using OCR only as secondary evidence. OCR context:\n' + text.slice(0, 20000),
+        CAPTURE_FACTS_PROMPT +
+          REGISTER_LAYOUT_PROMPT +
+          (register?.previousSector
+            ? '\nConfirmed preceding register-page sector: ' + register.previousSector + '. Use until a new printed sector heading.\n'
+            : '') +
+          '\nRead the original photo, using OCR only as secondary evidence. OCR context:\n' +
+          text.slice(0, 20000),
         {
           feature: 'capture',
           orgId: organizationId,
           userId,
           json: true,
-          maxTokens: 6000,
+          maxTokens: register ? 12000 : 6000,
           temperature: 0,
           responseSchema: captureFactsSchema,
           strictSchema: true,
         },
       );
       const facts = captureFactsSchema.parse(parseJsonLoose(response));
-      // Vision has the original photo as evidence: do not force OCR noise to erase valid visual facts.
-      return factsToEntities(facts, text, true);
+      const entities = factsToEntities(facts, text, true);
+      if (register) {
+        const sector = registerPageSector(facts, text, register.previousSector);
+        register.setSector(sector);
+        return entities.map((entity) => {
+          if (entity.kind === 'INVENTORY' && entity.inventory && !entity.inventory.sector) return { ...entity, inventory: { ...entity.inventory, sector } };
+          if (entity.kind === 'REQUIREMENT' && entity.requirement && !entity.requirement.localityNames.length)
+            return { ...entity, requirement: { ...entity.requirement, localityNames: sector ? [sector] : [] } };
+          return entity;
+        });
+      }
+      return entities;
     } catch {
       return null;
     }
@@ -353,6 +384,15 @@ export class ImportsService {
     if (['NEEDS_REVIEW', 'COMPLETE'].includes(batch.status)) return;
     if (!(await this.prisma.organization.findFirst({ where: { id: batch.organizationId, status: 'ACTIVE' } })))
       throw new ForbiddenException('Firm is inactive');
+    const register = registerContext(batch);
+    let inheritedSector: string | null = register?.sector ?? null;
+    if (register && register.pageNo > 1) {
+      const previous = await previousRegisterPage(this.prisma, batch);
+      if (!previous || !['NEEDS_REVIEW', 'COMPLETE'].includes(previous.status))
+        throw new BadRequestException('The preceding register page must finish extraction first. Retry it to continue this register.');
+      inheritedSector = registerContext(previous)?.sector ?? null;
+    }
+    let registerSector = inheritedSector;
     await this.prisma.importBatch.update({ where: { id: batchId }, data: { status: 'PROCESSING', lastError: null } });
     try {
       let text = batch.rawText ?? '';
@@ -374,7 +414,25 @@ export class ImportsService {
             text = ''; // A temporary OCR outage must not prevent approved vision or source review.
             imageWarning = 'OCR unavailable. Review the original image and all extracted fields.';
           }
-          entities = await this.extractPhoto(file.body, file.contentType, text, batch.organizationId, batch.createdById ?? undefined);
+          entities = await this.extractPhoto(
+            file.body,
+            file.contentType,
+            text,
+            batch.organizationId,
+            batch.createdById ?? undefined,
+            register
+              ? {
+                  previousSector: inheritedSector,
+                  setSector: (sector) => {
+                    registerSector = sector;
+                  },
+                }
+              : undefined,
+          );
+          if (register && !entities)
+            throw new Error(
+              'AI could not finish this register page. The original is saved. Extraction will retry automatically; Retry extraction resumes this register.',
+            );
         } else if (source.contentType === 'application/zip') {
           const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef }, (body, type, ocrText) =>
             this.extractPhoto(body, type, ocrText, batch.organizationId, batch.createdById ?? undefined),
@@ -493,6 +551,7 @@ export class ImportsService {
           metadata: {
             ...((batch.metadata as Record<string, Prisma.InputJsonValue>) ?? {}),
             processedMessages: i,
+            ...(register ? { register: { ...register, sector: registerSector } } : {}),
             textAi: { available: textAiReady, requests: textAiRequests, draftMessages: textAiDrafts, maxRequestsPerImport: 100 },
             archive: archiveSummary as unknown as Prisma.InputJsonValue,
             ...(archiveSummary.attachmentFiles
@@ -504,6 +563,7 @@ export class ImportsService {
           },
         },
       });
+      if (register) await queueNextRegisterPage(this.prisma, this.jobs, batch);
     } catch (error) {
       await this.prisma.importBatch.update({ where: { id: batchId }, data: { status: 'FAILED', lastError: (error as Error).message.slice(0, 500) } });
       throw error;
@@ -542,7 +602,13 @@ export class ImportsService {
             if (entity.kind === 'REQUIREMENT' && !entity.requirement) throw new BadRequestException('Requirement fields required');
             if (entity.kind === 'INVENTORY' && input.destination === 'INVENTORY') {
               const unit = entity.inventory!;
-              const missing = missingInventoryFolderFields(unit);
+              const rented = unit.availability === 'RENTED';
+              const missing = rented
+                ? [
+                    ...(!unit.houseNo?.trim() ? ['House / plot number'] : []),
+                    ...(!unit.sector?.trim() && !unit.address?.trim() ? ['Sector / locality or address'] : []),
+                  ]
+                : missingInventoryFolderFields(unit);
               if (missing.length) throw new BadRequestException(`Property ${index + 1}: fill ${missing.join(', ')} before approval.`);
               const preferredMonth = inventoryMonthSchema.safeParse((entry.batch.metadata as { directoryMonth?: unknown } | null)?.directoryMonth);
               const directoryMonth = unit.directoryMonth ?? (preferredMonth.success ? preferredMonth.data : inventoryMonth(entry.batch.createdAt));
@@ -553,11 +619,22 @@ export class ImportsService {
                 expectedRevision: _revision,
                 ...fields
               } = unit;
-              await this.inventory.create({ ...fields, organizationId: entry.batch.organizationId, directoryMonth }, user, tx, {
-                sourceEntryId: entry.id,
-                sourceUnitKey,
-                sourceType: entry.batch.sourceType,
-              });
+              await this.inventory.create(
+                {
+                  ...fields,
+                  organizationId: entry.batch.organizationId,
+                  ...(rented
+                    ? { directoryMonth: undefined, availability: 'RENTED', status: 'INACTIVE', verificationStatus: 'NEEDS_REVIEW' }
+                    : { directoryMonth }),
+                },
+                user,
+                tx,
+                {
+                  sourceEntryId: entry.id,
+                  sourceUnitKey,
+                  sourceType: entry.batch.sourceType,
+                },
+              );
               continue;
             }
             const parsed = entity.kind === 'INVENTORY' ? offeredRequirement(entity.inventory!) : brokerRequirementSchema.parse(entity.requirement);

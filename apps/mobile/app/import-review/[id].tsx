@@ -22,9 +22,13 @@ import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { EntityFields, prepareEntity } from '@/launch/entity-fields';
 import { editableDraft, decodeDraft, saveDraft, completeReviewDraft } from '@/launch/drafts';
-import { Button, Txt, ErrorView, Chip } from '@/ui';
+import { Button, Txt, ErrorView, Chip, IconBtn } from '@/ui';
+import { ArrowUp, ArrowDown } from 'lucide-react-native';
+import { useTheme } from '@/lib/theme';
 export default function ImportReview() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const scroll = useRef<ScrollView>(null);
+  const { c } = useTheme();
   const [openingPreview, setOpeningPreview] = useState(false);
   const [page, setPage] = useState(1);
   const [sourcePage, setSourcePage] = useState<string | null>(null);
@@ -60,7 +64,7 @@ export default function ImportReview() {
       subtitle={q.data ? `${q.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${q.data.pending} need review`}` : 'Source saved, loading…'}
       back
     >
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 50 }}>
+      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 76 }}>
         {previewOfImportId ? (
           <NativeCard>
             <Txt>Review what the latest extraction found.</Txt>
@@ -111,6 +115,8 @@ export default function ImportReview() {
             }}
           />
         )}
+        {!!q.data?.metadata?.register?.sector && <WorkspaceTag label={`Register sector: ${q.data.metadata.register.sector}`} />}
+        {q.data?.metadata?.register?.pageNo > 1 && q.data?.status === 'PENDING' && <Txt color="muted">Waiting for the preceding register page to finish.</Txt>}
         {q.error && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {error && <Txt color="danger">{error}</Txt>}
         {q.data?.lastError && (
@@ -139,6 +145,27 @@ export default function ImportReview() {
           <Button title="Next" variant="secondary" disabled={!q.data || page >= q.data.totalPages} onPress={() => setPage(page + 1)} />
         </View>
       </ScrollView>
+      <View
+        style={{
+          position: 'absolute',
+          right: 12,
+          bottom: 12,
+          flexDirection: 'row',
+          gap: 8,
+          borderRadius: 16,
+          backgroundColor: c.surface,
+          borderWidth: 1,
+          borderColor: c.line,
+          elevation: 4,
+        }}
+      >
+        <IconBtn accessibilityLabel="Go to top of capture review" onPress={() => scroll.current?.scrollTo({ y: 0, animated: true })}>
+          <ArrowUp size={20} color={c.brand} />
+        </IconBtn>
+        <IconBtn accessibilityLabel="Go to bottom of capture review" onPress={() => scroll.current?.scrollToEnd({ animated: true })}>
+          <ArrowDown size={20} color={c.brand} />
+        </IconBtn>
+      </View>
     </BrokerScreen>
   );
 }
@@ -236,7 +263,14 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
       if (folderMonth && approve && !ignore) {
         for (const [index, entity] of next.entries()) {
           if (entity.kind !== 'INVENTORY') continue;
-          const missing = missingInventoryFolderFields(entity.inventory ?? {});
+          const unit = entity.inventory ?? {};
+          const missing =
+            unit.availability === 'RENTED'
+              ? [
+                  ...(!unit.houseNo?.trim() ? ['House / plot number'] : []),
+                  ...(!unit.sector?.trim() && !unit.address?.trim() ? ['Sector / locality or address'] : []),
+                ]
+              : missingInventoryFolderFields(unit);
           if (missing.length) throw new Error(`Property ${index + 1}: fill ${missing.join(', ')} before approval.`);
         }
       }
@@ -372,7 +406,11 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
           {error && <Txt color="danger">{error}</Txt>}
           <Button title="Save review" loading={busy} onPress={() => save()} />
           <Button
-            title={folderMonth && entities.some((entity) => entity.kind === 'INVENTORY') ? 'Confirm available & save records' : 'Approve reviewed records'}
+            title={
+              folderMonth && entities.some((entity) => entity.kind === 'INVENTORY' && entity.inventory?.availability !== 'RENTED')
+                ? 'Confirm available & save records'
+                : 'Approve reviewed records'
+            }
             variant="secondary"
             loading={busy}
             disabled={!entities.some((e) => e.kind !== 'UNRELATED')}

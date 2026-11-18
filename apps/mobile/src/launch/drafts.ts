@@ -259,6 +259,8 @@ export async function captureFile(
   target = 'AUTO',
   owner = contextNow(),
   directoryMonth?: string,
+  registerSessionId?: string,
+  registerSector?: string,
 ) {
   assertAccountContext(owner);
   const id = Crypto.randomUUID();
@@ -279,10 +281,29 @@ export async function captureFile(
   } finally {
     signatureHandle.close();
   }
+  let registerPageNo: number | undefined;
+  if (registerSessionId && mime.startsWith('image/')) {
+    const database = await db();
+    assertAccountContext(owner);
+    const last = await database.getFirstAsync<{ page: number | null }>(
+      "SELECT MAX(CAST(json_extract(payload,'$.registerPageNo') AS INTEGER)) AS page FROM local_mutations WHERE owner_id=? AND owner_scope=? AND kind='CAPTURE' AND json_extract(payload,'$.registerSessionId')=?",
+      draftOwnerId(owner),
+      owner.scope,
+      registerSessionId,
+    );
+    registerPageNo = (last?.page ?? 0) + 1;
+  }
   const saved = await saveDraft(
     'CAPTURE',
     id,
-    { sourceType: mime.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT', fileName: name ?? safe, groupName, target, directoryMonth },
+    {
+      sourceType: mime.startsWith('image/') ? 'IMAGE' : 'CHAT_EXPORT',
+      fileName: name ?? safe,
+      groupName,
+      target,
+      directoryMonth,
+      ...(registerPageNo ? { registerSessionId, registerPageNo, registerSector } : {}),
+    },
     id,
     owner,
     {
@@ -415,6 +436,9 @@ export async function syncDrafts() {
                     groupName: body.groupName,
                     target: body.target,
                     directoryMonth: body.directoryMonth,
+                    registerSessionId: body.registerSessionId,
+                    registerPageNo: body.registerPageNo,
+                    registerSector: body.registerSector,
                   },
                   async (offset, length) => {
                     handle.offset = offset;

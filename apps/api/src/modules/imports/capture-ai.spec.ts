@@ -19,6 +19,41 @@ const base = {
   warnings: [],
 };
 describe('minimal AI facts map to independent reviewed business records', () => {
+  it('recovers house numbers from the first register column by phone and reads the sector heading', () => {
+    const first = { ...base, society: null, sector: null, houseNo: null, contacts: [{ name: null, phone: '9876543210', role: 'UNKNOWN' as const }] };
+    const second = { ...first, contacts: [{ name: null, phone: '9876543211', role: 'UNKNOWN' as const }] };
+    const rows = factsToEntities({ records: [first, second] }, 'Sector 46\n941 9876543210 No broker\nSector 47\n942 9876543211 2 BHK', true);
+    expect(rows.map((row) => [row.inventory?.houseNo, row.inventory?.sector])).toEqual([
+      ['941', 'Sector 46'],
+      ['942', 'Sector 47'],
+    ]);
+    const [phoneInHouse] = factsToEntities({ records: [{ ...first, houseNo: '9876543210' }] }, 'Sector 46\n941 9876543210', true);
+    expect(phoneInHouse.inventory?.houseNo).toBe('941');
+  });
+  it('leaves missing register identities unknown when one phone belongs to multiple houses or only phone columns are present', () => {
+    const fact = { ...base, society: null, houseNo: null, sector: null, contacts: [{ name: null, phone: '9876543210', role: 'UNKNOWN' as const }] };
+    for (const source of ['Sector 46\n941 9876543210\n942 9876543210', 'Sector 46\n9876543211 9876543210']) {
+      const [row] = factsToEntities({ records: [fact] }, source, true);
+      expect(row.inventory?.houseNo).toBeNull();
+      expect(row.inventory?.sector).toBeNull();
+    }
+  });
+  it.each([
+    ['SFD GF', 'SEMI_FURNISHED', '0'],
+    ['FFD FF', 'FULLY_FURNISHED', '1'],
+    ['SFD SF', 'SEMI_FURNISHED', '2'],
+    ['FFD TF', 'FULLY_FURNISHED', 'Top Floor'],
+    ['SFD 3rd Floor', 'SEMI_FURNISHED', '3'],
+    ['FFD 4th Floor', 'FULLY_FURNISHED', '4'],
+  ])('keeps broker-confirmed furnishing separate from floor codes in %s', (source, furnishing, floor) => {
+    const fact = { ...base, society: null, sector: null, houseNo: null, contacts: [{ name: null, phone: '9876543210', role: 'UNKNOWN' as const }] };
+    const [row] = factsToEntities({ records: [fact] }, 'Sector 46\n941 9876543210 ' + source, true);
+    expect(row.inventory).toMatchObject({ houseNo: '941', floor, furnishing });
+  });
+  it('retains a rented status-only register row even when the vision proposal omitted it', () => {
+    const [row] = factsToEntities({ records: [] }, 'Sector 46\n941 9876543210 Rented out', true);
+    expect(row.inventory).toMatchObject({ houseNo: '941', sector: 'Sector 46', availability: 'RENTED', monthlyRent: null, area: null });
+  });
   it('recovers a printed configuration from an uncertain classification without guessing rent or sale', () => {
     const [row] = factsToEntities({ records: [{ ...base, intent: 'UNRELATED', purpose: 'SALE' }] }, 'Reviewed project\n2 BHK 1200 sqft\nAsk 30000');
     expect(row.kind).toBe('INVENTORY');
@@ -27,11 +62,17 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(invented.kind).toBe('UNRELATED');
   });
   it('retains project-only advertising as evidence rather than creating an empty property', () => {
-    const [row] = factsToEntities({ records: [{ ...base, bhk: null, area: null, priceMin: null, priceMax: null }] }, 'Reviewed project for sale. Many options; contact us.');
+    const [row] = factsToEntities(
+      { records: [{ ...base, bhk: null, area: null, priceMin: null, priceMax: null }] },
+      'Reviewed project for sale. Many options; contact us.',
+    );
     expect(row.kind).toBe('UNRELATED');
   });
   it('does not reinterpret premium as a financial label when it describes an apartment', () => {
-    const [row] = factsToEntities({ records: [{ ...base, priceMin: 50000, priceMax: 50000 }] }, 'Premium luxury apartment in Reviewed project 2 BHK 1200 sqft for rent 50k');
+    const [row] = factsToEntities(
+      { records: [{ ...base, priceMin: 50000, priceMax: 50000 }] },
+      'Premium luxury apartment in Reviewed project 2 BHK 1200 sqft for rent 50k',
+    );
     expect(row.inventory?.monthlyRent).toBe(50000);
     expect(row.inventory?.notes).toBeNull();
   });
@@ -161,28 +202,47 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(identity.inventory?.contacts?.[0].role).toBe('UNKNOWN');
   });
   it('keeps premium separate even when a model labels it as a total', () => {
-    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 30000000, priceMax: 30000000 }] }, 'Sector 45 available for sale premium 3 cr');
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 30000000, priceMax: 30000000 }] },
+      'Sector 45 available for sale premium 3 cr',
+    );
     expect(row.inventory?.totalSalePrice).toBeNull();
     expect(row.inventory?.notes).toContain('Source quote: PREMIUM INR 30000000');
   });
   it('preserves an explicit total printed after the configuration line', () => {
-    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 72200000, priceMax: 72200000 }] }, 'Sector 45\n2 BHK 1200 sqft at 20185 per sq ft\nBook value 6.57 crore\nPremium 65 lakh\nTotal Price 7.22 crore');
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 72200000, priceMax: 72200000 }] },
+      'Sector 45\n2 BHK 1200 sqft at 20185 per sq ft\nBook value 6.57 crore\nPremium 65 lakh\nTotal Price 7.22 crore',
+    );
     expect(row.inventory?.totalSalePrice).toBe(72200000);
   });
   it('does not leak another project sector or fractional layout across headings', () => {
-    const [first, second] = factsToEntities({ records: [{ ...base, society: 'First Homes', sector: '90', bhk: 2 }, { ...base, society: 'Second Homes', sector: '90', bhk: 2 }] }, 'First Homes 92\n2 BHK 1200 sqft rent 30000\nSecond Homes Sector 90\n2.5 BHK 1200 sqft rent 30000');
+    const [first, second] = factsToEntities(
+      {
+        records: [
+          { ...base, society: 'First Homes', sector: '90', bhk: 2 },
+          { ...base, society: 'Second Homes', sector: '90', bhk: 2 },
+        ],
+      },
+      'First Homes 92\n2 BHK 1200 sqft rent 30000\nSecond Homes Sector 90\n2.5 BHK 1200 sqft rent 30000',
+    );
     expect(first.inventory?.sector).toBeNull();
     expect(first.inventory?.bhk).toBe(2);
     expect(second.inventory?.sector).toBe('Sector 90');
     expect(second.inventory?.bhk).toBeNull();
   });
   it('does not infer a bare asking rate unit from the printed property size', () => {
-    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'RATE_PER_SQFT', priceMin: 16000, priceMax: 16000 }] }, 'Sector 45 1200 sqft lower floor @ 16000');
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'RATE_PER_SQFT', priceMin: 16000, priceMax: 16000 }] },
+      'Sector 45 1200 sqft lower floor @ 16000',
+    );
     expect(row.inventory?.ratePerArea).toBeNull();
     expect(row.warnings).toContain('Price without an explicit rate unit omitted; confirm manually.');
   });
   it('splits long explicitly headed unit lists without duplicating or dropping a heading', () => {
-    const source = 'Available for SALE\n' + Array.from({ length: 40 }, (_, i) => `👉 Project ${i} sector 45\n2 BHK 1200 sqft price 1.5 crore\n${'Original property notes. '.repeat(5)}\n`).join('');
+    const source =
+      'Available for SALE\n' +
+      Array.from({ length: 40 }, (_, i) => `👉 Project ${i} sector 45\n2 BHK 1200 sqft price 1.5 crore\n${'Original property notes. '.repeat(5)}\n`).join('');
     const parts = captureTextParts(source)!;
     expect(parts.length).toBe(5);
     for (let i = 0; i < 40; i++) expect(parts.join('\n').split(`👉 Project ${i} sector`).length - 1).toBe(1);
@@ -190,17 +250,26 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(captureTextParts('Available for RENT 2 BHK')).toEqual(['Available for RENT 2 BHK']);
   });
   it('does not relabel a book-value amount as premium merely because both labels share one line', () => {
-    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 68300000, priceMax: 68300000 }] }, 'Sector 45 for sale\nTower A | Books 6.83 Cr | Premium 50 L | Higher Floor');
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 68300000, priceMax: 68300000 }] },
+      'Sector 45 for sale\nTower A | Books 6.83 Cr | Premium 50 L | Higher Floor',
+    );
     expect(row.inventory?.totalSalePrice).toBeNull();
     expect(row.inventory?.notes).toContain('BOOK_VALUE INR 68300000');
   });
   it('preserves the advertised sale purpose when the property also generates rental income', () => {
-    const [row] = factsToEntities({ records: [{ ...base, purpose: 'RENT', priceMin: 125000, priceMax: 125000 }] }, 'Property for sale\nReviewed project Sector 45 2 BHK\nRent coming 1.25 lakh\nSale asking 5.65 crore');
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'RENT', priceMin: 125000, priceMax: 125000 }] },
+      'Property for sale\nReviewed project Sector 45 2 BHK\nRent coming 1.25 lakh\nSale asking 5.65 crore',
+    );
     expect(row.inventory?.purpose).toBe('SALE');
     expect(row.inventory?.monthlyRent).toBeNull();
   });
   it('keeps seller demand quotations on offered units out of client requirements', () => {
-    const [row] = factsToEntities({ records: [{ ...base, intent: 'DEMAND', purpose: 'RENT', priceMin: 17000, priceMax: 17000 }] }, 'Reviewed project Sector 45\n2 BHK 1200 sqft demand 17k\nMultiple units are available');
+    const [row] = factsToEntities(
+      { records: [{ ...base, intent: 'DEMAND', purpose: 'RENT', priceMin: 17000, priceMax: 17000 }] },
+      'Reviewed project Sector 45\n2 BHK 1200 sqft demand 17k\nMultiple units are available',
+    );
     expect(row.kind).toBe('INVENTORY');
     expect(row.inventory?.purpose).toBeNull();
     expect(row.inventory?.monthlyRent).toBeNull();
@@ -218,7 +287,11 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(rows).toHaveLength(1);
     expect(rows[0].inventory?.totalSalePrice).toBe(66000000);
     expect(rows[0].warnings.some((warning) => warning.includes('Additional source quote'))).toBe(true);
-    const detailed = factsToEntities({ records: [main, { ...rate, bhk: 3, area: 1500 }] }, 'Reviewed project 2 BHK 1200 sqft and 3 BHK 1500 sqft, total 6.6 Cr and 18450 per sqft', true);
+    const detailed = factsToEntities(
+      { records: [main, { ...rate, bhk: 3, area: 1500 }] },
+      'Reviewed project 2 BHK 1200 sqft and 3 BHK 1500 sqft, total 6.6 Cr and 18450 per sqft',
+      true,
+    );
     expect(detailed).toHaveLength(2);
   });
   it('keeps the current layout when a larger BHK is only a future proposal', () => {
@@ -227,12 +300,18 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     expect(row.warnings).toContain('Planned conversion is not treated as a completed layout.');
   });
   it('does not publish a lower bound as the exact price when the other bound is ungrounded', () => {
-    const [row] = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 17000000, priceMax: 17500000 }] }, 'Sector 45 2 BHK 1200 sqft for sale @1.70 - 75 CR');
+    const [row] = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 17000000, priceMax: 17500000 }] },
+      'Sector 45 2 BHK 1200 sqft for sale @1.70 - 75 CR',
+    );
     expect(row.inventory?.totalSalePrice).toBeNull();
     expect(row.warnings.some((warning) => warning.includes('Amount not grounded'))).toBe(true);
   });
   it('does not let one global advertised purpose overwrite a separate sale/rent unit', () => {
-    const rows = factsToEntities({ records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 20000000, priceMax: 20000000 }, base] }, 'Reviewed project Sector 45\nLane A property for sale 2 crore\nLane B property for rent 30000');
+    const rows = factsToEntities(
+      { records: [{ ...base, purpose: 'SALE', priceBasis: 'SALE_TOTAL', priceMin: 20000000, priceMax: 20000000 }, base] },
+      'Reviewed project Sector 45\nLane A property for sale 2 crore\nLane B property for rent 30000',
+    );
     expect(rows[0].inventory?.purpose).toBe('SALE');
     expect(rows[0].inventory?.totalSalePrice).toBe(20000000);
     expect(rows[1].inventory?.purpose).toBe('RENT');

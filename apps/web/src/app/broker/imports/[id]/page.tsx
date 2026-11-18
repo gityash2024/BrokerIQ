@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { captureEntryTitle, capturePreviewFacts, inventoryMonth, inventoryMonthSchema, type CapturedEntity } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
@@ -12,6 +13,8 @@ import { PrivateSource } from '@/components/broker/launch/private-source';
 import { toast } from 'sonner';
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
+  const top = useRef<HTMLDivElement>(null);
+  const bottom = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [openingPreview, setOpeningPreview] = useState(false);
   const [page, setPage] = useState(1);
@@ -52,6 +55,7 @@ export default function ReviewPage() {
   }
   return (
     <>
+      <div ref={top} />
       <PageHeader
         title={query.data?.fileName || 'Source review'}
         subtitle={
@@ -127,6 +131,10 @@ export default function ReviewPage() {
           <span className="ml-3 text-xs text-muted">Candidate blocks require visual review; each can contain multiple units.</span>
         </label>
       )}
+      {!!query.data?.metadata?.register?.sector && <p className="mb-4 text-sm font-semibold">Register sector: {query.data.metadata.register.sector}</p>}
+      {query.data?.metadata?.register?.pageNo > 1 && query.data?.status === 'PENDING' && (
+        <p className="mb-4 text-sm text-muted">Waiting for the preceding register page to finish.</p>
+      )}
       {query.error && <p role="alert">{errorMessage(query.error)}</p>}
       {query.data?.status === 'FAILED' && (
         <div className="mb-5 rounded-xl border border-line p-5">
@@ -167,6 +175,25 @@ export default function ReviewPage() {
           Next
         </button>
       </div>
+      <div ref={bottom} className="h-16" />
+      <nav aria-label="Capture review navigation" className="fixed bottom-5 right-5 z-30 flex gap-2 rounded-2xl border border-line bg-surface p-1 shadow-lg">
+        <button
+          type="button"
+          aria-label="Go to top of capture review"
+          className="grid size-11 place-items-center rounded-xl text-brand-600 hover:bg-surface-2"
+          onClick={() => top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        >
+          <ArrowUp className="size-5" />
+        </button>
+        <button
+          type="button"
+          aria-label="Go to bottom of capture review"
+          className="grid size-11 place-items-center rounded-xl text-brand-600 hover:bg-surface-2"
+          onClick={() => bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
+        >
+          <ArrowDown className="size-5" />
+        </button>
+      </nav>
     </>
   );
 }
@@ -290,8 +317,10 @@ function Entry({
                   (entity.kind === 'INVENTORY' ? (
                     <PropertyForm
                       initial={entity.inventory}
-                      activateInMonth={folderMonth ? (entity.inventory?.directoryMonth ?? folderMonth) : undefined}
-                      requireAvailability={Boolean(folderMonth)}
+                      activateInMonth={
+                        folderMonth && entity.inventory?.availability !== 'RENTED' ? (entity.inventory?.directoryMonth ?? folderMonth) : undefined
+                      }
+                      requireAvailability={Boolean(folderMonth) && entity.inventory?.availability !== 'RENTED'}
                       onDirty={() => setPrepared(prepared.filter((i) => i !== index))}
                       label="Save reviewed fields"
                       onSave={async (inventory) => {
@@ -348,7 +377,9 @@ function Entry({
                     onClick={approve}
                     className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                   >
-                    {folderMonth && hasProperties ? 'Confirm available & save records' : 'Approve saved records'}
+                    {folderMonth && entities.some((entity) => entity.kind === 'INVENTORY' && entity.inventory?.availability !== 'RENTED')
+                      ? 'Confirm available & save records'
+                      : 'Approve saved records'}
                   </button>
                   <button
                     onClick={async () => {

@@ -105,8 +105,8 @@ export function EntityFields({
       ) : (
         <>
           <Txt v="h3">Location</Txt>
-          {field('sector', 'Sector / locality')}
           {field('houseNo', 'House / plot no.')}
+          {field('sector', 'Sector / locality')}
           {field('unitLabel', 'Unit')}
           {field('floor', 'Floor')}
           {field('address', 'Address')}

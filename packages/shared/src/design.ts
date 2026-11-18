@@ -9,6 +9,8 @@ export const DESIGN = {
 export function floorLabel(value: string | null | undefined): string {
   if (value == null || value === '') return 'Floor not recorded';
   if (value === '0' || value === 'GF') return 'Ground floor';
+  if (value === 'FF') return '1st floor';
+  if (value === 'SF') return '2nd floor';
   if (value === 'TF' || value === 'TOP') return 'Top floor';
   if (/^\d+$/.test(value)) return `${value}${value === '1' ? 'st' : value === '2' ? 'nd' : value === '3' ? 'rd' : 'th'} floor`;
   return value.replace(/_/g, ' ');

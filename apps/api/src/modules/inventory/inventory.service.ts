@@ -246,7 +246,12 @@ export class InventoryService {
       }
       if (q.folderFurnishing) and.push({ furnishing: q.folderFurnishing === 'OTHER' ? null : q.folderFurnishing });
     } else if (q.folderMode === 'RENTED') {
-      and.push(rented, complete, { verificationStatus: 'VERIFIED' });
+      and.push(rented, {
+        OR: [
+          { AND: [complete, { verificationStatus: 'VERIFIED' }] },
+          { availability: 'RENTED', houseNo: { not: '' }, sector: { not: '' }, sourceEntry: { is: { reviewState: 'APPROVED' } } },
+        ],
+      });
       if (q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
     } else if (q.folderMode === 'REVIEW') {
       and.push({

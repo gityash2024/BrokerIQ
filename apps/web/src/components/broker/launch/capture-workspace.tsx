@@ -41,6 +41,15 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const suggestedMonth = inventoryMonthSchema.safeParse(params.get('directoryMonth'));
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
+  const [registerSector, setRegisterSector] = useState('');
+  const localities = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
+    enabled: scanner,
+    staleTime: 600_000,
+  });
+  const [registerSessionId, setRegisterSessionId] = useState(() => crypto.randomUUID());
+  const registerNextPage = useRef(1);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [ready, setReady] = useState(false),
@@ -60,16 +69,24 @@ function Workspace({ scanner }: { scanner: boolean }) {
     let live = true;
     setReady(false);
     if (owner.userId)
-      void readPrivateDraft<{ text: string; group: string; target: Target; entryTarget?: string | null; directoryMonth?: string }>(
-        owner,
-        'capture',
-        startSeparate,
-      )
+      void readPrivateDraft<{
+        text: string;
+        group: string;
+        target: Target;
+        entryTarget?: string | null;
+        directoryMonth?: string;
+        registerSessionId?: string;
+        registerNextPage?: number;
+        registerSector?: string;
+      }>(owner, 'capture', startSeparate)
         .then((saved) => {
           if (!live) return;
           if (saved) {
             setText(saved.text);
             setGroup(saved.group);
+            setRegisterSector(saved.registerSector ?? '');
+            if (saved.registerSessionId) setRegisterSessionId(saved.registerSessionId);
+            registerNextPage.current = saved.registerNextPage ?? 1;
             if (!params.get('target') || saved.entryTarget === params.get('target')) setTarget(saved.target);
             if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
             setStatus('Private draft restored');
@@ -89,12 +106,23 @@ function Workspace({ scanner }: { scanner: boolean }) {
     setStatus('Saving encrypted draft…');
     writes.current = writes.current
       .catch(() => undefined)
-      .then(() => writePrivateDraft(owner, 'capture', { text, group, target, directoryMonth, entryTarget: params.get('target') }))
+      .then(() =>
+        writePrivateDraft(owner, 'capture', {
+          text,
+          group,
+          target,
+          directoryMonth,
+          entryTarget: params.get('target'),
+          registerSessionId,
+          registerNextPage: registerNextPage.current,
+          registerSector,
+        }),
+      )
       .then(() => {
         if (version === revision.current) setStatus('Encrypted draft saved in this browser');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, directoryMonth, ready, owner]);
+  }, [text, group, target, directoryMonth, ready, owner, registerSessionId, registerSector]);
   async function capture(body: Record<string, unknown>, name: string) {
     const result = await api<{ id: string }>('/imports', {
       ownerContext: owner,
@@ -134,15 +162,36 @@ function Workspace({ scanner }: { scanner: boolean }) {
       const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', fingerprintBytes)), (byte) =>
         byte.toString(16).padStart(2, '0'),
       ).join('');
-      const identity = `${file.name}:${file.size}:${file.lastModified}:${fingerprint}:${group}:${target}${captureMonth ? ':' + captureMonth : ''}`;
+      const identity = `${scanner ? registerSessionId + ':' : ''}${file.name}:${file.size}:${file.lastModified}:${fingerprint}:${group}:${target}${captureMonth ? ':' + captureMonth : ''}`;
       const identityHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity))), (byte) =>
         byte.toString(16).padStart(2, '0'),
       ).join('');
       const draftName = `capture-upload:${identityHash}`;
-      let upload = await readPrivateDraft<{ clientKey: string }>(owner, draftName, startSeparate);
+      let upload = await readPrivateDraft<{ clientKey: string; registerSessionId?: string; registerPageNo?: number; registerSector?: string }>(
+        owner,
+        draftName,
+        startSeparate,
+      );
       if (!upload) {
-        upload = { clientKey: crypto.randomUUID() };
+        upload = {
+          clientKey: crypto.randomUUID(),
+          ...(scanner && contentType.startsWith('image/')
+            ? { registerSessionId, registerPageNo: registerNextPage.current, registerSector: registerSector || undefined }
+            : {}),
+        };
         await writePrivateDraft(owner, draftName, upload);
+        if (upload.registerPageNo) {
+          registerNextPage.current = upload.registerPageNo + 1;
+          await writePrivateDraft(owner, 'capture', {
+            text,
+            group,
+            target,
+            directoryMonth,
+            entryTarget: params.get('target'),
+            registerSessionId,
+            registerNextPage: registerNextPage.current,
+          });
+        }
       }
       const result = await uploadImport(
         (path, body) => api(path, { ownerContext: owner, body }),
@@ -155,6 +204,9 @@ function Workspace({ scanner }: { scanner: boolean }) {
           groupName: group || undefined,
           target,
           directoryMonth: captureMonth,
+          registerSessionId: upload.registerSessionId,
+          registerPageNo: upload.registerPageNo,
+          registerSector: upload.registerSector,
         },
         (offset, length) =>
           new Promise<string>((resolve, reject) => {
@@ -177,6 +229,43 @@ function Workspace({ scanner }: { scanner: boolean }) {
   };
   return (
     <>
+      {scanner && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-3">
+          <label className="text-sm font-semibold">
+            Register sector
+            <select
+              value={registerSector}
+              onChange={(event) => {
+                setRegisterSector(event.target.value);
+                setRegisterSessionId(crypto.randomUUID());
+                registerNextPage.current = 1;
+                setCompleted([]);
+              }}
+              disabled={busy || !ready}
+              className="ml-3 rounded-xl border border-line bg-surface p-2"
+            >
+              <option value="">Read from page heading</option>
+              {(localities.data ?? []).map((locality) => (
+                <option key={locality.name} value={locality.name}>
+                  {locality.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-sm text-muted">The selected sector applies until a new register heading is found.</p>
+          <Button
+            variant="secondary"
+            disabled={busy || !ready}
+            onClick={() => {
+              setRegisterSessionId(crypto.randomUUID());
+              registerNextPage.current = 1;
+              setCompleted([]);
+            }}
+          >
+            Start a new register
+          </Button>
+        </div>
+      )}
       <PageHeader
         title={scanner ? 'Scanner & import' : 'Capture workspace'}
         subtitle="Original sources, clear review and accurate Inventory / Requirements."

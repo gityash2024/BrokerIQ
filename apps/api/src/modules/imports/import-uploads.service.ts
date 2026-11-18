@@ -6,6 +6,7 @@ import { IMPORT_CHUNK_BYTES, IMPORT_MAX_BYTES, inventoryMonthSchema } from '@bro
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalStorageService } from '../../core/media/local-storage.service';
 import { JobsService } from '../../core/jobs/jobs.service';
+import { queueCaptureExtraction } from './register-context';
 import type { RequestUser } from '../../common/decorators';
 
 export const uploadStartSchema = z
@@ -18,7 +19,13 @@ export const uploadStartSchema = z
     groupName: z.string().max(150).optional(),
     target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT']).default('AUTO'),
     directoryMonth: inventoryMonthSchema.optional(),
+    registerSessionId: z.string().uuid().optional(),
+    registerSector: z.string().trim().min(1).max(100).optional(),
+    registerPageNo: z.number().int().min(1).max(10000).optional(),
   })
+  .refine((value) => Boolean(value.registerSessionId) === Boolean(value.registerPageNo), 'Register session and page are required together')
+  .refine((value) => !value.registerSector || Boolean(value.registerSessionId), 'Select a register before its sector')
+  .refine((value) => !value.registerSessionId || value.sourceType === 'IMAGE', 'Register pages must be images')
   .refine((value) => (value.sourceType === 'IMAGE') === value.contentType.startsWith('image/'), 'Source type does not match file');
 
 export const uploadChunkSchema = z.object({
@@ -69,16 +76,28 @@ export class ImportUploadsService {
 
   async start(input: z.infer<typeof uploadStartSchema>, user: RequestUser) {
     const scope = this.scope(user);
-    const row = await this.prisma.importUpload.upsert({
-      where: { organizationId_createdById_clientKey: { ...scope, clientKey: input.clientKey } },
-      create: { ...scope, ...input },
-      update: {},
-    });
+    const row = await this.prisma.importUpload
+      .upsert({
+        where: { organizationId_createdById_clientKey: { ...scope, clientKey: input.clientKey } },
+        create: { ...scope, ...input },
+        update: {},
+      })
+      .catch((error) => {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+          throw new ConflictException('This register page already has a saved upload. Resume it or start a new register.');
+        throw error;
+      });
     for (const name of ['fileName', 'contentType', 'sourceType', 'totalBytes', 'target'] as const) {
       if (row[name] !== input[name]) throw new ConflictException('Upload identity changed. Keep the original and start a new upload.');
     }
     if ((row.groupName ?? '') !== (input.groupName ?? '')) throw new ConflictException('Upload group changed.');
     if ((row.directoryMonth ?? '') !== (input.directoryMonth ?? '')) throw new ConflictException('Upload folder month changed.');
+    if (
+      (row.registerSessionId ?? '') !== (input.registerSessionId ?? '') ||
+      (row.registerPageNo ?? null) !== (input.registerPageNo ?? null) ||
+      (row.registerSector ?? '') !== (input.registerSector ?? '')
+    )
+      throw new ConflictException('Register page identity changed. Resume the original upload.');
     return this.state(row);
   }
 
@@ -123,6 +142,7 @@ export class ImportUploadsService {
       const chunks = row.chunks as unknown as SourceChunk[];
       const digest = createHash('sha256');
       const sourceDigest = createHash('sha256').update(`${row.groupName ?? ''}\0\0`);
+      if (row.registerSessionId) sourceDigest.update(`register:${row.createdById}:${row.registerSessionId}:${row.registerPageNo}\0`);
       for (const chunk of chunks) {
         const file = await this.storage.read(chunk.key);
         if (file.body.length !== chunk.size || hash(file.body) !== chunk.hash) throw new ConflictException('Saved chunk failed integrity verification');
@@ -151,6 +171,7 @@ export class ImportUploadsService {
               requestedTarget: row.target,
               totalBytes: row.totalBytes,
               chunked: true,
+              ...(row.registerSessionId ? { register: { sessionId: row.registerSessionId, pageNo: row.registerPageNo, sector: row.registerSector } } : {}),
               ...(row.target === 'INVENTORY' && row.directoryMonth ? { directoryMonth: row.directoryMonth } : {}),
             },
           },
@@ -161,7 +182,7 @@ export class ImportUploadsService {
       });
     }
     const batch = await this.prisma.importBatch.findUniqueOrThrow({ where: { id: batchId } });
-    if (batch.status === 'PENDING') await this.jobs.enqueue('import.extract', { batchId }, { key: `import:${batchId}` });
+    await queueCaptureExtraction(this.prisma, this.jobs, batch);
     return { id: batchId, status: batch.status };
   }
 }

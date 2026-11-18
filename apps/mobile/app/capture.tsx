@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Platform } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Crypto from 'expo-crypto';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from '@/lib/image-picker';
@@ -14,6 +15,9 @@ import { captureText, captureFile, editableDraft, decodeDraft, saveDraft, syncDr
 import { Input, Txt, Button, Segmented, Row } from '@/ui';
 import { captureAccountContext, errorMessage, authStore } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
+import { useQuery } from '@tanstack/react-query';
+import { ChoiceField } from '@/launch/form';
+import { api } from '@/lib/api';
 import { inventoryMonth, inventoryMonthSchema } from '@brokeriq/shared';
 
 type Source = { uri: string; mime: string; name: string };
@@ -22,6 +26,14 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const suggestedMonth = inventoryMonthSchema.safeParse(requestedMonth);
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const { c } = useTheme();
+  const [registerSector, setRegisterSector] = useState<string | null>(null);
+  const localities = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
+    enabled: scanner,
+    staleTime: 600_000,
+  });
+  const [registerSessionId, setRegisterSessionId] = useState(Crypto.randomUUID);
   const [text, setText] = useState('');
   const [group, setGroup] = useState('');
   const [target, setTarget] = useState(['INVENTORY', 'REQUIREMENT'].includes(requested ?? '') ? requested! : 'AUTO');
@@ -46,6 +58,8 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
           draftId.current = row.id;
           setText(saved.text ?? '');
           setGroup(saved.group ?? '');
+          setRegisterSector(saved.registerSector ?? null);
+          if (saved.registerSessionId) setRegisterSessionId(saved.registerSessionId);
           if (!requested || saved.entryTarget === requested) setTarget(saved.target ?? 'AUTO');
           if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
           setStatus('Draft restored');
@@ -58,25 +72,36 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     };
   }, [startSeparate]);
   useEffect(() => {
-    if (!ready || (!text && !group && !draftId.current)) return;
+    if (!ready || (!scanner && !text && !group && !draftId.current)) return;
     writes.current = writes.current
       .catch(() => undefined)
       .then(async () => {
         draftId.current = await saveDraft(
           'CAPTURE_COMPOSE',
           'message-composer',
-          { text, group, target, directoryMonth, entryTarget: requested },
+          { text, group, target, directoryMonth, entryTarget: requested, registerSessionId, registerSector },
           draftId.current,
           owner.current,
         );
         setStatus('Draft saved on this device');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, directoryMonth, ready]);
+  }, [text, group, target, directoryMonth, ready, registerSessionId, registerSector]);
   async function preserve(files: Source[]) {
+    await writes.current;
     pendingFiles.current = files;
     for (const file of files) {
-      await captureFile(file.uri, file.mime, file.name, group || undefined, target, owner.current, captureMonth);
+      await captureFile(
+        file.uri,
+        file.mime,
+        file.name,
+        group || undefined,
+        target,
+        owner.current,
+        captureMonth,
+        scanner ? registerSessionId : undefined,
+        scanner ? (registerSector ?? undefined) : undefined,
+      );
       pendingFiles.current = pendingFiles.current.filter((p) => p !== file);
       setSources((current) => [...current, file.name]);
     }
@@ -139,6 +164,36 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
             title="Every source. One clear workflow."
             description="Scan a register, paste a message or import a WhatsApp chat export. Review every extracted property or requirement."
           />
+          {scanner && (
+            <NativeCard>
+              <Txt color="muted">Pages in this register keep the preceding sector until a new sector heading is found.</Txt>
+              <ChoiceField
+                access={ready && !busy}
+                label="Register sector"
+                value={registerSector}
+                choices={(localities.data ?? []).map((locality) => locality.name)}
+                emptyLabel="Read from page heading"
+                onChange={(value) => {
+                  setRegisterSector(value);
+                  setRegisterSessionId(Crypto.randomUUID());
+                  setSources([]);
+                }}
+              />
+              {localities.error && <Button title="Retry sectors" variant="secondary" onPress={() => localities.refetch()} />}
+
+              <Button
+                title="Start a new register"
+                variant="secondary"
+                disabled={busy || !ready}
+                onPress={() => {
+                  setRegisterSessionId(Crypto.randomUUID());
+                  setRegisterSector(null);
+                  setSources([]);
+                  setStatus('New register started. The first page sets its sector.');
+                }}
+              />
+            </NativeCard>
+          )}
           <NativeCard>
             <Txt v="title">What are you adding?</Txt>
             <Segmented

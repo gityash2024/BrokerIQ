@@ -2695,6 +2695,9 @@ model ImportUpload {
   groupName      String?
   target         String
   directoryMonth String?
+  registerSessionId String?
+  registerPageNo Int?
+  registerSector String?
   totalBytes     Int
   receivedBytes  Int @default(0)
   chunks         Json @default("[]")
@@ -2703,6 +2706,7 @@ model ImportUpload {
   updatedAt      DateTime @updatedAt
   @@unique([organizationId, createdById, clientKey])
   @@index([organizationId, createdById, updatedAt])
+  @@unique([organizationId, createdById, registerSessionId, registerPageNo], map: "ImportUpload_register_page_key")
 }
 
 model InventoryContact {

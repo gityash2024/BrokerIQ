@@ -20,14 +20,19 @@ jest.mock('expo-file-system', () => ({
   File: class {
     exists: boolean;
     size = 16;
-    constructor(uri: string) {
-      this.exists = !uri.endsWith('brokeriq-drafts.db');
+    uri: string;
+    constructor(uri: any, name?: string) {
+      this.uri = name ? '/private-test/' + name : String(uri);
+      this.exists = !this.uri.endsWith('brokeriq-drafts.db');
     }
+    async copy() {}
     open() {
       return { offset: 0, readBytes: (length: number) => new Uint8Array(length).fill(65), close: () => undefined };
     }
   },
-  Directory: class {},
+  Directory: class {
+    create() {}
+  },
   Paths: { document: '/private-test' },
 }));
 jest.mock('expo-crypto', () => ({
@@ -49,6 +54,7 @@ import {
   preservedDraftCounts,
   claimGuestCaptures,
   captureText,
+  captureFile,
   submitTask,
   holdFailedTask,
 } from '../drafts';
@@ -296,4 +302,27 @@ it('keeps failed visit evidence when set aside and refuses to retry into an occu
   } finally {
     request.mockRestore();
   }
+});
+
+it('persists register page order and selected sector across later captures while separating workspaces', async () => {
+  await login('register-capture-owner', 'register-firm-a');
+  const owner = captureAccountContext();
+  const session = 'b456e3c2-3ca7-48a7-abbe-36633fd85f4d';
+  const first = await captureFile('/source/one.jpg', 'image/jpeg', 'one.jpg', undefined, 'INVENTORY', owner, '2026-11', session, 'Sector 46');
+  const second = await captureFile('/source/two.jpg', 'image/jpeg', 'two.jpg', undefined, 'INVENTORY', owner, '2026-11', session, 'Sector 46');
+  expect(decodeDraft((await getLocalDraft(first))!)).toMatchObject({ registerSessionId: session, registerPageNo: 1, registerSector: 'Sector 46' });
+  expect(decodeDraft((await getLocalDraft(second))!)).toMatchObject({ registerSessionId: session, registerPageNo: 2 });
+  await login('register-capture-owner', 'register-firm-b');
+  const other = await captureFile(
+    '/source/other.jpg',
+    'image/jpeg',
+    'other.jpg',
+    undefined,
+    'INVENTORY',
+    captureAccountContext(),
+    '2026-11',
+    session,
+    'Sector 47',
+  );
+  expect(decodeDraft((await getLocalDraft(other))!)).toMatchObject({ registerPageNo: 1, registerSector: 'Sector 47' });
 });

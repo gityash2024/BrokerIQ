@@ -1,16 +1,20 @@
 import { z } from 'zod';
-import { areaUnitSchema, capturedEntitySchema, captureLocalities, normalizeIndianPhone, type CapturedEntity } from '@brokeriq/shared';
+import { areaUnitSchema, INVENTORY_PROPERTY_TYPES, capturedEntitySchema, captureLocalities, normalizeIndianPhone, type CapturedEntity } from '@brokeriq/shared';
 
 const text = z.string().max(200).nullable();
 const amount = z.number().finite().nonnegative().max(1e13).nullable();
 /** Extraction facts only: never expose editable ownership, approval or publication fields to a model. */
 export const captureFactsSchema = z.object({
+  registerSector: text.optional(),
   records: z
     .array(
       z.object({
         intent: z.enum(['OFFER', 'DEMAND', 'UNRELATED']),
         purpose: z.enum(['RENT', 'SALE']).nullable(),
         society: text,
+        category: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']).nullable().optional(),
+        propertyType: z.enum(INVENTORY_PROPERTY_TYPES).nullable().optional(),
+        notes: z.string().max(1000).nullable().optional(),
         sector: text,
         houseNo: text,
         floor: text,
@@ -22,6 +26,7 @@ export const captureFactsSchema = z.object({
         priceMin: amount,
         priceMax: amount,
         furnishing: z.enum(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']).nullable(),
+        availability: z.enum(['AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']).nullable().optional(),
         contacts: z.array(z.object({ name: text, phone: text, role: z.enum(['OWNER', 'BROKER', 'UNKNOWN']) })).max(10),
         warnings: z.array(z.string().max(400)).max(10),
       }),
@@ -33,8 +38,20 @@ export const CAPTURE_FACTS_PROMPT = `Read Indian real estate posts in Hindi, Hin
 OFFER means a property being offered/advertised/available for rent or sale. DEMAND means a client is explicitly seeking/looking for/requiring a property. Never classify rental advertisements as DEMAND. Ignore signatures, recruiting, sold-out ads and group events. General portfolio advertising without an identifiable unit or client need is UNRELATED, retained as source evidence. An identifiable unit does NOT require a house/unit number: a named property with a configuration, floor or quoted price is sufficient. A list of these marketed units is OFFER, not generic portfolio advertising.
 Indian broker wording "Demand 1.50 Cr" means the seller's asking price, not a buyer requirement. "Units available" is OFFER; only an explicit need/required/chahiye/looking-for client request is DEMAND. Do not guess rent/sale or rate units from an ambiguous bare price. Distress/resale deals and quoted purchase premium/book values describe SALE offers even without the words for sale. A printed size in sqft does not establish the unit of a separate bare @16000 or Ask 12k price. Marketing/recruiting broker partnerships without an identifiable property are UNRELATED.
 Split each independent unit/configuration/price row into its own record. Inherit explicit project headings and sectors until the next heading. Keep all rows even when prices are missing. Do not split one price range. Multiple price quotes (total, rate, premium, book value) for the SAME property are not separate units: keep one record, prefer an explicit total, otherwise premium, and preserve the other quotes in warnings. Copy duplicate identical reposted unit rows only once. Use primary carpet/built-up area for a flat; keep plot and balcony areas as secondary warnings. Use null for unknown fields; do not invent facts or look up project locations.
-Copy an explicit project name into society and only a number explicitly labelled Sector/Sec into sector. Bare numbers after project names are not sector evidence. Named localities such as Udyog Vihar Phase 5 may be copied when printed. A sector from another project heading must never leak across headings. Never put a project name into sector. Use integer bhk only when explicitly labelled BHK/RK; do not round fractional layouts or interpret an unlabelled 3+1 as BHK. Preserve TF as Top Floor.
+Copy an explicit category and property type when printed. A BHK/RK/studio configuration establishes RESIDENTIAL category, but does not establish apartment versus builder floor. Preserve unknown property type as null. Keep owner instructions and other row notes in notes. Copy an explicit project name into society and only a number explicitly labelled Sector/Sec into sector. Bare numbers after project names are not sector evidence. Named localities such as Udyog Vihar Phase 5 may be copied when printed. A sector from another project heading must never leak across headings. Never put a project name into sector. Use integer bhk only when explicitly labelled BHK/RK; do not round fractional layouts or interpret an unlabelled 3+1 as BHK. Preserve TF as Top Floor.
 Use only explicit area and its printed unit. Never label square yards or marla as square feet, and never convert marla to square yards. Convert lakh to 100000, crore to 10000000 and K to 1000. Rental priceBasis is MONTHLY_RENT; an explicitly quoted total sale price is SALE_TOTAL. Never calculate a total from area times rate: preserve the printed RATE_PER_SQFT/RATE_PER_SQYD instead. Preserve premium and book value separately: a line labelled premium/primium is PREMIUM even when advertised for sale; it is never SALE_TOTAL. A printed Total Price is SALE_TOTAL even when book value and premium are also present. roomKind RK requires explicit RK text; offices are not RK. Keep the original fractional BHK in warnings and never round it. Repeat one price as priceMin and priceMax; preserve a range. Do not treat contact digits as prices. Contacts must be explicitly printed; group sender identity is not automatically the owner. Every record is only a draft for human source review.`;
+
+/** The broker confirmed the first unlabelled register column contains house numbers. */
+export const REGISTER_LAYOUT_PROMPT = `
+For a handwritten property register or table, read the page heading before its rows. The sector is written at the TOP of this register and applies to every row below it until another explicit sector heading.
+Read the handwritten row details to the RIGHT of each phone carefully. Extract every legible BHK/RK, floor code, furnishing code and quoted monthly rent such as 10K or 18K. Keep the heading and each horizontal row separate.
+When columns have no printed labels, the FIRST column is the house/plot number. The next long 10-digit number is a contact PHONE, never the house number. For example, a row beginning "941 9876543210" has houseNo "941" and phone "9876543210". Preserve the exact visible house/plot identifier, including letters and slashes. An explicit printed column label takes precedence over this register layout.
+Keep each legible house/plot row as its own record even when it only has a phone or a status note. Copy missing configuration/price fields as null. Preserve source notes such as "No broker" for human review. Keep fields from separate houses on their own rows.
+Broker-confirmed shorthand is SFD = SEMI_FURNISHED, FFD = FULLY_FURNISHED; GF = ground floor (0), FF = first floor (1), SF = second floor (2), TF = Top Floor with unknown numeric level. These floor codes never mean furnishing. Preserve explicit 3rd Floor as 3 and 4th Floor as 4. Read SFD carefully; an unclear SFO requires a warning, never an invented furnishing.
+A row marked Rent out, Rented out or rented is a rented property. Return it with availability RENTED and its house/phone/known facts, even if the price/configuration is missing. It must stay out of Available inventory.
+Return registerSector as the last explicit Sector/Sec heading printed on THIS photo, or null when no heading is visible. A supplied previous-page sector applies only to missing row sectors until this photo prints a new sector heading.
+Do not fill a missing house number from the row index or guess unclear handwriting. Use the original photo as primary evidence and retain uncertainty in warnings.
+`;
 
 const compact = (s: string) =>
   s
@@ -111,7 +128,7 @@ function projectEvidence(source: string, society: string | null, records: z.infe
   const own = compact(society);
   const at = flattened.indexOf(own);
   if (at < 0) return source;
-  const starts = [...new Set(records.map((record) => record.society ? flattened.indexOf(compact(record.society)) : -1).filter((index) => index >= 0))];
+  const starts = [...new Set(records.map((record) => (record.society ? flattened.indexOf(compact(record.society)) : -1)).filter((index) => index >= 0))];
   const next = starts.filter((index) => index > at + own.length).sort((a, b) => a - b)[0];
   const first = Math.min(...starts);
   const prefix = source.slice(0, offsets[first]);
@@ -131,23 +148,106 @@ export function captureTextParts(source: string): string[] | null {
   }
   return parts.length <= 16 ? parts : null;
 }
+/** Recover only a uniquely matched register row; shared phones cannot identify one house. */
+export function registerPageSector(input: z.infer<typeof captureFactsSchema>, source: string, previous: string | null) {
+  const headers = source.split(/\r?\n/).filter((line) => /^\s*(?:sector|sec\.?|सेक्टर)\s*[-:]?\s*\d/i.test(line));
+  const printed = input.registerSector || headers.at(-1);
+  const sectors = printed ? captureLocalities(printed) : [];
+  return sectors.length === 1 ? sectors[0] : previous;
+}
+
+function registerFacts(input: z.infer<typeof captureFactsSchema>, source: string) {
+  let sector: string | null = null;
+  const rows: { houseNo: string; phone: string; sector: string | null; text: string }[] = [];
+  for (const line of source.split(/\r?\n/)) {
+    if (/^\s*(?:sector|sec\.?|सेक्टर)\s*[-:]?\s*\d/i.test(line)) {
+      const localities = captureLocalities(line);
+      sector = localities.length === 1 ? localities[0] : null;
+    }
+    const match = /^\s*([0-9][A-Za-z0-9/.-]{0,19})[ \t|,;]+((?:\+?91[ -]?)?[6-9]\d(?:[ -]?\d){8})(?!\d)/.exec(line);
+    if (!match || /^\d{8,}$/.test(match[1])) continue;
+    const phone = normalizeIndianPhone(match[2]);
+    if (phone) rows.push({ houseNo: match[1], phone, sector, text: line.slice(match[0].length) });
+  }
+  if (!rows.length) return input;
+  const records = input.records.map((record) => {
+    const phones = record.contacts.map((contact) => (contact.phone ? normalizeIndianPhone(contact.phone) : null)).filter(Boolean);
+    const matches = rows.filter(
+      (row) =>
+        (phones.includes(row.phone) || row.houseNo === record.houseNo) &&
+        (!record.houseNo || phones.includes(normalizeIndianPhone(record.houseNo)) || row.houseNo === record.houseNo),
+    );
+    const identities = new Set(matches.map((row) => JSON.stringify([row.houseNo, row.sector])));
+    if (identities.size !== 1) return record;
+    const row = matches[0];
+    const phoneInHouse = record.houseNo && phones.includes(normalizeIndianPhone(record.houseNo));
+    const houseNo = !record.houseNo || phoneInHouse ? row.houseNo : record.houseNo;
+    const floor = row.text.match(/\b(GF|FF|SF|TF|[1-9]\d?(?:st|nd|rd|th)\s+floor)\b/i)?.[1];
+    const normalizedFloor = floor ? ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' }[floor.toUpperCase()] ?? floor.match(/^\d+/)?.[0]) : null;
+    const furnishing = /\bSFD\b/i.test(row.text) ? ('SEMI_FURNISHED' as const) : /\bFFD\b/i.test(row.text) ? ('FULLY_FURNISHED' as const) : record.furnishing;
+    return {
+      ...record,
+      houseNo,
+      sector: record.sector || row.sector,
+      furnishing,
+      floor: normalizedFloor || record.floor,
+      availability: /\brent(?:ed)?[ -]*out\b|\brented\b/i.test(row.text) ? ('RENTED' as const) : record.availability,
+    };
+  });
+  for (const row of rows) {
+    if (!/\brent(?:ed)?[ -]*out\b|\brented\b/i.test(row.text) || records.some((record) => record.houseNo === row.houseNo)) continue;
+    records.push({
+      intent: 'OFFER',
+      purpose: 'RENT',
+      society: null,
+      sector: row.sector,
+      houseNo: row.houseNo,
+      floor: null,
+      bhk: null,
+      roomKind: null,
+      area: null,
+      areaUnit: null,
+      priceBasis: null,
+      priceMin: null,
+      priceMax: null,
+      furnishing: null,
+      availability: 'RENTED',
+      contacts: [{ name: null, phone: row.phone, role: 'UNKNOWN' }],
+      warnings: ['Rented register row recovered from its printed house number and phone. Verify against the original photo.'],
+    });
+  }
+  return { ...input, records };
+}
 function reviewedFacts(input: z.infer<typeof captureFactsSchema>, visual: boolean) {
   const seen = new Set<string>();
-  const records = input.records.filter((record) => {
-    const identity = JSON.stringify(record);
-    if (seen.has(identity)) return false;
-    seen.add(identity); return true;
-  }).map((record) => ({ ...record, warnings: [...record.warnings] }));
+  const records = input.records
+    .filter((record) => {
+      const identity = JSON.stringify(record);
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    })
+    .map((record) => ({ ...record, warnings: [...record.warnings] }));
   if (!visual) return records;
   // A rate-only fragment alongside one fully described property is supplemental
   // evidence, not another independently identified unit. Never merge two detailed units.
   return records.filter((record) => {
-    if (record.intent !== 'OFFER' || !record.society || record.priceMin == null ||
+    if (
+      record.intent !== 'OFFER' ||
+      !record.society ||
+      record.priceMin == null ||
       !['RATE_PER_SQFT', 'RATE_PER_SQYD'].includes(record.priceBasis ?? '') ||
-      [record.bhk, record.area, record.houseNo, record.floor].some((value) => value != null)) return true;
-    const anchors = records.filter((other) => other !== record && other.intent === 'OFFER' &&
-      compact(other.society ?? '') === compact(record.society!) && other.priceBasis === 'SALE_TOTAL' &&
-      [other.bhk, other.area, other.houseNo, other.floor].some((value) => value != null));
+      [record.bhk, record.area, record.houseNo, record.floor].some((value) => value != null)
+    )
+      return true;
+    const anchors = records.filter(
+      (other) =>
+        other !== record &&
+        other.intent === 'OFFER' &&
+        compact(other.society ?? '') === compact(record.society!) &&
+        other.priceBasis === 'SALE_TOTAL' &&
+        [other.bhk, other.area, other.houseNo, other.floor].some((value) => value != null),
+    );
     if (anchors.length !== 1) return true;
     anchors[0].warnings.push(`Additional source quote: ${record.priceBasis} INR ${record.priceMin}. Review against the original photo.`);
     return false;
@@ -155,31 +255,44 @@ function reviewedFacts(input: z.infer<typeof captureFactsSchema>, visual: boolea
 }
 export function factsToEntities(input: z.infer<typeof captureFactsSchema>, source: string, visualEvidence = false): CapturedEntity[] {
   source = source.normalize('NFKC');
-  const records = reviewedFacts(input, visualEvidence);
+  const records = reviewedFacts(visualEvidence ? registerFacts(input, source) : input, visualEvidence);
   const entities: CapturedEntity[] = records.map((fact) => {
     const warnings = [...fact.warnings, 'AI draft. Verify against the original source.'];
     const evidence = visualEvidence ? source : projectEvidence(source, fact.society, records);
     const explicitNeed = /\b(?:need(?:ed)?|require(?:d|ment)?|looking\s+for|wanted|chahiye)\b|चाहिए|ज़रूरत/i.test(evidence);
     let purpose = fact.purpose;
-    const advertisedPurposes = new Set([...evidence.matchAll(/\bfor\s+(sale|sell|rent|lease)\b/gi)].map((match) => /sale|sell/i.test(match[1]) ? 'SALE' as const : 'RENT' as const));
+    const advertisedPurposes = new Set(
+      [...evidence.matchAll(/\bfor\s+(sale|sell|rent|lease)\b/gi)].map((match) => (/sale|sell/i.test(match[1]) ? ('SALE' as const) : ('RENT' as const))),
+    );
     const mixedPurpose = /\bfor\s+(?:(?:sale|sell)\s*[/&]\s*(?:rent|lease)|(?:rent|lease)\s*[/&]\s*(?:sale|sell))\b/i.test(evidence);
     if (advertisedPurposes.size === 1 && !mixedPurpose && !visualEvidence) purpose = [...advertisedPurposes][0];
     const rentalContext = /\b(?:rent|rental|lease|leasing)\b|किराय/i.test(evidence);
-    if (purpose === 'RENT' && !rentalContext && !visualEvidence && !explicitNeed) { purpose = null; warnings.push('Rental purpose not explicit; confirm manually.'); }
+    if (purpose === 'RENT' && !rentalContext && !visualEvidence && !explicitNeed) {
+      purpose = null;
+      warnings.push('Rental purpose not explicit; confirm manually.');
+    }
     const saleContext = /\b(?:sale|resale|sell|purchase|premium|primium|book\s*value|cr(?:ore)?s?)\b|खरीद|बिक्री|करोड़|करोड/i.test(evidence);
-    if (purpose === 'SALE' && !saleContext && !visualEvidence) { purpose = null; warnings.push('Sale purpose not explicit; confirm manually.'); }
+    if (purpose === 'SALE' && !saleContext && !visualEvidence) {
+      purpose = null;
+      warnings.push('Sale purpose not explicit; confirm manually.');
+    }
     const sectors = captureLocalities(evidence).map(compact);
     const explicitAmounts = sourceAmounts(evidence);
     // Providers sometimes label a complete marketed configuration as generic advertising.
     // Recover only independently printed project + unit facts, never model-only facts.
     const groundedProject = fact.society && compact(evidence).includes(compact(fact.society));
-    const printedConfiguration = (fact.area != null && fact.areaUnit != null && explicitAmounts.has(fact.area) && hasAreaUnitEvidence(evidence, fact.area, fact.areaUnit, false)) ||
+    const printedConfiguration =
+      (fact.area != null && fact.areaUnit != null && explicitAmounts.has(fact.area) && hasAreaUnitEvidence(evidence, fact.area, fact.areaUnit, false)) ||
       (fact.bhk != null && new RegExp('(?<![\\d.])' + fact.bhk + '\\s*[- ]?\\s*(?:BHK|RK)\\b', 'i').test(evidence));
     const recoverOffer = !visualEvidence && fact.intent === 'UNRELATED' && !explicitNeed && groundedProject && printedConfiguration;
     if (fact.intent === 'UNRELATED' && !recoverOffer) return { kind: 'UNRELATED', warnings };
     if (recoverOffer) warnings.push('Printed configuration retained despite uncertain AI classification; review the source.');
-    if (fact.intent === 'OFFER' && !visualEvidence && fact.society &&
-      [fact.bhk, fact.area, fact.houseNo, fact.floor, fact.priceMin].every((value) => value == null))
+    if (
+      fact.intent === 'OFFER' &&
+      !visualEvidence &&
+      fact.society &&
+      [fact.bhk, fact.area, fact.houseNo, fact.floor, fact.priceMin].every((value) => value == null)
+    )
       return { kind: 'UNRELATED', warnings: [...warnings, 'Project-only advertising has no identifiable unit; retained as source evidence.'] };
     let sector = fact.sector?.replace(/^(?:sec(?:tor)?\.?\s*[-:]?\s*)?(\d{1,3}[a-z]?)$/i, (_all, n: string) => 'Sector ' + n.toUpperCase()) ?? null;
     if (sector) {
@@ -215,7 +328,8 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     const rateAbbreviation = fact.priceBasis === 'RATE_PER_SQFT' ? '(?:psf|psqft)' : '(?:psqy|psy)';
     const explicitRate = !rateUnit || new RegExp('(?:per\\s*|/\\s*)' + rateUnit + '|\\b' + rateAbbreviation + '\\b', 'i').test(evidence);
     if (!explicitRate) warnings.push('Price without an explicit rate unit omitted; confirm manually.');
-    const consistentPrice = explicitRate &&
+    const consistentPrice =
+      explicitRate &&
       (fact.priceBasis === 'MONTHLY_RENT' ? purpose === 'RENT' : fact.priceBasis === 'SALE_TOTAL' ? purpose === 'SALE' : true) &&
       !(rateOnlyVisual && fact.priceBasis === 'SALE_TOTAL');
     if (!consistentPrice) warnings.push('Price type conflicts with rent/sale purpose; confirm manually.');
@@ -228,7 +342,8 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
           new RegExp('(?<![\\d.])' + String(fact.area).replace('.', '\\.') + '(?![\\d.])').test(line) &&
           new RegExp('\\b' + fact.bhk + '\\s*[- ]?\\s*(?:BHK|RK)\\b', 'i').test(line),
       );
-    const rowHasQuote = candidates.length === 1 && /(?:\b(?:cr(?:ore)?s?|lakhs?|lacs?|premium|primium|rent|demand|asking)\b|per\s*sq|\/\s*sq|₹)/i.test(candidates[0]);
+    const rowHasQuote =
+      candidates.length === 1 && /(?:\b(?:cr(?:ore)?s?|lakhs?|lacs?|premium|primium|rent|demand|asking)\b|per\s*sq|\/\s*sq|₹)/i.test(candidates[0]);
     const priceAmounts = !visualEvidence && rowHasQuote ? sourceAmounts(candidates[0]) : explicitAmounts;
     // A clearly labelled total may be below a configuration/rate line. Never calculate it.
     if (fact.priceBasis === 'SALE_TOTAL') {
@@ -261,7 +376,11 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
         const end = Math.min(labels[i + 1]?.index ?? evidence.length, lineEnd < 0 ? evidence.length : lineEnd);
         const quote = evidence.slice(label.index! + label[0].length, end);
         // "Premium luxury apartment ... 50k" is an adjective, not a premium quote.
-        if (!/^\s*(?:[:=@₹*\-–]|rs\.?|inr|around\b|approx(?:imately)?\.?|about\b|is\b|of\b|value\b|price\b|only\b|\s)*\s*\d/i.test(quote) || !sourceAmounts(quote).has(min)) continue;
+        if (
+          !/^\s*(?:[:=@₹*\-–]|rs\.?|inr|around\b|approx(?:imately)?\.?|about\b|is\b|of\b|value\b|price\b|only\b|\s)*\s*\d/i.test(quote) ||
+          !sourceAmounts(quote).has(min)
+        )
+          continue;
         matching.add(/premium|primium/i.test(label[1]) ? 'PREMIUM' : /book/i.test(label[1]) ? 'BOOK_VALUE' : 'SALE_TOTAL');
       }
       if (matching.size === 1) {
@@ -283,7 +402,12 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
     const bhk = (fractional && !explicitInteger && Math.floor(Number(fractional[1])) === fact.bhk) || warnedFraction ? null : proposedBhk;
     if (fact.bhk != null && bhk == null) warnings.push('Fractional layout must not be rounded to integer BHK.');
     purpose ??= ['PREMIUM', 'BOOK_VALUE'].includes(priceBasis ?? '') ? 'SALE' : null;
-    const common = { purpose, roomKind: fact.roomKind, furnishing: fact.furnishing, notes: quoted };
+    const common = {
+      purpose,
+      roomKind: fact.roomKind,
+      furnishing: fact.furnishing,
+      notes: [quoted, fact.notes && (visualEvidence || compact(evidence).includes(compact(fact.notes))) ? fact.notes : null].filter(Boolean).join('\n') || null,
+    };
     const areaUnit = fact.areaUnit && hasAreaUnitEvidence(source, fact.area, fact.areaUnit, visualEvidence) ? fact.areaUnit : null;
     const area = areaUnit ? groundedAmount(fact.area) : null;
     if (fact.area != null && !areaUnit) warnings.push('Area without an explicit unit omitted.');
@@ -314,8 +438,12 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
       inventory: {
         ...common,
         sector,
+        category: visualEvidence ? (fact.category ?? (fact.bhk != null || fact.roomKind ? 'RESIDENTIAL' : null)) : null,
+        propertyType: visualEvidence ? (fact.propertyType ?? null) : null,
         houseNo: fact.houseNo,
-        floor: fact.floor,
+        floor: fact.floor
+          ? ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' }[fact.floor.trim().toUpperCase()] ?? fact.floor.replace(/^(\d+)(?:st|nd|rd|th)\s+floor$/i, '$1'))
+          : null,
         bhk,
         area,
         areaUnit,
@@ -325,7 +453,7 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
         rateAreaUnit: priceBasis === 'RATE_PER_SQFT' ? 'SQ_FT' : priceBasis === 'RATE_PER_SQYD' ? 'SQ_YD' : null,
         details: { projectName: fact.society },
         contacts,
-        availability: 'UNKNOWN',
+        availability: visualEvidence && fact.availability && fact.availability !== 'AVAILABLE' ? fact.availability : 'UNKNOWN',
         verificationStatus: 'NEEDS_REVIEW',
       },
     });
@@ -334,8 +462,11 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
   // fragments must not create a list of empty, apparently independent properties.
   const unrelated = entities.filter((entity) => entity.kind === 'UNRELATED');
   if (unrelated.length <= 1) return entities;
-  return [...entities.filter((entity) => entity.kind !== 'UNRELATED'), {
-    kind: 'UNRELATED',
-    warnings: [...new Set(unrelated.flatMap((entity) => entity.warnings))].slice(0, 50),
-  }];
+  return [
+    ...entities.filter((entity) => entity.kind !== 'UNRELATED'),
+    {
+      kind: 'UNRELATED',
+      warnings: [...new Set(unrelated.flatMap((entity) => entity.warnings))].slice(0, 50),
+    },
+  ];
 }

@@ -35,6 +35,9 @@ export interface ImportUploadInput {
   groupName?: string;
   target?: string;
   directoryMonth?: string;
+  registerSessionId?: string;
+  registerPageNo?: number;
+  registerSector?: string;
 }
 
 export type ImportUploadRequest = <T>(path: string, body?: unknown) => Promise<T>;
