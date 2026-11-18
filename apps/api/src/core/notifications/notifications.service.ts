@@ -34,7 +34,7 @@ export class NotificationsService {
         AND COALESCE(NULLIF(n.data->>'leadId', ''), substring(n.link from '^/broker/leads/([^/?#]+)')) IS NOT NULL
         AND NOT COALESCE((l.id IS NOT NULL AND l."deletedAt" IS NULL AND (
           u.role='SUPER_ADMIN' OR (u."organizationId"=l."organizationId" AND
-          (u.role='BROKER_ADMIN' OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id))))), FALSE)`);
+          (u.role='BROKER_ADMIN' OR (u.role='SUB_BROKER_ADMIN' AND 'leads:view'=ANY(u."delegatedPermissions")) OR (u.role='BROKER_AGENT' AND l."assignedToId"=u.id))))), FALSE)`);
     return rows.map((row) => row.id);
   }
 
@@ -58,6 +58,7 @@ export class NotificationsService {
                 OR: [
                   { role: 'SUPER_ADMIN' },
                   { role: 'BROKER_ADMIN', organizationId: lead.organizationId },
+                  { role: 'SUB_BROKER_ADMIN', organizationId: lead.organizationId, delegatedPermissions: { has: 'leads:view' } },
                   { role: 'BROKER_AGENT', organizationId: lead.organizationId, id: lead.assignedToId ?? '' },
                 ],
               }

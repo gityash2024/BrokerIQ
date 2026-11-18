@@ -1,4 +1,6 @@
 import {
+  inventoryAvailabilityDate,
+  inventoryDateLabel,
   clientPropertyShare,
   floorLabel,
   inventoryTitle,
@@ -64,6 +66,11 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
         elevation: 3,
       }}
     >
+      {!!inventoryAvailabilityDate(item) && (
+        <Txt v="caption" color="muted">
+          Available from: {inventoryDateLabel(inventoryAvailabilityDate(item)!)}
+        </Txt>
+      )}
       <Pressable
         accessibilityLabel={`Property ${item.houseNo ?? item.id}`}
         onLongPress={onSelect}

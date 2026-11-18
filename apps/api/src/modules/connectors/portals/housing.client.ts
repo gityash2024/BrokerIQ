@@ -112,6 +112,10 @@ export function housingLeadDetail(l: HousingLead) {
 
 /** BHK numbers from "2 BHK" / "1 BHK, 2 BHK". */
 export function housingBedrooms(l: HousingLead): number[] {
-  const src = `${l.apartment_names ?? ''} ${l.project_name ?? ''}`;
-  return [...new Set([...src.matchAll(/(\d)\s*BHK/gi)].map((m) => Number(m[1])))].filter((n) => n > 0 && n < 10);
+  const explicit = ['bedrooms', 'bedroom', 'bhk', 'bedroom_count'].flatMap((key) => {
+    const value = l[key];
+    return (typeof value === 'number' || typeof value === 'string') && /^[1-9]$/.test(String(value).trim()) ? [Number(value)] : [];
+  });
+  const src = [l.apartment_names, l.project_name, l.configuration, l.property_configuration, l.bhk].filter((value) => typeof value === 'string').join(' ');
+  return [...new Set([...explicit, ...[...src.matchAll(/(\d)\s*BHK/gi)].map((m) => Number(m[1]))])].filter((n) => n > 0 && n < 10);
 }

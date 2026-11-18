@@ -1,12 +1,15 @@
+import { ScrollView } from '@/components/keyboard-scroll-view';
+import { InboxPropertyShare } from '@/components/inbox-property-share';
+import { LinkedMessage } from '@/components/linked-message';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { FlatList, TextInput, View } from 'react-native';
+import { FlatList, TextInput, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
+import { Building2, AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
 import { renderTemplate, type WaTemplate } from '@brokeriq/shared';
 import { readInboxDraft, saveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -61,6 +64,7 @@ export default function WaThread() {
   const attempt = useRef<{ text: string; requestId: string; subject?: string; replyToId?: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [tpl, setTpl] = useState(false);
+  const [propertyOpen, setPropertyOpen] = useState(false);
   const list = useRef<FlatList>(null);
   useRealtime<any>('wa:message', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
   useRealtime<any>('wa:status', (d) => d.conversationId === id && qc.invalidateQueries({ queryKey: ['wa-thread', id] }));
@@ -211,7 +215,9 @@ export default function WaThread() {
                       📄 {m.templateName}
                     </Txt>
                   )}
-                  <Txt color={out ? 'white' : 'fg'}>{m.body ?? `[${m.type.toLowerCase()}]`}</Txt>
+                  <Txt color={out ? 'white' : 'fg'}>
+                    <LinkedMessage text={m.body ?? `[${m.type.toLowerCase()}]`} />
+                  </Txt>
                   <Row gap={4} style={{ alignSelf: 'flex-end', marginTop: 2 }}>
                     <Txt v="caption" color={out ? 'rgba(255,255,255,0.7)' : 'subtle'}>
                       {new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
@@ -264,7 +270,35 @@ export default function WaThread() {
             </Txt>
           </PressableScale>
         )}
+        {windowOpen && !sms && !email && (
+          <ScrollView
+            horizontal
+            style={{ flexGrow: 0, maxHeight: 48 }}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+          >
+            {['Hello! How can I help you?', 'Are you available for a site visit today?', 'I am sharing the property photos and pricing details.'].map(
+              (reply) => (
+                <PressableScale
+                  key={reply}
+                  onPress={() => {
+                    edited.current = true;
+                    const next = text ? text + ' ' + reply : reply;
+                    setText(next);
+                    saveInboxDraft(id, next, owner).catch(showError);
+                  }}
+                  style={{ paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: c.line, borderRadius: 20 }}
+                >
+                  <Text style={{ color: c.fg, fontFamily: fonts.body, fontSize: 12 }}>{reply}</Text>
+                </PressableScale>
+              ),
+            )}
+          </ScrollView>
+        )}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, borderTopWidth: 1, borderColor: c.line, backgroundColor: c.surface }}>
+          <IconBtn accessibilityLabel="Share property" disabled={!canSend} onPress={() => setPropertyOpen(true)}>
+            <Building2 size={21} color={c.muted} />
+          </IconBtn>
           {!sms && !email && (
             <IconBtn onPress={() => setTpl(true)}>
               <FileText size={21} color={c.muted} />
@@ -307,6 +341,18 @@ export default function WaThread() {
             <Send size={19} color="#fff" />
           </IconBtn>
         </View>
+        <Sheet open={propertyOpen} onClose={() => setPropertyOpen(false)} title="Share property">
+          {propertyOpen && (
+            <InboxPropertyShare
+              onDraft={(draft) => {
+                edited.current = true;
+                setText(draft);
+                saveInboxDraft(id, draft, owner).catch(showError);
+                setPropertyOpen(false);
+              }}
+            />
+          )}
+        </Sheet>
       </KeyboardAvoidingView>
       <TemplateSheet
         open={tpl}

@@ -1,3 +1,4 @@
+import { usePropertyGallery } from '@/lib/property-gallery';
 import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
 import { View, Linking, Share, Pressable, TouchableOpacity } from 'react-native';
@@ -8,6 +9,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from '@/lib/image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
+  propertyGalleryDraft,
   clientPropertyShare,
   shareablePropertyPhotoUrls,
   type LedgerItem,
@@ -27,6 +29,7 @@ import { SharePhotoFilesButton } from '@/components/share-photo-files-button';
 import { SourceImage } from '@/launch/source-image';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
+import { InventoryDetailAccess } from '@/components/inventory-detail-access';
 import { InventoryLeadShare } from '@/components/inventory-lead-share';
 import {
   Phone,
@@ -52,7 +55,7 @@ export default function PropertyDetail() {
   const isAdmin = user?.role === 'BROKER_ADMIN';
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const canAssign = isAdmin || (delegated && hasDelegatedAccess(user, 'inventory', 'edit', 'assign'));
-  const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
+  const itemEditable = hasDelegatedAccess(user, 'inventory', 'edit');
   const qc = useQueryClient();
 
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -75,6 +78,8 @@ export default function PropertyDetail() {
   });
 
   const item = q.data;
+  const gallery = usePropertyGallery(item?.id, shareExternally && !!shareablePropertyPhotoUrls(item?.photoUrls).length);
+  const canEdit = itemEditable && item?.canEdit !== false;
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : team.data?.members) || [];
   const primaryContact = item?.contacts?.[0];
 
@@ -140,6 +145,7 @@ export default function PropertyDetail() {
 
         {item && (
           <>
+            <InventoryDetailAccess item={item} />
             {/* Top Luxury Price & Header Hero */}
             <View
               style={{
@@ -757,6 +763,20 @@ export default function PropertyDetail() {
         {item && shareExternally && (
           <>
             {!!shareablePropertyPhotoUrls(item.photoUrls).length && <SharePhotoFilesButton urls={item.photoUrls ?? []} caption={clientPropertyShare(item)} />}
+            {!!item.photoUrls?.length && (
+              <Button
+                title="Share details and gallery link"
+                variant="secondary"
+                loading={gallery.isFetching}
+                disabled={!gallery.data}
+                onPress={() =>
+                  gallery.data &&
+                  void Share.share({ message: propertyGalleryDraft(clientPropertyShare(item), gallery.data.url) }).catch((error) =>
+                    toast.error(errorMessage(error)),
+                  )
+                }
+              />
+            )}
             <Button
               title="Share details only"
               variant="ghost"
@@ -766,7 +786,7 @@ export default function PropertyDetail() {
         )}
       </Sheet>
       <Sheet open={shareWithLead} onClose={() => setShareWithLead(false)} title="Share with CRM lead">
-        {shareWithLead && item && <InventoryLeadShare message={clientPropertyShare(item)} photoUrls={item.photoUrls} />}
+        {shareWithLead && item && <InventoryLeadShare inventoryId={item.id} message={clientPropertyShare(item)} photoUrls={item.photoUrls} />}
       </Sheet>
       <Sheet open={matchLeadsOpen} onClose={() => setMatchLeadsOpen(false)} title="Matching Buyer Leads">
         <View style={{ gap: 14, paddingBottom: 20 }}>

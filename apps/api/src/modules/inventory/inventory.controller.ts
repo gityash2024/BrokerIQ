@@ -7,6 +7,7 @@ import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { requireOrg } from '../../common/utils';
+import { InventoryAccessService } from './inventory-access.service';
 import { InventoryService } from './inventory.service';
 import type { CreateInventoryItemDto, InventoryFilterQuery, UpdateInventoryItemDto } from './inventory.dto';
 
@@ -17,6 +18,7 @@ export class InventoryController {
   constructor(
     private readonly inventory: InventoryService,
     private readonly prisma: PrismaService,
+    private readonly access: InventoryAccessService,
   ) {}
   @Roles('BROKER_ADMIN')
   @Get('assignees')
@@ -72,6 +74,27 @@ export class InventoryController {
   @Get('sectors') getSectors(@Query('organizationId') orgId: string, @CurrentUser() user: RequestUser) {
     return this.inventory.getSectors(user, orgId);
   }
+  @Get(':id/access')
+  detailAccess(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.access.requests(id, user);
+  }
+
+  @Post(':id/access/request')
+  requestDetailAccess(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.access.request(id, user);
+  }
+
+  @Post(':id/access/:agentId/review')
+  reviewDetailAccess(
+    @Param('id') id: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ action: z.enum(['approve', 'reject', 'revoke']), expectedUpdatedAt: z.string().datetime() })))
+    body: { action: 'approve' | 'reject' | 'revoke'; expectedUpdatedAt: string },
+  ) {
+    return this.access.review(id, agentId, body, user);
+  }
+
   @Get(':id') get(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.inventory.get(id, user);
   }

@@ -23,7 +23,7 @@ export function DelegatedPermissions({ value, onChange }: { value: string[]; onC
                     checked={value.includes(grant)}
                     onChange={(e) => onChange(e.target.checked ? [...value, grant] : value.filter((item) => item !== grant))}
                   />
-                  {action.replace('_', ' ')}
+                  {action === 'approve_details' ? 'Approve property details access' : action.replace('_', ' ')}
                 </label>
               );
             })}

@@ -7,7 +7,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, Filter, Inbox, MessageCircle, Phone, Search, Trash2, Upload, UserPlus, X } from 'lucide-react';
-import { LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
+import { leadEnquiryOverview, LEAD_SOURCES, LEAD_SOURCE_LABELS, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { api, apiBlob, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
@@ -24,7 +24,7 @@ import { Avatar, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
-const leadColumns = 'lg:grid-cols-[32px_minmax(0,2fr)_minmax(0,1.2fr)_120px_minmax(0,1.3fr)_120px_13rem]';
+const leadColumns = 'lg:grid-cols-[28px_minmax(0,1.7fr)_minmax(0,1fr)_100px_minmax(0,1.5fr)_100px_11rem_minmax(0,1fr)]';
 
 function LeadsInner() {
   const sp = useSearchParams();
@@ -46,7 +46,7 @@ function LeadsInner() {
   const [sel, setSel] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
   const q = useQuery({ queryKey: ['leads', f], queryFn: () => api<Paged<LeadRow>>(`/leads${qs({ ...f, pageSize: 30 })}`), placeholderData: (p) => p });
-  useRealtime('notification', (n: any) => n?.kind === 'NEW_LEAD' && q.refetch());
+  useRealtime('notification', (n: any) => ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_ASSIGNMENT_ACCEPTED'].includes(n?.kind) && q.refetch());
   const bulk = useApiMutation((b: { action: string; value?: string | null }) => post('/leads/bulk', { ids: sel, ...b }), {
     success: (r: any) => `${r.updated} leads updated`,
     invalidate: [['leads'], ['kanban']],
@@ -267,15 +267,16 @@ function LeadsInner() {
           >
             <input type="checkbox" checked={allSel} onChange={() => setSel(allSel ? [] : items.map((l) => l.id))} aria-label="Select all" />
             <span>Lead</span>
-            <span>Source</span>
+            <span>Location</span>
             <span>Stage</span>
             <span>Requirement</span>
             <span>Owner</span>
             <span className="text-right">Actions</span>
+            <span>Source</span>
           </div>
           <div className="divide-y divide-line">
             {items.map((l) => {
-              const r = l.requirement;
+              const enquiry = leadEnquiryOverview(l);
               return (
                 <div
                   key={l.id}
@@ -317,27 +318,21 @@ function LeadsInner() {
                         : ''}
                     </p>
                     <div className="mt-1 flex gap-1.5 lg:hidden">
-                      <SourceBadge source={l.source} />
                       <StageBadge stage={l.stage} />
                     </div>
+                    <p className="mt-1 text-xs text-muted lg:hidden">{[enquiry.location, enquiry.summary].filter(Boolean).join(' · ')}</p>
+                    <div className="mt-1 lg:hidden">
+                      <SourceBadge source={l.source} />
+                    </div>
                   </Link>
-                  <div className="hidden min-w-0 lg:block">
-                    <SourceBadge source={l.source} />
-                    {l.sourceDetail && <p className="mt-0.5 truncate text-xs text-subtle">{l.sourceDetail}</p>}
-                  </div>
+                  <p className="hidden min-w-0 text-xs text-muted lg:block" title={enquiry.location}>
+                    {enquiry.location || 'Not recorded'}
+                  </p>
                   <div className="hidden lg:block">
                     <StageBadge stage={l.stage} />
                   </div>
-                  <p className="hidden truncate text-xs text-muted lg:block">
-                    {r
-                      ? [
-                          r.purpose === 'RENT' ? 'Rent' : r.purpose === 'SALE' ? 'Buy' : null,
-                          r.bedrooms?.length ? `${r.bedrooms.join('/')} BHK` : null,
-                          r.maxBudget ? `≤ ${formatPriceShort(r.maxBudget)}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ') || '—'
-                      : (l.listing?.title ?? '—')}
+                  <p className="hidden min-w-0 text-xs text-muted lg:block" title={enquiry.summary}>
+                    {enquiry.summary || 'Not recorded'}
                   </p>
                   <div className="hidden min-w-0 items-center gap-2 lg:flex">
                     {l.assignedTo ? (
@@ -364,6 +359,14 @@ function LeadsInner() {
                     <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
                       Email
                     </Button>
+                  </div>
+                  <div className="hidden min-w-0 lg:block">
+                    <SourceBadge source={l.source} />
+                    {l.sourceDetail && (
+                      <p className="mt-0.5 truncate text-xs text-subtle" title={l.sourceDetail}>
+                        {l.sourceDetail}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

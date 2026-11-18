@@ -4,7 +4,7 @@
  * we look for "Name / Mobile / Email / Property" style labels, then fall back to
  * phone/email regexes over the whole body.
  */
-import { normalizeIndianPhone } from '@brokeriq/shared';
+import { parseRentalQuery, normalizeIndianPhone } from '@brokeriq/shared';
 
 export type PortalSource = 'HOUSING' | 'ACRES99' | 'MAGICBRICKS' | 'NOBROKER';
 
@@ -190,6 +190,7 @@ export function sourceFromLabel(label?: string | null) {
 
 // ------------------------------------------------------------------ requirement hints (BHK / budget / sector)
 export interface RequirementHints {
+  furnishing: 'FULLY_FURNISHED' | 'SEMI_FURNISHED' | 'UNFURNISHED' | null;
   bedrooms: number[];
   minBudget: number | null;
   maxBudget: number | null;
@@ -226,5 +227,5 @@ export function extractRequirementHints(text: string): RequirementHints {
     t.match(
       /\b((?:golf course|sohna|mg|southern peripheral|dwarka expressway|nh[\s-]?48|udyog vihar|cyber city|dlf phase[\s-]*\d)[a-z\s]{0,20}?(?:road|extension|ext|phase \d)?)\b/i,
     )?.[1] ?? null;
-  return { bedrooms, minBudget, maxBudget, localityText: (sector ?? road)?.replace(/\s+/g, ' ').trim() ?? null };
+  return { furnishing: parseRentalQuery(t).furnishing, bedrooms, minBudget, maxBudget, localityText: (sector ?? road)?.replace(/\s+/g, ' ').trim() ?? null };
 }

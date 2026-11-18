@@ -2,7 +2,7 @@
 
 import { InventoryStatusActions } from './inventory-status-actions';
 import { LoadingArtwork } from '@/components/ui/request-loader';
-import { inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
+import { inventoryAvailabilityDate, inventoryDateLabel, inventoryTitle, inventoryPrice, readableValue, floorLabel } from '@brokeriq/shared';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useState, useEffect } from 'react';
@@ -395,6 +395,9 @@ function LedgerInner() {
                     </p>
                   </div>
 
+                  {!!inventoryAvailabilityDate(item) && (
+                    <p className="mt-2 text-xs text-muted">Available from: {inventoryDateLabel(inventoryAvailabilityDate(item)!)}</p>
+                  )}
                   <div className="mt-2.5 flex items-baseline gap-1.5">
                     <span className="font-display text-lg font-bold tracking-tight text-fg">{inventoryPrice(item)}</span>
                   </div>
@@ -452,7 +455,9 @@ function LedgerInner() {
                     >
                       Details →
                     </button>
-                    {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />}
+                    {!isSuper && !item.deletedAt && (
+                      <InventoryStatusActions disabled={item.canEdit === false || !hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />
+                    )}
                   </div>
                 </div>
               </article>
@@ -648,7 +653,9 @@ function LedgerInner() {
                                   : 'Publish ↗'}
                         </button>
                       }
-                      {!isSuper && !item.deletedAt && <InventoryStatusActions disabled={!hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />}
+                      {!isSuper && !item.deletedAt && (
+                        <InventoryStatusActions disabled={item.canEdit === false || !hasDelegatedAccess(user, 'inventory', 'edit')} item={item} />
+                      )}
                     </td>
                   </tr>
                 );

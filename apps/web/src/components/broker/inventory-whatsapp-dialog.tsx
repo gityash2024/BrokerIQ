@@ -10,7 +10,7 @@ import {
   hasDelegatedAccess,
   normalizeIndianPhone,
   floorLabel,
-  propertyPhotoDraft,
+  propertyGalleryDraft,
   shareablePropertyPhotoUrls,
 } from '@brokeriq/shared';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import { captureAccountContext, assertAccountContext, errorMessage } from '@/lib
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { SharePhotoFilesOnMobile } from './share-photo-files-on-mobile';
 import { LeadPicker } from './lead-picker';
+import { usePropertyGallery } from '@/lib/property-gallery';
 import { useAuth } from '@/lib/auth';
 import type { LeadInboxChannel, LedgerItem } from '@brokeriq/shared';
 
@@ -59,7 +60,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
   const owner = useRef(captureAccountContext());
   const [templateType, setTemplateType] = useState<'owner' | 'client'>('client');
   const [customText, setCustomText] = useState('');
-  const [includePhotos, setIncludePhotos] = useState(false);
+  const [includePhotos, setIncludePhotos] = useState(true);
   const [copied, setCopied] = useState(false);
   const [client, setClient] = useState<{ id: string; name?: string | null; phone: string } | null>(null);
   const [channel, setChannel] = useState<LeadInboxChannel>('WHATSAPP');
@@ -91,11 +92,12 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
     if (item) {
       setCustomText(generateMessage(templateType));
       setCopied(false);
-      setIncludePhotos(false);
+      setIncludePhotos(true);
       setClient(null);
     }
   }, [item, templateType, generateMessage]);
 
+  const gallery = usePropertyGallery(item?.id, open && !!shareablePropertyPhotoUrls(item?.photoUrls).length);
   if (!item) return null;
   const photos = shareablePropertyPhotoUrls(item.photoUrls);
 
@@ -104,7 +106,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
       assertAccountContext(owner.current);
       if (templateType === 'client') {
         if (!crmAllowed || !client) return toast.error('Choose an authorized CRM lead first.');
-        await openLeadInbox(client.id, includePhotos ? propertyPhotoDraft(customText, item.photoUrls) : customText, channel);
+        await openLeadInbox(client.id, includePhotos && gallery.data ? propertyGalleryDraft(customText, gallery.data.url) : customText, channel);
         return;
       }
       const text = encodeURIComponent(customText);
@@ -130,7 +132,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
   const handleCopy = async () => {
     try {
       assertAccountContext(owner.current);
-      await navigator.clipboard.writeText(customText);
+      await navigator.clipboard.writeText(includePhotos && gallery.data ? propertyGalleryDraft(customText, gallery.data.url) : customText);
       assertAccountContext(owner.current);
       setCopied(true);
       toast.success('Message text copied to clipboard!');
@@ -153,7 +155,12 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
             {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
             {copied ? 'Copied' : 'Copy Text'}
           </Button>
-          <Button variant="whatsapp" size="sm" disabled={templateType === 'client' && (!crmAllowed || !client)} onClick={handleSend}>
+          <Button
+            variant="whatsapp"
+            size="sm"
+            disabled={templateType === 'client' && (!crmAllowed || !client || (includePhotos && !!photos.length && !gallery.data))}
+            onClick={handleSend}
+          >
             <Send className="size-4" /> {templateType === 'client' ? `Open ${channel === 'EMAIL' ? 'Email' : channel} Inbox` : 'Open owner WhatsApp'}
           </Button>
         </div>
@@ -199,7 +206,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={includePhotos} onChange={(event) => setIncludePhotos(event.target.checked)} />
-                  Include property photo links
+                  Include photo gallery link
                 </label>
                 <SharePhotoFilesOnMobile appUrl={`brokeriq://inventory/${encodeURIComponent(item.id)}?share=photos`} count={photos.length} />
               </div>
@@ -214,6 +221,15 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
           </div>
         )}
 
+        {gallery.error && (
+          <p role="alert" className="text-sm text-danger">
+            Photo gallery could not be prepared.{' '}
+            <button type="button" onClick={() => gallery.refetch()}>
+              Retry
+            </button>
+          </p>
+        )}
+        {includePhotos && gallery.data && <p className="break-all text-xs text-muted">Photo gallery · {gallery.data.url}</p>}
         {/* Message preview and editor */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">

@@ -226,6 +226,8 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
   });
 }
 export interface LedgerItem extends Omit<InventoryInput, 'contacts' | 'directoryMonth'> {
+  detailAccess?: 'OWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'REVOKED' | 'LOCKED';
+  canEdit?: boolean;
   directoryMonth?: string | null;
   localityId?: string | null;
   publishedListingId?: string | null;
@@ -414,4 +416,12 @@ export function propertyPhotoDraft(message: string, urls: readonly string[] = []
     if (message.length + section.length <= maxLength) links.push(url);
   }
   return links.length ? `${message}\n\nProperty photos:\n${links.join('\n')}` : message;
+}
+
+/** One readable gallery link is used for new messages across every property-sharing entry point. */
+export function propertyGalleryDraft(message: string, url: string): string {
+  const link = new URL(url);
+  if (!['https:', 'http:'].includes(link.protocol) || link.username || link.password || !/^\/photos\/[a-f0-9]{48}$/.test(link.pathname))
+    throw new Error('Invalid property gallery link');
+  return message + '\n\nView all property photos:\n' + link.href;
 }

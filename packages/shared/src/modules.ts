@@ -111,7 +111,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/inventory',
     ['/broker/inventory', '/broker/scanner', '/broker/listings', '/broker/publications'],
     ['/inventory', '/listings', '/ai/scan'],
-    ['import.pdf'],
+    ['import.pdf', 'inventory.access-notification'],
   ),
   core(
     'leads',
@@ -120,7 +120,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/leads',
     ['/broker/leads', '/broker/pipeline', '/broker/follow-ups', '/broker/visits'],
     ['/leads', '/follow-ups', '/visits', '/requirements/broker', '/broker-requirements'],
-    ['lead.score'],
+    ['lead.score', 'lead.assignment-notification'],
   ),
   core(
     'inbox',
@@ -267,6 +267,7 @@ export function moduleForPath(path: string, surface: 'web' | 'api' | 'job' = 'we
       '/broker/onboarding',
       '/broker/business-hours',
       '/broker/webhook-key',
+      '/public/photo-galleries',
       '/public/config',
       '/public/taxonomies',
       '/public/localities',

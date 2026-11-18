@@ -114,6 +114,10 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   };
   const stage = useApiMutation((b: { stage: string; lostReason?: string }) => patch(`/leads/${id}/stage`, b), { onSuccess: refresh });
   const assign = useApiMutation((assignedToId: string | null) => patch(`/leads/${id}/assign`, { assignedToId }), { success: 'Assigned', onSuccess: refresh });
+  const acceptAssignment = useApiMutation((assignmentId: string | null) => post(`/leads/${id}/assignment/accept`, { assignmentId }), {
+    success: 'Lead accepted',
+    onSuccess: refresh,
+  });
   const remove = useApiMutation(() => del(`/leads/${id}`), { success: 'Lead deleted', onSuccess: () => router.push('/broker/leads') });
 
   if (q.isLoading) return <PageLoader />;
@@ -127,6 +131,16 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <ArrowLeft className="size-4" /> Leads
       </Link>
 
+      {!!l.assignedTo && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm">{l.assignmentAcceptedAt ? `Accepted by ${l.assignedTo.name}` : `Awaiting acceptance from ${l.assignedTo.name}`}</p>
+          {l.assignedTo.id === user?.id && !l.assignmentAcceptedAt && (
+            <Button loading={acceptAssignment.isPending} onClick={() => acceptAssignment.mutate(l.assignmentId ?? null)}>
+              Accept assigned lead
+            </Button>
+          )}
+        </div>
+      )}
       <div className="card overflow-hidden">
         <div className="flex flex-col gap-5 p-6 xl:flex-row xl:items-center">
           <Avatar name={l.name} size={64} />

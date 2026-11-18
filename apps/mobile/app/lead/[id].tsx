@@ -106,6 +106,11 @@ export default function LeadDetail() {
   const stage = useApiMutation((b: { stage: string; lostReason?: string }) => patch(`/leads/${id}/stage`, b), { success: 'Stage updated', onSuccess: refresh });
   const assign = useApiMutation((userId: string | null) => patch(`/leads/${id}/assign`, { assignedToId: userId }), { success: 'Assigned', onSuccess: refresh });
 
+  const acceptAssignment = useApiMutation((assignmentId: string | null) => post(`/leads/${id}/assignment/accept`, { assignmentId }), {
+    success: 'Lead accepted',
+    onSuccess: refresh,
+  });
+
   if (q.isLoading) return <Loader />;
   if (q.isError)
     return (
@@ -144,6 +149,14 @@ export default function LeadDetail() {
       </Row>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeIn} style={{ paddingHorizontal: 16, gap: 10 }}>
+          {!!l.assignedTo && (
+            <Card style={{ padding: 12, gap: 8 }}>
+              <Txt v="small">{l.assignmentAcceptedAt ? `Accepted by ${l.assignedTo.name}` : `Awaiting acceptance from ${l.assignedTo.name}`}</Txt>
+              {l.assignedTo.id === user?.id && !l.assignmentAcceptedAt && (
+                <Button title="Accept assigned lead" loading={acceptAssignment.isPending} onPress={() => acceptAssignment.mutate(l.assignmentId ?? null)} />
+              )}
+            </Card>
+          )}
           <Row gap={12}>
             <Avatar name={l.name} size={60} />
             <View style={{ flex: 1, gap: 3 }}>

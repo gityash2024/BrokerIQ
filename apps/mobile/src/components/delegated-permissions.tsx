@@ -15,9 +15,14 @@ export function DelegatedPermissions({ value, onChange }: { value: string[]; onC
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {module.actions.map((action) => {
               const grant = delegatedGrant(module.key, action);
-              return <Chip key={grant} label={action[0].toUpperCase() + action.slice(1)}
-                active={value.includes(grant)}
-                onPress={() => onChange(value.includes(grant) ? value.filter((item) => item !== grant) : [...value, grant])} />;
+              return (
+                <Chip
+                  key={grant}
+                  label={action === 'approve_details' ? 'Approve property details access' : (action[0].toUpperCase() + action.slice(1)).replaceAll('_', ' ')}
+                  active={value.includes(grant)}
+                  onPress={() => onChange(value.includes(grant) ? value.filter((item) => item !== grant) : [...value, grant])}
+                />
+              );
             })}
           </View>
         </Card>

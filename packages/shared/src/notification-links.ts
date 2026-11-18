@@ -29,6 +29,7 @@ export function normalizeNativeIntent(value: string): string {
     const path = notificationPath(value);
     if (!path) return '/';
     if (path === '/') return '/';
+    if (/^\/photos\/[a-f0-9]{48}(?:\?|$)/.test(path)) return path;
     if (path === '/expo-sharing') return '/handle-share';
     if (/^\/notification(?:\?|$)/.test(path)) return path.replace('/notification', '/notifications');
     if (/^\/user\/property\/[A-Za-z0-9_-]+(?:\?|$)/.test(path)) return path.replace('/user/property/', '/property/');
@@ -104,7 +105,7 @@ export function notificationInbox(role: string, native = false) {
     ? '/notifications'
     : role === 'SUPER_ADMIN'
       ? '/admin/notifications'
-      : ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)
+      : ['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(role)
         ? '/broker/notifications'
         : '/user/account/notifications';
 }
@@ -137,6 +138,8 @@ export function notificationDestination(
   // Specific workspace routes precede /leads/:id (requirements is not a lead id).
   const dashboard = nativeDashboardPath(path);
   if (dashboard) return dashboard;
+  const privateProperty = match(`^/broker/inventory/(${id})$`);
+  if (privateProperty) return '/inventory/' + privateProperty + suffix;
   if (base === '/broker/inventory') return '/(broker)/inventory' + suffix;
   if (base === '/broker/kyc' && new URLSearchParams(query).get('view') === 'mine') return '/agent-kyc';
   const lead = match(`^/broker/leads/(${id})$`);

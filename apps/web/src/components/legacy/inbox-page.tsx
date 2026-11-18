@@ -40,6 +40,8 @@ import { post, useDebounced } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { cn, formatDate, qs } from '@/lib/utils';
 import { StageBadge } from '@/components/broker/bits';
+import { InboxPropertyShare } from '@/components/broker/inbox-property-share';
+import { LinkedMessage } from '@/components/broker/linked-message';
 import { ListingPicker } from '@/components/broker/lead-picker';
 import { ChatThread } from '@/components/site/chat-view';
 import { Button } from '@/components/ui/button';
@@ -51,11 +53,11 @@ import { IntegrationBanner } from '@/components/ui/api-error';
 type Channel = 'WHATSAPP' | 'CHAT' | 'SMS' | 'EMAIL';
 
 const CANNED_REPLIES = [
-  '👋 नमस्ते! मैं आपकी किस प्रकार सहायता कर सकता हूँ?',
-  '📅 क्या आप आज साइट विजिट के लिए उपलब्ध हैं?',
-  '🏡 प्रॉपर्टी ब्रोशर और कीमत डिटेल्स भेज रहा हूँ।',
-  '📍 लोकेशन मैप व दिशा-निर्देश भेज रहा हूँ।',
-  '💰 क्या आपकी BHK व बजट आवश्यकता यही है?',
+  'Hello! How can I help you?',
+  'Are you available for a site visit today?',
+  'I am sharing the property photos and pricing details.',
+  'I am sharing the location and directions.',
+  'Please confirm your BHK and budget requirements.',
 ];
 
 const AVATAR_GRADIENTS = [
@@ -721,7 +723,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
                         </p>
                       )}
                       <p className="break-words whitespace-pre-line leading-relaxed text-[13.5px]">
-                        {m.body ?? (m.type !== 'TEXT' ? `[${m.type.toLowerCase()}]` : '')}
+                        <LinkedMessage text={m.body ?? (m.type !== 'TEXT' ? `[${m.type.toLowerCase()}]` : '')} />
                       </p>
                       <p className={cn('mt-1 flex items-center justify-end gap-1 text-[10px]', out ? 'text-emerald-100/80' : 'text-subtle font-medium')}>
                         {out && m.sender?.name && <span className="mr-1">{m.sender.name} ·</span>}
@@ -761,10 +763,10 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
 
         {/* Canned Quick Replies with Beautiful Horizontal Scroll */}
         {windowOpen && connected && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <div data-no-i18n translate="no" className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <span className="flex items-center gap-1 text-[11px] font-semibold text-subtle shrink-0 mr-1">
               <Sparkles className="size-3 text-emerald-600" />
-              त्वरित उत्तर:
+              Quick replies
             </span>
             {CANNED_REPLIES.map((cr, idx) => (
               <button
@@ -826,7 +828,11 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
               }
             }}
             placeholder={
-              !connected ? 'WhatsApp connect नहीं है' : windowOpen ? 'संदेश लिखें… (Enter = भेजें, Shift+Enter = नई पंक्ति)' : 'Window बंद — template भेजें'
+              !connected
+                ? 'WhatsApp is not connected'
+                : windowOpen
+                  ? 'Write a message… (Enter to send, Shift+Enter for a new line)'
+                  : 'Window closed — send a template'
             }
             className="border-0 bg-transparent py-2 text-sm text-fg placeholder:text-muted focus:ring-0 focus:outline-none resize-none max-h-36 min-h-[38px] leading-normal min-w-0 flex-1"
           />
@@ -853,11 +859,20 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       <Dialog
         open={shareOpen}
         onOpenChange={setShareOpen}
-        title="प्रॉपर्टी शेयर करें"
-        description="प्रॉपर्टी का शीर्षक, कीमत, इलाका और लिंक WhatsApp पर भेजा जाएगा।"
+        title="Share property"
+        description="Choose inventory to add its details and photo gallery to your message."
         size="sm"
       >
-        <ShareListing disabled={!windowOpen} onSend={async (listingId) => (await send({ listingId })) && setShareOpen(false)} />
+        <InboxPropertyShare
+          onDraft={(draft) => {
+            setText(draft);
+            setShareOpen(false);
+          }}
+        />
+        <details className="mt-4 rounded-xl border border-line p-3">
+          <summary className="cursor-pointer text-sm">Share a published listing</summary>
+          <ShareListing disabled={!windowOpen} onSend={async (listingId) => (await send({ listingId })) && setShareOpen(false)} />
+        </details>
       </Dialog>
     </>
   );

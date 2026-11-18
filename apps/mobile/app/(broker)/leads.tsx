@@ -8,7 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AlarmClock, Inbox, MessageCircle, Phone, Plus, Search } from 'lucide-react-native';
-import { LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
+import { leadEnquiryOverview, LEAD_STAGES, LEAD_STAGE_LABELS, formatPriceShort, timeAgo } from '@brokeriq/shared';
 import { BrokerScreen } from '@/launch/screen';
 import { ChoiceField } from '@/launch/form';
 import { api, qs } from '@/lib/api';
@@ -44,10 +44,8 @@ function Action({ color, icon, label, align }: { color: string; icon: React.Reac
 function LeadItem({ l }: { l: any }) {
   const { c } = useTheme();
   const ref = useRef<SwipeableMethods>(null);
-  const r = l.requirement;
-  const summary = [r?.bedrooms?.length ? `${r.bedrooms.join('/')} BHK` : null, r?.maxBudget ? `≤ ${formatPriceShort(r.maxBudget)}` : null, l.listing?.title]
-    .filter(Boolean)
-    .join(' · ');
+  const enquiry = leadEnquiryOverview(l);
+  const summary = enquiry.summary;
   return (
     <ReanimatedSwipeable
       friction={2}
@@ -94,13 +92,17 @@ function LeadItem({ l }: { l: any }) {
             </Row>
           </View>
         </Row>
+        {!!enquiry.location && (
+          <Txt v="small" color="brand">
+            {enquiry.location}
+          </Txt>
+        )}
         {!!summary && (
           <Txt v="small" color="muted" numberOfLines={1}>
             {summary}
           </Txt>
         )}
         <Row wrap gap={6}>
-          <SourceBadge source={l.source} />
           <StageBadge stage={l.stage} />
           {l.repeatCount > 0 && (
             <Txt v="caption" color="warning">
@@ -120,6 +122,9 @@ function LeadItem({ l }: { l: any }) {
               Unassigned
             </Txt>
           )}
+        </Row>
+        <Row>
+          <SourceBadge source={l.source} />
         </Row>
       </PressableScale>
     </ReanimatedSwipeable>

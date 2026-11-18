@@ -105,6 +105,7 @@ export default function InventoryEditor() {
                 ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
                 ...(directoryEnabled ? { purpose: 'RENT', ...inventoryFolderDefaults(folderRoom, furnishing) } : {}),
               };
+        if (id && initial.canEdit === false) throw new Error('This property is read-only. Open its details to request access.');
         if (active) {
           baseline.current = initial._editorBaseline ?? (!draft && id ? initial : null);
           setForm({

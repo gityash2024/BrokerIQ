@@ -104,12 +104,13 @@ test('client-facing property messages leave private identifiers and floor area i
     monthlyRent: 40000,
   } as const;
   const message = clientPropertyShare(item, 'Broker Agent');
-  assert.match(message, /Builder Floor\n📍 Location: Sector 43/);
+  assert.match(message, /^📍 Location: Sector 43\n/);
+  assert.doesNotMatch(message, /Managed by|Transaction:|reconfirm|confirmed/);
   assert.match(message, /Config: 2 BHK/);
   assert.match(message, /Floor: 1st floor/);
   assert.match(message, /₹40,000\/month/);
   assert.doesNotMatch(message, /340|2\.5BHK|SQ_FT|1000|Property photos:/);
-  assert.doesNotMatch(clientPropertyShare({ ...item, sector: 'Plot 340', floor: 'Floor 1 at House 340' }), /340|Location:|Floor:/);
+  assert.doesNotMatch(clientPropertyShare({ ...item, sector: 'Plot 340', floor: 'Floor 1 at House 340' }), /340|Location:/);
 });
 
 test('client-facing messages omit per-area price and keep valid locality and configuration', () => {

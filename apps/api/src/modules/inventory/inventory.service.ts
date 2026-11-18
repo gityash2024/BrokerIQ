@@ -25,6 +25,7 @@ import {
   type InventoryFolder,
   type InventoryFolders,
 } from '@brokeriq/shared';
+import { InventoryAccessService } from './inventory-access.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { ModulesService } from '../../core/features/modules.service';
@@ -60,6 +61,7 @@ export class InventoryService {
     private readonly settings: SettingsService,
     private readonly events: EventsService,
     private readonly notifications: NotificationsService,
+    private readonly access: InventoryAccessService,
   ) {}
   orgId(user: RequestUser, requested?: string, required = true) {
     const id = user.role === 'SUPER_ADMIN' ? requested : user.orgId;
@@ -87,7 +89,7 @@ export class InventoryService {
     if (q.review === 'publication')
       and.push({ publishedListing: { is: { status: 'PENDING_REVIEW', ...(user.role === 'BROKER_ADMIN' ? { reviewRequiredRole: 'BROKER_ADMIN' } : {}) } } });
     if (user.role === 'BROKER_AGENT') {
-      and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }] });
+      and.push(q.onlyMine === 'true' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : this.access.readScope(user));
     } else {
       if (q.onlyMine === 'true') {
         and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }] });
@@ -97,15 +99,37 @@ export class InventoryService {
       }
     }
     if (q.sector) where.sector = { equals: q.sector, mode: 'insensitive' };
-    if (q.houseNo) where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
+    if (q.houseNo) {
+      where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
+      if (user.role === 'BROKER_AGENT')
+        and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] });
+    }
     for (const key of ['bhk', 'status', 'purpose', 'propertyType', 'category', 'furnishing', 'roomKind', 'availability', 'sourceType'] as const)
       if (q[key] != null) (where as any)[key] = q[key];
-    if (q.search)
-      and.push({
+    if (q.search) {
+      const search = {
         OR: ['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
           [key]: { contains: q.search, mode: 'insensitive' },
         })),
-      });
+      };
+      and.push(
+        user.role === 'BROKER_AGENT'
+          ? {
+              OR: [
+                {
+                  AND: [
+                    { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] },
+                    search,
+                  ],
+                },
+                // Locked records can be searched by their public configuration, never private addresses or contact numbers.
+                { OR: ['propertyType', 'furnishing'].map((key) => ({ [key]: { contains: q.search, mode: 'insensitive' } })) },
+                { sector: { equals: q.search, mode: 'insensitive' } },
+              ],
+            }
+          : search,
+      );
+    }
     const csv = (value: string) =>
       value
         .split(',')
@@ -144,6 +168,8 @@ export class InventoryService {
             and.push({ details: bound === 'min' ? { path: [key], gte: amount } : { path: [key], lte: amount } });
           }
         } else if (field.kind === 'text') {
+          if (user.role === 'BROKER_AGENT' && !['possessionDate', 'availableFrom'].includes(key))
+            and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] });
           if (typeof value !== 'string' || value.length > 200) throw new BadRequestException('Invalid text filter');
           and.push({ details: { path: [key], string_contains: value, mode: 'insensitive' } });
         } else {
@@ -206,7 +232,7 @@ export class InventoryService {
     if (q.folderMode === 'AVAILABLE') {
       and.push(placed, complete);
       if (q.currentInventory) {
-        and.push({ directoryMonth: { lte: today.slice(0, 7) } }, { OR: [{ availableSince: null }, { availableSince: { lte: today } }] });
+        and.push({ directoryMonth: { lte: today.slice(0, 7) } });
       } else if (q.folderMonth) and.push({ directoryMonth: q.folderMonth });
       else if (q.folderYear) and.push({ directoryMonth: { startsWith: q.folderYear + '-' } });
       if (q.folderRoom && !q.folderRoom.startsWith('TYPE:'))
@@ -370,7 +396,7 @@ export class InventoryService {
       return item;
     });
 
-    return { items: itemsWithMatches, total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
+    return { items: await this.access.present(itemsWithMatches, user), total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
   }
   /** All filtered rows in one consistent snapshot; never silently export only the UI page. */
   async exportCsv(q: InventoryFilterQuery, user: RequestUser, ids?: string[]) {
@@ -445,7 +471,7 @@ export class InventoryService {
         'Contacts',
         'Archived at',
       ],
-      rows.map((r) => [
+      (await this.access.present(rows, user)).map((r) => [
         r.id,
         r.organization.name,
         r.sector,
@@ -468,7 +494,9 @@ export class InventoryService {
         r.assignedTo?.name,
         r.ownerName,
         r.ownerPhone,
-        r.contacts.map((c) => [c.name, c.phone, c.role].filter(Boolean).join(' · ')).join(' | '),
+        r.contacts
+          .map((c: { name?: string | null; phone?: string | null; role?: string | null }) => [c.name, c.phone, c.role].filter(Boolean).join(' · '))
+          .join(' | '),
         r.deletedAt?.toISOString(),
       ]),
     );
@@ -501,12 +529,15 @@ export class InventoryService {
     return { items, total, page: q.page, totalPages: Math.ceil(total / 30) };
   }
   async get(id: string, user: RequestUser) {
-    const item = await this.prisma.inventoryItem.findFirst({ where: { ...this.scope(user), id }, include });
+    const item = await this.prisma.inventoryItem.findFirst({
+      where: { organizationId: this.orgId(user, undefined, false), deletedAt: null, ...this.access.readScope(user), id },
+      include,
+    });
     if (!item) throw new NotFoundException('Inventory item not found');
-    return ledgerJson(item);
+    return (await this.access.present([ledgerJson(item)], user))[0];
   }
   async getStats(user: RequestUser, organizationId?: string) {
-    const where = this.scope(user, organizationId);
+    const where = { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user) };
     const [total, statuses, availability, reviewed, published] = await Promise.all([
       this.prisma.inventoryItem.count({ where }),
       this.prisma.inventoryItem.groupBy({ by: ['status'], where, _count: { id: true } }),
@@ -534,11 +565,13 @@ export class InventoryService {
   async getSectors(user: RequestUser, organizationId?: string) {
     const rows = await this.prisma.inventoryItem.groupBy({
       by: ['sector'],
-      where: { ...this.scope(user, organizationId), sector: { not: null } },
+      where: { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user), sector: { not: null } },
       _count: { id: true },
       orderBy: { sector: 'asc' },
     });
-    return rows.map((r) => ({ sector: r.sector, count: r._count.id }));
+    return rows
+      .filter((r) => user.role !== 'BROKER_AGENT' || !/\b(?:house|plot|unit|flat|door)\s+(?:no\.?\s*)?\d/i.test(r.sector ?? ''))
+      .map((r) => ({ sector: r.sector, count: r._count.id }));
   }
   private fields(input: InventoryInput, previous?: any) {
     const { contacts: _contacts, organizationId: _org, expectedRevision: _revision, details: _details, ...data } = input;

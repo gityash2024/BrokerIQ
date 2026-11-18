@@ -489,6 +489,8 @@ model User {
   @@index([organizationId])
   @@index([role])
   @@index([referredById])
+  inventoryDetailAccess InventoryDetailAccess[] @relation("InventoryAccessAgent")
+
 }
 
 // ============================================================ Consent-based data (visible to Super Admin only)
@@ -1160,6 +1162,8 @@ model Lead {
   /// Lead said STOP (WhatsApp) or unsubscribed (email): no more campaign messages
   optedOutAt        DateTime?
   assignedToId      String?
+  assignmentId      String?
+  assignmentAcceptedAt DateTime?
   listingId         String?
   tags              String[]
   notes             String?
@@ -2623,6 +2627,9 @@ model InventoryItem {
   @@index([organizationId, date])
   @@index([organizationId, createdAt], map: "InventoryItem_org_created_enterprise_idx")
   @@index([organizationId, directoryMonth])
+  detailAccess InventoryDetailAccess[]
+  photoGallery InventoryPhotoGallery?
+
 }
 
 
@@ -2806,4 +2813,28 @@ model MailboxAuthorization {
 model OpenRouterDailyQuota {
   day      DateTime @id @db.Date
   attempts Int
+}
+
+
+model InventoryDetailAccess {
+  id String @id @default(cuid())
+  inventoryId String
+  agentId String
+  status String @default("PENDING")
+  reviewedById String?
+  requestedAt DateTime @default(now())
+  reviewedAt DateTime?
+  updatedAt DateTime @updatedAt
+  inventory InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  agent User @relation("InventoryAccessAgent", fields: [agentId], references: [id], onDelete: Cascade)
+  @@unique([inventoryId, agentId])
+  @@index([agentId, status])
+}
+
+model InventoryPhotoGallery {
+  id String @id
+  inventoryId String @unique
+  createdById String
+  createdAt DateTime @default(now())
+  inventory InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 }

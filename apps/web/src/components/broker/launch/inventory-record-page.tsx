@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { InventoryWhatsAppDialog } from '@/components/broker/inventory-whatsapp-dialog';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { InventoryDetailAccess } from '@/components/broker/inventory-detail-access';
 import { InventoryDetails } from './inventory-details';
 import { PropertyForm } from './property-form';
 import { PublicPublish } from './public-publish';
@@ -135,7 +136,8 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
       ) : (
         <>
           {mode !== 'new' && !item && <LoadingArtwork className="h-16" label="Loading property…" />}
-          {(mode === 'new' || (mode === 'edit' && item && !item.deletedAt)) &&
+          {mode === 'edit' && item?.canEdit === false && <p role="alert">Only the property owner or assigned member can edit this record.</p>}
+          {(mode === 'new' || (mode === 'edit' && item && !item.deletedAt && item.canEdit !== false)) &&
             (superAdmin && mode === 'new' && !organizationId ? (
               <p role="alert">Choose a firm in Inventory before adding a property.</p>
             ) : (
@@ -174,20 +176,25 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
             ))}
           {item && mode === 'detail' && (
             <div className="mx-auto max-w-5xl">
+              <InventoryDetailAccess item={item} />
               <InventoryDetails
                 item={item}
                 sourceHref={superAdmin ? null : undefined}
-                onEdit={!delegated || hasDelegatedAccess(user, 'inventory', 'edit') ? () => router.push(`${detail}/edit`) : undefined}
+                onEdit={
+                  item.canEdit !== false && (!delegated || hasDelegatedAccess(user, 'inventory', 'edit')) ? () => router.push(`${detail}/edit`) : undefined
+                }
                 onPublish={
-                  !delegated || hasDelegatedAccess(user, 'inventory', 'publish') || hasDelegatedAccess(user, 'inventory', 'approve')
+                  item.canEdit !== false && (!delegated || hasDelegatedAccess(user, 'inventory', 'publish') || hasDelegatedAccess(user, 'inventory', 'approve'))
                     ? () => router.push(`${detail}/publish`)
                     : undefined
                 }
                 onMessage={() => setMessage(true)}
-                onArchive={!changing && (!delegated || hasDelegatedAccess(user, 'inventory', 'delete')) ? () => void archive() : undefined}
+                onArchive={
+                  item.canEdit !== false && !changing && (!delegated || hasDelegatedAccess(user, 'inventory', 'delete')) ? () => void archive() : undefined
+                }
                 onRestore={!changing && (superAdmin || user?.role === 'BROKER_ADMIN') ? () => void archive(true) : undefined}
                 onUploadPhoto={
-                  !delegated || hasDelegatedAccess(user, 'inventory', 'edit')
+                  item.canEdit !== false && (!delegated || hasDelegatedAccess(user, 'inventory', 'edit'))
                     ? async (url) => {
                         const updated = await api<LedgerItem>(`/inventory/${item.id}/photos`, {
                           method: 'PATCH',
@@ -209,7 +216,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
               />
             </div>
           )}
-          {item && mode === 'publish' && !item.deletedAt && (
+          {item && mode === 'publish' && !item.deletedAt && item.canEdit !== false && (
             <section className="card mx-auto max-w-4xl p-4 sm:p-6">
               <PublicPublish
                 item={item}

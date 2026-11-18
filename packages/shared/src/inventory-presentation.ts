@@ -27,23 +27,11 @@ export const inventoryPrice = (item: LedgerItem) =>
         ? `${formatINR(item.ratePerArea)}${item.rateAreaUnit ? `/${item.rateAreaUnit.replace(/_/g, ' ').toLowerCase()}` : ' · Area unit not recorded'}`
         : 'Price not recorded';
 type ClientShareProperty = Partial<
-  Pick<
-    LedgerItem,
-    | 'propertyType'
-    | 'houseNo'
-    | 'sector'
-    | 'bhk'
-    | 'floor'
-    | 'monthlyRent'
-    | 'rent'
-    | 'totalSalePrice'
-    | 'assignedTo'
-    | 'availability'
-  >
+  Pick<LedgerItem, 'propertyType' | 'houseNo' | 'sector' | 'bhk' | 'floor' | 'monthlyRent' | 'rent' | 'totalSalePrice' | 'assignedTo'>
 > & { purpose?: string | null; furnishing?: string | null; roomKind?: string | null };
 
 /** Client messages use structured fields so private inventory labels never become the heading. */
-export function clientPropertyShare(item: ClientShareProperty, contact?: string): string {
+export function clientPropertyShare(item: ClientShareProperty, _contact?: string): string {
   const propertyType = item.propertyType && INVENTORY_PROPERTY_TYPES.includes(item.propertyType) ? readableValue(item.propertyType) : 'Property';
   const roomKind = item.roomKind && /^(BHK|RK|STUDIO)$/i.test(item.roomKind) ? item.roomKind.toUpperCase() : '';
   const rooms = roomKind === 'STUDIO' ? 'Studio' : item.bhk ? `${item.bhk} ${roomKind || 'rooms'}` : '';
@@ -58,24 +46,22 @@ export function clientPropertyShare(item: ClientShareProperty, contact?: string)
         (!house || !(' ' + sector.toLowerCase().replace(/[\s-]+/g, ' ') + ' ').includes(' ' + house.replace(/[\s-]+/g, ' ') + ' '))
       ? sector
       : '';
-  const floorValue = item.floor?.trim() ?? '';
+  const aliases: Record<string, string> = { FF: '1', SF: '2', TF: 'TOP', GF: '0', FIRST: '1', SECOND: '2', THIRD: '3', GROUND: '0' };
+  const rawFloor = item.floor?.trim() ?? '';
+  const numbered = rawFloor.match(/^(\d{1,2})(?:st|nd|rd|th)?(?:[ _]floor)?$/i);
+  const floorValue = aliases[rawFloor.toUpperCase()] ?? numbered?.[1] ?? rawFloor;
   const floor = /^(?:\d{1,2}(?:(?:st|nd|rd|th)?[ _]floor)?|GF|TF|TOP|GROUND(?:[ _]FLOOR)?|TOP[ _]FLOOR|BASEMENT|LOWER[ _]GROUND|UPPER[ _]GROUND|STILT)$/i.test(
     floorValue,
   )
     ? floorLabel(/^(?:GF|TF|TOP)$/i.test(floorValue) ? floorValue.toUpperCase() : floorValue)
     : '';
   const price = item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : item.purpose === 'SALE' ? item.totalSalePrice : null;
-  const managedBy = contact || item.assignedTo?.name;
   return [
-    `🏠 ${propertyType}`,
     locality && `📍 Location: ${locality}`,
-    (item.purpose === 'RENT' || item.purpose === 'SALE') && `🏷️ Transaction: ${readableValue(item.purpose)}`,
-    rooms && `🛏️ Config: ${rooms}`,
-    floor && `🏢 Floor: ${floor}`,
+    rooms && `🛏️ Config: ${rooms} · ${propertyType}`,
     item.furnishing && /^(UNFURNISHED|SEMI_FURNISHED|FULLY_FURNISHED)$/.test(item.furnishing) && `🛋️ Furnishing: ${readableValue(item.furnishing)}`,
+    `🏢 Floor: ${floor || 'Not recorded'}`,
     price != null ? `💰 Price: ${formatINR(price)}${item.purpose === 'RENT' ? '/month' : ''}` : '💰 Price not recorded',
-    managedBy && `👤 Managed by: ${managedBy}`,
-    item.availability === 'AVAILABLE' ? 'Availability recorded as available · reconfirm before visit' : '⚠️ Availability to be confirmed',
   ]
     .filter(Boolean)
     .join('\n');
@@ -120,4 +106,12 @@ export function inventoryFactGroups(item: LedgerItem) {
     if (value != null) add(field.group, field.label, readableValue(value));
   }
   return Object.entries(groups).map(([title, facts]) => ({ title, facts }));
+}
+
+export function inventoryAvailabilityDate(item: Pick<LedgerItem, 'availableSince' | 'details'>): string | null {
+  for (const value of [item.details?.availableFrom, item.details?.possessionDate, item.availableSince]) {
+    const parsed = inventoryDateSchema.safeParse(value);
+    if (parsed.success) return parsed.data;
+  }
+  return null;
 }

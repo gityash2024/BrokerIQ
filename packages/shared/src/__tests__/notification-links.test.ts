@@ -14,6 +14,10 @@ test('bare native launch, canonical paths and host-style intents never produce u
   assert.equal(normalizeNativeIntent('brokeriq://inventory/unit_2?share=1'), '/inventory/unit_2?share=1');
   assert.equal(normalizeNativeIntent('brokeriq://expo-sharing'), '/handle-share');
   assert.equal(normalizeNativeIntent('brokeriq:///notification?notification=abc'), '/notifications?notification=abc');
+  const photoPath = '/photos/' + 'a'.repeat(48);
+  assert.equal(normalizeNativeIntent('brokeriq://' + photoPath.slice(1)), photoPath);
+  assert.equal(normalizeNativeIntent('https://brokeriq.mymultimeds.com' + photoPath), photoPath);
+  assert.equal(normalizeNativeIntent('brokeriq://photos/not-a-valid-token'), '/');
   assert.equal(normalizeNativeIntent('brokeriq:///made-up-path'), '/');
 });
 

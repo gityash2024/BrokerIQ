@@ -6,6 +6,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
+  inventoryAvailabilityDate,
   inventoryDate,
   inventoryDateLabel,
   inventoryPrice,
@@ -212,7 +213,7 @@ export function NativeInventoryFolders() {
                   <Switch
                     accessibilityLabel={mode === 'AVAILABLE' ? 'Property is available' : 'Make property available'}
                     value={mode === 'AVAILABLE'}
-                    disabled={!canEdit || !!busy}
+                    disabled={!canEdit || item.canEdit === false || !!busy}
                     onValueChange={() =>
                       mode === 'AVAILABLE' ? moveToRent(item) : router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })
                     }
@@ -221,7 +222,7 @@ export function NativeInventoryFolders() {
               </Row>
               {mode === 'AVAILABLE' && (
                 <Txt v="caption" color="muted">
-                  Available since: {item.availableSince ? inventoryDateLabel(item.availableSince) : 'Not recorded'}
+                  Available from: {inventoryAvailabilityDate(item) ? inventoryDateLabel(inventoryAvailabilityDate(item)!) : 'Not recorded'}
                 </Txt>
               )}
             </NativeCard>

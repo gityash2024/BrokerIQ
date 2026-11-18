@@ -407,7 +407,7 @@ function InventoryLedger() {
                   <Switch
                     accessibilityLabel={item.availability === 'AVAILABLE' ? 'Mark rented out' : 'Make property available'}
                     value={item.availability === 'AVAILABLE'}
-                    disabled={!canEdit || !!item.deletedAt}
+                    disabled={!canEdit || item.canEdit === false || !!item.deletedAt}
                     onValueChange={() =>
                       router.push({
                         pathname: '/inventory-edit',
@@ -418,14 +418,14 @@ function InventoryLedger() {
                 </Row>
                 <Button
                   title="Make available"
-                  disabled={!canEdit}
+                  disabled={!canEdit || item.canEdit === false}
                   size="sm"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
                 />
                 <Button
                   title="Mark rented out"
-                  disabled={!canEdit}
+                  disabled={!canEdit || item.canEdit === false}
                   size="sm"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeRented: '1' } })}

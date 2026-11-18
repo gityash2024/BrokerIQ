@@ -1,8 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { ConflictException, BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { parseLeadQuery } from './lead-query';
 import { csvCell } from '../../common/csv';
 import { Prisma, type LeadSource, type LeadStage } from '@prisma/client';
 import {
+  parseRentalQuery,
   hasDelegatedAccess,
   shareablePropertyPhotoUrls,
   LEAD_SOURCE_LABELS,
@@ -13,6 +15,7 @@ import {
   type LeadInput,
   type LeadRequirementInput,
 } from '@brokeriq/shared';
+import { JobsService } from '../../core/jobs/jobs.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -62,7 +65,7 @@ export interface LeadListQuery {
 
 const LEAD_LIST_INCLUDE = {
   assignedTo: { select: { id: true, name: true, avatarUrl: true } },
-  listing: { select: { id: true, title: true, slug: true } },
+  listing: { select: { id: true, title: true, slug: true, bedrooms: true, furnishing: true, locality: { select: { name: true } } } },
   requirement: true,
 } satisfies Prisma.LeadInclude;
 
@@ -77,7 +80,32 @@ export class LeadsService {
     private readonly usage: UsageService,
     private readonly ai: AiService,
     private readonly settings: SettingsService,
-  ) {}
+    private readonly jobs: JobsService,
+  ) {
+    this.jobs.register('lead.assignment-notification', async ({ notificationId }) => {
+      const note = await this.prisma.notification.findUnique({ where: { id: notificationId }, include: { user: true } });
+      if (!note || note.user.status !== 'ACTIVE' || note.user.deletedAt) return;
+      if ((await this.notifications.hiddenLeadNotifications(note.userId)).includes(note.id)) return;
+      await this.notifications.dispatchSaved(note);
+    });
+  }
+
+  private async queueAssignmentNotification(tx: Prisma.TransactionClient, userIds: string[], lead: { id: string; name: string }, kind: string, body: string) {
+    const notes = await tx.notification.createManyAndReturn({
+      data: [...new Set(userIds)].map((userId) => ({
+        userId,
+        kind,
+        title: kind === 'LEAD_ASSIGNED' ? `Lead assigned: ${lead.name}` : `Lead accepted: ${lead.name}`,
+        body,
+        link: `/broker/leads/${lead.id}`,
+        data: { leadId: lead.id },
+      })),
+    });
+    if (notes.length)
+      await tx.job.createMany({
+        data: notes.map((note) => ({ type: 'lead.assignment-notification', key: 'assignment-notification:' + note.id, payload: { notificationId: note.id } })),
+      });
+  }
 
   // ------------------------------------------------------------------ scoping
   scope(user: RequestUser): Prisma.LeadWhereInput {
@@ -99,10 +127,26 @@ export class LeadsService {
   async ingest(input: IngestInput) {
     const phone = normalizeIndianPhone(input.phone) ?? (input.phone?.replace(/[^\d+]/g, '') || null);
     if (!phone || phone.replace(/\D/g, '').length < 10) throw new BadRequestException('Valid phone number ज़रूरी है');
+    const enquiryText = [input.sourceDetail, input.message, input.requirement?.notes].filter(Boolean).join('\n');
+    const hints = parseRentalQuery(enquiryText);
+    const locality =
+      !input.requirement?.localityIds?.length && hints.localityText
+        ? await this.prisma.locality.findFirst({ where: { name: { equals: hints.localityText, mode: 'insensitive' } }, select: { id: true } })
+        : null;
+    const requirement = {
+      ...input.requirement,
+      bedrooms: input.requirement?.bedrooms?.length ? input.requirement.bedrooms : hints.bedrooms,
+      furnishing: input.requirement?.furnishing ?? hints.furnishing,
+      localityIds: input.requirement?.localityIds?.length ? input.requirement.localityIds : locality ? [locality.id] : [],
+    };
+    const hasRequirement = !!input.requirement || !!requirement.bedrooms.length || !!requirement.furnishing || !!requirement.localityIds.length;
     const org = await this.prisma.organization.findUnique({ where: { id: input.orgId } });
     if (!org) throw new NotFoundException('Organization not found');
     const name = (input.name || '').trim() || 'Unknown';
-    const existing = await this.prisma.lead.findUnique({ where: { organizationId_phone: { organizationId: input.orgId, phone } } });
+    const existing = await this.prisma.lead.findUnique({
+      where: { organizationId_phone: { organizationId: input.orgId, phone } },
+      include: { requirement: true },
+    });
 
     if (existing) {
       const reopened = existing.stage === 'LOST' || existing.deletedAt;
@@ -129,6 +173,23 @@ export class LeadsService {
           meta: { source: input.source, sourceRef: input.sourceRef } as Prisma.InputJsonValue,
         },
       });
+      if (hasRequirement) {
+        // Each predicate is checked by PostgreSQL at write time so a concurrent
+        // manual requirement edit is never replaced by an older enquiry snapshot.
+        await this.prisma.$transaction(async (tx) => {
+          await tx.leadRequirement.upsert({
+            where: { leadId: lead.id },
+            create: { leadId: lead.id, ...this.requirementData(requirement) },
+            update: {},
+          });
+          if (requirement.bedrooms.length)
+            await tx.leadRequirement.updateMany({ where: { leadId: lead.id, bedrooms: { isEmpty: true } }, data: { bedrooms: requirement.bedrooms } });
+          if (requirement.furnishing)
+            await tx.leadRequirement.updateMany({ where: { leadId: lead.id, furnishing: null }, data: { furnishing: requirement.furnishing } });
+          if (requirement.localityIds.length)
+            await tx.leadRequirement.updateMany({ where: { leadId: lead.id, localityIds: { isEmpty: true } }, data: { localityIds: requirement.localityIds } });
+        });
+      }
       await this.notifyNew(lead.id, input.orgId, true);
       this.events.emit('lead.created', { leadId: lead.id, orgId: input.orgId, isNew: false });
       return { lead, isNew: false };
@@ -148,7 +209,7 @@ export class LeadsService {
         notes: input.message ?? null,
         rawPayload: (input.rawPayload ?? undefined) as Prisma.InputJsonValue | undefined,
         lastActivityAt: new Date(),
-        requirement: input.requirement ? { create: this.requirementData(input.requirement) } : undefined,
+        requirement: hasRequirement ? { create: this.requirementData(requirement) } : undefined,
         activities: {
           create: {
             organizationId: input.orgId,
@@ -268,13 +329,25 @@ export class LeadsService {
     return { where: { AND: and }, orderBy, page: q.page, pageSize: q.pageSize };
   }
 
+  private async withRequirementLocalities<T extends { requirement?: { localityIds: string[] } | null }>(items: T[]) {
+    const ids = [...new Set(items.flatMap((item) => item.requirement?.localityIds ?? []))];
+    const localities = ids.length ? await this.prisma.locality.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : [];
+    const names = new Map(localities.map((locality) => [locality.id, locality.name]));
+    return items.map((item) => ({
+      ...item,
+      requirement: item.requirement
+        ? { ...item.requirement, localityNames: item.requirement.localityIds.flatMap((id) => (names.has(id) ? [names.get(id)!] : [])) }
+        : null,
+    }));
+  }
+
   async list(user: RequestUser, q: LeadListQuery) {
     const { where, orderBy, page, pageSize } = this.listQuery(user, q);
     const [items, total] = await Promise.all([
       this.prisma.lead.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: LEAD_LIST_INCLUDE }),
       this.prisma.lead.count({ where }),
     ]);
-    return paged(items, total, page, pageSize);
+    return paged(await this.withRequirementLocalities(items), total, page, pageSize);
   }
 
   async kanban(user: RequestUser, input: { source?: string; assignedToId?: string; q?: string }) {
@@ -467,7 +540,9 @@ export class LeadsService {
           id: inventoryId,
           organizationId: lead.organizationId,
           deletedAt: null,
-          ...(user.role === 'BROKER_AGENT' ? { OR: [{ assignedToId: user.id }, { createdById: user.id }] } : {}),
+          ...(user.role === 'BROKER_AGENT'
+            ? { OR: [{ assignedToId: user.id }, { createdById: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] }
+            : {}),
         },
         select: { id: true, photoUrls: true },
       });
@@ -538,7 +613,15 @@ export class LeadsService {
     )
       return;
     const photos = shareablePropertyPhotoUrls([...(message.body?.match(/https:\/\/[^\s<>]+/g) ?? []), ...(message.mediaUrl ? [message.mediaUrl] : [])]);
-    if (!photos.length) return;
+    const galleryIds = (message.body?.match(/https?:\/\/[^\s<>]+/g) ?? []).flatMap((value) => {
+      try {
+        const url = new URL(value);
+        return url.origin === new URL(env().PUBLIC_WEB_URL).origin && /^\/photos\/[a-f0-9]{48}$/.test(url.pathname) ? [url.pathname.split('/').pop()!] : [];
+      } catch {
+        return [];
+      }
+    });
+    if (!photos.length && !galleryIds.length) return;
     const actor = await this.prisma.user.findFirst({
       where: { id: message.senderUserId, organizationId: message.conversation.organizationId, status: 'ACTIVE', deletedAt: null },
     });
@@ -553,8 +636,12 @@ export class LeadsService {
       where: {
         organizationId: actor.organizationId!,
         deletedAt: null,
-        photoUrls: { hasSome: photos },
-        ...(actor.role === 'BROKER_AGENT' ? { OR: [{ assignedToId: actor.id }, { createdById: actor.id }] } : {}),
+        AND: [
+          { OR: [{ photoUrls: { hasSome: photos } }, { photoGallery: { is: { id: { in: galleryIds } } } }] },
+          ...(actor.role === 'BROKER_AGENT'
+            ? [{ OR: [{ assignedToId: actor.id }, { createdById: actor.id }, { detailAccess: { some: { agentId: actor.id, status: 'APPROVED' } } }] }]
+            : []),
+        ],
       },
       select: { id: true },
     });
@@ -579,7 +666,7 @@ export class LeadsService {
 
   async assign(id: string, assigneeId: string | null, user: RequestUser | null, opts: { orgId?: string; viaAutomation?: boolean } = {}) {
     if (user && user.role === 'BROKER_AGENT') throw new ForbiddenException('सिर्फ admin leads assign कर सकते हैं');
-    const { lead, assignee, changed } = await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${id} FOR UPDATE`;
       const lead = await tx.lead.findFirst({ where: { id, organizationId: user ? requireOrg(user) : opts.orgId, deletedAt: null } });
       if (!lead) throw new NotFoundException('Lead not found');
@@ -602,6 +689,8 @@ export class LeadsService {
         where: { id },
         data: {
           assignedToId: assigneeId,
+          assignmentId: assigneeId ? randomUUID() : null,
+          assignmentAcceptedAt: null,
           activities: {
             create: {
               organizationId: lead.organizationId,
@@ -620,18 +709,56 @@ export class LeadsService {
         where: { leadId: id, organizationId: lead.organizationId, status: { in: ['SCHEDULED', 'CONFIRMED'] } },
         data: { assignedToId: assigneeId, reminderSentAt: null },
       });
+      if (assignee && assignee.id !== user?.id)
+        await this.queueAssignmentNotification(tx, [assignee.id], lead, 'LEAD_ASSIGNED', 'A lead has been assigned to you. Open it and confirm acceptance.');
       return { lead, assignee, changed: true };
     });
-    if (changed && assignee && assignee.id !== user?.id) {
-      await this.notifications.notify(assignee.id, {
-        kind: 'LEAD_ASSIGNED',
-        title: `Lead assigned: ${lead.name}`,
-        body: `${LEAD_SOURCE_LABELS[lead.source]} · ${lead.phone}`,
-        link: `/broker/leads/${id}`,
-        data: { leadId: id },
-      });
-    }
     return { ok: true };
+  }
+
+  async acceptAssignment(id: string, assignmentId: string | null, user: RequestUser) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${id} FOR UPDATE`;
+      const lead = await tx.lead.findFirst({ where: { id, ...this.scope(user) } });
+      if (!lead) throw new NotFoundException('Lead not found');
+      if (lead.assignedToId !== user.id) throw new ForbiddenException('Only the assigned member can accept this lead');
+      if (lead.assignmentId !== assignmentId) throw new ConflictException('This lead was reassigned. Refresh before accepting.');
+      if (lead.assignmentAcceptedAt) return { acceptedAt: lead.assignmentAcceptedAt };
+      const acceptedAt = new Date();
+      await tx.lead.update({
+        where: { id },
+        data: {
+          assignmentAcceptedAt: acceptedAt,
+          activities: {
+            create: {
+              organizationId: lead.organizationId,
+              userId: user.id,
+              type: 'ASSIGNMENT',
+              content: 'Assigned lead accepted',
+              meta: { assignmentId, acceptedAt: acceptedAt.toISOString() },
+            },
+          },
+        },
+      });
+      const admins = await tx.user.findMany({
+        where: {
+          organizationId: lead.organizationId,
+          status: 'ACTIVE',
+          deletedAt: null,
+          id: { not: user.id },
+          OR: [{ role: 'BROKER_ADMIN' }, { role: 'SUB_BROKER_ADMIN', delegatedPermissions: { hasEvery: ['leads:view', 'leads:assign'] } }],
+        },
+        select: { id: true },
+      });
+      await this.queueAssignmentNotification(
+        tx,
+        admins.map((admin) => admin.id),
+        lead,
+        'LEAD_ASSIGNMENT_ACCEPTED',
+        'The assigned team member has accepted this lead.',
+      );
+      return { acceptedAt };
+    });
   }
 
   /** Round-robin across active team members (optionally limited to a subset). */

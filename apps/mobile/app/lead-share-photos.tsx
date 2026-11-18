@@ -1,9 +1,10 @@
+import { usePropertyGallery } from '@/lib/property-gallery';
 import { useState } from 'react';
 
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { clientPropertyShare, hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, type LedgerItem } from '@brokeriq/shared';
+import { clientPropertyShare, hasDelegatedAccess, moduleAllowed, propertyGalleryDraft, shareablePropertyPhotoUrls, type LedgerItem } from '@brokeriq/shared';
 import { SharePhotoFilesButton } from '@/components/share-photo-files-button';
 import { VisitPropertyPicker } from '@/components/visit-property-picker';
 import { NativePropertyMedia } from '@/launch/property-media';
@@ -57,7 +58,8 @@ export default function LeadSharePhotos() {
   const property = selected === undefined ? (preselected ?? null) : selected;
   const title = property ? clientPropertyShare(property) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);
-  const draft = propertyPhotoDraft(title, photos);
+  const gallery = usePropertyGallery(property?.id, !!photos.length);
+  const draft = gallery.data ? propertyGalleryDraft(title, gallery.data.url) : title;
 
   return (
     <BrokerScreen title="Share property photos" back>
@@ -89,7 +91,7 @@ export default function LeadSharePhotos() {
                     onlyPhotos
                     onUploading={setUploading}
                     onAdd={
-                      canUpload
+                      canUpload && property.canEdit !== false
                         ? async (_, url) => {
                             const updated = await api<LedgerItem>(`/inventory/${property.id}/photos`, { method: 'PATCH', body: { url } });
                             setProperty(updated);
@@ -113,9 +115,9 @@ export default function LeadSharePhotos() {
                   }}
                 >
                   <Button
-                    title="Share as links in BrokerIQ"
+                    title="Share details and gallery link"
                     loading={opening}
-                    disabled={draft === title}
+                    disabled={!gallery.data}
                     onPress={async () => {
                       setOpening(true);
                       try {

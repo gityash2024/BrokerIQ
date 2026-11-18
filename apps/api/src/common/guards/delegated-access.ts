@@ -5,12 +5,22 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (/^\/(admin|webhooks|invites|broker-invites)(\/|$)/.test(path)) return null;
   if (/^\/broker\/(onboarding|webhook-key)(\/|$)/.test(path)) return null;
   if (/^\/broker\/team\/(invite|invites)(\/|$)/.test(path)) return null;
-  if (/^\/broker\/team\/(members\/)?[^/]+$/.test(path) && !['GET', 'HEAD'].includes(method) &&
-      path !== '/broker/team/targets' && path !== '/broker/team/agent-location' && path !== '/broker/team/agent-kyc') return null;
+  if (
+    /^\/broker\/team\/(members\/)?[^/]+$/.test(path) &&
+    !['GET', 'HEAD'].includes(method) &&
+    path !== '/broker/team/targets' &&
+    path !== '/broker/team/agent-location' &&
+    path !== '/broker/team/agent-kyc'
+  )
+    return null;
 
-  const module = /^\/broker\/team\/agents\/:[^/]+\/kyc$/.test(path) ? 'kyc'
-    : path === '/broker/team/agent-location' ? 'time_logging'
-    : /^\/broker\/(profile|business-hours)(\/|$)/.test(path) ? 'team' : moduleForPath(path, 'api');
+  const module = /^\/broker\/team\/agents\/:[^/]+\/kyc$/.test(path)
+    ? 'kyc'
+    : path === '/broker/team/agent-location'
+      ? 'time_logging'
+      : /^\/broker\/(profile|business-hours)(\/|$)/.test(path)
+        ? 'team'
+        : moduleForPath(path, 'api');
   // These surfaces can act across several business modules or return firm-wide
   // aggregates and credentials. They require their own scoped implementation.
   if (path === '/chat/threads/:id') {
@@ -22,21 +32,24 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (method === 'GET' && ['/broker/today', '/broker/dashboard/metrics', '/broker/dashboard/records'].includes(path))
     return { module: 'today', actions: ['view'] };
   if (path === '/broker/performance' && method === 'GET') return { module: 'team', actions: ['view'] };
+  if (path === '/inventory/:id/access' && method === 'GET') return { module: 'inventory', actions: ['view'] };
+  if (path === '/inventory/:id/access/request' && method === 'POST') return { module: 'inventory', actions: ['view'] };
+  if (path === '/inventory/:id/access/:agentid/review' && method === 'POST') return { module: 'inventory', actions: ['view', 'approve_details'] };
+  if (path === '/inventory/:id/photo-gallery' && method === 'POST') return { module: 'inventory', actions: ['view'] };
   if (path === '/inventory/assignees' && method === 'GET') return { module: 'inventory', actions: ['assign'] };
   if (method === 'POST' && /^\/assistant\/(chat|cancel|confirm|transcribe)$/.test(path))
     return { module: 'assistant', actions: [path.endsWith('/confirm') ? 'edit' : 'view'] };
   if (!module || ['legacy', 'assistant', 'today', 'consumer'].includes(module)) return null;
   if (path === '/broker/connectors' && ['GET', 'HEAD'].includes(method)) return { module: 'automation', actions: ['connection_status'] };
-  if (method === 'POST' && /^\/broker\/connectors\/(housing_api|email_inbox)\/sync$/.test(path))
-    return { module: 'automation', actions: ['sync'] };
+  if (method === 'POST' && /^\/broker\/connectors\/(housing_api|email_inbox)\/sync$/.test(path)) return { module: 'automation', actions: ['sync'] };
   if (/^\/(?:broker\/(?:connectors|integrations|portal-pack|whatsapp)|messaging\/gmail|whatsapp\/connect)(?:\/|$)/.test(path)) return null;
   if (/^\/broker\/profile(?:\/|$)/.test(path)) return null;
   if (path === '/broker/team' && method !== 'GET') return null;
+  if (path === '/leads/:id/assignment/accept' && method === 'POST') return { module: 'leads', actions: ['view'] };
   if (path === '/leads/assignees' && method === 'GET') return { module: 'leads', actions: ['assign'] };
   if (module === 'leads' && method === 'POST' && /\/(activities|ai)$/.test(path)) return { module, actions: ['edit'] };
   if (path === '/broker-requirements/:id/convert' && method === 'POST') return { module, actions: ['edit'] };
-  if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && method === 'GET')
-    return { module: 'leads', actions: ['view'] };
+  if (/^\/(leads|broker-requirements)\/:id\/matches$/.test(path) && method === 'GET') return { module: 'leads', actions: ['view'] };
   if (path === '/whatsapp/status' && method === 'GET') return { module: 'inbox', actions: ['view'] };
 
   let actions: DelegatedAction[];
@@ -52,8 +65,7 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   else if (path === '/leads/bulk') {
     if (!body?.action || !['assign', 'stage', 'tag', 'delete'].includes(body.action)) return null;
     actions = [body.action === 'assign' ? 'assign' : body.action === 'delete' ? 'delete' : 'edit'];
-  }
-  else if (method === 'DELETE' || /\/(archive|remove)$/.test(path)) actions = ['delete'];
+  } else if (method === 'DELETE' || /\/(archive|remove)$/.test(path)) actions = ['delete'];
   else if (path === '/inventory/bulk/update') actions = ['edit', 'publish'];
   else if (method === 'PATCH' || method === 'PUT' || /\/(restore|update)$/.test(path)) actions = ['edit'];
   else if (method === 'POST') actions = ['create'];

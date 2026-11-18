@@ -3,8 +3,9 @@ import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { propertyPhotoDraft, shareablePropertyPhotoUrls, type LeadInboxChannel } from '@brokeriq/shared';
+import { propertyGalleryDraft, shareablePropertyPhotoUrls, type LeadInboxChannel } from '@brokeriq/shared';
 import { api, assertAccountContext, captureAccountContext, errorMessage, qs } from '@/lib/api';
+import { usePropertyGallery } from '@/lib/property-gallery';
 import { useDebounced } from '@/lib/hooks';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { toast } from '@/lib/toast';
@@ -15,14 +16,15 @@ type Lead = { id: string; name: string; phone: string; email?: string | null };
 type Page = { items: Lead[]; totalPages: number; total: number };
 
 /** Opens an editable encrypted Inbox draft; choosing a channel never sends it. */
-export function InventoryLeadShare({ message, photoUrls }: { message: string; photoUrls?: string[] }) {
+export function InventoryLeadShare({ inventoryId, message, photoUrls }: { inventoryId: string; message: string; photoUrls?: string[] }) {
   const owner = useRef(captureAccountContext()).current;
-  const [includePhotos, setIncludePhotos] = useState(false);
+  const [includePhotos, setIncludePhotos] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Lead | null>(null);
   const [channel, setChannel] = useState<LeadInboxChannel>('WHATSAPP');
   const term = useDebounced(search);
-  const draft = includePhotos ? propertyPhotoDraft(message, photoUrls) : message;
+  const gallery = usePropertyGallery(inventoryId, !!shareablePropertyPhotoUrls(photoUrls).length);
+  const draft = includePhotos && gallery.data ? propertyGalleryDraft(message, gallery.data.url) : message;
   const leads = useInfiniteQuery({
     queryKey: ['inventory-share-lead', owner.scope, term],
     initialPageParam: 1,
@@ -81,11 +83,16 @@ export function InventoryLeadShare({ message, photoUrls }: { message: string; ph
           <Chip key={value} label={value === 'EMAIL' ? 'Email' : value} active={channel === value} onPress={() => setChannel(value)} />
         ))}
       </View>
-      {!!photoUrls?.length && <Chip label="Include property photo links" active={includePhotos} onPress={() => setIncludePhotos(!includePhotos)} />}
+      {!!photoUrls?.length && <Chip label="Include photo gallery link" active={includePhotos} onPress={() => setIncludePhotos(!includePhotos)} />}
+      {gallery.error && <ErrorView error={gallery.error} onRetry={() => gallery.refetch()} />}
       <Txt v="caption" color="muted">
         {draft}
       </Txt>
-      <Button title={`Open ${channel === 'EMAIL' ? 'Email' : channel} Inbox`} disabled={!selected || (channel === 'EMAIL' && !selected.email)} onPress={open} />
+      <Button
+        title={`Open ${channel === 'EMAIL' ? 'Email' : channel} Inbox`}
+        disabled={!selected || (channel === 'EMAIL' && !selected.email) || (includePhotos && !!photoUrls?.length && !gallery.data)}
+        onPress={open}
+      />
       {selected && channel === 'EMAIL' && !selected.email && <Txt color="muted">Add the client's email to their lead before opening Email Inbox.</Txt>}
     </View>
   );

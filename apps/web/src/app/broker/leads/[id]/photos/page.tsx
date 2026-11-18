@@ -1,11 +1,12 @@
-'use client';
+import { usePropertyGallery } from '@/lib/property-gallery';
+('use client');
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Share2 } from 'lucide-react';
-import { clientPropertyShare, hasDelegatedAccess, moduleAllowed, propertyPhotoDraft, shareablePropertyPhotoUrls, type LedgerItem } from '@brokeriq/shared';
+import { clientPropertyShare, hasDelegatedAccess, moduleAllowed, propertyGalleryDraft, shareablePropertyPhotoUrls, type LedgerItem } from '@brokeriq/shared';
 import { PropertyMedia } from '@/components/broker/launch/property-media';
 import { SharePhotoFilesOnMobile } from '@/components/broker/share-photo-files-on-mobile';
 import { VisitPropertyPicker } from '@/components/broker/visit-property-picker';
@@ -46,7 +47,8 @@ export default function Page() {
   });
   const title = property ? clientPropertyShare(property) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);
-  const draft = propertyPhotoDraft(title, photos);
+  const gallery = usePropertyGallery(property?.id, !!photos.length);
+  const draft = gallery.data ? propertyGalleryDraft(title, gallery.data.url) : title;
   const beforeVisit =
     lead.data &&
     ['NEW', 'CONTACTED', 'FOLLOW_UP', 'INTERESTED', 'PHOTOS_SHARED', 'SITE_VISIT'].includes(lead.data.stage) &&
@@ -105,7 +107,7 @@ export default function Page() {
               <div className="grid gap-3">
                 <Button
                   loading={opening}
-                  disabled={draft === title}
+                  disabled={!gallery.data}
                   onClick={async () => {
                     setOpening(true);
                     try {
@@ -115,7 +117,7 @@ export default function Page() {
                     }
                   }}
                 >
-                  Share as links in BrokerIQ
+                  Share details and gallery link
                 </Button>
                 <p className="text-xs text-muted">Review the WhatsApp message in Inbox before sending.</p>
                 <SharePhotoFilesOnMobile

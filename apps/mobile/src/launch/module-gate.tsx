@@ -39,6 +39,7 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
   if (user?.role === 'SUB_BROKER_ADMIN' && path === '/kyc' && user.organization?.id) return <Fragment key={screenScope}>{children}</Fragment>;
+  if (path.startsWith('/photos/')) return <Fragment key={screenScope}>{children}</Fragment>;
   if (essential.includes(path) && !(user?.role === 'SUB_BROKER_ADMIN' && ['/kyc', '/drafts', '/broker-onboarding'].includes(path)))
     return <Fragment key={screenScope}>{children}</Fragment>;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
@@ -56,16 +57,23 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
             : nativeModuleKey(path);
   const role = user?.role ?? 'PUBLIC';
   const policies = delegated ? delegatedModulePolicies(config.modules, user?.delegatedPermissions ?? []) : config.modules;
-  const actionAllowed = !delegated ||
-    (path === '/inventory-edit' ? hasDelegatedAccess(user, 'inventory', 'view') &&
-      (hasDelegatedAccess(user, 'inventory', 'create') || hasDelegatedAccess(user, 'inventory', 'edit'))
-    : path === '/add-lead' ? hasDelegatedAccess(user, 'leads', 'create')
-    : path === '/scanner' ? hasDelegatedAccess(user, 'inventory', 'create')
-    : path === '/publication-reviews' ? hasDelegatedAccess(user, 'inventory', 'approve')
-    : path === '/publish-rental' ? hasDelegatedAccess(user, 'inventory', 'publish')
-    : path === '/connectors' ? hasDelegatedAccess(user, 'automation', 'connection_status')
-    : true);
-  const allowed = actionAllowed &&
+  const actionAllowed =
+    !delegated ||
+    (path === '/inventory-edit'
+      ? hasDelegatedAccess(user, 'inventory', 'view') && (hasDelegatedAccess(user, 'inventory', 'create') || hasDelegatedAccess(user, 'inventory', 'edit'))
+      : path === '/add-lead'
+        ? hasDelegatedAccess(user, 'leads', 'create')
+        : path === '/scanner'
+          ? hasDelegatedAccess(user, 'inventory', 'create')
+          : path === '/publication-reviews'
+            ? hasDelegatedAccess(user, 'inventory', 'approve')
+            : path === '/publish-rental'
+              ? hasDelegatedAccess(user, 'inventory', 'publish')
+              : path === '/connectors'
+                ? hasDelegatedAccess(user, 'automation', 'connection_status')
+                : true);
+  const allowed =
+    actionAllowed &&
     config.loaded &&
     moduleAllowed(policies, key, delegated ? 'BROKER_ADMIN' : role) &&
     (consumer.test(path) || path === '/dashboard-records'

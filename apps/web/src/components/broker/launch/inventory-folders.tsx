@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder,
 import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
+  inventoryAvailabilityDate,
   inventoryDate,
   inventoryDateLabel,
   inventoryPrice,
@@ -251,7 +252,9 @@ export function InventoryFoldersPage() {
                       <MapPin className="size-3.5 shrink-0" /> {item.sector}
                     </p>
                     {mode === 'AVAILABLE' && (
-                      <p className="text-sm text-muted">Available since: {item.availableSince ? inventoryDateLabel(item.availableSince) : 'Not recorded'}</p>
+                      <p className="text-sm text-muted">
+                        Available from: {inventoryAvailabilityDate(item) ? inventoryDateLabel(inventoryAvailabilityDate(item)!) : 'Not recorded'}
+                      </p>
                     )}
                     <p className="text-sm text-muted">
                       {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
@@ -269,7 +272,7 @@ export function InventoryFoldersPage() {
                     <AvailabilitySwitch
                       active={mode === 'AVAILABLE'}
                       label={mode === 'AVAILABLE' ? 'Mark property rented out' : 'Make property available'}
-                      disabled={!canEdit || !!busy}
+                      disabled={!canEdit || item.canEdit === false || !!busy}
                       onToggle={() =>
                         mode === 'AVAILABLE' ? void rentOut(item) : router.push(`/broker/inventory/${encodeURIComponent(item.id)}/edit?makeAvailable=1`)
                       }

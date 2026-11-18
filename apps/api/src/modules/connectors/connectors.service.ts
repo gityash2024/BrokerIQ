@@ -84,7 +84,7 @@ export class ConnectorsService implements OnModuleInit {
           ...d,
           steps: renderSteps(d, api),
           config: isAdmin ? await this.settings.view(d.key, orgId) : { configured: await this.settings.isConfigured(d.key, orgId) },
-          state: state && delegated ? { status: state.status, lastSyncAt: state.lastSyncAt, leadsImported: state.leadsImported } : state ?? null,
+          state: state && delegated ? { status: state.status, lastSyncAt: state.lastSyncAt, leadsImported: state.leadsImported } : (state ?? null),
           extra,
         };
       }),
@@ -94,7 +94,7 @@ export class ConnectorsService implements OnModuleInit {
       connectors,
       webhook: {
         url: isAdmin ? `${api}/api/webhooks/leads/${org.webhookKey}` : null,
-        state: delegated ? null : webhookState ?? null,
+        state: delegated ? null : (webhookState ?? null),
         samplePayload: {
           name: 'Rahul Sharma',
           phone: '+919876543210',
@@ -247,10 +247,16 @@ export class ConnectorsService implements OnModuleInit {
           if (!lead.source || !portals.includes(lead.source) || !lead.phone || lead.confidence < 65) continue;
           const hints = extractRequirementHints(`${subject}\n${lead.property ?? ''}\n${(parsed.text ?? '').slice(0, 3000)}`);
           const localityId = hints.localityText ? await this.matchLocalityId(hints.localityText) : null;
-          const hasHints = hints.bedrooms.length || hints.maxBudget || localityId;
+          const hasHints = hints.bedrooms.length || hints.maxBudget || hints.furnishing || localityId;
           await this.leads.ingest({
             requirement: hasHints
-              ? { bedrooms: hints.bedrooms, minBudget: hints.minBudget, maxBudget: hints.maxBudget, localityIds: localityId ? [localityId] : [] }
+              ? {
+                  bedrooms: hints.bedrooms,
+                  furnishing: hints.furnishing,
+                  minBudget: hints.minBudget,
+                  maxBudget: hints.maxBudget,
+                  localityIds: localityId ? [localityId] : [],
+                }
               : undefined,
             orgId,
             name: lead.name,
@@ -414,6 +420,9 @@ export class ConnectorsService implements OnModuleInit {
     }
     const localityId = l.locality ? await this.matchLocalityId(String(l.locality)) : null;
     const bedrooms = housingBedrooms(l);
+    const housingHints = extractRequirementHints(
+      [l.furnishing, l.furnishing_type, l.apartment_names, l.project_name, l.configuration].filter((value) => typeof value === 'string').join(' '),
+    );
     const service = String(l.service_type ?? '').toLowerCase();
     const when = housingLeadDate(l);
     const { lead } = await this.leads.ingest({
@@ -427,8 +436,14 @@ export class ConnectorsService implements OnModuleInit {
       message: when ? `Housing पर enquiry: ${when.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}` : null,
       rawPayload: l,
       requirement:
-        localityId || bedrooms.length || service
-          ? { purpose: service === 'rent' ? 'RENT' : undefined, localityIds: localityId ? [localityId] : [], bedrooms, propertyTypes: l.pg_name ? ['PG'] : [] }
+        localityId || bedrooms.length || housingHints.furnishing || service
+          ? {
+              furnishing: housingHints.furnishing,
+              purpose: service === 'rent' ? 'RENT' : undefined,
+              localityIds: localityId ? [localityId] : [],
+              bedrooms,
+              propertyTypes: l.pg_name ? ['PG'] : [],
+            }
           : undefined,
     });
     await this.prisma.externalLeadRef.updateMany({ where: { organizationId: orgId, provider: 'housing', ref }, data: { leadId: lead.id } });

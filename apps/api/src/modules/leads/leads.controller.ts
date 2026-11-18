@@ -108,6 +108,15 @@ export class LeadsController {
     return this.leads.assign(id, body.assignedToId, user);
   }
 
+  @Post(':id/assignment/accept')
+  acceptAssignment(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ assignmentId: z.string().uuid().nullable() }))) body: { assignmentId: string | null },
+  ) {
+    return this.leads.acceptAssignment(id, body.assignmentId, user);
+  }
+
   @Post(':id/activities')
   activity(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body(new ZodPipe(activityInputSchema)) body: z.infer<typeof activityInputSchema>) {
     return this.leads.addActivity(id, body, user);

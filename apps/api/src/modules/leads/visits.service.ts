@@ -96,7 +96,9 @@ export class VisitsService {
         organizationId: requireOrg(user),
         deletedAt: null,
         directionsUrl: { not: null },
-        ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+        ...(user.role === 'BROKER_AGENT'
+          ? { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] }
+          : {}),
       },
       select: { id: true, directionsUrl: true },
     });
@@ -183,7 +185,9 @@ export class VisitsService {
             id: { in: inventoryIds },
             organizationId: lead.organizationId,
             deletedAt: null,
-            ...(user.role === 'BROKER_AGENT' ? { OR: [{ createdById: user.id }, { assignedToId: user.id }] } : {}),
+            ...(user.role === 'BROKER_AGENT'
+              ? { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] }
+              : {}),
           },
         });
         if (items.length !== inventoryIds.length) throw new NotFoundException('One or more inventory properties are unavailable');
