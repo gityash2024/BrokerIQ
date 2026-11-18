@@ -23,8 +23,6 @@ interface Provider {
   visionModels: string[];
   structuredApproved?: boolean;
   disableReasoning?: boolean;
-  captureVisionApprovedModel?: string;
-  captureTextApprovedModel?: string;
 }
 
 interface CallOpts {
@@ -108,14 +106,6 @@ export class AiService {
         disableReasoning: v.disableReasoning === true || v.disableReasoning === 'true',
         textModels: [...new Set([...list(v.textModel), ...list(v.fallbackModels)].filter(isFreeOpenRouterModel))],
         visionModels: [...new Set([...list(v.visionModel), ...list(v.visionFallbackModels)].filter(isFreeOpenRouterModel))],
-        captureTextApprovedModel:
-          /^[a-f0-9]{64}$/.test(String(v.captureTextEvaluationSha256 ?? '')) && typeof v.captureTextApprovedModel === 'string'
-            ? v.captureTextApprovedModel
-            : undefined,
-        captureVisionApprovedModel:
-          /^[a-f0-9]{64}$/.test(String(v.captureVisionEvaluationSha256 ?? '')) && typeof v.captureVisionApprovedModel === 'string'
-            ? v.captureVisionApprovedModel
-            : undefined,
       };
     if (name === 'groq')
       return { name, apiKey, url: URLS[name], textModels: list(v.textModel || 'llama-3.3-70b-versatile'), visionModels: list(v.visionModel) };
@@ -141,25 +131,13 @@ export class AiService {
     return out;
   }
 
-  private visionModels(provider: Provider, feature?: string) {
-    if (feature !== 'capture' || !env().BROKER_FIRST) return provider.visionModels;
-    // A generic router or fallback can change the underlying model after evaluation.
-    return provider.visionModels.filter((model) => model.endsWith(':free') && model === provider.captureVisionApprovedModel);
-  }
-
-  private textModels(provider: Provider, kind: string, feature?: string) {
-    if (kind === 'json' && feature === 'capture' && env().BROKER_FIRST && provider.name === 'openrouter')
-      return provider.textModels.filter((model) => model.endsWith(':free') && model === provider.captureTextApprovedModel);
-    return provider.textModels;
-  }
-
   async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text', feature?: string) {
     return (await this.providers()).some((p) =>
       kind === 'vision'
-        ? this.visionModels(p, feature).length > 0
+        ? p.visionModels.length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
           (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
-          this.textModels(p, kind, feature).length > 0,
+          p.textModels.length > 0,
     );
   }
 
@@ -351,15 +329,15 @@ export class AiService {
   ): Promise<string> {
     const providers = (await this.providers()).filter((p) =>
       kind === 'vision'
-        ? this.visionModels(p, opts.feature).length > 0
+        ? p.visionModels.length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
           (kind !== 'json' || p.name !== 'qwen_local' || p.structuredApproved === true) &&
-          this.textModels(p, kind, opts.feature).length > 0,
+          p.textModels.length > 0,
     );
     if (!providers.length) throw new IntegrationNotConfiguredException('openrouter', NOT_CONFIGURED);
     const errors: string[] = [];
     for (const p of providers) {
-      const models = kind === 'vision' ? this.visionModels(p, opts.feature) : this.textModels(p, kind, opts.feature);
+      const models = kind === 'vision' ? p.visionModels : p.textModels;
       for (const model of models) {
         if (p.name === 'openrouter' && Date.now() < (this.openRouterRetryAt.get(model) ?? 0)) {
           errors.push(`openrouter/${model}: waiting for Retry-After`);

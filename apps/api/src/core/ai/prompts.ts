@@ -31,7 +31,7 @@ Rules:
 - Every listing is monthly RENT. "45k" / "45 हज़ार" / "45000 pm" → 45000; "1.2 L" → 120000.
 - Deposit: "2 month deposit" → 2 × rent; "dep 1L" → 100000.
 - Brokerage: "1 month"/"full month" → MONTH_1; "15 days"/"half month" → DAYS_15; "no brokerage"/"NB" → NONE; a fixed ₹ amount → FIXED + brokerageInr.
-- "Sec 65" / "S-65" / "सेक्टर 65" → "Sector 65". "FF"/"fully furnished" → FULLY_FURNISHED, "SF"/"semi" → SEMI_FURNISHED, "UF"/"bare" → UNFURNISHED.
+- "Sec 65" / "S-65" / "सेक्टर 65" → "Sector 65". "FFD"/"fully furnished" → FULLY_FURNISHED, "SFD"/"semi furnished" → SEMI_FURNISHED, "UF"/"bare" → UNFURNISHED. GF=ground floor (0), FF=first floor (1), SF=second floor (2). TF=Top Floor with unknown numeric level; retain TF in notes and leave numeric floor null. Copy 3rd Floor as 3 and 4th Floor as 4. FF/SF are floor codes, never furnishing.
 - "3BHK" → bedrooms 3; "BF"/"builder floor" → BUILDER_FLOOR; "PG"/"co-living" → PG.
 - Indian mobiles have 10 digits (may start with +91/0). Keep names as written.
 - confidence (0–1) = how legible and complete the row is. Unreadable or absent → null. A page with no listings → "rows": [].

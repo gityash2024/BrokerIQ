@@ -106,29 +106,14 @@ describe('AiService', () => {
     await expect(ai.test('openrouter', { apiKey: 'k', textModel: 'openrouter/free' })).rejects.toThrow('empty diagnostic response');
   });
 
-  it('uses only the exact approved image-import model and never falls back to an unapproved router', async () => {
+  it('runs image capture on configured free fallbacks without an additional approval setting', async () => {
     jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });
-    const values = {
-      apiKey: 'k',
-      visionModel: 'a:free',
-      visionFallbackModels: 'openrouter/free,b:free',
-      captureVisionApprovedModel: 'a:free',
-      captureVisionEvaluationSha256: '',
-    };
+    const values = { apiKey: 'k', visionModel: 'a:free', visionFallbackModels: 'paid-model,b:free' };
+    respond = (_u, body) => (body.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('{"records":[]}'));
     const ai = new AiService(settings({ openrouter: values }), prisma);
-    expect(await ai.isAvailable('vision')).toBe(true);
-    expect(await ai.isAvailable('vision', 'capture')).toBe(false);
-    await expect(ai.vision('data:image/png;base64,AA==', 'Extract', { feature: 'capture' })).rejects.toThrow();
-    expect(calls).toHaveLength(0);
-
-    values.captureVisionEvaluationSha256 = 'a'.repeat(64);
-    respond = () => ({ status: 429, json: { error: { message: 'rate limited' } } });
     expect(await ai.isAvailable('vision', 'capture')).toBe(true);
-    await expect(ai.vision('data:image/png;base64,AA==', 'Extract', { feature: 'capture' })).rejects.toThrow();
-    expect(calls.map((call) => call.model)).toEqual(['a:free']);
-
-    values.captureVisionApprovedModel = 'openrouter/free';
-    expect(await ai.isAvailable('vision', 'capture')).toBe(false);
+    await expect(ai.vision('data:image/png;base64,AA==', 'Extract', { feature: 'capture', json: true })).resolves.toBe('{"records":[]}');
+    expect(calls.map((call) => call.model)).toEqual(['a:free', 'b:free']);
   });
 
   it('keeps no-training and zero-price endpoint constraints on every launch fallback', async () => {
@@ -175,22 +160,15 @@ describe('AiService', () => {
     expect(calls[0].model).toBe('gem');
   });
 
-  it('allows chat assistance but gates import JSON on the exact evaluated free model', async () => {
+  it('runs validated capture JSON across the configured free model fallback chain', async () => {
     jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });
-    const config = { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' };
-    const pending = new AiService(settings({ openrouter: config }), prisma);
-    expect(await pending.isAvailable('text')).toBe(true);
-    expect(await pending.isAvailable('json', 'capture')).toBe(false);
-    const approved = new AiService(
-      settings({ openrouter: { ...config, captureTextApprovedModel: 'a:free', captureTextEvaluationSha256: 'a'.repeat(64) } }),
-      prisma,
-    );
-    expect(await approved.isAvailable('json', 'capture')).toBe(true);
-    respond = (_u, b) => (b.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('{"entities":[]}'));
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', textModel: 'a:free', fallbackModels: 'b:free' } }), prisma);
+    expect(await ai.isAvailable('json', 'capture')).toBe(true);
+    respond = (_u, body) => (body.model === 'a:free' ? { status: 429, json: { error: { message: 'rate limited' } } } : ok('{"entities":[]}'));
     await expect(
-      approved.json([{ role: 'user', content: 'Required flat' }], { feature: 'capture', schema: z.object({ entities: z.array(z.any()) }) }),
-    ).rejects.toMatchObject({ status: 502 });
-    expect(calls.map((c) => c.model)).toEqual(['a:free']);
+      ai.json([{ role: 'user', content: 'Required flat' }], { feature: 'capture', schema: z.object({ entities: z.array(z.any()) }) }),
+    ).resolves.toEqual({ entities: [] });
+    expect(calls.map((call) => call.model)).toEqual(['a:free', 'b:free']);
   });
 
   it('disables optional reasoning only when configured without relaxing free routing', async () => {
