@@ -1,3 +1,4 @@
+import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Switch, View } from 'react-native';
 import { router } from 'expo-router';
@@ -6,11 +7,10 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
-  inventoryAvailabilityDate,
+  inventoryAvailabilityLabel,
   inventoryDate,
-  inventoryDateLabel,
   inventoryPrice,
-  inventoryTitle,
+  inventoryCardTitle,
   readableValue,
   type InventoryFolder,
   type InventoryFolderMode,
@@ -81,6 +81,7 @@ export function NativeInventoryFolders() {
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     enabled: !!user && leaf,
+    refetchInterval: (state) => inventoryAccessRefreshInterval(state.state.data?.pages.flatMap((page) => page.items) ?? []),
   });
   const active = leaf ? records : folders;
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
@@ -201,13 +202,11 @@ export function NativeInventoryFolders() {
               {!!item.photoUrls?.[0] && <Image source={item.photoUrls[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />}
               <Txt v="h3">{inventoryPrice(item)}</Txt>
               <Txt color="brand" v="title" onPress={() => router.push(`/inventory/${item.id}`)}>
-                {inventoryTitle(item)}
+                {inventoryCardTitle(item)}
               </Txt>
               <Row gap={8} wrap>
                 <Txt color="muted" style={{ flex: 1 }}>
-                  {item.sector}
-                  {item.bhk ? ' · ' + item.bhk + ' BHK' : ''}
-                  {item.furnishing ? ' · ' + readableValue(item.furnishing) : ''}
+                  {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                 </Txt>
                 {
                   <Switch
@@ -222,8 +221,11 @@ export function NativeInventoryFolders() {
               </Row>
               {mode === 'AVAILABLE' && (
                 <Txt v="caption" color="muted">
-                  Available from: {inventoryAvailabilityDate(item) ? inventoryDateLabel(inventoryAvailabilityDate(item)!) : 'Not recorded'}
+                  {inventoryAvailabilityLabel(item)}
                 </Txt>
+              )}
+              {user?.role === 'BROKER_AGENT' && ['LOCKED', 'EXPIRED', 'REJECTED', 'REVOKED'].includes(item.detailAccess ?? '') && (
+                <Button title="Request full details" size="sm" variant="ghost" onPress={() => router.push(`/inventory/${item.id}`)} />
               )}
             </NativeCard>
           ) : (

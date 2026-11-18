@@ -5,8 +5,7 @@ import {
   INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
   prepareInventoryEditorInput,
   inventoryEditorPatch,
-  inventoryDateSchema,
-  inventoryDateLabel,
+  inventoryNavigation,
   inventoryMonth,
   inventoryMonthSchema,
   missingInventoryFolderFields,
@@ -27,15 +26,15 @@ const inputs = [
   ['houseNo', 'House / plot no.'],
   ['unitLabel', 'Unit'],
   ['address', 'Address'],
-  ['directionsUrl', 'Directions link · Google Maps or Apple Maps'],
+  ['directionsUrl', 'Directions link or latitude, longitude'],
   ['floor', 'Floor'],
-  ['bhk', 'Rooms'],
+  ['bhk', 'BHK / number of rooms'],
   ['area', 'Area'],
   ['monthlyRent', 'Monthly rent ₹'],
   ['totalSalePrice', 'Total sale price ₹'],
   ['ratePerArea', 'Rate per area ₹'],
   ['securityDeposit', 'Deposit ₹'],
-  ['brokerage', 'Brokerage terms'],
+  ['brokerage', 'Brokerage'],
   ['tenantPreference', 'Tenant preference'],
 ];
 const options: Record<string, string[]> = {
@@ -80,13 +79,12 @@ export function PropertyForm({
   const mutationId = useRef(initial.clientMutationId ?? (typeof crypto !== 'undefined' ? crypto.randomUUID() : undefined));
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>(() => {
     const normalized = prepareInventoryEditorInput({ contacts: initial.contacts ?? [] }).contacts as NonNullable<InventoryInput['contacts']>;
-    return normalized.length ? normalized : [{ name: '', phone: '', role: 'UNKNOWN' }];
+    return normalized.length ? normalized : [{ name: '', phone: '', role: 'OWNER' }];
   });
   const [activate, setActivate] = useState(Boolean(activateInMonth));
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
-  const [availability, setAvailability] = useState(initial.availability ?? 'UNKNOWN');
-  const showAvailabilityDate = !markRented && (activate || availability === 'AVAILABLE');
-  const lockedDate = initial.availability === 'AVAILABLE' ? initial.availableSince : null;
+  const [location, setLocation] = useState({ sector: initial.sector, houseNo: initial.houseNo, address: initial.address });
+  const navigation = inventoryNavigation(location);
   const [photos, setPhotos] = useState(initial.photoUrls ?? []);
   const [videos, setVideos] = useState(initial.videoUrls ?? []);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -99,38 +97,32 @@ export function PropertyForm({
     if (busy || uploading) return;
     setBusy(true);
     setError('');
-    let values: Record<string, any> = Object.fromEntries(new FormData(event.currentTarget));
+    const form = event.currentTarget;
+    let values: Record<string, any> = Object.fromEntries(new FormData(form));
     const originalDate = initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : '';
     if (values.date) values.date = values.date === originalDate ? initial.date : new Date(`${values.date}T00:00:00+05:30`).toISOString();
     for (const key of Object.keys(values))
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
-    Object.assign(values, readPropertyExtras(event.currentTarget), { photoUrls: photos, videoUrls: videos });
+    Object.assign(values, readPropertyExtras(form), { photoUrls: photos, videoUrls: videos });
     // Keep source amenities which have no checkbox in the current taxonomy.
     values.amenities = [
-      ...new Set([
-        ...(initial.amenities ?? []).filter((a) => !event.currentTarget.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)),
-        ...values.amenities,
-      ]),
+      ...new Set([...(initial.amenities ?? []).filter((a) => !form.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)), ...values.amenities]),
     ];
     if (isSuper) values.assignedToId = superAssignee || null;
-    values.contacts = contacts.filter((c) => c.name || c.phone || c.note || c.role !== 'UNKNOWN');
+    values.contacts = contacts.filter((c) => c.name?.trim() || c.phone?.trim() || c.note?.trim());
     values = prepareInventoryEditorInput(values);
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
     try {
-      if (
-        showAvailabilityDate &&
-        !lockedDate &&
-        (activate || initial.availability !== 'AVAILABLE') &&
-        !inventoryDateSchema.safeParse(values.availableSince).success
-      ) {
-        throw new Error('Choose the date this property became available.');
-      }
       if (activate) {
         if (!inventoryMonthSchema.safeParse(values.directoryMonth).success) throw new Error('Choose the year and month for this property.');
         const missing = missingInventoryFolderFields({ ...initial, ...values });
-        if (missing.length) throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
+        if (missing.length) {
+          const additional = form.querySelector('details');
+          if (additional) additional.open = true;
+          throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
+        }
       }
       if (markRented) {
         const missing = missingInventoryFolderFields({ ...initial, ...values });
@@ -154,167 +146,77 @@ export function PropertyForm({
       setBusy(false);
     }
   }
+  const field = (key: string) => {
+    const [name, title] = inputs.find(([name]) => name === key)!;
+    return (
+      <label key={name} className="text-xs font-semibold text-muted">
+        {title}
+        <input
+          name={name}
+          type={numeric.includes(name) ? 'number' : 'text'}
+          min={numeric.includes(name) ? 0 : undefined}
+          step={numeric.includes(name) ? 'any' : undefined}
+          onChange={
+            ['sector', 'houseNo', 'address'].includes(name) ? (event) => setLocation((current) => ({ ...current, [name]: event.target.value })) : undefined
+          }
+          defaultValue={(initial as any)[name] ?? (name === 'monthlyRent' ? (initial.rent ?? '') : '')}
+          className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+        />
+      </label>
+    );
+  };
+  const select = (name: string) => {
+    const choices = options[name];
+    return (
+      <label key={name} className="text-xs font-semibold text-muted">
+        {(
+          {
+            purpose: 'Transaction',
+            category: 'Category',
+            propertyType: 'Property type',
+            roomKind: 'Room configuration',
+            furnishing: 'Furnishing',
+            areaUnit: 'Area unit',
+            rateAreaUnit: 'Rate area unit',
+            availability: 'Availability',
+            status: 'Record status',
+          } as Record<string, string>
+        )[name] ?? name}
+        <select
+          name={name}
+          onChange={(event) => {
+            if (name === 'purpose') setPurpose(event.target.value);
+          }}
+          defaultValue={(initial as any)[name] ?? (name === 'availability' ? 'UNKNOWN' : name === 'status' ? 'DRAFT' : '')}
+          className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+        >
+          {!['availability', 'status'].includes(name) && <option value="">Unknown / not recorded</option>}
+          {choices.map((value) => (
+            <option key={value} value={value}>
+              {value.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  };
   return (
     <form onSubmit={submit} onChange={onDirty} className="space-y-5">
       {markRented && <p className="rounded-xl bg-surface-2 p-4 text-sm text-muted">Check the property details before marking it rented out.</p>}
-      {activateInMonth && (
-        <div className="grid gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:grid-cols-2">
-          {!requireAvailability && (
-            <label className="flex items-center gap-2 text-sm font-semibold">
-              <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
-              Make available
-            </label>
-          )}
-          {activate && (
-            <label className="text-xs font-semibold">
-              Inventory year and month
-              <input
-                name="directoryMonth"
-                type="month"
-                required
-                defaultValue={activateInMonth || inventoryMonth()}
-                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-              />
-            </label>
-          )}
-        </div>
-      )}
-      {activate && <p className="text-sm text-muted">Review the details below before making this property available.</p>}
-      {showAvailabilityDate && (
-        <div className="max-w-sm">
-          {lockedDate ? (
-            <>
-              <p className="text-xs font-semibold text-muted">Available since</p>
-              <p className="mt-1 text-sm font-semibold">{inventoryDateLabel(lockedDate)}</p>
-              <p className="mt-1 text-xs text-muted">This date stays fixed while the property is available.</p>
-            </>
-          ) : (
-            <label className="block text-xs font-semibold text-muted">
-              Available since
-              <input
-                name="availableSince"
-                type="date"
-                required={activate || initial.availability !== 'AVAILABLE'}
-                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-              />
-            </label>
-          )}
-        </div>
-      )}
-      <p className="section-kicker">Property & pricing</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {inputs
-          .filter(([name]) => !(purpose === 'RENT' && ['totalSalePrice', 'ratePerArea'].includes(name)) && !(purpose === 'SALE' && name === 'monthlyRent'))
-          .map(([name, title]) => (
-            <label key={name} className="text-xs font-semibold text-muted">
-              {title}
-              <input
-                name={name}
-                type={numeric.includes(name) ? 'number' : 'text'}
-                min={numeric.includes(name) ? 0 : undefined}
-                step={numeric.includes(name) ? 'any' : undefined}
-                defaultValue={(initial as any)[name] ?? (name === 'monthlyRent' ? (initial.rent ?? '') : '')}
-                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-              />
-            </label>
-          ))}
-        <label className="text-xs font-semibold text-muted">
-          Record date · IST
-          <input
-            type="date"
-            name="date"
-            defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
-            className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-          />
-        </label>
-        {Object.entries(options)
-          .filter(([name]) => (!activate && !markRented) || !['availability', 'status'].includes(name))
-          .map(([name, choices]) => (
-            <label key={name} className="text-xs font-semibold text-muted">
-              {(
-                {
-                  purpose: 'Transaction',
-                  category: 'Category',
-                  propertyType: 'Property type',
-                  roomKind: 'Room configuration',
-                  furnishing: 'Furnishing',
-                  areaUnit: 'Area unit',
-                  rateAreaUnit: 'Rate area unit',
-                  availability: 'Availability',
-                  status: 'Record status',
-                } as Record<string, string>
-              )[name] ?? name}
-              <select
-                name={name}
-                onChange={(event) => {
-                  if (name === 'purpose') setPurpose(event.target.value);
-                  if (name === 'availability') setAvailability(event.target.value as typeof availability);
-                }}
-                defaultValue={(initial as any)[name] ?? (name === 'availability' ? 'UNKNOWN' : name === 'status' ? 'DRAFT' : '')}
-                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-              >
-                {!['availability', 'status'].includes(name) && <option value="">Unknown / not recorded</option>}
-                {choices.map((value) => (
-                  <option key={value} value={value}>
-                    {value.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        {isSuper ? (
-          <InventoryHierarchyPicker
-            kind="members"
-            organizationId={initial.organizationId}
-            value={superAssignee}
-            onChange={(id) => {
-              setSuperAssignee(id);
-              onDirty?.();
-            }}
-            selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
-          />
-        ) : isAdmin ? (
-          <label className="text-xs font-semibold text-muted">
-            Assignee (Agent / Admin)
-            <select
-              name="assignedToId"
-              defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
-              className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-            >
-              <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
-              {teamMembers.map((m: any) => (
-                <option key={m.id} value={m.id}>
-                  {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <div className="text-xs font-semibold text-muted">
-            Assignee
-            <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
-              {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
-            </div>
-            {!delegated && (
-              <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
-            )}
-          </div>
-        )}
-      </div>
       <div>
-        <p className="mb-1 font-semibold">Private contacts</p>
+        <p className="mb-1 font-semibold">Owner details</p>
         <p className="mb-3 text-xs text-muted">These contacts stay in your firm. Choose a separate public contact when publishing.</p>
         {contacts.map((contact, index) => (
           <div key={index} className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <input
-              aria-label={`Contact ${index + 1} name`}
+              aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} name`}
               placeholder="Name, if known"
               value={contact.name ?? ''}
               onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))}
               className="rounded-lg border border-line bg-surface p-2 text-sm"
             />
             <input
-              aria-label={`Contact ${index + 1} phone`}
+              aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} phone`}
               placeholder="Phone"
               value={contact.phone ?? ''}
               onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, phone: e.target.value } : c)))}
@@ -346,12 +248,45 @@ export function PropertyForm({
           type="button"
           onClick={() => {
             onDirty?.();
-            setContacts([...contacts, { name: '', phone: '', role: 'UNKNOWN' }]);
+            setContacts([...contacts, { name: '', phone: '', role: 'OWNER' }]);
           }}
           className="text-sm font-semibold text-brand-600"
         >
           + Add contact
         </button>
+      </div>
+
+      <p className="section-kicker">Address details</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {field('sector')}
+        {field('houseNo')}
+        {field('address')}
+      </div>
+      <p className="section-kicker">Property details</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {select('purpose')}
+        {select('propertyType')}
+        {select('roomKind')}
+        {field('bhk')}
+        {select('furnishing')}
+        {field('floor')}
+        {purpose !== 'SALE' && field('monthlyRent')}
+        {purpose !== 'RENT' && field('totalSalePrice')}
+        <PropertyExtras initial={initial} quickFields />
+        {field('brokerage')}
+        {field('directionsUrl')}
+        <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-brand-600">
+          {navigation.pinSearch && (
+            <a href={navigation.pinSearch} target="_blank" rel="noreferrer">
+              Find property pin
+            </a>
+          )}
+          {navigation.sectorMap && (
+            <a href={navigation.sectorMap} target="_blank" rel="noreferrer">
+              Sector map
+            </a>
+          )}
+        </div>
       </div>
       <div className="space-y-5 rounded-xl border border-line p-4">
         <PropertyMedia
@@ -382,16 +317,99 @@ export function PropertyForm({
           disabled={busy}
         />
       </div>
-      <PropertyExtras initial={initial} category={initial.category} />
-      <label className="block text-xs font-semibold text-muted">
-        Notes
-        <textarea
-          name="notes"
-          defaultValue={initial.notes ?? ''}
-          rows={4}
-          className="mt-1 block w-full rounded-lg border border-line bg-surface p-3 text-sm text-fg"
-        />
-      </label>
+      <PropertyExtras initial={initial} category={initial.category}>
+        {activateInMonth && (
+          <div className="grid gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:grid-cols-2">
+            {!requireAvailability && (
+              <label className="flex items-center gap-2 text-sm font-semibold">
+                <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
+                Make available
+              </label>
+            )}
+            {activate && (
+              <label className="text-xs font-semibold">
+                Inventory year and month
+                <input
+                  name="directoryMonth"
+                  type="month"
+                  required
+                  defaultValue={activateInMonth || inventoryMonth()}
+                  className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+                />
+              </label>
+            )}
+          </div>
+        )}
+        {activate && <p className="text-sm text-muted">Available inventory requires category, area and unit.</p>}
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          {field('unitLabel')}
+          {select('category')}
+          {field('area')}
+          {select('areaUnit')}
+          {field('securityDeposit')}
+          {purpose !== 'RENT' && field('ratePerArea')}
+          {select('rateAreaUnit')}
+          {!activate && !markRented && select('availability')}
+          {!activate && !markRented && select('status')}
+          {field('tenantPreference')}
+          <label className="text-xs font-semibold text-muted">
+            Record date · IST
+            <input
+              type="date"
+              name="date"
+              defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
+              className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+            />
+          </label>
+          {isSuper ? (
+            <InventoryHierarchyPicker
+              kind="members"
+              organizationId={initial.organizationId}
+              value={superAssignee}
+              onChange={(id) => {
+                setSuperAssignee(id);
+                onDirty?.();
+              }}
+              selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
+            />
+          ) : isAdmin ? (
+            <label className="text-xs font-semibold text-muted">
+              Assignee (Agent / Admin)
+              <select
+                name="assignedToId"
+                defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
+                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+              >
+                <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
+                {teamMembers.map((m: any) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="text-xs font-semibold text-muted">
+              Assignee
+              <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
+                {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
+              </div>
+              {!delegated && (
+                <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+              )}
+            </div>
+          )}
+        </div>
+        <label className="block text-xs font-semibold text-muted">
+          Notes
+          <textarea
+            name="notes"
+            defaultValue={initial.notes ?? ''}
+            rows={4}
+            className="mt-1 block w-full rounded-lg border border-line bg-surface p-3 text-sm text-fg"
+          />
+        </label>
+      </PropertyExtras>
       {error && (
         <p role="alert" className="text-sm text-rose-600">
           {error}

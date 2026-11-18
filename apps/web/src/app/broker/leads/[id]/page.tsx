@@ -118,6 +118,14 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
     success: 'Lead accepted',
     onSuccess: refresh,
   });
+  const declineAssignment = useApiMutation((assignmentId: string | null) => post(`/leads/${id}/assignment/decline`, { assignmentId }), {
+    success: 'Lead declined',
+    onSuccess: () => {
+      router.replace('/broker/leads');
+      refresh();
+      void qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
   const remove = useApiMutation(() => del(`/leads/${id}`), { success: 'Lead deleted', onSuccess: () => router.push('/broker/leads') });
 
   if (q.isLoading) return <PageLoader />;
@@ -135,9 +143,25 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
         <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
           <p className="text-sm">{l.assignmentAcceptedAt ? `Accepted by ${l.assignedTo.name}` : `Awaiting acceptance from ${l.assignedTo.name}`}</p>
           {l.assignedTo.id === user?.id && !l.assignmentAcceptedAt && (
-            <Button loading={acceptAssignment.isPending} onClick={() => acceptAssignment.mutate(l.assignmentId ?? null)}>
-              Accept assigned lead
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={declineAssignment.isPending}
+                loading={acceptAssignment.isPending}
+                onClick={() => acceptAssignment.mutate(l.assignmentId ?? null)}
+              >
+                Accept assigned lead
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={acceptAssignment.isPending}
+                loading={declineAssignment.isPending}
+                onClick={() => {
+                  if (window.confirm('Decline this lead and return it to the broker for reassignment?')) declineAssignment.mutate(l.assignmentId ?? null);
+                }}
+              >
+                Decline lead
+              </Button>
+            </div>
           )}
         </div>
       )}

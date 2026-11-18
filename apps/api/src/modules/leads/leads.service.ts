@@ -1,3 +1,5 @@
+import { VisitsService } from './visits.service';
+import { activeInventoryGrant } from '../inventory/inventory-access.service';
 import { randomUUID } from 'node:crypto';
 import { ConflictException, BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { parseLeadQuery } from './lead-query';
@@ -81,21 +83,44 @@ export class LeadsService {
     private readonly ai: AiService,
     private readonly settings: SettingsService,
     private readonly jobs: JobsService,
+    private readonly visits: VisitsService,
   ) {
-    this.jobs.register('lead.assignment-notification', async ({ notificationId }) => {
+    this.jobs.register('lead.assignment-notification', async ({ notificationId, webOnly }) => {
       const note = await this.prisma.notification.findUnique({ where: { id: notificationId }, include: { user: true } });
       if (!note || note.user.status !== 'ACTIVE' || note.user.deletedAt) return;
       if ((await this.notifications.hiddenLeadNotifications(note.userId)).includes(note.id)) return;
-      await this.notifications.dispatchSaved(note);
+      await this.notifications.dispatchSaved(note, webOnly ? 'web' : 'all');
+    });
+    this.jobs.register('lead.assignment-mobile', async ({ notificationId, assignmentId }) => {
+      const note = await this.prisma.notification.findUnique({ where: { id: notificationId }, include: { user: true } });
+      if (!note || note.user.status !== 'ACTIVE' || note.user.deletedAt) return;
+      const leadId = (note.data as { leadId?: string } | null)?.leadId;
+      if (
+        !leadId ||
+        !(await this.prisma.lead.findFirst({
+          where: { id: leadId, assignedToId: note.userId, assignmentId, assignmentAcceptedAt: null, deletedAt: null },
+          select: { id: true },
+        }))
+      )
+        return;
+      if ((await this.notifications.hiddenLeadNotifications(note.userId)).includes(note.id)) return;
+      await this.notifications.dispatchSaved(note, 'mobile');
     });
   }
 
-  private async queueAssignmentNotification(tx: Prisma.TransactionClient, userIds: string[], lead: { id: string; name: string }, kind: string, body: string) {
+  private async queueAssignmentNotification(
+    tx: Prisma.TransactionClient,
+    userIds: string[],
+    lead: { id: string; name: string },
+    kind: string,
+    body: string,
+    assignmentId?: string,
+  ) {
     const notes = await tx.notification.createManyAndReturn({
       data: [...new Set(userIds)].map((userId) => ({
         userId,
         kind,
-        title: kind === 'LEAD_ASSIGNED' ? `Lead assigned: ${lead.name}` : `Lead accepted: ${lead.name}`,
+        title: (kind === 'LEAD_ASSIGNED' ? 'Lead assigned: ' : kind === 'LEAD_ASSIGNMENT_DECLINED' ? 'Lead declined: ' : 'Lead accepted: ') + lead.name,
         body,
         link: `/broker/leads/${lead.id}`,
         data: { leadId: lead.id },
@@ -103,7 +128,23 @@ export class LeadsService {
     });
     if (notes.length)
       await tx.job.createMany({
-        data: notes.map((note) => ({ type: 'lead.assignment-notification', key: 'assignment-notification:' + note.id, payload: { notificationId: note.id } })),
+        data: notes.flatMap((note) => [
+          {
+            type: 'lead.assignment-notification',
+            key: 'assignment-notification:' + note.id,
+            payload: { notificationId: note.id, webOnly: Boolean(assignmentId) },
+          },
+          ...(assignmentId
+            ? [
+                {
+                  type: 'lead.assignment-mobile',
+                  key: 'assignment-mobile:' + note.id,
+                  maxAttempts: 8,
+                  payload: { notificationId: note.id, assignmentId },
+                },
+              ]
+            : []),
+        ]),
       });
   }
 
@@ -412,7 +453,7 @@ export class LeadsService {
     });
     if (!lead) throw new NotFoundException('Lead नहीं मिली');
     const { rawPayload, ...rest } = lead;
-    return { ...rest, hasRawPayload: !!rawPayload };
+    return { ...rest, visits: await this.visits.withVisitDirections(rest.visits, user), hasRawPayload: !!rawPayload };
   }
 
   // ------------------------------------------------------------------ mutations
@@ -439,7 +480,7 @@ export class LeadsService {
       listingId: input.listingId,
       message: input.notes,
       requirement: input.requirement,
-      assignedToId: effectiveAssignee,
+      assignedToId: user.role === 'BROKER_AGENT' ? effectiveAssignee : null,
       actorId: user.id,
     });
     const data: Prisma.LeadUpdateInput = {};
@@ -447,7 +488,7 @@ export class LeadsService {
     if (input.temperature) Object.assign(data, { temperature: input.temperature, temperatureManual: true });
     if (input.tags?.length) data.tags = input.tags;
     if (input.alternatePhone) data.alternatePhone = normalizeIndianPhone(input.alternatePhone) ?? input.alternatePhone;
-    if (effectiveAssignee && !lead.assignedToId) data.assignedTo = { connect: { id: effectiveAssignee } };
+    if (effectiveAssignee && !lead.assignedToId) await this.assign(lead.id, effectiveAssignee, user, { onlyUnassigned: true });
     if (Object.keys(data).length) await this.prisma.lead.update({ where: { id: lead.id }, data });
     return this.detail(lead.id, user);
   }
@@ -541,7 +582,7 @@ export class LeadsService {
           organizationId: lead.organizationId,
           deletedAt: null,
           ...(user.role === 'BROKER_AGENT'
-            ? { OR: [{ assignedToId: user.id }, { createdById: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] }
+            ? { OR: [{ assignedToId: user.id }, { createdById: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } }] }
             : {}),
         },
         select: { id: true, photoUrls: true },
@@ -639,7 +680,7 @@ export class LeadsService {
         AND: [
           { OR: [{ photoUrls: { hasSome: photos } }, { photoGallery: { is: { id: { in: galleryIds } } } }] },
           ...(actor.role === 'BROKER_AGENT'
-            ? [{ OR: [{ assignedToId: actor.id }, { createdById: actor.id }, { detailAccess: { some: { agentId: actor.id, status: 'APPROVED' } } }] }]
+            ? [{ OR: [{ assignedToId: actor.id }, { createdById: actor.id }, { detailAccess: { some: activeInventoryGrant(actor.id) } }] }]
             : []),
         ],
       },
@@ -664,7 +705,12 @@ export class LeadsService {
     return m;
   }
 
-  async assign(id: string, assigneeId: string | null, user: RequestUser | null, opts: { orgId?: string; viaAutomation?: boolean } = {}) {
+  async assign(
+    id: string,
+    assigneeId: string | null,
+    user: RequestUser | null,
+    opts: { orgId?: string; viaAutomation?: boolean; onlyUnassigned?: boolean } = {},
+  ) {
     if (user && user.role === 'BROKER_AGENT') throw new ForbiddenException('सिर्फ admin leads assign कर सकते हैं');
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${id} FOR UPDATE`;
@@ -684,12 +730,13 @@ export class LeadsService {
           })
         : null;
       if (assigneeId && !assignee) throw new BadRequestException('Assigned member is not active in this firm');
-      if (lead.assignedToId === assigneeId) return { lead, assignee, changed: false };
+      if (lead.assignedToId === assigneeId || (opts.onlyUnassigned && lead.assignedToId)) return { lead, assignee, changed: false };
+      const assignmentId = assigneeId ? randomUUID() : null;
       await tx.lead.update({
         where: { id },
         data: {
           assignedToId: assigneeId,
-          assignmentId: assigneeId ? randomUUID() : null,
+          assignmentId,
           assignmentAcceptedAt: null,
           activities: {
             create: {
@@ -701,19 +748,81 @@ export class LeadsService {
           },
         },
       });
-      await tx.followUp.updateMany({
-        where: { leadId: id, organizationId: lead.organizationId, status: 'PENDING' },
-        data: { assignedToId: assigneeId, reminderSentAt: null },
-      });
-      await tx.siteVisit.updateMany({
-        where: { leadId: id, organizationId: lead.organizationId, status: { in: ['SCHEDULED', 'CONFIRMED'] } },
-        data: { assignedToId: assigneeId, reminderSentAt: null },
-      });
+      await this.transferOpenTasks(tx, lead, assigneeId);
       if (assignee && assignee.id !== user?.id)
-        await this.queueAssignmentNotification(tx, [assignee.id], lead, 'LEAD_ASSIGNED', 'A lead has been assigned to you. Open it and confirm acceptance.');
+        await this.queueAssignmentNotification(
+          tx,
+          [assignee.id],
+          lead,
+          'LEAD_ASSIGNED',
+          'A lead has been assigned to you. Open it and confirm acceptance.',
+          assignmentId ?? undefined,
+        );
       return { lead, assignee, changed: true };
     });
     return { ok: true };
+  }
+
+  private async transferOpenTasks(tx: Prisma.TransactionClient, lead: { id: string; organizationId: string }, assignedToId: string | null) {
+    await tx.followUp.updateMany({
+      where: { leadId: lead.id, organizationId: lead.organizationId, status: 'PENDING' },
+      data: { assignedToId, reminderSentAt: null },
+    });
+    await tx.siteVisit.updateMany({
+      where: { leadId: lead.id, organizationId: lead.organizationId, status: { in: ['SCHEDULED', 'CONFIRMED'] } },
+      data: { assignedToId, reminderSentAt: null },
+    });
+  }
+
+  private async assignmentReviewers(tx: Prisma.TransactionClient, organizationId: string, agentId: string) {
+    const users = await tx.user.findMany({
+      where: {
+        organizationId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        id: { not: agentId },
+        OR: [{ role: 'BROKER_ADMIN' }, { role: 'SUB_BROKER_ADMIN', delegatedPermissions: { hasEvery: ['leads:view', 'leads:assign'] } }],
+      },
+      select: { id: true },
+    });
+    return users.map((member) => member.id);
+  }
+
+  async declineAssignment(id: string, assignmentId: string | null, user: RequestUser) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Lead" WHERE id=${id} FOR UPDATE`;
+      const lead = await tx.lead.findFirst({ where: { id, ...this.scope(user) } });
+      if (!lead) throw new NotFoundException('Lead not found');
+      if (lead.assignedToId !== user.id) throw new ForbiddenException('Only the assigned member can decline this lead');
+      if (lead.assignmentId !== assignmentId || lead.assignmentAcceptedAt)
+        throw new ConflictException('This assignment has changed. Refresh the lead before declining.');
+      await tx.lead.update({
+        where: { id },
+        data: {
+          assignedToId: null,
+          assignmentId: null,
+          assignmentAcceptedAt: null,
+          activities: {
+            create: {
+              organizationId: lead.organizationId,
+              userId: user.id,
+              type: 'ASSIGNMENT',
+              content: 'Assigned lead declined',
+              meta: { assignmentId },
+            },
+          },
+        },
+      });
+      await this.transferOpenTasks(tx, lead, null);
+      await this.queueAssignmentNotification(
+        tx,
+        await this.assignmentReviewers(tx, lead.organizationId, user.id),
+        lead,
+        'LEAD_ASSIGNMENT_DECLINED',
+        'The assigned team member declined this lead. It is available to reassign.',
+      );
+      return { ok: true };
+    });
   }
 
   async acceptAssignment(id: string, assignmentId: string | null, user: RequestUser) {
@@ -740,19 +849,9 @@ export class LeadsService {
           },
         },
       });
-      const admins = await tx.user.findMany({
-        where: {
-          organizationId: lead.organizationId,
-          status: 'ACTIVE',
-          deletedAt: null,
-          id: { not: user.id },
-          OR: [{ role: 'BROKER_ADMIN' }, { role: 'SUB_BROKER_ADMIN', delegatedPermissions: { hasEvery: ['leads:view', 'leads:assign'] } }],
-        },
-        select: { id: true },
-      });
       await this.queueAssignmentNotification(
         tx,
-        admins.map((admin) => admin.id),
+        await this.assignmentReviewers(tx, lead.organizationId, user.id),
         lead,
         'LEAD_ASSIGNMENT_ACCEPTED',
         'The assigned team member has accepted this lead.',

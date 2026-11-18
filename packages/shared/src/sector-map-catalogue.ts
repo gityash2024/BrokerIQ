@@ -1,5 +1,5 @@
 // Titles and map permalinks from ABC Buildcon's public sector map directory.
-import { GURUGRAM_SECTOR_MAPS_URL, googleDirections, isDirectionsLink } from './map-directions';
+import { GURUGRAM_SECTOR_MAPS_URL, googleDirections, googleMapSearch, isDirectionsLink } from './map-directions';
 
 const refs: readonly (readonly [name: string, slug: string])[] = [
   ['Anant Raj', 'anant-raj'],
@@ -87,7 +87,7 @@ export function gurugramSectorMaps(search: string) {
 }
 
 export function gurugramSectorMap(sector: string) {
-  const term = normalizeArea(sector);
+  const term = normalizeArea(sector.trim().replace(/^(?:sec\.?\s+(?=\d)|(?=\d))/i, 'Sector '));
   const match = refs.find(([name]) => normalizeArea(name) === term);
   return match ? `${GURUGRAM_SECTOR_MAPS_URL}/${match[1]}` : null;
 }
@@ -95,9 +95,15 @@ export function gurugramSectorMap(sector: string) {
 export function inventoryNavigation(item: { sector?: string | null; address?: string | null; houseNo?: string | null; directionsUrl?: string | null }) {
   const sector = item.sector?.trim();
   const sectorMap = sector ? gurugramSectorMap(sector) : null;
-  const address = item.address?.trim() || (sector ? item.houseNo?.trim() : undefined);
+  const street = item.address?.trim() || (sector ? item.houseNo?.trim() : undefined);
   const saved = item.directionsUrl?.trim();
   const exact = saved && isDirectionsLink(saved) ? saved : null;
-  const destination = address ? [address, sector, sectorMap && !/gurgaon|gurugram/i.test(address) ? 'Gurugram' : null].filter(Boolean).join(', ') : null;
-  return { route: exact ?? (destination ? googleDirections(destination) : null), exact: Boolean(exact), sectorMap };
+  const destination = [street, sector && !street?.toLowerCase().includes(sector.toLowerCase()) ? sector : null].filter(Boolean).join(', ');
+  const search = destination ? (/gurgaon|gurugram/i.test(destination) ? destination : `${destination}, Gurugram`) : null;
+  return {
+    route: exact ?? (street && search ? googleDirections(search) : null),
+    exact: Boolean(exact),
+    sectorMap,
+    pinSearch: search ? googleMapSearch(search) : null,
+  };
 }

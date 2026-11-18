@@ -1,3 +1,4 @@
+import { activeInventoryGrant } from '../inventory/inventory-access.service';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
@@ -62,59 +63,82 @@ export class VisitsService {
       ...(q.from || q.to ? { scheduledAt: { ...(q.from ? { gte: new Date(q.from) } : {}), ...(q.to ? { lte: new Date(q.to) } : {}) } } : {}),
     };
     // Old installed clients keep the array shape. New clients page through the complete scoped dataset.
-    if (q.paginated !== 'true') return this.db.siteVisit.findMany({ where, orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }], take: 500, include });
+    if (q.paginated !== 'true') {
+      const items = await this.db.siteVisit.findMany({ where, orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }], take: 500, include });
+      return this.withVisitDirections(items, user, q.directions === 'true');
+    }
     const [items, total] = await this.db.$transaction([
       this.db.siteVisit.findMany({ where, orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }], skip: (q.page - 1) * q.pageSize, take: q.pageSize, include }),
       this.db.siteVisit.count({ where }),
     ]);
     return {
-      items: q.directions === 'true' ? await this.withVisitDirections(items, user) : items,
+      items: await this.withVisitDirections(items, user, q.directions === 'true'),
       total,
       page: q.page,
       pageSize: q.pageSize,
       pages: Math.ceil(total / q.pageSize),
     };
   }
-  private async withVisitDirections<T extends { propertySnapshot: Prisma.JsonValue }>(visits: T[], user: RequestUser): Promise<T[]> {
-    if (user.delegatedActor && !user.delegatedPermissions?.includes('inventory:view')) return visits;
+  async withVisitDirections<T extends { propertySnapshot: Prisma.JsonValue; address: string | null }>(
+    visits: T[],
+    user: RequestUser,
+    enrich = true,
+  ): Promise<T[]> {
+    const agent = user.role === 'BROKER_AGENT';
+    const limited = !!user.delegatedActor && !user.delegatedPermissions?.includes('inventory:view');
+    if (!agent && !limited && !enrich) return visits;
     const snapshots = visits.map((visit) => visit.propertySnapshot as (VisitPropertySnapshot & { kind?: string }) | null);
-    const ids = [
-      ...new Set(
-        snapshots.flatMap((snapshot) =>
-          snapshot?.kind === 'INVENTORY'
-            ? visitShortlistStops(snapshot)
-                .filter((stop) => !stop.directionsUrl)
-                .map((stop) => stop.id)
-            : [],
-        ),
-      ),
-    ];
+    const ids = [...new Set(snapshots.flatMap((snapshot) => (snapshot?.kind === 'INVENTORY' ? visitShortlistStops(snapshot).map((stop) => stop.id) : [])))];
     if (!ids.length) return visits;
-    const rows = await this.db.inventoryItem.findMany({
-      where: {
-        id: { in: ids },
-        organizationId: requireOrg(user),
-        deletedAt: null,
-        directionsUrl: { not: null },
-        ...(user.role === 'BROKER_AGENT'
-          ? { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] }
-          : {}),
-      },
-      select: { id: true, directionsUrl: true },
-    });
-    const byId = new Map(rows.map((row) => [row.id, row.directionsUrl]));
-    const includeDirections = <K extends { id?: string; directionsUrl?: string | null }>(stop: K) => {
-      const directionsUrl = stop.id ? byId.get(stop.id) : undefined;
-      return directionsUrl && !stop.directionsUrl ? { ...stop, directionsUrl } : stop;
+    const rows = limited
+      ? []
+      : await this.db.inventoryItem.findMany({
+          where: { id: { in: ids }, organizationId: requireOrg(user), deletedAt: null },
+          select: {
+            id: true,
+            directionsUrl: true,
+            houseNo: true,
+            sector: true,
+            createdById: true,
+            assignedToId: true,
+            detailAccess: agent
+              ? {
+                  where: { agentId: user.id },
+                  select: { status: true, expiresAt: true },
+                }
+              : false,
+          },
+        });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const now = new Date();
+    const hidden = (id?: string) => {
+      const row = id ? byId.get(id) : undefined;
+      const grant = row?.detailAccess?.[0];
+      return (
+        limited ||
+        Boolean(
+          agent && grant?.expiresAt && row?.createdById !== user.id && row?.assignedToId !== user.id && (grant.status !== 'APPROVED' || grant.expiresAt <= now),
+        )
+      );
+    };
+    const projectStop = <K extends { id?: string; title?: string; address?: string | null; directionsUrl?: string | null }>(stop: K) => {
+      const row = stop.id ? byId.get(stop.id) : undefined;
+      const grant = row?.detailAccess?.[0];
+      const owned = row?.createdById === user.id || row?.assignedToId === user.id;
+      const active = grant?.status === 'APPROVED' && (!grant.expiresAt || grant.expiresAt > now);
+      if (hidden(stop.id)) return { ...stop, title: row?.sector || 'Property', address: null, houseNo: null, unitLabel: null, directionsUrl: null };
+      if (!enrich || !row || (agent && !owned && !active)) return stop;
+      return { ...stop, houseNo: row.houseNo, directionsUrl: row.directionsUrl || stop.directionsUrl };
     };
     return visits.map((visit, index) => {
       const snapshot = snapshots[index];
       if (snapshot?.kind !== 'INVENTORY') return visit;
       return {
         ...visit,
+        ...(visitShortlistStops(snapshot).some((stop) => hidden(stop.id)) ? { address: null } : {}),
         propertySnapshot: {
-          ...includeDirections(snapshot),
-          ...(snapshot.stops ? { stops: snapshot.stops.map(includeDirections) } : {}),
+          ...projectStop(snapshot),
+          ...(snapshot.stops ? { stops: snapshot.stops.map(projectStop) } : {}),
         },
       };
     });
@@ -186,7 +210,7 @@ export class VisitsService {
             organizationId: lead.organizationId,
             deletedAt: null,
             ...(user.role === 'BROKER_AGENT'
-              ? { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] }
+              ? { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } }] }
               : {}),
           },
         });

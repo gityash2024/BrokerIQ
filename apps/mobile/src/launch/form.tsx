@@ -12,6 +12,7 @@ export function ChoiceField({
   onChange,
   emptyLabel = 'Not recorded',
   labels,
+  paired = false,
 }: {
   access?: boolean;
   label: string;
@@ -20,12 +21,13 @@ export function ChoiceField({
   onChange: (v: string | null) => void;
   emptyLabel?: string;
   labels?: Record<string, string>;
+  paired?: boolean;
 }) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
   const display = (option: string | null) => (option ? (labels?.[option] ?? option.replace(/_/g, ' ')) : emptyLabel);
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: 6, flex: paired ? 1 : undefined }}>
       <Txt v="caption" color="muted">
         {label}
       </Txt>

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { INVENTORY_PROPERTY_TYPES, propertyDetailsSchema, preparePropertyDetails } from './property-fields';
 import { normalizeIndianPhone } from './utils';
-import { directionsLinkSchema } from './map-directions';
+import { directionsLinkSchema, normalizeInventoryDirections } from './map-directions';
 import { inventoryDateSchema, inventoryFolderModeSchema, inventoryMonthSchema } from './inventory-folders';
 
 const text = z.string().trim().max(200).nullable().optional();
@@ -226,7 +226,8 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
   });
 }
 export interface LedgerItem extends Omit<InventoryInput, 'contacts' | 'directoryMonth'> {
-  detailAccess?: 'OWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'REVOKED' | 'LOCKED';
+  detailAccess?: 'OWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'REVOKED' | 'EXPIRED' | 'LOCKED';
+  detailAccessExpiresAt?: string | null;
   canEdit?: boolean;
   directoryMonth?: string | null;
   localityId?: string | null;
@@ -350,7 +351,7 @@ export function prepareInventoryEditorInput(value: Record<string, any>) {
     if (result[key] == null) delete result[key];
   for (const key of ['bhk', 'area', 'monthlyRent', 'rent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'])
     if (key in result) result[key] = result[key] === '' || result[key] == null ? null : Number(result[key]);
-  if (typeof result.directionsUrl === 'string' && !result.directionsUrl.trim()) result.directionsUrl = null;
+  if (typeof result.directionsUrl === 'string') result.directionsUrl = normalizeInventoryDirections(result.directionsUrl);
   if ('monthlyRent' in result) delete result.rent; // monthlyRent is the canonical editor field.
   if (result.details != null) result.details = preparePropertyDetails(result.details);
   else delete result.details;
@@ -362,6 +363,12 @@ export function prepareInventoryEditorInput(value: Record<string, any>) {
       note: contact?.note ?? null,
     }));
   return result;
+}
+
+export function inventoryAccessRefreshInterval(items: readonly LedgerItem[]): number | false {
+  const deadlines = items.flatMap((item) => (item.detailAccessExpiresAt ? [Date.parse(item.detailAccessExpiresAt)] : []));
+  if (!deadlines.length) return false;
+  return Math.max(1000, Math.min(30_000, Math.min(...deadlines) - Date.now()));
 }
 
 /** Build a sparse update: omitted values are untouched; explicit null/[] clears. */

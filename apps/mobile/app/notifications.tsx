@@ -1,9 +1,11 @@
 import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Linking, View } from 'react-native';
+import { registerPush } from '@/lib/push';
+import { getPermissionsAsync } from 'expo-notifications';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCheck } from 'lucide-react-native';
+import { Bell, BellRing, CheckCheck } from 'lucide-react-native';
 import { timeAgo, type AppNotification, type NotificationsResponse } from '@brokeriq/shared';
 import { api, authStore, errorMessage, post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -25,6 +27,7 @@ export default function Notifications() {
   const currentNotification = useRef(notification);
   currentNotification.current = notification;
   const [busy, setBusy] = useState(false);
+  const [checkingAlerts, setCheckingAlerts] = useState(false);
   const q = useInfiniteQuery({
     queryKey: ['notifications', user?.id, 'list'],
     initialPageParam: '',
@@ -70,14 +73,32 @@ export default function Notifications() {
       setBusy(false);
     }
   };
+  const enableDeviceAlerts = async () => {
+    setCheckingAlerts(true);
+    try {
+      const token = await registerPush();
+      if (token) toast.success('Device notifications registered');
+      else if ((await getPermissionsAsync()).status !== 'granted') await Linking.openSettings();
+      else toast.error('Device alerts could not register. Check the connection and try again.');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setCheckingAlerts(false);
+    }
+  };
   return (
     <Screen scroll={false} padded={false}>
       <Header
         title="Notifications"
         right={
-          <IconBtn accessibilityLabel="Mark all read" onPress={busy || !user ? undefined : readAll}>
-            <CheckCheck size={20} color={c.brand} />
-          </IconBtn>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <IconBtn accessibilityLabel="Enable device notifications" onPress={!user || checkingAlerts ? undefined : enableDeviceAlerts}>
+              <BellRing size={20} color={c.brand} />
+            </IconBtn>
+            <IconBtn accessibilityLabel="Mark all read" onPress={busy || !user ? undefined : readAll}>
+              <CheckCheck size={20} color={c.brand} />
+            </IconBtn>
+          </View>
         }
       />
       {!user ? (

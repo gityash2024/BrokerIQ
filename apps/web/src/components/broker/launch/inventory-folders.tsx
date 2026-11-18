@@ -1,16 +1,16 @@
 'use client';
+import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder, Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
-  inventoryAvailabilityDate,
+  inventoryAvailabilityLabel,
   inventoryDate,
-  inventoryDateLabel,
   inventoryPrice,
-  inventoryTitle,
+  inventoryCardTitle,
   readableValue,
   type InventoryFolder,
   type InventoryFolderMode,
@@ -81,6 +81,7 @@ export function InventoryFoldersPage() {
     queryKey: ['inventory-folder-items', user?.id, today, shelf, filter, page],
     queryFn: () => api<PagedLedger>(`/inventory${qs({ ...filter, ...shelf, page, pageSize: 30 })}`),
     enabled: !!user && leaf,
+    refetchInterval: (state) => inventoryAccessRefreshInterval(state.state.data?.items ?? []),
   });
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const folderMonth = mode === 'AVAILABLE' && path[0] ? path[0].key : current;
@@ -247,15 +248,8 @@ export function InventoryFoldersPage() {
                   )}
                   <div className="space-y-1 p-4 pb-2">
                     <p className="text-lg font-bold">{inventoryPrice(item)}</p>
-                    <h3 className="break-words font-semibold">{inventoryTitle(item)}</h3>
-                    <p className="flex items-center gap-1 text-sm text-muted">
-                      <MapPin className="size-3.5 shrink-0" /> {item.sector}
-                    </p>
-                    {mode === 'AVAILABLE' && (
-                      <p className="text-sm text-muted">
-                        Available from: {inventoryAvailabilityDate(item) ? inventoryDateLabel(inventoryAvailabilityDate(item)!) : 'Not recorded'}
-                      </p>
-                    )}
+                    <h3 className="break-words font-semibold">{inventoryCardTitle(item)}</h3>
+                    {mode === 'AVAILABLE' && <p className="text-sm text-muted">{inventoryAvailabilityLabel(item)}</p>}
                     <p className="text-sm text-muted">
                       {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                     </p>

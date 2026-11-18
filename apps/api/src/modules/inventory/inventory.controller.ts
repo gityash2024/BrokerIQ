@@ -79,6 +79,20 @@ export class InventoryController {
     return this.access.requests(id, user);
   }
 
+  @Get(':id/access/agents')
+  detailAccessAgents(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.access.agents(id, user);
+  }
+
+  @Post(':id/access/grant')
+  grantDetailAccess(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(z.object({ agentIds: z.array(z.string().min(1).max(100)).min(1).max(30) }))) body: { agentIds: string[] },
+  ) {
+    return this.access.grant(id, body.agentIds, user);
+  }
+
   @Post(':id/access/request')
   requestDetailAccess(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.access.request(id, user);

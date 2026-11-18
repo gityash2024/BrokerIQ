@@ -13,7 +13,7 @@ Notifications.setNotificationHandler({
 });
 
 /** Registers the Expo push token with the API (no-op on simulators / when denied). */
-export async function registerPush() {
+export async function registerPush(requestPermission = true) {
   const session = authStore.get();
   if (!session) return null;
   if (!Device.isDevice && Platform.OS !== 'android') return null;
@@ -33,7 +33,7 @@ export async function registerPush() {
     });
   }
   const { status: existing } = await Notifications.getPermissionsAsync();
-  const status = existing === 'granted' ? existing : (await Notifications.requestPermissionsAsync()).status;
+  const status = existing === 'granted' || !requestPermission ? existing : (await Notifications.requestPermissionsAsync()).status;
   if (status !== 'granted') return null;
   const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId ?? (Constants as any).easConfig?.projectId ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08';
   try {

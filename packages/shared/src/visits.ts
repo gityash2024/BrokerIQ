@@ -9,6 +9,7 @@ export type VisitPropertyStop = {
   title: string;
   address?: string | null;
   sector?: string | null;
+  houseNo?: string | null;
   directionsUrl?: string | null;
 };
 
@@ -53,6 +54,7 @@ export function visitShortlistStops(snapshot?: VisitPropertySnapshot | null): Vi
       title: snapshot.title,
       address: snapshot.address,
       sector: snapshot.sector,
+      houseNo: snapshot.houseNo,
       ...(snapshot.directionsUrl ? { directionsUrl: snapshot.directionsUrl } : {}),
     },
   ];

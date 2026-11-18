@@ -23,3 +23,18 @@ export const directionsLinkSchema = z.string().trim().max(2000).refine(isDirecti
 export function googleDirections(destination: string): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 }
+
+/** Accept a map link or a pair copied from a confirmed map pin. */
+export function normalizeInventoryDirections(value: string): string | null {
+  const text = value.trim();
+  if (!text) return null;
+  const pair = /^([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)$/.exec(text);
+  if (!pair) return text;
+  const latitude = Number(pair[1]);
+  const longitude = Number(pair[2]);
+  return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? googleDirections(`${latitude},${longitude}`) : text;
+}
+
+export function googleMapSearch(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}

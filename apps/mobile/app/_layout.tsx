@@ -98,7 +98,32 @@ export default function RootLayout() {
     if (fontsLoaded && ready) SplashScreen.hideAsync().catch(() => undefined);
   }, [fontsLoaded, ready]);
   useEffect(() => {
-    if (loggedInUserId) registerPush().catch(() => undefined);
+    if (!loggedInUserId) return;
+    let registering = false;
+    let registered = false;
+    const register = async (prompt = false) => {
+      if (registering || AppState.currentState !== 'active' || (!prompt && registered)) return;
+      registering = true;
+      try {
+        registered = Boolean(await registerPush(prompt));
+      } catch {
+        // Retry on foreground or after a temporary network failure.
+      } finally {
+        registering = false;
+      }
+    };
+    void register(true);
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        registered = false;
+        void register();
+      }
+    });
+    const timer = setInterval(() => void register(), 60_000);
+    return () => {
+      foreground.remove();
+      clearInterval(timer);
+    };
   }, [loggedInUserId]);
   useEffect(() => {
     if (!loggedInUserId) return;
@@ -115,8 +140,15 @@ export default function RootLayout() {
       clearInterval(timer);
     };
   }, [loggedInUserId]);
-  useRealtime<any>('notification', () => {
+  useRealtime<any>('notification', (notice) => {
     qc.invalidateQueries({ queryKey: ['notifications'] });
+    if (['LEAD_ASSIGNED', 'LEAD_ASSIGNMENT_ACCEPTED', 'LEAD_ASSIGNMENT_DECLINED'].includes(notice?.kind)) {
+      void qc.invalidateQueries({ queryKey: ['leads'] });
+      if (notice.leadId) void qc.invalidateQueries({ queryKey: ['lead', notice.leadId] });
+    }
+    if (typeof notice?.kind === 'string' && notice.kind.startsWith('INVENTORY_ACCESS_')) {
+      for (const key of ['ledger', 'ledger-item', 'inventory-folder-items', 'inventory-access']) void qc.invalidateQueries({ queryKey: [key] });
+    }
   });
   if (!fontsLoaded || !ready) return null;
   return (

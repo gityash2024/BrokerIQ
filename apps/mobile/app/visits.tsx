@@ -1,3 +1,4 @@
+import { inventoryNavigation, googleDirections } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/request-loader';
 import { VisitItinerary } from '@/components/visit-properties';
 import { DateTimeField } from '@/components/date-time-field';
@@ -32,7 +33,7 @@ export default function Visits() {
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       api<{ items: any[]; total: number; pages: number }>(
-        `/visits${qs({ from: start.toISOString(), to: end.toISOString(), paginated: true, page: pageParam, pageSize: 50 })}`,
+        `/visits${qs({ directions: true, from: start.toISOString(), to: end.toISOString(), paginated: true, page: pageParam, pageSize: 50 })}`,
       ),
     getNextPageParam: (last, pages) => (pages.length < last.pages ? pages.length + 1 : undefined),
   });
@@ -89,7 +90,9 @@ export default function Visits() {
           }
           renderItem={({ item: v, index }) => {
             const open = v.status === 'SCHEDULED' || v.status === 'CONFIRMED';
-            const loc = v.listing?.latitude ? `${v.listing.latitude},${v.listing.longitude}` : (v.address ?? v.listing?.address);
+            const loc =
+              v.listing?.latitude != null && v.listing.longitude != null ? `${v.listing.latitude},${v.listing.longitude}` : (v.address ?? v.listing?.address);
+            const route = inventoryNavigation(v.propertySnapshot ?? {}).route ?? (loc ? googleDirections(loc) : null);
             return (
               <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 30)}>
                 <Card style={{ padding: 14, gap: 8 }}>
@@ -129,11 +132,8 @@ export default function Visits() {
                     <IconBtn onPress={() => Linking.openURL(`tel:${v.lead.phone}`)} style={{ backgroundColor: c.surface2 }}>
                       <Phone size={17} color={c.brand} />
                     </IconBtn>
-                    {!!loc && (
-                      <IconBtn
-                        onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(loc)}`)}
-                        style={{ backgroundColor: c.surface2 }}
-                      >
+                    {!!route && (
+                      <IconBtn onPress={() => Linking.openURL(route)} style={{ backgroundColor: c.surface2 }}>
                         <Navigation size={17} color={c.brand} />
                       </IconBtn>
                     )}

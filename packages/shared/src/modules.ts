@@ -120,7 +120,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     '/broker/leads',
     ['/broker/leads', '/broker/pipeline', '/broker/follow-ups', '/broker/visits'],
     ['/leads', '/follow-ups', '/visits', '/requirements/broker', '/broker-requirements'],
-    ['lead.score', 'lead.assignment-notification'],
+    ['lead.score', 'lead.assignment-notification', 'lead.assignment-mobile'],
   ),
   core(
     'inbox',

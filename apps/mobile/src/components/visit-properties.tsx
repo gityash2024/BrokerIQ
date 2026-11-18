@@ -6,8 +6,7 @@ import { useApiMutation } from '@/lib/hooks';
 import {
   MAX_VISIT_PROPERTIES,
   visitInventoryTitle,
-  isDirectionsLink,
-  gurugramSectorMap,
+  inventoryNavigation,
   visitShortlistStops,
   visitShortlistedIds,
   type LedgerItem,
@@ -60,7 +59,7 @@ export function VisitItinerary({ snapshot, remainingOnly }: { snapshot?: VisitPr
       />
       {expanded &&
         stops.map((stop, index) => {
-          const sectorMap = stop.sector ? gurugramSectorMap(stop.sector) : null;
+          const { route, exact, sectorMap } = inventoryNavigation(stop);
           return (
             <View key={stop.id} style={{ gap: 4 }}>
               <Txt>
@@ -71,12 +70,12 @@ export function VisitItinerary({ snapshot, remainingOnly }: { snapshot?: VisitPr
                   {stop.address}
                 </Txt>
               )}
-              {stop.directionsUrl && isDirectionsLink(stop.directionsUrl) && (
+              {route && (
                 <Button
-                  title="Open property directions"
+                  title={exact ? 'Open property directions' : 'Search address in Maps'}
                   variant="ghost"
                   size="sm"
-                  onPress={() => Linking.openURL(stop.directionsUrl!).catch(() => toast.error('Unable to open the maps link'))}
+                  onPress={() => Linking.openURL(route).catch(() => toast.error('Unable to open the maps link'))}
                 />
               )}
               {sectorMap && (

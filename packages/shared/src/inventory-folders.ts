@@ -63,7 +63,7 @@ export function missingInventoryFolderFields(item: FolderProperty): string[] {
   return fields.flatMap(([present, label]) => (present ? [] : [label]));
 }
 
-export const NAMED_INVENTORY_TYPES = ['PENTHOUSE', 'BUILDER_FLOOR', 'INDEPENDENT_HOUSE'] as const;
+export const NAMED_INVENTORY_TYPES = ['PENTHOUSE', 'BUILDER_FLOOR', 'INDEPENDENT_HOUSE', 'APARTMENT', 'VILLA'] as const;
 
 export function inventoryRoomFolder(item: Pick<FolderProperty, 'roomKind' | 'bhk' | 'propertyType'>): string {
   if (NAMED_INVENTORY_TYPES.some((type) => type === item.propertyType)) return `TYPE:${item.propertyType}`;

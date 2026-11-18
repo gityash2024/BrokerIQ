@@ -100,12 +100,16 @@ export class NotificationsService {
   }
 
   /** Dispatch a previously committed outbox notification without inserting it again. */
-  async dispatchSaved(note: Notification) {
+  async dispatchSaved(note: Notification, delivery: 'all' | 'web' | 'mobile' = 'all') {
     const common = { ...((note.data as Record<string, unknown>) ?? {}), link: note.link, kind: note.kind };
     const recipients = { [note.userId]: { notificationId: note.id, recipientUserId: note.userId } };
+    if (delivery === 'mobile') {
+      await this.push([note.userId], note.title, note.body ?? '', common, recipients, true, true);
+      return;
+    }
     this.realtime.toUser(note.userId, 'notification', { ...common, ...recipients[note.userId], title: note.title, body: note.body });
     const deliveries = await Promise.allSettled([
-      this.push([note.userId], note.title, note.body ?? '', common, recipients, true),
+      delivery === 'all' ? this.push([note.userId], note.title, note.body ?? '', common, recipients, true) : Promise.resolve(),
       this.webPush.send([note.userId], note.title, note.body ?? '', common, recipients, true),
     ]);
     if (deliveries.some((result) => result.status === 'rejected'))
@@ -120,15 +124,20 @@ export class NotificationsService {
     data: Record<string, unknown> = {},
     recipients: Record<string, { notificationId: string; recipientUserId: string }> = {},
     throwOnFailure = false,
+    requireMobileToken = false,
   ) {
     const tokens = await this.prisma.pushToken.findMany({ where: { userId: { in: userIds } } });
     const expo = tokens.filter((t) => t.token.startsWith('ExponentPushToken') || t.token.startsWith('ExpoPushToken'));
-    if (!expo.length) return;
+    if (!expo.length) {
+      if (requireMobileToken) throw new Error('No registered mobile push token for this assignment');
+      return;
+    }
     // Deduplicate tokens so the same device never receives duplicate notifications
     const uniqueTokens = [...new Map(expo.map((t) => [t.token, t])).values()];
     const cfg = await this.settings.resolve('expo_push');
     const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };
     if (cfg?.accessToken) headers.Authorization = `Bearer ${cfg.accessToken}`;
+    let accepted = 0;
     for (let i = 0; i < uniqueTokens.length; i += 100) {
       const chunk = uniqueTokens.slice(i, i + 100);
       try {
@@ -151,6 +160,7 @@ export class NotificationsService {
         if (!res.ok) throw new Error(`Expo push HTTP ${res.status}`);
         const json: any = await res.json().catch(() => ({}));
         const tickets: any[] = json?.data ?? [];
+        accepted += tickets.filter((ticket) => ticket?.status === 'ok').length;
         const dead = tickets.map((t, idx) => (t?.details?.error === 'DeviceNotRegistered' ? chunk[idx]?.token : null)).filter(Boolean) as string[];
         if (dead.length) await this.prisma.pushToken.deleteMany({ where: { token: { in: dead } } });
         if (throwOnFailure && (tickets.length !== chunk.length || tickets.some((t) => t.status !== 'ok' && t?.details?.error !== 'DeviceNotRegistered')))
@@ -160,5 +170,6 @@ export class NotificationsService {
         if (throwOnFailure) throw e;
       }
     }
+    if (requireMobileToken && !accepted) throw new Error('No active mobile push token accepted this assignment');
   }
 }

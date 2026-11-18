@@ -1,4 +1,4 @@
-import { inventoryDateLabel, inventoryDateSchema } from './inventory-folders';
+import { inventoryDate, inventoryDateLabel, inventoryDateSchema } from './inventory-folders';
 import type { LedgerItem } from './inventory';
 import { INVENTORY_PROPERTY_TYPES, PROPERTY_FIELDS } from './property-fields';
 import { floorLabel } from './design';
@@ -114,4 +114,20 @@ export function inventoryAvailabilityDate(item: Pick<LedgerItem, 'availableSince
     if (parsed.success) return parsed.data;
   }
   return null;
+}
+
+/** Numbered addresses are only available when the API grants full detail access. */
+export function inventoryCardTitle(item: LedgerItem) {
+  const title = item.houseNo?.trim() ? `House ${item.houseNo.trim()}` : inventoryTitle(item);
+  return [title, item.sector?.trim()].filter(Boolean).join(' · ');
+}
+
+export function inventoryAvailabilityLabel(item: Pick<LedgerItem, 'availableSince' | 'details'>) {
+  const explicit = inventoryDateSchema.safeParse(item.details?.availableFrom);
+  const possession = inventoryDateSchema.safeParse(item.details?.possessionDate);
+  const date = explicit.success ? explicit.data : possession.success ? possession.data : null;
+  if (date) return `Available from: ${inventoryDateLabel(date)}`;
+  const since = inventoryDateSchema.safeParse(item.availableSince);
+  if (since.success && since.data > inventoryDate()) return `Available from: ${inventoryDateLabel(since.data)}`;
+  return 'Ready to move';
 }

@@ -1,3 +1,4 @@
+import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { usePropertyGallery } from '@/lib/property-gallery';
 import { InlineLoader } from '@/components/request-loader';
 import { useState } from 'react';
@@ -69,6 +70,7 @@ export default function PropertyDetail() {
   const q = useQuery({
     queryKey: ['ledger-item', id],
     queryFn: () => api<LedgerItem>(`/inventory/${id}`),
+    refetchInterval: (state) => (state.state.data ? inventoryAccessRefreshInterval([state.state.data]) : false),
   });
 
   const team = useQuery({

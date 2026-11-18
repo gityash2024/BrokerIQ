@@ -46,7 +46,10 @@ function LeadsInner() {
   const [sel, setSel] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
   const q = useQuery({ queryKey: ['leads', f], queryFn: () => api<Paged<LeadRow>>(`/leads${qs({ ...f, pageSize: 30 })}`), placeholderData: (p) => p });
-  useRealtime('notification', (n: any) => ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_ASSIGNMENT_ACCEPTED'].includes(n?.kind) && q.refetch());
+  useRealtime(
+    'notification',
+    (n: any) => ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_ASSIGNMENT_ACCEPTED', 'LEAD_ASSIGNMENT_DECLINED'].includes(n?.kind) && q.refetch(),
+  );
   const bulk = useApiMutation((b: { action: string; value?: string | null }) => post('/leads/bulk', { ids: sel, ...b }), {
     success: (r: any) => `${r.updated} leads updated`,
     invalidate: [['leads'], ['kanban']],
@@ -326,13 +329,13 @@ function LeadsInner() {
                         <SourceBadge source={l.source} />
                       </div>
                     </Link>
-                      <p className="hidden min-w-0 truncate text-xs text-muted lg:block" title={enquiry.location}>
+                    <p className="hidden min-w-0 truncate text-xs text-muted lg:block" title={enquiry.location}>
                       {enquiry.location || 'Not recorded'}
                     </p>
                     <div className="hidden lg:block">
                       <StageBadge stage={l.stage} />
                     </div>
-                      <p className="hidden min-w-0 truncate text-xs text-muted lg:block" title={enquiry.summary}>
+                    <p className="hidden min-w-0 truncate text-xs text-muted lg:block" title={enquiry.summary}>
                       {enquiry.summary || 'Not recorded'}
                     </p>
                     <div className="hidden min-w-0 items-center gap-2 lg:flex">

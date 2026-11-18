@@ -2824,6 +2824,7 @@ model InventoryDetailAccess {
   reviewedById String?
   requestedAt DateTime @default(now())
   reviewedAt DateTime?
+  expiresAt DateTime?
   updatedAt DateTime @updatedAt
   inventory InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
   agent User @relation("InventoryAccessAgent", fields: [agentId], references: [id], onDelete: Cascade)

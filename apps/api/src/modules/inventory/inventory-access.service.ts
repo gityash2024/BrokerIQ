@@ -40,6 +40,16 @@ const overviewKeys = [
   'updatedAt',
   'matchingLeadsCount',
 ] as const;
+const DETAIL_ACCESS_MS = 12 * 60 * 60 * 1000;
+
+export function activeInventoryGrant(agentId: string, now = new Date()): Prisma.InventoryDetailAccessWhereInput {
+  return { agentId, status: 'APPROVED', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
+}
+
+function expiredGrant(grant: { status: string; expiresAt: Date | null }) {
+  return grant.status === 'APPROVED' && grant.expiresAt !== null && grant.expiresAt <= new Date();
+}
+
 const reviewerWhere = {
   OR: [
     { role: 'BROKER_ADMIN' as const },
@@ -67,7 +77,7 @@ export class InventoryAccessService {
 
   readScope(user: RequestUser): Prisma.InventoryItemWhereInput {
     if (user.role !== 'BROKER_AGENT') return {};
-    return { OR: [{ createdById: user.id }, { assignedToId: user.id }, catalogue, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] };
+    return { OR: [{ createdById: user.id }, { assignedToId: user.id }, catalogue, { detailAccess: { some: activeInventoryGrant(user.id) } }] };
   }
 
   private reviewer(user: RequestUser) {
@@ -86,13 +96,23 @@ export class InventoryAccessService {
         where: { id: { in: ids }, organizationId: this.organization(user), OR: [{ createdById: user.id }, { assignedToId: user.id }] },
         select: { id: true },
       }),
-      this.db.inventoryDetailAccess.findMany({ where: { inventoryId: { in: ids }, agentId: user.id }, select: { inventoryId: true, status: true } }),
+      this.db.inventoryDetailAccess.findMany({
+        where: { inventoryId: { in: ids }, agentId: user.id },
+        select: { inventoryId: true, status: true, expiresAt: true },
+      }),
     ]);
     const editable = new Set(owned.map((item) => item.id));
-    const statuses = new Map(grants.map((grant) => [grant.inventoryId, grant.status]));
+    const access = new Map(grants.map((grant) => [grant.inventoryId, grant]));
     return items.map((item) => {
-      const status = editable.has(item.id) ? 'OWN' : (statuses.get(item.id) ?? 'LOCKED');
-      if (status === 'OWN' || status === 'APPROVED') return { ...item, canEdit: editable.has(item.id), detailAccess: status };
+      const grant = access.get(item.id);
+      const status = editable.has(item.id) ? 'OWN' : grant ? (expiredGrant(grant) ? 'EXPIRED' : grant.status) : 'LOCKED';
+      if (status === 'OWN' || status === 'APPROVED')
+        return {
+          ...item,
+          canEdit: editable.has(item.id),
+          detailAccess: status,
+          detailAccessExpiresAt: status === 'APPROVED' ? (grant?.expiresAt ?? null) : null,
+        };
       const safe: Record<string, any> = Object.fromEntries(overviewKeys.filter((key) => key in item).map((key) => [key, item[key]]));
       const message = clientPropertyShare(item);
       safe.sector = message.match(/^📍 Location: (.+)$/m)?.[1] ?? null;
@@ -141,10 +161,63 @@ export class InventoryAccessService {
     if (!this.reviewer(user)) return [];
     const item = await this.db.inventoryItem.findFirst({ where: { id, organizationId: this.organization(user), deletedAt: null }, select: { id: true } });
     if (!item) throw new NotFoundException('Property not found');
-    return this.db.inventoryDetailAccess.findMany({
+    const rows = await this.db.inventoryDetailAccess.findMany({
       where: { inventoryId: id, agent: { organizationId: this.organization(user), role: 'BROKER_AGENT', status: 'ACTIVE', deletedAt: null } },
       include: { agent: { select: { id: true, name: true } } },
       orderBy: { requestedAt: 'desc' },
+    });
+    return rows.map((row) => (expiredGrant(row) ? { ...row, status: 'EXPIRED' } : row));
+  }
+
+  async agents(id: string, user: RequestUser) {
+    if (!this.reviewer(user)) throw new ForbiddenException('Property detail approval permission required');
+    const item = await this.db.inventoryItem.findFirst({
+      where: { id, organizationId: this.organization(user), deletedAt: null },
+      select: { organizationId: true, createdById: true, assignedToId: true },
+    });
+    if (!item) throw new NotFoundException('Property not found');
+    return this.db.user.findMany({
+      where: {
+        organizationId: item.organizationId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        role: 'BROKER_AGENT',
+        id: { notIn: [item.createdById, item.assignedToId].filter((value): value is string => !!value) },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async grant(id: string, agentIds: string[], user: RequestUser) {
+    if (!this.reviewer(user)) throw new ForbiddenException('Property detail approval permission required');
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id=${id} FOR UPDATE`;
+      const item = await tx.inventoryItem.findFirst({ where: { id, organizationId: this.organization(user), deletedAt: null } });
+      if (!item) throw new NotFoundException('Property not found');
+      const recipients = [...new Set(agentIds)];
+      const agents = await tx.user.findMany({
+        where: { id: { in: recipients }, organizationId: item.organizationId, role: 'BROKER_AGENT', deletedAt: null, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (agents.length !== recipients.length) throw new BadRequestException('Select only active agents from this firm');
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + DETAIL_ACCESS_MS);
+      const notified: string[] = [];
+      for (const agentId of recipients) {
+        if (agentId === item.createdById || agentId === item.assignedToId) continue;
+        const current = await tx.inventoryDetailAccess.findUnique({ where: { inventoryId_agentId: { inventoryId: id, agentId } } });
+        if (current?.status === 'APPROVED' && !expiredGrant(current)) continue;
+        const approval = { status: 'APPROVED', reviewedById: user.id, reviewedAt: now, expiresAt };
+        await tx.inventoryDetailAccess.upsert({
+          where: { inventoryId_agentId: { inventoryId: id, agentId } },
+          create: { inventoryId: id, agentId, ...approval },
+          update: approval,
+        });
+        notified.push(agentId);
+      }
+      await this.queue(tx, notified, id, 'INVENTORY_ACCESS_APPROVED', 'Property details available for 12 hours');
+      return { granted: notified.length };
     });
   }
 
@@ -170,7 +243,7 @@ export class InventoryAccessService {
       if (!item) throw new NotFoundException('Available property not found');
       if (item.createdById === user.id || item.assignedToId === user.id) return { status: 'OWN' };
       const current = await tx.inventoryDetailAccess.findUnique({ where: { inventoryId_agentId: { inventoryId: id, agentId: user.id } } });
-      if (current && ['PENDING', 'APPROVED'].includes(current.status)) return { status: current.status };
+      if (current && ['PENDING', 'APPROVED'].includes(current.status) && !expiredGrant(current)) return { status: current.status };
       const request = await tx.inventoryDetailAccess.upsert({
         where: { inventoryId_agentId: { inventoryId: id, agentId: user.id } },
         create: { inventoryId: id, agentId: user.id },
@@ -180,12 +253,13 @@ export class InventoryAccessService {
         where: { organizationId: this.organization(user), status: 'ACTIVE', deletedAt: null, ...reviewerWhere },
         select: { id: true },
       });
+      const agent = await tx.user.findUnique({ where: { id: user.id }, select: { name: true } });
       await this.queue(
         tx,
         reviewers.map((member) => member.id),
         id,
         'INVENTORY_ACCESS_REQUESTED',
-        'Agent requested property details',
+        `${agent?.name || 'An agent'} requested property details`,
       );
       return { status: request.status };
     });
@@ -206,7 +280,15 @@ export class InventoryAccessService {
       if (access.updatedAt.toISOString() !== input.expectedUpdatedAt) throw new ConflictException('This request changed. Refresh before reviewing.');
       if ((input.action === 'revoke' && access.status !== 'APPROVED') || (input.action !== 'revoke' && access.status !== 'PENDING'))
         throw new BadRequestException('This action is not available for the current access state');
-      const updated = await tx.inventoryDetailAccess.update({ where: { id: access.id }, data: { status, reviewedById: user.id, reviewedAt: new Date() } });
+      const updated = await tx.inventoryDetailAccess.update({
+        where: { id: access.id },
+        data: {
+          status,
+          reviewedById: user.id,
+          reviewedAt: new Date(),
+          ...(status === 'APPROVED' ? { expiresAt: new Date(Date.now() + DETAIL_ACCESS_MS) } : {}),
+        },
+      });
       await this.queue(
         tx,
         [agentId],

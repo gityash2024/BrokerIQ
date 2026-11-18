@@ -102,7 +102,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       expect(months.body.folders).toHaveLength(12);
       expect(months.body.folders.at(-1)).toMatchObject({ key: '2026-12', count: 1 });
       const room = await api().get('/api/inventory/folders?folderMode=AVAILABLE&folderMonth=2026-12').set(headers(token)).expect(200);
-      expect(room.body.folders).toEqual([{ key: 'BHK:2', label: '2 BHK', count: 1 }]);
+      expect(room.body.folders).toEqual([{ key: 'TYPE:APARTMENT', label: 'Flat / apartment', count: 1 }]);
       const leaf = await api()
         .get('/api/inventory?folderMode=AVAILABLE&folderMonth=2026-12&folderRoom=BHK%3A2&folderFurnishing=SEMI_FURNISHED&minBudget=31000')
         .set(headers(token))
@@ -213,7 +213,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
           .set(headers(token))
           .expect(200)
       ).body;
-      expect(nested.folders).toEqual([{ key: 'BHK:2', label: '2 BHK', count: 1 }]);
+      expect(nested.folders).toEqual([{ key: 'TYPE:APARTMENT', label: 'Flat / apartment', count: 1 }]);
       const leaf = (
         await api()
           .get('/api/inventory')

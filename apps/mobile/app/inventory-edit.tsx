@@ -1,6 +1,6 @@
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
-import { View, Platform, Keyboard, Switch } from 'react-native';
+import { View, Keyboard, Linking, Switch } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
@@ -9,9 +9,7 @@ import {
   inventoryInputSchema,
   prepareInventoryEditorInput,
   inventoryEditorPatch,
-  inventoryDate,
-  inventoryDateLabel,
-  inventoryDateSchema,
+  inventoryNavigation,
   inventoryMonth,
   inventoryMonthSchema,
   inventoryFolderDefaults,
@@ -26,7 +24,6 @@ import { toast } from '@/lib/toast';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { NativePropertyExtras } from '@/launch/property-extras';
 import { ChoiceField } from '@/launch/form';
-import { DateTimeField } from '@/components/date-time-field';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -69,6 +66,8 @@ export default function InventoryEditor() {
     contacts: [],
     ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
   });
+  const [additionalOpen, setAdditionalOpen] = useState(false);
+  const [contactOptions, setContactOptions] = useState(false);
   const [ready, setReady] = useState(false);
   const [startSeparate, setStartSeparate] = useState(false);
   const [error, setError] = useState('');
@@ -81,8 +80,8 @@ export default function InventoryEditor() {
   const baseline = useRef<Record<string, any> | null>(null);
   const kind = id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
   const key = id ?? 'new-property';
-  const lockedDate = baseline.current?.availability === 'AVAILABLE' ? baseline.current.availableSince : null;
-  const showAvailabilityDate = !markRented && (form._activateInDirectory || form.availability === 'AVAILABLE');
+  const navigation = inventoryNavigation(form);
+  const changeDetail = (name: string, value: string | null) => change('details', { ...form.details, [name]: value });
 
   useEffect(() => {
     let active = true;
@@ -101,7 +100,7 @@ export default function InventoryEditor() {
             : {
                 availability: 'UNKNOWN',
                 status: 'DRAFT',
-                contacts: [],
+                contacts: [{ name: '', phone: '', role: 'OWNER' }],
                 ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
                 ...(directoryEnabled ? { purpose: 'RENT', ...inventoryFolderDefaults(folderRoom, furnishing) } : {}),
               };
@@ -155,19 +154,16 @@ export default function InventoryEditor() {
     Keyboard.dismiss();
     try {
       const effective = { ...form };
-      if (
-        showAvailabilityDate &&
-        !lockedDate &&
-        (form._activateInDirectory || baseline.current?.availability !== 'AVAILABLE') &&
-        !inventoryDateSchema.safeParse(form.availableSince).success
-      ) {
-        throw new Error('Choose the date this property became available.');
-      }
-      if (!showAvailabilityDate || lockedDate) delete effective.availableSince;
+      if (baseline.current?.availability === 'AVAILABLE' || markRented || (!form._activateInDirectory && form.availability !== 'AVAILABLE'))
+        delete effective.availableSince;
+      if (!id) effective.contacts = (form.contacts ?? []).filter((contact: any) => contact.name?.trim() || contact.phone?.trim() || contact.note?.trim());
       if (!markRented && form._activateInDirectory) {
         if (!inventoryMonthSchema.safeParse(form.directoryMonth).success) throw new Error('Choose the year and month for this property.');
         const missing = missingInventoryFolderFields(effective);
-        if (missing.length) throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
+        if (missing.length) {
+          setAdditionalOpen(true);
+          throw new Error('Fill these fields to make the property Available: ' + missing.join(', '));
+        }
       } else {
         delete effective.directoryMonth;
       }
@@ -204,10 +200,11 @@ export default function InventoryEditor() {
       setSaving(false);
     }
   }
-  const field = (name: string, label: string, multiline = false) => (
+  const field = (name: string, label: string, multiline = false, paired = false) => (
     <Input
       key={name}
       label={label}
+      containerStyle={paired ? { flex: 1 } : undefined}
       value={form[name] == null ? '' : String(form[name])}
       onChangeText={(value) => change(name, value)}
       editable={ready && !saving}
@@ -220,92 +217,247 @@ export default function InventoryEditor() {
   return (
     <BrokerScreen
       title={availabilityReview ? 'Review property availability' : id ? 'Edit property' : 'Add property'}
-      subtitle={availabilityReview ? 'Review the saved details and confirm when this property became available.' : 'Missing fields can stay unknown.'}
+      subtitle={availabilityReview ? 'Review the saved details before making this property available.' : 'Missing fields can stay unknown.'}
       back
     >
       <View style={{ flex: 1 }}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 14, paddingBottom: 30 }}>
-          <Txt v="caption" color="muted">
-            {draftStatus}
-          </Txt>
-          {markRented && <Txt color="muted">Check the property details. Saving as rented out withdraws its public listing.</Txt>}
-          {!markRented && (directoryEnabled || form._activateInDirectory) && (
-            <NativeCard style={{ gap: 10 }}>
-              {!availabilityReview && (
-                <Row gap={10}>
-                  <Txt v="bodyStrong" style={{ flex: 1 }}>
-                    Make available
-                  </Txt>
-                  <Switch
-                    accessibilityLabel="Make property available"
-                    value={!!form._activateInDirectory}
-                    disabled={!ready || saving}
-                    onValueChange={(value) => change('_activateInDirectory', value)}
-                  />
-                </Row>
-              )}
-              {form._activateInDirectory && (
-                <Input
-                  label="Inventory year and month (YYYY-MM)"
-                  value={form.directoryMonth ?? selectedMonth}
-                  editable={ready && !saving}
-                  maxLength={7}
-                  onChangeText={(value) => change('directoryMonth', value)}
-                />
-              )}
-            </NativeCard>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 10, paddingBottom: 24 }}>
+          {!!draftStatus && (
+            <Txt v="caption" color="muted">
+              {draftStatus}
+            </Txt>
           )}
-          {showAvailabilityDate && (
-            <NativeCard style={{ gap: 8 }}>
-              <Txt v="bodyStrong">Available since</Txt>
-              {lockedDate ? (
-                <>
-                  <Txt>{inventoryDateLabel(lockedDate)}</Txt>
-                  <Txt v="caption" color="muted">
-                    This date stays fixed while the property is available.
-                  </Txt>
-                </>
-              ) : ready && !saving ? (
-                <>
-                  <DateTimeField
-                    dateOnly
-                    value={form.availableSince ? new Date(`${form.availableSince}T12:00:00`) : null}
-                    onChange={(chosen) =>
-                      change('availableSince', chosen ? inventoryDate(new Date(Date.UTC(chosen.getFullYear(), chosen.getMonth(), chosen.getDate()))) : null)
+          {markRented && <Txt color="muted">Check the property details. Saving as rented out withdraws its public listing.</Txt>}
+          <NativeCard style={{ gap: 10 }}>
+            <Txt v="h3">Owner details</Txt>
+            {(form.contacts ?? []).map((contact: any, index: number) => (
+              <View key={index} style={{ gap: 8 }}>
+                <Row align="flex-start">
+                  <Input
+                    containerStyle={{ flex: 1 }}
+                    label={contact.role === 'OWNER' ? 'Owner name' : 'Contact name'}
+                    value={contact.name ?? ''}
+                    onChangeText={(name) =>
+                      change(
+                        'contacts',
+                        form.contacts.map((item: any, i: number) => (i === index ? { ...item, name } : item)),
+                      )
                     }
                   />
-                  <Button title="Use today" variant="ghost" size="sm" onPress={() => change('availableSince', inventoryDate())} />
-                </>
-              ) : null}
-            </NativeCard>
-          )}
-          <NativeCard style={{ gap: 14 }}>
-            <Txt v="h3">Location</Txt>
-            {field('sector', 'Sector / locality')}
-            {field('houseNo', 'House / plot no.')}
-            {field('unitLabel', 'Unit')}
-            {field('address', 'Address')}
-            {field('directionsUrl', 'Directions link · Google Maps or Apple Maps')}
-            {field('floor', 'Floor')}
+                  <Input
+                    containerStyle={{ flex: 1 }}
+                    label={contact.role === 'OWNER' ? 'Owner phone' : 'Phone'}
+                    keyboardType="phone-pad"
+                    value={contact.phone ?? ''}
+                    onChangeText={(phone) =>
+                      change(
+                        'contacts',
+                        form.contacts.map((item: any, i: number) => (i === index ? { ...item, phone } : item)),
+                      )
+                    }
+                  />
+                </Row>
+                {contactOptions && (
+                  <>
+                    <ChoiceField
+                      label="Contact role"
+                      value={contact.role}
+                      choices={['UNKNOWN', 'OWNER', 'BROKER']}
+                      onChange={(role) =>
+                        change(
+                          'contacts',
+                          form.contacts.map((item: any, i: number) => (i === index ? { ...item, role: role ?? 'UNKNOWN' } : item)),
+                        )
+                      }
+                    />
+                    <Input
+                      label="Contact note"
+                      multiline
+                      value={contact.note ?? ''}
+                      onChangeText={(note) =>
+                        change(
+                          'contacts',
+                          form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)),
+                        )
+                      }
+                    />
+                    <Button
+                      title="Remove contact"
+                      variant="ghost"
+                      size="sm"
+                      onPress={() =>
+                        change(
+                          'contacts',
+                          form.contacts.filter((_: any, i: number) => i !== index),
+                        )
+                      }
+                    />
+                  </>
+                )}
+              </View>
+            ))}
+            <Row wrap>
+              <Button
+                title="Add contact"
+                variant="ghost"
+                size="sm"
+                onPress={() => change('contacts', [...(form.contacts ?? []), { name: '', phone: '', role: 'OWNER' }])}
+              />
+              {!!form.contacts?.length && (
+                <Button
+                  title={contactOptions ? 'Hide contact options' : 'Contact options'}
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => setContactOptions(!contactOptions)}
+                />
+              )}
+            </Row>
           </NativeCard>
-          <NativeCard style={{ gap: 14 }}>
+          <NativeCard style={{ gap: 10 }}>
+            <Txt v="h3">Address details</Txt>
+            <Row align="flex-start">
+              {field('sector', 'Sector / locality', false, true)}
+              {field('houseNo', 'House / plot no.', false, true)}
+            </Row>
+            {field('address', 'Address')}
+          </NativeCard>
+          <NativeCard style={{ gap: 10 }}>
             <Txt v="h3">Property details</Txt>
+            <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
+            <Row align="flex-start">
+              <ChoiceField paired label="Room kind" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
+              {field('bhk', 'BHK / rooms', false, true)}
+            </Row>
+            <Row align="flex-start">
+              <ChoiceField
+                paired
+                label="Furnishing"
+                value={form.furnishing}
+                choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
+                onChange={(v) => change('furnishing', v)}
+              />
+              {field('floor', 'Floor', false, true)}
+            </Row>
+          </NativeCard>
+          <NativeCard style={{ gap: 10 }}>
+            <Txt v="h3">Price & rental terms</Txt>
             <ChoiceField label="Purpose" value={form.purpose} choices={['RENT', 'SALE']} onChange={(v) => change('purpose', v)} />
+            {form.purpose === 'RENT' ? (
+              field('monthlyRent', 'Monthly rent ₹')
+            ) : (
+              <>
+                {field('totalSalePrice', 'Total sale price ₹')}
+                {field('ratePerArea', 'Rate per area ₹')}
+                <ChoiceField
+                  label="Rate unit"
+                  value={form.rateAreaUnit}
+                  choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
+                  onChange={(v) => change('rateAreaUnit', v)}
+                />
+              </>
+            )}
+            <Row align="flex-start">
+              <ChoiceField
+                paired
+                label="Tenant type"
+                value={form.details?.tenantType}
+                choices={['FAMILY', 'BACHELORS', 'GIRLS', 'BOYS', 'COMPANY', 'ANY']}
+                onChange={(value) => changeDetail('tenantType', value)}
+              />
+              <ChoiceField
+                paired
+                label="Food preference"
+                value={form.details?.foodPreference}
+                choices={['VEGETARIAN_ONLY', 'NO_RESTRICTION']}
+                onChange={(value) => changeDetail('foodPreference', value)}
+              />
+            </Row>
+            {field('brokerage', 'Brokerage')}
+          </NativeCard>
+          <NativeCard style={{ gap: 10 }}>
+            {field('directionsUrl', 'Directions link or latitude, longitude')}
+            <Row wrap>
+              {navigation.pinSearch && (
+                <Button
+                  title="Find property pin"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => void Linking.openURL(navigation.pinSearch!).catch(() => toast.error('Unable to open Maps'))}
+                />
+              )}
+              {navigation.sectorMap && (
+                <Button
+                  title="Sector map"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => void Linking.openURL(navigation.sectorMap!).catch(() => toast.error('Unable to open sector map'))}
+                />
+              )}
+            </Row>
+          </NativeCard>
+          <NativePropertyExtras
+            quickEntry={{ open: additionalOpen, onToggle: setAdditionalOpen }}
+            value={form}
+            disabled={!ready || saving}
+            onUploading={setUploading}
+            onChange={(next) => {
+              setForm(next);
+              persist(next);
+            }}
+          >
+            {!markRented && (directoryEnabled || form._activateInDirectory) && (
+              <NativeCard style={{ gap: 10 }}>
+                {!availabilityReview && (
+                  <Row gap={10}>
+                    <Txt v="bodyStrong" style={{ flex: 1 }}>
+                      Make available
+                    </Txt>
+                    <Switch
+                      accessibilityLabel="Make property available"
+                      value={!!form._activateInDirectory}
+                      disabled={!ready || saving}
+                      onValueChange={(value) => change('_activateInDirectory', value)}
+                    />
+                  </Row>
+                )}
+                {form._activateInDirectory && (
+                  <Input
+                    label="Inventory year and month (YYYY-MM)"
+                    value={form.directoryMonth ?? selectedMonth}
+                    editable={ready && !saving}
+                    maxLength={7}
+                    onChangeText={(value) => change('directoryMonth', value)}
+                  />
+                )}
+              </NativeCard>
+            )}
+            {field('unitLabel', 'Unit')}
             <ChoiceField
               label="Category"
               value={form.category}
               choices={['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']}
               onChange={(v) => change('category', v)}
             />
-            <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
-            <ChoiceField label="Room kind" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
-            {field('bhk', 'Rooms')}
-            <ChoiceField
-              label="Furnishing"
-              value={form.furnishing}
-              choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
-              onChange={(v) => change('furnishing', v)}
-            />
+            <Row align="flex-start">
+              {field('area', 'Area', false, true)}
+              <ChoiceField
+                paired
+                label="Area unit"
+                value={form.areaUnit}
+                choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
+                onChange={(v) => change('areaUnit', v)}
+              />
+            </Row>
+
+            {form.purpose === 'RENT' && field('securityDeposit', 'Deposit ₹')}
+            {!markRented && !form._activateInDirectory && (
+              <ChoiceField
+                label="Availability"
+                value={form.availability}
+                choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
+                onChange={(v) => change('availability', v ?? 'UNKNOWN')}
+              />
+            )}
             {(() => {
               const isAdmin = canAssign;
               const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
@@ -338,118 +490,9 @@ export default function InventoryEditor() {
                 />
               );
             })()}
-          </NativeCard>
-          <NativeCard style={{ gap: 14 }}>
-            <Txt v="h3">Price & area</Txt>
-            {form.purpose === 'RENT' ? (
-              <>
-                {field('monthlyRent', 'Monthly rent ₹')}
-                {field('securityDeposit', 'Deposit ₹')}
-              </>
-            ) : (
-              <>
-                {field('totalSalePrice', 'Total sale price ₹')}
-                {field('ratePerArea', 'Rate per area ₹')}
-                <ChoiceField
-                  label="Rate unit"
-                  value={form.rateAreaUnit}
-                  choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
-                  onChange={(v) => change('rateAreaUnit', v)}
-                />
-              </>
-            )}
-            {field('area', 'Area')}
-            <ChoiceField
-              label="Area unit"
-              value={form.areaUnit}
-              choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
-              onChange={(v) => change('areaUnit', v)}
-            />
-            {!markRented && !form._activateInDirectory && (
-              <ChoiceField
-                label="Availability"
-                value={form.availability}
-                choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
-                onChange={(v) => change('availability', v ?? 'UNKNOWN')}
-              />
-            )}
-          </NativeCard>
-          <NativeCard style={{ gap: 14 }}>
-            <Txt v="h3">Contacts</Txt>
-            {(form.contacts ?? []).map((contact: any, index: number) => (
-              <View key={index} style={{ gap: 10, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: c.line }}>
-                <Input
-                  label="Contact name"
-                  value={contact.name ?? ''}
-                  onChangeText={(name) =>
-                    change(
-                      'contacts',
-                      form.contacts.map((item: any, i: number) => (i === index ? { ...item, name } : item)),
-                    )
-                  }
-                />
-                <Input
-                  label="Phone"
-                  keyboardType="phone-pad"
-                  value={contact.phone ?? ''}
-                  onChangeText={(phone) =>
-                    change(
-                      'contacts',
-                      form.contacts.map((item: any, i: number) => (i === index ? { ...item, phone } : item)),
-                    )
-                  }
-                />
-                <ChoiceField
-                  label="Contact role"
-                  value={contact.role}
-                  choices={['UNKNOWN', 'OWNER', 'BROKER']}
-                  onChange={(role) =>
-                    change(
-                      'contacts',
-                      form.contacts.map((item: any, i: number) => (i === index ? { ...item, role: role ?? 'UNKNOWN' } : item)),
-                    )
-                  }
-                />
-                <Input
-                  label="Contact note"
-                  multiline
-                  value={contact.note ?? ''}
-                  onChangeText={(note) =>
-                    change(
-                      'contacts',
-                      form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)),
-                    )
-                  }
-                />
-                <Button
-                  title="Remove contact"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() =>
-                    change(
-                      'contacts',
-                      form.contacts.filter((_: any, i: number) => i !== index),
-                    )
-                  }
-                />
-              </View>
-            ))}
-            <Button
-              title="Add contact"
-              variant="secondary"
-              onPress={() => change('contacts', [...(form.contacts ?? []), { name: '', phone: '', role: 'UNKNOWN' }])}
-            />
-          </NativeCard>
-          <NativePropertyExtras
-            value={form}
-            disabled={!ready || saving}
-            onUploading={setUploading}
-            onChange={(next) => {
-              setForm(next);
-              persist(next);
-            }}
-          />
-          {field('notes', 'Notes', true)}
+            {field('tenantPreference', 'Tenant notes')}
+            {field('notes', 'Notes', true)}
+          </NativePropertyExtras>
           <LegacyDraftRecovery
             error={error}
             onStart={() => {

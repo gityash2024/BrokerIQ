@@ -3,7 +3,7 @@ import { DateTimeField } from '@/components/date-time-field';
 import { submitTask } from '@/launch/drafts';
 import { VisitItinerary, VisitShortlist } from '@/components/visit-properties';
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { AppState, FlatList, Linking, Share, View } from 'react-native';
+import { Alert, AppState, FlatList, Linking, Share, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -111,6 +111,15 @@ export default function LeadDetail() {
     onSuccess: refresh,
   });
 
+  const declineAssignment = useApiMutation((assignmentId: string | null) => post(`/leads/${id}/assignment/decline`, { assignmentId }), {
+    success: 'Lead declined',
+    onSuccess: () => {
+      router.replace('/(broker)/leads');
+      refresh();
+      void qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
   if (q.isLoading) return <Loader />;
   if (q.isError)
     return (
@@ -153,7 +162,26 @@ export default function LeadDetail() {
             <Card style={{ padding: 12, gap: 8 }}>
               <Txt v="small">{l.assignmentAcceptedAt ? `Accepted by ${l.assignedTo.name}` : `Awaiting acceptance from ${l.assignedTo.name}`}</Txt>
               {l.assignedTo.id === user?.id && !l.assignmentAcceptedAt && (
-                <Button title="Accept assigned lead" loading={acceptAssignment.isPending} onPress={() => acceptAssignment.mutate(l.assignmentId ?? null)} />
+                <Row wrap gap={8}>
+                  <Button
+                    title="Accept assigned lead"
+                    disabled={declineAssignment.isPending}
+                    loading={acceptAssignment.isPending}
+                    onPress={() => acceptAssignment.mutate(l.assignmentId ?? null)}
+                  />
+                  <Button
+                    title="Decline lead"
+                    variant="secondary"
+                    disabled={acceptAssignment.isPending}
+                    loading={declineAssignment.isPending}
+                    onPress={() =>
+                      Alert.alert('Decline lead?', 'The broker can assign this lead to another team member.', [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Decline', onPress: () => declineAssignment.mutate(l.assignmentId ?? null) },
+                      ])
+                    }
+                  />
+                </Row>
               )}
             </Card>
           )}

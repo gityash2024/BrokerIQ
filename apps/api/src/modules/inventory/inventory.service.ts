@@ -25,7 +25,7 @@ import {
   type InventoryFolder,
   type InventoryFolders,
 } from '@brokeriq/shared';
-import { InventoryAccessService } from './inventory-access.service';
+import { InventoryAccessService, activeInventoryGrant } from './inventory-access.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { ModulesService } from '../../core/features/modules.service';
@@ -102,7 +102,7 @@ export class InventoryService {
     if (q.houseNo) {
       where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
       if (user.role === 'BROKER_AGENT')
-        and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] });
+        and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } }] });
     }
     for (const key of ['bhk', 'status', 'purpose', 'propertyType', 'category', 'furnishing', 'roomKind', 'availability', 'sourceType'] as const)
       if (q[key] != null) (where as any)[key] = q[key];
@@ -117,10 +117,7 @@ export class InventoryService {
           ? {
               OR: [
                 {
-                  AND: [
-                    { OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] },
-                    search,
-                  ],
+                  AND: [{ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } }] }, search],
                 },
                 // Locked records can be searched by their public configuration, never private addresses or contact numbers.
                 { OR: ['propertyType', 'furnishing'].map((key) => ({ [key]: { contains: q.search, mode: 'insensitive' } })) },
@@ -169,7 +166,7 @@ export class InventoryService {
           }
         } else if (field.kind === 'text') {
           if (user.role === 'BROKER_AGENT' && !['possessionDate', 'availableFrom'].includes(key))
-            and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: { agentId: user.id, status: 'APPROVED' } } }] });
+            and.push({ OR: [{ createdById: user.id }, { assignedToId: user.id }, { detailAccess: { some: activeInventoryGrant(user.id) } }] });
           if (typeof value !== 'string' || value.length > 200) throw new BadRequestException('Invalid text filter');
           and.push({ details: { path: [key], string_contains: value, mode: 'insensitive' } });
         } else {
@@ -236,7 +233,7 @@ export class InventoryService {
       } else if (q.folderMonth) and.push({ directoryMonth: q.folderMonth });
       else if (q.folderYear) and.push({ directoryMonth: { startsWith: q.folderYear + '-' } });
       if (q.folderRoom && !q.folderRoom.startsWith('TYPE:'))
-        and.push({ OR: [{ propertyType: null }, { propertyType: { notIn: [...NAMED_INVENTORY_TYPES] } }] });
+        and.push({ OR: [{ propertyType: null }, { propertyType: { notIn: ['PENTHOUSE', 'BUILDER_FLOOR', 'INDEPENDENT_HOUSE'] } }] });
       if (q.folderRoom === 'RK' || q.folderRoom === 'STUDIO') and.push({ roomKind: q.folderRoom });
       else if (q.folderRoom?.startsWith('BHK:')) and.push({ bhk: Number(q.folderRoom.slice(4)), OR: [{ roomKind: 'BHK' }, { roomKind: null }] });
       else if (q.folderRoom?.startsWith('TYPE:') && NAMED_INVENTORY_TYPES.some((type) => q.folderRoom === `TYPE:${type}`)) {
@@ -299,13 +296,15 @@ export class InventoryService {
           ? `${key.slice(4)} BHK`
           : key === 'TYPE:BUILDER_FLOOR'
             ? 'Independent floor'
-            : key.startsWith('TYPE:')
-              ? readableValue(key.slice(5))
-              : key === 'OTHER'
-                ? 'Type not recorded'
-                : key === 'RK'
-                  ? 'RK'
-                  : 'Studio';
+            : key === 'TYPE:APARTMENT'
+              ? 'Flat / apartment'
+              : key.startsWith('TYPE:')
+                ? readableValue(key.slice(5))
+                : key === 'OTHER'
+                  ? 'Type not recorded'
+                  : key === 'RK'
+                    ? 'RK'
+                    : 'Studio';
         folders.push({ key, label, count });
       }
     } else if (q.folderMode === 'AVAILABLE' && !q.folderFurnishing) {

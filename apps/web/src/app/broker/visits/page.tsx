@@ -1,4 +1,5 @@
 'use client';
+import { inventoryNavigation, googleDirections } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
@@ -49,7 +50,7 @@ export default function VisitsPage() {
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       api<{ items: any[]; total: number; pages: number }>(
-        `/visits${qs({ from: week.toISOString(), to: end.toISOString(), paginated: true, page: pageParam, pageSize: 100 })}`,
+        `/visits${qs({ directions: true, from: week.toISOString(), to: end.toISOString(), paginated: true, page: pageParam, pageSize: 100 })}`,
       ),
     getNextPageParam: (last, pages) => (pages.length < last.pages ? pages.length + 1 : undefined),
   });
@@ -140,7 +141,9 @@ export default function VisitsPage() {
           {list.map((v, i) => {
             const past = new Date(v.scheduledAt) < new Date();
             const open = v.status === 'SCHEDULED' || v.status === 'CONFIRMED';
-            const loc = v.listing?.latitude ? `${v.listing.latitude},${v.listing.longitude}` : (v.address ?? v.listing?.address);
+            const loc =
+              v.listing?.latitude != null && v.listing.longitude != null ? `${v.listing.latitude},${v.listing.longitude}` : (v.address ?? v.listing?.address);
+            const route = inventoryNavigation(v.propertySnapshot ?? {}).route ?? (loc ? googleDirections(loc) : null);
             return (
               <motion.div
                 key={v.id}
@@ -212,14 +215,8 @@ export default function VisitsPage() {
                   <Button size="xs" variant="secondary" href={leadInboxUrl(v.lead.id, 'EMAIL')}>
                     Email
                   </Button>
-                  {loc && (
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      external
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(loc)}`}
-                      aria-label="Directions"
-                    >
+                  {route && (
+                    <Button size="icon-sm" variant="ghost" external href={route} aria-label="Directions">
                       <Navigation className="size-4" />
                     </Button>
                   )}

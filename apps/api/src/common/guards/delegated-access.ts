@@ -34,6 +34,8 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (path === '/broker/performance' && method === 'GET') return { module: 'team', actions: ['view'] };
   if (path === '/inventory/:id/access' && method === 'GET') return { module: 'inventory', actions: ['view'] };
   if (path === '/inventory/:id/access/request' && method === 'POST') return { module: 'inventory', actions: ['view'] };
+  if ((path === '/inventory/:id/access/agents' && method === 'GET') || (path === '/inventory/:id/access/grant' && method === 'POST'))
+    return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/access/:agentid/review' && method === 'POST') return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/photo-gallery' && method === 'POST') return { module: 'inventory', actions: ['view'] };
   if (path === '/inventory/assignees' && method === 'GET') return { module: 'inventory', actions: ['assign'] };
@@ -45,7 +47,7 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   if (/^\/(?:broker\/(?:connectors|integrations|portal-pack|whatsapp)|messaging\/gmail|whatsapp\/connect)(?:\/|$)/.test(path)) return null;
   if (/^\/broker\/profile(?:\/|$)/.test(path)) return null;
   if (path === '/broker/team' && method !== 'GET') return null;
-  if (path === '/leads/:id/assignment/accept' && method === 'POST') return { module: 'leads', actions: ['view'] };
+  if (['/leads/:id/assignment/accept', '/leads/:id/assignment/decline'].includes(path) && method === 'POST') return { module: 'leads', actions: ['view'] };
   if (path === '/leads/assignees' && method === 'GET') return { module: 'leads', actions: ['assign'] };
   if (module === 'leads' && method === 'POST' && /\/(activities|ai)$/.test(path)) return { module, actions: ['edit'] };
   if (path === '/broker-requirements/:id/convert' && method === 'POST') return { module, actions: ['edit'] };

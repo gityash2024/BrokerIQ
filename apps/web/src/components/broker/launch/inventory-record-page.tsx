@@ -1,4 +1,5 @@
 'use client';
+import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import Link from 'next/link';
@@ -62,6 +63,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
     queryKey: key,
     queryFn: () => api<LedgerItem>(`/inventory/${encodeURIComponent(id)}`),
     enabled: !!user && !!id && allowed,
+    refetchInterval: (state) => (state.state.data ? inventoryAccessRefreshInterval([state.state.data]) : false),
   });
   const item = query.data;
   const title =

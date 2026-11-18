@@ -36,6 +36,7 @@ import {
   FURNISHING_LABELS,
   POSSESSION_LABELS,
   PROPERTY_TYPE_LABELS,
+  gurugramSectorMap,
   brokerageText,
   formatINR,
   formatPriceShort,
@@ -350,6 +351,9 @@ export default function Property() {
                 style={{ marginTop: 10, alignSelf: 'flex-start' }}
                 onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${l.latitude},${l.longitude}`)}
               />
+              {gurugramSectorMap(l.locality.name) && (
+                <Button title="Sector map" variant="secondary" size="sm" onPress={() => Linking.openURL(gurugramSectorMap(l.locality.name)!)} />
+              )}
             </>
           )}
 

@@ -25,6 +25,7 @@ import {
   FURNISHING_LABELS,
   POSSESSION_LABELS,
   PROPERTY_TYPE_LABELS,
+  gurugramSectorMap,
   brokerageText,
   formatINR,
   formatPriceShort,
@@ -243,6 +244,16 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
                   Google Maps में खोलें →
                 </a>
               </div>
+              {gurugramSectorMap(l.locality?.name ?? '') && (
+                <a
+                  href={gurugramSectorMap(l.locality?.name ?? '')!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-sm font-semibold text-brand-600"
+                >
+                  Sector map
+                </a>
+              )}
               <div className="card mt-4 h-80 overflow-hidden">
                 <Map
                   points={[{ id: l.id, lat: l.latitude, lng: l.longitude, price: l.price }]}

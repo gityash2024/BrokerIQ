@@ -1,17 +1,20 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasDelegatedAccess, type LedgerItem } from '@brokeriq/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useApiMutation } from '@/lib/hooks';
-import { Button, ErrorView, Row, Txt } from '@/ui';
+import { Button, Chip, ErrorView, Row, Txt } from '@/ui';
 import { NativeCard } from '@/launch/screen';
 
-type AccessRequest = { agentId: string; status: string; updatedAt: string; agent: { name: string } };
+type AccessRequest = { agentId: string; status: string; updatedAt: string; expiresAt?: string | null; agent: { name: string } };
 
 export function InventoryDetailAccess({ item }: { item: LedgerItem }) {
   const { user } = useAuth();
   const client = useQueryClient();
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
   const canReview =
     user?.role === 'BROKER_ADMIN' ||
     user?.role === 'SUPER_ADMIN' ||
@@ -37,10 +40,56 @@ export function InventoryDetailAccess({ item }: { item: LedgerItem }) {
       api(`/inventory/${item.id}/access/${row.agentId}/review`, { method: 'POST', body: { action, expectedUpdatedAt: row.updatedAt } }),
     { success: 'Property access updated', onSuccess: refresh },
   );
-  if (!canReview && !locked) return null;
+  const agents = useQuery({
+    queryKey: ['inventory-access-agents', item.id, user?.id],
+    queryFn: () => api<{ id: string; name: string }[]>(`/inventory/${item.id}/access/agents`),
+    enabled: canReview && selecting,
+  });
+  const grant = useApiMutation(() => api(`/inventory/${item.id}/access/grant`, { method: 'POST', body: { agentIds: selected } }), {
+    success: 'Property access updated',
+    onSuccess: async () => {
+      setSelected([]);
+      setSelecting(false);
+      await refresh();
+    },
+  });
+  const toggleAgent = (id: string) =>
+    setSelected((current) => (current.includes(id) ? current.filter((agentId) => agentId !== id) : current.length < 30 ? [...current, id] : current));
+  if (!canReview && !locked) {
+    if (!item.detailAccessExpiresAt) return null;
+    const until = new Date(item.detailAccessExpiresAt).toLocaleString('en-IN');
+    return (
+      <Txt v="caption" color="muted">
+        Full details available until {until}
+      </Txt>
+    );
+  }
   return (
     <NativeCard style={{ gap: 10 }}>
       <Txt v="h3">Property detail access</Txt>
+      {canReview && (
+        <View style={{ gap: 8 }}>
+          <Button
+            title={selecting ? 'Close agent selection' : 'Give agents 12-hour access'}
+            size="sm"
+            variant="secondary"
+            onPress={() => setSelecting(!selecting)}
+          />
+          {selecting && (
+            <>
+              {agents.error && <ErrorView error={agents.error} onRetry={() => agents.refetch()} />}
+              {agents.isLoading && <Txt color="muted">Loading agents…</Txt>}
+              {agents.data?.length === 0 && <Txt color="muted">No eligible agents.</Txt>}
+              <Row wrap>
+                {agents.data?.map((agent) => (
+                  <Chip key={agent.id} label={agent.name} active={selected.includes(agent.id)} onPress={() => toggleAgent(agent.id)} />
+                ))}
+              </Row>
+              <Button title="Grant 12-hour access" size="sm" disabled={!selected.length} loading={grant.isPending} onPress={() => grant.mutate(undefined)} />
+            </>
+          )}
+        </View>
+      )}
       {locked ? (
         <>
           <Txt color="muted">Request access to view the house number, contacts, photos and exact navigation.</Txt>
@@ -60,6 +109,7 @@ export function InventoryDetailAccess({ item }: { item: LedgerItem }) {
           <View key={row.agentId} style={{ gap: 8 }}>
             <Txt>
               {row.agent.name} · {row.status.toLowerCase()}
+              {row.status === 'APPROVED' && row.expiresAt ? ' · until ' + new Date(row.expiresAt).toLocaleString('en-IN') : ''}
             </Txt>
             <Row wrap>
               {row.status === 'PENDING' && (

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { PROPERTY_AMENITIES, visiblePropertyFields } from '@brokeriq/shared';
 import { Button, Txt, Input, Chip } from '@/ui';
@@ -10,11 +10,15 @@ export function NativePropertyExtras({
   onChange,
   onUploading,
   disabled,
+  children,
+  quickEntry,
 }: {
   value: Record<string, any>;
   onChange: (value: Record<string, any>) => void;
   onUploading?: (busy: boolean) => void;
   disabled?: boolean;
+  children?: ReactNode;
+  quickEntry?: { open: boolean; onToggle: (open: boolean) => void };
 }) {
   const latest = useRef(value);
   latest.current = value;
@@ -23,28 +27,34 @@ export function NativePropertyExtras({
     latest.current = next;
     onChange(next);
   }
-  const [open, setOpen] = useState(false);
-  const fields = visiblePropertyFields(value.category);
+  const [expanded, setExpanded] = useState(false);
+  const open = quickEntry?.open ?? expanded;
+  const setOpen = quickEntry?.onToggle ?? setExpanded;
+  const fields = visiblePropertyFields(value.category).filter((field) => !quickEntry || !['tenantType', 'foodPreference'].includes(field.key));
   const details = value.details ?? {};
   function change(key: string, v: any) {
     onChange({ ...value, details: { ...details, [key]: v } });
   }
+  const media = (
+    <NativePropertyMedia
+      photos={value.photoUrls ?? []}
+      videos={value.videoUrls ?? []}
+      disabled={disabled}
+      onUploading={onUploading}
+      onAdd={(key, url) => changeMedia(key, (urls) => [...urls, url])}
+      onRemove={(key, index) => changeMedia(key, (urls) => urls.filter((_, i) => i !== index))}
+    />
+  );
   return (
     <View style={{ gap: 14 }}>
-      <NativePropertyMedia
-        photos={value.photoUrls ?? []}
-        videos={value.videoUrls ?? []}
-        disabled={disabled}
-        onUploading={onUploading}
-        onAdd={(key, url) => changeMedia(key, (urls) => [...urls, url])}
-        onRemove={(key, index) => changeMedia(key, (urls) => urls.filter((_, i) => i !== index))}
-      />
+      {media}
       <Button title={open ? 'Hide additional details' : 'Additional property details'} variant="secondary" onPress={() => setOpen(!open)} />
       {open && (
         <>
           <Txt v="caption" color="muted">
             Only known facts. Missing values stay unknown.
           </Txt>
+          {children}
           {fields.map((f) => (
             <View key={f.key}>
               {['possessionDate', 'availableFrom'].includes(f.key) ? (
