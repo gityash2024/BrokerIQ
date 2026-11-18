@@ -446,10 +446,21 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
     font-size: 14px;
   }
   .broker-workspace nav[aria-label='Workspace navigation'] :is(a, button) {
-    font-size: 16px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+  .broker-workspace nav[aria-label='Workspace navigation'] a[aria-current='page'] {
+    font-weight: 650;
+    color: var(--color-brand-700);
+  }
+  .dark .broker-workspace nav[aria-label='Workspace navigation'] a[aria-current='page'] {
+    color: var(--color-brand-300);
   }
   .broker-workspace nav[aria-label='Workspace navigation'] .border-l-2 a {
-    font-size: 14px;
+    font-size: 13px;
   }
   .broker-workspace .inventory-browser > div.grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -526,7 +537,7 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
     padding-block: 9px;
   }
   .broker-workspace nav[aria-label='Workspace navigation'] .border-l-2 a {
-    font-size: 15px;
+    font-size: 13px;
   }
 }
 @media (max-width: 640px) {

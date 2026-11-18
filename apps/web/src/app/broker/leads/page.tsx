@@ -24,7 +24,7 @@ import { Avatar, Empty } from '@/components/ui/misc';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
-const leadColumns = 'lg:grid-cols-[28px_minmax(0,1.7fr)_minmax(0,1fr)_100px_minmax(0,1.5fr)_100px_11rem_minmax(0,1fr)]';
+const leadColumns = 'lg:grid-cols-[24px_minmax(160px,1.7fr)_minmax(80px,1fr)_104px_minmax(95px,1.2fr)_82px_14rem_minmax(120px,1fr)]';
 
 function LeadsInner() {
   const sp = useSearchParams();
@@ -258,119 +258,121 @@ function LeadsInner() {
           }
         />
       ) : (
-        <div className="card overflow-hidden">
-          <div
-            className={cn(
-              'hidden items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-bold text-muted uppercase lg:grid',
-              leadColumns,
-            )}
-          >
-            <input type="checkbox" checked={allSel} onChange={() => setSel(allSel ? [] : items.map((l) => l.id))} aria-label="Select all" />
-            <span>Lead</span>
-            <span>Location</span>
-            <span>Stage</span>
-            <span>Requirement</span>
-            <span>Owner</span>
-            <span className="text-right">Actions</span>
-            <span>Source</span>
-          </div>
-          <div className="divide-y divide-line">
-            {items.map((l) => {
-              const enquiry = leadEnquiryOverview(l);
-              return (
-                <div
-                  key={l.id}
-                  className={cn(
-                    'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-surface-2',
-                    leadColumns,
-                    sel.includes(l.id) && 'bg-brand-50/60 dark:bg-brand-500/10',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={sel.includes(l.id)}
-                    onChange={() => setSel(sel.includes(l.id) ? sel.filter((x) => x !== l.id) : [...sel, l.id])}
-                    aria-label={`Select ${l.name}`}
-                  />
-                  <Link href={`/broker/leads/${l.id}`} className="min-w-0">
-                    <p className="flex items-center gap-2 truncate font-semibold">
-                      {l.name} <TempBadge t={l.temperature} />
-                      {l.scoredAt && (
-                        <span className="text-xs font-semibold text-muted" title={(l.scoreReasons ?? []).join(' · ')}>
-                          {l.score}
-                        </span>
-                      )}
-                      {l.repeatCount > 0 && (
-                        <span className="rounded bg-violet-100 px-1.5 text-[10px] font-bold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
-                          ×{l.repeatCount + 1}
-                        </span>
-                      )}
-                      {l.tags?.includes('verified-tenant') && (
-                        <span className="rounded bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-                          ✓ Verified tenant
-                        </span>
-                      )}
+        <div className="card overflow-x-auto" role="region" aria-label="Lead listing" tabIndex={0}>
+          <div className="lg:min-w-[1060px]">
+            <div
+              className={cn(
+                'hidden items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-bold text-muted uppercase lg:grid',
+                leadColumns,
+              )}
+            >
+              <input type="checkbox" checked={allSel} onChange={() => setSel(allSel ? [] : items.map((l) => l.id))} aria-label="Select all" />
+              <span>Lead</span>
+              <span>Location</span>
+              <span>Stage</span>
+              <span>Requirement</span>
+              <span>Owner</span>
+              <span className="text-right">Actions</span>
+              <span>Source</span>
+            </div>
+            <div className="divide-y divide-line">
+              {items.map((l) => {
+                const enquiry = leadEnquiryOverview(l);
+                return (
+                  <div
+                    key={l.id}
+                    className={cn(
+                      'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-surface-2',
+                      leadColumns,
+                      sel.includes(l.id) && 'bg-brand-50/60 dark:bg-brand-500/10',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sel.includes(l.id)}
+                      onChange={() => setSel(sel.includes(l.id) ? sel.filter((x) => x !== l.id) : [...sel, l.id])}
+                      aria-label={`Select ${l.name}`}
+                    />
+                    <Link href={`/broker/leads/${l.id}`} className="min-w-0">
+                      <p className="flex items-center gap-2 truncate font-semibold">
+                        {l.name} <TempBadge t={l.temperature} />
+                        {l.scoredAt && (
+                          <span className="text-xs font-semibold text-muted" title={(l.scoreReasons ?? []).join(' · ')}>
+                            {l.score}
+                          </span>
+                        )}
+                        {l.repeatCount > 0 && (
+                          <span className="rounded bg-violet-100 px-1.5 text-[10px] font-bold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
+                            ×{l.repeatCount + 1}
+                          </span>
+                        )}
+                        {l.tags?.includes('verified-tenant') && (
+                          <span className="rounded bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                            ✓ Verified tenant
+                          </span>
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}
+                        {l.nextFollowUpAt
+                          ? ` · ⏰ ${new Date(l.nextFollowUpAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`
+                          : ''}
+                      </p>
+                      <div className="mt-1 flex gap-1.5 lg:hidden">
+                        <StageBadge stage={l.stage} />
+                      </div>
+                      <p className="mt-1 text-xs text-muted lg:hidden">{[enquiry.location, enquiry.summary].filter(Boolean).join(' · ')}</p>
+                      <div className="mt-1 lg:hidden">
+                        <SourceBadge source={l.source} />
+                      </div>
+                    </Link>
+                      <p className="hidden min-w-0 truncate text-xs text-muted lg:block" title={enquiry.location}>
+                      {enquiry.location || 'Not recorded'}
                     </p>
-                    <p className="truncate text-xs text-muted">
-                      {l.phone} · {timeAgo(l.lastActivityAt ?? l.createdAt)}
-                      {l.nextFollowUpAt
-                        ? ` · ⏰ ${new Date(l.nextFollowUpAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`
-                        : ''}
-                    </p>
-                    <div className="mt-1 flex gap-1.5 lg:hidden">
+                    <div className="hidden lg:block">
                       <StageBadge stage={l.stage} />
                     </div>
-                    <p className="mt-1 text-xs text-muted lg:hidden">{[enquiry.location, enquiry.summary].filter(Boolean).join(' · ')}</p>
-                    <div className="mt-1 lg:hidden">
-                      <SourceBadge source={l.source} />
+                      <p className="hidden min-w-0 truncate text-xs text-muted lg:block" title={enquiry.summary}>
+                      {enquiry.summary || 'Not recorded'}
+                    </p>
+                    <div className="hidden min-w-0 items-center gap-2 lg:flex">
+                      {l.assignedTo ? (
+                        <>
+                          <Avatar name={l.assignedTo.name} src={l.assignedTo.avatarUrl} size={24} />
+                          <span className="truncate text-xs">{l.assignedTo.name.split(' ')[0]}</span>
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs text-amber-600">
+                          <UserPlus className="size-3.5" /> Unassigned
+                        </span>
+                      )}
                     </div>
-                  </Link>
-                  <p className="hidden min-w-0 text-xs text-muted lg:block" title={enquiry.location}>
-                    {enquiry.location || 'Not recorded'}
-                  </p>
-                  <div className="hidden lg:block">
-                    <StageBadge stage={l.stage} />
+                    <div className="col-span-2 col-start-2 flex flex-nowrap items-center justify-end gap-1.5 lg:col-span-1 lg:col-start-auto [&>a]:shrink-0 [&>button]:shrink-0">
+                      <Button size="icon-sm" variant="secondary" href={`tel:${l.phone}`} aria-label="Call">
+                        <Phone className="size-4" />
+                      </Button>
+                      <Button size="icon-sm" variant="whatsapp" href={leadInboxUrl(l.id)} aria-label="WhatsApp">
+                        <MessageCircle className="size-4" />
+                      </Button>
+                      <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
+                        SMS
+                      </Button>
+                      <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
+                        Email
+                      </Button>
+                    </div>
+                    <div className="hidden min-w-0 lg:block">
+                      <SourceBadge source={l.source} />
+                      {l.sourceDetail && (
+                        <p className="mt-0.5 truncate text-xs text-subtle" title={l.sourceDetail}>
+                          {l.sourceDetail}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="hidden min-w-0 text-xs text-muted lg:block" title={enquiry.summary}>
-                    {enquiry.summary || 'Not recorded'}
-                  </p>
-                  <div className="hidden min-w-0 items-center gap-2 lg:flex">
-                    {l.assignedTo ? (
-                      <>
-                        <Avatar name={l.assignedTo.name} src={l.assignedTo.avatarUrl} size={24} />
-                        <span className="truncate text-xs">{l.assignedTo.name.split(' ')[0]}</span>
-                      </>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs text-amber-600">
-                        <UserPlus className="size-3.5" /> Unassigned
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex min-w-0 justify-end gap-1.5 lg:flex-wrap">
-                    <Button size="icon-sm" variant="secondary" href={`tel:${l.phone}`} aria-label="Call">
-                      <Phone className="size-4" />
-                    </Button>
-                    <Button size="icon-sm" variant="whatsapp" href={leadInboxUrl(l.id)} aria-label="WhatsApp">
-                      <MessageCircle className="size-4" />
-                    </Button>
-                    <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'SMS')} aria-label="SMS">
-                      SMS
-                    </Button>
-                    <Button size="xs" variant="secondary" href={leadInboxUrl(l.id, 'EMAIL')}>
-                      Email
-                    </Button>
-                  </div>
-                  <div className="hidden min-w-0 lg:block">
-                    <SourceBadge source={l.source} />
-                    {l.sourceDetail && (
-                      <p className="mt-0.5 truncate text-xs text-subtle" title={l.sourceDetail}>
-                        {l.sourceDetail}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
           {q.data && q.data.totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm">
