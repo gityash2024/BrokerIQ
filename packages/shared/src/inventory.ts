@@ -423,5 +423,6 @@ export function propertyGalleryDraft(message: string, url: string): string {
   const link = new URL(url);
   if (!['https:', 'http:'].includes(link.protocol) || link.username || link.password || !/^\/photos\/[a-f0-9]{48}$/.test(link.pathname))
     throw new Error('Invalid property gallery link');
-  return message + '\n\nView all property photos:\n' + link.href;
+  const reference = link.pathname.slice(-8).toUpperCase();
+  return `${message}\n\nView all property photos · Ref ${reference}:\n${link.href}`;
 }

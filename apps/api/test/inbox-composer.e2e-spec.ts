@@ -1,3 +1,4 @@
+import { propertyGalleryDraft } from '@brokeriq/shared';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -7,6 +8,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { WhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
 import { RealtimeGateway } from '../src/core/realtime/realtime.gateway';
+import { env } from '../src/config/env';
 import { IntegrationNotConfiguredException } from '../src/common/exceptions';
 
 /** Real guards and PostgreSQL; provider credentials are stubbed. No outbound provider acceptance claim. */
@@ -130,5 +132,26 @@ describe('Internal lead composer and conversation ownership', () => {
     await db.conversation.update({ where: { id: conversationId }, data: { blockedAt: new Date() } });
     await req().post('/api/whatsapp/send').set(h()).send({ conversationId, text: 'must not send' }).expect(403);
     expect(await db.message.count({ where: { conversationId } })).toBe(0);
+  });
+  it('keeps a clickable gallery URL while turning off Meta link previews only for property messages', async () => {
+    await db.conversation.update({ where: { id: conversationId }, data: { blockedAt: null, lastInboundAt: new Date() } });
+    const outbound = jest.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (!String(url).startsWith('https://graph.facebook.com/')) throw new Error('Unexpected external request');
+      return new Response(JSON.stringify({ messages: [{ id: 'local-test-' + uid + '-' + outbound.mock.calls.length }] }), { status: 200 });
+    });
+    const url = new URL('/photos/' + 'a'.repeat(48), env().PUBLIC_WEB_URL).href;
+    const property = propertyGalleryDraft('Sector 46 · 2 BHK', url);
+    try {
+      for (const body of [property, 'Another link https://example.com/listing']) {
+        await req().post('/api/whatsapp/send').set(h()).send({ conversationId, text: body }).expect(201);
+      }
+      expect(outbound.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).text)).toEqual([
+        { body: property, preview_url: false },
+        { body: 'Another link https://example.com/listing', preview_url: true },
+      ]);
+      expect(property).toContain(url);
+    } finally {
+      outbound.mockRestore();
+    }
   });
 });

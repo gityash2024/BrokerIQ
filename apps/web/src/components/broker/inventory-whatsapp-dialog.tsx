@@ -72,9 +72,7 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
     (type: 'owner' | 'client') => {
       if (!item) return '';
       const identity = [brokerName, brokerFirm].filter(Boolean).join(' · ');
-      if (type === 'client') {
-        return clientPropertyShare(item, identity) + '\n\nInterested in scheduling a site visit? Reply to this message or call directly.';
-      }
+      if (type === 'client') return clientPropertyShare(item);
       const owner = item.ownerName && item.ownerName !== 'Owner' ? item.ownerName : "Sir/Ma'am";
       const bhkStr = item.bhk ? `${item.bhk} ${item.roomKind || 'rooms'}` : '';
       const floorStr = item.floor ? floorLabel(item.floor) : '';
@@ -132,7 +130,9 @@ export function InventoryWhatsAppDialog({ open, onOpenChange, item, brokerName =
   const handleCopy = async () => {
     try {
       assertAccountContext(owner.current);
-      await navigator.clipboard.writeText(includePhotos && gallery.data ? propertyGalleryDraft(customText, gallery.data.url) : customText);
+      await navigator.clipboard.writeText(
+        templateType === 'client' && includePhotos && gallery.data ? propertyGalleryDraft(customText, gallery.data.url) : customText,
+      );
       assertAccountContext(owner.current);
       setCopied(true);
       toast.success('Message text copied to clipboard!');

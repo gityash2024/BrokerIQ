@@ -38,7 +38,10 @@ test('one gallery link keeps the new broker message order with no operational me
   assert.match(text, /1st floor/);
   assert.doesNotMatch(text, /Managed by|Transaction|reconfirm/);
   const url = 'https://brokeriq.example/photos/' + 'a'.repeat(48);
-  assert.equal(propertyGalleryDraft(text, url).match(/https?:\/\//g)?.length, 1);
+  const message = propertyGalleryDraft(text, url);
+  assert.equal(message.match(/https?:\/\//g)?.length, 1);
+  assert.match(message, /View all property photos · Ref AAAAAAAA/);
+  assert.match(propertyGalleryDraft(text, url.replace(/a{8}$/, 'b'.repeat(8))), /Ref BBBBBBBB/);
   assert.throws(() => propertyGalleryDraft(text, 'https://res.cloudinary.com/photo.jpg'));
   assert.equal(inventoryAvailabilityDate({ availableSince: '2026-11-18', details: { availableFrom: '2027-01-01' } }), '2027-01-01');
 });

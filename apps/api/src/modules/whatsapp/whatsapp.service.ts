@@ -23,6 +23,17 @@ export interface WaCreds {
   values: IntegrationValues;
 }
 
+function hasPropertyGalleryLink(text: string, publicWebUrl: string): boolean {
+  return (text.match(/https?:\/\/[^\s<>]+/gi) ?? []).some((value) => {
+    try {
+      const url = new URL(value.replace(/[).,;!?]+$/, ''));
+      return url.origin === new URL(publicWebUrl).origin && /^\/photos\/[a-f0-9]{48}\/?$/.test(url.pathname) && !url.username && !url.password;
+    } catch {
+      return false;
+    }
+  });
+}
+
 class UnmatchedWhatsAppReceiptError extends Error {}
 class OversizedWhatsAppMediaError extends Error {}
 
@@ -151,7 +162,8 @@ export class WhatsAppService {
       },
     });
     const payload: Record<string, unknown> = { to: phoneForWhatsApp(phone) };
-    if (msg.type === 'text') Object.assign(payload, { type: 'text', text: { body: msg.text, preview_url: true } });
+    if (msg.type === 'text')
+      Object.assign(payload, { type: 'text', text: { body: msg.text, preview_url: !hasPropertyGalleryLink(msg.text, env().PUBLIC_WEB_URL) } });
     else if (msg.type === 'template')
       Object.assign(payload, {
         type: 'template',
