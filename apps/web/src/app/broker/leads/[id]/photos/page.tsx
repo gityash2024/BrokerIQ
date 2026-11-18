@@ -1,5 +1,6 @@
+'use client';
+
 import { usePropertyGallery } from '@/lib/property-gallery';
-('use client');
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useParams } from 'next/navigation';
