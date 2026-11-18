@@ -849,12 +849,13 @@ export class LeadsService {
           },
         },
       });
+      const agent = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true } });
       await this.queueAssignmentNotification(
         tx,
         await this.assignmentReviewers(tx, lead.organizationId, user.id),
         lead,
         'LEAD_ASSIGNMENT_ACCEPTED',
-        'The assigned team member has accepted this lead.',
+        `${agent.name?.trim() || 'The assigned member'} has accepted this lead.`,
       );
       return { acceptedAt };
     });

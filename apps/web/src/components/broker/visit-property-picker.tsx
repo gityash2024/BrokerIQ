@@ -27,9 +27,12 @@ export function VisitPropertyPicker({
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
   const list = useInfiniteQuery({
-    queryKey: ['visit-inventory-picker', user?.id, term],
+    queryKey: ['visit-inventory-picker', user?.id, purpose, term],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => api<Result>(`/inventory${qs({ page: pageParam, pageSize: 25, search: term })}`),
+    queryFn: ({ pageParam }) =>
+      api<Result>(
+        `/inventory${qs({ page: pageParam, pageSize: 25, search: term, ...(purpose === 'photos' ? { folderMode: 'AVAILABLE', currentInventory: true } : {}) })}`,
+      ),
     getNextPageParam: (last, pages) => (pages.length < last.totalPages ? pages.length + 1 : undefined),
   });
   if (value)
@@ -44,6 +47,7 @@ export function VisitPropertyPicker({
     );
   return (
     <div className="space-y-2">
+      {purpose === 'photos' && <p className="text-xs text-muted">Available properties · Rent &amp; Sale</p>}
       <Input value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search properties" placeholder="House / floor / sector / address" />
       {list.isError ? (
         <ApiErrorState error={list.error} onRetry={() => list.refetch()} />
@@ -61,7 +65,7 @@ export function VisitPropertyPicker({
           {list.isPending && <LoadingArtwork className="h-16" label="Loading…" />}
           {list.data?.pages[0].total === 0 && (
             <p className="p-3 text-sm text-muted">
-              {purpose === 'photos' ? 'No matching property.' : 'No matching property. Enter a custom meeting address below.'}
+              {purpose === 'photos' ? 'No matching available property.' : 'No matching property. Enter a custom meeting address below.'}
             </p>
           )}
           {list.hasNextPage && (

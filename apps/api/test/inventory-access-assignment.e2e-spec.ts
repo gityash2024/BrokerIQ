@@ -260,6 +260,11 @@ describe('Agent catalogue privacy, shared galleries and lead acceptance', () => 
     expect(
       await db.notification.count({ where: { userId: actors.admin.id, kind: 'LEAD_ASSIGNMENT_ACCEPTED', data: { path: ['leadId'], equals: lead.id } } }),
     ).toBe(1);
+    expect(
+      await db.notification.findFirstOrThrow({
+        where: { userId: actors.admin.id, kind: 'LEAD_ASSIGNMENT_ACCEPTED', data: { path: ['leadId'], equals: lead.id } },
+      }),
+    ).toMatchObject({ body: 'agent has accepted this lead.' });
     await api()
       .patch('/api/leads/' + lead.id + '/assign')
       .set(h('admin'))

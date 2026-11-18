@@ -54,7 +54,7 @@ export default function LeadSharePhotos() {
     queryFn: () => api<LedgerItem>(`/inventory/${encodeURIComponent(propertyId!)}`),
     enabled: !!beforeVisit && !!propertyId && /^[A-Za-z0-9_-]+$/.test(propertyId),
   });
-  const preselected = initialProperty.data?.deletedAt ? null : initialProperty.data;
+  const preselected = initialProperty.data?.deletedAt || initialProperty.data?.availability !== 'AVAILABLE' ? null : initialProperty.data;
   const property = selected === undefined ? (preselected ?? null) : selected;
   const title = property ? clientPropertyShare(property) : '';
   const photos = shareablePropertyPhotoUrls(property?.photoUrls);

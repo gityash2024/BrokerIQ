@@ -29,10 +29,13 @@ export function VisitPropertyPicker({
   const [search, setSearch] = useState('');
   const term = useDebounced(search);
   const list = useInfiniteQuery({
-    queryKey: ['visit-inventory-picker', user?.id, term],
+    queryKey: ['visit-inventory-picker', user?.id, purpose, term],
     initialPageParam: 1,
     enabled: open,
-    queryFn: ({ pageParam }) => api<Result>(`/inventory${qs({ page: pageParam, pageSize: 25, search: term })}`),
+    queryFn: ({ pageParam }) =>
+      api<Result>(
+        `/inventory${qs({ page: pageParam, pageSize: 25, search: term, ...(purpose === 'photos' ? { folderMode: 'AVAILABLE', currentInventory: true } : {}) })}`,
+      ),
     getNextPageParam: (last, pages) => (pages.length < last.totalPages ? pages.length + 1 : undefined),
   });
   if (value)
@@ -47,6 +50,11 @@ export function VisitPropertyPicker({
     );
   return (
     <>
+      {purpose === 'photos' && (
+        <Txt v="caption" color="muted">
+          Available properties · Rent & Sale
+        </Txt>
+      )}
       <Input value={search} onChangeText={setSearch} accessibilityLabel="Search properties" placeholder="House / floor / sector / address" />
       {list.isError ? (
         <ErrorView error={list.error} />
@@ -65,7 +73,7 @@ export function VisitPropertyPicker({
             ))}
           {list.isPending && <InlineLoader />}
           {list.data?.pages[0].total === 0 && (
-            <Txt color="muted">{purpose === 'photos' ? 'No matching property.' : 'No matching property. Enter a custom meeting address below.'}</Txt>
+            <Txt color="muted">{purpose === 'photos' ? 'No matching available property.' : 'No matching property. Enter a custom meeting address below.'}</Txt>
           )}
           {list.hasNextPage && <Button title="Load more" variant="secondary" loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} />}
         </ScrollView>
