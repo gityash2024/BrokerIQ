@@ -3,6 +3,7 @@ import {
   bytesToBase64,
   uploadImport,
   prepareInventoryEditorInput,
+  surveyPhotoInputSchema,
   captureContentType,
   followUpInputSchema,
   hasDelegatedAccess,
@@ -13,11 +14,12 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { scheduleReminder } from '@/lib/local-reminders';
 import { File, Directory, Paths } from 'expo-file-system';
-import { api, ApiError, authStore, captureAccountContext, assertAccountContext, AccountScopeChangedError, type AccountContext } from '@/lib/api';
+import { api, ApiError, uploadUri, authStore, captureAccountContext, assertAccountContext, AccountScopeChangedError, type AccountContext } from '@/lib/api';
 
 export type TaskDraftKind = 'FOLLOW_UP_CREATE' | 'SITE_VISIT_CREATE';
 export type DraftKind =
   | 'PROPERTY_CREATE'
+  | 'PROPERTY_SURVEY_PHOTO'
   | 'PROPERTY_EDIT'
   | 'REQUIREMENT_CREATE'
   | 'REQUIREMENT_EDIT'
@@ -314,6 +316,19 @@ export async function captureFile(
   await queueDraft(saved, owner);
   return saved;
 }
+/** Copy the camera output into the existing durable, account-scoped draft outbox. */
+export async function queueSurveyPhoto(uri: string, sector: string | undefined, owner = contextNow()) {
+  assertAccountContext(owner);
+  const id = Crypto.randomUUID();
+  const directory = new Directory(Paths.document, 'captures');
+  directory.create({ idempotent: true, intermediates: true });
+  const destination = new File(directory, `${id}-survey.jpg`);
+  await new File(uri).copy(destination);
+  if (!destination.exists || !destination.size) throw new Error('The survey photo could not be copied.');
+  const saved = await saveDraft('PROPERTY_SURVEY_PHOTO', id, { sector }, id, owner, { uri: destination.uri, mime: 'image/jpeg' });
+  await queueDraft(saved, owner);
+  return saved;
+}
 /** Save a submitted task and its idempotency key together before the first request. */
 export async function submitTask(kind: TaskDraftKind, input: unknown, owner = contextNow()) {
   assertAccountContext(owner);
@@ -389,7 +404,7 @@ export async function syncDrafts() {
       assertAccountContext(owner);
       const rows = await database.getAllAsync<LocalDraft>(
         `SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=?
-         AND (? OR (kind='PROPERTY_CREATE' AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?))
+         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?))
          ORDER BY updated_at ASC LIMIT 10`,
         session.user.id,
         owner.scope,
@@ -452,6 +467,23 @@ export async function syncDrafts() {
           } else if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') {
             path = row.kind === 'FOLLOW_UP_CREATE' ? '/follow-ups' : '/visits';
             body = { ...body, clientMutationId: row.id };
+          } else if (row.kind === 'PROPERTY_SURVEY_PHOTO') {
+            path = '/inventory/survey-photo';
+            if (!body.photoUrl) {
+              if (!row.file_uri || !new File(row.file_uri).exists) throw new Error('Saved survey photo is missing.');
+              assertAccountContext(owner);
+              const { url } = await uploadUri(row.file_uri, 'listing', 'image/jpeg');
+              assertAccountContext(owner);
+              body = { ...body, photoUrl: url };
+              await database.runAsync(
+                "UPDATE local_mutations SET payload=? WHERE id=? AND owner_id=? AND owner_scope=? AND state='SYNCING'",
+                JSON.stringify(body),
+                row.id,
+                session.user.id,
+                owner.scope,
+              );
+            }
+            body = surveyPhotoInputSchema.parse({ ...body, clientMutationId: row.id });
           } else if (row.kind === 'PROPERTY_CREATE') {
             path = '/inventory';
             body = { ...prepareInventoryEditorInput(body), clientMutationId: row.id };
@@ -490,7 +522,7 @@ export async function syncDrafts() {
             owner.scope,
           );
           if (captureAccountContext().epoch !== owner.epoch) return;
-          if (row.kind === 'PROPERTY_CREATE' || row.kind === 'PROPERTY_EDIT' || row.kind === 'PUBLIC_PUBLISH') inventoryChanged = true;
+          if (row.kind.startsWith('PROPERTY_') || row.kind === 'PUBLIC_PUBLISH') inventoryChanged = true;
           if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') completedTaskLeads.add(row.draft_key);
           if (row.kind === 'FOLLOW_UP_CREATE' && result.status === 'PENDING') {
             await scheduleReminder({ id: result.id, kind: 'FOLLOW_UP', leadId: result.leadId, at: result.dueAt }, 15).catch(() => undefined);
@@ -500,7 +532,10 @@ export async function syncDrafts() {
           }
         } catch (error) {
           const scopeChanged = error instanceof AccountScopeChangedError;
-          const retry = scopeChanged || (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500));
+          const retry =
+            scopeChanged ||
+            (row.kind === 'PROPERTY_SURVEY_PHOTO' && error instanceof TypeError) ||
+            (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500));
           const attempts = row.attempts + 1;
           const delay = Math.min(15 * 60_000, 15_000 * 2 ** Math.min(attempts, 6));
           await database.runAsync(

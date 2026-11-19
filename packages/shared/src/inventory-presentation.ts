@@ -118,7 +118,11 @@ export function inventoryAvailabilityDate(item: Pick<LedgerItem, 'availableSince
 
 /** Numbered addresses are only available when the API grants full detail access. */
 export function inventoryCardTitle(item: LedgerItem) {
-  const title = item.houseNo?.trim() ? `House ${item.houseNo.trim()}` : inventoryTitle(item);
+  const title = item.houseNo?.trim()
+    ? `House ${item.houseNo.trim()}`
+    : isPendingSurvey(item) && item.photoUrls?.length && !item.address
+      ? 'Survey photo to review'
+      : inventoryTitle(item);
   return [title, item.sector?.trim()].filter(Boolean).join(' · ');
 }
 

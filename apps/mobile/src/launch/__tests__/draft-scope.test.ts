@@ -26,6 +26,9 @@ jest.mock('expo-file-system', () => ({
       this.exists = !this.uri.endsWith('brokeriq-drafts.db');
     }
     async copy() {}
+    async bytes() {
+      return new Uint8Array(this.size);
+    }
     open() {
       return { offset: 0, readBytes: (length: number) => new Uint8Array(length).fill(65), close: () => undefined };
     }
@@ -55,6 +58,7 @@ import {
   claimGuestCaptures,
   captureText,
   captureFile,
+  queueSurveyPhoto,
   submitTask,
   holdFailedTask,
 } from '../drafts';
@@ -325,4 +329,34 @@ it('persists register page order and selected sector across later captures while
     'Sector 47',
   );
   expect(decodeDraft((await getLocalDraft(other))!)).toMatchObject({ registerPageNo: 1, registerSector: 'Sector 47' });
+});
+
+it('keeps a survey photo queued and reuses its uploaded URL and record key after a retry', async () => {
+  await login('survey-camera-owner');
+  const draft = await queueSurveyPhoto('file:///camera/survey.jpg', 'Sector 46');
+  expect(await getLocalDraft(draft)).toMatchObject({ kind: 'PROPERTY_SURVEY_PHOTO', state: 'QUEUED', mime: 'image/jpeg' });
+  const photoUrl = 'https://inventory.example/p.jpg';
+  const request = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(JSON.stringify({ provider: 'local', uploadUrl: 'https://inventory.example/put', publicUrl: photoUrl })))
+    .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Unavailable' }), { status: 503 }));
+  try {
+    await syncDrafts();
+    expect(await getLocalDraft(draft)).toMatchObject({ state: 'QUEUED', attempts: 1 });
+    const database = await privateDraftDatabase();
+    await database.runAsync('UPDATE local_mutations SET next_at=0 WHERE id=?', draft);
+    await login('survey-camera-owner', 'another-firm');
+    await syncDrafts();
+    expect(request).toHaveBeenCalledTimes(3);
+    await login('survey-camera-owner');
+    request.mockResolvedValueOnce(new Response(JSON.stringify({ id: 'survey-from-photo' })));
+    await expect(syncDrafts()).resolves.toMatchObject({ inventoryChanged: true });
+    expect(request).toHaveBeenCalledTimes(4);
+    expect(request.mock.calls[3][0]).toMatch(/\/inventory\/survey-photo$/);
+    expect(JSON.parse(String(request.mock.calls[3][1]?.body))).toEqual({ sector: 'Sector 46', photoUrl, clientMutationId: draft });
+    expect(await getLocalDraft(draft)).toMatchObject({ state: 'SYNCED', server_id: 'survey-from-photo' });
+  } finally {
+    request.mockRestore();
+  }
 });

@@ -2,7 +2,15 @@ import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post,
 import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { inventoryInputSchema, inventoryFilterSchema, availabilitySchema, inventoryPublishSchema, type InventoryPublishInput } from '@brokeriq/shared';
+import {
+  inventoryInputSchema,
+  inventoryFilterSchema,
+  availabilitySchema,
+  inventoryPublishSchema,
+  surveyPhotoInputSchema,
+  type InventoryPublishInput,
+  type SurveyPhotoInput,
+} from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -114,6 +122,11 @@ export class InventoryController {
   }
   @Post() create(@Body(new ZodPipe(inventoryInputSchema)) dto: CreateInventoryItemDto, @CurrentUser() user: RequestUser) {
     return this.inventory.create(dto, user);
+  }
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Post('survey-photo')
+  surveyPhoto(@Body(new ZodPipe(surveyPhotoInputSchema)) dto: SurveyPhotoInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.createSurveyPhoto(dto, user);
   }
   @Patch('bulk/update') bulkUpdate(
     @Body(

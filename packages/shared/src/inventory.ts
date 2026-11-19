@@ -96,6 +96,12 @@ export const inventoryInputSchema = z
     if (data.ratePerArea != null && !data.rateAreaUnit) ctx.addIssue({ code: 'custom', path: ['rateAreaUnit'], message: 'Rate unit required' });
   });
 export type InventoryInput = z.infer<typeof inventoryInputSchema>;
+export const surveyPhotoInputSchema = z.strictObject({
+  clientMutationId: z.uuid(),
+  sector: z.string().trim().min(1).max(200).optional(),
+  photoUrl: inventoryInputSchema.shape.photoUrls.unwrap().element,
+});
+export type SurveyPhotoInput = z.infer<typeof surveyPhotoInputSchema>;
 export const inventoryFilterSchema = z.object({
   folderMode: inventoryFolderModeSchema.optional(),
   currentInventory: z.literal('true').optional(),

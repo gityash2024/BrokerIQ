@@ -1,9 +1,18 @@
 import { useRef, useState } from 'react';
 import { Image, Linking, View } from 'react-native';
 import * as ImagePicker from '@/lib/image-picker';
+import type { ImagePickerAsset } from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Button, Txt } from '@/ui';
 import { assertAccountContext, captureAccountContext, errorMessage, img, uploadUri } from '@/lib/api';
+
+export async function preparePropertyPhoto(asset: ImagePickerAsset) {
+  const result = await ImageManipulator.manipulateAsync(asset.uri, [{ resize: { width: Math.min(asset.width || 1800, 1800) } }], {
+    compress: 0.85,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  return result.uri;
+}
 
 export function NativePropertyMedia({
   photos,
@@ -52,14 +61,7 @@ export function NativePropertyMedia({
       for (const asset of result.assets) {
         const maxMB = video ? 100 : 20;
         if ((asset.fileSize ?? 0) > maxMB * 1024 * 1024) throw new Error(`Selected file exceeds the ${maxMB} MB limit.`);
-        const path = video
-          ? asset.uri
-          : (
-              await ImageManipulator.manipulateAsync(asset.uri, [{ resize: { width: Math.min(asset.width || 1800, 1800) } }], {
-                compress: 0.85,
-                format: ImageManipulator.SaveFormat.JPEG,
-              })
-            ).uri;
+        const path = video ? asset.uri : await preparePropertyPhoto(asset);
         const mime = video ? (asset.mimeType ?? (/\.mov$/i.test(asset.fileName ?? '') ? 'video/quicktime' : 'video/mp4')) : 'image/jpeg';
         if (video && !mime.startsWith('video/')) throw new Error('Choose a supported video file.');
         assertAccountContext(owner);

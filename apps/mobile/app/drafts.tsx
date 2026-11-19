@@ -137,7 +137,8 @@ export default function Drafts() {
                 }
               />
             )}
-            {(item.state === 'FAILED' || (item.state === 'DRAFT' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind))) && (
+            {(item.state === 'FAILED' ||
+              (item.state === 'DRAFT' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE', 'PROPERTY_SURVEY_PHOTO'].includes(item.kind))) && (
               <Button title="Retry" size="sm" onPress={() => retry(item.id)} />
             )}
             {item.state === 'FAILED' && ['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && (
@@ -155,7 +156,7 @@ export default function Drafts() {
                 }}
               />
             )}
-            {['DRAFT', 'FAILED'].includes(item.state) && !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE'].includes(item.kind) && (
+            {['DRAFT', 'FAILED'].includes(item.state) && !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE', 'PROPERTY_SURVEY_PHOTO'].includes(item.kind) && (
               <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />
             )}
           </NativeCard>

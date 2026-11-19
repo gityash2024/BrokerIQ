@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { randomUUID } from 'node:crypto';
 import { inventoryDate, inventoryMonth, inventoryMonthLabel } from '@brokeriq/shared';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
@@ -75,6 +76,37 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
 
   afterAll(async () => {
     await app?.close();
+  });
+
+  it('captures a photo-only Survey draft for office review and treats a retry as the same record', async () => {
+    const photoUrl = 'https://inventory.example/office-review.jpg';
+    const capture = { clientMutationId: randomUUID(), photoUrl };
+    const create = () => api().post('/api/inventory/survey-photo').set(headers(agent)).send(capture).expect(201);
+    const created = (await create()).body;
+    expect((await create()).body.id).toBe(created.id);
+    expect(created).toMatchObject({
+      sourceType: 'SURVEY',
+      status: 'DRAFT',
+      availability: 'UNKNOWN',
+      verificationStatus: 'NEEDS_REVIEW',
+      sector: null,
+      houseNo: null,
+      assignedToId: agentId,
+      photoUrls: [photoUrl],
+    });
+    const draftUrl = '/api/inventory/' + created.id;
+    const office = await api().get('/api/inventory?folderMode=SURVEY&folderSector=__unset__').set(headers(admin)).expect(200);
+    expect(office.body.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
+    const available = await api().get('/api/inventory?folderMode=AVAILABLE').set(headers(admin)).expect(200);
+    expect(available.body.items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
+    await api().get(draftUrl).set(headers(outsider)).expect(404);
+    await api().patch(draftUrl).set(headers(admin)).send({ directoryMonth: '2027-01' }).expect(400);
+    const reviewed = await api()
+      .patch(draftUrl)
+      .set(headers(admin))
+      .send({ sector: 'Sector 57', houseNo: 'Photo review', details: { possessionDate: '2027-01-05' } })
+      .expect(200);
+    expect(reviewed.body).toMatchObject({ id: created.id, sector: 'Sector 57', photoUrls: [photoUrl] });
   });
 
   it('keeps Survey private, then promotes and rents the same property without losing possession or photos', async () => {
