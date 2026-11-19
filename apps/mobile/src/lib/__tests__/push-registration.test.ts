@@ -2,17 +2,19 @@ import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { api, authStore } from '../api';
-import { registerPush, unregisterPush, scheduleReminder } from '../push';
+import { registerPush, unregisterPush, scheduleReminder, usePushRegistration } from '../push';
 
 jest.mock('expo-device', () => ({ isDevice: true }));
 jest.mock('../api', () => ({ api: jest.fn(), authStore: { get: jest.fn() }, registerSessionReset: jest.fn() }));
 jest.mock('../i18n', () => ({ tr: (s: string) => s }));
+jest.mock('../report-error', () => ({ reportAppError: jest.fn() }));
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   setNotificationChannelAsync: jest.fn(),
   AndroidImportance: { HIGH: 4 },
   getPermissionsAsync: jest.fn(),
   requestPermissionsAsync: jest.fn(),
+  getDevicePushTokenAsync: jest.fn(),
   getExpoPushTokenAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(),
   cancelScheduledNotificationAsync: jest.fn(),
@@ -28,6 +30,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (authStore.get as jest.Mock).mockReturnValue(session);
   (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
+  (Notifications.getDevicePushTokenAsync as jest.Mock).mockResolvedValue({ type: 'android', data: 'local-device-token' });
   (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
   (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
   (api as jest.Mock).mockResolvedValue({ ok: true });
@@ -73,12 +76,25 @@ it('does not register a late token response under a different logged-in account'
   );
   const pending = registerPush();
   // Permission lookup precedes the OS token request.
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 8 && !finish; i++) await Promise.resolve();
   (authStore.get as jest.Mock).mockReturnValue({ user: { id: 'different-owner' } });
   finish({ data: 'ExponentPushToken[late]' });
   expect(await pending).toBeNull();
   expect(api).not.toHaveBeenCalled();
+});
+
+it('distinguishes OS token failure from Expo failure and registers on recovery', async () => {
+  (Notifications.getDevicePushTokenAsync as jest.Mock).mockRejectedValueOnce(new Error('Firebase unavailable'));
+  expect(await registerPush(false)).toBeNull();
+  expect(usePushRegistration.getState().status).toBe('device');
+  (Notifications.getExpoPushTokenAsync as jest.Mock)
+    .mockRejectedValueOnce(new Error('Offline'))
+    .mockResolvedValueOnce({ data: 'ExponentPushToken[recovered]' });
+  expect(await registerPush(false)).toBeNull();
+  expect(usePushRegistration.getState().status).toBe('expo');
+  jest.spyOn(SecureStore, 'setItemAsync').mockResolvedValueOnce(undefined);
+  expect(await registerPush(false)).toBe('ExponentPushToken[recovered]');
+  expect(usePushRegistration.getState().status).toBe('ready');
 });
 
 it('still cancels local alerts and OS previews when token removal is offline', async () => {

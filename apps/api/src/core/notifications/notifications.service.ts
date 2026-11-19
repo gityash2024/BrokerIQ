@@ -116,6 +116,23 @@ export class NotificationsService {
       throw new Error('Reminder push was not fully accepted; in-app notification retained. Inspect delivery before retrying.');
   }
 
+  async resumeAssignmentPush(userId: string) {
+    // Retry only recent, current assignments whose previous attempt had no usable token.
+    await this.prisma.$executeRaw`
+      UPDATE "Job" j
+      SET status = 'PENDING', attempts = 0, "runAt" = timezone('UTC', now()),
+          "lockedAt" = NULL, "lastError" = NULL, "updatedAt" = timezone('UTC', now())
+      FROM "Notification" n JOIN "Lead" l ON l.id = n.data->>'leadId'
+      WHERE j.key = 'assignment-mobile:' || n.id
+        AND j.type = 'lead.assignment-mobile' AND n.kind = 'LEAD_ASSIGNED'
+        AND j.status IN ('PENDING', 'FAILED')
+        AND j."lastError" IN ('No registered mobile push token for this assignment', 'No active mobile push token accepted this assignment')
+        AND n."userId" = ${userId} AND l."assignedToId" = n."userId"
+        AND l."assignmentId" = j.payload->>'assignmentId'
+        AND l."assignmentAcceptedAt" IS NULL AND l."deletedAt" IS NULL
+        AND n."createdAt" >= timezone('UTC', now()) - interval '24 hours'`;
+  }
+
   /** Expo push (free). Tokens that Expo reports as invalid are removed. */
   async push(
     userIds: string[],

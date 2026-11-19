@@ -7,6 +7,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
+import { addPushTokenListener, type DevicePushToken } from 'expo-notifications';
 import Constants from 'expo-constants';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -101,18 +102,28 @@ export default function RootLayout() {
     if (!loggedInUserId) return;
     let registering = false;
     let registered = false;
-    const register = async (prompt = false) => {
-      if (registering || AppState.currentState !== 'active' || (!prompt && registered)) return;
+    let promptPending = true;
+    let refreshedToken: DevicePushToken | undefined;
+    const register = async () => {
+      if (registering || AppState.currentState !== 'active' || (registered && !refreshedToken)) return;
       registering = true;
+      const token = refreshedToken;
+      refreshedToken = undefined;
       try {
-        registered = Boolean(await registerPush(prompt));
+        const prompt = promptPending;
+        promptPending = false;
+        registered = Boolean(await registerPush(prompt, token));
       } catch {
         // Retry on foreground or after a temporary network failure.
       } finally {
         registering = false;
       }
     };
-    void register(true);
+    void register();
+    const tokenChanges = addPushTokenListener((token) => {
+      refreshedToken = token;
+      void register();
+    });
     const foreground = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         registered = false;
@@ -122,6 +133,7 @@ export default function RootLayout() {
     const timer = setInterval(() => void register(), 60_000);
     return () => {
       foreground.remove();
+      tokenChanges.remove();
       clearInterval(timer);
     };
   }, [loggedInUserId]);

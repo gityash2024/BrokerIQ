@@ -1,8 +1,7 @@
 import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Linking, View } from 'react-native';
-import { registerPush } from '@/lib/push';
-import { getPermissionsAsync } from 'expo-notifications';
+import { FlatList, Linking, Platform, View } from 'react-native';
+import { registerPush, usePushRegistration } from '@/lib/push';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, BellRing, CheckCheck } from 'lucide-react-native';
@@ -16,10 +15,22 @@ import { openLink } from '@/lib/links';
 import { toast } from '@/lib/toast';
 import { Button, Empty, ErrorView, Header, IconBtn, PressableScale, Screen, Txt } from '@/ui';
 
+const alertMessages = {
+  permission: 'फोन पर BrokerIQ notifications की अनुमति दें।',
+  channel: 'फोन की notification settings में BrokerIQ का Default channel चालू करें।',
+  device:
+    Platform.OS === 'android'
+      ? 'फोन push alerts के लिए register नहीं हो पाया। Google Play services और internet जाँचकर दोबारा कोशिश करें।'
+      : 'फोन push alerts के लिए register नहीं हो पाया। Internet जाँचकर दोबारा कोशिश करें।',
+  expo: 'Push service से connection नहीं बना। Internet जाँचकर दोबारा कोशिश करें।',
+  server: 'BrokerIQ में इस फोन का registration पूरा नहीं हुआ। दोबारा कोशिश करें।',
+};
+
 export default function Notifications() {
   const { c } = useTheme();
   const { user } = useAuth();
   const userId = user?.id;
+  const pushStatus = usePushRegistration((s) => (s.userId === userId ? s.status : null));
   const { notification } = useLocalSearchParams<{ notification?: string }>();
   const config = useConfig();
   const client = useQueryClient();
@@ -78,8 +89,12 @@ export default function Notifications() {
     try {
       const token = await registerPush();
       if (token) toast.success('Device notifications registered');
-      else if ((await getPermissionsAsync()).status !== 'granted') await Linking.openSettings();
-      else toast.error('Device alerts could not register. Check the connection and try again.');
+      else {
+        const result = usePushRegistration.getState();
+        if (result.userId !== userId || !result.status) return;
+        if (result.status === 'permission' || result.status === 'channel') await Linking.openSettings();
+        else if (result.status !== 'ready') toast.error(alertMessages[result.status]);
+      }
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -112,6 +127,21 @@ export default function Notifications() {
           refreshing={q.isRefetching}
           onRefresh={() => q.refetch()}
           contentContainerStyle={{ paddingBottom: 40 }}
+          ListHeaderComponent={
+            pushStatus && pushStatus !== 'ready' ? (
+              <View style={{ padding: 16, gap: 8, borderBottomWidth: 1, borderBottomColor: c.line }}>
+                <Txt v="small" color="muted">
+                  {alertMessages[pushStatus]}
+                </Txt>
+                <Button
+                  title={pushStatus === 'permission' || pushStatus === 'channel' ? 'Device alerts चालू करें' : 'Device alerts फिर से जोड़ें'}
+                  variant="secondary"
+                  loading={checkingAlerts}
+                  onPress={enableDeviceAlerts}
+                />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             q.isLoading ? (
               <View style={{ padding: 16 }}>

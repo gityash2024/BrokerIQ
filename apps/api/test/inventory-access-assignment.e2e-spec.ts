@@ -448,19 +448,22 @@ describe('Agent catalogue privacy, shared galleries and lead acceptance', () => 
       await (jobs as any).execute(active);
       return db.job.findUniqueOrThrow({ where: { id: job.id } });
     };
-    expect(await run(1)).toMatchObject({ status: 'PENDING', lastError: 'No registered mobile push token for this assignment' });
+    expect(await run(job.maxAttempts)).toMatchObject({ status: 'FAILED', lastError: 'No registered mobile push token for this assignment' });
     const token = 'ExponentPushToken[local-test-' + stamp + ']';
     await api().post('/api/me/push-tokens').set(h('second')).send({ token, platform: 'android' }).expect(201);
+    expect(await db.job.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({ status: 'PENDING', attempts: 0, lastError: null });
     const push = jest.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       if (String(url) !== 'https://exp.host/--/api/v2/push/send') throw new Error('Unexpected external request');
       return new Response(JSON.stringify({ data: [{ status: 'ok', id: 'local-expo-ticket' }] }), { status: 200 });
     });
     try {
-      expect(await run(2)).toMatchObject({ status: 'DONE', lastError: null });
+      expect(await run(1)).toMatchObject({ status: 'DONE', lastError: null });
       expect(JSON.parse(String(push.mock.calls[0][1]?.body))).toMatchObject([
         { to: token, channelId: 'default', data: { notificationId: note.id, recipientUserId: actors.second.id, leadId: lead.id } },
       ]);
       expect(await db.notification.count({ where: { userId: actors.second.id, kind: 'LEAD_ASSIGNED', data: { path: ['leadId'], equals: lead.id } } })).toBe(1);
+      await api().post('/api/me/push-tokens').set(h('second')).send({ token, platform: 'android' }).expect(201);
+      expect(await db.job.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({ status: 'DONE', attempts: 1 });
     } finally {
       push.mockRestore();
     }

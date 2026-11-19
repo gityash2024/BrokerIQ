@@ -51,6 +51,7 @@ export class MeController {
       create: { ...body, userId: user.id },
       update: { userId: user.id, platform: body.platform },
     });
+    if (body.platform !== 'web' && /^(Exponent|Expo)PushToken\[[^\]]+\]$/.test(body.token)) await this.notices.resumeAssignmentPush(user.id);
     return { ok: true };
   }
 
