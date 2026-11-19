@@ -128,7 +128,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className={mode === 'detail' ? 'inventory-record space-y-3' : 'space-y-5'}>
       <PageHeader
         title={title}
         actions={

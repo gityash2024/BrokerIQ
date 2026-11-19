@@ -39,7 +39,7 @@
   --radius-2xl: 18px;
   --radius-3xl: 24px;
 
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px -7px rgb(31 22 84 / 0.18);
   --shadow-lift: 0 2px 4px rgb(15 23 42 / 0.05), 0 20px 40px -16px rgb(79 70 229 / 0.28);
 
   --animate-shimmer: shimmer 1.6s linear infinite;
@@ -83,6 +83,15 @@
   --fg: #0f172a;
   --muted: #475569;
   --subtle: #94a3b8;
+  --action-gradient: linear-gradient(145deg, #6728ed, #3e10ba);
+  --action-hover-gradient: linear-gradient(145deg, #5920d4, #32109c);
+  --action-line: #dfe0ee;
+  --action-icon: #4b22ba;
+  --action-shadow: 0 2px 4px rgb(15 23 42 / 0.06), 0 5px 10px -6px rgb(34 18 83 / 0.24);
+  --action-primary-shadow: 0 3px 7px rgb(72 24 198 / 0.22);
+  --action-danger-bg: #fff4f4;
+  --action-danger-line: #ffc6cb;
+  --action-danger-fg: #b51a25;
   color-scheme: light;
 }
 
@@ -94,6 +103,12 @@
   --fg: #e8ecf6;
   --muted: #a3adc4;
   --subtle: #6b7591;
+  --action-line: #37324e;
+  --action-icon: #c4b5fd;
+  --action-shadow: 0 2px 5px rgb(0 0 0 / 0.2);
+  --action-danger-bg: #321b29;
+  --action-danger-line: #743541;
+  --action-danger-fg: #fda4af;
   color-scheme: dark;
 }
 
@@ -107,6 +122,34 @@ body {
 }
 
 @layer components {
+  .action-primary {
+    background-image: var(--action-gradient);
+    box-shadow: var(--action-primary-shadow);
+  }
+  .action-primary:not(:disabled, [aria-disabled='true']):hover {
+    background-image: var(--action-hover-gradient);
+  }
+  .action-secondary,
+  .action-danger-outline {
+    border: 1px solid var(--action-line);
+    background-color: var(--surface);
+    box-shadow: var(--action-shadow);
+  }
+  .action-secondary > svg {
+    color: var(--action-icon);
+  }
+  .action-secondary:not(:disabled, [aria-disabled='true']):hover {
+    background-color: var(--surface-2);
+    border-color: color-mix(in srgb, var(--action-line), var(--action-icon) 30%);
+  }
+  .action-danger-outline {
+    border-color: var(--action-danger-line);
+    background-color: var(--action-danger-bg);
+    color: var(--action-danger-fg);
+  }
+  .action-danger-outline:not(:disabled, [aria-disabled='true']):hover {
+    background-color: color-mix(in srgb, var(--action-danger-bg), var(--action-danger-line) 28%);
+  }
   .workspace-page-header {
     @apply relative rounded-2xl border border-line bg-surface px-4 py-3 shadow-[var(--shadow-card)] sm:px-5 sm:py-3.5;
   }
@@ -372,13 +415,13 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
   position: relative;
   z-index: 1;
 }
-.broker-workspace :is(button, a).bg-brand-600 {
-  background-image: linear-gradient(115deg, #5524ff, #441ce8);
-  box-shadow: 0 3px 6px #4319d526;
+.broker-workspace :is(button, a).bg-brand-600:not(.action-primary) {
+  background-image: var(--action-gradient);
+  box-shadow: var(--action-primary-shadow);
 }
 .broker-workspace .inventory-filters {
-  padding: 18px 26px 20px;
-  border-radius: 22px;
+  padding: 14px 18px;
+  border-radius: var(--radius-2xl);
   box-shadow: 0 3px 5px #24135b0a;
 }
 .broker-workspace .inventory-filters p {
@@ -404,22 +447,25 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
   padding: 14px 20px;
 }
 .broker-workspace .inventory-folder {
-  min-height: 92px;
-  border-radius: 22px;
-  padding: 16px 24px;
-  box-shadow: 0 3px 4px #24135b10;
+  min-height: 76px;
+  border-radius: var(--radius-2xl);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-card);
 }
 .broker-workspace .inventory-folder .font-semibold {
-  font-size: 20px;
+  font-size: 17px;
 }
 .broker-workspace .inventory-folder .text-xs {
-  font-size: 16px;
+  font-size: 14px;
 }
 .broker-workspace .inventory-folder > span:first-child {
-  border-radius: 18px;
-  background: #eee9ff;
-  width: 60px;
-  height: 60px;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface), var(--action-icon) 10%);
+  width: 48px;
+  height: 48px;
+}
+.workspace-content:has(.inventory-record) {
+  max-width: none;
 }
 .dark .broker-workspace .workspace-page-header {
   background: #17172d;
@@ -508,17 +554,13 @@ html[lang='ur'] :is(p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, t
 .broker-workspace .workspace-page-header [aria-label='Inventory entry actions'] :is(a, button):nth-child(3) {
   min-width: 215px;
 }
-.broker-workspace .inventory-filters {
-  padding-top: 22px;
-  padding-bottom: 26px;
-}
 .broker-workspace .inventory-folder > span:first-child svg {
-  width: 28px;
-  height: 28px;
-  color: #4f20ff;
+  width: 24px;
+  height: 24px;
+  color: var(--action-icon);
 }
 .broker-workspace .inventory-folder .font-semibold {
-  color: #090c1c;
+  color: var(--fg);
   font-weight: 750;
 }
 .broker-workspace .inventory-browser > .flex.flex-wrap.gap-2 {

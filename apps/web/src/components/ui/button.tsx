@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const variants = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm shadow-brand-600/25 active:scale-[0.98]',
+  primary: 'action-primary bg-brand-600 text-white active:scale-[0.98]',
   accent: 'bg-saffron-500 text-slate-950 hover:bg-saffron-400 shadow-sm shadow-saffron-500/30 active:scale-[0.98]',
-  secondary: 'bg-surface text-fg border border-line hover:bg-surface-2 active:scale-[0.98]',
+  secondary: 'action-secondary text-fg active:scale-[0.98]',
+  dangerOutline: 'action-danger-outline active:scale-[0.98]',
   ghost: 'text-muted hover:bg-surface-2 hover:text-fg',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 active:scale-[0.98]',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]',

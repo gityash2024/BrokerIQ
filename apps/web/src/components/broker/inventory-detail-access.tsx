@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Users } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasDelegatedAccess, type LedgerItem } from '@brokeriq/shared';
@@ -63,11 +64,12 @@ export function InventoryDetailAccess({ item }: { item: LedgerItem }) {
     return <p className="mb-3 text-sm text-muted">Full details available until {until}</p>;
   }
   return (
-    <section className="card mb-4 space-y-3 p-4" aria-label="Property detail access">
+    <section className="card mb-3 space-y-2 p-4" aria-label="Property detail access">
       <h2 className="font-semibold">Property detail access</h2>
       {canReview && (
         <div className="space-y-2">
-          <Button size="sm" variant="secondary" onClick={() => setSelecting(!selecting)}>
+          <Button size="sm" variant={selecting ? 'secondary' : 'primary'} onClick={() => setSelecting(!selecting)}>
+            {!selecting && <Users className="size-4" />}
             {selecting ? 'Close agent selection' : 'Give agents 12-hour access'}
           </Button>
           {selecting && (

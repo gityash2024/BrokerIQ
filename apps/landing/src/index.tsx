@@ -341,10 +341,10 @@ const styles = `
 .biq-preferences{display:flex;align-items:center;gap:4px;flex-shrink:0}
 .biq-preferences button{flex-shrink:0}
 .biq-nav nav{display:flex;align-items:center;gap:30px;font-size:14px;font-weight:600}
-.biq-button,.biq-secondary{display:inline-flex;align-items:center;justify-content:center;gap:24px;min-height:48px;padding:13px 22px;border-radius:14px;font-size:14px;font-weight:650;transition:transform .22s,box-shadow .22s}
-.biq-button{background:var(--biq-brand);color:white!important;box-shadow:0 8px 22px #4f46e51a}
+.biq-button,.biq-secondary{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:12px 20px;border-radius:14px;font-size:14px;font-weight:650;transition:transform .22s,box-shadow .22s}
+.biq-button{background:var(--action-gradient,linear-gradient(145deg,#6728ed,#3e10ba));color:white!important;box-shadow:var(--action-primary-shadow,0 3px 7px #4818c638)}
 .biq-button:hover{transform:translateY(-2px);box-shadow:0 12px 28px #4f46e530}
-.biq-secondary{border:1px solid var(--line,#e4e7f0);background:var(--surface,#fff)}
+.biq-secondary{border:1px solid var(--action-line,#dfe0ee);background:var(--surface,#fff);box-shadow:var(--action-shadow,0 2px 4px #0f172a0f)}
 .biq-hero{position:relative;display:grid;grid-template-columns:1.03fr 1.1fr;gap:34px;align-items:center;padding-block:64px 80px}
 .biq-hero-copy{position:relative;z-index:1}
 .biq-eyebrow{font-size:10px;letter-spacing:2px;font-weight:750;display:flex;align-items:center;gap:9px}

@@ -217,7 +217,7 @@ export function BrokerScreen({
 }
 export function NativeCard({ children, style, onPress }: { children: React.ReactNode; style?: ViewStyle; onPress?: () => void }) {
   return (
-    <Card onPress={onPress} style={[{ padding: 16, gap: 10, borderRadius: 22 }, style]}>
+    <Card onPress={onPress} style={[{ padding: 14, gap: 8, borderRadius: 18 }, style]}>
       {children}
     </Card>
   );

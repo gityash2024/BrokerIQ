@@ -401,6 +401,7 @@ export function Button({
   }[variant];
   const fg = color ?? (variant === 'secondary' || variant === 'ghost' ? c.fg : variant === 'accent' ? '#111827' : '#fff');
   const h = { sm: 44, md: 48, lg: 56 }[size];
+  const buttonRadius = StyleSheet.flatten(style)?.borderRadius ?? (size === 'lg' ? 16 : 14);
   return (
     <PressableScale
       onPress={access ? onPress : () => toast.info('Ask your Broker Admin for permission to use this action.')}
@@ -412,7 +413,7 @@ export function Button({
         {
           minHeight: h,
           paddingVertical: size === 'sm' ? 10 : 12,
-          borderRadius: size === 'lg' ? 18 : 14,
+          borderRadius: buttonRadius,
           backgroundColor: bg,
           flexDirection: 'row',
           alignItems: 'center',
@@ -420,8 +421,16 @@ export function Button({
           gap: 8,
           paddingHorizontal: size === 'sm' ? 14 : 20,
         },
-        variant === 'secondary' && { borderWidth: 1, borderColor: c.line },
-        variant === 'primary' && { shadowColor: c.brand, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+        variant === 'secondary' && {
+          borderWidth: 1,
+          borderColor: c.line,
+          shadowColor: '#211253',
+          shadowOpacity: 0.12,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 1,
+        },
+        variant === 'primary' && { shadowColor: c.brand, shadowOpacity: 0.24, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
         !access && { opacity: 0.6 },
         full && { alignSelf: 'stretch' },
         style,
@@ -430,10 +439,10 @@ export function Button({
       {variant === 'primary' && !color && (
         <LinearGradient
           pointerEvents="none"
-          colors={['#5524FF', '#441CE8']}
+          colors={['#6728ED', '#3E10BA']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: size === 'lg' ? 18 : 14 }]}
+          style={[StyleSheet.absoluteFill, { borderRadius: buttonRadius }]}
         />
       )}
       {loading ? <InlineLoader size={22} /> : icon}
@@ -614,9 +623,9 @@ export function Card({ children, style, onPress }: { children: React.ReactNode; 
       borderWidth: 1,
       borderColor: c.line,
       shadowColor: '#0F172A',
-      shadowOpacity: isDark ? 0 : 0.05,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0 : 0.07,
+      shadowRadius: 7,
+      shadowOffset: { width: 0, height: 2 },
       elevation: isDark ? 0 : 1,
     },
     style,

@@ -72,7 +72,7 @@ export function InventoryDetailAccess({ item }: { item: LedgerItem }) {
           <Button
             title={selecting ? 'Close agent selection' : 'Give agents 12-hour access'}
             size="sm"
-            variant="secondary"
+            variant={selecting ? 'secondary' : 'primary'}
             onPress={() => setSelecting(!selecting)}
           />
           {selecting && (

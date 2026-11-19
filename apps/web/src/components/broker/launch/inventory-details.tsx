@@ -38,7 +38,7 @@ export function InventoryDetails({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <section className="relative overflow-hidden rounded-2xl border border-line bg-surface p-4">
+        <section className="card relative overflow-hidden p-4">
           <Building2 className="absolute -right-5 -top-4 size-36 text-brand-500/5" aria-hidden />
           {(survey || item.availability === 'AVAILABLE') && <p className="text-sm font-semibold text-brand-600">{inventoryPossessionLabel(item)}</p>}
           {!survey && <h2 className="mt-1 font-display text-2xl font-bold text-fg">{inventoryPrice(item)}</h2>}
@@ -107,7 +107,7 @@ export function InventoryDetails({
               title={!onPublish ? 'This action requires permission from your Broker Admin' : undefined}
               onClick={onPublish}
             >
-              Publish / review property
+              <FileCheck2 className="size-4" /> Publish / review property
             </Button>
           }
           {
@@ -123,7 +123,7 @@ export function InventoryDetails({
           }
           {
             <Button
-              variant="ghost"
+              variant="dangerOutline"
               size="sm"
               disabled={!onArchive}
               title={!onArchive ? 'This action requires permission from your Broker Admin' : undefined}
@@ -134,7 +134,7 @@ export function InventoryDetails({
           }
         </div>
       )}
-      <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="grid gap-3 md:grid-cols-2">
           {inventoryFactGroups(item).map((group) => (
             <section key={group.title} className="min-w-0 rounded-2xl border border-line p-4">
@@ -162,7 +162,7 @@ export function InventoryDetails({
             </section>
           )}
         </div>
-        <aside className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-1">
+        <aside className="grid min-w-0 gap-3 md:grid-cols-2 lg:grid-cols-1">
           <section className="min-w-0 rounded-2xl border border-line p-4">
             <h3 className="mb-3 flex items-center gap-2 font-bold">
               <Phone className="size-4 text-brand-600" />
@@ -179,14 +179,14 @@ export function InventoryDetails({
                         <p className="mt-3 text-sm">{contact.phone}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <a
-                            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-xs font-semibold"
+                            className="action-secondary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                             href={`tel:${contact.phone}`}
                           >
                             <Phone className="size-3.5" />
                             Call
                           </a>
                           <a
-                            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-xs font-semibold"
+                            className="action-secondary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                             href={`https://wa.me/91${contact.phone.replace(/\D/g, '').slice(-10)}`}
                             target="_blank"
                             rel="noreferrer"
