@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 import {
   INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
@@ -50,6 +51,7 @@ export function EntityFields({
   survey?: boolean;
 }) {
   const { c } = useTheme();
+  const [showContacts, setShowContacts] = useState(false);
   const change = (name: string, v: any) =>
     onChange({ ...value, ...(name === 'purpose' && v === 'SALE' && !requirement ? { rent: null, monthlyRent: null } : {}), [name]: v });
   const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit', 'minBudget', 'maxBudget', 'minArea', 'maxArea'];
@@ -69,6 +71,59 @@ export function EntityFields({
   );
   const intent = choice('intent', 'Record type', ['DEMAND', 'OFFER', 'UNKNOWN']);
   const detail = (key: string, fieldValue: unknown) => change('details', { ...value.details, [key]: fieldValue });
+  const contactFields = (
+    <View style={{ gap: 10 }}>
+      <Txt v="h3">Contacts</Txt>
+      {(value.contacts ?? []).map((contact: any, i: number) => (
+        <View key={i} style={{ padding: 12, gap: 10, borderWidth: 1, borderColor: c.line, borderRadius: 12 }}>
+          <Input
+            label="Contact name"
+            value={contact.name ?? ''}
+            onChangeText={(name) =>
+              change(
+                'contacts',
+                value.contacts.map((item: any, n: number) => (n === i ? { ...item, name } : item)),
+              )
+            }
+          />
+          <Input
+            label="Phone"
+            keyboardType="phone-pad"
+            value={contact.phone ?? ''}
+            onChangeText={(phone) =>
+              change(
+                'contacts',
+                value.contacts.map((item: any, n: number) => (n === i ? { ...item, phone } : item)),
+              )
+            }
+          />
+          <ChoiceField
+            label="Contact role"
+            value={contact.role ?? 'OWNER'}
+            choices={['UNKNOWN', 'OWNER', 'BROKER']}
+            onChange={(role) =>
+              change(
+                'contacts',
+                value.contacts.map((item: any, n: number) => (n === i ? { ...item, role: role ?? 'UNKNOWN' } : item)),
+              )
+            }
+          />
+          <Button
+            title="Remove contact"
+            size="sm"
+            variant="ghost"
+            onPress={() =>
+              change(
+                'contacts',
+                value.contacts.filter((_: any, n: number) => n !== i),
+              )
+            }
+          />
+        </View>
+      ))}
+      <Button title="Add contact" variant="secondary" onPress={() => change('contacts', [...(value.contacts ?? []), { role: 'OWNER' }])} />
+    </View>
+  );
   if (survey && !requirement)
     return (
       <View style={{ gap: 14 }}>
@@ -79,8 +134,15 @@ export function EntityFields({
           label="Phone number"
           keyboardType="phone-pad"
           value={value.contacts?.[0]?.phone ?? value.ownerPhone ?? ''}
-          onChangeText={(phone) => change('contacts', [{ ...(value.contacts?.[0] ?? { role: 'UNKNOWN' }), phone }, ...(value.contacts ?? []).slice(1)])}
+          onChangeText={(phone) => change('contacts', [{ ...(value.contacts?.[0] ?? { role: 'OWNER' }), phone }, ...(value.contacts ?? []).slice(1)])}
         />
+        <Button
+          title={showContacts ? 'Hide contact options' : 'Contact options'}
+          size="sm"
+          variant="secondary"
+          onPress={() => setShowContacts(!showContacts)}
+        />
+        {showContacts && contactFields}
         {field('bhk', 'Number of bedrooms')}
         {choice('furnishing', 'Furnishing', ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'])}
         {field('floor', 'Floor')}
@@ -222,55 +284,7 @@ export function EntityFields({
       {!requirement && (
         <>
           {choice('availability', 'Availability', ['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE'])}
-          <Txt v="h3">Contacts</Txt>
-          {(value.contacts ?? []).map((contact: any, i: number) => (
-            <View key={i} style={{ padding: 12, gap: 10, borderWidth: 1, borderColor: c.line, borderRadius: 12 }}>
-              <Input
-                label="Contact name"
-                value={contact.name ?? ''}
-                onChangeText={(name) =>
-                  change(
-                    'contacts',
-                    value.contacts.map((item: any, n: number) => (n === i ? { ...item, name } : item)),
-                  )
-                }
-              />
-              <Input
-                label="Phone"
-                keyboardType="phone-pad"
-                value={contact.phone ?? ''}
-                onChangeText={(phone) =>
-                  change(
-                    'contacts',
-                    value.contacts.map((item: any, n: number) => (n === i ? { ...item, phone } : item)),
-                  )
-                }
-              />
-              <ChoiceField
-                label="Contact role"
-                value={contact.role ?? 'OWNER'}
-                choices={['UNKNOWN', 'OWNER', 'BROKER']}
-                onChange={(role) =>
-                  change(
-                    'contacts',
-                    value.contacts.map((item: any, n: number) => (n === i ? { ...item, role: role ?? 'UNKNOWN' } : item)),
-                  )
-                }
-              />
-              <Button
-                title="Remove contact"
-                size="sm"
-                variant="ghost"
-                onPress={() =>
-                  change(
-                    'contacts',
-                    value.contacts.filter((_: any, n: number) => n !== i),
-                  )
-                }
-              />
-            </View>
-          ))}
-          <Button title="Add contact" variant="secondary" onPress={() => change('contacts', [...(value.contacts ?? []), { role: 'OWNER' }])} />
+          {contactFields}
         </>
       )}
       {!requirement && <NativePropertyExtras value={value} onChange={onChange} separatePossession />}

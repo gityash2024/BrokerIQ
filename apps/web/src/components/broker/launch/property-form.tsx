@@ -221,6 +221,60 @@ export function PropertyForm({
       </label>
     );
   };
+  const contactFields = (
+    <div>
+      <p className="mb-1 font-semibold">Owner details</p>
+      <p className="mb-3 text-xs text-muted">These contacts stay in your firm. Choose a separate public contact when publishing.</p>
+      {contacts.map((contact, index) => (
+        <div key={index} className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <input
+            aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} name`}
+            placeholder="Name, if known"
+            value={contact.name ?? ''}
+            onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))}
+            className="rounded-lg border border-line bg-surface p-2 text-sm"
+          />
+          <input
+            aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} phone`}
+            placeholder="Phone"
+            value={contact.phone ?? ''}
+            onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, phone: e.target.value } : c)))}
+            className="rounded-lg border border-line bg-surface p-2 text-sm"
+          />
+          <select
+            aria-label={`Contact ${index + 1} role`}
+            value={contact.role}
+            onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, role: e.target.value as any } : c)))}
+            className="rounded-lg border border-line bg-surface p-2 text-sm"
+          >
+            <option value="UNKNOWN">Unknown role</option>
+            <option value="OWNER">Owner</option>
+            <option value="BROKER">Broker</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              onDirty?.();
+              setContacts(contacts.filter((_, i) => i !== index));
+            }}
+            className="text-xs text-muted"
+          >
+            Remove contact
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => {
+          onDirty?.();
+          setContacts([...contacts, { name: '', phone: '', role: 'OWNER' }]);
+        }}
+        className="text-sm font-semibold text-brand-600"
+      >
+        + Add contact
+      </button>
+    </div>
+  );
   return (
     <form onSubmit={submit} onChange={onDirty} className="space-y-4">
       <label className="block text-xs font-semibold text-muted">
@@ -265,6 +319,10 @@ export function PropertyForm({
               className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
             />
           </label>
+          <details className="col-span-full rounded-xl border border-line p-3">
+            <summary className="cursor-pointer text-sm font-semibold">Contact options</summary>
+            <div className="mt-3">{contactFields}</div>
+          </details>
           {field('bhk')}
           {select('furnishing')}
           {field('floor')}
@@ -273,58 +331,7 @@ export function PropertyForm({
       ) : (
         <>
           {markRented && <p className="rounded-xl bg-surface-2 p-4 text-sm text-muted">Check the property details before marking it rented out.</p>}
-          <div>
-            <p className="mb-1 font-semibold">Owner details</p>
-            <p className="mb-3 text-xs text-muted">These contacts stay in your firm. Choose a separate public contact when publishing.</p>
-            {contacts.map((contact, index) => (
-              <div key={index} className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <input
-                  aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} name`}
-                  placeholder="Name, if known"
-                  value={contact.name ?? ''}
-                  onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))}
-                  className="rounded-lg border border-line bg-surface p-2 text-sm"
-                />
-                <input
-                  aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} phone`}
-                  placeholder="Phone"
-                  value={contact.phone ?? ''}
-                  onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, phone: e.target.value } : c)))}
-                  className="rounded-lg border border-line bg-surface p-2 text-sm"
-                />
-                <select
-                  aria-label={`Contact ${index + 1} role`}
-                  value={contact.role}
-                  onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, role: e.target.value as any } : c)))}
-                  className="rounded-lg border border-line bg-surface p-2 text-sm"
-                >
-                  <option value="UNKNOWN">Unknown role</option>
-                  <option value="OWNER">Owner</option>
-                  <option value="BROKER">Broker</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDirty?.();
-                    setContacts(contacts.filter((_, i) => i !== index));
-                  }}
-                  className="text-xs text-muted"
-                >
-                  Remove contact
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                onDirty?.();
-                setContacts([...contacts, { name: '', phone: '', role: 'OWNER' }]);
-              }}
-              className="text-sm font-semibold text-brand-600"
-            >
-              + Add contact
-            </button>
-          </div>
+          {contactFields}
 
           <p className="section-kicker">Address details</p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
