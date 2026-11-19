@@ -58,6 +58,7 @@ For a handwritten property register or table, read the page heading before its r
 Read the handwritten row details to the RIGHT of each phone carefully. Extract every legible BHK/RK, floor code, furnishing code and quoted monthly rent such as 10K or 18K. Keep the heading and each horizontal row separate.
 Copy an explicitly stated possession or move-in date in YYYY-MM-DD only when day, month and year are all clear. Read explicit vegetarian-only / non-vegetarian allowed and pets allowed / not allowed per row. Leave blanks as null, never infer a restriction.
 When columns have no printed labels, the FIRST column is the house/plot number. The next long 10-digit number is a contact PHONE, never the house number. For example, a row beginning "941 9876543210" has houseNo "941" and phone "9876543210". Preserve the exact visible house/plot identifier, including letters and slashes. An explicit printed column label takes precedence over this register layout.
+The next lines can have a BLANK left house-number column with phone numbers directly below. They belong to the most recent numbered house above unless a new house or sector starts. For example, house 814 with a number on its row and a second number immediately below, without a house number, is one house and must have BOTH numbers in its contacts array. Keep each number separate, deduplicate exact repeats, and do not carry phones across another house or sector. Read every row from top to bottom, including the lower half of the photo.
 Keep each legible house/plot row as its own record even when it only has a phone or a status note. Copy missing configuration/price fields as null. Preserve source notes such as "No broker" for human review. Keep fields from separate houses on their own rows.
 Broker-confirmed shorthand is SFD = SEMI_FURNISHED, FFD = FULLY_FURNISHED; GF = ground floor (0), FF = first floor (1), SF = second floor (2), TF = Top Floor with unknown numeric level. These floor codes never mean furnishing. Preserve explicit 3rd Floor as 3 and 4th Floor as 4. Read SFD carefully; an unclear SFO requires a warning, never an invented furnishing.
 A row marked Rent out, Rented out or rented is a rented property. Return it with availability RENTED and its house/phone/known facts, even if the price/configuration is missing. It must stay out of Available inventory.
@@ -168,67 +169,127 @@ export function registerPageSector(input: z.infer<typeof captureFactsSchema>, so
   return sectors.length === 1 ? sectors[0] : previous;
 }
 
-function registerFacts(input: z.infer<typeof captureFactsSchema>, source: string) {
+type CaptureFact = z.infer<typeof captureFactsSchema>['records'][number];
+type RegisterRow = { houseNo: string; phones: string[]; sector: string | null; text: string };
+
+const registerPhone = /(?<!\d)(?:\+?91[ -]?)?[6-9]\d(?:[ -]?\d){8}(?!\d)/g;
+const houseColumn = /^\s*(\d[\da-z/.-]{0,19})(?:[ \t|,;:]+|$)/i;
+const rentedStatus = /\brent(?:ed)?[ -]*out\b|\brented\b/i;
+
+function registerRows(source: string): RegisterRow[] {
   let sector: string | null = null;
-  const rows: { houseNo: string; phone: string; sector: string | null; text: string }[] = [];
+  let active: RegisterRow | undefined;
+  const rows: RegisterRow[] = [];
   for (const line of source.split(/\r?\n/)) {
     if (/^\s*(?:sector|sec\.?|सेक्टर)\s*[-:]?\s*\d/i.test(line)) {
       const localities = captureLocalities(line);
       sector = localities.length === 1 ? localities[0] : null;
+      active = undefined;
+      continue;
     }
-    const match = /^\s*([0-9][A-Za-z0-9/.-]{0,19})[ \t|,;]+((?:\+?91[ -]?)?[6-9]\d(?:[ -]?\d){8})(?!\d)/.exec(line);
-    if (!match || /^\d{8,}$/.test(match[1])) continue;
-    const phone = normalizeIndianPhone(match[2]);
-    if (phone) rows.push({ houseNo: match[1], phone, sector, text: line.slice(match[0].length) });
+    const trimmed = line.trim().replace(/^\|\s*/, '');
+    if (!trimmed) continue;
+    const beginsWithPhone = /^\+?(?:91[ -]?)?[6-9]\d(?:[ -]?\d){8}(?!\d)/.test(trimmed);
+    const house = beginsWithPhone ? null : houseColumn.exec(trimmed);
+    const numberText = house ? trimmed.slice(house[0].length) : trimmed;
+    const phones = [...numberText.matchAll(registerPhone)].flatMap(([digits]) => {
+      const phone = normalizeIndianPhone(digits);
+      return phone ? [phone] : [];
+    });
+    if (beginsWithPhone && active) {
+      active.phones = [...new Set([...active.phones, ...phones])];
+      continue;
+    }
+    if (!house || /^\d{8,}$/.test(house[1]) || /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(house[1])) {
+      active = undefined;
+      continue;
+    }
+    active = { houseNo: house[1], phones: [...new Set(phones)], sector, text: numberText };
+    rows.push(active);
   }
+  return rows;
+}
+
+function registerFacts(input: z.infer<typeof captureFactsSchema>, source: string, confirmedRegister: boolean) {
+  const rows = registerRows(source);
   if (!rows.length) return input;
+  const linked = new Set<RegisterRow>();
   const records = input.records.map((record) => {
-    const phones = record.contacts.map((contact) => (contact.phone ? normalizeIndianPhone(contact.phone) : null)).filter(Boolean);
+    const phones = record.contacts.flatMap(({ phone }) => (phone ? [normalizeIndianPhone(phone)] : []));
+    const houseIsPhone = /^\+?\d{10,12}$/.test(record.houseNo ?? '');
+    const sector = record.sector ? captureLocalities(record.sector)[0] : undefined;
     const matches = rows.filter(
       (row) =>
-        (phones.includes(row.phone) || row.houseNo === record.houseNo) &&
-        (!record.houseNo || phones.includes(normalizeIndianPhone(record.houseNo)) || row.houseNo === record.houseNo),
+        (!sector || !row.sector || row.sector === sector) &&
+        (record.houseNo && !houseIsPhone ? row.houseNo === record.houseNo : row.phones.some((phone) => phones.includes(phone))),
     );
-    const identities = new Set(matches.map((row) => JSON.stringify([row.houseNo, row.sector])));
-    if (identities.size !== 1) return record;
+    if (matches.length !== 1) return record;
     const row = matches[0];
-    const phoneInHouse = record.houseNo && phones.includes(normalizeIndianPhone(record.houseNo));
-    const houseNo = !record.houseNo || phoneInHouse ? row.houseNo : record.houseNo;
-    const floor = row.text.match(/\b(GF|FF|SF|TF|[1-9]\d?(?:st|nd|rd|th)\s+floor)\b/i)?.[1];
-    const normalizedFloor = floor ? ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' }[floor.toUpperCase()] ?? floor.match(/^\d+/)?.[0]) : null;
-    const furnishing = /\bSFD\b/i.test(row.text) ? ('SEMI_FURNISHED' as const) : /\bFFD\b/i.test(row.text) ? ('FULLY_FURNISHED' as const) : record.furnishing;
-    return {
-      ...record,
-      houseNo,
-      sector: record.sector || row.sector,
-      furnishing,
-      floor: normalizedFloor || record.floor,
-      availability: /\brent(?:ed)?[ -]*out\b|\brented\b/i.test(row.text) ? ('RENTED' as const) : record.availability,
-    };
+    linked.add(row);
+    const contacts = [...record.contacts];
+    for (const phone of row.phones) {
+      if (contacts.length >= 10) break;
+      if (!phones.includes(phone)) contacts.push({ name: null, phone, role: 'OWNER' });
+    }
+    return { ...applyRegisterRow(record, row), contacts };
   });
+  // Do not turn standalone OCR fragments from ordinary property photos into register properties.
+  const looksLikeRegister = confirmedRegister || rows.filter((row) => row.phones.length > 0).length >= 2;
   for (const row of rows) {
-    if (!/\brent(?:ed)?[ -]*out\b|\brented\b/i.test(row.text) || records.some((record) => record.houseNo === row.houseNo)) continue;
-    records.push({
-      intent: 'OFFER',
-      purpose: 'RENT',
-      society: null,
-      sector: row.sector,
-      houseNo: row.houseNo,
-      floor: null,
-      bhk: null,
-      roomKind: null,
-      area: null,
-      areaUnit: null,
-      priceBasis: null,
-      priceMin: null,
-      priceMax: null,
-      furnishing: null,
-      availability: 'RENTED',
-      contacts: [{ name: null, phone: row.phone, role: 'UNKNOWN' }],
-      warnings: ['Rented register row recovered from its printed house number and phone. Verify against the original photo.'],
-    });
+    if (
+      linked.has(row) ||
+      records.length >= 100 ||
+      records.some((record) => record.houseNo === row.houseNo && (!record.sector || !row.sector || captureLocalities(record.sector).includes(row.sector)))
+    )
+      continue;
+    if (!row.phones.length || (!looksLikeRegister && !rentedStatus.test(row.text))) continue;
+    records.push(
+      applyRegisterRow(
+        {
+          intent: 'OFFER',
+          purpose: rentedStatus.test(row.text) ? 'RENT' : null,
+          society: null,
+          sector: null,
+          houseNo: null,
+          floor: null,
+          bhk: null,
+          roomKind: null,
+          area: null,
+          areaUnit: null,
+          priceBasis: null,
+          priceMin: null,
+          priceMax: null,
+          furnishing: null,
+          contacts: row.phones.slice(0, 10).map((phone) => ({ name: null, phone, role: 'OWNER' })),
+          warnings: ['Register row recovered from the house and phone columns. Verify against the original photo.'],
+        },
+        row,
+      ),
+    );
   }
   return { ...input, records };
+}
+
+function applyRegisterRow(record: CaptureFact, row: RegisterRow): CaptureFact {
+  const floor = row.text.match(/\b(GF|FF|SF|TF|[1-9]\d?(?:st|nd|rd|th)(?:\s+floor)?)\b/i)?.[1];
+  const normalizedFloor = floor ? ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' }[floor.toUpperCase()] ?? floor.match(/^\d+/)?.[0]) : null;
+  const furnishing = /\b(?:SFD|SEMI(?:[ -]FURNISHED)?)\b/i.test(row.text)
+    ? 'SEMI_FURNISHED'
+    : /\b(?:FFD|FULLY(?:[ -]FURNISHED)?)\b/i.test(row.text)
+      ? 'FULLY_FURNISHED'
+      : record.furnishing;
+  const rooms = row.text.match(/(?<![\d.])(\d{1,2})\s*(BHK|RK)\b/i);
+  return {
+    ...record,
+    intent: record.intent === 'UNRELATED' && row.phones.length ? 'OFFER' : record.intent,
+    houseNo: row.houseNo,
+    sector: row.sector || record.sector,
+    furnishing,
+    floor: normalizedFloor || record.floor,
+    bhk: record.bhk ?? (rooms ? Number(rooms[1]) || null : null),
+    roomKind: record.roomKind ?? (rooms ? (rooms[2].toUpperCase() as 'BHK' | 'RK') : null),
+    availability: rentedStatus.test(row.text) ? 'RENTED' : record.availability,
+  };
 }
 function reviewedFacts(input: z.infer<typeof captureFactsSchema>, visual: boolean) {
   const seen = new Set<string>();
@@ -265,9 +326,14 @@ function reviewedFacts(input: z.infer<typeof captureFactsSchema>, visual: boolea
     return false;
   });
 }
-export function factsToEntities(input: z.infer<typeof captureFactsSchema>, source: string, visualEvidence = false): CapturedEntity[] {
+export function factsToEntities(
+  input: z.infer<typeof captureFactsSchema>,
+  source: string,
+  visualEvidence = false,
+  confirmedRegister = false,
+): CapturedEntity[] {
   source = source.normalize('NFKC');
-  const records = reviewedFacts(visualEvidence ? registerFacts(input, source) : input, visualEvidence);
+  const records = reviewedFacts(visualEvidence ? registerFacts(input, source, confirmedRegister) : input, visualEvidence);
   const entities: CapturedEntity[] = records.map((fact) => {
     const warnings = [...fact.warnings, 'AI draft. Verify against the original source.'];
     const evidence = visualEvidence ? source : projectEvidence(source, fact.society, records);
@@ -325,7 +391,12 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
         const grounded = phone && (visualEvidence || source.replace(/\D/g, '').includes(phone.slice(-10)));
         if (contact.phone && !grounded) warnings.push('Unconfirmed contact phone omitted.');
         return {
-          role: contact.role === 'OWNER' && !/(?:\bowner\b|मालिक)/i.test(source) ? 'UNKNOWN' : contact.role,
+          role:
+            visualEvidence && fact.intent === 'OFFER' && fact.houseNo && contact.role === 'UNKNOWN'
+              ? 'OWNER'
+              : contact.role === 'OWNER' && !(visualEvidence && fact.houseNo) && !/(?:\bowner\b|मालिक)/i.test(source)
+                ? 'UNKNOWN'
+                : contact.role,
           phone: grounded ? phone : null,
           name: contact.name && (visualEvidence || compact(source).includes(compact(contact.name))) ? contact.name : null,
         };

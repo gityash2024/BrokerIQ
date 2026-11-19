@@ -425,7 +425,7 @@ export default function InventoryEditor() {
                 <Txt v="h3">Property details</Txt>
                 <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
                 <Row align="flex-start">
-                  <ChoiceField paired label="Room kind" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
+                  <ChoiceField paired label="Property configuration" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
                   {field('bhk', 'BHK / rooms', false, true)}
                 </Row>
                 <Row align="flex-start">

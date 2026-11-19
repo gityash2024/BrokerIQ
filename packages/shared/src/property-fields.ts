@@ -170,7 +170,7 @@ export const INVENTORY_FILTER_LABELS: Record<string, string> = {
   propertyType: 'Property type',
   category: 'Property category',
   bhk: 'Rooms',
-  roomKinds: 'Room kind',
+  roomKinds: 'Property configuration',
   furnishing: 'Furnishing',
   availability: 'Availability',
   sourceType: 'Source',

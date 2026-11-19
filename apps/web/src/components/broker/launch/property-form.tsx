@@ -195,7 +195,7 @@ export function PropertyForm({
             purpose: 'Transaction',
             category: 'Category',
             propertyType: 'Property type',
-            roomKind: 'Room configuration',
+            roomKind: 'Property configuration',
             furnishing: 'Furnishing',
             areaUnit: 'Area unit',
             rateAreaUnit: 'Rate area unit',

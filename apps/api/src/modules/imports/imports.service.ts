@@ -363,7 +363,7 @@ export class ImportsService {
         },
       );
       const facts = captureFactsSchema.parse(parseJsonLoose(response));
-      const entities = factsToEntities(facts, text, true);
+      const entities = factsToEntities(facts, text, true, Boolean(register));
       if (register) {
         const sector = registerPageSector(facts, text, register.previousSector);
         register.setSector(sector);

@@ -50,6 +50,42 @@ describe('minimal AI facts map to independent reviewed business records', () => 
     const [row] = factsToEntities({ records: [fact] }, 'Sector 46\n941 9876543210 ' + source, true);
     expect(row.inventory).toMatchObject({ houseNo: '941', floor, furnishing });
   });
+  it('retains both phone lines for house 814 and defaults scanned contact roles to Owner', () => {
+    const source = [
+      'Sector 46',
+      '809 9876543201 2BHK FF',
+      '814 | 9876543202 TF 30K 2BHK',
+      '    | 98765 43203',
+      '    | 98765 43203',
+      '770',
+      '    | 9876543204',
+      'Sector 47',
+      '    | 9876543205',
+    ].join('\n');
+    const entities = factsToEntities(
+      { records: [{ ...base, society: null, sector: '46', houseNo: '814', contacts: [{ name: null, phone: '9876543202', role: 'BROKER' }] }] },
+      source,
+      true,
+      true,
+    );
+    const rows = new Map(entities.map((entity) => [entity.inventory?.houseNo, entity.inventory]));
+    expect(rows.get('814')).toMatchObject({
+      floor: 'Top Floor',
+      contacts: [
+        { phone: '+919876543202', role: 'BROKER' },
+        { phone: '+919876543203', role: 'OWNER' },
+      ],
+    });
+    expect(rows.get('809')?.contacts?.map((contact) => contact.phone)).toEqual(['+919876543201']);
+    expect(rows.get('770')?.contacts?.map((contact) => contact.phone)).toEqual(['+919876543204']);
+    expect(entities.flatMap(({ inventory }) => inventory?.contacts ?? []).map(({ phone }) => phone)).not.toContain('+919876543205');
+  });
+
+  it('adds a legible contact to a house returned without a phone and will not cross a house-only boundary', () => {
+    const [row] = factsToEntities({ records: [{ ...base, sector: '46', houseNo: '814' }] }, 'Sector 46\n814  2BHK\n9876543218\n815\n9876543219', true, true);
+    expect(row.inventory?.contacts).toEqual([{ name: null, phone: '+919876543218', role: 'OWNER' }]);
+  });
+
   it('retains a rented status-only register row even when the vision proposal omitted it', () => {
     const [row] = factsToEntities({ records: [] }, 'Sector 46\n941 9876543210 Rented out', true);
     expect(row.inventory).toMatchObject({ houseNo: '941', sector: 'Sector 46', availability: 'RENTED', monthlyRent: null, area: null });

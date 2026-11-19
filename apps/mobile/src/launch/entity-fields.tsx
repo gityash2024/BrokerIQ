@@ -194,7 +194,7 @@ export function EntityFields({
           {field('bhk', 'Rooms')}
         </>
       )}
-      {choice('roomKind', 'Room kind', ['BHK', 'RK', 'STUDIO'])}
+      {choice('roomKind', 'Property configuration', ['BHK', 'RK', 'STUDIO'])}
       {choice('furnishing', 'Furnishing', ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'])}
       <Txt v="h3">Price & area</Txt>
       {requirement ? (
@@ -248,7 +248,7 @@ export function EntityFields({
               />
               <ChoiceField
                 label="Contact role"
-                value={contact.role}
+                value={contact.role ?? 'OWNER'}
                 choices={['UNKNOWN', 'OWNER', 'BROKER']}
                 onChange={(role) =>
                   change(
@@ -270,7 +270,7 @@ export function EntityFields({
               />
             </View>
           ))}
-          <Button title="Add contact" variant="secondary" onPress={() => change('contacts', [...(value.contacts ?? []), { role: 'UNKNOWN' }])} />
+          <Button title="Add contact" variant="secondary" onPress={() => change('contacts', [...(value.contacts ?? []), { role: 'OWNER' }])} />
         </>
       )}
       {!requirement && <NativePropertyExtras value={value} onChange={onChange} separatePossession />}
