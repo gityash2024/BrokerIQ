@@ -1,35 +1,36 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Phone } from 'lucide-react-native';
-import { normalizeIndianPhone } from '@brokeriq/shared';
+import { normalizeIndianPhone, type InventoryInput } from '@brokeriq/shared';
 import { captureAccountContext, errorMessage } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
-import { Button, Input, Sheet, Txt } from '@/ui';
+import { Button, Sheet, Txt } from '@/ui';
 import { queueSurveyPhone } from './drafts';
+import { SurveyContactFields } from './survey-contact-fields';
 
 export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; sector?: string }) {
   const client = useQueryClient();
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
-  const [phone, setPhone] = useState('');
+  const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
 
   async function save() {
     if (!allowed || saving.current) return;
-    const normalized = normalizeIndianPhone(phone);
-    if (!normalized) {
-      setError('Enter a valid Indian phone number');
+    const filled = contacts.filter((contact) => contact.name?.trim() || contact.phone?.trim());
+    if (!filled.length || filled.some((contact) => !normalizeIndianPhone(contact.phone))) {
+      setError('Enter a valid Indian phone number for each contact');
       return;
     }
     saving.current = true;
     setBusy(true);
     setError('');
     try {
-      await queueSurveyPhone(normalized, sector, captureAccountContext());
-      setPhone('');
+      await queueSurveyPhone(filled, sector, captureAccountContext());
+      setContacts([]);
       setOpen(false);
       toast.success('Survey phone saved on this device. It will sync automatically.');
       void client.invalidateQueries({ queryKey: ['local-drafts'] });
@@ -58,14 +59,12 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
         }}
         title="Add survey phone"
       >
-        <Input
-          label="Owner phone number"
-          value={phone}
-          keyboardType="phone-pad"
-          maxLength={25}
-          editable={!busy}
-          onChangeText={(value) => {
-            setPhone(value);
+        <SurveyContactFields
+          contacts={contacts}
+          onlyOwner
+          disabled={busy}
+          onChange={(rows) => {
+            setContacts(rows);
             setError('');
           }}
         />

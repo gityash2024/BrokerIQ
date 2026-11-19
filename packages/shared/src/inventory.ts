@@ -102,9 +102,27 @@ export const surveyPhotoInputSchema = z.strictObject({
   photoUrl: inventoryInputSchema.shape.photoUrls.unwrap().element,
 });
 export type SurveyPhotoInput = z.infer<typeof surveyPhotoInputSchema>;
-export const surveyPhoneInputSchema = surveyPhotoInputSchema.omit({ photoUrl: true }).extend({
-  phone: z.string().trim().min(1).max(25).refine((value) => !!normalizeIndianPhone(value), 'Enter a valid Indian phone number'),
-});
+const surveyPhoneBase = surveyPhotoInputSchema.omit({ photoUrl: true });
+const requiredSurveyPhone = z
+  .string()
+  .trim()
+  .min(1)
+  .max(25)
+  .refine((value) => !!normalizeIndianPhone(value), 'Enter a valid Indian phone number');
+export const surveyPhoneInputSchema = z.union([
+  surveyPhoneBase.extend({ phone: requiredSurveyPhone }),
+  surveyPhoneBase.extend({
+    contacts: z
+      .array(
+        inventoryContactSchema.extend({
+          role: z.literal('OWNER').default('OWNER'),
+          phone: requiredSurveyPhone.transform((value) => normalizeIndianPhone(value)!),
+        }),
+      )
+      .min(1, 'Add at least one owner phone number')
+      .max(30),
+  }),
+]);
 export type SurveyPhoneInput = z.infer<typeof surveyPhoneInputSchema>;
 export const inventoryFilterSchema = z.object({
   folderMode: inventoryFolderModeSchema.optional(),

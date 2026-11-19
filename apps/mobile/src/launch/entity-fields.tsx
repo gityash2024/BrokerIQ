@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { View } from 'react-native';
 import {
   INVENTORY_PROPERTY_TYPES as PROPERTY_TYPES,
@@ -13,6 +12,7 @@ import { Input, Button, Txt } from '@/ui';
 import { NativePropertyExtras } from './property-extras';
 import { PropertyDateField } from './property-date-field';
 import { ChoiceField } from './form';
+import { SurveyContactFields } from './survey-contact-fields';
 import { useTheme } from '@/lib/theme';
 export function prepareEntity(value: Record<string, any>, requirement = false): InventoryInput | BrokerRequirementInput {
   if (requirement && value.intent === 'OFFER')
@@ -28,6 +28,8 @@ export function prepareEntity(value: Record<string, any>, requirement = false): 
     input[key] = input[key] === '' || input[key] == null ? null : Number(input[key]);
   if (!requirement) {
     input.details = preparePropertyDetails(input.details);
+    if (Array.isArray(input.contacts))
+      input.contacts = input.contacts.filter((contact) => contact.name?.trim() || contact.phone?.trim() || contact.note?.trim());
     const monthly = input.monthlyRent ?? (input.purpose === 'RENT' ? input.rent : null);
     input.monthlyRent = monthly === '' || monthly == null ? null : Number(monthly);
     delete input.rent;
@@ -51,7 +53,6 @@ export function EntityFields({
   survey?: boolean;
 }) {
   const { c } = useTheme();
-  const [showContacts, setShowContacts] = useState(false);
   const change = (name: string, v: any) =>
     onChange({ ...value, ...(name === 'purpose' && v === 'SALE' && !requirement ? { rent: null, monthlyRent: null } : {}), [name]: v });
   const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit', 'minBudget', 'maxBudget', 'minArea', 'maxArea'];
@@ -130,19 +131,10 @@ export function EntityFields({
         <PropertyDateField label="Possession date" value={value.details?.possessionDate} onChange={(date) => detail('possessionDate', date)} />
         {field('houseNo', 'House / plot no.')}
         {field('sector', 'Sector / locality')}
-        <Input
-          label="Phone number"
-          keyboardType="phone-pad"
-          value={value.contacts?.[0]?.phone ?? value.ownerPhone ?? ''}
-          onChangeText={(phone) => change('contacts', [{ ...(value.contacts?.[0] ?? { role: 'OWNER' }), phone }, ...(value.contacts ?? []).slice(1)])}
+        <SurveyContactFields
+          contacts={value.contacts ?? (value.ownerPhone ? [{ name: value.ownerName, phone: value.ownerPhone, role: 'OWNER' }] : [])}
+          onChange={(rows) => change('contacts', rows)}
         />
-        <Button
-          title={showContacts ? 'Hide contact options' : 'Contact options'}
-          size="sm"
-          variant="secondary"
-          onPress={() => setShowContacts(!showContacts)}
-        />
-        {showContacts && contactFields}
         {field('bhk', 'Number of bedrooms')}
         {choice('furnishing', 'Furnishing', ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'])}
         {field('floor', 'Floor')}

@@ -27,6 +27,7 @@ import { NativePropertyExtras } from '@/launch/property-extras';
 import { NativePropertyMedia } from '@/launch/property-media';
 import { PropertyDateField } from '@/launch/property-date-field';
 import { ChoiceField } from '@/launch/form';
+import { SurveyContactFields } from '@/launch/survey-contact-fields';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -189,7 +190,8 @@ export default function InventoryEditor() {
       if (createSurvey && Number(form.bhk) > 0) Object.assign(effective, { roomKind: 'BHK', category: 'RESIDENTIAL' });
       if (baseline.current?.availability === 'AVAILABLE' || markRented || (!form._activateInDirectory && form.availability !== 'AVAILABLE'))
         delete effective.availableSince;
-      if (!id) effective.contacts = (form.contacts ?? []).filter((contact: any) => contact.name?.trim() || contact.phone?.trim() || contact.note?.trim());
+      if (!id || (compactSurvey && Array.isArray(form.contacts)))
+        effective.contacts = (form.contacts ?? []).filter((contact: any) => contact.name?.trim() || contact.phone?.trim() || contact.note?.trim());
       if (!markRented && form._activateInDirectory) {
         if (!inventoryMonthSchema.safeParse(form.directoryMonth).success) throw new Error('Choose the year and month for this property.');
         const missing = missingInventoryFolderFields(effective);
@@ -223,9 +225,17 @@ export default function InventoryEditor() {
       if (saved?.state === 'FAILED') throw new Error(saved.error ?? 'Save failed. Your changes remain in Saved drafts.');
       toast.success(saved?.state === 'SYNCED' ? 'Property saved' : 'Saved on this device. Sync will resume when connected.');
       await Promise.all(
-        ['ledger', 'ledger-item', 'ledger-stats', 'inventory-folders', 'inventory-folder-items', 'broker-today', 'agent-assignments', 'agent-assignment-records', 'local-drafts'].map((k) =>
-          qc.invalidateQueries({ queryKey: [k] }),
-        ),
+        [
+          'ledger',
+          'ledger-item',
+          'ledger-stats',
+          'inventory-folders',
+          'inventory-folder-items',
+          'broker-today',
+          'agent-assignments',
+          'agent-assignment-records',
+          'local-drafts',
+        ].map((k) => qc.invalidateQueries({ queryKey: [k] })),
       );
       router.back();
     } catch (e) {
@@ -279,11 +289,10 @@ export default function InventoryEditor() {
                 {field('houseNo', 'House / plot no.', false, true)}
               </Row>
               {localities.isError && <Button title="Retry sectors" size="sm" variant="ghost" onPress={() => void localities.refetch()} />}
-              <Input
-                label="Phone number"
-                keyboardType="phone-pad"
-                value={form.contacts?.[0]?.phone ?? form.ownerPhone ?? ''}
-                onChangeText={(phone) => change('contacts', [{ ...(form.contacts?.[0] ?? { role: 'OWNER' }), phone }, ...(form.contacts ?? []).slice(1)])}
+              <SurveyContactFields
+                contacts={form.contacts ?? (form.ownerPhone ? [{ name: form.ownerName, phone: form.ownerPhone, role: 'OWNER' }] : [])}
+                onChange={(contacts) => change('contacts', contacts)}
+                disabled={!ready || saving}
               />
               <Row align="flex-start">
                 {field('bhk', 'Bedrooms', false, true)}
@@ -425,7 +434,13 @@ export default function InventoryEditor() {
                 <Txt v="h3">Property details</Txt>
                 <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
                 <Row align="flex-start">
-                  <ChoiceField paired label="Property configuration" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
+                  <ChoiceField
+                    paired
+                    label="Property configuration"
+                    value={form.roomKind}
+                    choices={['BHK', 'RK', 'STUDIO']}
+                    onChange={(v) => change('roomKind', v)}
+                  />
                   {field('bhk', 'BHK / rooms', false, true)}
                 </Row>
                 <Row align="flex-start">

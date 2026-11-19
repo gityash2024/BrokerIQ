@@ -5,6 +5,7 @@ import {
   prepareInventoryEditorInput,
   surveyPhotoInputSchema,
   surveyPhoneInputSchema,
+  type InventoryInput,
   captureContentType,
   followUpInputSchema,
   hasDelegatedAccess,
@@ -331,9 +332,9 @@ export async function queueSurveyPhoto(uri: string, sector: string | undefined, 
   await queueDraft(saved, owner);
   return saved;
 }
-export async function queueSurveyPhone(phone: string, sector?: string, owner = contextNow()) {
+export async function queueSurveyPhone(contacts: NonNullable<InventoryInput['contacts']>, sector?: string, owner = contextNow()) {
   const id = Crypto.randomUUID();
-  const input = surveyPhoneInputSchema.parse({ phone, sector, clientMutationId: id });
+  const input = surveyPhoneInputSchema.parse({ contacts, sector, clientMutationId: id });
   await saveDraft('PROPERTY_SURVEY_PHONE', id, input, id, owner);
   await queueDraft(id, owner);
   return id;

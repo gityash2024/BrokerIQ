@@ -706,7 +706,13 @@ export class InventoryService {
   }
   createSurveyPhone(input: SurveyPhoneInput, user: RequestUser) {
     return this.createRecord(
-      { sector: input.sector, ownerPhone: input.phone, clientMutationId: input.clientMutationId, survey: true, purpose: 'RENT' },
+      {
+        sector: input.sector,
+        ...('phone' in input ? { ownerPhone: input.phone } : { contacts: input.contacts }),
+        clientMutationId: input.clientMutationId,
+        survey: true,
+        purpose: 'RENT',
+      },
       user,
       { quickSurvey: true },
     );

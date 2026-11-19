@@ -55,7 +55,9 @@ export default function ReviewPage() {
       },
     });
     await Promise.all(
-      ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements', 'broker-today'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+      ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements', 'broker-today'].map((key) =>
+        qc.invalidateQueries({ queryKey: [key] }),
+      ),
     );
     toast.success(
       ignore
@@ -67,13 +69,22 @@ export default function ReviewPage() {
             : 'Saved to Requirements',
     );
   }
+  const imageRows =
+    query.data?.sourceType === 'IMAGE'
+      ? (query.data?.entries ?? []).reduce(
+          (sum: number, entry: { extracted?: CapturedEntity[] }) => sum + (entry.extracted ?? []).filter((record) => record.kind === 'INVENTORY').length,
+          0,
+        )
+      : null;
   return (
     <>
       <div ref={top} />
       <PageHeader
         title={query.data?.fileName || 'Source review'}
         subtitle={
-          query.data ? `${query.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${query.data.pending} need review`}` : 'Loading source…'
+          query.data
+            ? `${imageRows !== null ? `${query.data.total} source · ${imageRows} property ${imageRows === 1 ? 'row' : 'rows'}` : `${query.data.total} entries`}${previewOfImportId ? ' · Read-only preview' : ` · ${query.data.pending} need review`}`
+            : 'Loading source…'
         }
         actions={
           <Link href="/broker/imports" className="text-sm text-brand-600">

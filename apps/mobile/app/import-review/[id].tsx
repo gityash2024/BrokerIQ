@@ -59,10 +59,21 @@ export default function ImportReview() {
       setOpeningPreview(false);
     }
   }
+  const imageRows =
+    q.data?.sourceType === 'IMAGE'
+      ? (q.data?.entries ?? []).reduce(
+          (sum: number, entry: { extracted?: CapturedEntity[] }) => sum + (entry.extracted ?? []).filter((record) => record.kind === 'INVENTORY').length,
+          0,
+        )
+      : null;
   return (
     <BrokerScreen
       title="Review capture"
-      subtitle={q.data ? `${q.data.total} entries${previewOfImportId ? ' · Read-only preview' : ` · ${q.data.pending} need review`}` : 'Source saved, loading…'}
+      subtitle={
+        q.data
+          ? `${imageRows !== null ? `${q.data.total} source · ${imageRows} property ${imageRows === 1 ? 'row' : 'rows'}` : `${q.data.total} entries`}${previewOfImportId ? ' · Read-only preview' : ` · ${q.data.pending} need review`}`
+          : 'Source saved, loading…'
+      }
       back
     >
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 76 }}>

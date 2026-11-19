@@ -146,6 +146,36 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     await api().delete(path).set(headers(admin)).expect(200);
   });
 
+  it('saves each named owner and phone together in a quick Survey draft', async () => {
+    const endpoint = '/api/inventory/survey-phone';
+    const payload = {
+      clientMutationId: randomUUID(),
+      sector: 'Sector 46',
+      contacts: [
+        { name: 'First owner', phone: '9701188964', role: 'OWNER' },
+        { name: 'Second owner', phone: '+91 9701188965', role: 'OWNER' },
+        { phone: '9701188966', role: 'OWNER' },
+      ],
+    };
+    const { body } = await api().post(endpoint).set(headers(agent)).send(payload).expect(201);
+    expect(body.contacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'First owner', phone: '+919701188964', role: 'OWNER' }),
+        expect.objectContaining({ name: 'Second owner', phone: '+919701188965', role: 'OWNER' }),
+        expect.objectContaining({ name: null, phone: '+919701188966', role: 'OWNER' }),
+      ]),
+    );
+    expect((await api().post(endpoint).set(headers(agent)).send(payload).expect(201)).body.id).toBe(body.id);
+    await api()
+      .get('/api/inventory/' + body.id)
+      .set(headers(otherAgent))
+      .expect(404);
+    await api()
+      .delete('/api/inventory/' + body.id)
+      .set(headers(admin))
+      .expect(200);
+  });
+
   it('keeps Survey private, then promotes and rents the same property without losing possession or photos', async () => {
     const sparse = { survey: true, sector: 'Sector 57', houseNo: 'S-552', contacts: [{ phone: '9701188901', role: 'OWNER' }] };
     await api().post('/api/inventory').set(headers(agent)).send(sparse).expect(400);
