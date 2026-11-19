@@ -39,14 +39,14 @@ export const captureInputSchema = z
     senderName: z.string().max(100).optional(),
     senderPhone: z.string().max(25).optional(),
     groupName: z.string().max(150).optional(),
-    target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT']).optional(),
+    target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT', 'SURVEY']).optional(),
     directoryMonth: inventoryMonthSchema.optional(),
   })
   .refine((s) => !!s.rawText?.trim() || !!s.fileDataUrl, 'Text or a file is required');
 export const reviewSchema = z.object({
   entities: z.array(capturedEntitySchema).max(100),
   ignore: z.boolean().optional(),
-  destination: z.enum(['INVENTORY', 'REQUIREMENT']).optional(),
+  destination: z.enum(['INVENTORY', 'REQUIREMENT', 'SURVEY']).optional(),
   expectedUpdatedAt: z.string().datetime().optional(),
 });
 function reviewProvenance(value: Prisma.JsonValue) {
@@ -570,9 +570,11 @@ export class ImportsService {
     }
   }
   async review(entryId: string, input: z.infer<typeof reviewSchema>, user: RequestUser, approve = false) {
+    const survey = input.destination === 'SURVEY';
+    const propertyDestination = survey || input.destination === 'INVENTORY';
     if (approve && !input.ignore) {
       if (!input.entities.some((e) => e.kind !== 'UNRELATED')) throw new BadRequestException('Approve a property/requirement or choose Ignore');
-      const directInventory = input.destination === 'INVENTORY' && input.entities.some((entity) => entity.kind === 'INVENTORY');
+      const directInventory = propertyDestination && input.entities.some((entity) => entity.kind === 'INVENTORY');
       const needsRequirements = input.entities.some((entity) => entity.kind === 'REQUIREMENT' || (entity.kind === 'INVENTORY' && !directInventory));
       if (needsRequirements) {
         await this.modules.assertPath('/broker-requirements', user.role);
@@ -593,6 +595,7 @@ export class ImportsService {
         if (['APPROVED', 'IGNORED', 'DUPLICATE'].includes(entry.reviewState)) return { state: entry.reviewState, duplicate: true };
         if (input.expectedUpdatedAt && new Date(input.expectedUpdatedAt).getTime() !== entry.updatedAt.getTime())
           throw new ConflictException('Entry changed. Reload review.');
+        const surveySource = survey || (entry.batch.metadata as { requestedTarget?: string } | null)?.requestedTarget === 'SURVEY';
         if (approve && !input.ignore) {
           for (let index = 0; index < input.entities.length; index++) {
             const entity = input.entities[index];
@@ -600,15 +603,16 @@ export class ImportsService {
             if (entity.kind === 'UNRELATED') continue;
             if (entity.kind === 'INVENTORY' && !entity.inventory) throw new BadRequestException('Offered property fields required');
             if (entity.kind === 'REQUIREMENT' && !entity.requirement) throw new BadRequestException('Requirement fields required');
-            if (entity.kind === 'INVENTORY' && input.destination === 'INVENTORY') {
+            if (entity.kind === 'INVENTORY' && propertyDestination) {
               const unit = entity.inventory!;
               const rented = unit.availability === 'RENTED';
-              const missing = rented
-                ? [
-                    ...(!unit.houseNo?.trim() ? ['House / plot number'] : []),
-                    ...(!unit.sector?.trim() && !unit.address?.trim() ? ['Sector / locality or address'] : []),
-                  ]
-                : missingInventoryFolderFields(unit);
+              const missing =
+                rented || survey
+                  ? [
+                      ...(!unit.houseNo?.trim() ? ['House / plot number'] : []),
+                      ...(!unit.sector?.trim() && !unit.address?.trim() ? ['Sector / locality or address'] : []),
+                    ]
+                  : missingInventoryFolderFields(unit);
               if (missing.length) throw new BadRequestException(`Property ${index + 1}: fill ${missing.join(', ')} before approval.`);
               const preferredMonth = inventoryMonthSchema.safeParse((entry.batch.metadata as { directoryMonth?: unknown } | null)?.directoryMonth);
               const directoryMonth = unit.directoryMonth ?? (preferredMonth.success ? preferredMonth.data : inventoryMonth(entry.batch.createdAt));
@@ -617,15 +621,24 @@ export class ImportsService {
                 assignedToId: _assignee,
                 clientMutationId: _clientMutationId,
                 expectedRevision: _revision,
+                survey: _survey,
                 ...fields
               } = unit;
               await this.inventory.create(
                 {
                   ...fields,
                   organizationId: entry.batch.organizationId,
-                  ...(rented
-                    ? { directoryMonth: undefined, availability: 'RENTED', status: 'INACTIVE', verificationStatus: 'NEEDS_REVIEW' }
-                    : { directoryMonth }),
+                  ...(surveySource ? { survey: true as const, purpose: unit.purpose ?? ('RENT' as const) } : {}),
+                  ...(survey
+                    ? {
+                        directoryMonth: undefined,
+                        availability: rented ? ('RENTED' as const) : ('UNKNOWN' as const),
+                        status: rented ? ('RENTED' as const) : ('DRAFT' as const),
+                        verificationStatus: 'NEEDS_REVIEW' as const,
+                      }
+                    : rented
+                      ? { directoryMonth: undefined, availability: 'RENTED', status: surveySource ? 'RENTED' : 'INACTIVE', verificationStatus: 'NEEDS_REVIEW' }
+                      : { directoryMonth }),
                 },
                 user,
                 tx,

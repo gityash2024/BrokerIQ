@@ -10,6 +10,7 @@ import {
 } from '@brokeriq/shared';
 import { Input, Button, Txt } from '@/ui';
 import { NativePropertyExtras } from './property-extras';
+import { PropertyDateField } from './property-date-field';
 import { ChoiceField } from './form';
 import { useTheme } from '@/lib/theme';
 export function prepareEntity(value: Record<string, any>, requirement = false): InventoryInput | BrokerRequirementInput {
@@ -40,11 +41,13 @@ export function EntityFields({
   onChange,
   requirement = false,
   folderMonth,
+  survey = false,
 }: {
   value: Record<string, any>;
   onChange: (value: Record<string, any>) => void;
   requirement?: boolean;
   folderMonth?: string;
+  survey?: boolean;
 }) {
   const { c } = useTheme();
   const change = (name: string, v: any) =>
@@ -65,6 +68,38 @@ export function EntityFields({
     <ChoiceField label={label} value={value[key]} choices={options} onChange={(v) => change(key, v)} />
   );
   const intent = choice('intent', 'Record type', ['DEMAND', 'OFFER', 'UNKNOWN']);
+  const detail = (key: string, fieldValue: unknown) => change('details', { ...value.details, [key]: fieldValue });
+  if (survey && !requirement)
+    return (
+      <View style={{ gap: 14 }}>
+        <PropertyDateField label="Possession date" value={value.details?.possessionDate} onChange={(date) => detail('possessionDate', date)} />
+        {field('houseNo', 'House / plot no.')}
+        {field('sector', 'Sector / locality')}
+        <Input
+          label="Phone number"
+          keyboardType="phone-pad"
+          value={value.contacts?.[0]?.phone ?? value.ownerPhone ?? ''}
+          onChangeText={(phone) => change('contacts', [{ ...(value.contacts?.[0] ?? { role: 'UNKNOWN' }), phone }, ...(value.contacts ?? []).slice(1)])}
+        />
+        {field('bhk', 'Number of bedrooms')}
+        {choice('furnishing', 'Furnishing', ['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED'])}
+        {field('floor', 'Floor')}
+        <ChoiceField
+          label="Food preference"
+          value={value.details?.foodPreference}
+          choices={['VEGETARIAN_ONLY', 'NO_RESTRICTION']}
+          onChange={(food) => detail('foodPreference', food)}
+        />
+        <ChoiceField
+          label="Pets allowed"
+          value={value.details?.petFriendly == null ? null : String(value.details.petFriendly)}
+          choices={['true', 'false']}
+          labels={{ true: 'Allowed', false: 'Not allowed' }}
+          onChange={(pets) => detail('petFriendly', pets == null ? null : pets === 'true')}
+        />
+        {choice('availability', 'Observed status', ['UNKNOWN', 'RENTED'])}
+      </View>
+    );
   if (requirement && value.intent === 'OFFER')
     return (
       <View style={{ gap: 14 }}>
@@ -104,6 +139,7 @@ export function EntityFields({
         </>
       ) : (
         <>
+          <PropertyDateField label="Possession date" value={value.details?.possessionDate} onChange={(date) => detail('possessionDate', date)} />
           <Txt v="h3">Location</Txt>
           {field('houseNo', 'House / plot no.')}
           {field('sector', 'Sector / locality')}
@@ -237,7 +273,7 @@ export function EntityFields({
           <Button title="Add contact" variant="secondary" onPress={() => change('contacts', [...(value.contacts ?? []), { role: 'UNKNOWN' }])} />
         </>
       )}
-      {!requirement && <NativePropertyExtras value={value} onChange={onChange} />}
+      {!requirement && <NativePropertyExtras value={value} onChange={onChange} separatePossession />}
       {field('notes', 'Notes', true)}
     </View>
   );

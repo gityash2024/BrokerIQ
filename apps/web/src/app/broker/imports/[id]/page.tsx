@@ -30,6 +30,7 @@ export default function ReviewPage() {
     if (query.data && page > Math.max(1, query.data.totalPages)) setPage(Math.max(1, query.data.totalPages));
   }, [query.data, page]);
   const inventoryTarget = query.data?.metadata?.requestedTarget === 'INVENTORY';
+  const surveyTarget = query.data?.metadata?.requestedTarget === 'SURVEY';
   const requestedMonth = inventoryMonthSchema.safeParse(query.data?.metadata?.directoryMonth);
   const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth(query.data?.createdAt ? new Date(query.data.createdAt) : new Date());
   const previewOfImportId = query.data?.previewOfImportId as string | undefined;
@@ -44,14 +45,27 @@ export default function ReviewPage() {
       setOpeningPreview(false);
     }
   }
-  async function approve(entry: any, entities: CapturedEntity[], ignore = false, version?: string) {
+  async function approve(entry: any, entities: CapturedEntity[], ignore = false, version?: string, confirmAvailable = false) {
     await api(`/imports/entries/${entry.id}/approve`, {
-      body: { entities, ignore, expectedUpdatedAt: version ?? entry.updatedAt, destination: inventoryTarget ? 'INVENTORY' : 'REQUIREMENT' },
+      body: {
+        entities,
+        ignore,
+        expectedUpdatedAt: version ?? entry.updatedAt,
+        destination: inventoryTarget || confirmAvailable ? 'INVENTORY' : surveyTarget ? 'SURVEY' : 'REQUIREMENT',
+      },
     });
     await Promise.all(
       ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
     );
-    toast.success(ignore ? 'Source marked unrelated' : inventoryTarget ? 'Reviewed records saved' : 'Saved to Requirements');
+    toast.success(
+      ignore
+        ? 'Source marked unrelated'
+        : surveyTarget && !confirmAvailable
+          ? 'Survey review saved'
+          : inventoryTarget || confirmAvailable
+            ? 'Reviewed records saved'
+            : 'Saved to Requirements',
+    );
   }
   return (
     <>
@@ -162,7 +176,8 @@ export default function ReviewPage() {
             batchId={id}
             image={query.data?.sourceType === 'IMAGE'}
             folderMonth={inventoryTarget ? folderMonth : undefined}
-            onApprove={(entities, ignore, version) => approve(entry, entities, ignore, version)}
+            survey={surveyTarget}
+            onApprove={(entities, ignore, version, confirmAvailable) => approve(entry, entities, ignore, version, confirmAvailable)}
           />
         ))}
       </div>
@@ -202,13 +217,15 @@ function Entry({
   batchId,
   image,
   folderMonth,
+  survey,
   onApprove,
 }: {
   entry: any;
   batchId: string;
   image: boolean;
   folderMonth?: string;
-  onApprove: (entities: CapturedEntity[], ignore?: boolean, version?: string) => Promise<void>;
+  survey?: boolean;
+  onApprove: (entities: CapturedEntity[], ignore?: boolean, version?: string, confirmAvailable?: boolean) => Promise<void>;
 }) {
   const [entities, setEntities] = useState<CapturedEntity[]>(entry.extracted ?? []);
   const [expanded, setExpanded] = useState(false);
@@ -217,6 +234,7 @@ function Entry({
   const done = entry.reviewState !== 'NEEDS_REVIEW';
   const [version, setVersion] = useState(entry.updatedAt);
   const [approving, setApproving] = useState(false);
+  const [confirmAvailable, setConfirmAvailable] = useState(false);
   const hasProperties = entities.some((entity) => entity.kind === 'INVENTORY');
   const [prepared, setPrepared] = useState<number[]>([]);
   const ready = entities.some((e) => e.kind !== 'UNRELATED') && entities.every((e, i) => e.kind === 'UNRELATED' || prepared.includes(i));
@@ -225,7 +243,7 @@ function Entry({
     setApproving(true);
     setError('');
     try {
-      await onApprove(entities, false, version);
+      await onApprove(entities, false, version, confirmAvailable);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -316,11 +334,15 @@ function Entry({
                 {!done &&
                   (entity.kind === 'INVENTORY' ? (
                     <PropertyForm
+                      key={confirmAvailable ? 'available' : 'review'}
                       initial={entity.inventory}
+                      survey={survey && !confirmAvailable}
                       activateInMonth={
-                        folderMonth && entity.inventory?.availability !== 'RENTED' ? (entity.inventory?.directoryMonth ?? folderMonth) : undefined
+                        (folderMonth || confirmAvailable) && entity.inventory?.availability !== 'RENTED'
+                          ? (entity.inventory?.directoryMonth ?? folderMonth ?? inventoryMonth())
+                          : undefined
                       }
-                      requireAvailability={Boolean(folderMonth) && entity.inventory?.availability !== 'RENTED'}
+                      requireAvailability={Boolean(folderMonth || confirmAvailable) && entity.inventory?.availability !== 'RENTED'}
                       onDirty={() => setPrepared(prepared.filter((i) => i !== index))}
                       label="Save reviewed fields"
                       onSave={async (inventory) => {
@@ -371,15 +393,32 @@ function Entry({
                     + Requirement
                   </button>
                 </div>
-                <div className="flex gap-4">
+                {survey && hasProperties && (
+                  <label className="flex min-h-11 items-center gap-2 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={confirmAvailable}
+                      onChange={(event) => {
+                        setConfirmAvailable(event.target.checked);
+                        setPrepared([]);
+                      }}
+                    />{' '}
+                    Already confirmed availability
+                  </label>
+                )}
+                <div className="flex flex-wrap gap-3">
                   <button
                     disabled={!ready || approving}
-                    onClick={approve}
+                    onClick={() => void approve()}
                     className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                   >
-                    {folderMonth && entities.some((entity) => entity.kind === 'INVENTORY' && entity.inventory?.availability !== 'RENTED')
+                    {confirmAvailable
                       ? 'Confirm available & save records'
-                      : 'Approve saved records'}
+                      : survey
+                        ? 'Save to Survey'
+                        : folderMonth && entities.some((entity) => entity.kind === 'INVENTORY' && entity.inventory?.availability !== 'RENTED')
+                          ? 'Confirm available & save records'
+                          : 'Approve saved records'}
                   </button>
                   <button
                     onClick={async () => {

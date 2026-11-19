@@ -9,6 +9,7 @@ import {
   inventoryMonth,
   inventoryMonthSchema,
   missingInventoryFolderFields,
+  isPendingSurvey,
   type InventoryInput,
   type LedgerItem,
 } from '@brokeriq/shared';
@@ -56,6 +57,7 @@ export function PropertyForm({
   activateInMonth,
   markRented = false,
   requireAvailability = false,
+  survey = false,
 }: {
   initial?: InventoryInput | LedgerItem;
   onSave: (input: InventoryInput) => Promise<void>;
@@ -64,6 +66,7 @@ export function PropertyForm({
   activateInMonth?: string;
   markRented?: boolean;
   requireAvailability?: boolean;
+  survey?: boolean;
 }) {
   const { user } = useAuth();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
@@ -84,6 +87,12 @@ export function PropertyForm({
   const [activate, setActivate] = useState(Boolean(activateInMonth));
   const [purpose, setPurpose] = useState(initial.purpose ?? '');
   const [location, setLocation] = useState({ sector: initial.sector, houseNo: initial.houseNo, address: initial.address });
+  const localities = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
+    enabled: survey,
+    staleTime: 600_000,
+  });
   const navigation = inventoryNavigation(location);
   const [photos, setPhotos] = useState(initial.photoUrls ?? []);
   const [videos, setVideos] = useState(initial.videoUrls ?? []);
@@ -105,6 +114,17 @@ export function PropertyForm({
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
     Object.assign(values, readPropertyExtras(form), { photoUrls: photos, videoUrls: videos });
+    if (survey) {
+      values.details = { ...initial.details, ...values.details };
+      if (!('revision' in initial))
+        Object.assign(values, {
+          ...initial,
+          ...values,
+          survey: true,
+          purpose: initial.purpose ?? 'RENT',
+          ...(values.bhk ? { roomKind: initial.roomKind ?? 'BHK', category: initial.category ?? 'RESIDENTIAL' } : {}),
+        });
+    }
     // Keep source amenities which have no checkbox in the current taxonomy.
     values.amenities = [
       ...new Set([...(initial.amenities ?? []).filter((a) => !form.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)), ...values.amenities]),
@@ -126,7 +146,8 @@ export function PropertyForm({
       }
       if (markRented) {
         const missing = missingInventoryFolderFields({ ...initial, ...values });
-        if (missing.length) throw new Error('Fill these fields to mark the property Rented out: ' + missing.join(', '));
+        if (missing.length && !('sourceType' in initial && isPendingSurvey(initial)))
+          throw new Error('Fill these fields to mark the property Rented out: ' + missing.join(', '));
         if (
           'publishedListing' in initial &&
           initial.publishedListing?.status === 'ACTIVE' &&
@@ -201,95 +222,147 @@ export function PropertyForm({
     );
   };
   return (
-    <form onSubmit={submit} onChange={onDirty} className="space-y-5">
-      {markRented && <p className="rounded-xl bg-surface-2 p-4 text-sm text-muted">Check the property details before marking it rented out.</p>}
-      <div>
-        <p className="mb-1 font-semibold">Owner details</p>
-        <p className="mb-3 text-xs text-muted">These contacts stay in your firm. Choose a separate public contact when publishing.</p>
-        {contacts.map((contact, index) => (
-          <div key={index} className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <input
-              aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} name`}
-              placeholder="Name, if known"
-              value={contact.name ?? ''}
-              onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))}
-              className="rounded-lg border border-line bg-surface p-2 text-sm"
-            />
-            <input
-              aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} phone`}
-              placeholder="Phone"
-              value={contact.phone ?? ''}
-              onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, phone: e.target.value } : c)))}
-              className="rounded-lg border border-line bg-surface p-2 text-sm"
-            />
+    <form onSubmit={submit} onChange={onDirty} className="space-y-4">
+      <label className="block text-xs font-semibold text-muted">
+        Possession date
+        <input
+          type="date"
+          name="details.possessionDate"
+          required={survey && !markRented && initial.availability !== 'RENTED'}
+          defaultValue={typeof initial.details?.possessionDate === 'string' ? initial.details.possessionDate : ''}
+          className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+        />
+      </label>
+      {survey ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <label className="text-xs font-semibold text-muted">
+            Sector / locality
             <select
-              aria-label={`Contact ${index + 1} role`}
-              value={contact.role}
-              onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, role: e.target.value as any } : c)))}
-              className="rounded-lg border border-line bg-surface p-2 text-sm"
+              name="sector"
+              required
+              value={location.sector ?? ''}
+              onChange={(event) => setLocation({ ...location, sector: event.target.value })}
+              className="mt-1 block w-full rounded-lg border border-line bg-surface p-2.5 text-sm text-fg"
             >
-              <option value="UNKNOWN">Unknown role</option>
-              <option value="OWNER">Owner</option>
-              <option value="BROKER">Broker</option>
+              <option value="">Choose sector</option>
+              {[...new Set([...(initial.sector ? [initial.sector] : []), ...(localities.data ?? []).map((item) => item.name)])].map((name) => (
+                <option key={name}>{name}</option>
+              ))}
             </select>
+            {localities.isError && (
+              <button type="button" className="mt-1 text-brand-600 underline" onClick={() => void localities.refetch()}>
+                Retry sectors
+              </button>
+            )}
+          </label>
+          {field('houseNo')}
+          <label className="text-xs font-semibold text-muted">
+            Phone number
+            <input
+              type="tel"
+              value={contacts[0]?.phone ?? ''}
+              onChange={(e) => setContacts([{ ...(contacts[0] ?? { role: 'OWNER' }), phone: e.target.value }, ...contacts.slice(1)])}
+              className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+            />
+          </label>
+          {field('bhk')}
+          {select('furnishing')}
+          {field('floor')}
+          <PropertyExtras initial={initial} fieldKeys={['foodPreference', 'petFriendly']} />
+        </div>
+      ) : (
+        <>
+          {markRented && <p className="rounded-xl bg-surface-2 p-4 text-sm text-muted">Check the property details before marking it rented out.</p>}
+          <div>
+            <p className="mb-1 font-semibold">Owner details</p>
+            <p className="mb-3 text-xs text-muted">These contacts stay in your firm. Choose a separate public contact when publishing.</p>
+            {contacts.map((contact, index) => (
+              <div key={index} className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <input
+                  aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} name`}
+                  placeholder="Name, if known"
+                  value={contact.name ?? ''}
+                  onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))}
+                  className="rounded-lg border border-line bg-surface p-2 text-sm"
+                />
+                <input
+                  aria-label={`${contact.role === 'OWNER' ? 'Owner' : 'Contact'} ${index + 1} phone`}
+                  placeholder="Phone"
+                  value={contact.phone ?? ''}
+                  onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, phone: e.target.value } : c)))}
+                  className="rounded-lg border border-line bg-surface p-2 text-sm"
+                />
+                <select
+                  aria-label={`Contact ${index + 1} role`}
+                  value={contact.role}
+                  onChange={(e) => setContacts(contacts.map((c, i) => (i === index ? { ...c, role: e.target.value as any } : c)))}
+                  className="rounded-lg border border-line bg-surface p-2 text-sm"
+                >
+                  <option value="UNKNOWN">Unknown role</option>
+                  <option value="OWNER">Owner</option>
+                  <option value="BROKER">Broker</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDirty?.();
+                    setContacts(contacts.filter((_, i) => i !== index));
+                  }}
+                  className="text-xs text-muted"
+                >
+                  Remove contact
+                </button>
+              </div>
+            ))}
             <button
               type="button"
               onClick={() => {
                 onDirty?.();
-                setContacts(contacts.filter((_, i) => i !== index));
+                setContacts([...contacts, { name: '', phone: '', role: 'OWNER' }]);
               }}
-              className="text-xs text-muted"
+              className="text-sm font-semibold text-brand-600"
             >
-              Remove contact
+              + Add contact
             </button>
           </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            onDirty?.();
-            setContacts([...contacts, { name: '', phone: '', role: 'OWNER' }]);
-          }}
-          className="text-sm font-semibold text-brand-600"
-        >
-          + Add contact
-        </button>
-      </div>
 
-      <p className="section-kicker">Address details</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {field('sector')}
-        {field('houseNo')}
-        {field('address')}
-      </div>
-      <p className="section-kicker">Property details</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {select('purpose')}
-        {select('propertyType')}
-        {select('roomKind')}
-        {field('bhk')}
-        {select('furnishing')}
-        {field('floor')}
-        {purpose !== 'SALE' && field('monthlyRent')}
-        {purpose !== 'RENT' && field('totalSalePrice')}
-        <PropertyExtras initial={initial} quickFields />
-        {field('brokerage')}
-        {field('directionsUrl')}
-        <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-brand-600">
-          {navigation.pinSearch && (
-            <a href={navigation.pinSearch} target="_blank" rel="noreferrer">
-              Find property pin
-            </a>
-          )}
-          {navigation.sectorMap && (
-            <a href={navigation.sectorMap} target="_blank" rel="noreferrer">
-              Sector map
-            </a>
-          )}
-        </div>
-      </div>
+          <p className="section-kicker">Address details</p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {field('sector')}
+            {field('houseNo')}
+            {field('address')}
+          </div>
+          <p className="section-kicker">Property details</p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {select('purpose')}
+            {select('propertyType')}
+            {select('roomKind')}
+            {field('bhk')}
+            {select('furnishing')}
+            {field('floor')}
+            {purpose !== 'SALE' && field('monthlyRent')}
+            {purpose !== 'RENT' && field('totalSalePrice')}
+            <PropertyExtras initial={initial} quickFields />
+            {field('brokerage')}
+            {field('directionsUrl')}
+            <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-brand-600">
+              {navigation.pinSearch && (
+                <a href={navigation.pinSearch} target="_blank" rel="noreferrer">
+                  Find property pin
+                </a>
+              )}
+              {navigation.sectorMap && (
+                <a href={navigation.sectorMap} target="_blank" rel="noreferrer">
+                  Sector map
+                </a>
+              )}
+            </div>
+          </div>
+        </>
+      )}
       <div className="space-y-5 rounded-xl border border-line p-4">
         <PropertyMedia
+          camera={survey}
           urls={photos}
           onUploading={setPhotoUploading}
           onAdd={(url) => {
@@ -300,116 +373,120 @@ export function PropertyForm({
             setPhotos((current) => current.filter((_, i) => i !== index));
             onDirty?.();
           }}
-          disabled={busy}
+          disabled={busy || (survey && !location.sector?.trim())}
         />
-        <PropertyMedia
-          video
-          urls={videos}
-          onUploading={setVideoUploading}
-          onAdd={(url) => {
-            setVideos((current) => [...current, url]);
-            onDirty?.();
-          }}
-          onRemove={(index) => {
-            setVideos((current) => current.filter((_, i) => i !== index));
-            onDirty?.();
-          }}
-          disabled={busy}
-        />
-      </div>
-      <PropertyExtras initial={initial} category={initial.category}>
-        {activateInMonth && (
-          <div className="grid gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:grid-cols-2">
-            {!requireAvailability && (
-              <label className="flex items-center gap-2 text-sm font-semibold">
-                <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
-                Make available
-              </label>
-            )}
-            {activate && (
-              <label className="text-xs font-semibold">
-                Inventory year and month
-                <input
-                  name="directoryMonth"
-                  type="month"
-                  required
-                  defaultValue={activateInMonth || inventoryMonth()}
-                  className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-                />
-              </label>
-            )}
-          </div>
+        {!survey && (
+          <PropertyMedia
+            video
+            urls={videos}
+            onUploading={setVideoUploading}
+            onAdd={(url) => {
+              setVideos((current) => [...current, url]);
+              onDirty?.();
+            }}
+            onRemove={(index) => {
+              setVideos((current) => current.filter((_, i) => i !== index));
+              onDirty?.();
+            }}
+            disabled={busy}
+          />
         )}
-        {activate && <p className="text-sm text-muted">Available inventory requires category, area and unit.</p>}
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
-          {field('unitLabel')}
-          {select('category')}
-          {field('area')}
-          {select('areaUnit')}
-          {field('securityDeposit')}
-          {purpose !== 'RENT' && field('ratePerArea')}
-          {select('rateAreaUnit')}
-          {!activate && !markRented && select('availability')}
-          {!activate && !markRented && select('status')}
-          {field('tenantPreference')}
-          <label className="text-xs font-semibold text-muted">
-            Record date · IST
-            <input
-              type="date"
-              name="date"
-              defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
-              className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-            />
-          </label>
-          {isSuper ? (
-            <InventoryHierarchyPicker
-              kind="members"
-              organizationId={initial.organizationId}
-              value={superAssignee}
-              onChange={(id) => {
-                setSuperAssignee(id);
-                onDirty?.();
-              }}
-              selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
-            />
-          ) : isAdmin ? (
-            <label className="text-xs font-semibold text-muted">
-              Assignee (Agent / Admin)
-              <select
-                name="assignedToId"
-                defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
-                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-              >
-                <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
-                {teamMembers.map((m: any) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <div className="text-xs font-semibold text-muted">
-              Assignee
-              <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
-                {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
-              </div>
-              {!delegated && (
-                <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+      </div>
+      {!survey && (
+        <PropertyExtras initial={initial} category={initial.category} separatePossession>
+          {activateInMonth && (
+            <div className="grid gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:grid-cols-2">
+              {!requireAvailability && (
+                <label className="flex items-center gap-2 text-sm font-semibold">
+                  <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
+                  Make available
+                </label>
+              )}
+              {activate && (
+                <label className="text-xs font-semibold">
+                  Inventory year and month
+                  <input
+                    name="directoryMonth"
+                    type="month"
+                    required
+                    defaultValue={activateInMonth || inventoryMonth()}
+                    className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
               )}
             </div>
           )}
-        </div>
-        <label className="block text-xs font-semibold text-muted">
-          Notes
-          <textarea
-            name="notes"
-            defaultValue={initial.notes ?? ''}
-            rows={4}
-            className="mt-1 block w-full rounded-lg border border-line bg-surface p-3 text-sm text-fg"
-          />
-        </label>
-      </PropertyExtras>
+          {activate && <p className="text-sm text-muted">Available inventory requires category, area and unit.</p>}
+          <div className="mb-4 grid gap-3 sm:grid-cols-2">
+            {field('unitLabel')}
+            {select('category')}
+            {field('area')}
+            {select('areaUnit')}
+            {field('securityDeposit')}
+            {purpose !== 'RENT' && field('ratePerArea')}
+            {select('rateAreaUnit')}
+            {!activate && !markRented && select('availability')}
+            {!activate && !markRented && select('status')}
+            {field('tenantPreference')}
+            <label className="text-xs font-semibold text-muted">
+              Record date · IST
+              <input
+                type="date"
+                name="date"
+                defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
+                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+              />
+            </label>
+            {isSuper ? (
+              <InventoryHierarchyPicker
+                kind="members"
+                organizationId={initial.organizationId}
+                value={superAssignee}
+                onChange={(id) => {
+                  setSuperAssignee(id);
+                  onDirty?.();
+                }}
+                selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
+              />
+            ) : isAdmin ? (
+              <label className="text-xs font-semibold text-muted">
+                Assignee (Agent / Admin)
+                <select
+                  name="assignedToId"
+                  defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
+                  className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+                >
+                  <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
+                  {teamMembers.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <div className="text-xs font-semibold text-muted">
+                Assignee
+                <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
+                  {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
+                </div>
+                {!delegated && (
+                  <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+                )}
+              </div>
+            )}
+          </div>
+          <label className="block text-xs font-semibold text-muted">
+            Notes
+            <textarea
+              name="notes"
+              defaultValue={initial.notes ?? ''}
+              rows={4}
+              className="mt-1 block w-full rounded-lg border border-line bg-surface p-3 text-sm text-fg"
+            />
+          </label>
+        </PropertyExtras>
+      )}
       {error && (
         <p role="alert" className="text-sm text-rose-600">
           {error}

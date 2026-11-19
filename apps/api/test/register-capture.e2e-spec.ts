@@ -68,15 +68,15 @@ describe('Register scan context, source facts and rented-only approval', () => {
     available?.mockRestore();
     await app?.close();
   });
-  async function upload(pageNo: number) {
+  async function upload(pageNo: number, target = 'INVENTORY', registerSessionId = sessionId) {
     const input = {
-      clientKey: sessionId + '-' + pageNo,
+      clientKey: registerSessionId + '-' + pageNo,
       fileName: 'register.png',
       contentType: 'image/png',
       sourceType: 'IMAGE',
       totalBytes: image.length,
-      target: 'INVENTORY',
-      registerSessionId: sessionId,
+      target,
+      registerSessionId,
       registerPageNo: pageNo,
       registerSector: 'Sector 46',
     };
@@ -168,5 +168,36 @@ describe('Register scan context, source facts and rented-only approval', () => {
       },
     });
     expect(fresh.metadata).not.toHaveProperty('register.sector');
+  });
+  it('saves reviewed survey scan rows in their sector while preserving the original source link', async () => {
+    const survey = await upload(1, 'SURVEY', randomUUID());
+    await api()
+      .post('/api/imports/uploads')
+      .set(header())
+      .send({ ...survey, clientKey: randomUUID(), registerSector: undefined })
+      .expect(400);
+    const captured = await extract(1, '980 9876543210 3rd Floor SFD', null);
+    expect(captured.metadata.requestedTarget).toBe('SURVEY');
+    const entry = captured.entries[0];
+    const entity = entry.extracted[0];
+    expect(entity.inventory).toMatchObject({ houseNo: '980', sector: 'Sector 46', floor: '3', furnishing: 'SEMI_FURNISHED' });
+    const path = '/api/imports/entries/' + entry.id + '/approve';
+    const payload = { destination: 'SURVEY', expectedUpdatedAt: entry.updatedAt, entities: [entity] };
+    await api().post(path).set(header()).send(payload).expect(400);
+    entity.inventory.details = { ...entity.inventory.details, possessionDate: '2027-01-05', petFriendly: false };
+    await api().post(path).set(header()).send(payload).expect(201);
+    await api().post(path).set(header()).send(payload).expect(201);
+    const rows = await db.inventoryItem.findMany({ where: { sourceEntryId: entry.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      sourceType: 'SURVEY',
+      sector: 'Sector 46',
+      status: 'DRAFT',
+      details: { possessionDate: '2027-01-05', petFriendly: false },
+    });
+    const folder = (await api().get('/api/inventory?folderMode=SURVEY&folderSector=Sector%2046').set(header()).expect(200)).body;
+    expect(folder.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: rows[0].id, sourceEntry: expect.objectContaining({ id: entry.id }) })]));
+    const other = (await api().get('/api/inventory?folderMode=SURVEY&folderSector=Sector%2047').set(header()).expect(200)).body;
+    expect(other.items).toEqual([]);
   });
 });

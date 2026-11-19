@@ -4,7 +4,7 @@ import type { InventoryInput } from './inventory';
 
 export const inventoryMonthSchema = z.string().regex(/^(?:19|20|21)\d{2}-(?:0[1-9]|1[0-2])$/, 'Choose a year and month');
 export const inventoryDateSchema = z.iso.date();
-export const inventoryFolderModeSchema = z.enum(['AVAILABLE', 'RENTED', 'REVIEW']);
+export const inventoryFolderModeSchema = z.enum(['AVAILABLE', 'RENTED', 'REVIEW', 'SURVEY']);
 export type InventoryFolderMode = z.infer<typeof inventoryFolderModeSchema>;
 export type InventoryFolder = { key: string; label: string; count: number };
 export type InventoryFolders = { folders: InventoryFolder[]; years: string[] };

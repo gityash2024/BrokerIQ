@@ -13,6 +13,7 @@ export function NativePropertyMedia({
   onUploading,
   disabled = false,
   onlyPhotos = false,
+  camera = false,
 }: {
   photos: readonly string[];
   videos?: readonly string[];
@@ -21,12 +22,13 @@ export function NativePropertyMedia({
   onUploading?: (busy: boolean) => void;
   disabled?: boolean;
   onlyPhotos?: boolean;
+  camera?: boolean;
 }) {
   const running = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
-  async function add(video: boolean) {
+  async function add(video: boolean, useCamera = false) {
     if (!onAdd || running.current || disabled) return;
     const remaining = video ? 10 - videos.length : 50 - photos.length;
     if (remaining <= 0) return;
@@ -36,12 +38,15 @@ export function NativePropertyMedia({
     onUploading?.(true);
     setError('');
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: video ? ['videos'] : ['images'],
-        allowsMultipleSelection: !!onRemove,
-        selectionLimit: remaining,
-        ...(video ? { videoExportPreset: ImagePicker.VideoExportPreset.Passthrough } : {}),
-      });
+      if (useCamera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) throw new Error('Allow camera access to take a property photo.');
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'] })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: video ? ['videos'] : ['images'],
+            allowsMultipleSelection: !!onRemove,
+            selectionLimit: remaining,
+            ...(video ? { videoExportPreset: ImagePicker.VideoExportPreset.Passthrough } : {}),
+          });
       if (result.canceled) return;
       if (result.assets.length > remaining) throw new Error('Too many files selected for this property.');
       for (const asset of result.assets) {
@@ -74,6 +79,9 @@ export function NativePropertyMedia({
   return (
     <View style={{ gap: 10 }}>
       <Txt v="h3">Property photos</Txt>
+      {camera && !!onAdd && photos.length < 50 && (
+        <Button title="Take property photo" variant="secondary" disabled={disabled || pending} onPress={() => void add(false, true)} />
+      )}
       {!!onAdd && photos.length < 50 && (
         <Button title={pending ? 'Uploading…' : 'Upload photos'} variant="secondary" disabled={disabled || pending} onPress={() => void add(false)} />
       )}

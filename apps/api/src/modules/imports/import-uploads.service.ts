@@ -17,7 +17,7 @@ export const uploadStartSchema = z
     sourceType: z.enum(['CHAT_EXPORT', 'IMAGE']),
     totalBytes: z.number().int().min(1).max(IMPORT_MAX_BYTES),
     groupName: z.string().max(150).optional(),
-    target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT']).default('AUTO'),
+    target: z.enum(['AUTO', 'INVENTORY', 'REQUIREMENT', 'SURVEY']).default('AUTO'),
     directoryMonth: inventoryMonthSchema.optional(),
     registerSessionId: z.string().uuid().optional(),
     registerSector: z.string().trim().min(1).max(100).optional(),
@@ -26,6 +26,10 @@ export const uploadStartSchema = z
   .refine((value) => Boolean(value.registerSessionId) === Boolean(value.registerPageNo), 'Register session and page are required together')
   .refine((value) => !value.registerSector || Boolean(value.registerSessionId), 'Select a register before its sector')
   .refine((value) => !value.registerSessionId || value.sourceType === 'IMAGE', 'Register pages must be images')
+  .refine(
+    (value) => value.target !== 'SURVEY' || (value.sourceType === 'IMAGE' && Boolean(value.registerSector)),
+    'Choose the sector before scanning a survey register',
+  )
   .refine((value) => (value.sourceType === 'IMAGE') === value.contentType.startsWith('image/'), 'Source type does not match file');
 
 export const uploadChunkSchema = z.object({

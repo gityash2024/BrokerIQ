@@ -14,6 +14,7 @@ import {
   inventoryMonthSchema,
   inventoryFolderDefaults,
   missingInventoryFolderFields,
+  isPendingSurvey,
 } from '@brokeriq/shared';
 import { captureAccountContext, api, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -23,6 +24,8 @@ import { Txt, Input, Button, Row } from '@/ui';
 import { toast } from '@/lib/toast';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
 import { NativePropertyExtras } from '@/launch/property-extras';
+import { NativePropertyMedia } from '@/launch/property-media';
+import { PropertyDateField } from '@/launch/property-date-field';
 import { ChoiceField } from '@/launch/form';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,6 +39,8 @@ export default function InventoryEditor() {
     directoryMonth,
     folderRoom,
     furnishing,
+    survey,
+    sector: surveySector,
   } = useLocalSearchParams<{
     id?: string;
     draft?: string;
@@ -44,12 +49,15 @@ export default function InventoryEditor() {
     directoryMonth?: string;
     folderRoom?: string;
     furnishing?: string;
+    survey?: string;
+    sector?: string;
   }>();
   const defaultFolder = inventoryMonthSchema.safeParse(directoryMonth);
   const selectedMonth = defaultFolder.success ? defaultFolder.data : inventoryMonth();
   const markRented = Boolean(id && makeRented === '1');
   const availabilityReview = Boolean(id && makeAvailable === '1' && !markRented);
-  const directoryEnabled = makeAvailable === '1' || (!id && !requestedDraft);
+  const createSurvey = !id && survey === '1';
+  const directoryEnabled = !createSurvey && (makeAvailable === '1' || (!id && !requestedDraft));
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
@@ -79,7 +87,16 @@ export default function InventoryEditor() {
   const owner = useRef(captureAccountContext());
   const baseline = useRef<Record<string, any> | null>(null);
   const kind = id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
-  const key = id ?? 'new-property';
+  const key = id ?? (createSurvey ? 'new-survey:' + (surveySector?.trim() ?? '') : 'new-property');
+  const compactSurvey = createSurvey || Boolean(id && !availabilityReview && form.sourceType === 'SURVEY' && form.status === 'DRAFT');
+  const localities = useQuery({
+    queryKey: ['localities-all'],
+    queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
+    enabled: compactSurvey,
+    staleTime: 600_000,
+  });
+  const photoUrls = useRef<string[]>([]);
+  photoUrls.current = form.photoUrls ?? [];
   const navigation = inventoryNavigation(form);
   const changeDetail = (name: string, value: string | null) => change('details', { ...form.details, [name]: value });
 
@@ -102,6 +119,7 @@ export default function InventoryEditor() {
                 status: 'DRAFT',
                 contacts: [{ name: '', phone: '', role: 'OWNER' }],
                 ...(!delegated || canAssign ? { assignedToId: user?.id } : {}),
+                ...(createSurvey ? { survey: true, purpose: 'RENT', sector: surveySector?.trim() || undefined } : {}),
                 ...(directoryEnabled ? { purpose: 'RENT', ...inventoryFolderDefaults(folderRoom, furnishing) } : {}),
               };
         if (id && initial.canEdit === false) throw new Error('This property is read-only. Open its details to request access.');
@@ -129,7 +147,21 @@ export default function InventoryEditor() {
     return () => {
       active = false;
     };
-  }, [id, kind, key, requestedDraft, user?.id, startSeparate, directoryEnabled, availabilityReview, folderRoom, furnishing, selectedMonth]);
+  }, [
+    id,
+    kind,
+    key,
+    requestedDraft,
+    user?.id,
+    startSeparate,
+    directoryEnabled,
+    availabilityReview,
+    folderRoom,
+    furnishing,
+    selectedMonth,
+    createSurvey,
+    surveySector,
+  ]);
   function persist(next: Record<string, any>) {
     setDraftStatus('Saving draft…');
     writes.current = writes.current
@@ -154,6 +186,7 @@ export default function InventoryEditor() {
     Keyboard.dismiss();
     try {
       const effective = { ...form };
+      if (createSurvey && Number(form.bhk) > 0) Object.assign(effective, { roomKind: 'BHK', category: 'RESIDENTIAL' });
       if (baseline.current?.availability === 'AVAILABLE' || markRented || (!form._activateInDirectory && form.availability !== 'AVAILABLE'))
         delete effective.availableSince;
       if (!id) effective.contacts = (form.contacts ?? []).filter((contact: any) => contact.name?.trim() || contact.phone?.trim() || contact.note?.trim());
@@ -171,7 +204,8 @@ export default function InventoryEditor() {
       if (!markRented && form._activateInDirectory) input.directoryMonth = form.directoryMonth;
       if (markRented) {
         const missing = missingInventoryFolderFields(effective);
-        if (missing.length) throw new Error('Fill these fields to mark the property Rented out: ' + missing.join(', '));
+        if (missing.length && !isPendingSurvey({ status: form.status, sourceType: form.sourceType }))
+          throw new Error('Fill these fields to mark the property Rented out: ' + missing.join(', '));
         input.availability = 'RENTED';
         input.status = 'RENTED';
       }
@@ -216,283 +250,351 @@ export default function InventoryEditor() {
   );
   return (
     <BrokerScreen
-      title={availabilityReview ? 'Review property availability' : id ? 'Edit property' : 'Add property'}
+      title={availabilityReview ? 'Review property availability' : id ? 'Edit property' : createSurvey ? 'Add survey property' : 'Add property'}
       subtitle={availabilityReview ? 'Review the saved details before making this property available.' : 'Missing fields can stay unknown.'}
       back
     >
       <View style={{ flex: 1 }}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 10, paddingBottom: 24 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, paddingTop: 0, gap: 8, paddingBottom: 16 }}>
           {!!draftStatus && (
             <Txt v="caption" color="muted">
               {draftStatus}
             </Txt>
           )}
           {markRented && <Txt color="muted">Check the property details. Saving as rented out withdraws its public listing.</Txt>}
-          <NativeCard style={{ gap: 10 }}>
-            <Txt v="h3">Owner details</Txt>
-            {(form.contacts ?? []).map((contact: any, index: number) => (
-              <View key={index} style={{ gap: 8 }}>
-                <Row align="flex-start">
-                  <Input
-                    containerStyle={{ flex: 1 }}
-                    label={contact.role === 'OWNER' ? 'Owner name' : 'Contact name'}
-                    value={contact.name ?? ''}
-                    onChangeText={(name) =>
-                      change(
-                        'contacts',
-                        form.contacts.map((item: any, i: number) => (i === index ? { ...item, name } : item)),
-                      )
-                    }
-                  />
-                  <Input
-                    containerStyle={{ flex: 1 }}
-                    label={contact.role === 'OWNER' ? 'Owner phone' : 'Phone'}
-                    keyboardType="phone-pad"
-                    value={contact.phone ?? ''}
-                    onChangeText={(phone) =>
-                      change(
-                        'contacts',
-                        form.contacts.map((item: any, i: number) => (i === index ? { ...item, phone } : item)),
-                      )
-                    }
-                  />
-                </Row>
-                {contactOptions && (
-                  <>
-                    <ChoiceField
-                      label="Contact role"
-                      value={contact.role}
-                      choices={['UNKNOWN', 'OWNER', 'BROKER']}
-                      onChange={(role) =>
-                        change(
-                          'contacts',
-                          form.contacts.map((item: any, i: number) => (i === index ? { ...item, role: role ?? 'UNKNOWN' } : item)),
-                        )
-                      }
-                    />
-                    <Input
-                      label="Contact note"
-                      multiline
-                      value={contact.note ?? ''}
-                      onChangeText={(note) =>
-                        change(
-                          'contacts',
-                          form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)),
-                        )
-                      }
-                    />
-                    <Button
-                      title="Remove contact"
-                      variant="ghost"
-                      size="sm"
-                      onPress={() =>
-                        change(
-                          'contacts',
-                          form.contacts.filter((_: any, i: number) => i !== index),
-                        )
-                      }
-                    />
-                  </>
-                )}
-              </View>
-            ))}
-            <Row wrap>
-              <Button
-                title="Add contact"
-                variant="ghost"
-                size="sm"
-                onPress={() => change('contacts', [...(form.contacts ?? []), { name: '', phone: '', role: 'OWNER' }])}
-              />
-              {!!form.contacts?.length && (
-                <Button
-                  title={contactOptions ? 'Hide contact options' : 'Contact options'}
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => setContactOptions(!contactOptions)}
+          <NativeCard>
+            <PropertyDateField label="Possession date" value={form.details?.possessionDate} onChange={(date) => changeDetail('possessionDate', date)} />
+          </NativeCard>
+          {compactSurvey ? (
+            <NativeCard style={{ gap: 10 }}>
+              <Row align="flex-start">
+                <ChoiceField
+                  paired
+                  label="Sector / locality"
+                  value={form.sector}
+                  access={ready && !saving}
+                  choices={[...new Set([...(form.sector ? [String(form.sector)] : []), ...(localities.data ?? []).map((item) => item.name)])]}
+                  onChange={(value) => change('sector', value)}
                 />
-              )}
-            </Row>
-          </NativeCard>
-          <NativeCard style={{ gap: 10 }}>
-            <Txt v="h3">Address details</Txt>
-            <Row align="flex-start">
-              {field('sector', 'Sector / locality', false, true)}
-              {field('houseNo', 'House / plot no.', false, true)}
-            </Row>
-            {field('address', 'Address')}
-          </NativeCard>
-          <NativeCard style={{ gap: 10 }}>
-            <Txt v="h3">Property details</Txt>
-            <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
-            <Row align="flex-start">
-              <ChoiceField paired label="Room kind" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
-              {field('bhk', 'BHK / rooms', false, true)}
-            </Row>
-            <Row align="flex-start">
+                {field('houseNo', 'House / plot no.', false, true)}
+              </Row>
+              {localities.isError && <Button title="Retry sectors" size="sm" variant="ghost" onPress={() => void localities.refetch()} />}
+              <Input
+                label="Phone number"
+                keyboardType="phone-pad"
+                value={form.contacts?.[0]?.phone ?? form.ownerPhone ?? ''}
+                onChangeText={(phone) => change('contacts', [{ ...(form.contacts?.[0] ?? { role: 'OWNER' }), phone }, ...(form.contacts ?? []).slice(1)])}
+              />
+              <Row align="flex-start">
+                {field('bhk', 'Bedrooms', false, true)}
+                {field('floor', 'Floor', false, true)}
+              </Row>
               <ChoiceField
-                paired
                 label="Furnishing"
                 value={form.furnishing}
                 choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
-                onChange={(v) => change('furnishing', v)}
-              />
-              {field('floor', 'Floor', false, true)}
-            </Row>
-          </NativeCard>
-          <NativeCard style={{ gap: 10 }}>
-            <Txt v="h3">Price & rental terms</Txt>
-            <ChoiceField label="Purpose" value={form.purpose} choices={['RENT', 'SALE']} onChange={(v) => change('purpose', v)} />
-            {form.purpose === 'RENT' ? (
-              field('monthlyRent', 'Monthly rent ₹')
-            ) : (
-              <>
-                {field('totalSalePrice', 'Total sale price ₹')}
-                {field('ratePerArea', 'Rate per area ₹')}
-                <ChoiceField
-                  label="Rate unit"
-                  value={form.rateAreaUnit}
-                  choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
-                  onChange={(v) => change('rateAreaUnit', v)}
-                />
-              </>
-            )}
-            <Row align="flex-start">
-              <ChoiceField
-                paired
-                label="Tenant type"
-                value={form.details?.tenantType}
-                choices={['FAMILY', 'BACHELORS', 'GIRLS', 'BOYS', 'COMPANY', 'ANY']}
-                onChange={(value) => changeDetail('tenantType', value)}
+                onChange={(value) => change('furnishing', value)}
               />
               <ChoiceField
-                paired
                 label="Food preference"
                 value={form.details?.foodPreference}
                 choices={['VEGETARIAN_ONLY', 'NO_RESTRICTION']}
                 onChange={(value) => changeDetail('foodPreference', value)}
               />
-            </Row>
-            {field('brokerage', 'Brokerage')}
-          </NativeCard>
-          <NativeCard style={{ gap: 10 }}>
-            {field('directionsUrl', 'Directions link or latitude, longitude')}
-            <Row wrap>
-              {navigation.pinSearch && (
-                <Button
-                  title="Find property pin"
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => void Linking.openURL(navigation.pinSearch!).catch(() => toast.error('Unable to open Maps'))}
-                />
-              )}
-              {navigation.sectorMap && (
-                <Button
-                  title="Sector map"
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => void Linking.openURL(navigation.sectorMap!).catch(() => toast.error('Unable to open sector map'))}
-                />
-              )}
-            </Row>
-          </NativeCard>
-          <NativePropertyExtras
-            quickEntry={{ open: additionalOpen, onToggle: setAdditionalOpen }}
-            value={form}
-            disabled={!ready || saving}
-            onUploading={setUploading}
-            onChange={(next) => {
-              setForm(next);
-              persist(next);
-            }}
-          >
-            {!markRented && (directoryEnabled || form._activateInDirectory) && (
+              <ChoiceField
+                label="Pets allowed"
+                value={form.details?.petFriendly == null ? null : String(form.details.petFriendly)}
+                choices={['true', 'false']}
+                labels={{ true: 'Allowed', false: 'Not allowed' }}
+                onChange={(value) => change('details', { ...form.details, petFriendly: value == null ? null : value === 'true' })}
+              />
+              <NativePropertyMedia
+                photos={form.photoUrls ?? []}
+                onlyPhotos
+                camera
+                disabled={!ready || saving || !form.sector?.trim()}
+                onUploading={setUploading}
+                onAdd={(_, url) => {
+                  photoUrls.current = [...photoUrls.current, url];
+                  change('photoUrls', photoUrls.current);
+                }}
+                onRemove={(_, index) =>
+                  change(
+                    'photoUrls',
+                    photoUrls.current.filter((_, i) => i !== index),
+                  )
+                }
+              />
+            </NativeCard>
+          ) : (
+            <>
               <NativeCard style={{ gap: 10 }}>
-                {!availabilityReview && (
-                  <Row gap={10}>
-                    <Txt v="bodyStrong" style={{ flex: 1 }}>
-                      Make available
-                    </Txt>
-                    <Switch
-                      accessibilityLabel="Make property available"
-                      value={!!form._activateInDirectory}
-                      disabled={!ready || saving}
-                      onValueChange={(value) => change('_activateInDirectory', value)}
+                <Txt v="h3">Owner details</Txt>
+                {(form.contacts ?? []).map((contact: any, index: number) => (
+                  <View key={index} style={{ gap: 8 }}>
+                    <Row align="flex-start">
+                      <Input
+                        containerStyle={{ flex: 1 }}
+                        label={contact.role === 'OWNER' ? 'Owner name' : 'Contact name'}
+                        value={contact.name ?? ''}
+                        onChangeText={(name) =>
+                          change(
+                            'contacts',
+                            form.contacts.map((item: any, i: number) => (i === index ? { ...item, name } : item)),
+                          )
+                        }
+                      />
+                      <Input
+                        containerStyle={{ flex: 1 }}
+                        label={contact.role === 'OWNER' ? 'Owner phone' : 'Phone'}
+                        keyboardType="phone-pad"
+                        value={contact.phone ?? ''}
+                        onChangeText={(phone) =>
+                          change(
+                            'contacts',
+                            form.contacts.map((item: any, i: number) => (i === index ? { ...item, phone } : item)),
+                          )
+                        }
+                      />
+                    </Row>
+                    {contactOptions && (
+                      <>
+                        <ChoiceField
+                          label="Contact role"
+                          value={contact.role}
+                          choices={['UNKNOWN', 'OWNER', 'BROKER']}
+                          onChange={(role) =>
+                            change(
+                              'contacts',
+                              form.contacts.map((item: any, i: number) => (i === index ? { ...item, role: role ?? 'UNKNOWN' } : item)),
+                            )
+                          }
+                        />
+                        <Input
+                          label="Contact note"
+                          multiline
+                          value={contact.note ?? ''}
+                          onChangeText={(note) =>
+                            change(
+                              'contacts',
+                              form.contacts.map((item: any, i: number) => (i === index ? { ...item, note } : item)),
+                            )
+                          }
+                        />
+                        <Button
+                          title="Remove contact"
+                          variant="ghost"
+                          size="sm"
+                          onPress={() =>
+                            change(
+                              'contacts',
+                              form.contacts.filter((_: any, i: number) => i !== index),
+                            )
+                          }
+                        />
+                      </>
+                    )}
+                  </View>
+                ))}
+                <Row wrap>
+                  <Button
+                    title="Add contact"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => change('contacts', [...(form.contacts ?? []), { name: '', phone: '', role: 'OWNER' }])}
+                  />
+                  {!!form.contacts?.length && (
+                    <Button
+                      title={contactOptions ? 'Hide contact options' : 'Contact options'}
+                      variant="ghost"
+                      size="sm"
+                      onPress={() => setContactOptions(!contactOptions)}
                     />
-                  </Row>
+                  )}
+                </Row>
+              </NativeCard>
+              <NativeCard style={{ gap: 10 }}>
+                <Txt v="h3">Address details</Txt>
+                <Row align="flex-start">
+                  {field('sector', 'Sector / locality', false, true)}
+                  {field('houseNo', 'House / plot no.', false, true)}
+                </Row>
+                {field('address', 'Address')}
+              </NativeCard>
+              <NativeCard style={{ gap: 10 }}>
+                <Txt v="h3">Property details</Txt>
+                <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
+                <Row align="flex-start">
+                  <ChoiceField paired label="Room kind" value={form.roomKind} choices={['BHK', 'RK', 'STUDIO']} onChange={(v) => change('roomKind', v)} />
+                  {field('bhk', 'BHK / rooms', false, true)}
+                </Row>
+                <Row align="flex-start">
+                  <ChoiceField
+                    paired
+                    label="Furnishing"
+                    value={form.furnishing}
+                    choices={['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']}
+                    onChange={(v) => change('furnishing', v)}
+                  />
+                  {field('floor', 'Floor', false, true)}
+                </Row>
+              </NativeCard>
+              <NativeCard style={{ gap: 10 }}>
+                <Txt v="h3">Price & rental terms</Txt>
+                <ChoiceField label="Purpose" value={form.purpose} choices={['RENT', 'SALE']} onChange={(v) => change('purpose', v)} />
+                {form.purpose === 'RENT' ? (
+                  field('monthlyRent', 'Monthly rent ₹')
+                ) : (
+                  <>
+                    {field('totalSalePrice', 'Total sale price ₹')}
+                    {field('ratePerArea', 'Rate per area ₹')}
+                    <ChoiceField
+                      label="Rate unit"
+                      value={form.rateAreaUnit}
+                      choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
+                      onChange={(v) => change('rateAreaUnit', v)}
+                    />
+                  </>
                 )}
-                {form._activateInDirectory && (
-                  <Input
-                    label="Inventory year and month (YYYY-MM)"
-                    value={form.directoryMonth ?? selectedMonth}
-                    editable={ready && !saving}
-                    maxLength={7}
-                    onChangeText={(value) => change('directoryMonth', value)}
+                <Row align="flex-start">
+                  <ChoiceField
+                    paired
+                    label="Tenant type"
+                    value={form.details?.tenantType}
+                    choices={['FAMILY', 'BACHELORS', 'GIRLS', 'BOYS', 'COMPANY', 'ANY']}
+                    onChange={(value) => changeDetail('tenantType', value)}
+                  />
+                  <ChoiceField
+                    paired
+                    label="Food preference"
+                    value={form.details?.foodPreference}
+                    choices={['VEGETARIAN_ONLY', 'NO_RESTRICTION']}
+                    onChange={(value) => changeDetail('foodPreference', value)}
+                  />
+                </Row>
+                {field('brokerage', 'Brokerage')}
+              </NativeCard>
+              <NativeCard style={{ gap: 10 }}>
+                {field('directionsUrl', 'Directions link or latitude, longitude')}
+                <Row wrap>
+                  {navigation.pinSearch && (
+                    <Button
+                      title="Find property pin"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => void Linking.openURL(navigation.pinSearch!).catch(() => toast.error('Unable to open Maps'))}
+                    />
+                  )}
+                  {navigation.sectorMap && (
+                    <Button
+                      title="Sector map"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => void Linking.openURL(navigation.sectorMap!).catch(() => toast.error('Unable to open sector map'))}
+                    />
+                  )}
+                </Row>
+              </NativeCard>
+              <NativePropertyExtras
+                quickEntry={{ open: additionalOpen, onToggle: setAdditionalOpen }}
+                value={form}
+                disabled={!ready || saving}
+                onUploading={setUploading}
+                onChange={(next) => {
+                  setForm(next);
+                  persist(next);
+                }}
+              >
+                {!markRented && (directoryEnabled || form._activateInDirectory) && (
+                  <NativeCard style={{ gap: 10 }}>
+                    {!availabilityReview && (
+                      <Row gap={10}>
+                        <Txt v="bodyStrong" style={{ flex: 1 }}>
+                          Make available
+                        </Txt>
+                        <Switch
+                          accessibilityLabel="Make property available"
+                          value={!!form._activateInDirectory}
+                          disabled={!ready || saving}
+                          onValueChange={(value) => change('_activateInDirectory', value)}
+                        />
+                      </Row>
+                    )}
+                    {form._activateInDirectory && (
+                      <Input
+                        label="Inventory year and month (YYYY-MM)"
+                        value={form.directoryMonth ?? selectedMonth}
+                        editable={ready && !saving}
+                        maxLength={7}
+                        onChangeText={(value) => change('directoryMonth', value)}
+                      />
+                    )}
+                  </NativeCard>
+                )}
+                {field('unitLabel', 'Unit')}
+                <ChoiceField
+                  label="Category"
+                  value={form.category}
+                  choices={['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']}
+                  onChange={(v) => change('category', v)}
+                />
+                <Row align="flex-start">
+                  {field('area', 'Area', false, true)}
+                  <ChoiceField
+                    paired
+                    label="Area unit"
+                    value={form.areaUnit}
+                    choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
+                    onChange={(v) => change('areaUnit', v)}
+                  />
+                </Row>
+
+                {form.purpose === 'RENT' && field('securityDeposit', 'Deposit ₹')}
+                {!markRented && !form._activateInDirectory && (
+                  <ChoiceField
+                    label="Availability"
+                    value={form.availability}
+                    choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
+                    onChange={(v) => change('availability', v ?? 'UNKNOWN')}
                   />
                 )}
-              </NativeCard>
-            )}
-            {field('unitLabel', 'Unit')}
-            <ChoiceField
-              label="Category"
-              value={form.category}
-              choices={['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']}
-              onChange={(v) => change('category', v)}
-            />
-            <Row align="flex-start">
-              {field('area', 'Area', false, true)}
-              <ChoiceField
-                paired
-                label="Area unit"
-                value={form.areaUnit}
-                choices={['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']}
-                onChange={(v) => change('areaUnit', v)}
-              />
-            </Row>
-
-            {form.purpose === 'RENT' && field('securityDeposit', 'Deposit ₹')}
-            {!markRented && !form._activateInDirectory && (
-              <ChoiceField
-                label="Availability"
-                value={form.availability}
-                choices={['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']}
-                onChange={(v) => change('availability', v ?? 'UNKNOWN')}
-              />
-            )}
-            {(() => {
-              const isAdmin = canAssign;
-              const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
-              if (!isAdmin) {
-                return (
-                  <View style={{ gap: 4 }}>
-                    <Txt v="caption" color="muted">
-                      Assignee
-                    </Txt>
-                    <View style={{ padding: 12, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.line }}>
-                      <Txt v="bodyStrong">{user?.name || 'You (Agent)'} (Assigned)</Txt>
-                      <Txt v="caption" color="muted">
-                        Only Broker Admin can re-assign property
-                      </Txt>
-                    </View>
-                  </View>
-                );
-              }
-              if (teamMembers.length === 0) return null;
-              return (
-                <ChoiceField
-                  label="Assignee"
-                  emptyLabel="Unassigned / Current User"
-                  value={form.assignedToId || form.assignedTo?.id || null}
-                  choices={teamMembers.map((m: any) => m.id)}
-                  labels={Object.fromEntries(
-                    teamMembers.map((m: any) => [m.id, `${m.name || m.email || m.phone || 'Member'} (${m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})`]),
-                  )}
-                  onChange={(v) => change('assignedToId', v ?? null)}
-                />
-              );
-            })()}
-            {field('tenantPreference', 'Tenant notes')}
-            {field('notes', 'Notes', true)}
-          </NativePropertyExtras>
+                {(() => {
+                  const isAdmin = canAssign;
+                  const teamMembers: any[] = (Array.isArray(team.data) ? team.data : (team.data as any)?.members) || [];
+                  if (!isAdmin) {
+                    return (
+                      <View style={{ gap: 4 }}>
+                        <Txt v="caption" color="muted">
+                          Assignee
+                        </Txt>
+                        <View style={{ padding: 12, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.line }}>
+                          <Txt v="bodyStrong">{user?.name || 'You (Agent)'} (Assigned)</Txt>
+                          <Txt v="caption" color="muted">
+                            Only Broker Admin can re-assign property
+                          </Txt>
+                        </View>
+                      </View>
+                    );
+                  }
+                  if (teamMembers.length === 0) return null;
+                  return (
+                    <ChoiceField
+                      label="Assignee"
+                      emptyLabel="Unassigned / Current User"
+                      value={form.assignedToId || form.assignedTo?.id || null}
+                      choices={teamMembers.map((m: any) => m.id)}
+                      labels={Object.fromEntries(
+                        teamMembers.map((m: any) => [m.id, `${m.name || m.email || m.phone || 'Member'} (${m.role === 'BROKER_ADMIN' ? 'Admin' : 'Agent'})`]),
+                      )}
+                      onChange={(v) => change('assignedToId', v ?? null)}
+                    />
+                  );
+                })()}
+                {field('tenantPreference', 'Tenant notes')}
+                {field('notes', 'Notes', true)}
+              </NativePropertyExtras>
+            </>
+          )}
           <LegacyDraftRecovery
             error={error}
             onStart={() => {
@@ -508,7 +610,7 @@ export default function InventoryEditor() {
             </Txt>
           )}
           <Button
-            title={markRented ? 'Save as rented out' : availabilityReview ? 'Confirm availability' : 'Save property'}
+            title={markRented ? 'Save as rented out' : availabilityReview ? 'Confirm availability' : compactSurvey ? 'Save to Survey' : 'Save property'}
             loading={saving}
             disabled={!ready || uploading}
             onPress={save}

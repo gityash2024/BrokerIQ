@@ -43,6 +43,7 @@ export default function ImportReview() {
     if (q.data && page > Math.max(1, q.data.totalPages)) setPage(Math.max(1, q.data.totalPages));
   }, [q.data, page]);
   const inventoryTarget = q.data?.metadata?.requestedTarget === 'INVENTORY';
+  const surveyTarget = q.data?.metadata?.requestedTarget === 'SURVEY';
   const requestedMonth = inventoryMonthSchema.safeParse(q.data?.metadata?.directoryMonth);
   const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth(q.data?.createdAt ? new Date(q.data.createdAt) : new Date());
   const previewOfImportId = q.data?.previewOfImportId as string | undefined;
@@ -87,7 +88,7 @@ export default function ImportReview() {
         )}
         {q.data?.canPreview && <Button title="Preview latest extraction" variant="secondary" loading={openingPreview} onPress={openPreview} />}
         {q.data?.metadata?.requestedTarget && q.data.metadata.requestedTarget !== 'AUTO' && (
-          <WorkspaceTag label={`Requested destination: ${q.data.metadata.requestedTarget === 'INVENTORY' ? 'Inventory' : 'Requirements'}`} />
+          <WorkspaceTag label={`Requested destination: ${surveyTarget ? 'Survey' : inventoryTarget ? 'Inventory' : 'Requirements'}`} />
         )}
         {!previewOfImportId && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -138,7 +139,14 @@ export default function ImportReview() {
         {['PENDING', 'PROCESSING'].includes(q.data?.status) && <Txt>Source saved. Extraction is processing…</Txt>}
         {q.data && !['PENDING', 'PROCESSING'].includes(q.data.status) && q.data.total === 0 && <Txt color="muted">No entries match this view.</Txt>}
         {q.data?.entries.map((entry: any) => (
-          <Entry key={entry.id} batchId={id} entry={entry} image={q.data.sourceType === 'IMAGE'} folderMonth={inventoryTarget ? folderMonth : undefined} />
+          <Entry
+            key={entry.id}
+            batchId={id}
+            entry={entry}
+            image={q.data.sourceType === 'IMAGE'}
+            folderMonth={inventoryTarget ? folderMonth : undefined}
+            survey={surveyTarget}
+          />
         ))}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <Button title="Previous" variant="secondary" disabled={page === 1} onPress={() => setPage(page - 1)} />
@@ -169,7 +177,7 @@ export default function ImportReview() {
     </BrokerScreen>
   );
 }
-function Entry({ batchId, entry, image, folderMonth }: { batchId: string; entry: any; image: boolean; folderMonth?: string }) {
+function Entry({ batchId, entry, image, folderMonth, survey }: { batchId: string; entry: any; image: boolean; folderMonth?: string; survey?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <NativeCard>
@@ -184,11 +192,11 @@ function Entry({ batchId, entry, image, folderMonth }: { batchId: string; entry:
       {entry.inventories?.map((item: { id: string }, index: number) => (
         <Button key={item.id} title={`Open property ${index + 1}`} size="sm" variant="secondary" onPress={() => router.push(`/inventory/${item.id}`)} />
       ))}
-      {open && <EntryEditor batchId={batchId} entry={entry} image={image} folderMonth={folderMonth} />}
+      {open && <EntryEditor batchId={batchId} entry={entry} image={image} folderMonth={folderMonth} survey={survey} />}
     </NativeCard>
   );
 }
-function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; entry: any; image: boolean; folderMonth?: string }) {
+function EntryEditor({ batchId, entry, image, folderMonth, survey }: { batchId: string; entry: any; image: boolean; folderMonth?: string; survey?: boolean }) {
   const [previewAttachment, setPreviewAttachment] = useState<number | null>(null);
   const qc = useQueryClient();
   const [entities, setEntities] = useState<any[]>(entry.extracted ?? []);
@@ -198,6 +206,8 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmAvailable, setConfirmAvailable] = useState(false);
+  const placementMonth = folderMonth ?? (confirmAvailable ? inventoryMonth() : undefined);
   const draftId = useRef(Crypto.randomUUID());
   const owner = useRef(captureAccountContext());
   const writes = useRef<Promise<unknown>>(Promise.resolve());
@@ -253,14 +263,14 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
                   ...e,
                   inventory: prepareEntity({
                     ...e.inventory,
-                    ...(folderMonth ? { directoryMonth: e.inventory?.directoryMonth ?? folderMonth } : {}),
+                    ...(placementMonth ? { directoryMonth: e.inventory?.directoryMonth ?? placementMonth } : {}),
                   }),
                 }
               : e.kind === 'REQUIREMENT'
                 ? { ...e, requirement: prepareEntity(e.requirement ?? {}, true) }
                 : e,
           );
-      if (folderMonth && approve && !ignore) {
+      if (placementMonth && approve && !ignore) {
         for (const [index, entity] of next.entries()) {
           if (entity.kind !== 'INVENTORY') continue;
           const unit = entity.inventory ?? {};
@@ -279,7 +289,7 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
       const response = await api<any>(`/imports/entries/${entry.id}${approve ? '/approve' : ''}`, {
         method: approve ? 'POST' : 'PATCH',
         ownerContext: owner.current,
-        body: { entities: next, ignore, expectedUpdatedAt: version, destination: folderMonth ? 'INVENTORY' : 'REQUIREMENT' },
+        body: { entities: next, ignore, expectedUpdatedAt: version, destination: placementMonth ? 'INVENTORY' : survey ? 'SURVEY' : 'REQUIREMENT' },
       });
       if (response.updatedAt) {
         setVersion(response.updatedAt);
@@ -346,6 +356,14 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
           {warning}
         </Txt>
       ))}
+      {survey && ready && !done && entities.some((entity) => entity.kind === 'INVENTORY') && (
+        <Button
+          title={confirmAvailable ? 'Keep in Survey instead' : 'Already confirmed availability'}
+          size="sm"
+          variant="secondary"
+          onPress={() => setConfirmAvailable(!confirmAvailable)}
+        />
+      )}
       {ready &&
         entities.map((e, index) => (
           <View key={index} style={{ gap: 12 }}>
@@ -366,7 +384,8 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
             {!done && e.kind !== 'UNRELATED' && (
               <EntityFields
                 requirement={e.kind === 'REQUIREMENT'}
-                folderMonth={e.kind === 'INVENTORY' ? folderMonth : undefined}
+                survey={survey && !confirmAvailable}
+                folderMonth={e.kind === 'INVENTORY' ? placementMonth : undefined}
                 value={e.kind === 'REQUIREMENT' ? (e.requirement ?? {}) : (e.inventory ?? {})}
                 onChange={(value) =>
                   change(entities.map((item, n) => (n === index ? { ...item, [e.kind === 'REQUIREMENT' ? 'requirement' : 'inventory']: value } : item)))
@@ -407,9 +426,13 @@ function EntryEditor({ batchId, entry, image, folderMonth }: { batchId: string; 
           <Button title="Save review" loading={busy} onPress={() => save()} />
           <Button
             title={
-              folderMonth && entities.some((entity) => entity.kind === 'INVENTORY' && entity.inventory?.availability !== 'RENTED')
+              confirmAvailable
                 ? 'Confirm available & save records'
-                : 'Approve reviewed records'
+                : survey
+                  ? 'Save to Survey'
+                  : folderMonth && entities.some((entity) => entity.kind === 'INVENTORY' && entity.inventory?.availability !== 'RENTED')
+                    ? 'Confirm available & save records'
+                    : 'Approve reviewed records'
             }
             variant="secondary"
             loading={busy}

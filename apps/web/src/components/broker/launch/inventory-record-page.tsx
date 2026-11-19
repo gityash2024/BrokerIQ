@@ -8,7 +8,15 @@ import { Suspense, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { hasDelegatedAccess, inventoryFolderDefaults, inventoryMonth, inventoryMonthSchema, inventoryTitle, type LedgerItem } from '@brokeriq/shared';
+import {
+  hasDelegatedAccess,
+  inventoryFolderDefaults,
+  inventoryMonth,
+  inventoryMonthSchema,
+  inventoryTitle,
+  isPendingSurvey,
+  type LedgerItem,
+} from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
@@ -37,8 +45,9 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
   const client = useQueryClient();
   const { user } = useAuth();
   const organizationId = search.get('organizationId') || '';
+  const createSurvey = mode === 'new' && base === '/broker/inventory' && search.get('survey') === '1';
   const makeRented = mode === 'edit' && search.get('makeRented') === '1';
-  const makeAvailable = !makeRented && (search.get('makeAvailable') === '1' || (mode === 'new' && base === '/broker/inventory'));
+  const makeAvailable = !createSurvey && !makeRented && (search.get('makeAvailable') === '1' || (mode === 'new' && base === '/broker/inventory'));
   const requestedMonth = inventoryMonthSchema.safeParse(search.get('directoryMonth'));
   const folderMonth = requestedMonth.success ? requestedMonth.data : inventoryMonth();
   const defaults = inventoryFolderDefaults(search.get('folderRoom'), search.get('furnishing'));
@@ -54,7 +63,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
           ? hasDelegatedAccess(user, 'inventory', 'view', 'edit')
           : hasDelegatedAccess(user, 'inventory', 'publish') || hasDelegatedAccess(user, 'inventory', 'approve'));
   const detail = id ? `${base}/${encodeURIComponent(id)}` : base;
-  const back = mode === 'edit' || mode === 'publish' ? detail : base;
+  const back = mode === 'edit' || mode === 'publish' ? detail : createSurvey ? base + '?survey=1' : base;
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState(false);
   const [changing, setChanging] = useState(false);
@@ -66,9 +75,12 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
     refetchInterval: (state) => (state.state.data ? inventoryAccessRefreshInterval([state.state.data]) : false),
   });
   const item = query.data;
+  const compactSurvey = createSurvey || Boolean(mode === 'edit' && item && isPendingSurvey(item) && !makeAvailable);
   const title =
     mode === 'new'
-      ? 'Add property'
+      ? createSurvey
+        ? 'Add survey property'
+        : 'Add property'
       : mode === 'edit'
         ? makeAvailable
           ? 'Review property availability'
@@ -143,7 +155,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
             (superAdmin && mode === 'new' && !organizationId ? (
               <p role="alert">Choose a firm in Inventory before adding a property.</p>
             ) : (
-              <section className="card mx-auto max-w-5xl p-4 sm:p-6">
+              <section className="card min-w-0 p-4">
                 {item?.sourceEntry && (
                   <div className="mb-5 rounded-xl bg-surface-2 p-4">
                     {superAdmin || !item.sourceEntry.batch ? (
@@ -158,11 +170,23 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                 )}
                 <PropertyForm
                   key={item?.id ?? organizationId}
-                  initial={item ?? (superAdmin ? { organizationId } : makeAvailable ? { purpose: 'RENT', ...defaults } : {})}
+                  initial={
+                    item ??
+                    (superAdmin
+                      ? { organizationId }
+                      : createSurvey
+                        ? { sector: search.get('sector') || undefined }
+                        : makeAvailable
+                          ? { purpose: 'RENT', ...defaults }
+                          : {})
+                  }
                   activateInMonth={makeAvailable ? (item?.availability === 'AVAILABLE' ? (item.directoryMonth ?? folderMonth) : folderMonth) : undefined}
                   markRented={makeRented}
+                  survey={compactSurvey}
                   requireAvailability={mode === 'edit' && makeAvailable}
-                  label={makeRented ? 'Save as rented out' : mode === 'edit' && makeAvailable ? 'Confirm availability' : undefined}
+                  label={
+                    makeRented ? 'Save as rented out' : compactSurvey ? 'Save to Survey' : mode === 'edit' && makeAvailable ? 'Confirm availability' : undefined
+                  }
                   onDirty={() => setDirty(true)}
                   onSave={async (input) => {
                     const created = await api<LedgerItem>(item ? `/inventory/${item.id}` : '/inventory', {
@@ -171,13 +195,17 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                     });
                     setDirty(false);
                     await refresh();
-                    router.replace(`${base}/${encodeURIComponent(created.id)}`);
+                    router.replace(
+                      createSurvey
+                        ? `${back}${created.sector ? '&sector=' + encodeURIComponent(created.sector) : ''}`
+                        : `${base}/${encodeURIComponent(created.id)}`,
+                    );
                   }}
                 />
               </section>
             ))}
           {item && mode === 'detail' && (
-            <div className="mx-auto max-w-5xl">
+            <div className="min-w-0">
               <InventoryDetailAccess item={item} />
               <InventoryDetails
                 item={item}

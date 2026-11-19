@@ -12,6 +12,7 @@ export function NativePropertyExtras({
   disabled,
   children,
   quickEntry,
+  separatePossession = false,
 }: {
   value: Record<string, any>;
   onChange: (value: Record<string, any>) => void;
@@ -19,6 +20,7 @@ export function NativePropertyExtras({
   disabled?: boolean;
   children?: ReactNode;
   quickEntry?: { open: boolean; onToggle: (open: boolean) => void };
+  separatePossession?: boolean;
 }) {
   const latest = useRef(value);
   latest.current = value;
@@ -30,7 +32,10 @@ export function NativePropertyExtras({
   const [expanded, setExpanded] = useState(false);
   const open = quickEntry?.open ?? expanded;
   const setOpen = quickEntry?.onToggle ?? setExpanded;
-  const fields = visiblePropertyFields(value.category).filter((field) => !quickEntry || !['tenantType', 'foodPreference'].includes(field.key));
+  const fields = visiblePropertyFields(value.category).filter(
+    (field) =>
+      (!quickEntry || !['tenantType', 'foodPreference'].includes(field.key)) && (!(quickEntry || separatePossession) || field.key !== 'possessionDate'),
+  );
   const details = value.details ?? {};
   function change(key: string, v: any) {
     onChange({ ...value, details: { ...details, [key]: v } });

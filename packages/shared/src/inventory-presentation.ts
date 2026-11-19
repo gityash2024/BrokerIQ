@@ -131,3 +131,14 @@ export function inventoryAvailabilityLabel(item: Pick<LedgerItem, 'availableSinc
   if (since.success && since.data > inventoryDate()) return `Available from: ${inventoryDateLabel(since.data)}`;
   return 'Ready to move';
 }
+
+export function inventoryPossessionLabel(item: Pick<LedgerItem, 'availableSince' | 'details'>) {
+  const possession = inventoryDateSchema.safeParse(item.details?.possessionDate);
+  if (possession.success) return `Possession date: ${inventoryDateLabel(possession.data)}`;
+  const available = inventoryAvailabilityLabel(item);
+  return available === 'Ready to move' ? 'Possession date not recorded' : available;
+}
+
+export function isPendingSurvey(item: Pick<LedgerItem, 'sourceType' | 'status'>) {
+  return item.sourceType === 'SURVEY' && item.status === 'DRAFT';
+}

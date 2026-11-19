@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { areaUnitSchema, INVENTORY_PROPERTY_TYPES, capturedEntitySchema, captureLocalities, normalizeIndianPhone, type CapturedEntity } from '@brokeriq/shared';
+import {
+  areaUnitSchema,
+  INVENTORY_PROPERTY_TYPES,
+  capturedEntitySchema,
+  captureLocalities,
+  inventoryDateSchema,
+  normalizeIndianPhone,
+  type CapturedEntity,
+} from '@brokeriq/shared';
 
 const text = z.string().max(200).nullable();
 const amount = z.number().finite().nonnegative().max(1e13).nullable();
@@ -26,6 +34,9 @@ export const captureFactsSchema = z.object({
         priceMin: amount,
         priceMax: amount,
         furnishing: z.enum(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']).nullable(),
+        possessionDate: z.string().max(40).nullable().optional(),
+        foodPreference: z.enum(['VEGETARIAN_ONLY', 'NO_RESTRICTION']).nullable().optional(),
+        petFriendly: z.boolean().nullable().optional(),
         availability: z.enum(['AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']).nullable().optional(),
         contacts: z.array(z.object({ name: text, phone: text, role: z.enum(['OWNER', 'BROKER', 'UNKNOWN']) })).max(10),
         warnings: z.array(z.string().max(400)).max(10),
@@ -45,6 +56,7 @@ Use only explicit area and its printed unit. Never label square yards or marla a
 export const REGISTER_LAYOUT_PROMPT = `
 For a handwritten property register or table, read the page heading before its rows. The sector is written at the TOP of this register and applies to every row below it until another explicit sector heading.
 Read the handwritten row details to the RIGHT of each phone carefully. Extract every legible BHK/RK, floor code, furnishing code and quoted monthly rent such as 10K or 18K. Keep the heading and each horizontal row separate.
+Copy an explicitly stated possession or move-in date in YYYY-MM-DD only when day, month and year are all clear. Read explicit vegetarian-only / non-vegetarian allowed and pets allowed / not allowed per row. Leave blanks as null, never infer a restriction.
 When columns have no printed labels, the FIRST column is the house/plot number. The next long 10-digit number is a contact PHONE, never the house number. For example, a row beginning "941 9876543210" has houseNo "941" and phone "9876543210". Preserve the exact visible house/plot identifier, including letters and slashes. An explicit printed column label takes precedence over this register layout.
 Keep each legible house/plot row as its own record even when it only has a phone or a status note. Copy missing configuration/price fields as null. Preserve source notes such as "No broker" for human review. Keep fields from separate houses on their own rows.
 Broker-confirmed shorthand is SFD = SEMI_FURNISHED, FFD = FULLY_FURNISHED; GF = ground floor (0), FF = first floor (1), SF = second floor (2), TF = Top Floor with unknown numeric level. These floor codes never mean furnishing. Preserve explicit 3rd Floor as 3 and 4th Floor as 4. Read SFD carefully; an unclear SFO requires a warning, never an invented furnishing.
@@ -451,7 +463,16 @@ export function factsToEntities(input: z.infer<typeof captureFactsSchema>, sourc
         totalSalePrice: priceBasis === 'SALE_TOTAL' ? exact : null,
         ratePerArea: priceBasis === 'RATE_PER_SQFT' || priceBasis === 'RATE_PER_SQYD' ? exact : null,
         rateAreaUnit: priceBasis === 'RATE_PER_SQFT' ? 'SQ_FT' : priceBasis === 'RATE_PER_SQYD' ? 'SQ_YD' : null,
-        details: { projectName: fact.society },
+        details: {
+          projectName: fact.society,
+          ...(visualEvidence
+            ? {
+                possessionDate: inventoryDateSchema.safeParse(fact.possessionDate).data ?? null,
+                foodPreference: fact.foodPreference ?? null,
+                petFriendly: fact.petFriendly ?? null,
+              }
+            : {}),
+        },
         contacts,
         availability: visualEvidence && fact.availability && fact.availability !== 'AVAILABLE' ? fact.availability : 'UNKNOWN',
         verificationStatus: 'NEEDS_REVIEW',

@@ -1,13 +1,13 @@
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Switch, View } from 'react-native';
+import { Alert, FlatList, Linking, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native';
 import {
   hasDelegatedAccess,
-  inventoryAvailabilityLabel,
+  inventoryPossessionLabel,
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
@@ -48,6 +48,7 @@ export function NativeInventoryFolders() {
     return () => clearInterval(timer);
   }, []);
   const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
+  const survey = mode === 'SURVEY';
   const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
   const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useState('');
@@ -58,22 +59,24 @@ export function NativeInventoryFolders() {
   const term = useDebounced(search);
   const query = {
     ...filters,
-    search: term,
+    search: survey && !path.length ? '' : term,
     dateFrom: normalizeDate(filters.dateFrom),
     dateTo: normalizeDate(filters.dateTo, true),
     folderMode: mode,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
-    ...(term
-      ? {}
-      : mode === 'AVAILABLE'
-        ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
-        : { folderSector: path[0]?.key }),
+    ...(survey
+      ? { folderSector: path[0]?.key }
+      : term
+        ? {}
+        : mode === 'AVAILABLE'
+          ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
+          : { folderSector: path[0]?.key }),
   };
-  const leaf = Boolean(term) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const folders = useQuery({
     queryKey: ['inventory-folders', user?.id, today, query],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs(query)}`),
-    enabled: !!user,
+    enabled: !!user && !leaf,
   });
   const records = useInfiniteQuery({
     queryKey: ['inventory-folder-items', user?.id, today, query],
@@ -85,7 +88,9 @@ export function NativeInventoryFolders() {
   });
   const active = leaf ? records : folders;
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
-  const rows: (InventoryFolder | LedgerItem)[] = leaf ? (records.data?.pages.flatMap((page) => page.items) ?? []) : (folders.data?.folders ?? []);
+  const rows: (InventoryFolder | LedgerItem)[] = leaf
+    ? (records.data?.pages.flatMap((page) => page.items) ?? [])
+    : (folders.data?.folders ?? []).filter((folder) => !survey || !term || folder.label.toLowerCase().includes(term.toLowerCase()));
 
   function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
     setMode(next);
@@ -123,7 +128,7 @@ export function NativeInventoryFolders() {
   }
 
   return (
-    <BrokerScreen title="Available Inventory">
+    <BrokerScreen title={survey ? 'Survey' : 'Available Inventory'}>
       <FlatList
         style={{ flex: 1 }}
         data={rows}
@@ -138,7 +143,9 @@ export function NativeInventoryFolders() {
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
             <NativeInventoryEntryActions
+              survey={survey}
               params={{
+                ...(survey && path[0]?.key && path[0].key !== '__unset__' ? { sector: path[0].key } : {}),
                 makeAvailable: '1',
                 directoryMonth: mode === 'AVAILABLE' ? (path[0]?.key ?? current) : current,
                 ...(mode === 'AVAILABLE' && path[1] ? { folderRoom: path[1].key } : {}),
@@ -152,6 +159,7 @@ export function NativeInventoryFolders() {
               options={[
                 { value: 'AVAILABLE', label: 'Available' },
                 { value: 'RENTED', label: 'Rented out' },
+                { value: 'SURVEY', label: 'Survey' },
               ]}
             />
             <Txt color="muted" v="caption">
@@ -200,7 +208,12 @@ export function NativeInventoryFolders() {
           'id' in item ? (
             <NativeCard style={{ gap: 8 }}>
               {!!item.photoUrls?.[0] && <Image source={item.photoUrls[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />}
-              <Txt v="h3">{inventoryPrice(item)}</Txt>
+              {mode !== 'RENTED' && (
+                <Txt v="small" color="brand">
+                  {inventoryPossessionLabel(item)}
+                </Txt>
+              )}
+              {!survey && <Txt v="h3">{inventoryPrice(item)}</Txt>}
               <Txt color="brand" v="title" onPress={() => router.push(`/inventory/${item.id}`)}>
                 {inventoryCardTitle(item)}
               </Txt>
@@ -208,7 +221,7 @@ export function NativeInventoryFolders() {
                 <Txt color="muted" style={{ flex: 1 }}>
                   {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                 </Txt>
-                {
+                {!survey && (
                   <Switch
                     accessibilityLabel={mode === 'AVAILABLE' ? 'Property is available' : 'Make property available'}
                     value={mode === 'AVAILABLE'}
@@ -217,12 +230,37 @@ export function NativeInventoryFolders() {
                       mode === 'AVAILABLE' ? moveToRent(item) : router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })
                     }
                   />
-                }
+                )}
               </Row>
-              {mode === 'AVAILABLE' && (
-                <Txt v="caption" color="muted">
-                  {inventoryAvailabilityLabel(item)}
-                </Txt>
+              {survey && (
+                <Row wrap gap={8}>
+                  {!!(item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone) && (
+                    <Button
+                      title="Call contact"
+                      size="sm"
+                      variant="ghost"
+                      onPress={() =>
+                        void Linking.openURL(`tel:${item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone}`).catch(() =>
+                          toast.error('Unable to open phone'),
+                        )
+                      }
+                    />
+                  )}
+                  <Button
+                    title="Confirm availability"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!canEdit || item.canEdit === false}
+                    onPress={() => router.push({ pathname: '/inventory-edit', params: { id: item.id, makeAvailable: '1' } })}
+                  />
+                  <Button
+                    title="Mark rented out"
+                    size="sm"
+                    variant="ghost"
+                    disabled={!canEdit || item.canEdit === false || !!busy}
+                    onPress={() => moveToRent(item)}
+                  />
+                </Row>
               )}
               {user?.role === 'BROKER_AGENT' && ['LOCKED', 'EXPIRED', 'REJECTED', 'REVOKED'].includes(item.detailAccess ?? '') && (
                 <Button title="Request full details" size="sm" variant="ghost" onPress={() => router.push(`/inventory/${item.id}`)} />

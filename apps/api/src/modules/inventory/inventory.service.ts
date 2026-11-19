@@ -17,6 +17,7 @@ import {
   publicationDecision,
   slugify,
   inventoryDate,
+  inventoryDateSchema,
   inventoryMonthLabel,
   inventoryRoomFolder,
   NAMED_INVENTORY_TYPES,
@@ -34,6 +35,8 @@ import { SettingsService } from '../../core/settings/settings.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import type { InventoryFilterQuery } from './inventory.dto';
+
+const pendingSurvey: Prisma.InventoryItemWhereInput = { sourceType: 'SURVEY', status: 'DRAFT' };
 
 const include = {
   organization: { select: { id: true, name: true, slug: true } },
@@ -86,6 +89,7 @@ export class InventoryService {
     }
     if (q.dateFrom && q.dateTo && new Date(q.dateFrom) > new Date(q.dateTo)) throw new BadRequestException('From date must precede through date');
     const and: Prisma.InventoryItemWhereInput[] = [];
+    and.push(q.folderMode === 'SURVEY' ? pendingSurvey : { NOT: pendingSurvey });
     if (q.review === 'publication')
       and.push({ publishedListing: { is: { status: 'PENDING_REVIEW', ...(user.role === 'BROKER_ADMIN' ? { reviewRequiredRole: 'BROKER_ADMIN' } : {}) } } });
     if (user.role === 'BROKER_AGENT') {
@@ -99,6 +103,7 @@ export class InventoryService {
       }
     }
     if (q.sector) where.sector = { equals: q.sector, mode: 'insensitive' };
+    if (q.folderMode === 'SURVEY' && q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
     if (q.houseNo) {
       where.houseNo = { contains: q.houseNo, mode: 'insensitive' };
       if (user.role === 'BROKER_AGENT')
@@ -108,9 +113,12 @@ export class InventoryService {
       if (q[key] != null) (where as any)[key] = q[key];
     if (q.search) {
       const search = {
-        OR: ['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
-          [key]: { contains: q.search, mode: 'insensitive' },
-        })),
+        OR: [
+          ...['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
+            [key]: { contains: q.search, mode: 'insensitive' as const },
+          })),
+          { contacts: { some: { phone: { contains: q.search } } } },
+        ],
       };
       and.push(
         user.role === 'BROKER_AGENT'
@@ -250,6 +258,7 @@ export class InventoryService {
         OR: [
           { AND: [complete, { verificationStatus: 'VERIFIED' }] },
           { availability: 'RENTED', houseNo: { not: '' }, sector: { not: '' }, sourceEntry: { is: { reviewState: 'APPROVED' } } },
+          { sourceType: 'SURVEY', availability: 'RENTED', houseNo: { not: '' }, sector: { not: '' } },
         ],
       });
       if (q.folderSector) and.push({ sector: q.folderSector === '__unset__' ? null : q.folderSector });
@@ -275,9 +284,18 @@ export class InventoryService {
     const months = await this.prisma.inventoryItem.groupBy({ by: ['directoryMonth'], where: root, _count: { _all: true } });
     const years = [...new Set([current.slice(0, 4), ...months.flatMap((row) => row.directoryMonth?.slice(0, 4) ?? [])])].sort().reverse();
     const folders: InventoryFolder[] = [];
-    if (q.folderMode === 'RENTED' && !q.folderSector) {
+    if ((q.folderMode === 'RENTED' || q.folderMode === 'SURVEY') && !q.folderSector) {
       const rows = await this.prisma.inventoryItem.groupBy({ by: ['sector'], where: query, _count: { _all: true }, orderBy: { sector: 'asc' } });
-      folders.push(...rows.map(({ sector, _count }) => ({ key: sector || '__unset__', label: sector || 'Sector not recorded', count: _count._all })));
+      const sectors = new Map(rows.map(({ sector, _count }) => [sector, _count._all]));
+      if (q.folderMode === 'SURVEY') {
+        const locations = await this.prisma.locality.findMany({ where: { isActive: true }, select: { name: true } });
+        for (const { name } of locations) if (!sectors.has(name)) sectors.set(name, 0);
+      }
+      folders.push(
+        ...[...sectors]
+          .map(([sector, count]) => ({ key: sector || '__unset__', label: sector || 'Sector not recorded', count }))
+          .sort((a, b) => a.label.localeCompare(b.label, 'en-IN', { numeric: true })),
+      );
     }
     if (q.folderMode === 'AVAILABLE' && !q.folderMonth && q.currentInventory) {
       folders.push({ key: current, label: inventoryMonthLabel(current), count: months.reduce((total, row) => total + row._count._all, 0) });
@@ -380,7 +398,7 @@ export class InventoryService {
 
     const itemsWithMatches = items.map((r) => {
       const item = ledgerJson(r);
-      if (requirements.length > 0) {
+      if (requirements.length > 0 && q.folderMode !== 'SURVEY') {
         const itemPrice = item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : item.totalSalePrice;
         let matchCount = 0;
         for (const req of requirements) {
@@ -541,7 +559,7 @@ export class InventoryService {
     return (await this.access.present([ledgerJson(item)], user))[0];
   }
   async getStats(user: RequestUser, organizationId?: string) {
-    const where = { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user) };
+    const where = { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user), NOT: pendingSurvey };
     const [total, statuses, availability, reviewed, published] = await Promise.all([
       this.prisma.inventoryItem.count({ where }),
       this.prisma.inventoryItem.groupBy({ by: ['status'], where, _count: { id: true } }),
@@ -569,7 +587,13 @@ export class InventoryService {
   async getSectors(user: RequestUser, organizationId?: string) {
     const rows = await this.prisma.inventoryItem.groupBy({
       by: ['sector'],
-      where: { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user), sector: { not: null } },
+      where: {
+        organizationId: this.orgId(user, organizationId, false),
+        deletedAt: null,
+        ...this.access.readScope(user),
+        sector: { not: null },
+        NOT: pendingSurvey,
+      },
       _count: { id: true },
       orderBy: { sector: 'asc' },
     });
@@ -578,13 +602,26 @@ export class InventoryService {
       .map((r) => ({ sector: r.sector, count: r._count.id }));
   }
   private fields(input: InventoryInput, previous?: any) {
-    const { contacts: _contacts, organizationId: _org, expectedRevision: _revision, details: _details, ...data } = input;
+    const { contacts: _contacts, organizationId: _org, expectedRevision: _revision, details: _details, survey: _survey, ...data } = input;
     const monthly = input.monthlyRent !== undefined ? input.monthlyRent : input.rent;
     const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
     if (input.ownerPhone && !primaryPhone) throw new BadRequestException('Invalid Indian phone number');
     const effective = { ...previous, ...data, ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}) };
+    const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
+    const isSurvey = input.survey || (previous?.sourceType === 'SURVEY' && previous.status === 'DRAFT');
+    if (isSurvey) {
+      if (!effective.houseNo?.trim() || !effective.sector?.trim()) throw new BadRequestException('Survey needs a sector and house number');
+      const possession = (details ?? previous?.details)?.possessionDate;
+      if (!inventoryDateSchema.safeParse(possession).success && !(input.availability === 'RENTED' && input.status === 'RENTED'))
+        throw new BadRequestException('Choose the possession date for this survey');
+      if (!input.directoryMonth && !(input.availability === 'RENTED' && input.status === 'RENTED')) {
+        data.status = 'DRAFT';
+        data.availability = 'UNKNOWN';
+        data.verificationStatus = 'NEEDS_REVIEW';
+      }
+    }
     const markRented = input.availability === 'RENTED' && input.status === 'RENTED';
-    if (markRented) {
+    if (markRented && !isSurvey) {
       const missing = missingInventoryFolderFields(effective);
       if (missing.length) throw new BadRequestException('Fill these fields to mark the property Rented out: ' + missing.join(', '));
       data.verificationStatus = 'VERIFIED';
@@ -619,7 +656,6 @@ export class InventoryService {
       const folderStart = input.directoryMonth ? `${input.directoryMonth}-01` : today;
       data.availableSince = folderStart > today ? folderStart : today;
     }
-    const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
     const price = effective.purpose === 'RENT' ? (effective.monthlyRent ?? effective.rent) : effective.purpose === 'SALE' ? effective.totalSalePrice : null;
     const size = effective.area != null && effective.areaUnit ? areaSqft(Number(effective.area), effective.areaUnit) : null;
     const rate =
@@ -689,10 +725,11 @@ export class InventoryService {
         data: {
           ...this.fields(input),
           ...source,
+          ...(input.survey ? { sourceType: 'SURVEY' } : {}),
           organizationId,
           createdById: user.id,
           assignedToId,
-          verificationStatus: input.directoryMonth ? 'VERIFIED' : (input.verificationStatus ?? 'VERIFIED'),
+          verificationStatus: input.directoryMonth ? 'VERIFIED' : input.survey ? 'NEEDS_REVIEW' : (input.verificationStatus ?? 'VERIFIED'),
           contacts: { create: this.contacts(input) },
         },
         include,
@@ -712,6 +749,7 @@ export class InventoryService {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
       if (!current) throw new NotFoundException('Inventory item not found');
+      if (input.survey) throw new BadRequestException('Use Survey when adding a new property');
       if (input.organizationId && input.organizationId !== current.organizationId) throw new BadRequestException('Property firm cannot be changed');
       const affectsPublicListing = Object.keys(input).some(
         (key) => !['expectedRevision', 'clientMutationId', 'directionsUrl', 'directoryMonth', 'availableSince'].includes(key),
@@ -1058,7 +1096,7 @@ export class InventoryService {
     const count = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(Prisma.sql`SELECT id FROM "InventoryItem" WHERE id IN (${Prisma.join(unique)}) ORDER BY id FOR UPDATE`);
       const items = await tx.inventoryItem.findMany({
-        where: { ...this.scope(user), id: { in: unique } },
+        where: { ...this.scope(user), id: { in: unique }, NOT: pendingSurvey },
         select: { id: true, organizationId: true, publishedListingId: true },
       });
       if (items.length !== unique.length || new Set(items.map((i) => i.organizationId)).size !== 1)
@@ -1083,6 +1121,7 @@ export class InventoryService {
       where: {
         ...this.scope(user),
         status: { not: 'INACTIVE' },
+        NOT: pendingSurvey,
         availability: { in: ['UNKNOWN', 'AVAILABLE'] },
         purpose: requirement.purpose ?? '__unknown__',
       },

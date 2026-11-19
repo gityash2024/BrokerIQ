@@ -22,11 +22,18 @@ import { inventoryMonth, inventoryMonthSchema } from '@brokeriq/shared';
 
 type Source = { uri: string; mime: string; name: string };
 export default function Capture({ scanner = false }: { scanner?: boolean }) {
-  const { target: requested, directoryMonth: requestedMonth } = useLocalSearchParams<{ target?: string; directoryMonth?: string }>();
+  const {
+    target: requested,
+    directoryMonth: requestedMonth,
+    sector: requestedSector,
+  } = useLocalSearchParams<{ target?: string; directoryMonth?: string; sector?: string }>();
+  const survey = scanner && requested === 'SURVEY';
+  const surveySector = survey ? requestedSector?.trim() || null : null;
+  const composeKey = survey ? 'survey-composer:' + (surveySector ?? '') : 'message-composer';
   const suggestedMonth = inventoryMonthSchema.safeParse(requestedMonth);
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const { c } = useTheme();
-  const [registerSector, setRegisterSector] = useState<string | null>(null);
+  const [registerSector, setRegisterSector] = useState<string | null>(surveySector);
   const localities = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
@@ -36,7 +43,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const [registerSessionId, setRegisterSessionId] = useState(Crypto.randomUUID);
   const [text, setText] = useState('');
   const [group, setGroup] = useState('');
-  const [target, setTarget] = useState(['INVENTORY', 'REQUIREMENT'].includes(requested ?? '') ? requested! : 'AUTO');
+  const [target, setTarget] = useState(survey ? 'SURVEY' : ['INVENTORY', 'REQUIREMENT'].includes(requested ?? '') ? requested! : 'AUTO');
   const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,7 +57,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
   const pendingFiles = useRef<Source[]>([]);
   useEffect(() => {
     let live = true;
-    void editableDraft('CAPTURE_COMPOSE', 'message-composer', owner.current, startSeparate)
+    void editableDraft('CAPTURE_COMPOSE', composeKey, owner.current, startSeparate)
       .then((row) => {
         if (!live) return;
         if (row) {
@@ -58,9 +65,9 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
           draftId.current = row.id;
           setText(saved.text ?? '');
           setGroup(saved.group ?? '');
-          setRegisterSector(saved.registerSector ?? null);
+          setRegisterSector(saved.registerSector ?? surveySector);
           if (saved.registerSessionId) setRegisterSessionId(saved.registerSessionId);
-          if (!requested || saved.entryTarget === requested) setTarget(saved.target ?? 'AUTO');
+          if (!survey && (!requested || saved.entryTarget === requested)) setTarget(saved.target ?? 'AUTO');
           if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
           setStatus('Draft restored');
         }
@@ -70,7 +77,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     return () => {
       live = false;
     };
-  }, [startSeparate]);
+  }, [startSeparate, composeKey]);
   useEffect(() => {
     if (!ready || (!scanner && !text && !group && !draftId.current)) return;
     writes.current = writes.current
@@ -78,7 +85,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
       .then(async () => {
         draftId.current = await saveDraft(
           'CAPTURE_COMPOSE',
-          'message-composer',
+          composeKey,
           { text, group, target, directoryMonth, entryTarget: requested, registerSessionId, registerSector },
           draftId.current,
           owner.current,
@@ -113,6 +120,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
     setError('');
     try {
       if (target === 'INVENTORY' && !inventoryMonthSchema.safeParse(captureMonth).success) throw new Error('Choose the inventory year and month.');
+      if (survey && !registerSector) throw new Error('Choose the sector before scanning the survey register.');
       await action();
     } catch (e) {
       setError(errorMessage(e));
@@ -156,7 +164,11 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
       await preserve(result.assets.map((a) => ({ uri: a.uri, mime: a.mimeType ?? (/\.zip$/i.test(a.name) ? 'application/zip' : 'text/plain'), name: a.name })));
   }
   return (
-    <BrokerScreen title={scanner ? 'Scanner & import' : 'Capture workspace'} subtitle="Inventory, requirements and original sources." back>
+    <BrokerScreen
+      title={survey ? 'Scan survey register' : scanner ? 'Scanner & import' : 'Capture workspace'}
+      subtitle={survey ? 'Choose the sector, scan the pages and review the extracted properties.' : 'Inventory, requirements and original sources.'}
+      back
+    >
       <View style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 16, paddingBottom: 40 }}>
           <WorkspaceHero
@@ -172,7 +184,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                 label="Register sector"
                 value={registerSector}
                 choices={(localities.data ?? []).map((locality) => locality.name)}
-                emptyLabel="Read from page heading"
+                emptyLabel={survey ? 'Choose sector first' : 'Read from page heading'}
                 onChange={(value) => {
                   setRegisterSector(value);
                   setRegisterSessionId(Crypto.randomUUID());
@@ -189,63 +201,73 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                   setRegisterSessionId(Crypto.randomUUID());
                   setRegisterSector(null);
                   setSources([]);
-                  setStatus('New register started. The first page sets its sector.');
+                  setStatus(survey ? 'New register started. Choose its sector.' : 'New register started. The first page sets its sector.');
                 }}
               />
             </NativeCard>
           )}
-          <NativeCard>
-            <Txt v="title">What are you adding?</Txt>
-            <Segmented
-              value={target}
-              onChange={setTarget}
-              options={[
-                { label: 'Auto detect', value: 'AUTO' },
-                { label: 'Inventory', value: 'INVENTORY' },
-                { label: 'Requirements', value: 'REQUIREMENT' },
-              ]}
-            />
-            <Txt v="caption" color="muted">
-              This guides review. Mixed messages stay separate; nothing is added before approval.
-            </Txt>
-            {target === 'INVENTORY' && (
-              <Input
-                label="Inventory year and month (YYYY-MM)"
-                value={directoryMonth}
-                onChangeText={setDirectoryMonth}
-                maxLength={7}
-                editable={ready && !busy}
+          {!survey && (
+            <NativeCard>
+              <Txt v="title">What are you adding?</Txt>
+              <Segmented
+                value={target}
+                onChange={setTarget}
+                options={[
+                  { label: 'Auto detect', value: 'AUTO' },
+                  { label: 'Inventory', value: 'INVENTORY' },
+                  { label: 'Requirements', value: 'REQUIREMENT' },
+                ]}
               />
-            )}
-            <Input label="Group / source name (optional)" value={group} onChangeText={setGroup} editable={ready && !busy} />
-          </NativeCard>
+              <Txt v="caption" color="muted">
+                This guides review. Mixed messages stay separate; nothing is added before approval.
+              </Txt>
+              {target === 'INVENTORY' && (
+                <Input
+                  label="Inventory year and month (YYYY-MM)"
+                  value={directoryMonth}
+                  onChangeText={setDirectoryMonth}
+                  maxLength={7}
+                  editable={ready && !busy}
+                />
+              )}
+              <Input label="Group / source name (optional)" value={group} onChangeText={setGroup} editable={ready && !busy} />
+            </NativeCard>
+          )}
           <NativeCard>
             <Row>
               <ScanLine size={21} color={c.brand} />
               <Txt v="h3">Scan & upload</Txt>
             </Row>
-            <Button title="Scan pages" icon={<Camera size={18} color="white" />} loading={busy} disabled={!ready} onPress={() => perform(scan)} />
+            <Button
+              title="Scan pages"
+              icon={<Camera size={18} color="white" />}
+              loading={busy}
+              disabled={!ready || (survey && !registerSector)}
+              onPress={() => perform(scan)}
+            />
             <Button
               title="Camera photo · Alternative scan"
               variant="secondary"
               icon={<Camera size={18} color={c.brand} />}
-              disabled={busy || !ready}
+              disabled={busy || !ready || (survey && !registerSector)}
               onPress={() => perform(camera)}
             />
             <Button
               title="Gallery · Multiple images"
               variant="secondary"
               icon={<Images size={18} color={c.brand} />}
-              disabled={busy || !ready}
+              disabled={busy || !ready || (survey && !registerSector)}
               onPress={() => perform(gallery)}
             />
-            <Button
-              title="WhatsApp export · TXT / ZIP / Images"
-              variant="secondary"
-              icon={<FileArchive size={18} color={c.brand} />}
-              disabled={busy || !ready}
-              onPress={() => perform(files)}
-            />
+            {!survey && (
+              <Button
+                title="WhatsApp export · TXT / ZIP / Images"
+                variant="secondary"
+                icon={<FileArchive size={18} color={c.brand} />}
+                disabled={busy || !ready}
+                onPress={() => perform(files)}
+              />
+            )}
             <Txt v="caption" color="muted">
               Up to 300 MB per source, uploaded in resumable encrypted chunks. No file-selection count limit. Scanner supports multi-page crop and page cleanup.
               Originals stay private.
@@ -257,40 +279,42 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
               </Txt>
             ))}
           </NativeCard>
-          <NativeCard>
-            <Row>
-              <ClipboardPaste size={21} color={c.brand} />
-              <Txt v="h3">Paste & fill</Txt>
-            </Row>
-            <Button
-              title="Paste clipboard"
-              variant="ghost"
-              disabled={!ready || busy}
-              onPress={() => perform(async () => setText(await Clipboard.getStringAsync()))}
-            />
-            <Input
-              label="Original message"
-              value={text}
-              onChangeText={setText}
-              editable={ready && !busy}
-              multiline
-              numberOfLines={7}
-              style={{ minHeight: 170 }}
-            />
-            <Button
-              title="Save message for review"
-              loading={busy}
-              disabled={!ready || !text.trim()}
-              onPress={() =>
-                perform(async () => {
-                  await writes.current;
-                  await captureText(text, 'WHATSAPP', group || undefined, target, owner.current, captureMonth);
-                  void syncDrafts().catch(() => undefined);
-                  setStatus('Message saved. Open saved sources to review.');
-                })
-              }
-            />
-          </NativeCard>
+          {!survey && (
+            <NativeCard>
+              <Row>
+                <ClipboardPaste size={21} color={c.brand} />
+                <Txt v="h3">Paste & fill</Txt>
+              </Row>
+              <Button
+                title="Paste clipboard"
+                variant="ghost"
+                disabled={!ready || busy}
+                onPress={() => perform(async () => setText(await Clipboard.getStringAsync()))}
+              />
+              <Input
+                label="Original message"
+                value={text}
+                onChangeText={setText}
+                editable={ready && !busy}
+                multiline
+                numberOfLines={7}
+                style={{ minHeight: 170 }}
+              />
+              <Button
+                title="Save message for review"
+                loading={busy}
+                disabled={!ready || !text.trim()}
+                onPress={() =>
+                  perform(async () => {
+                    await writes.current;
+                    await captureText(text, 'WHATSAPP', group || undefined, target, owner.current, captureMonth);
+                    void syncDrafts().catch(() => undefined);
+                    setStatus('Message saved. Open saved sources to review.');
+                  })
+                }
+              />
+            </NativeCard>
+          )}
           <LegacyDraftRecovery
             error={error}
             onStart={() => {

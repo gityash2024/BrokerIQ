@@ -8,7 +8,7 @@ const text = z.string().trim().max(200).nullable().optional();
 const money = z.number().finite().nonnegative().max(1e13).nullable().optional();
 export const areaUnitSchema = z.enum(['SQ_FT', 'SQ_YD', 'SQ_M', 'ACRE', 'HECTARE']);
 export const availabilitySchema = z.enum(['UNKNOWN', 'AVAILABLE', 'RENTED', 'SOLD', 'UNAVAILABLE']);
-export const sourceTypeSchema = z.enum(['MANUAL', 'PDF_REGISTER', 'WHATSAPP', 'CHAT_EXPORT', 'IMAGE', 'TEXT', 'PORTAL']);
+export const sourceTypeSchema = z.enum(['MANUAL', 'PDF_REGISTER', 'WHATSAPP', 'CHAT_EXPORT', 'IMAGE', 'TEXT', 'PORTAL', 'SURVEY']);
 export const inventoryContactSchema = z.object({
   name: text,
   phone: z
@@ -27,6 +27,7 @@ export const inventoryContactSchema = z.object({
 export const inventoryInputSchema = z
   .object({
     clientMutationId: z.string().max(100).optional(),
+    survey: z.literal(true).optional(),
     details: propertyDetailsSchema.optional(),
     photoUrls: z
       .array(

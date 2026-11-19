@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, ChevronRight, Folder,
 import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
-  inventoryAvailabilityLabel,
+  inventoryPossessionLabel,
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
@@ -36,7 +36,10 @@ import { AvailabilitySwitch } from './inventory-status-actions';
 const initial = { sector: '', minBudget: '', maxBudget: '', dateFrom: '', dateTo: '' };
 const inputClass = 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm';
 
-export function InventoryFoldersPage() {
+export function InventoryFoldersPage({
+  initialMode = 'AVAILABLE',
+  initialSector,
+}: { initialMode?: Exclude<InventoryFolderMode, 'REVIEW'>; initialSector?: string } = {}) {
   const router = useRouter();
   const [today, setToday] = useState(inventoryDate);
   const current = today.slice(0, 7);
@@ -46,8 +49,11 @@ export function InventoryFoldersPage() {
   }, []);
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
-  const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
+  const [mode, setMode] = useState(initialMode);
+  const survey = mode === 'SURVEY';
+  const [selectedPath, setPath] = useState<InventoryFolder[]>(
+    initialMode === 'SURVEY' && initialSector ? [{ key: initialSector, label: initialSector, count: 0 }] : [],
+  );
   const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(initial);
@@ -59,23 +65,25 @@ export function InventoryFoldersPage() {
   const shelf = {
     folderMode: mode,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
-    ...(term
-      ? {}
-      : mode === 'AVAILABLE'
-        ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
-        : { folderSector: path[0]?.key }),
+    ...(survey
+      ? { folderSector: path[0]?.key }
+      : term
+        ? {}
+        : mode === 'AVAILABLE'
+          ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
+          : { folderSector: path[0]?.key }),
   };
   const filter = {
     ...filters,
     dateFrom: filters.dateFrom ? new Date(filters.dateFrom + 'T00:00:00+05:30').toISOString() : '',
     dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999+05:30').toISOString() : '',
-    search: term,
+    search: survey && !path.length ? '' : term,
   };
-  const leaf = Boolean(term) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
   const folders = useQuery({
     queryKey: ['inventory-folders', user?.id, today, shelf, filter],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs({ ...filter, ...shelf })}`),
-    enabled: !!user,
+    enabled: !!user && !leaf,
   });
   const records = useQuery({
     queryKey: ['inventory-folder-items', user?.id, today, shelf, filter, page],
@@ -86,6 +94,7 @@ export function InventoryFoldersPage() {
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const folderMonth = mode === 'AVAILABLE' && path[0] ? path[0].key : current;
   const createUrl = `/broker/inventory/new${qs({ makeAvailable: '1', directoryMonth: folderMonth, folderRoom: mode === 'AVAILABLE' ? path[1]?.key : undefined, furnishing: mode === 'AVAILABLE' ? path[2]?.key : undefined })}`;
+  const surveySector = survey && path[0]?.key !== '__unset__' ? path[0]?.key : undefined;
   const activeQuery = leaf ? records : folders;
   const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', ...filter, ...shelf })}`;
 
@@ -124,29 +133,42 @@ export function InventoryFoldersPage() {
 
   return (
     <div className="inventory-browser space-y-5">
-      <PageHeader title="Available Inventory" actions={<InventoryEntryActions createHref={createUrl} />} />
+      <PageHeader
+        title={survey ? 'Survey' : 'Available Inventory'}
+        actions={
+          <InventoryEntryActions
+            createHref={survey ? '/broker/inventory/new' + qs({ survey: '1', sector: surveySector }) : createUrl}
+            survey={survey}
+            sector={surveySector}
+          />
+        }
+      />
       <InventoryTabs active="/broker/inventory" />
       <div className="inventory-filters rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-xl bg-surface-2 p-1" role="group" aria-label="Availability">
-            {(['AVAILABLE', 'RENTED'] as const).map((status) => (
+            {(['AVAILABLE', 'RENTED', 'SURVEY'] as const).map((status) => (
               <button
                 key={status}
                 aria-pressed={mode === status}
                 onClick={() => setShelf(status)}
                 className={`min-h-10 rounded-lg px-4 text-sm font-semibold ${mode === status ? 'bg-brand-600 text-white shadow-sm' : 'text-muted hover:text-fg'}`}
               >
-                {status === 'AVAILABLE' ? 'Available' : 'Rented out'}
+                {status === 'AVAILABLE' ? 'Available' : status === 'SURVEY' ? 'Survey' : 'Rented out'}
               </button>
             ))}
           </div>
-          <p className="basis-full text-sm text-muted sm:order-last">
-            Browse properties with complete details. Review older or incomplete records in{' '}
-            <Link href="/broker/inventory/data" className="font-semibold text-brand-600">
-              All Inventory
-            </Link>
-            .
-          </p>
+          {survey ? (
+            <p className="basis-full text-sm text-muted">Call the contact and confirm availability before moving a survey property.</p>
+          ) : (
+            <p className="basis-full text-sm text-muted sm:order-last">
+              Browse properties with complete details. Review older or incomplete records in{' '}
+              <Link href="/broker/inventory/data" className="font-semibold text-brand-600">
+                All Inventory
+              </Link>
+              .
+            </p>
+          )}
         </div>
         <div className="mt-4 grid grid-cols-2 items-start gap-2 xl:grid-cols-6">
           <label className="relative col-span-2 xl:col-span-2">
@@ -206,9 +228,11 @@ export function InventoryFoldersPage() {
           >
             <CalendarDays className="size-4 shrink-0" /> {filters.dateFrom || filters.dateTo ? 'Record dates applied' : 'Record dates'}
           </button>
-          <Link href={advancedUrl} className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
-            <SlidersHorizontal className="size-4" /> Advanced filters
-          </Link>
+          {(!survey || leaf) && (
+            <Link href={advancedUrl} className="inline-flex items-center gap-2 col-span-2 py-1 text-sm font-semibold text-brand-600 xl:col-span-6">
+              <SlidersHorizontal className="size-4" /> Advanced filters
+            </Link>
+          )}
         </div>
       </div>
       <nav aria-label="Inventory folder path" className="flex flex-wrap items-center gap-2 text-sm">
@@ -247,22 +271,44 @@ export function InventoryFoldersPage() {
                     </div>
                   )}
                   <div className="space-y-1 p-4 pb-2">
-                    <p className="text-lg font-bold">{inventoryPrice(item)}</p>
+                    {mode !== 'RENTED' && <p className="text-sm font-semibold text-brand-600">{inventoryPossessionLabel(item)}</p>}
+                    {!survey && <p className="text-lg font-bold">{inventoryPrice(item)}</p>}
                     <h3 className="break-words font-semibold">{inventoryCardTitle(item)}</h3>
-                    {mode === 'AVAILABLE' && <p className="text-sm text-muted">{inventoryAvailabilityLabel(item)}</p>}
                     <p className="text-sm text-muted">
                       {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                 </Link>
-                <div className="mx-4 flex items-center justify-between border-t border-line py-2">
+                <div className="mx-4 flex flex-wrap items-center justify-between gap-2 border-t border-line py-2">
                   <Link
                     href={`/broker/inventory/${encodeURIComponent(item.id)}`}
                     className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
                   >
                     View details <ArrowUpRight className="size-4" />
                   </Link>
-                  {
+                  {survey ? (
+                    <>
+                      {!!(item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone) && (
+                        <a
+                          className="text-sm font-semibold text-brand-600"
+                          href={`tel:${item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone}`}
+                        >
+                          Call contact
+                        </a>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={!canEdit || item.canEdit === false}
+                        href={`/broker/inventory/${encodeURIComponent(item.id)}/edit?makeAvailable=1`}
+                      >
+                        Confirm availability
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={!canEdit || item.canEdit === false || !!busy} onClick={() => void rentOut(item)}>
+                        Mark rented out
+                      </Button>
+                    </>
+                  ) : (
                     <AvailabilitySwitch
                       active={mode === 'AVAILABLE'}
                       label={mode === 'AVAILABLE' ? 'Mark property rented out' : 'Make property available'}
@@ -271,7 +317,7 @@ export function InventoryFoldersPage() {
                         mode === 'AVAILABLE' ? void rentOut(item) : router.push(`/broker/inventory/${encodeURIComponent(item.id)}/edit?makeAvailable=1`)
                       }
                     />
-                  }
+                  )}
                 </div>
               </article>
             ))}
@@ -292,26 +338,28 @@ export function InventoryFoldersPage() {
         </>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
-          {folders.data?.folders.map((folder) => (
-            <button
-              key={folder.key}
-              onClick={() => changePath([...path, folder])}
-              className="inventory-folder group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-sm hover:border-brand-500 sm:p-4"
-            >
-              <span
-                className={`grid size-10 shrink-0 place-items-center rounded-xl ${folder.count ? 'bg-brand-500/10 text-brand-600' : 'bg-surface-2 text-muted'}`}
+          {folders.data?.folders
+            .filter((folder) => !survey || !term || folder.label.toLowerCase().includes(term.toLowerCase()))
+            .map((folder) => (
+              <button
+                key={folder.key}
+                onClick={() => changePath([...path, folder])}
+                className="inventory-folder group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-sm hover:border-brand-500 sm:p-4"
               >
-                {mode === 'AVAILABLE' && !path.length ? <CalendarDays className="size-5" /> : <Folder className="size-5" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="break-words text-sm font-semibold">{folder.label}</span>
-                <span className="block text-xs text-muted">
-                  {folder.count} {folder.count === 1 ? 'property' : 'properties'}
+                <span
+                  className={`grid size-10 shrink-0 place-items-center rounded-xl ${folder.count ? 'bg-brand-500/10 text-brand-600' : 'bg-surface-2 text-muted'}`}
+                >
+                  {mode === 'AVAILABLE' && !path.length ? <CalendarDays className="size-5" /> : <Folder className="size-5" />}
                 </span>
-              </span>
-              <ChevronRight className="hidden size-4 shrink-0 text-muted sm:block" />
-            </button>
-          ))}
+                <span className="min-w-0 flex-1">
+                  <span className="break-words text-sm font-semibold">{folder.label}</span>
+                  <span className="block text-xs text-muted">
+                    {folder.count} {folder.count === 1 ? 'property' : 'properties'}
+                  </span>
+                </span>
+                <ChevronRight className="hidden size-4 shrink-0 text-muted sm:block" />
+              </button>
+            ))}
           {!folders.data?.folders.length && <p className="col-span-full py-6 text-muted">No folders match this view.</p>}
         </div>
       )}

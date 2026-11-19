@@ -13,6 +13,7 @@ export function PropertyMedia({
   onUploading,
   video = false,
   disabled = false,
+  camera = false,
 }: {
   urls: readonly string[];
   onAdd: (url: string) => void | Promise<void>;
@@ -20,8 +21,10 @@ export function PropertyMedia({
   onUploading?: (busy: boolean) => void;
   video?: boolean;
   disabled?: boolean;
+  camera?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const running = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -65,6 +68,25 @@ export function PropertyMedia({
         <h3 className="font-semibold">{label}</h3>
         {urls.length < limit && (
           <>
+            {camera && !video && (
+              <>
+                <Button type="button" variant="secondary" size="sm" disabled={disabled || pending} onClick={() => cameraInput.current?.click()}>
+                  Take property photo
+                </Button>
+                <input
+                  ref={cameraInput}
+                  aria-label="Take property photo"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(event) => {
+                    void upload(Array.from(event.currentTarget.files ?? []));
+                    event.currentTarget.value = '';
+                  }}
+                />
+              </>
+            )}
             <Button
               type="button"
               variant="secondary"

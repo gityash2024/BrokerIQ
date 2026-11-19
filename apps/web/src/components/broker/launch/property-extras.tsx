@@ -40,14 +40,20 @@ export function PropertyExtras({
   category,
   children,
   quickFields,
+  fieldKeys,
+  separatePossession = false,
 }: {
   initial: Record<string, any>;
   category?: string | null;
   children?: ReactNode;
   quickFields?: boolean;
+  fieldKeys?: string[];
+  separatePossession?: boolean;
 }) {
-  if (quickFields)
-    return quickKeys.map((key) => <PropertyExtraField key={key} field={PROPERTY_FIELDS.find((field) => field.key === key)!} initial={initial} />);
+  if (quickFields || fieldKeys)
+    return (fieldKeys ?? quickKeys).map((key) => (
+      <PropertyExtraField key={key} field={PROPERTY_FIELDS.find((field) => field.key === key)!} initial={initial} />
+    ));
   return (
     <details className="rounded-xl border border-line p-4">
       <summary className="cursor-pointer text-sm font-semibold">Additional property details</summary>
@@ -57,7 +63,7 @@ export function PropertyExtras({
       {children}
       <div className="grid gap-3 sm:grid-cols-2">
         {visiblePropertyFields(category)
-          .filter((field) => !quickKeys.includes(field.key))
+          .filter((field) => !quickKeys.includes(field.key) && (!separatePossession || field.key !== 'possessionDate'))
           .map((field) => (
             <PropertyExtraField key={field.key} field={field} initial={initial} />
           ))}

@@ -77,6 +77,54 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     await app?.close();
   });
 
+  it('keeps Survey private, then promotes and rents the same property without losing possession or photos', async () => {
+    const sparse = { survey: true, sector: 'Sector 57', houseNo: 'S-552', contacts: [{ phone: '9701188901', role: 'OWNER' }] };
+    await api().post('/api/inventory').set(headers(agent)).send(sparse).expect(400);
+    const details = { possessionDate: '2027-01-05', petFriendly: false, foodPreference: 'VEGETARIAN_ONLY' };
+    const photoUrls = ['https://inventory.example/property.jpg'];
+    const create = await api()
+      .post('/api/inventory')
+      .set(headers(agent))
+      .send({ ...sparse, details, photoUrls, clientMutationId: stamp + '-survey' })
+      .expect(201);
+    const id = create.body.id;
+    expect(create.body).toMatchObject({ sourceType: 'SURVEY', status: 'DRAFT', availability: 'UNKNOWN', details });
+    const list = (suffix: string, token = agent) =>
+      api()
+        .get('/api/inventory?houseNo=S-552' + suffix)
+        .set(headers(token))
+        .expect(200);
+    expect((await list('&folderMode=SURVEY')).body.items.map((row: { id: string }) => row.id)).toEqual([id]);
+    expect((await list('')).body.total).toBe(0);
+    expect((await list('&folderMode=SURVEY', outsider)).body.total).toBe(0);
+    await api()
+      .patch('/api/inventory/' + id)
+      .set(headers(agent))
+      .send({ directoryMonth: '2027-01' })
+      .expect(400);
+    const placed = await api()
+      .patch('/api/inventory/' + id)
+      .set(headers(agent))
+      .send({ ...unit, ...{ sector: sparse.sector, houseNo: sparse.houseNo }, directoryMonth: '2027-01' })
+      .expect(200);
+    expect(placed.body).toMatchObject({ id, availability: 'AVAILABLE', details, photoUrls });
+    expect((await list('&folderMode=SURVEY')).body.total).toBe(0);
+    expect((await list('&folderMode=AVAILABLE&folderMonth=2027-01')).body.total).toBe(1);
+    const rented = await api()
+      .patch('/api/inventory/' + id)
+      .set(headers(agent))
+      .send({ status: 'RENTED', availability: 'RENTED', expectedRevision: placed.body.revision })
+      .expect(200);
+    expect(rented.body).toMatchObject({ id, availability: 'RENTED', details, photoUrls, sector: sparse.sector, directoryMonth: null });
+    expect((await list('&folderMode=RENTED&folderSector=Sector%2057')).body.total).toBe(1);
+    expect((await list('&folderMode=AVAILABLE')).body.total).toBe(0);
+    expect((await list('&sector=Sector%2057')).body.items.map((row: { id: string }) => row.id)).toEqual([id]);
+    await api()
+      .delete('/api/inventory/' + id)
+      .set(headers())
+      .expect(200);
+  });
+
   it('keeps unknowns in verification and moves complete property records between folders and sectors', async () => {
     const draft = await api().post('/api/inventory').set(headers(agent)).send({ sector: unit.sector }).expect(201);
     const path = '/api/inventory/' + draft.body.id;

@@ -7,7 +7,7 @@ import { useConfig } from '@/lib/config';
 import { useTheme } from '@/lib/theme';
 import { Button, Txt } from '@/ui';
 
-export function NativeInventoryEntryActions({ params }: { params?: Record<string, string> }) {
+export function NativeInventoryEntryActions({ params, survey = false }: { params?: Record<string, string>; survey?: boolean }) {
   const { user } = useAuth();
   const { modules } = useConfig();
   const { c, isDark } = useTheme();
@@ -34,28 +34,36 @@ export function NativeInventoryEntryActions({ params }: { params?: Record<string
       }}
     >
       <Button
-        title="Add property"
+        title={survey ? 'Add survey property' : 'Add property'}
         disabled={!canCreate}
         icon={<Plus size={17} color="white" />}
         style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
-        onPress={() => router.push({ pathname: '/inventory-edit', params })}
+        onPress={() =>
+          router.push({ pathname: '/inventory-edit', params: survey ? { survey: '1', ...(params?.sector ? { sector: params.sector } : {}) } : params })
+        }
       />
       <Button
-        title="Scan property"
+        title={survey ? 'Scan survey register' : 'Scan property'}
         variant="secondary"
         disabled={!canImport}
         icon={<Camera size={17} color={c.brand} />}
         style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
-        onPress={() => router.push('/scanner?target=INVENTORY')}
+        onPress={() =>
+          router.push(
+            survey ? { pathname: '/scanner', params: { target: 'SURVEY', ...(params?.sector ? { sector: params.sector } : {}) } } : '/scanner?target=INVENTORY',
+          )
+        }
       />
-      <Button
-        title="WhatsApp import"
-        variant="secondary"
-        disabled={!canImport}
-        icon={<FileArchive size={17} color={c.brand} />}
-        style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
-        onPress={() => router.push('/capture?target=INVENTORY')}
-      />
+      {!survey && (
+        <Button
+          title="WhatsApp import"
+          variant="secondary"
+          disabled={!canImport}
+          icon={<FileArchive size={17} color={c.brand} />}
+          style={{ flexGrow: 1, flexBasis: 140, minHeight: 44, borderRadius: 16, paddingHorizontal: 10 }}
+          onPress={() => router.push('/capture?target=INVENTORY')}
+        />
+      )}
       {!canImport && (
         <Txt v="caption" color="muted" style={{ width: '100%' }}>
           Ask your Broker Admin for inventory create and capture access to use these actions.

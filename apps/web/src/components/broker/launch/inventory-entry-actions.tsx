@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 
-export function InventoryEntryActions({ createHref }: { createHref: string }) {
+export function InventoryEntryActions({ createHref, survey = false, sector }: { createHref: string; survey?: boolean; sector?: string }) {
   const { user } = useAuth();
   const { modules } = useConfig();
   const role = user?.role === 'SUB_BROKER_ADMIN' ? 'BROKER_ADMIN' : (user?.role ?? '');
@@ -15,24 +15,26 @@ export function InventoryEntryActions({ createHref }: { createHref: string }) {
   return (
     <div className="flex flex-wrap gap-2" aria-label="Inventory entry actions">
       <Button href={createHref} disabled={!canCreate} title={!canCreate ? 'Ask your Broker Admin for inventory create access' : undefined}>
-        <Plus className="size-4" /> Add property
+        <Plus className="size-4" /> {survey ? 'Add survey property' : 'Add property'}
       </Button>
       <Button
-        href="/broker/scanner?target=INVENTORY"
+        href={survey ? '/broker/scanner?target=SURVEY' + (sector ? '&sector=' + encodeURIComponent(sector) : '') : '/broker/scanner?target=INVENTORY'}
         variant="secondary"
         disabled={!canImport}
         title={!canImport ? 'Inventory create and capture access required' : undefined}
       >
-        <Camera className="size-4" /> Scan property
+        <Camera className="size-4" /> {survey ? 'Scan survey register' : 'Scan property'}
       </Button>
-      <Button
-        href="/broker/imports?target=INVENTORY"
-        variant="secondary"
-        disabled={!canImport}
-        title={!canImport ? 'Inventory create and capture access required' : undefined}
-      >
-        <FileArchive className="size-4" /> WhatsApp import
-      </Button>
+      {!survey && (
+        <Button
+          href="/broker/imports?target=INVENTORY"
+          variant="secondary"
+          disabled={!canImport}
+          title={!canImport ? 'Inventory create and capture access required' : undefined}
+        >
+          <FileArchive className="size-4" /> WhatsApp import
+        </Button>
+      )}
       {!canImport && <p className="basis-full text-xs text-muted">Ask your Broker Admin for inventory create and capture access to use these actions.</p>}
     </div>
   );

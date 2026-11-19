@@ -12,7 +12,7 @@ import { readPrivateDraft, writePrivateDraft, LEGACY_WEB_DRAFT_REVIEW } from '@/
 import { PageHeader } from '@/components/panel/shell';
 import { Button } from '@/components/ui/button';
 
-type Target = 'AUTO' | 'INVENTORY' | 'REQUIREMENT';
+type Target = 'AUTO' | 'INVENTORY' | 'REQUIREMENT' | 'SURVEY';
 export function CaptureWorkspace({ scanner = false }: { scanner?: boolean }) {
   useAuth();
   const context = captureAccountContext();
@@ -25,6 +25,9 @@ export function CaptureWorkspace({ scanner = false }: { scanner?: boolean }) {
 }
 function Workspace({ scanner }: { scanner: boolean }) {
   const params = useSearchParams();
+  const survey = scanner && params.get('target') === 'SURVEY';
+  const requestedSector = survey ? (params.get('sector')?.trim() ?? '') : '';
+  const composeKey = survey ? 'survey-capture:' + requestedSector : 'capture';
   const { user } = useAuth();
   const owner = useRef(captureAccountContext()).current;
   const [startSeparate, setStartSeparate] = useState(false);
@@ -32,16 +35,18 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const [text, setText] = useState(''),
     [group, setGroup] = useState('');
   const [target, setTarget] = useState<Target>(
-    ['INVENTORY', 'REQUIREMENT'].includes(params.get('target') ?? '')
-      ? (params.get('target') as Target)
-      : user?.role === 'BROKER_AGENT'
-        ? 'REQUIREMENT'
-        : 'AUTO',
+    survey
+      ? 'SURVEY'
+      : ['INVENTORY', 'REQUIREMENT'].includes(params.get('target') ?? '')
+        ? (params.get('target') as Target)
+        : user?.role === 'BROKER_AGENT'
+          ? 'REQUIREMENT'
+          : 'AUTO',
   );
   const suggestedMonth = inventoryMonthSchema.safeParse(params.get('directoryMonth'));
   const [directoryMonth, setDirectoryMonth] = useState(suggestedMonth.success ? suggestedMonth.data : inventoryMonth());
   const captureMonth = target === 'INVENTORY' ? directoryMonth : undefined;
-  const [registerSector, setRegisterSector] = useState('');
+  const [registerSector, setRegisterSector] = useState(requestedSector);
   const localities = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
@@ -78,16 +83,16 @@ function Workspace({ scanner }: { scanner: boolean }) {
         registerSessionId?: string;
         registerNextPage?: number;
         registerSector?: string;
-      }>(owner, 'capture', startSeparate)
+      }>(owner, composeKey, startSeparate)
         .then((saved) => {
           if (!live) return;
           if (saved) {
             setText(saved.text);
             setGroup(saved.group);
-            setRegisterSector(saved.registerSector ?? '');
+            setRegisterSector(saved.registerSector ?? requestedSector);
             if (saved.registerSessionId) setRegisterSessionId(saved.registerSessionId);
             registerNextPage.current = saved.registerNextPage ?? 1;
-            if (!params.get('target') || saved.entryTarget === params.get('target')) setTarget(saved.target);
+            if (!survey && (!params.get('target') || saved.entryTarget === params.get('target'))) setTarget(saved.target);
             if (!suggestedMonth.success && saved.directoryMonth) setDirectoryMonth(saved.directoryMonth);
             setStatus('Private draft restored');
           }
@@ -99,7 +104,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
     return () => {
       live = false;
     };
-  }, [owner, startSeparate]);
+  }, [owner, startSeparate, composeKey]);
   useEffect(() => {
     if (!owner.userId || !ready) return;
     const version = ++revision.current;
@@ -107,7 +112,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
     writes.current = writes.current
       .catch(() => undefined)
       .then(() =>
-        writePrivateDraft(owner, 'capture', {
+        writePrivateDraft(owner, composeKey, {
           text,
           group,
           target,
@@ -122,7 +127,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
         if (version === revision.current) setStatus('Encrypted draft saved in this browser');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, [text, group, target, directoryMonth, ready, owner, registerSessionId, registerSector]);
+  }, [text, group, target, directoryMonth, ready, owner, registerSessionId, registerSector, composeKey]);
   async function capture(body: Record<string, unknown>, name: string) {
     const result = await api<{ id: string }>('/imports', {
       ownerContext: owner,
@@ -139,6 +144,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
     setError('');
     try {
       if (target === 'INVENTORY' && !inventoryMonthSchema.safeParse(captureMonth).success) throw new Error('Choose the inventory year and month.');
+      if (survey && !registerSector) throw new Error('Choose the sector before scanning the survey register.');
       await writes.current;
       await action();
     } catch (e) {
@@ -244,7 +250,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
               disabled={busy || !ready}
               className="ml-3 rounded-xl border border-line bg-surface p-2"
             >
-              <option value="">Read from page heading</option>
+              <option value="">{survey ? 'Choose sector first' : 'Read from page heading'}</option>
               {(localities.data ?? []).map((locality) => (
                 <option key={locality.name} value={locality.name}>
                   {locality.name}
@@ -259,6 +265,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
             onClick={() => {
               setRegisterSessionId(crypto.randomUUID());
               registerNextPage.current = 1;
+              if (survey) setRegisterSector('');
               setCompleted([]);
             }}
           >
@@ -267,7 +274,7 @@ function Workspace({ scanner }: { scanner: boolean }) {
         </div>
       )}
       <PageHeader
-        title={scanner ? 'Scanner & import' : 'Capture workspace'}
+        title={survey ? 'Scan survey register' : scanner ? 'Scanner & import' : 'Capture workspace'}
         subtitle="Original sources, clear review and accurate Inventory / Requirements."
         actions={
           <Link href="/broker/inbox" className="text-sm font-semibold text-brand-600">
@@ -286,61 +293,65 @@ function Workspace({ scanner }: { scanner: boolean }) {
       </section>
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,.75fr)]">
         <div className="space-y-5">
-          <section className="card p-5 sm:p-6">
-            <h2 className="font-display text-lg font-bold">What are you adding?</h2>
-            <div className="my-4 flex flex-wrap gap-2" role="group" aria-label="Review destination">
-              {(['AUTO', 'INVENTORY', 'REQUIREMENT'] as const)
-                .filter((v) => v !== 'INVENTORY' || hasDelegatedAccess(user, 'inventory', 'create'))
-                .map((value) => (
-                  <button
-                    key={value}
-                    aria-pressed={value === target}
-                    onClick={() => setTarget(value)}
-                    className={`min-h-11 rounded-xl border px-4 text-sm font-semibold ${target === value ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface-2'}`}
-                  >
-                    {{ AUTO: 'Auto detect', INVENTORY: 'Inventory', REQUIREMENT: 'Requirements' }[value]}
-                  </button>
-                ))}
-            </div>
-            {target === 'INVENTORY' && (
-              <label className="mb-3 block text-xs font-semibold text-muted">
-                Inventory year and month
+          {!survey && (
+            <section className="card p-5 sm:p-6">
+              <h2 className="font-display text-lg font-bold">What are you adding?</h2>
+              <div className="my-4 flex flex-wrap gap-2" role="group" aria-label="Review destination">
+                {(['AUTO', 'INVENTORY', 'REQUIREMENT'] as const)
+                  .filter((v) => v !== 'INVENTORY' || hasDelegatedAccess(user, 'inventory', 'create'))
+                  .map((value) => (
+                    <button
+                      key={value}
+                      aria-pressed={value === target}
+                      onClick={() => setTarget(value)}
+                      className={`min-h-11 rounded-xl border px-4 text-sm font-semibold ${target === value ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface-2'}`}
+                    >
+                      {{ AUTO: 'Auto detect', INVENTORY: 'Inventory', REQUIREMENT: 'Requirements' }[value]}
+                    </button>
+                  ))}
+              </div>
+              {target === 'INVENTORY' && (
+                <label className="mb-3 block text-xs font-semibold text-muted">
+                  Inventory year and month
+                  <input
+                    type="month"
+                    value={directoryMonth}
+                    onChange={(event) => setDirectoryMonth(event.target.value)}
+                    className="mt-2 block rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
+              )}
+              <label className="block text-xs font-semibold text-muted">
+                Group / source name
                 <input
-                  type="month"
-                  value={directoryMonth}
-                  onChange={(event) => setDirectoryMonth(event.target.value)}
-                  className="mt-2 block rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+                  value={group}
+                  disabled={!ready || busy}
+                  onChange={(e) => setGroup(e.target.value)}
+                  placeholder="WhatsApp group, register or contact (optional)"
+                  className="mt-2 w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-fg"
                 />
               </label>
-            )}
-            <label className="block text-xs font-semibold text-muted">
-              Group / source name
-              <input
-                value={group}
-                disabled={!ready || busy}
-                onChange={(e) => setGroup(e.target.value)}
-                placeholder="WhatsApp group, register or contact (optional)"
-                className="mt-2 w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-fg"
-              />
-            </label>
-            <p className="mt-3 text-xs leading-5 text-muted">
-              Destination guides review; it never changes the original message or silently converts a requirement into a property.
-            </p>
-          </section>
+              <p className="mt-3 text-xs leading-5 text-muted">
+                Destination guides review; it never changes the original message or silently converts a requirement into a property.
+              </p>
+            </section>
+          )}
           <section className="card p-5 sm:p-6">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <Camera className="size-5 text-brand-600" /> Scan & upload
             </h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Button loading={busy} disabled={!ready} onClick={() => camera.current?.click()}>
+              <Button loading={busy} disabled={!ready || (survey && !registerSector)} onClick={() => camera.current?.click()}>
                 <Camera className="size-4" /> Camera scan
               </Button>
-              <Button variant="secondary" disabled={!ready || busy} onClick={() => images.current?.click()}>
+              <Button variant="secondary" disabled={!ready || busy || (survey && !registerSector)} onClick={() => images.current?.click()}>
                 <FileImage className="size-4" /> Multiple page images
               </Button>
-              <Button className="sm:col-span-2" variant="secondary" disabled={!ready || busy} onClick={() => files.current?.click()}>
-                <FileArchive className="size-4" /> WhatsApp export · TXT / ZIP / Images
-              </Button>
+              {!survey && (
+                <Button className="sm:col-span-2" variant="secondary" disabled={!ready || busy} onClick={() => files.current?.click()}>
+                  <FileArchive className="size-4" /> WhatsApp export · TXT / ZIP / Images
+                </Button>
+              )}
             </div>
             <input
               ref={camera}
@@ -387,42 +398,44 @@ function Workspace({ scanner }: { scanner: boolean }) {
               for the existing rotate / page-preview / listing-draft workflow. ZIP media stays in the private original; import images separately for OCR.
             </p>
           </section>
-          <section className="card p-5 sm:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 font-bold">
-                <ClipboardPaste className="size-5 text-brand-600" /> Paste & fill
-              </h2>
-              <Button variant="ghost" disabled={!ready || busy} onClick={() => perform(async () => setText(await navigator.clipboard.readText()))}>
-                Paste clipboard
+          {!survey && (
+            <section className="card p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 font-bold">
+                  <ClipboardPaste className="size-5 text-brand-600" /> Paste & fill
+                </h2>
+                <Button variant="ghost" disabled={!ready || busy} onClick={() => perform(async () => setText(await navigator.clipboard.readText()))}>
+                  Paste clipboard
+                </Button>
+              </div>
+              <label className="sr-only" htmlFor="capture-message">
+                Original message
+              </label>
+              <textarea
+                id="capture-message"
+                rows={8}
+                value={text}
+                disabled={!ready || busy}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Paste the original property / requirement message…"
+                className="my-4 w-full resize-y rounded-xl border border-line bg-surface p-4 text-sm leading-6"
+              />
+              <Button
+                loading={busy}
+                disabled={!ready || !text.trim()}
+                onClick={() =>
+                  perform(async () => {
+                    await capture({ sourceType: 'TEXT', rawText: text }, 'Pasted message');
+                  })
+                }
+              >
+                Save & extract for review
               </Button>
-            </div>
-            <label className="sr-only" htmlFor="capture-message">
-              Original message
-            </label>
-            <textarea
-              id="capture-message"
-              rows={8}
-              value={text}
-              disabled={!ready || busy}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste the original property / requirement message…"
-              className="my-4 w-full resize-y rounded-xl border border-line bg-surface p-4 text-sm leading-6"
-            />
-            <Button
-              loading={busy}
-              disabled={!ready || !text.trim()}
-              onClick={() =>
-                perform(async () => {
-                  await capture({ sourceType: 'TEXT', rawText: text }, 'Pasted message');
-                })
-              }
-            >
-              Save & extract for review
-            </Button>
-            <p className="mt-3 text-xs text-muted" role="status">
-              {status}
-            </p>
-          </section>
+              <p className="mt-3 text-xs text-muted" role="status">
+                {status}
+              </p>
+            </section>
+          )}
           {error === LEGACY_WEB_DRAFT_REVIEW && (
             <Button
               variant="secondary"

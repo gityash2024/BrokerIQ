@@ -7,6 +7,8 @@ import { InventoryFoldersPage } from '@/components/broker/launch/inventory-folde
 
 function InventoryPage() {
   const params = useSearchParams();
+  if (params.get('survey') === '1')
+    return <InventoryFoldersPage key={params.get('sector') ?? 'survey'} initialMode="SURVEY" initialSector={params.get('sector') ?? undefined} />;
   return params.size ? <InventoryWorkspace /> : <InventoryFoldersPage />;
 }
 

@@ -31,12 +31,24 @@ export default function Drafts() {
       if (!row) return;
       const body = decodeDraft(row);
       if (row.kind === 'PROPERTY_CREATE' || row.kind === 'PROPERTY_EDIT')
-        router.push({ pathname: '/inventory-edit', params: { ...(body.id ? { id: body.id } : {}), draft: id } });
+        router.push({
+          pathname: '/inventory-edit',
+          params: {
+            ...(body.id ? { id: body.id } : {}),
+            ...(row.draft_key.startsWith('new-survey:') ? { survey: '1', sector: row.draft_key.slice('new-survey:'.length) } : {}),
+            draft: id,
+          },
+        });
       else if (row.kind === 'PUBLIC_PUBLISH') router.push({ pathname: '/publish-rental', params: { id: row.draft_key } } as any);
       else if (row.kind === 'REQUIREMENT_CREATE' || row.kind === 'REQUIREMENT_EDIT')
         router.push({ pathname: '/requirement-edit', params: { draft: id, ...(body.id ? { id: body.id } : {}) } } as any);
       else if (row.kind === 'IMPORT_REVIEW') router.push({ pathname: '/import-review/[id]', params: { id: body.batchId } } as any);
-      else if (row.kind === 'CAPTURE_COMPOSE') router.push('/capture');
+      else if (row.kind === 'CAPTURE_COMPOSE')
+        router.push(
+          row.draft_key.startsWith('survey-composer:')
+            ? { pathname: '/scanner', params: { target: 'SURVEY', sector: row.draft_key.slice('survey-composer:'.length) } }
+            : '/capture',
+        );
       else setError('Original capture is preserved. Retry sync after correcting configuration.');
     } catch (e) {
       setError(errorMessage(e));

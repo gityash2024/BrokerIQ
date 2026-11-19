@@ -19,6 +19,7 @@ import {
   inventoryTitle,
   inventoryPrice,
   inventoryNavigation,
+  inventoryPossessionLabel,
   readableValue,
 } from '@brokeriq/shared';
 import { api, API_URL, assertAccountContext, authStore, captureAccountContext, errorMessage, uploadUri } from '@/lib/api';
@@ -141,7 +142,7 @@ export default function PropertyDetail() {
 
   return (
     <BrokerScreen title={item ? inventoryTitle(item) : 'Property details'} subtitle={item?.sector ? `📍 ${item.sector}` : undefined} back>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 110 }}>
+      <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4, gap: 10, paddingBottom: 80 }}>
         {q.error && <ErrorView error={q.error} onRetry={() => q.refetch()} />}
         {q.isPending && <InlineLoader style={{ padding: 40 }} />}
 
@@ -152,7 +153,7 @@ export default function PropertyDetail() {
             <View
               style={{
                 borderRadius: 24,
-                padding: 20,
+                padding: 14,
                 backgroundColor: isDark ? '#12162A' : '#FFFFFF',
                 borderWidth: 1,
                 borderColor: isDark ? 'rgba(99,102,241,0.25)' : c.line,
@@ -160,9 +161,14 @@ export default function PropertyDetail() {
                 shadowOpacity: 0.08,
                 shadowRadius: 14,
                 elevation: 4,
-                gap: 12,
+                gap: 8,
               }}
             >
+              {(item.availability === 'AVAILABLE' || item.sourceType === 'SURVEY') && (
+                <Txt v="small" color="brand">
+                  {inventoryPossessionLabel(item)}
+                </Txt>
+              )}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View
                   style={{
@@ -205,7 +211,7 @@ export default function PropertyDetail() {
               </View>
 
               <View style={{ gap: 4 }}>
-                <Txt style={{ fontSize: 32, fontWeight: '900', color: c.fg, letterSpacing: -0.5 }}>{inventoryPrice(item)}</Txt>
+                <Txt style={{ fontSize: 28, fontWeight: '900', color: c.fg, letterSpacing: -0.5 }}>{inventoryPrice(item)}</Txt>
                 <Txt v="body" color="muted">
                   {item.houseNo ? `#${item.houseNo}, ` : ''}
                   {item.sector ?? item.address ?? 'Sector unknown'}
@@ -495,16 +501,16 @@ export default function PropertyDetail() {
 
             {/* Fact Groups (Specs, Dimensions, Rates) */}
             {inventoryFactGroups(item).map((group) => (
-              <NativeCard key={group.title} style={{ gap: 12 }}>
+              <NativeCard key={group.title} style={{ gap: 8, padding: 12 }}>
                 <Txt v="h3">{group.title}</Txt>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {group.facts.map((fact) => (
                     <View
                       key={fact.label}
                       style={{
                         flexGrow: 1,
                         flexBasis: '45%',
-                        padding: 10,
+                        padding: 8,
                         borderRadius: 12,
                         backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : c.surface2,
                         gap: 4,
