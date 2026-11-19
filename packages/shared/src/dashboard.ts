@@ -84,3 +84,33 @@ export interface DashboardData {
   charts: DashboardChart[];
   integrations?: { key: string; name: string; configured: boolean; tested: boolean }[];
 }
+
+export const agentAssignmentColumns = [
+  { key: 'leads', label: 'Leads' },
+  { key: 'requirements', label: 'Requirements' },
+  { key: 'properties', label: 'Properties' },
+  { key: 'followUps', label: 'Follow-ups' },
+  { key: 'visits', label: 'Site visits' },
+] as const;
+
+export type AgentAssignmentKind = (typeof agentAssignmentColumns)[number]['key'];
+
+export interface AgentAssignmentDashboard {
+  scope: 'FIRM' | 'MANAGED_AGENTS';
+  columns: AgentAssignmentKind[];
+  agents: Array<{ id: string; name: string; counts: Partial<Record<AgentAssignmentKind, number>> }>;
+}
+
+export interface AssignmentAgentSelection {
+  selectedAgentIds: string[];
+  agents: Array<{ id: string; name: string; email: string }>;
+}
+
+export function canViewAgentAssignmentDashboard(user: { role: string; delegatedPermissions?: readonly string[] } | null | undefined) {
+  return (
+    user?.role === 'BROKER_ADMIN' ||
+    (user?.role === 'SUB_BROKER_ADMIN' &&
+      ['today:view', 'team:view'].every((grant) => user.delegatedPermissions?.includes(grant)) &&
+      ['leads:view', 'inventory:view'].some((grant) => user.delegatedPermissions?.includes(grant)))
+  );
+}

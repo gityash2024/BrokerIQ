@@ -3,6 +3,11 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import { Prisma, LeadSource, LeadStage, VisitStatus } from '@prisma/client';
 import {
   agentTargets,
+  agentAssignmentColumns,
+  canViewAgentAssignmentDashboard,
+  moduleAllowed,
+  type AgentAssignmentDashboard,
+  type AgentAssignmentKind,
   dashboardMonthPeriod,
   dashboardPeriod,
   INTEGRATIONS,
@@ -16,6 +21,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { ModulesService } from '../../core/features/modules.service';
 import type { RequestUser } from '../../common/decorators';
+import { activeFirmAgents, assignedDashboardAgentIds } from '../../common/assignment-dashboard';
 
 @Injectable()
 export class DashboardService {
@@ -36,6 +42,56 @@ export class DashboardService {
   ): DashboardChart {
     return { key, title, kind, scope, points: rows.map((r, i) => ({ key: String(i), ...r })) };
   }
+  async agentAssignments(user: RequestUser): Promise<AgentAssignmentDashboard> {
+    const organizationId = user.orgId;
+    const delegated = user.delegatedActor === true;
+    const permissions = user.delegatedPermissions ?? [];
+    if (
+      !organizationId ||
+      user.role !== 'BROKER_ADMIN' ||
+      !canViewAgentAssignmentDashboard({ role: delegated ? 'SUB_BROKER_ADMIN' : user.role, delegatedPermissions: permissions })
+    )
+      throw new ForbiddenException('Access to agent assignments is required');
+
+    const policies = await this.modules.all();
+    if (!moduleAllowed(policies, 'today', 'BROKER_ADMIN') || !moduleAllowed(policies, 'team', 'BROKER_ADMIN'))
+      throw new ForbiddenException('Assignment dashboard is unavailable');
+    const leads = moduleAllowed(policies, 'leads', 'BROKER_ADMIN') && (!delegated || permissions.includes('leads:view'));
+    const inventory = moduleAllowed(policies, 'inventory', 'BROKER_ADMIN') && (!delegated || permissions.includes('inventory:view'));
+    if (!leads && !inventory) throw new ForbiddenException('Assignment dashboard is unavailable');
+
+    const selected = delegated ? await assignedDashboardAgentIds(this.db, organizationId, user.id) : undefined;
+    const agents = await this.db.user.findMany({
+      where: { ...activeFirmAgents(organizationId), ...(selected ? { id: { in: selected } } : {}) },
+      select: { id: true, name: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    const columns = agentAssignmentColumns.map(({ key }) => key).filter((key) => (key === 'properties' ? inventory : leads));
+    const scope = delegated ? 'MANAGED_AGENTS' : 'FIRM';
+    if (!agents.length) return { scope, columns, agents: [] };
+
+    const assigned = { organizationId, assignedToId: { in: agents.map(({ id }) => id) } };
+    const records = { ...assigned, deletedAt: null };
+    const tasks = { ...assigned, lead: { organizationId, deletedAt: null } };
+    const [assignedLeads, requirements, properties, followUps, visits] = await Promise.all([
+      leads ? this.db.lead.groupBy({ by: ['assignedToId'], where: records, _count: { _all: true } }) : [],
+      leads ? this.db.brokerRequirement.groupBy({ by: ['assignedToId'], where: records, _count: { _all: true } }) : [],
+      inventory ? this.db.inventoryItem.groupBy({ by: ['assignedToId'], where: records, _count: { _all: true } }) : [],
+      leads ? this.db.followUp.groupBy({ by: ['assignedToId'], where: tasks, _count: { _all: true } }) : [],
+      leads ? this.db.siteVisit.groupBy({ by: ['assignedToId'], where: tasks, _count: { _all: true } }) : [],
+    ]);
+    const byType = { leads: assignedLeads, requirements, properties, followUps, visits };
+    const totals = new Map(columns.map((key) => [key, new Map(byType[key].map((row) => [row.assignedToId, row._count._all]))]));
+    return {
+      scope,
+      columns,
+      agents: agents.map((agent) => ({
+        ...agent,
+        counts: Object.fromEntries(columns.map((key): [AgentAssignmentKind, number] => [key, totals.get(key)?.get(agent.id) ?? 0])),
+      })),
+    };
+  }
+
   async performance(user: RequestUser, query: PerformanceQuery) {
     const agent = user.role === 'BROKER_AGENT';
     if (user.role !== 'SUPER_ADMIN' && (!user.orgId || (query.organizationId && query.organizationId !== user.orgId)))

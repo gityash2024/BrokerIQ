@@ -12,6 +12,12 @@ class DashboardController {
   ) {
     return this.dashboard.performance(user, query);
   }
+  @Roles('BROKER_ADMIN')
+  @Get('broker/dashboard/agent-assignments')
+  agentAssignments(@CurrentUser() user: RequestUser) {
+    return this.dashboard.agentAssignments(user);
+  }
+
   private records(role: 'admin' | 'broker' | 'user', q: Record<string, string>, user: RequestUser) {
     const parsed = dashboardQuerySchema.safeParse(q);
     if (!parsed.success) throw new BadRequestException('Invalid reporting dates');

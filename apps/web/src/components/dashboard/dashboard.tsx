@@ -163,7 +163,7 @@ function Chart({ chart }: { chart: DashboardChart }) {
     </section>
   );
 }
-export function EnterpriseDashboard({ role, children }: { role: DashboardData['role']; children?: React.ReactNode }) {
+export function EnterpriseDashboard({ role, overview, children }: { role: DashboardData['role']; overview?: React.ReactNode; children?: React.ReactNode }) {
   const { user } = useAuth();
   const [range, setRange] = useState('30');
   const [dates, setDates] = useState({ from: '', to: '' });
@@ -226,6 +226,7 @@ export function EnterpriseDashboard({ role, children }: { role: DashboardData['r
           </Button>
         </div>
       </header>
+      {overview}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <CalendarDays className="size-4 text-brand-600" />

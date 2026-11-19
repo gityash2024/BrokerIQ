@@ -29,6 +29,7 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   }
   if (path === '/chat/threads/:id/report' && method === 'POST') return { module: 'inbox', actions: ['edit'] };
   if (path === '/media/kyc/:id' && ['GET', 'HEAD'].includes(method)) return { module: 'kyc', actions: ['view'] };
+  if (method === 'GET' && path === '/broker/dashboard/agent-assignments') return { module: 'team', actions: ['view'] };
   if (method === 'GET' && ['/broker/today', '/broker/dashboard/metrics', '/broker/dashboard/records'].includes(path))
     return { module: 'today', actions: ['view'] };
   if (path === '/broker/performance' && method === 'GET') return { module: 'team', actions: ['view'] };

@@ -1,3 +1,4 @@
+import { AgentAssignments } from '@/launch/agent-assignments';
 import { NativeDashboard } from '@/launch/dashboard';
 import { View, RefreshControl } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -101,6 +102,7 @@ export default function Today() {
           </NativeCard>
         )}
 
+        <AgentAssignments />
         <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>

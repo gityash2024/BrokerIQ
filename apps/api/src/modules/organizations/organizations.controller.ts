@@ -40,6 +40,7 @@ import { readBrokerTeam } from './team-query';
 import { createExcelReport } from '../../common/excel';
 import { renderPdf, pdfText, pdfTable } from '../../common/pdf';
 import { generateCsv } from '../../common/csv';
+import { activeFirmAgents, assignedDashboardAgentIds, assignmentDashboardSettingKey } from '../../common/assignment-dashboard';
 import { hasAnotherActiveBrokerAdmin, releaseFirmAssignments } from '../../common/firm-membership';
 
 const memberUpdateSchema = z
@@ -54,6 +55,7 @@ const memberUpdateSchema = z
       .refine((v) => !v || !!normalizeIndianPhone(v), 'Valid phone required'),
     role: z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT']).optional(),
     delegatedPermissions: delegatedGrantSchema.optional(),
+    assignmentDashboardAgentIds: z.array(z.string().min(1).max(100)).max(500).optional(),
     status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
     targets: z
       .object({
@@ -502,6 +504,28 @@ export class OrganizationsController {
     return this.getMember(user, userId);
   }
 
+  @Roles('BROKER_ADMIN')
+  @Get('broker/team/:userId/assignment-dashboard')
+  async assignmentDashboardSelection(@CurrentUser() user: RequestUser, @Param('userId') memberId: string) {
+    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor) throw new ForbiddenException('Only the firm Broker Admin can select agents');
+    const organizationId = requireOrg(user);
+    const member = await this.prisma.user.findFirst({
+      where: { id: memberId, organizationId, role: { in: ['BROKER_AGENT', 'SUB_BROKER_ADMIN'] }, deletedAt: null },
+      select: { id: true },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+    const [selected, agents] = await Promise.all([
+      assignedDashboardAgentIds(this.prisma, organizationId, member.id),
+      this.prisma.user.findMany({
+        where: { ...activeFirmAgents(organizationId), id: { not: member.id } },
+        select: { id: true, name: true, email: true },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      }),
+    ]);
+    const eligible = new Set(agents.map(({ id }) => id));
+    return { selectedAgentIds: selected.filter((id) => eligible.has(id)), agents };
+  }
+
   private async validateDelegation(user: RequestUser, role: string, permissions?: string[], existingAgentPromotion = false) {
     if (role !== 'SUB_BROKER_ADMIN') {
       if (permissions?.length) throw new BadRequestException('Permissions require a Sub-Broker Admin role');
@@ -528,6 +552,7 @@ export class OrganizationsController {
       phone?: string | null;
       role?: 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT';
       delegatedPermissions?: string[];
+      assignmentDashboardAgentIds?: string[];
       status?: 'ACTIVE' | 'SUSPENDED';
       targets?: {
         monthlyDeals?: number;
@@ -556,6 +581,10 @@ export class OrganizationsController {
       : undefined;
     const orgId = member.organizationId || user.orgId;
 
+    const dashboardAgentIds = body.assignmentDashboardAgentIds && [...new Set(body.assignmentDashboardAgentIds)];
+    if (dashboardAgentIds && (user.role !== 'BROKER_ADMIN' || user.delegatedActor || (body.role ?? member.role) !== 'SUB_BROKER_ADMIN'))
+      throw new ForbiddenException('Only the firm Broker Admin can select agents for a Sub-Broker Admin');
+
     const userUpdateData: Prisma.UserUpdateInput = {};
     if (body.name !== undefined) userUpdateData.name = body.name.trim();
     if (body.phone !== undefined) userUpdateData.phone = body.phone ? normalizeIndianPhone(body.phone) : null;
@@ -576,6 +605,22 @@ export class OrganizationsController {
         ((body.role && body.role !== 'BROKER_ADMIN') || (body.status && body.status !== 'ACTIVE'))
       ) {
         if (!(await hasAnotherActiveBrokerAdmin(tx, orgId, userId))) throw new BadRequestException('Firm must retain at least one active Broker Admin');
+      }
+      const dashboardSetting = { organizationId: orgId, key: assignmentDashboardSettingKey(userId) };
+      if (dashboardAgentIds) {
+        const eligible = await tx.user.count({ where: {
+          ...activeFirmAgents(orgId),
+          id: { in: dashboardAgentIds, not: userId },
+        } });
+        if (eligible !== dashboardAgentIds.length) throw new BadRequestException('Select active agents from this firm');
+        await tx.orgSetting.upsert({
+          where: { organizationId_key: dashboardSetting },
+          create: { ...dashboardSetting, value: dashboardAgentIds },
+          update: { value: dashboardAgentIds },
+        });
+        userUpdateData.updatedAt = new Date();
+      } else if (body.role && body.role !== 'SUB_BROKER_ADMIN' && latest.role === 'SUB_BROKER_ADMIN') {
+        await tx.orgSetting.deleteMany({ where: dashboardSetting });
       }
       if (body.targets) {
         userUpdateData.updatedAt = new Date();
@@ -635,6 +680,7 @@ export class OrganizationsController {
       if (latest.role === 'BROKER_ADMIN' && latest.status === 'ACTIVE' && !(await hasAnotherActiveBrokerAdmin(tx, member.organizationId, userId)))
         throw new BadRequestException('Firm must retain at least one active Broker Admin');
       await releaseFirmAssignments(tx, member.organizationId, userId);
+      await tx.orgSetting.deleteMany({ where: { organizationId: member.organizationId, key: assignmentDashboardSettingKey(userId) } });
       await tx.user.update({ where: { id: userId }, data: { organizationId: null, role: 'USER', delegatedPermissions: [], sessionVersion: { increment: 1 } } });
     });
     await this.auth.revokeAll(userId);
