@@ -1,5 +1,5 @@
-import { Module, Controller, Get, Query, BadRequestException } from '@nestjs/common';
-import { dashboardQuerySchema, performanceQuerySchema, type PerformanceQuery, type DashboardQuery } from '@brokeriq/shared';
+import { Module, Controller, Get, Param, Query, BadRequestException } from '@nestjs/common';
+import { agentAssignmentRecordsQuery, type AgentAssignmentRecordsQuery, dashboardQuerySchema, performanceQuerySchema, type PerformanceQuery, type DashboardQuery } from '@brokeriq/shared';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
 import { DashboardService } from './dashboard.service';
@@ -16,6 +16,16 @@ class DashboardController {
   @Get('broker/dashboard/agent-assignments')
   agentAssignments(@CurrentUser() user: RequestUser) {
     return this.dashboard.agentAssignments(user);
+  }
+
+  @Roles('BROKER_ADMIN')
+  @Get('broker/dashboard/agent-assignments/:agentId')
+  agentAssignmentDetails(
+    @CurrentUser() user: RequestUser,
+    @Param('agentId') agentId: string,
+    @Query(new ZodPipe(agentAssignmentRecordsQuery)) query: AgentAssignmentRecordsQuery,
+  ) {
+    return this.dashboard.agentAssignmentDetails(user, agentId, query);
   }
 
   private records(role: 'admin' | 'broker' | 'user', q: Record<string, string>, user: RequestUser) {

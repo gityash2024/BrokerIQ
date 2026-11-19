@@ -111,6 +111,8 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
     qc.invalidateQueries({ queryKey: ['leads'] });
     qc.invalidateQueries({ queryKey: ['kanban'] });
     qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
+    qc.invalidateQueries({ queryKey: ['agent-assignments'] });
+    qc.invalidateQueries({ queryKey: ['agent-assignment-records'] });
   };
   const stage = useApiMutation((b: { stage: string; lostReason?: string }) => patch(`/leads/${id}/stage`, b), { onSuccess: refresh });
   const assign = useApiMutation((assignedToId: string | null) => patch(`/leads/${id}/assign`, { assignedToId }), { success: 'Assigned', onSuccess: refresh });

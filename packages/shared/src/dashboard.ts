@@ -93,7 +93,18 @@ export const agentAssignmentColumns = [
   { key: 'visits', label: 'Site visits' },
 ] as const;
 
-export type AgentAssignmentKind = (typeof agentAssignmentColumns)[number]['key'];
+export const agentAssignmentKindSchema = z.enum(['leads', 'requirements', 'properties', 'followUps', 'visits']);
+export type AgentAssignmentKind = z.infer<typeof agentAssignmentKindSchema>;
+export const agentAssignmentRecordsQuery = z.object({
+  kind: agentAssignmentKindSchema,
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+});
+export type AgentAssignmentRecordsQuery = z.infer<typeof agentAssignmentRecordsQuery>;
+export interface AgentAssignmentRecords {
+  agent: { id: string; name: string };
+  items: Array<{ id: string; recordId: string; title: string; status: string; summary?: string | null; at?: string | null }>;
+  hasMore: boolean;
+}
 
 export interface AgentAssignmentDashboard {
   scope: 'FIRM' | 'MANAGED_AGENTS';

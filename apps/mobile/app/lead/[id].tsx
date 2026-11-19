@@ -79,7 +79,7 @@ export default function LeadDetail() {
   const canAssign = isBrokerAdmin || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'leads', 'assign'));
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
-  const [tab, setTab] = useState<'timeline' | 'shortlist' | 'tasks' | 'matches' | 'ai'>(initialTab === 'shortlist' ? 'shortlist' : 'timeline');
+  const [tab, setTab] = useState<'timeline' | 'shortlist' | 'tasks' | 'matches' | 'ai'>(initialTab === 'shortlist' ? 'shortlist' : initialTab === 'tasks' ? 'tasks' : 'timeline');
   const [sheet, setSheet] = useState<null | 'note' | 'call' | 'followup' | 'lost' | 'not_interested' | 'deal'>(null);
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
   const openFollowUpStage = () => {
@@ -92,6 +92,8 @@ export default function LeadDetail() {
     qc.invalidateQueries({ queryKey: ['leads'] });
     qc.invalidateQueries({ queryKey: ['kanban'] });
     qc.invalidateQueries({ queryKey: ['broker-dashboard'] });
+    qc.invalidateQueries({ queryKey: ['agent-assignments'] });
+    qc.invalidateQueries({ queryKey: ['agent-assignment-records'] });
   };
   // After a call, when the broker returns to the app, prompt to log the outcome.
   useEffect(() => {
@@ -317,6 +319,7 @@ export default function LeadDetail() {
             <Txt v="caption" color="subtle" style={{ alignSelf: 'center' }}>
               Assign:
             </Txt>
+            {canAssign && <Chip label="Unassigned" active={!l.assignedTo} onPress={() => assign.mutate(null)} />}
             {!canAssign && !(team.data?.members ?? []).length && <Chip access={false} label="Assign lead" />}
             {(team.data?.members ?? [])
               .filter((m: any) => !m.status || m.status === 'ACTIVE')

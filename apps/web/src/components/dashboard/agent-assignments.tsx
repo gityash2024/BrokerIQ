@@ -1,5 +1,6 @@
 'use client';
 
+import { AgentAssignmentDetails } from './agent-assignment-details';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardList } from 'lucide-react';
@@ -15,6 +16,7 @@ export function AgentAssignments() {
   const { modules } = useConfig();
   const allowed = canViewAgentAssignmentDashboard(user) && moduleAllowed(modules, 'team', 'BROKER_ADMIN');
   const [open, setOpen] = useState(false);
+  const [agent, setAgent] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const query = useQuery({
     queryKey: ['agent-assignments', user?.organization?.id, user?.id, user?.role],
@@ -79,7 +81,7 @@ export function AgentAssignments() {
                           {rows.map(({ id, name, counts }) => (
                             <tr key={id} className="border-t border-line">
                               <th scope="row" className="px-3 py-2 font-medium">
-                                {name}
+                                <Button variant="link" aria-label={`Open assignments for ${name}`} onClick={() => setAgent({ id, name })}>{name}</Button>
                               </th>
                               {columns.map(({ key }) => (
                                 <td key={key} className="px-3 py-2 text-right tabular-nums">
@@ -98,6 +100,7 @@ export function AgentAssignments() {
           )}
         </div>
       )}
+      {agent && query.data && <AgentAssignmentDetails key={agent.id} agent={agent} columns={query.data.columns} onClose={() => setAgent(null)} />}
     </section>
   );
 }

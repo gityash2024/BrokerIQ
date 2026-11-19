@@ -16,6 +16,7 @@ describe('Agent assignment dashboard', () => {
   let unrelatedToken: string;
   let organizationId: string;
   let managed: string;
+  let assignedLead: string;
   let idle: string;
   let outside: string;
   let delegate: string;
@@ -52,6 +53,8 @@ describe('Agent assignment dashboard', () => {
     delegateToken = manager.token;
 
     const lead = await db.lead.create({ data: { organizationId, assignedToId: managed, name: 'Assigned lead', phone: '+919701188900' } });
+    assignedLead = lead.id;
+    await db.activity.create({ data: { organizationId, leadId: lead.id, type: 'NOTE', content: 'Called to arrange a visit' } });
     const deletedLead = await db.lead.create({
       data: { organizationId, assignedToId: managed, name: 'Deleted lead', phone: '+919701188901', deletedAt: new Date() },
     });
@@ -75,6 +78,47 @@ describe('Agent assignment dashboard', () => {
     await api().get(path).set(h(agentToken)).expect(403);
     const other = await api().get(path).set(h(unrelatedToken)).expect(200);
     expect(other.body.agents.map((agent: { id: string }) => agent.id)).toEqual([outside]);
+  });
+
+  it('returns live records, latest lead activity and canonical lead links for tasks', async () => {
+    const records = path + '/' + managed;
+    const { body } = await api()
+      .get(records + '?kind=leads')
+      .set(h(ownerToken))
+      .expect(200);
+    expect(body.agent.id).toBe(managed);
+    expect(body.hasMore).toBe(false);
+    expect(body.items).toEqual([
+      expect.objectContaining({
+        recordId: assignedLead,
+        title: 'Assigned lead',
+        status: 'NEW',
+        summary: 'Called to arrange a visit',
+      }),
+    ]);
+    for (const kind of ['followUps', 'visits']) {
+      const tasks = await api()
+        .get(records + '?kind=' + kind)
+        .set(h(ownerToken))
+        .expect(200);
+      expect(tasks.body.items).toEqual([expect.objectContaining({ recordId: assignedLead })]);
+    }
+    await api()
+      .get(records + '?kind=leads&page=0')
+      .set(h(ownerToken))
+      .expect(400);
+    await api()
+      .get(records + '?kind=invalid')
+      .set(h(ownerToken))
+      .expect(400);
+    await api()
+      .get(records + '?kind=leads')
+      .set(h(agentToken))
+      .expect(403);
+    await api()
+      .get(records + '?kind=leads')
+      .set(h(unrelatedToken))
+      .expect(404);
   });
 
   it('starts with an empty delegated scope, validates agent selections and returns only granted counts', async () => {
@@ -120,6 +164,18 @@ describe('Agent assignment dashboard', () => {
     expect(scoped.body.scope).toBe('MANAGED_AGENTS');
     expect(scoped.body.columns).toEqual(['leads', 'requirements', 'followUps', 'visits']);
     expect(scoped.body.agents).toEqual([{ id: managed, name: 'AssignedAgent', counts: { leads: 1, requirements: 1, followUps: 1, visits: 1 } }]);
+    await api()
+      .get(path + '/' + managed + '?kind=leads')
+      .set(h(delegateToken))
+      .expect(200);
+    await api()
+      .get(path + '/' + managed + '?kind=properties')
+      .set(h(delegateToken))
+      .expect(403);
+    await api()
+      .get(path + '/' + idle + '?kind=leads')
+      .set(h(delegateToken))
+      .expect(404);
     await db.user.update({ where: { id: managed }, data: { status: 'SUSPENDED' } });
     expect((await api().get(path).set(h(delegateToken)).expect(200)).body.agents).toEqual([]);
     await db.user.update({ where: { id: managed }, data: { status: 'ACTIVE' } });

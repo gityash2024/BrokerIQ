@@ -1,5 +1,5 @@
 import { liveTaskLeadWhere } from '../whatsapp/inbox-scope';
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, LeadSource, LeadStage, VisitStatus } from '@prisma/client';
 import {
   agentTargets,
@@ -8,6 +8,8 @@ import {
   moduleAllowed,
   type AgentAssignmentDashboard,
   type AgentAssignmentKind,
+  type AgentAssignmentRecords,
+  type AgentAssignmentRecordsQuery,
   dashboardMonthPeriod,
   dashboardPeriod,
   INTEGRATIONS,
@@ -42,7 +44,7 @@ export class DashboardService {
   ): DashboardChart {
     return { key, title, kind, scope, points: rows.map((r, i) => ({ key: String(i), ...r })) };
   }
-  async agentAssignments(user: RequestUser): Promise<AgentAssignmentDashboard> {
+  private async agentAssignmentScope(user: RequestUser) {
     const organizationId = user.orgId;
     const delegated = user.delegatedActor === true;
     const permissions = user.delegatedPermissions ?? [];
@@ -61,6 +63,11 @@ export class DashboardService {
     if (!leads && !inventory) throw new ForbiddenException('Assignment dashboard is unavailable');
 
     const selected = delegated ? await assignedDashboardAgentIds(this.db, organizationId, user.id) : undefined;
+    return { organizationId, delegated, selected, leads, inventory };
+  }
+
+  async agentAssignments(user: RequestUser): Promise<AgentAssignmentDashboard> {
+    const { organizationId, delegated, selected, leads, inventory } = await this.agentAssignmentScope(user);
     const agents = await this.db.user.findMany({
       where: { ...activeFirmAgents(organizationId), ...(selected ? { id: { in: selected } } : {}) },
       select: { id: true, name: true },
@@ -90,6 +97,80 @@ export class DashboardService {
         counts: Object.fromEntries(columns.map((key): [AgentAssignmentKind, number] => [key, totals.get(key)?.get(agent.id) ?? 0])),
       })),
     };
+  }
+
+  async agentAssignmentDetails(user: RequestUser, agentId: string, { kind, page }: AgentAssignmentRecordsQuery): Promise<AgentAssignmentRecords> {
+    const { organizationId, selected, leads, inventory } = await this.agentAssignmentScope(user);
+    if (kind === 'properties' ? !inventory : !leads) throw new ForbiddenException('Module access is required');
+    if (selected && !selected.includes(agentId)) throw new NotFoundException('Agent not found');
+    const agent = await this.db.user.findFirst({
+      where: { ...activeFirmAgents(organizationId), id: agentId },
+      select: { id: true, name: true },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    const assigned = { organizationId, assignedToId: agentId };
+    const records = { ...assigned, deletedAt: null };
+    const tasks = { ...assigned, lead: { organizationId, deletedAt: null } };
+    const size = 20;
+    const pagination = { skip: (page - 1) * size, take: size + 1 };
+    let items: AgentAssignmentRecords['items'];
+    switch (kind) {
+      case 'leads': {
+        const rows = await this.db.lead.findMany({
+          ...pagination,
+          where: records,
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, name: true, stage: true, notes: true, lastActivityAt: true,
+            activities: { where: { organizationId }, take: 1, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+              select: { content: true, createdAt: true, type: true } } },
+        });
+        items = rows.map((row) => {
+          const latest = row.activities[0];
+          return { id: row.id, recordId: row.id, title: row.name, status: row.stage,
+            summary: (latest?.content || row.notes || latest?.type)?.slice(0, 240), at: (latest?.createdAt ?? row.lastActivityAt)?.toISOString() };
+        });
+        break;
+      }
+      case 'requirements': {
+        const rows = await this.db.brokerRequirement.findMany({
+          ...pagination, where: records, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, title: true, contactName: true, status: true, updatedAt: true },
+        });
+        items = rows.map((row) => ({ id: row.id, recordId: row.id, title: row.title || row.contactName || 'Requirement', status: row.status, at: row.updatedAt.toISOString() }));
+        break;
+      }
+      case 'properties': {
+        const rows = await this.db.inventoryItem.findMany({
+          ...pagination, where: records, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, houseNo: true, sector: true, propertyType: true, availability: true, status: true, sourceType: true, updatedAt: true },
+        });
+        items = rows.map((row) => ({
+          id: row.id, recordId: row.id,
+          title: [row.houseNo ? 'House ' + row.houseNo : row.propertyType?.replaceAll('_', ' '), row.sector].filter(Boolean).join(' · ') || 'Property',
+          status: row.sourceType === 'SURVEY' && row.status === 'DRAFT' ? 'SURVEY_PENDING' : row.availability,
+          at: row.updatedAt.toISOString(),
+        }));
+        break;
+      }
+      case 'followUps': {
+        const rows = await this.db.followUp.findMany({
+          ...pagination, where: tasks, orderBy: [{ dueAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, leadId: true, note: true, type: true, status: true, dueAt: true, lead: { select: { name: true } } },
+        });
+        items = rows.map((row) => ({ id: row.id, recordId: row.leadId, title: row.lead.name, status: row.status, summary: row.note?.slice(0, 240) || row.type, at: row.dueAt.toISOString() }));
+        break;
+      }
+      case 'visits': {
+        const rows = await this.db.siteVisit.findMany({
+          ...pagination, where: tasks, orderBy: [{ scheduledAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, leadId: true, note: true, status: true, scheduledAt: true, lead: { select: { name: true } } },
+        });
+        items = rows.map((row) => ({ id: row.id, recordId: row.leadId, title: row.lead.name, status: row.status, summary: row.note?.slice(0, 240), at: row.scheduledAt.toISOString() }));
+        break;
+      }
+    }
+    return { agent, items: items.slice(0, size), hasMore: items.length > size };
   }
 
   async performance(user: RequestUser, query: PerformanceQuery) {

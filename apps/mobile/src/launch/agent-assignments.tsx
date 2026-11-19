@@ -1,3 +1,4 @@
+import { AgentAssignmentDetails } from './agent-assignment-details';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ export function AgentAssignments() {
   const { c } = useTheme();
   const allowed = canViewAgentAssignmentDashboard(user) && moduleAllowed(modules, 'team', 'BROKER_ADMIN');
   const [open, setOpen] = useState(false);
+  const [agent, setAgent] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(12);
   const query = useQuery({
@@ -66,7 +68,7 @@ export function AgentAssignments() {
                 {!rows.length && <Txt color="muted">No agents match your search.</Txt>}
                 {rows.slice(0, limit).map(({ id, name, counts }) => (
                   <View key={id} style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: c.line, gap: 4 }}>
-                    <Txt v="bodyStrong">{name}</Txt>
+                    <Button title={name} accessibilityLabel={`Open assignments for ${name}`} size="sm" variant="secondary" style={{ alignSelf: 'flex-start' }} onPress={() => setAgent({ id, name })} />
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 2 }}>
                       {columns.map(({ key, label }) => (
                         <Txt key={key} v="caption" color="muted">
@@ -81,6 +83,7 @@ export function AgentAssignments() {
             )}
           </>
         ))}
+      {agent && query.data && <AgentAssignmentDetails key={agent.id} agent={agent} columns={query.data.columns} onClose={() => setAgent(null)} />}
     </NativeCard>
   );
 }
