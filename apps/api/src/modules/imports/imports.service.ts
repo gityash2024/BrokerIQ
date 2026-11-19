@@ -21,6 +21,7 @@ import { AuditService } from '../../core/audit/audit.service';
 import { AiService, parseJsonLoose } from '../../core/ai/ai.service';
 import { OcrService, OcrInputError } from './ocr.service';
 import { registerContext, previousRegisterPage, queueNextRegisterPage } from './register-context';
+import { imageCaptureSchema, IMAGE_COVERAGE_PROMPT, combineRegisterReads, registerImageSections } from './capture-register-images';
 import { captureFactsSchema, CAPTURE_FACTS_PROMPT, REGISTER_LAYOUT_PROMPT, registerPageSector, captureTextParts, factsToEntities } from './capture-ai';
 import type { RequestUser } from '../../common/decorators';
 import { z } from 'zod';
@@ -76,6 +77,12 @@ function canPreview(batch: { status: string; sourceType: string; mediaRef: strin
 
 const arraySchema = z.array(capturedEntitySchema).max(100);
 const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
+
+class RegisterCoverageError extends Error {
+  constructor() {
+    super('AI could not verify all readable rows on this register page. The original is saved. Retry extraction resumes this register.');
+  }
+}
 
 @Injectable()
 export class ImportsService {
@@ -327,46 +334,56 @@ export class ImportsService {
   }
   private async extractPhoto(
     body: Buffer,
-    contentType: string,
     text: string,
     organizationId: string,
     userId?: string,
     register?: { previousSector: string | null; setSector: (sector: string | null) => void },
   ): Promise<CapturedEntity[] | null> {
     if (!(await this.ai.isAvailable('vision', 'capture'))) return null;
+    let isRegister = Boolean(register);
     try {
-      if (register) {
-        const dimensions = await sharp(body).metadata();
-        if (dimensions.width && dimensions.width < 1400) {
-          body = await sharp(body).resize({ width: 1400 }).jpeg({ quality: 95 }).toBuffer();
-          contentType = 'image/jpeg';
+      const oriented = await sharp(body)
+        .rotate()
+        .resize({ width: 2200, height: 3000, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 96 })
+        .toBuffer({ resolveWithObject: true });
+      const prompt = CAPTURE_FACTS_PROMPT + REGISTER_LAYOUT_PROMPT + IMAGE_COVERAGE_PROMPT;
+      const previousSector = register?.previousSector ?? null;
+      const context = previousSector ? '\nConfirmed preceding register-page sector: ' + previousSector + '. Use until a new printed sector heading.' : '';
+      const read = async (image: Buffer, description: string, original: boolean) => {
+        const response = await this.ai.vision(
+          'data:image/jpeg;base64,' + image.toString('base64'),
+          prompt + context + '\n' + description + (original ? '\nUse OCR only as secondary evidence:\n' + text.slice(0, 8000) : ''),
+          {
+            feature: 'capture',
+            orgId: organizationId,
+            userId,
+            json: true,
+            maxTokens: 12000,
+            temperature: 0,
+            responseSchema: imageCaptureSchema,
+            strictSchema: true,
+          },
+        );
+        return imageCaptureSchema.parse(parseJsonLoose(response));
+      };
+      const full = await read(oriented.data, 'Read this complete source photo.', true);
+      isRegister ||= full.layout === 'REGISTER';
+      let facts: z.infer<typeof captureFactsSchema> | null = full;
+      if (isRegister) {
+        const images = await registerImageSections(oriented.data, oriented.info.width, oriented.info.height);
+        const sections = [];
+        for (const [i, image] of images.entries()) {
+          sections.push(await read(image, i === 0 ? 'Read only the upper section.' : 'Read only the lower section.', false));
         }
+        facts = combineRegisterReads(full, sections);
+        if (!facts) throw new RegisterCoverageError();
       }
-      const response = await this.ai.vision(
-        `data:${contentType};base64,${body.toString('base64')}`,
-        CAPTURE_FACTS_PROMPT +
-          REGISTER_LAYOUT_PROMPT +
-          (register?.previousSector
-            ? '\nConfirmed preceding register-page sector: ' + register.previousSector + '. Use until a new printed sector heading.\n'
-            : '') +
-          '\nRead the original photo, using OCR only as secondary evidence. OCR context:\n' +
-          text.slice(0, 20000),
-        {
-          feature: 'capture',
-          orgId: organizationId,
-          userId,
-          json: true,
-          maxTokens: register ? 12000 : 6000,
-          temperature: 0,
-          responseSchema: captureFactsSchema,
-          strictSchema: true,
-        },
-      );
-      const facts = captureFactsSchema.parse(parseJsonLoose(response));
-      const entities = factsToEntities(facts, text, true, Boolean(register));
-      if (register) {
-        const sector = registerPageSector(facts, text, register.previousSector);
-        register.setSector(sector);
+      if (!facts || (!isRegister && full.layout === 'UNREADABLE')) return null;
+      const entities = factsToEntities(facts, text, true, isRegister);
+      if (isRegister) {
+        const sector = registerPageSector(facts, text, previousSector);
+        register?.setSector(sector);
         return entities.map((entity) => {
           if (entity.kind === 'INVENTORY' && entity.inventory && !entity.inventory.sector) return { ...entity, inventory: { ...entity.inventory, sector } };
           if (entity.kind === 'REQUIREMENT' && entity.requirement && !entity.requirement.localityNames.length)
@@ -375,7 +392,8 @@ export class ImportsService {
         });
       }
       return entities;
-    } catch {
+    } catch (error) {
+      if (isRegister) throw error instanceof RegisterCoverageError ? error : new RegisterCoverageError();
       return null;
     }
   }
@@ -416,7 +434,6 @@ export class ImportsService {
           }
           entities = await this.extractPhoto(
             file.body,
-            file.contentType,
             text,
             batch.organizationId,
             batch.createdById ?? undefined,
@@ -429,13 +446,10 @@ export class ImportsService {
                 }
               : undefined,
           );
-          if (register && !entities)
-            throw new Error(
-              'AI could not finish this register page. The original is saved. Extraction will retry automatically; Retry extraction resumes this register.',
-            );
+          if (register && !entities) throw new RegisterCoverageError();
         } else if (source.contentType === 'application/zip') {
-          const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef }, (body, type, ocrText) =>
-            this.extractPhoto(body, type, ocrText, batch.organizationId, batch.createdById ?? undefined),
+          const archive = await prepareArchiveReview(this.storage, this.ocr, { ...batch, mediaRef: batch.mediaRef }, (body, _type, ocrText) =>
+            this.extractPhoto(body, ocrText, batch.organizationId, batch.createdById ?? undefined),
           );
           archiveSummary = archive.archive;
           archiveFiles = archive.files;

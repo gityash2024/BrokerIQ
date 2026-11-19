@@ -116,6 +116,22 @@ describe('AiService', () => {
     expect(calls.map((call) => call.model)).toEqual(['a:free', 'b:free']);
   });
 
+  it('falls through invalid vision JSON and constrains the router itself to free structured endpoints', async () => {
+    respond = (_url, request) => ok(request.model === 'vision:free' ? '{"rows":"incomplete"}' : '{"rows":[1,2]}');
+    const ai = new AiService(settings({ openrouter: { apiKey: 'k', visionModel: 'vision:free' }, gemini: { apiKey: 'g', model: 'gemini' } }), prisma);
+    const image = 'data:image/jpeg;base64,YWJj';
+    const schema = z.object({ rows: z.array(z.number()) });
+    await expect(
+      ai.vision(image, 'Read the source', {
+        feature: 'capture',
+        json: true,
+        responseSchema: schema,
+        strictSchema: true,
+      }),
+    ).resolves.toBe('{"rows":[1,2]}');
+    expect(calls.map(({ model }) => model)).toEqual(['vision:free', 'openrouter/free']);
+  });
+
   it('keeps no-training and zero-price endpoint constraints on every launch fallback', async () => {
     const configuration = require('../../config/env');
     const spy = jest.spyOn(configuration, 'env').mockReturnValue({ ...configuration.env(), BROKER_FIRST: true });

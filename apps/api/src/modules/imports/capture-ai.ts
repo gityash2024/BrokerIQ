@@ -10,6 +10,8 @@ import {
 } from '@brokeriq/shared';
 
 const text = z.string().max(200).nullable();
+const normalizedRegisterFloor = (value: string) =>
+  ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' })[value.trim().toUpperCase()] ?? value.replace(/^(\d+)(?:st|nd|rd|th)(?:\s+floor)?$/i, '$1');
 const amount = z.number().finite().nonnegative().max(1e13).nullable();
 /** Extraction facts only: never expose editable ownership, approval or publication fields to a model. */
 export const captureFactsSchema = z.object({
@@ -86,6 +88,8 @@ function normalizePrintedNumbers(source: string) {
 function sourceAmounts(source: string) {
   const values = new Set<number>();
   source = normalizePrintedNumbers(source);
+  const normalizedRegisterFloor = (value: string) =>
+    ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' })[value.trim().toUpperCase()] ?? value.replace(/^(\d+)(?:st|nd|rd|th)(?:\s+floor)?$/i, '$1');
   const amount = '(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:/-\\s*)?(cr(?:ore)?s?|l(?:akh)?s?|lacs?|k|thousand|करोड़|करोड|लाख|हज़ार|हजार)?';
   const scale = (value: string, unit?: string) => {
     const factor = /^(cr|करोड़|करोड)/i.test(unit ?? '') ? 1e7 : /^(l|लाख)/i.test(unit ?? '') ? 1e5 : /^(k|thousand|हज़ार|हजार)/i.test(unit ?? '') ? 1000 : 1;
@@ -169,11 +173,11 @@ export function registerPageSector(input: z.infer<typeof captureFactsSchema>, so
   return sectors.length === 1 ? sectors[0] : previous;
 }
 
-type CaptureFact = z.infer<typeof captureFactsSchema>['records'][number];
+export type CaptureFact = z.infer<typeof captureFactsSchema>['records'][number];
 type RegisterRow = { houseNo: string; phones: string[]; sector: string | null; text: string };
 
 const registerPhone = /(?<!\d)(?:\+?91[ -]?)?[6-9]\d(?:[ -]?\d){8}(?!\d)/g;
-const houseColumn = /^\s*(\d[\da-z/.-]{0,19})(?:[ \t|,;:]+|$)/i;
+const houseColumn = /^\s*(\d[\da-z/.-]{0,19}?)(?:\s*-\s*(?=(?:\+?91[ -]?)?[6-9]\d(?:[ -]?\d){8}(?!\d))|[ \t|,;:]+|$)/i;
 const rentedStatus = /\brent(?:ed)?[ -]*out\b|\brented\b/i;
 
 function registerRows(source: string): RegisterRow[] {
@@ -271,24 +275,43 @@ function registerFacts(input: z.infer<typeof captureFactsSchema>, source: string
 }
 
 function applyRegisterRow(record: CaptureFact, row: RegisterRow): CaptureFact {
-  const floor = row.text.match(/\b(GF|FF|SF|TF|[1-9]\d?(?:st|nd|rd|th)(?:\s+floor)?)\b/i)?.[1];
-  const normalizedFloor = floor ? ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' }[floor.toUpperCase()] ?? floor.match(/^\d+/)?.[0]) : null;
-  const furnishing = /\b(?:SFD|SEMI(?:[ -]FURNISHED)?)\b/i.test(row.text)
-    ? 'SEMI_FURNISHED'
-    : /\b(?:FFD|FULLY(?:[ -]FURNISHED)?)\b/i.test(row.text)
-      ? 'FULLY_FURNISHED'
-      : record.furnishing;
-  const rooms = row.text.match(/(?<![\d.])(\d{1,2})\s*(BHK|RK)\b/i);
   return {
-    ...record,
-    intent: record.intent === 'UNRELATED' && row.phones.length ? 'OFFER' : record.intent,
+    ...registerLineFacts(record, row.text),
     houseNo: row.houseNo,
     sector: row.sector || record.sector,
+    intent: record.intent === 'UNRELATED' && row.phones.length ? 'OFFER' : record.intent,
+  };
+}
+
+export function registerLineFacts(record: CaptureFact, line: string): CaptureFact {
+  const floor = line.match(/\b(GF|FF|SF|TF|[1-9]\d?(?:st|nd|rd|th)(?:\s+floor)?)\b/i)?.[1];
+  const normalizedFloor = floor ? normalizedRegisterFloor(floor) : record.floor ? normalizedRegisterFloor(record.floor) : null;
+  const printedFurnishing = /\b(?:SFD|SEMI(?:[ -]FURNISHED)?|FFD|FULLY(?:[ -]FURNISHED)?|UNFURNISHED)\b/i.test(line);
+  const sfIsFloor = /\bSF\b/i.test(line) || /^SF$/i.test(record.floor?.trim() ?? '');
+  const furnishing = /\b(?:SFD|SEMI(?:[ -]FURNISHED)?)\b/i.test(line)
+    ? 'SEMI_FURNISHED'
+    : /\b(?:FFD|FULLY(?:[ -]FURNISHED)?)\b/i.test(line)
+      ? 'FULLY_FURNISHED'
+      : /\bUNFURNISHED\b/i.test(line)
+        ? 'UNFURNISHED'
+        : sfIsFloor && !printedFurnishing
+          ? null
+          : record.furnishing;
+  const rooms = line.match(/(?<![\d.])(\d{1,2})\s*(BHK|RK)\b/i);
+  const rents = [...line.matchAll(/(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*K\b/gi)];
+  const monthlyRent =
+    record.purpose !== 'SALE' && rents.length === 1 && (!record.priceBasis || record.priceBasis === 'MONTHLY_RENT') ? Number(rents[0][1]) * 1000 : null;
+  return {
+    ...record,
     furnishing,
-    floor: normalizedFloor || record.floor,
+    ...(monthlyRent ? { purpose: 'RENT', priceBasis: 'MONTHLY_RENT', priceMin: monthlyRent, priceMax: monthlyRent } : {}),
+    floor: normalizedFloor,
+    warnings: sfIsFloor
+      ? record.warnings.filter((warning) => !/\bSF\b.*(?:semi.?furnished|ambiguous)|(?:semi.?furnished|ambiguous).*\bSF\b/i.test(warning))
+      : record.warnings,
     bhk: record.bhk ?? (rooms ? Number(rooms[1]) || null : null),
     roomKind: record.roomKind ?? (rooms ? (rooms[2].toUpperCase() as 'BHK' | 'RK') : null),
-    availability: rentedStatus.test(row.text) ? 'RENTED' : record.availability,
+    availability: rentedStatus.test(line) ? 'RENTED' : record.availability,
   };
 }
 function reviewedFacts(input: z.infer<typeof captureFactsSchema>, visual: boolean) {
@@ -524,9 +547,7 @@ export function factsToEntities(
         category: visualEvidence ? (fact.category ?? (fact.bhk != null || fact.roomKind ? 'RESIDENTIAL' : null)) : null,
         propertyType: visualEvidence ? (fact.propertyType ?? null) : null,
         houseNo: fact.houseNo,
-        floor: fact.floor
-          ? ({ GF: '0', FF: '1', SF: '2', TF: 'Top Floor' }[fact.floor.trim().toUpperCase()] ?? fact.floor.replace(/^(\d+)(?:st|nd|rd|th)\s+floor$/i, '$1'))
-          : null,
+        floor: fact.floor ? normalizedRegisterFloor(fact.floor) : null,
         bhk,
         area,
         areaUnit,

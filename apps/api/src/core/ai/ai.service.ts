@@ -113,7 +113,7 @@ export class AiService {
   }
 
   /** Try free OpenRouter first, then configured alternatives. */
-  async providers(): Promise<Provider[]> {
+  async providers(captureVision = false): Promise<Provider[]> {
     const app = await this.settings.getAppConfig();
     const order = [...new Set(['openrouter', ...list(app.ai.providerOrder), ...PROVIDERS])].filter((p): p is ProviderName =>
       (PROVIDERS as string[]).includes(p),
@@ -123,6 +123,10 @@ export class AiService {
       const v = await this.settings.resolve(name).catch(() => null);
       if (v && (v.apiKey || (name === 'qwen_local' && v.textModel))) {
         const provider = this.toProvider(name, v);
+        if (captureVision) {
+          if (name !== 'openrouter') continue;
+          provider.visionModels = [...new Set([...provider.visionModels, 'openrouter/free'])];
+        }
         // Paid fallback is never used by the broker-first launch.
         if (env().BROKER_FIRST && name !== 'openrouter' && name !== 'qwen_local') continue;
         if (provider.textModels.length || provider.visionModels.length) out.push(provider);
@@ -132,7 +136,7 @@ export class AiService {
   }
 
   async isAvailable(kind: 'text' | 'vision' | 'tools' | 'json' = 'text', feature?: string) {
-    return (await this.providers()).some((p) =>
+    return (await this.providers(kind === 'vision' && feature === 'capture')).some((p) =>
       kind === 'vision'
         ? p.visionModels.length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&
@@ -164,7 +168,11 @@ export class AiService {
     return this.run(opts, 'vision', async (p, model) => {
       const out = await this.complete(p, model, messages, opts, VISION_TIMEOUT_MS);
       if (!out.text.trim()) throw new RetryableError('empty answer');
-      if (opts.json) parseJsonLoose(out.text); // throws → next model
+      if (opts.json || opts.responseSchema) {
+        const parsed = parseJsonLoose(out.text);
+        if (opts.responseSchema && !opts.responseSchema.safeParse(parsed).success)
+          throw new RetryableError('image response did not match the extraction schema');
+      }
       return out;
     });
   }
@@ -327,7 +335,7 @@ export class AiService {
     kind: 'text' | 'vision' | 'tools' | 'json',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = (await this.providers()).filter((p) =>
+    const providers = (await this.providers(kind === 'vision' && opts.feature === 'capture')).filter((p) =>
       kind === 'vision'
         ? p.visionModels.length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&

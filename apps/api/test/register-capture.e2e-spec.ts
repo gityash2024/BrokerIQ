@@ -68,13 +68,13 @@ describe('Register scan context, source facts and rented-only approval', () => {
     available?.mockRestore();
     await app?.close();
   });
-  async function upload(pageNo: number, target = 'INVENTORY', registerSessionId = sessionId) {
+  async function upload(pageNo: number, target = 'INVENTORY', registerSessionId = sessionId, pageImage = image) {
     const input = {
       clientKey: registerSessionId + '-' + pageNo,
       fileName: 'register.png',
       contentType: 'image/png',
       sourceType: 'IMAGE',
-      totalBytes: image.length,
+      totalBytes: pageImage.length,
       target,
       registerSessionId,
       registerPageNo: pageNo,
@@ -84,7 +84,7 @@ describe('Register scan context, source facts and rented-only approval', () => {
     await api()
       .post('/api/imports/uploads/' + upload.id + '/chunks/0')
       .set(header())
-      .send({ data: image.toString('base64') })
+      .send({ data: pageImage.toString('base64') })
       .expect(201);
     const batch = (
       await api()
@@ -98,7 +98,14 @@ describe('Register scan context, source facts and rented-only approval', () => {
   }
   async function extract(pageNo: number, text: string, registerSector: string | null) {
     ocr.mockResolvedValueOnce({ text, confidence: 90 });
-    vision.mockResolvedValueOnce(JSON.stringify({ registerSector, records: [{ ...facts }] }));
+    vision.mockResolvedValueOnce(
+      JSON.stringify({
+        layout: 'REGISTER',
+        visibleRows: 1,
+        registerSector,
+        records: [{ ...facts, houseNo: text.match(/^\d+/m)?.[0], sourceRow: text.split('\n').at(-1) }],
+      }),
+    );
     await app.get(ImportsService).extract(pages[pageNo]);
     return (
       await api()
@@ -158,6 +165,69 @@ describe('Register scan context, source facts and rented-only approval', () => {
     const fourth = await extract(4, '944 9876543210 4th Floor FFD', null);
     expect(fourth.entries[0].extracted[0].inventory).toMatchObject({ sector: 'Sector 47', houseNo: '944', floor: '4', furnishing: 'FULLY_FURNISHED' });
   });
+  it('recovers a thirteen-row register when the whole-photo read extracts only one row', async () => {
+    const rows = Array.from({ length: 13 }, (_, index) => ({
+      ...facts,
+      houseNo: String(601 + index),
+      sourceRow: `${601 + index} ${9701188501 + index} 2BHK ${index ? 'SFD' : 'SF'}`,
+      furnishing: 'SEMI_FURNISHED',
+      contacts: [{ name: 'Co-owner ' + index, phone: String(9701188501 + index), role: 'OWNER' }],
+    }));
+    const picture = await sharp({ create: { width: 900, height: 1300, channels: 3, background: 'white' } })
+      .png()
+      .toBuffer();
+    const { batchId } = await upload(1, 'SURVEY', randomUUID(), picture);
+    const read = (records: typeof rows, visibleRows = records.length) =>
+      JSON.stringify({
+        layout: 'REGISTER',
+        visibleRows,
+        registerSector: 'Sector 46',
+        records,
+      });
+    ocr.mockResolvedValueOnce({ text: 'Unreliable OCR fragment', confidence: 17 });
+    vision
+      .mockResolvedValueOnce(read(rows.slice(0, 1), 13))
+      .mockResolvedValueOnce(read(rows.slice(0, 8)))
+      .mockResolvedValueOnce(read(rows.slice(6)));
+    await app.get(ImportsService).extract(batchId);
+    const { body } = await api()
+      .get('/api/imports/' + batchId)
+      .set(header())
+      .expect(200);
+    const captured = body.entries[0].extracted.map((record: any) => record.inventory);
+    expect(captured.map((row: any) => row.houseNo)).toEqual(rows.map(({ houseNo }) => houseNo));
+    expect(captured[0]).toMatchObject({ floor: '2', furnishing: null, bhk: 2, roomKind: 'BHK' });
+    expect(captured[12]).toMatchObject({
+      sector: 'Sector 46',
+      furnishing: 'SEMI_FURNISHED',
+      contacts: [{ name: 'Co-owner 12', phone: '+919701188513' }],
+    });
+    expect(vision.mock.calls.slice(-3).map(([image]) => image.startsWith('data:image/jpeg;base64,'))).toEqual([true, true, true]);
+  });
+
+  it('keeps the original and publishes no partial draft if a readable section is missing rows', async () => {
+    const picture = await sharp({ create: { width: 900, height: 1300, channels: 3, background: 'white' } })
+      .png()
+      .toBuffer();
+    const { batchId } = await upload(1, 'SURVEY', randomUUID(), picture);
+    const read = JSON.stringify({
+      layout: 'REGISTER',
+      visibleRows: 8,
+      registerSector: null,
+      records: [{ ...facts, houseNo: '703', sourceRow: '703 9876543210 2BHK' }],
+    });
+    ocr.mockResolvedValueOnce({ text: '', confidence: 0 });
+    vision.mockResolvedValueOnce(read).mockResolvedValueOnce(read).mockResolvedValueOnce(read);
+    await expect(app.get(ImportsService).extract(batchId)).rejects.toThrow('verify all readable rows');
+    const { body } = await api()
+      .get('/api/imports/' + batchId)
+      .set(header())
+      .expect(200);
+    expect(body.status).toBe('FAILED');
+    expect(body.mediaRef).toBeTruthy();
+    expect(body.entries).toHaveLength(0);
+  });
+
   it('keeps a new register independent of a previous register sector', async () => {
     const fresh = await db.importBatch.create({
       data: {
