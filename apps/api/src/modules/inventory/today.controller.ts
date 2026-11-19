@@ -28,7 +28,7 @@ export class TodayController {
     local.setUTCHours(0, 0, 0, 0);
     const start = new Date(local.getTime() - offset);
     const end = new Date(start.getTime() + 86400_000);
-    const [followUps, visits, newLeads, requirements, inventory, pendingReview, unread] = await Promise.all([
+    const [followUps, visits, newLeads, requirements, inventory, surveyPending, pendingReview, unread] = await Promise.all([
       leadsOn
         ? this.prisma.followUp.findMany({
             where: { organizationId, ...assigned, lead: liveTaskLeadWhere(organizationId, user), status: 'PENDING', dueAt: { lt: end } },
@@ -64,6 +64,7 @@ export class TodayController {
           })
         : null,
       inventoryOn ? this.inventory.getStats(user) : null,
+      inventoryOn ? this.inventory.countPendingSurvey(user) : null,
       inboxOn
         ? this.prisma.sourceEntry.count({
             where: { batch: { organizationId, ...(user.role === 'BROKER_AGENT' ? { createdById: user.id } : {}) }, reviewState: 'NEEDS_REVIEW' },
@@ -90,6 +91,7 @@ export class TodayController {
       newLeads,
       requirements,
       inventory,
+      surveyPending,
       pendingReview,
       unreadConversations: unread ? unread._count._all : null,
       unreadMessages: unread ? (unread._sum.unreadCount ?? 0) : null,

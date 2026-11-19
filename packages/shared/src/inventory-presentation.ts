@@ -118,11 +118,13 @@ export function inventoryAvailabilityDate(item: Pick<LedgerItem, 'availableSince
 
 /** Numbered addresses are only available when the API grants full detail access. */
 export function inventoryCardTitle(item: LedgerItem) {
-  const title = item.houseNo?.trim()
-    ? `House ${item.houseNo.trim()}`
-    : isPendingSurvey(item) && item.photoUrls?.length && !item.address
-      ? 'Survey photo to review'
-      : inventoryTitle(item);
+  let title = inventoryTitle(item);
+  if (item.houseNo?.trim()) {
+    title = `House ${item.houseNo.trim()}`;
+  } else if (isPendingSurvey(item) && !item.address) {
+    if (item.photoUrls?.length) title = 'Survey photo to review';
+    else if (item.contacts?.some((contact) => contact.phone)) title = 'Survey phone to call';
+  }
   return [title, item.sector?.trim()].filter(Boolean).join(' · ');
 }
 

@@ -102,6 +102,10 @@ export const surveyPhotoInputSchema = z.strictObject({
   photoUrl: inventoryInputSchema.shape.photoUrls.unwrap().element,
 });
 export type SurveyPhotoInput = z.infer<typeof surveyPhotoInputSchema>;
+export const surveyPhoneInputSchema = surveyPhotoInputSchema.omit({ photoUrl: true }).extend({
+  phone: z.string().trim().min(1).max(25).refine((value) => !!normalizeIndianPhone(value), 'Enter a valid Indian phone number'),
+});
+export type SurveyPhoneInput = z.infer<typeof surveyPhoneInputSchema>;
 export const inventoryFilterSchema = z.object({
   folderMode: inventoryFolderModeSchema.optional(),
   currentInventory: z.literal('true').optional(),

@@ -55,7 +55,7 @@ export default function ReviewPage() {
       },
     });
     await Promise.all(
-      ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+      ['import', 'ledger', 'inventory-folders', 'inventory-folder-items', 'broker-requirements', 'broker-today'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
     );
     toast.success(
       ignore

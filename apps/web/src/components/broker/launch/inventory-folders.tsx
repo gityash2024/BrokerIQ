@@ -121,7 +121,7 @@ export function InventoryFoldersPage({
         body: { status: 'RENTED', availability: 'RENTED', expectedRevision: item.revision },
       });
       await Promise.all(
-        ['inventory-folders', 'inventory-folder-items', 'ledger', 'ledger-item', 'ledger-stats'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+        ['inventory-folders', 'inventory-folder-items', 'ledger', 'ledger-item', 'ledger-stats', 'broker-today', 'agent-assignments', 'agent-assignment-records'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
       );
       toast.success('Marked as rented out');
     } catch (error) {

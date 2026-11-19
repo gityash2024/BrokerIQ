@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useConfig } from '@/lib/config';
 import { useTheme } from '@/lib/theme';
 import { Button, Txt } from '@/ui';
+import { SurveyPhoneAction } from './survey-phone-action';
 import { SurveyPhotoAction } from './survey-photo-action';
 
 export function NativeInventoryEntryActions({ params, survey = false }: { params?: Record<string, string>; survey?: boolean }) {
@@ -56,6 +57,7 @@ export function NativeInventoryEntryActions({ params, survey = false }: { params
         }
       />
       {survey && <SurveyPhotoAction allowed={canCreate} sector={params?.sector} />}
+      {survey && <SurveyPhoneAction allowed={canCreate} sector={params?.sector} />}
       {!survey && (
         <Button
           title="WhatsApp import"

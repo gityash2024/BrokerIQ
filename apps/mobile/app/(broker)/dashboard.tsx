@@ -102,6 +102,18 @@ export default function Today() {
           </NativeCard>
         )}
 
+        {typeof d?.surveyPending === 'number' && (
+          <NativeCard onPress={() => router.push({ pathname: '/(broker)/inventory', params: { survey: '1' } })}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Txt v="bodyStrong">Survey pending</Txt>
+                <Txt v="caption" color="muted">Waiting for calling or confirmation</Txt>
+              </View>
+              <Txt v="h3">{String(d.surveyPending)}</Txt>
+              <ArrowRight size={18} color={c.brand} />
+            </View>
+          </NativeCard>
+        )}
         <AgentAssignments />
         <NativeDashboard role="broker" />
         <View style={{ flexDirection: 'row', gap: 10 }}>

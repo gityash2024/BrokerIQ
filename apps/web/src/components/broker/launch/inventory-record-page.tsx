@@ -106,7 +106,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
         'ledger-stats',
         'ledger-sectors',
         'inventory-folders',
-        'inventory-folder-items',
+        'inventory-folder-items', 'broker-today', 'agent-assignments', 'agent-assignment-records',
         'broker-dashboard',
         'enterprise-dashboard',
       ].map((prefix) => client.invalidateQueries({ queryKey: [prefix] })),

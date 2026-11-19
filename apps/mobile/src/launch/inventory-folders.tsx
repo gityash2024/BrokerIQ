@@ -37,7 +37,7 @@ function normalizeDate(value: string, end = false) {
   return new Date(value + (end ? 'T23:59:59.999+05:30' : 'T00:00:00+05:30')).toISOString();
 }
 
-export function NativeInventoryFolders() {
+export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialMode?: 'AVAILABLE' | 'SURVEY' } = {}) {
   const { user } = useAuth();
   const { c } = useTheme();
   const qc = useQueryClient();
@@ -47,7 +47,7 @@ export function NativeInventoryFolders() {
     const timer = setInterval(() => setToday(inventoryDate()), 15_000);
     return () => clearInterval(timer);
   }, []);
-  const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>('AVAILABLE');
+  const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>(initialMode);
   const survey = mode === 'SURVEY';
   const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
   const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
@@ -111,7 +111,7 @@ export function NativeInventoryFolders() {
             try {
               await api(`/inventory/${item.id}`, { method: 'PATCH', body: { availability: 'RENTED', status: 'RENTED', expectedRevision: item.revision } });
               await Promise.all(
-                ['inventory-folders', 'inventory-folder-items', 'ledger', 'ledger-item', 'ledger-stats'].map((key) =>
+                ['inventory-folders', 'inventory-folder-items', 'ledger', 'ledger-item', 'ledger-stats', 'broker-today', 'agent-assignments', 'agent-assignment-records'].map((key) =>
                   qc.invalidateQueries({ queryKey: [key] }),
                 ),
               );

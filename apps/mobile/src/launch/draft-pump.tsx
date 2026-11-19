@@ -17,7 +17,7 @@ export function DraftPump() {
         if (active) {
           const delegated = user?.role === 'SUB_BROKER_ADMIN';
           const keys = delegated ? [['local-drafts']] : [['local-drafts'], ['ledger'], ['imports']];
-          if (completed?.inventoryChanged) keys.push(['ledger'], ['ledger-stats'], ['ledger-item'], ['inventory-folders'], ['inventory-folder-items']);
+          if (completed?.inventoryChanged) keys.push(['ledger'], ['ledger-stats'], ['ledger-item'], ['inventory-folders'], ['inventory-folder-items'], ['broker-today'], ['agent-assignments'], ['agent-assignment-records']);
           if (completed?.leadIds.length) keys.push(['follow-ups'], ['visits'], ['broker-dashboard'], ...completed.leadIds.map((id) => ['lead', id]));
           await Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
         }

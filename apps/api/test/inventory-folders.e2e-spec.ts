@@ -17,6 +17,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
   let agent: string;
   let delegate: string;
   let outsider: string;
+  let otherAgent: string;
   const stamp = Date.now().toString(36);
   const headers = (token = admin) => ({ Authorization: 'Bearer ' + token });
   const api = () => request(app.getHttpServer());
@@ -46,11 +47,12 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     const actors = [
       { name: 'admin', role: 'BROKER_ADMIN', organizationId: firmId },
       { name: 'agent', role: 'BROKER_AGENT', organizationId: firmId },
+      { name: 'other-agent', role: 'BROKER_AGENT', organizationId: firmId },
       {
         name: 'delegate',
         role: 'SUB_BROKER_ADMIN',
         organizationId: firmId,
-        delegatedPermissions: ['inventory:view', 'inventory:edit', 'inventory:create', 'inbox:view', 'inbox:approve', 'leads:view'],
+        delegatedPermissions: ['today:view', 'inventory:view', 'inventory:edit', 'inventory:create', 'inbox:view', 'inbox:approve', 'leads:view'],
       },
       { name: 'outside', role: 'BROKER_ADMIN', organizationId: secondFirm.id },
     ] as const;
@@ -69,7 +71,8 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       else if (name === 'agent') {
         agent = token;
         agentId = user.id;
-      } else if (name === 'delegate') delegate = token;
+      } else if (name === 'other-agent') otherAgent = token;
+      else if (name === 'delegate') delegate = token;
       else outsider = token;
     }
   });
@@ -107,6 +110,40 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       .send({ sector: 'Sector 57', houseNo: 'Photo review', details: { possessionDate: '2027-01-05' } })
       .expect(200);
     expect(reviewed.body).toMatchObject({ id: created.id, sector: 'Sector 57', photoUrls: [photoUrl] });
+  });
+
+  it('counts a phone-only survey for the creator and office until the same record is made available', async () => {
+    const pending = async (token: string) => (await api().get('/api/broker/today').set(headers(token)).expect(200)).body.surveyPending;
+    const [officeBefore, agentBefore, delegateBefore, otherBefore] = await Promise.all([admin, agent, delegate, otherAgent].map(pending));
+    const endpoint = '/api/inventory/survey-phone';
+    const payload = { phone: '9701188902', clientMutationId: randomUUID() };
+    await api()
+      .post(endpoint)
+      .set(headers(agent))
+      .send({ ...payload, phone: '97011' })
+      .expect(400);
+    const post = () => api().post(endpoint).set(headers(agent)).send(payload).expect(201);
+    const { body: draft } = await post();
+    expect(draft).toMatchObject({ status: 'DRAFT', sourceType: 'SURVEY', sector: null, assignedToId: agentId });
+    expect(draft.contacts).toEqual([expect.objectContaining({ phone: '+919701188902', role: 'OWNER' })]);
+    expect((await post()).body.id).toBe(draft.id);
+    expect(await Promise.all([admin, agent, delegate, otherAgent].map(pending))).toEqual([officeBefore + 1, agentBefore + 1, delegateBefore + 1, otherBefore]);
+    const path = '/api/inventory/' + draft.id;
+    await api().get(path).set(headers(otherAgent)).expect(404);
+    const { body: available } = await api()
+      .patch(path)
+      .set(headers(admin))
+      .send({
+        ...unit,
+        houseNo: 'Phone review ' + stamp,
+        directoryMonth: inventoryMonth(),
+        details: { possessionDate: inventoryDate() },
+      })
+      .expect(200);
+    expect(available).toMatchObject({ id: draft.id, availability: 'AVAILABLE' });
+    expect(available.contacts).toEqual(draft.contacts);
+    expect(await Promise.all([admin, agent, delegate, otherAgent].map(pending))).toEqual([officeBefore, agentBefore, delegateBefore, otherBefore]);
+    await api().delete(path).set(headers(admin)).expect(200);
   });
 
   it('keeps Survey private, then promotes and rents the same property without losing possession or photos', async () => {

@@ -223,7 +223,7 @@ export default function InventoryEditor() {
       if (saved?.state === 'FAILED') throw new Error(saved.error ?? 'Save failed. Your changes remain in Saved drafts.');
       toast.success(saved?.state === 'SYNCED' ? 'Property saved' : 'Saved on this device. Sync will resume when connected.');
       await Promise.all(
-        ['ledger', 'ledger-item', 'ledger-stats', 'inventory-folders', 'inventory-folder-items', 'local-drafts'].map((k) =>
+        ['ledger', 'ledger-item', 'ledger-stats', 'inventory-folders', 'inventory-folder-items', 'broker-today', 'agent-assignments', 'agent-assignment-records', 'local-drafts'].map((k) =>
           qc.invalidateQueries({ queryKey: [k] }),
         ),
       );

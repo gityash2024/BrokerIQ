@@ -5,6 +5,7 @@ import { Prisma, PropertyType } from '@prisma/client';
 import {
   type InventoryInput,
   type SurveyPhotoInput,
+  type SurveyPhoneInput,
   type BrokerRequirementInput,
   ledgerMatch,
   areaSqft,
@@ -559,6 +560,9 @@ export class InventoryService {
     if (!item) throw new NotFoundException('Inventory item not found');
     return (await this.access.present([ledgerJson(item)], user))[0];
   }
+  countPendingSurvey(user: RequestUser) {
+    return this.prisma.inventoryItem.count({ where: { ...this.scope(user), ...pendingSurvey } });
+  }
   async getStats(user: RequestUser, organizationId?: string) {
     const where = { organizationId: this.orgId(user, organizationId, false), deletedAt: null, ...this.access.readScope(user), NOT: pendingSurvey };
     const [total, statuses, availability, reviewed, published] = await Promise.all([
@@ -602,7 +606,7 @@ export class InventoryService {
       .filter((r) => user.role !== 'BROKER_AGENT' || !/\b(?:house|plot|unit|flat|door)\s+(?:no\.?\s*)?\d/i.test(r.sector ?? ''))
       .map((r) => ({ sector: r.sector, count: r._count.id }));
   }
-  private fields(input: InventoryInput, previous?: any, photoCapture = false) {
+  private fields(input: InventoryInput, previous?: any, quickSurvey = false) {
     const { contacts: _contacts, organizationId: _org, expectedRevision: _revision, details: _details, survey: _survey, ...data } = input;
     const monthly = input.monthlyRent !== undefined ? input.monthlyRent : input.rent;
     const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
@@ -611,7 +615,7 @@ export class InventoryService {
     const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
     const isSurvey = input.survey || (previous?.sourceType === 'SURVEY' && previous.status === 'DRAFT');
     if (isSurvey) {
-      if (!photoCapture) {
+      if (!quickSurvey) {
         if (!effective.houseNo?.trim() || !effective.sector?.trim()) throw new BadRequestException('Survey needs a sector and house number');
         const possession = (details ?? previous?.details)?.possessionDate;
         if (!inventoryDateSchema.safeParse(possession).success && !(input.availability === 'RENTED' && input.status === 'RENTED'))
@@ -697,7 +701,14 @@ export class InventoryService {
     return this.createRecord(
       { sector: input.sector, photoUrls: [input.photoUrl], clientMutationId: input.clientMutationId, survey: true, purpose: 'RENT' },
       user,
-      { photoCapture: true },
+      { quickSurvey: true },
+    );
+  }
+  createSurveyPhone(input: SurveyPhoneInput, user: RequestUser) {
+    return this.createRecord(
+      { sector: input.sector, ownerPhone: input.phone, clientMutationId: input.clientMutationId, survey: true, purpose: 'RENT' },
+      user,
+      { quickSurvey: true },
     );
   }
   create(
@@ -714,11 +725,11 @@ export class InventoryService {
     {
       transaction,
       source,
-      photoCapture = false,
+      quickSurvey = false,
     }: {
       transaction?: Prisma.TransactionClient;
       source?: { sourceEntryId: string; sourceUnitKey: string; sourceType: string };
-      photoCapture?: boolean;
+      quickSurvey?: boolean;
     },
   ) {
     const organizationId = this.orgId(user, input.organizationId)!;
@@ -737,7 +748,7 @@ export class InventoryService {
           return { item: existing, created: false };
         }
       }
-      if (!input.sector && !input.address && !photoCapture) throw new BadRequestException('Sector/locality or address required');
+      if (!input.sector && !input.address && !quickSurvey) throw new BadRequestException('Sector/locality or address required');
       const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
       const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
       if (assignedToId) {
@@ -748,7 +759,7 @@ export class InventoryService {
       }
       const item = await db.inventoryItem.create({
         data: {
-          ...this.fields(input, undefined, photoCapture),
+          ...this.fields(input, undefined, quickSurvey),
           ...source,
           ...(input.survey ? { sourceType: 'SURVEY' } : {}),
           organizationId,

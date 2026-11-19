@@ -8,6 +8,8 @@ import {
   availabilitySchema,
   inventoryPublishSchema,
   surveyPhotoInputSchema,
+  surveyPhoneInputSchema,
+  type SurveyPhoneInput,
   type InventoryPublishInput,
   type SurveyPhotoInput,
 } from '@brokeriq/shared';
@@ -127,6 +129,11 @@ export class InventoryController {
   @Post('survey-photo')
   surveyPhoto(@Body(new ZodPipe(surveyPhotoInputSchema)) dto: SurveyPhotoInput, @CurrentUser() user: RequestUser) {
     return this.inventory.createSurveyPhoto(dto, user);
+  }
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Post('survey-phone')
+  surveyPhone(@Body(new ZodPipe(surveyPhoneInputSchema)) dto: SurveyPhoneInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.createSurveyPhone(dto, user);
   }
   @Patch('bulk/update') bulkUpdate(
     @Body(

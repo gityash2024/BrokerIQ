@@ -60,6 +60,7 @@ const initial = {
 
 export default function Inventory() {
   const params = useLocalSearchParams();
+  if (params.survey === '1') return <NativeInventoryFolders key="survey" initialMode="SURVEY" />;
   return params.view === 'ledger' || Object.keys(initial).some((key) => typeof params[key] === 'string') ? <InventoryLedger /> : <NativeInventoryFolders />;
 }
 

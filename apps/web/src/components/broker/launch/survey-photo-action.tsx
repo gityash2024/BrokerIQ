@@ -48,7 +48,7 @@ export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowe
         body: { clientMutationId: photo.clientMutationId, sector: photo.sector, photoUrl: photo.photoUrl },
       });
       pending.current = null;
-      await Promise.all(['inventory-folders', 'inventory-folder-items'].map((key) => client.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(['inventory-folders', 'inventory-folder-items', 'broker-today'].map((key) => client.invalidateQueries({ queryKey: [key] })));
       toast.success('Photo saved to Survey for review');
     } catch (cause) {
       setError(errorMessage(cause));

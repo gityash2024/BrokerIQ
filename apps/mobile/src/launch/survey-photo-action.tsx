@@ -35,7 +35,7 @@ export function SurveyPhotoAction({ sector, allowed }: { sector?: string; allowe
         await syncDrafts();
         const saved = await getLocalDraft(id, owner);
         if (saved?.state === 'SYNCED') {
-          await Promise.all(['inventory-folders', 'inventory-folder-items'].map((key) => client.invalidateQueries({ queryKey: [key] })));
+          await Promise.all(['inventory-folders', 'inventory-folder-items', 'broker-today'].map((key) => client.invalidateQueries({ queryKey: [key] })));
           toast.success('Photo saved to Survey for review');
         } else if (saved?.state === 'FAILED') {
           toast.error('Photo is saved on this device. Retry in Saved drafts.');

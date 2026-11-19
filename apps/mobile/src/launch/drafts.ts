@@ -4,6 +4,7 @@ import {
   uploadImport,
   prepareInventoryEditorInput,
   surveyPhotoInputSchema,
+  surveyPhoneInputSchema,
   captureContentType,
   followUpInputSchema,
   hasDelegatedAccess,
@@ -20,6 +21,7 @@ export type TaskDraftKind = 'FOLLOW_UP_CREATE' | 'SITE_VISIT_CREATE';
 export type DraftKind =
   | 'PROPERTY_CREATE'
   | 'PROPERTY_SURVEY_PHOTO'
+  | 'PROPERTY_SURVEY_PHONE'
   | 'PROPERTY_EDIT'
   | 'REQUIREMENT_CREATE'
   | 'REQUIREMENT_EDIT'
@@ -329,6 +331,13 @@ export async function queueSurveyPhoto(uri: string, sector: string | undefined, 
   await queueDraft(saved, owner);
   return saved;
 }
+export async function queueSurveyPhone(phone: string, sector?: string, owner = contextNow()) {
+  const id = Crypto.randomUUID();
+  const input = surveyPhoneInputSchema.parse({ phone, sector, clientMutationId: id });
+  await saveDraft('PROPERTY_SURVEY_PHONE', id, input, id, owner);
+  await queueDraft(id, owner);
+  return id;
+}
 /** Save a submitted task and its idempotency key together before the first request. */
 export async function submitTask(kind: TaskDraftKind, input: unknown, owner = contextNow()) {
   assertAccountContext(owner);
@@ -404,7 +413,7 @@ export async function syncDrafts() {
       assertAccountContext(owner);
       const rows = await database.getAllAsync<LocalDraft>(
         `SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=?
-         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?))
+         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO','PROPERTY_SURVEY_PHONE') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?))
          ORDER BY updated_at ASC LIMIT 10`,
         session.user.id,
         owner.scope,
@@ -467,6 +476,9 @@ export async function syncDrafts() {
           } else if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') {
             path = row.kind === 'FOLLOW_UP_CREATE' ? '/follow-ups' : '/visits';
             body = { ...body, clientMutationId: row.id };
+          } else if (row.kind === 'PROPERTY_SURVEY_PHONE') {
+            path = '/inventory/survey-phone';
+            body = surveyPhoneInputSchema.parse({ ...body, clientMutationId: row.id });
           } else if (row.kind === 'PROPERTY_SURVEY_PHOTO') {
             path = '/inventory/survey-photo';
             if (!body.photoUrl) {
