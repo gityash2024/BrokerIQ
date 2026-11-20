@@ -63,6 +63,7 @@ function Editor({ member }: { member: Member }) {
       setRemoved(true);
     },
   });
+  const owner = member.role === 'PROPERTY_OWNER';
   const canEdit = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const conflict = baseline !== member.updatedAt;
   const invalid = Object.entries(targets).some(
@@ -97,7 +98,7 @@ function Editor({ member }: { member: Member }) {
                 {member.organization?.name} · Joined {formatDate(member.createdAt)}
               </p>
             </div>
-            <Badge>{member.role}</Badge>
+            <Badge>{owner ? 'Property Owner' : member.role}</Badge>
             <Badge>{member.status}</Badge>
           </div>
           {conflict && (
@@ -116,42 +117,44 @@ function Editor({ member }: { member: Member }) {
               </Button>
             </div>
           )}
-          <div className="grid gap-5 md:grid-cols-2">
-            <section className="card space-y-3 p-5">
-              <h2 className="flex items-center gap-2 font-bold">
-                <MapPin className="size-4" /> पिछली दर्ज लोकेशन
-              </h2>
-              {loc ? (
-                <>
-                  <p>{safeTimeAgo(loc.capturedAt)}</p>
-                  <p className="text-sm text-muted">{(loc as any).address || 'Address उपलब्ध नहीं'}</p>
-                  <p className="text-sm">
-                    {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)} · Accuracy: {loc.accuracy == null ? 'अज्ञात' : `±${Math.round(loc.accuracy)}m`}
-                  </p>
-                  <a className="text-sm text-brand" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}>
-                    Maps में देखें ↗
-                  </a>
-                </>
-              ) : (
-                <p className="text-sm text-muted">कोई location record नहीं। Tracking केवल अनुमति वाली active shift में होती है।</p>
-              )}
-            </section>
-            <section className="card space-y-3 p-5">
-              <h2 className="flex items-center gap-2 font-bold">
-                <ShieldCheck className="size-4" /> KYC और समय
-              </h2>
-              <Badge>{member.kycStatus}</Badge>
-              <p className="text-sm text-muted">Documents और review KYC module में उपलब्ध हैं।</p>
-              <div className="flex flex-wrap gap-3">
-                <Link className="text-brand" href={user?.role === 'SUPER_ADMIN' ? `/admin/kyc?agentId=${member.id}` : `/broker/kyc?member=${member.id}`}>
-                  KYC खोलें →
-                </Link>
-                <Link className="text-brand" href={`${teamBase}/time-logging?memberId=${member.id}`}>
-                  Time logging →
-                </Link>
-              </div>
-            </section>
-          </div>
+          {!owner && (
+            <div className="grid gap-5 md:grid-cols-2">
+              <section className="card space-y-3 p-5">
+                <h2 className="flex items-center gap-2 font-bold">
+                  <MapPin className="size-4" /> पिछली दर्ज लोकेशन
+                </h2>
+                {loc ? (
+                  <>
+                    <p>{safeTimeAgo(loc.capturedAt)}</p>
+                    <p className="text-sm text-muted">{(loc as any).address || 'Address उपलब्ध नहीं'}</p>
+                    <p className="text-sm">
+                      {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)} · Accuracy: {loc.accuracy == null ? 'अज्ञात' : `±${Math.round(loc.accuracy)}m`}
+                    </p>
+                    <a className="text-sm text-brand" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}>
+                      Maps में देखें ↗
+                    </a>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted">कोई location record नहीं। Tracking केवल अनुमति वाली active shift में होती है।</p>
+                )}
+              </section>
+              <section className="card space-y-3 p-5">
+                <h2 className="flex items-center gap-2 font-bold">
+                  <ShieldCheck className="size-4" /> KYC और समय
+                </h2>
+                <Badge>{member.kycStatus}</Badge>
+                <p className="text-sm text-muted">Documents और review KYC module में उपलब्ध हैं।</p>
+                <div className="flex flex-wrap gap-3">
+                  <Link className="text-brand" href={user?.role === 'SUPER_ADMIN' ? `/admin/kyc?agentId=${member.id}` : `/broker/kyc?member=${member.id}`}>
+                    KYC खोलें →
+                  </Link>
+                  <Link className="text-brand" href={`${teamBase}/time-logging?memberId=${member.id}`}>
+                    Time logging →
+                  </Link>
+                </div>
+              </section>
+            </div>
+          )}
           <form
             className="card space-y-5 p-5"
             onSubmit={(event) => {
@@ -159,15 +162,19 @@ function Editor({ member }: { member: Member }) {
               update.mutate({
                 name: name.trim(),
                 phone: phone.trim() || null,
-                targets: Object.fromEntries(
-                  Object.entries(targets)
-                    .filter(([, value]) => value !== '')
-                    .map(([key, value]) => [key, Number(value)]),
-                ),
+                ...(!owner
+                  ? {
+                      targets: Object.fromEntries(
+                        Object.entries(targets)
+                          .filter(([, value]) => value !== '')
+                          .map(([key, value]) => [key, Number(value)]),
+                      ),
+                    }
+                  : {}),
               });
             }}
           >
-            <h2 className="font-bold">प्रोफाइल और मासिक लक्ष्य</h2>
+            <h2 className="font-bold">{owner ? 'Owner profile' : 'प्रोफाइल और मासिक लक्ष्य'}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="नाम">
                 <Input value={name} minLength={2} required disabled={!canEdit} onChange={(e) => setName(e.target.value)} />
@@ -176,26 +183,30 @@ function Editor({ member }: { member: Member }) {
                 <Input value={phone} type="tel" disabled={!canEdit} onChange={(e) => setPhone(e.target.value)} />
               </Field>
             </div>
-            <p className="text-sm text-muted">
-              इस महीने Won: {member.fulfillment?.dealsWonMonth ?? 0} · मिली Leads: {(member.fulfillment as any)?.leadsReceivedMonth ?? 0} · Open Leads:{' '}
-              {member.stats.openLeads}. खाली target को zero नहीं माना जाएगा।
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {Object.entries(labels).map(([key, label]) => (
-                <Field label={label} key={key}>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={key === 'commissionPct' ? 100 : undefined}
-                    step="any"
-                    placeholder="Not set"
-                    value={targets[key]}
-                    disabled={!canEdit}
-                    onChange={(e) => setTargets((old) => ({ ...old, [key]: e.target.value }))}
-                  />
-                </Field>
-              ))}
-            </div>
+            {!owner && (
+              <>
+                <p className="text-sm text-muted">
+                  इस महीने Won: {member.fulfillment?.dealsWonMonth ?? 0} · मिली Leads: {(member.fulfillment as any)?.leadsReceivedMonth ?? 0} · Open Leads:{' '}
+                  {member.stats.openLeads}. खाली target को zero नहीं माना जाएगा।
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {Object.entries(labels).map(([key, label]) => (
+                    <Field label={label} key={key}>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={key === 'commissionPct' ? 100 : undefined}
+                        step="any"
+                        placeholder="Not set"
+                        value={targets[key]}
+                        disabled={!canEdit}
+                        onChange={(e) => setTargets((old) => ({ ...old, [key]: e.target.value }))}
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </>
+            )}
             <Button access={canEdit} type="submit" loading={update.isPending} disabled={busy || conflict || invalid || name.trim().length < 2}>
               <Save className="mr-2 size-4" /> बदलाव सेव करें
             </Button>
@@ -207,9 +218,11 @@ function Editor({ member }: { member: Member }) {
                   {member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
                 </Button>
               )}
-              <Button access={canEdit} variant="secondary" disabled={busy || conflict} onClick={() => setAction('role')}>
-                {member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
-              </Button>
+              {!owner && (
+                <Button access={canEdit} variant="secondary" disabled={busy || conflict} onClick={() => setAction('role')}>
+                  {member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
+                </Button>
+              )}
               <Button access={canEdit} variant="secondary" disabled={busy || conflict} onClick={() => setAction('status')}>
                 {member.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate करें'}
               </Button>

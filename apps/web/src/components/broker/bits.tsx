@@ -56,11 +56,11 @@ export function TempBadge({ t }: { t?: string | null }) {
   );
 }
 
-export function useTeam(enabled = true) {
+export function useTeam(enabled = true, includeOwners = false) {
   return useQuery({
-    queryKey: ['team', 'overview'],
+    queryKey: ['team', 'overview', includeOwners],
     enabled,
-    queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>('/broker/team')),
+    queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>(includeOwners ? '/broker/team?includeOwners=true' : '/broker/team')),
     staleTime: 10_000,
     refetchInterval: 15_000,
   });
@@ -68,5 +68,10 @@ export function useTeam(enabled = true) {
 
 export function useAssignees(needed = true) {
   const { user } = useAuth();
-  return useQuery({ queryKey: ['team', 'assignees'], enabled: needed && hasDelegatedAccess(user, 'leads', 'assign'), queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'), staleTime: 60_000 });
+  return useQuery({
+    queryKey: ['team', 'assignees'],
+    enabled: needed && hasDelegatedAccess(user, 'leads', 'assign'),
+    queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'),
+    staleTime: 60_000,
+  });
 }

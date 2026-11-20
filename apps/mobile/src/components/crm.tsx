@@ -38,10 +38,10 @@ export function TempBadge({ t }: { t?: string | null }) {
   return <Badge label={t[0] + t.slice(1).toLowerCase()} color={col} icon={<Icon size={11} color={col} />} />;
 }
 
-export function useTeam() {
+export function useTeam(includeOwners = false) {
   return useQuery({
-    queryKey: ['team', 'overview'],
-    queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>('/broker/team')),
+    queryKey: ['team', 'overview', includeOwners],
+    queryFn: async () => brokerTeamResponseSchema.parse(await api<unknown>(includeOwners ? '/broker/team?includeOwners=true' : '/broker/team')),
     staleTime: 10_000,
     refetchInterval: 15_000,
   });
@@ -49,5 +49,10 @@ export function useTeam() {
 
 export function useAssignees(needed = true) {
   const { user } = useAuth();
-  return useQuery({ queryKey: ['team', 'assignees'], enabled: needed && hasDelegatedAccess(user, 'leads', 'assign'), queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'), staleTime: 60_000 });
+  return useQuery({
+    queryKey: ['team', 'assignees'],
+    enabled: needed && hasDelegatedAccess(user, 'leads', 'assign'),
+    queryFn: () => api<Pick<BrokerTeamResponse, 'members'>>('/leads/assignees'),
+    staleTime: 60_000,
+  });
 }

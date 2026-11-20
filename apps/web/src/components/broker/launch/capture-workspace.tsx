@@ -1,4 +1,5 @@
 'use client';
+import { surveySectors } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { IMPORT_MAX_BYTES, hasDelegatedAccess, inventoryMonth, inventoryMonthSchema, uploadImport } from '@brokeriq/shared';
@@ -251,9 +252,9 @@ function Workspace({ scanner }: { scanner: boolean }) {
               className="ml-3 rounded-xl border border-line bg-surface p-2"
             >
               <option value="">{survey ? 'Choose sector first' : 'Read from page heading'}</option>
-              {(localities.data ?? []).map((locality) => (
-                <option key={locality.name} value={locality.name}>
-                  {locality.name}
+              {surveySectors((localities.data ?? []).map((locality) => locality.name)).map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </select>

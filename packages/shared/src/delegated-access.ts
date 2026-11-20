@@ -65,5 +65,6 @@ export function delegatedModulePolicies(policies: ModulePolicies | undefined, gr
 }
 
 export function firmRoleLabel(role: string) {
+  if (role === 'PROPERTY_OWNER') return 'Property Owner';
   return role === 'SUB_BROKER_ADMIN' ? 'Sub-Broker Admin' : role === 'BROKER_ADMIN' ? 'Admin' : 'Agent';
 }

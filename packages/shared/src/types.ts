@@ -12,7 +12,7 @@ export interface AuthUser {
   email: string;
   phone: string | null;
   avatarUrl: string | null;
-  role: 'SUPER_ADMIN' | 'MODERATOR' | 'SUPPORT' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'USER';
+  role: 'SUPER_ADMIN' | 'MODERATOR' | 'SUPPORT' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'PROPERTY_OWNER' | 'USER';
   organizationId: string | null;
   delegatedPermissions?: string[];
   emailVerified: boolean;

@@ -29,7 +29,8 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
   }
   if (path === '/chat/threads/:id/report' && method === 'POST') return { module: 'inbox', actions: ['edit'] };
   if (path === '/media/kyc/:id' && ['GET', 'HEAD'].includes(method)) return { module: 'kyc', actions: ['view'] };
-  if (method === 'GET' && ['/broker/dashboard/agent-assignments', '/broker/dashboard/agent-assignments/:agentid'].includes(path)) return { module: 'team', actions: ['view'] };
+  if (method === 'GET' && ['/broker/dashboard/agent-assignments', '/broker/dashboard/agent-assignments/:agentid'].includes(path))
+    return { module: 'team', actions: ['view'] };
   if (method === 'GET' && ['/broker/today', '/broker/dashboard/metrics', '/broker/dashboard/records'].includes(path))
     return { module: 'today', actions: ['view'] };
   if (path === '/broker/performance' && method === 'GET') return { module: 'team', actions: ['view'] };
@@ -39,6 +40,9 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
     return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/access/:agentid/review' && method === 'POST') return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/photo-gallery' && method === 'POST') return { module: 'inventory', actions: ['view'] };
+  if (path === '/inventory/owners' && method === 'GET') return { module: 'inventory', actions: ['view', 'assign'] };
+  if (path === '/inventory/:id/owner/review' && method === 'POST') return { module: 'inventory', actions: ['view', 'edit'] };
+  if (path === '/inventory/:id/owner' && method === 'PATCH') return { module: 'inventory', actions: ['view', 'assign'] };
   if (path === '/inventory/assignees' && method === 'GET') return { module: 'inventory', actions: ['assign'] };
   if (method === 'POST' && /^\/assistant\/(chat|cancel|confirm|transcribe)$/.test(path))
     return { module: 'assistant', actions: [path.endsWith('/confirm') ? 'edit' : 'view'] };

@@ -4,9 +4,11 @@ import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { localDrafts, getLocalDraft, queueDraft, decodeDraft, syncDrafts, preservedDraftCounts, claimGuestCaptures, holdFailedTask } from '@/launch/drafts';
 import { BrokerScreen, NativeCard } from '@/launch/screen';
-import { Button, Txt, ErrorView } from '@/ui';
+import { Button, Txt, ErrorView, Screen, Header } from '@/ui';
 import { errorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 export default function Drafts() {
+  const owner = useAuth().user?.role === 'PROPERTY_OWNER';
   const [error, setError] = useState('');
   const list = useInfiniteQuery({
     queryKey: ['local-drafts'],
@@ -30,7 +32,9 @@ export default function Drafts() {
       const row = await getLocalDraft(id);
       if (!row) return;
       const body = decodeDraft(row);
-      if (row.kind === 'PROPERTY_CREATE' || row.kind === 'PROPERTY_EDIT')
+      if (row.kind === 'OWNER_PROPERTY_CREATE' || row.kind === 'OWNER_PROPERTY_EDIT')
+        router.push({ pathname: '/owner-property-edit', params: { ...(row.kind === 'OWNER_PROPERTY_EDIT' ? { id: row.draft_key } : {}), draft: id } } as never);
+      else if (row.kind === 'PROPERTY_CREATE' || row.kind === 'PROPERTY_EDIT')
         router.push({
           pathname: '/inventory-edit',
           params: {
@@ -54,8 +58,8 @@ export default function Drafts() {
       setError(errorMessage(e));
     }
   }
-  return (
-    <BrokerScreen title="Saved drafts" subtitle="Pending and failed operations stay on this device." back>
+  const content = (
+    <>
       <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
         {error && <Txt color="danger">{error}</Txt>}
         {!!preserved.data?.legacy && (
@@ -64,7 +68,7 @@ export default function Drafts() {
             support for ownership review; do not uninstall or clear app data.
           </Txt>
         )}
-        {!!preserved.data?.guest && (
+        {!owner && !!preserved.data?.guest && (
           <Button
             title="Assign shared captures to this workspace"
             variant="secondary"
@@ -122,17 +126,19 @@ export default function Drafts() {
                 variant="secondary"
                 onPress={() =>
                   router.push(
-                    item.kind === 'CAPTURE'
-                      ? `/import-review/${item.server_id}`
-                      : item.kind === 'PUBLIC_PUBLISH'
-                        ? `/property/${item.server_id}`
-                        : item.kind === 'IMPORT_REVIEW'
-                          ? '/inbox'
-                          : item.kind === 'FOLLOW_UP_CREATE' || item.kind === 'SITE_VISIT_CREATE'
-                            ? `/lead/${item.draft_key}`
-                            : item.kind.startsWith('PROPERTY')
-                              ? `/inventory/${item.server_id}`
-                              : ('/requirements' as any),
+                    item.kind.startsWith('OWNER_PROPERTY_')
+                      ? '/owner-properties'
+                      : item.kind === 'CAPTURE'
+                        ? `/import-review/${item.server_id}`
+                        : item.kind === 'PUBLIC_PUBLISH'
+                          ? `/property/${item.server_id}`
+                          : item.kind === 'IMPORT_REVIEW'
+                            ? '/inbox'
+                            : item.kind === 'FOLLOW_UP_CREATE' || item.kind === 'SITE_VISIT_CREATE'
+                              ? `/lead/${item.draft_key}`
+                              : item.kind.startsWith('PROPERTY')
+                                ? `/inventory/${item.server_id}`
+                                : ('/requirements' as any),
                   )
                 }
               />
@@ -156,12 +162,25 @@ export default function Drafts() {
                 }}
               />
             )}
-            {['DRAFT', 'FAILED'].includes(item.state) && !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE', 'PROPERTY_SURVEY_PHOTO', 'PROPERTY_SURVEY_PHONE'].includes(item.kind) && (
-              <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />
-            )}
+            {['DRAFT', 'FAILED'].includes(item.state) &&
+              !['FOLLOW_UP_CREATE', 'SITE_VISIT_CREATE', 'PROPERTY_SURVEY_PHOTO', 'PROPERTY_SURVEY_PHONE'].includes(item.kind) && (
+                <Button title="Continue editing" variant="ghost" size="sm" onPress={() => edit(item.id)} />
+              )}
           </NativeCard>
         )}
       />
+    </>
+  );
+  if (owner)
+    return (
+      <Screen>
+        <Header title="Saved drafts" />
+        {content}
+      </Screen>
+    );
+  return (
+    <BrokerScreen title="Saved drafts" subtitle="Pending and failed operations stay on this device." back>
+      {content}
     </BrokerScreen>
   );
 }

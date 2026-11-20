@@ -8,6 +8,7 @@ import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native'
 import {
   hasDelegatedAccess,
   inventoryPossessionLabel,
+  lastSurveyNoAnswer,
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
@@ -97,6 +98,20 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
     setPath([]);
   }
 
+  async function markNoAnswer(item: LedgerItem) {
+    if (!canEdit || item.canEdit === false || busy) return;
+    setBusy(item.id);
+    try {
+      await api(`/inventory/${encodeURIComponent(item.id)}/survey-call`, { method: 'PATCH', body: { expectedRevision: item.revision } });
+      await Promise.all(['inventory-folder-items', 'ledger-item', 'ledger'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      toast.success('No answer recorded. Property stays in Survey.');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setBusy('');
+    }
+  }
+
   function moveToRent(item: LedgerItem) {
     if (busy) return;
     Alert.alert(
@@ -111,9 +126,16 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
             try {
               await api(`/inventory/${item.id}`, { method: 'PATCH', body: { availability: 'RENTED', status: 'RENTED', expectedRevision: item.revision } });
               await Promise.all(
-                ['inventory-folders', 'inventory-folder-items', 'ledger', 'ledger-item', 'ledger-stats', 'broker-today', 'agent-assignments', 'agent-assignment-records'].map((key) =>
-                  qc.invalidateQueries({ queryKey: [key] }),
-                ),
+                [
+                  'inventory-folders',
+                  'inventory-folder-items',
+                  'ledger',
+                  'ledger-item',
+                  'ledger-stats',
+                  'broker-today',
+                  'agent-assignments',
+                  'agent-assignment-records',
+                ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
               );
               toast.success('Marked as rented out');
             } catch (error) {
@@ -232,8 +254,20 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
                   />
                 )}
               </Row>
+              {survey && lastSurveyNoAnswer(item.notes) && (
+                <Txt v="caption" color="muted">
+                  {lastSurveyNoAnswer(item.notes)}
+                </Txt>
+              )}
               {survey && (
                 <Row wrap gap={8}>
+                  <Button
+                    title="No answer"
+                    size="sm"
+                    variant="ghost"
+                    disabled={!canEdit || item.canEdit === false || !!busy}
+                    onPress={() => void markNoAnswer(item)}
+                  />
                   {!!(item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone) && (
                     <Button
                       title="Call contact"

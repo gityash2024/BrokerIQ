@@ -9,15 +9,27 @@ export function DraftPump() {
   const lastError = useRef('');
   const qc = useQueryClient();
   useEffect(() => {
-    if (!isBroker) return;
+    const owner = user?.role === 'PROPERTY_OWNER';
+    if (!isBroker && !owner) return;
     let active = true;
     const pump = async () => {
       try {
         const completed = await syncDrafts();
         if (active) {
           const delegated = user?.role === 'SUB_BROKER_ADMIN';
-          const keys = delegated ? [['local-drafts']] : [['local-drafts'], ['ledger'], ['imports']];
-          if (completed?.inventoryChanged) keys.push(['ledger'], ['ledger-stats'], ['ledger-item'], ['inventory-folders'], ['inventory-folder-items'], ['broker-today'], ['agent-assignments'], ['agent-assignment-records']);
+          const keys = owner || delegated ? [['local-drafts']] : [['local-drafts'], ['ledger'], ['imports']];
+          if (completed?.inventoryChanged && owner) keys.push(['owner-properties']);
+          if (completed?.inventoryChanged && !owner)
+            keys.push(
+              ['ledger'],
+              ['ledger-stats'],
+              ['ledger-item'],
+              ['inventory-folders'],
+              ['inventory-folder-items'],
+              ['broker-today'],
+              ['agent-assignments'],
+              ['agent-assignment-records'],
+            );
           if (completed?.leadIds.length) keys.push(['follow-ups'], ['visits'], ['broker-dashboard'], ...completed.leadIds.map((id) => ['lead', id]));
           await Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
         }

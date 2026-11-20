@@ -3,9 +3,14 @@ import { createHash } from 'node:crypto';
 import { generateCsv } from '../../common/csv';
 import { Prisma, PropertyType } from '@prisma/client';
 import {
+  inventoryInputSchema,
+  ownerEditablePropertySchema,
+  type OwnerCreatePropertyInput,
   type InventoryInput,
   type SurveyPhotoInput,
   type SurveyPhoneInput,
+  type SurveyUnitsInput,
+  type SurveyCallInput,
   type BrokerRequirementInput,
   ledgerMatch,
   areaSqft,
@@ -22,6 +27,7 @@ import {
   inventoryDateSchema,
   inventoryMonthLabel,
   inventoryRoomFolder,
+  surveySectors,
   NAMED_INVENTORY_TYPES,
   missingInventoryFolderFields,
   readableValue,
@@ -291,7 +297,7 @@ export class InventoryService {
       const sectors = new Map(rows.map(({ sector, _count }) => [sector, _count._all]));
       if (q.folderMode === 'SURVEY') {
         const locations = await this.prisma.locality.findMany({ where: { isActive: true }, select: { name: true } });
-        for (const { name } of locations) if (!sectors.has(name)) sectors.set(name, 0);
+        for (const name of surveySectors(locations.map((item) => item.name))) if (!sectors.has(name)) sectors.set(name, 0);
       }
       folders.push(
         ...[...sectors]
@@ -718,6 +724,60 @@ export class InventoryService {
       { quickSurvey: true },
     );
   }
+  async createSurveyUnits({ clientMutationId, sector, directionsUrl, houseNo, contacts, units }: SurveyUnitsInput, user: RequestUser) {
+    const organizationId = this.orgId(user)!;
+    const mutationPrefix = clientMutationId + '-unit-';
+    const { items, created } = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'survey-batch:' + organizationId + ':' + clientMutationId}))`;
+        const previousCount = await tx.inventoryItem.count({ where: { organizationId, clientMutationId: { startsWith: mutationPrefix } } });
+        if (previousCount && previousCount !== units.length) throw new ConflictException('This group of survey units was already saved. Start a new capture.');
+        const rows = [];
+        for (const [index, unit] of units.entries()) {
+          const [count, kind] = unit.configuration?.split('_') ?? [];
+          const roomKind = count === 'STUDIO' ? 'STUDIO' : kind === 'BHK' || kind === 'RK' ? kind : undefined;
+          rows.push(
+            await this.createRecord(
+              {
+                clientMutationId: mutationPrefix + index,
+                sector,
+                directionsUrl,
+                houseNo,
+                contacts,
+                survey: true,
+                purpose: 'RENT',
+                furnishing: unit.furnishing,
+                floor: unit.floor || undefined,
+                roomKind,
+                ...(roomKind ? { category: 'RESIDENTIAL', ...(roomKind === 'STUDIO' ? {} : { bhk: Number(count) }) } : {}),
+              },
+              user,
+              { transaction: tx, quickSurvey: true },
+            ),
+          );
+        }
+        return { items: rows, created: previousCount === 0 };
+      },
+      { timeout: 30_000 },
+    );
+    if (created) await this.audit.log(user, 'inventory.survey.units', 'InventoryItem', items[0].id, { ids: items.map(({ id }) => id) });
+    return { items };
+  }
+
+  async recordSurveyNoAnswer(id: string, input: SurveyCallInput, user: RequestUser) {
+    const item = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
+      const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id, ...pendingSurvey }, select: { notes: true, revision: true } });
+      if (!item) throw new NotFoundException('Pending Survey property not found');
+      if (item.revision !== input.expectedRevision) throw new ConflictException('Property changed. Reload before logging a call.');
+      const text = 'Survey call: No answer - ' + new Date().toISOString() + (input.note ? ' · ' + input.note.replace(/[\r\n]+/g, ' ') : '');
+      const notes = [item.notes, text].filter(Boolean).join('\n');
+      if (notes.length > 20000) throw new BadRequestException('Property notes are full. Shorten the existing notes to log a call.');
+      return tx.inventoryItem.update({ where: { id }, data: { notes, revision: { increment: 1 } }, include });
+    });
+    await this.audit.log(user, 'inventory.survey.no_answer', 'InventoryItem', id);
+    return ledgerJson(item);
+  }
   create(
     input: InventoryInput,
     user: RequestUser,
@@ -726,6 +786,29 @@ export class InventoryService {
   ) {
     return this.createRecord(input, user, { transaction, source });
   }
+  async createOwnerDraft(input: OwnerCreatePropertyInput, user: RequestUser, transaction: Prisma.TransactionClient) {
+    if (user.role !== 'PROPERTY_OWNER') throw new ForbiddenException('Property Owner role required');
+    const payload = inventoryInputSchema.parse(input);
+    // The signed-in owner's own profile supplies the contact for a new submission.
+    const member = await transaction.user.findFirst({
+      where: { id: user.id, organizationId: user.orgId, role: 'PROPERTY_OWNER', status: 'ACTIVE', deletedAt: null },
+      select: { name: true, phone: true },
+    });
+    if (!member) throw new ForbiddenException('Active Property Owner membership required');
+    return this.createRecord(
+      {
+        ...payload,
+        ownerName: member.name,
+        ownerPhone: member.phone ? normalizeIndianPhone(member.phone) : null,
+        clientMutationId: 'owner:' + user.id + ':' + input.clientMutationId,
+        status: 'DRAFT',
+        availability: 'UNKNOWN',
+        verificationStatus: 'NEEDS_REVIEW',
+      },
+      user,
+      { transaction, ownerUserId: user.id },
+    );
+  }
   private async createRecord(
     input: InventoryInput,
     user: RequestUser,
@@ -733,10 +816,12 @@ export class InventoryService {
       transaction,
       source,
       quickSurvey = false,
+      ownerUserId,
     }: {
       transaction?: Prisma.TransactionClient;
       source?: { sourceEntryId: string; sourceUnitKey: string; sourceType: string };
       quickSurvey?: boolean;
+      ownerUserId?: string;
     },
   ) {
     const organizationId = this.orgId(user, input.organizationId)!;
@@ -750,6 +835,7 @@ export class InventoryService {
           include,
         });
         if (existing) {
+          if (ownerUserId && (existing.ownerUserId !== ownerUserId || existing.deletedAt)) throw new NotFoundException('Property not found');
           if (user.role === 'BROKER_AGENT' && existing.createdById !== user.id && existing.assignedToId !== user.id)
             throw new ForbiddenException('Inventory belongs to another member');
           return { item: existing, created: false };
@@ -757,7 +843,13 @@ export class InventoryService {
       }
       if (!input.sector && !input.address && !quickSurvey) throw new BadRequestException('Sector/locality or address required');
       const rawAssigned = input.assignedToId === '' ? null : input.assignedToId;
-      const assignedToId = user.role === 'BROKER_AGENT' ? user.id : user.role === 'SUPER_ADMIN' && rawAssigned == null ? null : rawAssigned || user.id;
+      const assignedToId = ownerUserId
+        ? null
+        : user.role === 'BROKER_AGENT'
+          ? user.id
+          : user.role === 'SUPER_ADMIN' && rawAssigned == null
+            ? null
+            : rawAssigned || user.id;
       if (assignedToId) {
         const assignee = await db.user.findFirst({
           where: { id: assignedToId, organizationId, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] }, status: 'ACTIVE', deletedAt: null },
@@ -770,6 +862,7 @@ export class InventoryService {
           ...source,
           ...(input.survey ? { sourceType: 'SURVEY' } : {}),
           organizationId,
+          ownerUserId,
           createdById: user.id,
           assignedToId,
           verificationStatus: input.directoryMonth ? 'VERIFIED' : input.survey ? 'NEEDS_REVIEW' : (input.verificationStatus ?? 'VERIFIED'),
@@ -787,11 +880,32 @@ export class InventoryService {
     if (!transaction && result.created) await this.audit.log(user, 'inventory.create', 'InventoryItem', result.item.id);
     return ledgerJson(result.item);
   }
-  async update(id: string, input: InventoryInput, user: RequestUser) {
+  async update(id: string, input: InventoryInput, user: RequestUser, ownerReview?: { id: string; accept: boolean }) {
     const item = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id } });
       if (!current) throw new NotFoundException('Inventory item not found');
+      if (input.expectedRevision !== undefined && input.expectedRevision !== current.revision)
+        throw new ConflictException('Property changed. Reload before saving.');
+      if (ownerReview) {
+        const proposal = await tx.inventoryOwnerReport.findFirst({
+          where: { id: ownerReview.id, inventoryId: id, ownerId: current.ownerUserId ?? '', reviewState: 'PENDING' },
+        });
+        if (!proposal) throw new ConflictException('Owner changes have already been reviewed or replaced. Reload the property.');
+        await tx.inventoryOwnerReport.update({
+          where: { id: proposal.id },
+          data: { reviewState: ownerReview.accept ? 'APPLIED' : 'DECLINED' },
+        });
+        if (ownerReview.accept && proposal.baseRevision !== current.revision)
+          throw new ConflictException(
+            'This property was edited after the owner submitted these details. Ask the owner to resubmit or enter the changes in the property editor.',
+          );
+        if (!ownerReview.accept) return tx.inventoryItem.update({ where: { id }, data: { revision: { increment: 1 } }, include });
+        input = { ...input, ...ownerEditablePropertySchema.parse(proposal.propertyChanges) };
+      }
+      const effectiveInput = { ...current, ...input };
+      if (ownerReview && (!effectiveInput.houseNo?.trim() || (!effectiveInput.sector?.trim() && !effectiveInput.address?.trim())))
+        throw new BadRequestException('House number and sector or address are required');
       if (input.survey) throw new BadRequestException('Use Survey when adding a new property');
       if (input.organizationId && input.organizationId !== current.organizationId) throw new BadRequestException('Property firm cannot be changed');
       const affectsPublicListing = Object.keys(input).some(
@@ -839,7 +953,8 @@ export class InventoryService {
       if (affectsPublicListing) await this.withdrawLinked(tx, current);
       return current.publishedListingId ? tx.inventoryItem.findUniqueOrThrow({ where: { id }, include }) : updated;
     });
-    await this.audit.log(user, 'inventory.update', 'InventoryItem', id, {
+    await this.audit.log(user, ownerReview ? 'inventory.owner.review' : 'inventory.update', 'InventoryItem', id, {
+      ...(ownerReview ? { ownerReview } : {}),
       fields: Object.keys(input).filter((k) => k !== 'contacts'),
       revision: item.revision,
     });

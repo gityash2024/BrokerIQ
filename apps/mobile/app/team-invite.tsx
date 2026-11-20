@@ -51,6 +51,7 @@ export default function TeamInvite() {
                     ['BROKER_AGENT', 'Agent'],
                     ['BROKER_ADMIN', 'Admin'],
                     ['SUB_BROKER_ADMIN', 'Sub-Broker Admin'],
+                    ['PROPERTY_OWNER', 'Property Owner'],
                   ] as const
                 ).map(([role, label]) => (
                   <Chip key={role} label={label} active={form.role === role} onPress={() => setForm({ ...form, role })} />

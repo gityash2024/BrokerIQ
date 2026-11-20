@@ -6,6 +6,7 @@ export function nativePlatformMonitorAllowed(path: string, role: string) {
 }
 export function nativeHomeForRole(role?: string) {
   if (!role || role === 'USER') return '/(user)/home' as const;
+  if (role === 'PROPERTY_OWNER') return '/owner-properties' as const;
   if (role === 'SUPER_ADMIN') return '/time-logging' as const;
   return ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(role) ? ('/(broker)/dashboard' as const) : ('/login' as const);
 }

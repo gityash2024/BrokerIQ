@@ -78,6 +78,7 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
   });
   const self = member.id === user?.id;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
+  const owner = member.role === 'PROPERTY_OWNER';
   const location = member.lastLocation;
   const invalid = Object.entries(targets).some(
     ([key, value]) => value !== '' && (!Number.isFinite(Number(value)) || Number(value) < 0 || (key === 'commissionPct' && Number(value) > 100)),
@@ -96,9 +97,9 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
           </View>
         </Row>
         <Row gap={8}>
-          <Badge label={delegated || member.role === 'SUB_BROKER_ADMIN' ? firmRoleLabel(member.role) : member.role} />
+          <Badge label={delegated || owner || member.role === 'SUB_BROKER_ADMIN' ? firmRoleLabel(member.role) : member.role} />
           <Badge label={member.status} />
-          {(!delegated || user.delegatedPermissions?.includes('kyc:view')) && <Badge label={`KYC: ${member.kycStatus}`} />}
+          {!owner && (!delegated || user.delegatedPermissions?.includes('kyc:view')) && <Badge label={`KYC: ${member.kycStatus}`} />}
         </Row>
       </Card>
       {!delegated && (
@@ -125,53 +126,57 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
               />
             </Card>
           )}
-          <Card style={{ padding: 16, gap: 10 }}>
-            <Txt v="bodyStrong">पिछली दर्ज लोकेशन</Txt>
-            {location ? (
-              <>
-                <Txt>{timeAgo(location.capturedAt)}</Txt>
-                <Txt color="muted">{(location as any).address || 'Address उपलब्ध नहीं है'}</Txt>
-                <Txt>
-                  {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)} · Accuracy:{' '}
-                  {location.accuracy == null ? 'अज्ञात' : `±${Math.round(location.accuracy)}m`}
-                </Txt>
-                <Button
-                  title="Maps में देखें"
-                  variant="secondary"
-                  onPress={() => Linking.openURL(`https://www.google.com/maps?q=${location.latitude},${location.longitude}`)}
-                />
-              </>
-            ) : (
-              <Txt color="muted">अभी कोई location record नहीं है। Tracking केवल अनुमति वाली active shift में होती है।</Txt>
-            )}
-          </Card>
+          {!owner && (
+            <Card style={{ padding: 16, gap: 10 }}>
+              <Txt v="bodyStrong">पिछली दर्ज लोकेशन</Txt>
+              {location ? (
+                <>
+                  <Txt>{timeAgo(location.capturedAt)}</Txt>
+                  <Txt color="muted">{(location as any).address || 'Address उपलब्ध नहीं है'}</Txt>
+                  <Txt>
+                    {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)} · Accuracy:{' '}
+                    {location.accuracy == null ? 'अज्ञात' : `±${Math.round(location.accuracy)}m`}
+                  </Txt>
+                  <Button
+                    title="Maps में देखें"
+                    variant="secondary"
+                    onPress={() => Linking.openURL(`https://www.google.com/maps?q=${location.latitude},${location.longitude}`)}
+                  />
+                </>
+              ) : (
+                <Txt color="muted">अभी कोई location record नहीं है। Tracking केवल अनुमति वाली active shift में होती है।</Txt>
+              )}
+            </Card>
+          )}
           <Card style={{ padding: 16, gap: 12 }}>
             <Txt v="bodyStrong">प्रोफाइल</Txt>
             <Input label="नाम" value={name} onChangeText={setName} />
             <Input label="फोन" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
           </Card>
-          <Card style={{ padding: 16, gap: 12 }}>
-            <Txt v="bodyStrong">मासिक लक्ष्य</Txt>
-            <Txt color="muted">
-              Won: {member.fulfillment?.dealsWonMonth ?? 0} · इस महीने मिली Leads: {(member.fulfillment as any)?.leadsReceivedMonth ?? 0}
-            </Txt>
-            {Object.entries({
-              monthlyDeals: 'Deals target',
-              monthlyLeads: 'Leads target',
-              monthlyRevenue: 'Revenue target (₹)',
-              commissionPct: 'Commission %',
-            }).map(([key, label]) => (
-              <Input
-                key={key}
-                label={label}
-                value={targets[key]}
-                onChangeText={(value) => setTargets((old) => ({ ...old, [key]: value }))}
-                placeholder="Not set"
-                keyboardType="decimal-pad"
-              />
-            ))}
-            <Txt color="muted">खाली target को zero नहीं माना जाएगा।</Txt>
-          </Card>
+          {!owner && (
+            <Card style={{ padding: 16, gap: 12 }}>
+              <Txt v="bodyStrong">मासिक लक्ष्य</Txt>
+              <Txt color="muted">
+                Won: {member.fulfillment?.dealsWonMonth ?? 0} · इस महीने मिली Leads: {(member.fulfillment as any)?.leadsReceivedMonth ?? 0}
+              </Txt>
+              {Object.entries({
+                monthlyDeals: 'Deals target',
+                monthlyLeads: 'Leads target',
+                monthlyRevenue: 'Revenue target (₹)',
+                commissionPct: 'Commission %',
+              }).map(([key, label]) => (
+                <Input
+                  key={key}
+                  label={label}
+                  value={targets[key]}
+                  onChangeText={(value) => setTargets((old) => ({ ...old, [key]: value }))}
+                  placeholder="Not set"
+                  keyboardType="decimal-pad"
+                />
+              ))}
+              <Txt color="muted">खाली target को zero नहीं माना जाएगा।</Txt>
+            </Card>
+          )}
           <Button
             title="बदलाव सेव करें"
             loading={update.isPending}
@@ -180,17 +185,21 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
               update.mutate({
                 name: name.trim(),
                 phone: phone.trim() || null,
-                targets: Object.fromEntries(
-                  Object.entries(targets)
-                    .filter(([, value]) => value !== '')
-                    .map(([key, value]) => [key, Number(value)]),
-                ),
+                ...(!owner
+                  ? {
+                      targets: Object.fromEntries(
+                        Object.entries(targets)
+                          .filter(([, value]) => value !== '')
+                          .map(([key, value]) => [key, Number(value)]),
+                      ),
+                    }
+                  : {}),
               })
             }
           />
         </>
       )}
-      {!delegated && (
+      {!owner && !delegated && (
         <Card style={{ padding: 16, gap: 10 }}>
           <Txt v="bodyStrong">KYC और समय</Txt>
           <Button title="KYC module खोलें" variant="secondary" onPress={() => router.push(`/(broker)/kyc?member=${member.id}` as any)} />
@@ -200,7 +209,7 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
       {!self && !delegated && (
         <Card style={{ padding: 16, gap: 10 }}>
           <Txt v="bodyStrong">Team actions</Txt>
-          {member.role !== 'BROKER_ADMIN' && (
+          {!owner && member.role !== 'BROKER_ADMIN' && (
             <Button
               title={member.role === 'SUB_BROKER_ADMIN' ? 'Edit permissions' : 'Make Sub-Broker Admin'}
               variant="secondary"
@@ -208,17 +217,19 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
               onPress={() => router.push({ pathname: '/team-member/[id]/permissions', params: { id: member.id } })}
             />
           )}
-          <Button
-            title={member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
-            variant="secondary"
-            disabled={busy || baseline !== member.updatedAt}
-            onPress={() =>
-              Alert.alert('भूमिका बदलें?', `${member.name} की access permissions और sessions बदलेंगे।`, [
-                { text: 'रद्द', style: 'cancel' },
-                { text: 'बदलें', onPress: () => update.mutate({ role: member.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN' }) },
-              ])
-            }
-          />
+          {!owner && (
+            <Button
+              title={member.role === 'BROKER_ADMIN' ? 'Agent बनाएँ' : 'Admin बनाएँ'}
+              variant="secondary"
+              disabled={busy || baseline !== member.updatedAt}
+              onPress={() =>
+                Alert.alert('भूमिका बदलें?', `${member.name} की access permissions और sessions बदलेंगे।`, [
+                  { text: 'रद्द', style: 'cancel' },
+                  { text: 'बदलें', onPress: () => update.mutate({ role: member.role === 'BROKER_ADMIN' ? 'BROKER_AGENT' : 'BROKER_ADMIN' }) },
+                ])
+              }
+            />
+          )}
           <Button
             title={member.status === 'ACTIVE' ? 'Suspend करें' : 'Reactivate करें'}
             variant="secondary"

@@ -61,6 +61,7 @@ export function brokerWorkspaceGroups(policies: ModulePolicies | undefined, role
       label: 'Inventory',
       links: [
         { label: 'Available Inventory', href: '/broker/inventory', nativeHref: '/inventory', module: 'inventory' },
+        { label: 'Survey', href: '/broker/inventory?survey=1', nativeHref: '/(broker)/inventory?survey=1', module: 'inventory' },
         { label: 'All Inventory', href: '/broker/inventory/data', nativeHref: '/inventory?view=ledger', module: 'inventory' },
         { label: 'Publication Review', href: '/broker/publications', nativeHref: '/publication-reviews', module: 'inventory', adminOnly: true },
         { label: 'Publish Listing', href: '/broker/listings', nativeHref: '/inventory-listings', module: 'consumer' },

@@ -1,5 +1,5 @@
 import { inventoryDate, inventoryDateLabel, inventoryDateSchema } from './inventory-folders';
-import type { LedgerItem } from './inventory';
+import type { LedgerItem, OwnerEditableProperty } from './inventory';
 import { INVENTORY_PROPERTY_TYPES, PROPERTY_FIELDS } from './property-fields';
 import { floorLabel } from './design';
 import { formatINR } from './utils';
@@ -147,4 +147,36 @@ export function inventoryPossessionLabel(item: Pick<LedgerItem, 'availableSince'
 
 export function isPendingSurvey(item: Pick<LedgerItem, 'sourceType' | 'status'>) {
   return item.sourceType === 'SURVEY' && item.status === 'DRAFT';
+}
+
+export function ownerChangeSummary(changes: OwnerEditableProperty) {
+  const labels: Record<string, string> = {
+    houseNo: 'House / plot no.',
+    sector: 'Sector / locality',
+    bhk: 'Room count',
+    roomKind: 'Configuration',
+    monthlyRent: 'Monthly rent (₹)',
+    totalSalePrice: 'Sale price (₹)',
+    photoUrls: 'Property photos',
+    videoUrls: 'Property videos',
+    ...Object.fromEntries(PROPERTY_FIELDS.map(({ key, label }) => [key, label])),
+  };
+  const values = Object.entries(changes).flatMap<[string, unknown]>(([key, value]) =>
+    key === 'details' && value && typeof value === 'object' ? Object.entries(value) : [[key, value]],
+  );
+  return values.map(([key, value]) => {
+    const label = labels[key] ?? key.replace(/[A-Z]/g, (letter) => ' ' + letter.toLowerCase()).replace(/^./, (letter) => letter.toUpperCase());
+    const display = Array.isArray(value)
+      ? key === 'photoUrls' || key === 'videoUrls'
+        ? value.length + ' attached'
+        : value.map((part) => readableValue(String(part))).join(', ')
+      : typeof value === 'boolean'
+        ? value
+          ? 'Yes'
+          : 'No'
+        : value == null || value === ''
+          ? 'Cleared'
+          : String(value);
+    return { key, label, display: typeof value === 'string' && /^[A-Z][A-Z_]+$/.test(value) ? readableValue(value) : display };
+  });
 }

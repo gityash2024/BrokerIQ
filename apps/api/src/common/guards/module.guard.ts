@@ -97,6 +97,18 @@ export class ModuleGuard implements CanActivate {
       };
       return true;
     }
+    if (user?.role === 'PROPERTY_OWNER') {
+      const path = requestPath.replace(/\/+$/, '');
+      if (!user.orgId) throw new ForbiddenException('Firm membership required');
+      if (
+        this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]) ||
+        /^\/auth(?:\/|$)/.test(path) ||
+        /^\/owner\/properties(?:\/|$)/.test(path) ||
+        (path === '/me/uploads/sign' && req.method === 'POST' && req.body?.kind === 'listing')
+      )
+        return true;
+      throw new ForbiddenException('Property Owner accounts can access their linked properties');
+    }
     if (!env().BROKER_FIRST) return true;
     if (user && !['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role))
       throw new ForbiddenException('यह role अभी launch में उपलब्ध नहीं है।');

@@ -102,7 +102,7 @@ export default function TeamPage() {
   const [firmFilter, setFirmFilter] = useState('');
   const admin = user?.role === 'BROKER_ADMIN' || user?.role === 'SUPER_ADMIN';
   const canViewTeam = admin || user?.role === 'SUB_BROKER_ADMIN';
-  const q = useTeam();
+  const q = useTeam(true, true);
   const inv = [['team']];
   const update = useApiMutation(({ id, ...b }: any) => patch(`/broker/team/${id}`, b), {
     success: 'अपडेट हो गया ✅',
@@ -121,7 +121,7 @@ export default function TeamPage() {
 
   // Teams & Agents Filters State
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'PROPERTY_OWNER'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
   const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
@@ -398,6 +398,7 @@ export default function TeamPage() {
                 <option value="BROKER_ADMIN">Admin</option>
                 <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
                 <option value="BROKER_AGENT">Agent</option>
+                <option value="PROPERTY_OWNER">Property Owner</option>
               </Select>
             </div>
 
@@ -773,7 +774,7 @@ function AgentDetailsAndTargetModal({ agent, open, onOpenChange }: { agent: any 
     if (agent) {
       setEditName(agent.name || '');
       setEditPhone(agent.phone || '');
-      setEditRole(agent.role || 'BROKER_AGENT');
+      setEditRole(agent.role === 'PROPERTY_OWNER' ? 'BROKER_AGENT' : agent.role || 'BROKER_AGENT');
       setDealsTarget(agent.targets?.monthlyDeals ?? 0);
       setRevenueTarget(agent.targets?.monthlyRevenue ?? 0);
       setLeadsTarget(agent.targets?.monthlyLeads ?? 0);

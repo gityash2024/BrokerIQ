@@ -24,6 +24,7 @@ import { InventoryWhatsAppDialog } from '@/components/broker/inventory-whatsapp-
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { InventoryDetailAccess } from '@/components/broker/inventory-detail-access';
+import { PropertyOwnerPanel } from './property-owner-panel';
 import { InventoryDetails } from './inventory-details';
 import { PropertyForm } from './property-form';
 import { PublicPublish } from './public-publish';
@@ -209,8 +210,9 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
               </section>
             ))}
           {item && mode === 'detail' && (
-            <div className="min-w-0">
+            <div className="min-w-0 space-y-3">
               <InventoryDetailAccess item={item} />
+              <PropertyOwnerPanel key={item.id} item={item} />
               <InventoryDetails
                 item={item}
                 sourceHref={superAdmin ? null : undefined}

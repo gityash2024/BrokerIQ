@@ -1,11 +1,20 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { View } from 'react-native';
 import { Phone } from 'lucide-react-native';
-import { normalizeIndianPhone, normalizeInventoryDirections, type InventoryInput } from '@brokeriq/shared';
+import {
+  normalizeIndianPhone,
+  normalizeInventoryDirections,
+  surveyConfigurationChoices,
+  surveyFurnishingChoices,
+  type InventoryInput,
+  type SurveyUnitsInput,
+} from '@brokeriq/shared';
 import { captureAccountContext, errorMessage } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
-import { Button, Sheet, Txt } from '@/ui';
+import { Button, Input, Row, Sheet, Txt } from '@/ui';
+import { ChoiceField } from './form';
 import { queueSurveyPhone } from './drafts';
 import { SurveyContactFields } from './survey-contact-fields';
 import { SurveyLocationField } from './survey-location-field';
@@ -14,6 +23,12 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
   const client = useQueryClient();
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
+  const [houseNo, setHouseNo] = useState('');
+  const [units, setUnits] = useState<SurveyUnitsInput['units']>([{}]);
+  function updateUnit(index: number, value: Partial<SurveyUnitsInput['units'][number]>) {
+    setUnits((rows) => rows.map((row, i) => (i === index ? { ...row, ...value } : row)));
+  }
+
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>([]);
   const [error, setError] = useState('');
   const [directions, setDirections] = useState('');
@@ -32,7 +47,18 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
     setBusy(true);
     setError('');
     try {
-      await queueSurveyPhone({ contacts: filled, sector, directionsUrl: normalizeInventoryDirections(directions) ?? undefined }, captureAccountContext());
+      await queueSurveyPhone(
+        {
+          houseNo,
+          units,
+          contacts: filled.map(({ name, phone }) => ({ name, phone: normalizeIndianPhone(phone)!, role: 'OWNER' })),
+          sector,
+          directionsUrl: normalizeInventoryDirections(directions) ?? undefined,
+        },
+        captureAccountContext(),
+      );
+      setHouseNo('');
+      setUnits([{}]);
       setDirections('');
       setContacts([]);
       setOpen(false);
@@ -66,6 +92,41 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
         }}
         title="Add survey phone"
       >
+        <Input label="House / plot no." value={houseNo} editable={!busy} onChangeText={setHouseNo} />
+        {units.map((unit, index) => (
+          <View key={index} style={{ gap: 6 }}>
+            <Txt v="bodyStrong">Unit {index + 1}</Txt>
+            <Row align="flex-start" gap={8}>
+              <ChoiceField
+                paired
+                label="Configuration"
+                value={unit.configuration}
+                choices={[...surveyConfigurationChoices]}
+                onChange={(value) => updateUnit(index, { configuration: (value ?? undefined) as typeof unit.configuration })}
+              />
+              <ChoiceField
+                paired
+                label="Furnishing"
+                value={unit.furnishing}
+                choices={[...surveyFurnishingChoices]}
+                onChange={(value) => updateUnit(index, { furnishing: (value ?? undefined) as typeof unit.furnishing })}
+              />
+            </Row>
+            {units.length > 1 && (
+              <Row align="flex-start" gap={8}>
+                <Input
+                  label="Floor / unit reference"
+                  value={unit.floor ?? ''}
+                  editable={!busy}
+                  onChangeText={(floor) => updateUnit(index, { floor })}
+                  containerStyle={{ flex: 1 }}
+                />
+                <Button title="Remove unit" size="sm" variant="ghost" disabled={busy} onPress={() => setUnits(units.filter((_, i) => i !== index))} />
+              </Row>
+            )}
+          </View>
+        ))}
+        <Button title="+ Add unit" size="sm" variant="secondary" disabled={busy || units.length >= 20} onPress={() => setUnits([...units, {}])} />
         <SurveyContactFields
           contacts={contacts}
           onlyOwner

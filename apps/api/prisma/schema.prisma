@@ -28,6 +28,7 @@ enum Role {
   BROKER_ADMIN
   SUB_BROKER_ADMIN
   BROKER_AGENT
+  PROPERTY_OWNER
   USER
 }
 
@@ -485,6 +486,8 @@ model User {
   shiftLocations ShiftLocation[]
   inventoryCreated InventoryItem[] @relation("InventoryCreatedBy")
   inventoryAssigned InventoryItem[] @relation("InventoryAssignedTo")
+  inventoryOwned InventoryItem[] @relation("InventoryOwner")
+  inventoryOwnerReports InventoryOwnerReport[]
 
   @@index([organizationId])
   @@index([role])
@@ -2558,6 +2561,7 @@ model InventoryItem {
   organizationId     String
   createdById        String?
   assignedToId       String?
+  ownerUserId        String?
   date               DateTime  @default(now())
   sector             String?
   localityId         String?
@@ -2613,12 +2617,16 @@ model InventoryItem {
   createdBy    User?        @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   assignedTo   User?        @relation("InventoryAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  ownerUser    User?        @relation("InventoryOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerReports InventoryOwnerReport[]
+
   publishedListing Listing? @relation("InventoryPublicListing", fields:[publishedListingId], references:[id], onDelete:SetNull)
   contacts InventoryContact[]
   sourceEntry SourceEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: Restrict)
   @@unique([sourceEntryId, sourceUnitKey])
   @@unique([organizationId, clientMutationId])
   @@index([organizationId, assignedToId])
+  @@index([organizationId, ownerUserId])
   @@index([organizationId, availability])
   @@index([organizationId, sourceType])
   @@index([organizationId, status])
@@ -2632,6 +2640,26 @@ model InventoryItem {
 
 }
 
+
+/// Owner-reported rental information remains distinct from the firm's inventory status.
+model InventoryOwnerReport {
+  id               String   @id @default(cuid())
+  inventoryId      String
+  ownerId          String
+  clientMutationId String
+  status           String?
+  propertyChanges  Json?
+  reviewState      String?
+  baseRevision     Int?
+  availableFrom    String?
+  note             String?
+  createdAt        DateTime @default(now())
+  inventory        InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  owner            User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@unique([inventoryId, ownerId, clientMutationId])
+  @@index([inventoryId, createdAt])
+}
 
 /// Captured source is immutable; review edits live on entries and canonical records.
 model ImportBatch {

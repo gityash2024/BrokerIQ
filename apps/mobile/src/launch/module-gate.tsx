@@ -38,6 +38,14 @@ export function NativeModuleGate({ children, path: explicitPath }: { children: R
   const screenScope = `${context.scope}:${context.epoch}`;
   const broker = !!user && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role);
   const config = useConfig();
+  if (user?.role === 'PROPERTY_OWNER') {
+    if (['/', '/login', '/owner-properties', '/owner-property-edit', '/drafts'].includes(path)) return <Fragment key={screenScope}>{children}</Fragment>;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
+        <Button title="My properties" onPress={() => router.replace('/owner-properties')} />
+      </View>
+    );
+  }
   if (user?.role === 'SUB_BROKER_ADMIN' && path === '/kyc' && user.organization?.id) return <Fragment key={screenScope}>{children}</Fragment>;
   if (path.startsWith('/photos/')) return <Fragment key={screenScope}>{children}</Fragment>;
   if (essential.includes(path) && !(user?.role === 'SUB_BROKER_ADMIN' && ['/kyc', '/drafts', '/broker-onboarding'].includes(path)))

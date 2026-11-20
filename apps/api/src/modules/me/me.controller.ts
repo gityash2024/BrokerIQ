@@ -106,6 +106,12 @@ export class MeController {
     const kind = (['listing', 'avatar', 'logo', 'kyc', 'project', 'cms', 'scan', 'chat', 'inspection'] as const).includes(body?.kind as any)
       ? body.kind!
       : 'listing';
+    if (user.role === 'PROPERTY_OWNER') {
+      const contentType = body?.contentType;
+      if (kind !== 'listing' || !contentType || !/^(image\/(?:jpeg|png|webp|gif|heic|heif|avif)|video\/[a-z0-9.+-]+)$/i.test(contentType))
+        throw new BadRequestException('Choose a property photo or video');
+      return this.media.sign('listing', contentType, user.id);
+    }
     return this.media.sign(kind, body?.contentType ?? 'image/jpeg', kind === 'kyc' ? user.id : (user.orgId ?? user.id));
   }
 

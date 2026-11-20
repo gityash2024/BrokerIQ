@@ -1,3 +1,4 @@
+import { PropertyOwnerPanel } from '@/launch/property-owner-panel';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { usePropertyGallery } from '@/lib/property-gallery';
 import { InlineLoader } from '@/components/request-loader';
@@ -392,6 +393,8 @@ export default function PropertyDetail() {
                 </View>
               </TouchableOpacity>
             </View>
+
+            <PropertyOwnerPanel key={item.id} item={item} />
 
             {/* Need Availability Confirmation Banner */}
             {item.availability === 'UNKNOWN' && (

@@ -21,9 +21,9 @@ export default function Team() {
   const { c, isDark } = useTheme();
   const router = useRouter();
   const { user, isBrokerAdmin } = useAuth();
-  const q = useTeam();
+  const q = useTeam(true);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT' | 'SUB_BROKER_ADMIN'>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'BROKER_AGENT' | 'SUB_BROKER_ADMIN' | 'PROPERTY_OWNER'>('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [kycFilter, setKycFilter] = useState<string | null>(null);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
@@ -287,7 +287,7 @@ export default function Team() {
         <ChoiceField
           label="Role"
           value={roleFilter === 'ALL' ? null : roleFilter}
-          choices={['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN']}
+          choices={['BROKER_ADMIN', 'BROKER_AGENT', 'SUB_BROKER_ADMIN', 'PROPERTY_OWNER']}
           emptyLabel="All roles"
           onChange={(value) => setRoleFilter((value || 'ALL') as any)}
         />

@@ -24,77 +24,76 @@ export const inventoryContactSchema = z.object({
   role: z.enum(['OWNER', 'BROKER', 'UNKNOWN']).default('UNKNOWN'),
   note: z.string().max(2000).nullable().optional(),
 });
-export const inventoryInputSchema = z
-  .object({
-    clientMutationId: z.string().max(100).optional(),
-    survey: z.literal(true).optional(),
-    details: propertyDetailsSchema.optional(),
-    photoUrls: z
-      .array(
-        z
-          .string()
-          .url()
-          .max(2000)
-          .refine((s) => /^https?:\/\//.test(s), 'Use HTTP or HTTPS media URLs'),
-      )
-      .max(50)
-      .optional(),
-    videoUrls: z
-      .array(
-        z
-          .string()
-          .url()
-          .max(2000)
-          .refine((s) => /^https?:\/\//.test(s), 'Use HTTP or HTTPS media URLs'),
-      )
-      .max(10)
-      .optional(),
-    sector: text,
-    houseNo: text,
-    directionsUrl: directionsLinkSchema.nullable().optional(),
-    directoryMonth: inventoryMonthSchema.optional(),
-    availableSince: inventoryDateSchema.nullable().optional(),
-    address: z.string().max(1000).nullable().optional(),
-    unitLabel: text,
-    ownerName: text,
-    ownerPhone: text,
-    propertyType: z.enum(INVENTORY_PROPERTY_TYPES).nullable().optional(),
-    category: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']).nullable().optional(),
-    purpose: z.enum(['RENT', 'SALE']).nullable().optional(),
-    bhk: z.number().int().min(1).max(100).nullable().optional(),
-    roomKind: z.enum(['BHK', 'RK', 'STUDIO']).nullable().optional(),
-    floor: text,
-    furnishing: z.enum(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']).nullable().optional(),
-    area: money,
-    areaUnit: areaUnitSchema.nullable().optional(),
-    rent: money,
-    monthlyRent: money,
-    totalSalePrice: money,
-    ratePerArea: money,
-    rateAreaUnit: areaUnitSchema.nullable().optional(),
-    securityDeposit: money,
-    brokerage: text,
-    tenantPreference: text,
-    amenities: z.array(z.string().max(120)).max(100).optional(),
-    notes: z.string().max(20000).nullable().optional(),
-    status: z.enum(['DRAFT', 'ACTIVE', 'INACTIVE', 'RENTED']).optional(),
-    availability: availabilitySchema.optional(),
-    verificationStatus: z.enum(['NEEDS_REVIEW', 'VERIFIED']).optional(),
-    contacts: z.array(inventoryContactSchema).max(30).optional(),
-    date: z.string().datetime().optional(),
-    pageNo: z.number().int().min(1).max(10000).nullable().optional(),
-    organizationId: z.string().max(100).optional(),
-    assignedToId: z.string().max(100).nullable().optional(),
-    expectedRevision: z.number().int().positive().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.rent != null && data.monthlyRent != null && data.rent !== data.monthlyRent)
-      ctx.addIssue({ code: 'custom', path: ['monthlyRent'], message: 'Rent values must agree' });
-    if (data.purpose === 'SALE' && (data.monthlyRent != null || data.rent != null))
-      ctx.addIssue({ code: 'custom', path: ['monthlyRent'], message: 'Sale price belongs in totalSalePrice, not monthlyRent' });
-    if (data.area != null && !data.areaUnit) ctx.addIssue({ code: 'custom', path: ['areaUnit'], message: 'Area unit required' });
-    if (data.ratePerArea != null && !data.rateAreaUnit) ctx.addIssue({ code: 'custom', path: ['rateAreaUnit'], message: 'Rate unit required' });
-  });
+const inventoryFieldsSchema = z.object({
+  clientMutationId: z.string().max(100).optional(),
+  survey: z.literal(true).optional(),
+  details: propertyDetailsSchema.optional(),
+  photoUrls: z
+    .array(
+      z
+        .string()
+        .url()
+        .max(2000)
+        .refine((s) => /^https?:\/\//.test(s), 'Use HTTP or HTTPS media URLs'),
+    )
+    .max(50)
+    .optional(),
+  videoUrls: z
+    .array(
+      z
+        .string()
+        .url()
+        .max(2000)
+        .refine((s) => /^https?:\/\//.test(s), 'Use HTTP or HTTPS media URLs'),
+    )
+    .max(10)
+    .optional(),
+  sector: text,
+  houseNo: text,
+  directionsUrl: directionsLinkSchema.nullable().optional(),
+  directoryMonth: inventoryMonthSchema.optional(),
+  availableSince: inventoryDateSchema.nullable().optional(),
+  address: z.string().max(1000).nullable().optional(),
+  unitLabel: text,
+  ownerName: text,
+  ownerPhone: text,
+  propertyType: z.enum(INVENTORY_PROPERTY_TYPES).nullable().optional(),
+  category: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'PLOT', 'LAND']).nullable().optional(),
+  purpose: z.enum(['RENT', 'SALE']).nullable().optional(),
+  bhk: z.number().int().min(1).max(100).nullable().optional(),
+  roomKind: z.enum(['BHK', 'RK', 'STUDIO']).nullable().optional(),
+  floor: text,
+  furnishing: z.enum(['UNFURNISHED', 'SEMI_FURNISHED', 'FULLY_FURNISHED']).nullable().optional(),
+  area: money,
+  areaUnit: areaUnitSchema.nullable().optional(),
+  rent: money,
+  monthlyRent: money,
+  totalSalePrice: money,
+  ratePerArea: money,
+  rateAreaUnit: areaUnitSchema.nullable().optional(),
+  securityDeposit: money,
+  brokerage: text,
+  tenantPreference: text,
+  amenities: z.array(z.string().max(120)).max(100).optional(),
+  notes: z.string().max(20000).nullable().optional(),
+  status: z.enum(['DRAFT', 'ACTIVE', 'INACTIVE', 'RENTED']).optional(),
+  availability: availabilitySchema.optional(),
+  verificationStatus: z.enum(['NEEDS_REVIEW', 'VERIFIED']).optional(),
+  contacts: z.array(inventoryContactSchema).max(30).optional(),
+  date: z.string().datetime().optional(),
+  pageNo: z.number().int().min(1).max(10000).nullable().optional(),
+  organizationId: z.string().max(100).optional(),
+  assignedToId: z.string().max(100).nullable().optional(),
+  expectedRevision: z.number().int().positive().optional(),
+});
+export const inventoryInputSchema = inventoryFieldsSchema.superRefine((data, ctx) => {
+  if (data.rent != null && data.monthlyRent != null && data.rent !== data.monthlyRent)
+    ctx.addIssue({ code: 'custom', path: ['monthlyRent'], message: 'Rent values must agree' });
+  if (data.purpose === 'SALE' && (data.monthlyRent != null || data.rent != null))
+    ctx.addIssue({ code: 'custom', path: ['monthlyRent'], message: 'Sale price belongs in totalSalePrice, not monthlyRent' });
+  if (data.area != null && !data.areaUnit) ctx.addIssue({ code: 'custom', path: ['areaUnit'], message: 'Area unit required' });
+  if (data.ratePerArea != null && !data.rateAreaUnit) ctx.addIssue({ code: 'custom', path: ['rateAreaUnit'], message: 'Rate unit required' });
+});
 export type InventoryInput = z.infer<typeof inventoryInputSchema>;
 export const surveyPhotoInputSchema = z.strictObject({
   clientMutationId: z.uuid(),
@@ -124,6 +123,135 @@ export const surveyPhoneInputSchema = z.union([
   }),
 ]);
 export type SurveyPhoneInput = z.infer<typeof surveyPhoneInputSchema>;
+const surveyPhoneUnitSchema = z.strictObject({
+  configuration: z.enum(['1_RK', '1_BHK', '2_BHK', '3_BHK', '4_BHK', '5_BHK', '6_BHK', 'STUDIO']).optional(),
+  furnishing: z.enum(['SEMI_FURNISHED', 'FULLY_FURNISHED']).optional(),
+  floor: z.string().trim().max(80).optional(),
+});
+export const surveyUnitsInputSchema = surveyPhoneInputSchema.options[1].extend({
+  houseNo: z.string().trim().min(1, 'Enter the house number').max(200),
+  units: z
+    .array(surveyPhoneUnitSchema)
+    .min(1)
+    .max(20)
+    .superRefine((rows, ctx) => {
+      if (rows.length < 2) return;
+      const identities = new Set<string>();
+      for (const [index, row] of rows.entries()) {
+        const identity = (row.configuration ?? '') + ':' + (row.floor ?? '').trim().toLowerCase();
+        if (!row.configuration || identities.has(identity)) {
+          ctx.addIssue({ code: 'custom', path: [index], message: 'Choose a configuration for each unit and record the floor for repeated configurations.' });
+        }
+        identities.add(identity);
+      }
+    }),
+});
+export type SurveyUnitsInput = z.infer<typeof surveyUnitsInputSchema>;
+export const surveyConfigurationChoices = surveyPhoneUnitSchema.shape.configuration.unwrap().options;
+export const surveyFurnishingChoices = surveyPhoneUnitSchema.shape.furnishing.unwrap().options;
+export const surveyCallInputSchema = z.strictObject({
+  expectedRevision: z.number().int().positive(),
+  note: z.string().trim().max(500).optional(),
+});
+export type SurveyCallInput = z.infer<typeof surveyCallInputSchema>;
+
+export function lastSurveyNoAnswer(notes?: string | null): string | undefined {
+  return notes
+    ?.split('\n')
+    .reverse()
+    .find((line) => /^Survey call: No answer - \d{4}-\d{2}-\d{2}/.test(line));
+}
+export const ownerEditablePropertySchema = z.strictObject(
+  inventoryFieldsSchema.pick({
+    sector: true,
+    houseNo: true,
+    unitLabel: true,
+    address: true,
+    directionsUrl: true,
+    propertyType: true,
+    category: true,
+    purpose: true,
+    bhk: true,
+    roomKind: true,
+    floor: true,
+    furnishing: true,
+    area: true,
+    areaUnit: true,
+    monthlyRent: true,
+    totalSalePrice: true,
+    ratePerArea: true,
+    rateAreaUnit: true,
+    securityDeposit: true,
+    tenantPreference: true,
+    amenities: true,
+    details: true,
+    photoUrls: true,
+    videoUrls: true,
+  }).shape,
+);
+export type OwnerEditableProperty = z.infer<typeof ownerEditablePropertySchema>;
+export const ownerCreatePropertySchema = ownerEditablePropertySchema
+  .extend({
+    clientMutationId: z.uuid(),
+    houseNo: z.string().trim().min(1, 'Enter a house / plot number').max(200),
+  })
+  .superRefine((input, ctx) => {
+    if (!input.sector && !input.address?.trim()) ctx.addIssue({ code: 'custom', path: ['sector'], message: 'Enter the sector or address' });
+  });
+export const ownerEditPropertySchema = z.strictObject({
+  clientMutationId: z.uuid(),
+  expectedRevision: z.number().int().positive(),
+  changes: ownerEditablePropertySchema.refine((changes) => Object.keys(changes).length > 0, 'Change at least one property detail'),
+});
+export type OwnerCreatePropertyInput = z.infer<typeof ownerCreatePropertySchema>;
+export type OwnerEditPropertyInput = z.infer<typeof ownerEditPropertySchema>;
+
+// Strip staff-only fields from the shared inventory editor before an owner submits it.
+export function ownerPropertyValues(input: InventoryInput): OwnerEditableProperty {
+  return Object.fromEntries(
+    Object.keys(ownerEditablePropertySchema.shape)
+      .filter((key) => input[key as keyof InventoryInput] !== undefined)
+      .map((key) => [key, input[key as keyof InventoryInput]]),
+  );
+}
+export const ownerReportInputSchema = z
+  .strictObject({
+    clientMutationId: z.uuid(),
+    status: z.enum(['AVAILABLE', 'UPCOMING', 'RENTED', 'UNAVAILABLE']),
+    availableFrom: inventoryDateSchema.optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .refine((input) => input.status !== 'UPCOMING' || Boolean(input.availableFrom), {
+    path: ['availableFrom'],
+    message: 'Choose the date the property becomes available',
+  });
+export type OwnerReportInput = z.infer<typeof ownerReportInputSchema>;
+export type OwnerReport = Omit<OwnerReportInput, 'clientMutationId'> & {
+  id: string;
+  createdAt: string;
+  owner?: { name: string };
+};
+export type OwnerPropertyChanges = {
+  id: string;
+  changes: OwnerEditableProperty;
+  createdAt: string;
+};
+export type OwnerProperty = OwnerEditableProperty & {
+  id: string;
+  revision: number;
+  availability: string;
+  needsReview: boolean;
+  ownerReport: OwnerReport | null;
+  pendingChanges?: OwnerPropertyChanges | null;
+  hasPendingChanges?: boolean;
+};
+export type InventoryOwnerInfo = {
+  owner: { id: string; name: string; status: string } | null;
+  report: OwnerReport | null;
+  pendingChanges: OwnerPropertyChanges | null;
+  detailsNeedReview: boolean;
+};
+
 export const inventoryFilterSchema = z.object({
   folderMode: inventoryFolderModeSchema.optional(),
   currentInventory: z.literal('true').optional(),

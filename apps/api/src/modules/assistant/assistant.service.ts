@@ -78,6 +78,7 @@ export class AssistantService {
   private system(user: RequestUser & { name?: string }, lang: string, context?: { path?: string; entityId?: string }) {
     const L = languageOf(lang);
     const roleText: Record<Role, string> = {
+      PROPERTY_OWNER: 'a property owner linked to a broker firm',
       USER: 'a renter / property owner using the BrokerIQ marketplace',
       SUB_BROKER_ADMIN: 'Delegated broker administrator',
       BROKER_ADMIN: 'a broker firm admin using the BrokerIQ CRM',
@@ -118,8 +119,7 @@ export class AssistantService {
       assign_lead: ['leads:assign'],
       team_members: ['team:view'],
     };
-    return tools.filter((tool) => requirements[tool.name]?.every((grant) => grants.has(grant)) &&
-      (!tool.write || grants.has('assistant:edit')));
+    return tools.filter((tool) => requirements[tool.name]?.every((grant) => grants.has(grant)) && (!tool.write || grants.has('assistant:edit')));
   }
 
   async chat(

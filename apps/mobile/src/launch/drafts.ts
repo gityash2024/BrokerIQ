@@ -5,7 +5,8 @@ import {
   prepareInventoryEditorInput,
   surveyPhotoInputSchema,
   surveyPhoneInputSchema,
-  type InventoryInput,
+  surveyUnitsInputSchema,
+  type SurveyUnitsInput,
   captureContentType,
   followUpInputSchema,
   hasDelegatedAccess,
@@ -20,6 +21,8 @@ import { api, ApiError, uploadUri, authStore, captureAccountContext, assertAccou
 
 export type TaskDraftKind = 'FOLLOW_UP_CREATE' | 'SITE_VISIT_CREATE';
 export type DraftKind =
+  | 'OWNER_PROPERTY_CREATE'
+  | 'OWNER_PROPERTY_EDIT'
   | 'PROPERTY_CREATE'
   | 'PROPERTY_SURVEY_PHOTO'
   | 'PROPERTY_SURVEY_PHONE'
@@ -332,12 +335,9 @@ export async function queueSurveyPhoto(uri: string, sector: string | undefined, 
   await queueDraft(saved, owner);
   return saved;
 }
-export async function queueSurveyPhone(
-  draft: { contacts: NonNullable<InventoryInput['contacts']>; sector?: string; directionsUrl?: string },
-  owner = contextNow(),
-) {
+export async function queueSurveyPhone(draft: Omit<SurveyUnitsInput, 'clientMutationId'>, owner = contextNow()) {
   const id = Crypto.randomUUID();
-  const input = surveyPhoneInputSchema.parse({ ...draft, clientMutationId: id });
+  const input = surveyUnitsInputSchema.parse({ ...draft, clientMutationId: id });
   await saveDraft('PROPERTY_SURVEY_PHONE', id, input, id, owner);
   await queueDraft(id, owner);
   return id;
@@ -406,7 +406,8 @@ export async function syncDrafts() {
   const create = delegated && hasDelegatedAccess(user, 'inventory', 'create');
   const edit = delegated && hasDelegatedAccess(user, 'inventory', 'edit');
   const publish = delegated && hasDelegatedAccess(user, 'inventory', 'publish');
-  if (!(allKinds || create || edit || publish)) return;
+  const propertyOwner = user.role === 'PROPERTY_OWNER';
+  if (!(allKinds || create || edit || publish || propertyOwner)) return;
   syncing.add(owner.scope);
   const completedTaskLeads = new Set<string>();
   let inventoryChanged = false;
@@ -417,7 +418,7 @@ export async function syncDrafts() {
       assertAccountContext(owner);
       const rows = await database.getAllAsync<LocalDraft>(
         `SELECT * FROM local_mutations WHERE owner_id=? AND owner_scope=? AND state='QUEUED' AND next_at<=?
-         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO','PROPERTY_SURVEY_PHONE') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?))
+         AND (? OR (kind IN ('PROPERTY_CREATE','PROPERTY_SURVEY_PHOTO','PROPERTY_SURVEY_PHONE') AND ?) OR (kind='PROPERTY_EDIT' AND ?) OR (kind='PUBLIC_PUBLISH' AND ?) OR (kind IN ('OWNER_PROPERTY_CREATE','OWNER_PROPERTY_EDIT') AND ?))
          ORDER BY updated_at ASC LIMIT 10`,
         session.user.id,
         owner.scope,
@@ -426,6 +427,7 @@ export async function syncDrafts() {
         Number(create),
         Number(edit),
         Number(publish),
+        Number(propertyOwner),
       );
       if (!rows.length) break;
       for (const row of rows) {
@@ -481,8 +483,9 @@ export async function syncDrafts() {
             path = row.kind === 'FOLLOW_UP_CREATE' ? '/follow-ups' : '/visits';
             body = { ...body, clientMutationId: row.id };
           } else if (row.kind === 'PROPERTY_SURVEY_PHONE') {
-            path = '/inventory/survey-phone';
-            body = surveyPhoneInputSchema.parse({ ...body, clientMutationId: row.id });
+            const grouped = Array.isArray(body.units);
+            path = grouped ? '/inventory/survey-units' : '/inventory/survey-phone';
+            body = (grouped ? surveyUnitsInputSchema : surveyPhoneInputSchema).parse({ ...body, clientMutationId: row.id });
           } else if (row.kind === 'PROPERTY_SURVEY_PHOTO') {
             path = '/inventory/survey-photo';
             if (!body.photoUrl) {
@@ -500,6 +503,11 @@ export async function syncDrafts() {
               );
             }
             body = surveyPhotoInputSchema.parse({ ...body, clientMutationId: row.id });
+          } else if (row.kind === 'OWNER_PROPERTY_CREATE' || row.kind === 'OWNER_PROPERTY_EDIT') {
+            const editing = row.kind === 'OWNER_PROPERTY_EDIT';
+            path = editing ? '/owner/properties/' + encodeURIComponent(row.draft_key) : '/owner/properties';
+            method = editing ? 'PATCH' : 'POST';
+            body = body._ownerSubmission;
           } else if (row.kind === 'PROPERTY_CREATE') {
             path = '/inventory';
             body = { ...prepareInventoryEditorInput(body), clientMutationId: row.id };
@@ -538,7 +546,7 @@ export async function syncDrafts() {
             owner.scope,
           );
           if (captureAccountContext().epoch !== owner.epoch) return;
-          if (row.kind.startsWith('PROPERTY_') || row.kind === 'PUBLIC_PUBLISH') inventoryChanged = true;
+          if (row.kind.startsWith('PROPERTY_') || row.kind.startsWith('OWNER_PROPERTY_') || row.kind === 'PUBLIC_PUBLISH') inventoryChanged = true;
           if (row.kind === 'FOLLOW_UP_CREATE' || row.kind === 'SITE_VISIT_CREATE') completedTaskLeads.add(row.draft_key);
           if (row.kind === 'FOLLOW_UP_CREATE' && result.status === 'PENDING') {
             await scheduleReminder({ id: result.id, kind: 'FOLLOW_UP', leadId: result.leadId, at: result.dueAt }, 15).catch(() => undefined);

@@ -93,7 +93,7 @@ export type BrokerOnboardingInput = z.infer<typeof brokerOnboardingSchema>;
 export const inviteMemberSchema = z.object({
   email: emailSchema,
   name: z.string().trim().min(2).max(80),
-  role: z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT']).default('BROKER_AGENT'),
+  role: z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER']).default('BROKER_AGENT'),
   delegatedPermissions: delegatedGrantSchema.optional(),
 });
 

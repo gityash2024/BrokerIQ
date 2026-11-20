@@ -1,3 +1,4 @@
+import { surveySectors } from '@brokeriq/shared';
 import { LegacyDraftRecovery } from '@/launch/legacy-draft-recovery';
 import { useEffect, useRef, useState } from 'react';
 import { View, Platform } from 'react-native';
@@ -183,7 +184,7 @@ export default function Capture({ scanner = false }: { scanner?: boolean }) {
                 access={ready && !busy}
                 label="Register sector"
                 value={registerSector}
-                choices={(localities.data ?? []).map((locality) => locality.name)}
+                choices={surveySectors((localities.data ?? []).map((locality) => locality.name))}
                 emptyLabel={survey ? 'Choose sector first' : 'Read from page heading'}
                 onChange={(value) => {
                   setRegisterSector(value);

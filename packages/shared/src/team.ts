@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const teamRole = z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT']);
+const teamRole = z.enum(['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER']);
 export interface AgentTargets {
   monthlyDeals?: number;
   monthlyRevenue?: number;

@@ -89,8 +89,8 @@ export class AuthService implements OnApplicationBootstrap {
   private assertEligible(user: UserWithOrg) {
     if (
       env().BROKER_FIRST &&
-      (!['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'USER'].includes(user.role) ||
-        (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && !user.organizationId))
+      (!['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER', 'USER'].includes(user.role) ||
+        (['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(user.role) && !user.organizationId))
     )
       throw new ForbiddenException('यह account अभी broker launch के लिए सक्षम नहीं है।');
     if (user.deletedAt) throw new ForbiddenException('यह account active नहीं है। Support से संपर्क करें।');

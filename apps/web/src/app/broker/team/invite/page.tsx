@@ -70,6 +70,7 @@ export default function InvitePage() {
                   <option value="BROKER_AGENT">Agent</option>
                   <option value="BROKER_ADMIN">Admin</option>
                   <option value="SUB_BROKER_ADMIN">Sub-Broker Admin</option>
+                  <option value="PROPERTY_OWNER">Property Owner</option>
                 </Select>
               </Field>
               {f.role === 'SUB_BROKER_ADMIN' && <DelegatedPermissions value={permissions} onChange={setPermissions} />}

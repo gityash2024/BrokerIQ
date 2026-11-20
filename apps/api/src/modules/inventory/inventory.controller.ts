@@ -9,6 +9,10 @@ import {
   inventoryPublishSchema,
   surveyPhotoInputSchema,
   surveyPhoneInputSchema,
+  surveyUnitsInputSchema,
+  surveyCallInputSchema,
+  type SurveyUnitsInput,
+  type SurveyCallInput,
   type SurveyPhoneInput,
   type InventoryPublishInput,
   type SurveyPhotoInput,
@@ -134,6 +138,16 @@ export class InventoryController {
   @Post('survey-phone')
   surveyPhone(@Body(new ZodPipe(surveyPhoneInputSchema)) dto: SurveyPhoneInput, @CurrentUser() user: RequestUser) {
     return this.inventory.createSurveyPhone(dto, user);
+  }
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Post('survey-units')
+  surveyUnits(@Body(new ZodPipe(surveyUnitsInputSchema)) dto: SurveyUnitsInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.createSurveyUnits(dto, user);
+  }
+  @Roles('BROKER_ADMIN', 'BROKER_AGENT')
+  @Patch(':id/survey-call')
+  surveyCall(@Param('id') id: string, @Body(new ZodPipe(surveyCallInputSchema)) dto: SurveyCallInput, @CurrentUser() user: RequestUser) {
+    return this.inventory.recordSurveyNoAnswer(id, dto, user);
   }
   @Patch('bulk/update') bulkUpdate(
     @Body(

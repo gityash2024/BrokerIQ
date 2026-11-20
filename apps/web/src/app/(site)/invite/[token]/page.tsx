@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Users } from 'lucide-react';
+import type { AuthResponse } from '@brokeriq/shared';
 import { api, errorMessage } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { homeFor, useAuth } from '@/lib/auth';
 import { PageShell } from '@/components/site/page-shell';
 import { Avatar, PageLoader } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
@@ -21,9 +22,10 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     if (!user) return router.push(`/login?next=/invite/${token}`);
     setLoading(true);
     try {
-      setSession(await api(`/invites/${token}/accept`, { method: 'POST' }));
+      const session = await api<AuthResponse>(`/invites/${token}/accept`, { method: 'POST' });
+      setSession(session);
       toast.success('Team में शामिल हो गए 🎉');
-      router.replace('/broker');
+      router.replace(session.user.role === 'PROPERTY_OWNER' ? homeFor(session.user) : '/broker');
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {

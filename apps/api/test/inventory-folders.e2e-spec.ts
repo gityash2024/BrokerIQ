@@ -188,6 +188,46 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       .expect(200);
   });
 
+  it('saves each quick Survey unit once and records a no-answer call without moving the property', async () => {
+    const url = '/api/inventory/survey-units';
+    const payload = {
+      houseNo: 'Units ' + stamp,
+      sector: 'Sector 27',
+      directionsUrl,
+      contacts: [{ phone: '9701188933', role: 'OWNER' }],
+      units: [
+        { configuration: '1_RK', furnishing: 'SEMI_FURNISHED' },
+        { configuration: '2_BHK', furnishing: 'FULLY_FURNISHED' },
+      ],
+      clientMutationId: randomUUID(),
+    };
+    await api()
+      .post(url)
+      .set(headers(agent))
+      .send({ ...payload, units: [payload.units[0], payload.units[0]] })
+      .expect(400);
+    expect(await db.inventoryItem.count({ where: { organizationId: firmId, houseNo: payload.houseNo } })).toBe(0);
+    const saved = await api().post(url).set(headers(agent)).send(payload).expect(201);
+    const [rk, bhk] = saved.body.items;
+    expect(rk).toMatchObject({ houseNo: payload.houseNo, sector: 'Sector 27', directionsUrl, bhk: 1, roomKind: 'RK', status: 'DRAFT' });
+    expect(bhk).toMatchObject({ bhk: 2, roomKind: 'BHK', furnishing: 'FULLY_FURNISHED', availability: 'UNKNOWN' });
+    expect((await api().post(url).set(headers(agent)).send(payload).expect(201)).body.items.map((item: { id: string }) => item.id)).toEqual([rk.id, bhk.id]);
+    const noAnswer = '/api/inventory/' + rk.id + '/survey-call';
+    const call = { expectedRevision: rk.revision, note: 'Try in the evening' };
+    await api().patch(noAnswer).set(headers(otherAgent)).send(call).expect(404);
+    const logged = await api().patch(noAnswer).set(headers(delegate)).send(call).expect(200);
+    expect(logged.body).toMatchObject({ id: rk.id, status: 'DRAFT', availability: 'UNKNOWN', sector: 'Sector 27' });
+    expect(logged.body.notes).toMatch(/Survey call: No answer.*Try in the evening/);
+    await api().patch(noAnswer).set(headers(agent)).send(call).expect(409);
+    const folders = (await api().get('/api/inventory/folders?folderMode=SURVEY').set(headers()).expect(200)).body.folders;
+    expect(folders).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'Sector 27', count: 2 })]));
+    for (const id of [rk.id, bhk.id])
+      await api()
+        .delete('/api/inventory/' + id)
+        .set(headers(admin))
+        .expect(200);
+  });
+
   it('keeps Survey private, then promotes and rents the same property without losing possession or photos', async () => {
     const sparse = { survey: true, sector: 'Sector 57', houseNo: 'S-552', contacts: [{ phone: '9701188901', role: 'OWNER' }] };
     await api().post('/api/inventory').set(headers(agent)).send(sparse).expect(400);

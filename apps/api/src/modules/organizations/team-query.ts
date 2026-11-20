@@ -8,6 +8,7 @@ import type { PrismaService } from '../../prisma/prisma.service';
 import { resolveDateRange } from '../../common/utils/dates';
 
 export interface BrokerTeamQueryFilters {
+  includeOwners?: boolean;
   role?: string;
   status?: string;
   search?: string;
@@ -21,7 +22,8 @@ export interface BrokerTeamQueryFilters {
 /** Full team payload, with targets, fulfillment, KYC, and live location. */
 export async function readBrokerTeam(prisma: PrismaService, user: RequestUser, activeOnly = false, overrideOrgId?: string, filters?: BrokerTeamQueryFilters) {
   if (!['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role)) throw new ForbiddenException();
-  if (filters?.role && !['ALL', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(filters.role)) throw new BadRequestException('Invalid team role');
+  if (filters?.role && !['ALL', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(filters.role))
+    throw new BadRequestException('Invalid team role');
   if (filters?.status && !['ALL', 'ACTIVE', 'SUSPENDED'].includes(filters.status)) throw new BadRequestException('Invalid member status');
   for (const date of [filters?.from, filters?.to]) {
     if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date))
@@ -53,7 +55,11 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
   const userWhere: Prisma.UserWhereInput = {
     organizationId,
     deletedAt: null,
-    role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] },
+    role: {
+      in: filters?.includeOwners
+        ? ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER']
+        : ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'],
+    },
     status: activeOnly ? 'ACTIVE' : { not: 'DELETED' },
   };
 
@@ -93,7 +99,8 @@ async function readSingleBrokerTeam(prisma: PrismaService, user: RequestUser, ac
   if (user.role === 'BROKER_AGENT') userWhere.AND = [...(Array.isArray(userWhere.AND) ? userWhere.AND : userWhere.AND ? [userWhere.AND] : []), { id: user.id }];
 
   const shouldFetchInvites =
-    !user.delegatedActor && (user.role === 'BROKER_ADMIN' || user.role === 'SUPER_ADMIN') &&
+    !user.delegatedActor &&
+    (user.role === 'BROKER_ADMIN' || user.role === 'SUPER_ADMIN') &&
     !filters?.agentId &&
     !filters?.ids &&
     (!filters?.status || filters.status === 'ALL' || filters.status === 'PENDING');

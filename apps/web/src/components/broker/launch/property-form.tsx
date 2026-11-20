@@ -10,6 +10,7 @@ import {
   inventoryMonthSchema,
   missingInventoryFolderFields,
   isPendingSurvey,
+  surveySectors,
   type InventoryInput,
   type LedgerItem,
 } from '@brokeriq/shared';
@@ -60,6 +61,7 @@ export function PropertyForm({
   requireAvailability = false,
   survey = false,
   captureSurveyLocation = false,
+  ownerMode = false,
 }: {
   initial?: InventoryInput | LedgerItem;
   onSave: (input: InventoryInput) => Promise<void>;
@@ -70,6 +72,7 @@ export function PropertyForm({
   requireAvailability?: boolean;
   survey?: boolean;
   captureSurveyLocation?: boolean;
+  ownerMode?: boolean;
 }) {
   const { user } = useAuth();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
@@ -135,7 +138,7 @@ export function PropertyForm({
       ...new Set([...(initial.amenities ?? []).filter((a) => !form.querySelector(`input[name="amenities"][value="${CSS.escape(a)}"]`)), ...values.amenities]),
     ];
     if (isSuper) values.assignedToId = superAssignee || null;
-    values.contacts = contacts.filter((c) => c.name?.trim() || c.phone?.trim() || c.note?.trim());
+    if (!ownerMode) values.contacts = contacts.filter((c) => c.name?.trim() || c.phone?.trim() || c.note?.trim());
     values = prepareInventoryEditorInput(values);
     if ('revision' in initial) values.expectedRevision = initial.revision;
     else values.clientMutationId = mutationId.current;
@@ -306,7 +309,7 @@ export function PropertyForm({
               className="mt-1 block w-full rounded-lg border border-line bg-surface p-2.5 text-sm text-fg"
             >
               <option value="">Choose sector</option>
-              {[...new Set([...(initial.sector ? [initial.sector] : []), ...(localities.data ?? []).map((item) => item.name)])].map((name) => (
+              {surveySectors([...(initial.sector ? [initial.sector] : []), ...(localities.data ?? []).map((item) => item.name)]).map((name) => (
                 <option key={name}>{name}</option>
               ))}
             </select>
@@ -350,7 +353,7 @@ export function PropertyForm({
             {purpose !== 'SALE' && field('monthlyRent')}
             {purpose !== 'RENT' && field('totalSalePrice')}
             <PropertyExtras initial={initial} quickFields />
-            {field('brokerage')}
+            {!ownerMode && field('brokerage')}
             {field('directionsUrl')}
             <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-brand-600">
               {navigation.pinSearch && (
@@ -432,66 +435,72 @@ export function PropertyForm({
             {field('securityDeposit')}
             {purpose !== 'RENT' && field('ratePerArea')}
             {select('rateAreaUnit')}
-            {!activate && !markRented && select('availability')}
-            {!activate && !markRented && select('status')}
+            {!ownerMode && !activate && !markRented && select('availability')}
+            {!ownerMode && !activate && !markRented && select('status')}
             {field('tenantPreference')}
-            <label className="text-xs font-semibold text-muted">
-              Record date · IST
-              <input
-                type="date"
-                name="date"
-                defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
-                className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-              />
-            </label>
-            {isSuper ? (
-              <InventoryHierarchyPicker
-                kind="members"
-                organizationId={initial.organizationId}
-                value={superAssignee}
-                onChange={(id) => {
-                  setSuperAssignee(id);
-                  onDirty?.();
-                }}
-                selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
-              />
-            ) : isAdmin ? (
-              <label className="text-xs font-semibold text-muted">
-                Assignee (Agent / Admin)
-                <select
-                  name="assignedToId"
-                  defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
-                  className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
-                >
-                  <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
-                  {teamMembers.map((m: any) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <div className="text-xs font-semibold text-muted">
-                Assignee
-                <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
-                  {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
-                </div>
-                {!delegated && (
-                  <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+            {!ownerMode && (
+              <>
+                <label className="text-xs font-semibold text-muted">
+                  Record date · IST
+                  <input
+                    type="date"
+                    name="date"
+                    defaultValue={initial.date ? new Date(new Date(initial.date).getTime() + 330 * 60000).toISOString().slice(0, 10) : ''}
+                    className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+                  />
+                </label>
+                {isSuper ? (
+                  <InventoryHierarchyPicker
+                    kind="members"
+                    organizationId={initial.organizationId}
+                    value={superAssignee}
+                    onChange={(id) => {
+                      setSuperAssignee(id);
+                      onDirty?.();
+                    }}
+                    selectedLabel={'assignedTo' in initial ? initial.assignedTo?.name : undefined}
+                  />
+                ) : isAdmin ? (
+                  <label className="text-xs font-semibold text-muted">
+                    Assignee (Agent / Admin)
+                    <select
+                      name="assignedToId"
+                      defaultValue={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''}
+                      className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+                    >
+                      <option value={user?.id ?? ''}>You ({user?.name || 'Current User'}) (Default)</option>
+                      {teamMembers.map((m: any) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name || m.email || m.phone} ({firmRoleLabel(m.role)})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div className="text-xs font-semibold text-muted">
+                    Assignee
+                    <div className="mt-1 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg">
+                      {(initial as any).assignedTo?.name || user?.name || 'You'} (Assigned) · Only Admin can re-assign
+                    </div>
+                    {!delegated && (
+                      <input type="hidden" name="assignedToId" value={(initial as any).assignedToId ?? (initial as any).assignedTo?.id ?? user?.id ?? ''} />
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
-          <label className="block text-xs font-semibold text-muted">
-            Notes
-            <textarea
-              name="notes"
-              defaultValue={initial.notes ?? ''}
-              rows={4}
-              className="mt-1 block w-full rounded-lg border border-line bg-surface p-3 text-sm text-fg"
-            />
-          </label>
+          {!ownerMode && (
+            <label className="block text-xs font-semibold text-muted">
+              Notes
+              <textarea
+                name="notes"
+                defaultValue={initial.notes ?? ''}
+                rows={4}
+                className="mt-1 block w-full rounded-lg border border-line bg-surface p-3 text-sm text-fg"
+              />
+            </label>
+          )}
         </PropertyExtras>
       )}
       {error && (

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
   inventoryPossessionLabel,
+  lastSurveyNoAnswer,
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
@@ -106,6 +107,20 @@ export function InventoryFoldersPage({
     setMode(next);
     changePath([]);
   }
+  async function markNoAnswer(item: LedgerItem) {
+    if (!canEdit || item.canEdit === false || busy) return;
+    setBusy(item.id);
+    try {
+      await api(`/inventory/${encodeURIComponent(item.id)}/survey-call`, { method: 'PATCH', body: { expectedRevision: item.revision } });
+      await Promise.all(['inventory-folder-items', 'ledger-item', 'ledger'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      toast.success('No answer recorded. Property stays in Survey.');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setBusy('');
+    }
+  }
+
   async function rentOut(item: LedgerItem) {
     if (
       busy ||
@@ -121,7 +136,16 @@ export function InventoryFoldersPage({
         body: { status: 'RENTED', availability: 'RENTED', expectedRevision: item.revision },
       });
       await Promise.all(
-        ['inventory-folders', 'inventory-folder-items', 'ledger', 'ledger-item', 'ledger-stats', 'broker-today', 'agent-assignments', 'agent-assignment-records'].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+        [
+          'inventory-folders',
+          'inventory-folder-items',
+          'ledger',
+          'ledger-item',
+          'ledger-stats',
+          'broker-today',
+          'agent-assignments',
+          'agent-assignment-records',
+        ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
       );
       toast.success('Marked as rented out');
     } catch (error) {
@@ -288,6 +312,10 @@ export function InventoryFoldersPage({
                   </Link>
                   {survey ? (
                     <>
+                      {lastSurveyNoAnswer(item.notes) && <span className="basis-full text-xs text-muted">{lastSurveyNoAnswer(item.notes)}</span>}
+                      <Button size="sm" variant="ghost" disabled={!canEdit || item.canEdit === false || !!busy} onClick={() => void markNoAnswer(item)}>
+                        No answer
+                      </Button>
                       {!!(item.contacts?.find((contact) => contact.phone)?.phone ?? item.ownerPhone) && (
                         <a
                           className="text-sm font-semibold text-brand-600"

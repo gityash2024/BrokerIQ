@@ -19,7 +19,17 @@ import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import QRCode from 'qrcode';
 import { Prisma } from '@prisma/client';
-import { delegatedGrant, delegatedGrantSchema, delegableModules, brokerOnboardingSchema, inviteMemberSchema, kycSubmitSchema, normalizeIndianPhone, reviewSchema, type MicrositeShare } from '@brokeriq/shared';
+import {
+  delegatedGrant,
+  delegatedGrantSchema,
+  delegableModules,
+  brokerOnboardingSchema,
+  inviteMemberSchema,
+  kycSubmitSchema,
+  normalizeIndianPhone,
+  reviewSchema,
+  type MicrositeShare,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { UsageService } from '../../core/usage/usage.service';
@@ -213,9 +223,11 @@ export class OrganizationsController {
     @Query('datePreset') datePreset?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('includeOwners') includeOwners?: string,
   ) {
     const effectiveOrgId = user.role === 'SUPER_ADMIN' ? orgId : undefined;
     return readBrokerTeam(this.prisma, user, false, effectiveOrgId, {
+      includeOwners: includeOwners === 'true',
       role,
       status,
       search,
@@ -417,11 +429,13 @@ export class OrganizationsController {
       if (existing?.organizationId) throw new BadRequestException('यह user पहले से किसी broker team में है');
       const now = new Date();
       const active = { organizationId: orgId, acceptedAt: null, expiresAt: { gt: now } };
-      const [members, pending] = await Promise.all([
-        tx.user.count({ where: { organizationId: orgId, status: 'ACTIVE' } }),
-        tx.invite.count({ where: { ...active, email: { not: body.email } } }),
-      ]);
-      await this.usage.assert(orgId, 'agents', members + pending);
+      if (body.role !== 'PROPERTY_OWNER') {
+        const [members, pending] = await Promise.all([
+          tx.user.count({ where: { organizationId: orgId, status: 'ACTIVE', role: { not: 'PROPERTY_OWNER' } } }),
+          tx.invite.count({ where: { ...active, email: { not: body.email }, role: { not: 'PROPERTY_OWNER' } } }),
+        ]);
+        await this.usage.assert(orgId, 'agents', members + pending);
+      }
       // Resending rotates the grant, so a previous link cannot apply an older role.
       await tx.invite.updateMany({ where: { ...active, email: body.email }, data: { expiresAt: now } });
       return tx.invite.create({
@@ -486,13 +500,18 @@ export class OrganizationsController {
   @Get('broker/team/:userId')
   async getMember(@CurrentUser() user: RequestUser, @Param('userId') userId: string) {
     const member = await this.prisma.user.findFirst({
-      where: { id: userId, deletedAt: null, role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'] }, organizationId: { not: null } },
+      where: {
+        id: userId,
+        deletedAt: null,
+        role: { in: ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'] },
+        organizationId: { not: null },
+      },
       select: { id: true, organizationId: true, organization: { select: { id: true, name: true, status: true } } },
     });
     if (!member) throw new NotFoundException('Member not found');
     if ((user.role === 'BROKER_AGENT' && member.id !== user.id) || (user.role !== 'SUPER_ADMIN' && member.organizationId !== user.orgId))
       throw new ForbiddenException();
-    const result = await readBrokerTeam(this.prisma, user, false, member.organizationId!, { agentId: member.id });
+    const result = await readBrokerTeam(this.prisma, user, false, member.organizationId!, { agentId: member.id, includeOwners: true });
     const detail = result.members.find((row) => row.id === member.id);
     if (!detail) throw new NotFoundException('Member not found');
     return { member: { ...detail, organization: member.organization }, kyc: detail.kycDocuments };
@@ -534,7 +553,9 @@ export class OrganizationsController {
     if (user.role !== 'BROKER_ADMIN' && !(user.role === 'SUPER_ADMIN' && existingAgentPromotion))
       throw new ForbiddenException('Only the firm Broker Admin can manage delegated permissions');
     if (!permissions) throw new BadRequestException('Choose permissions explicitly');
-    const allowed = new Set(delegableModules(await this.modules?.all()).flatMap((module) => module.actions.map((action) => delegatedGrant(module.key, action))));
+    const allowed = new Set(
+      delegableModules(await this.modules?.all()).flatMap((module) => module.actions.map((action) => delegatedGrant(module.key, action))),
+    );
     if (permissions.some((grant) => !allowed.has(grant))) throw new ForbiddenException('Module is unavailable for delegation');
     return [...new Set(permissions)];
   }
@@ -568,17 +589,26 @@ export class OrganizationsController {
     if (!member) throw new NotFoundException('Member not found');
     if (!isSuper && member.organizationId !== user.orgId) throw new NotFoundException('Member not found');
 
+    if (member.role === 'PROPERTY_OWNER' && (body.role || body.targets || body.delegatedPermissions))
+      throw new ForbiddenException('Property owners cannot be converted to team roles');
     if ((body.role || body.status) && userId === user.id) {
       throw new BadRequestException('अपना role/status खुद नहीं बदल सकते');
     }
 
-    if ((body.role === 'SUB_BROKER_ADMIN' || body.delegatedPermissions !== undefined) &&
-        (!['BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(member.role) || userId === user.id))
+    if (
+      (body.role === 'SUB_BROKER_ADMIN' || body.delegatedPermissions !== undefined) &&
+      (!['BROKER_AGENT', 'SUB_BROKER_ADMIN'].includes(member.role) || userId === user.id)
+    )
       throw new ForbiddenException('Only another agent or sub-broker admin can receive these permissions');
-    const grants = body.role || body.delegatedPermissions !== undefined
-      ? await this.validateDelegation(user, body.role ?? member.role, body.delegatedPermissions,
-          body.role === 'SUB_BROKER_ADMIN' && member.role === 'BROKER_AGENT' && !!member.organizationId)
-      : undefined;
+    const grants =
+      body.role || body.delegatedPermissions !== undefined
+        ? await this.validateDelegation(
+            user,
+            body.role ?? member.role,
+            body.delegatedPermissions,
+            body.role === 'SUB_BROKER_ADMIN' && member.role === 'BROKER_AGENT' && !!member.organizationId,
+          )
+        : undefined;
     const orgId = member.organizationId || user.orgId;
 
     const dashboardAgentIds = body.assignmentDashboardAgentIds && [...new Set(body.assignmentDashboardAgentIds)];
@@ -593,10 +623,12 @@ export class OrganizationsController {
     if (body.status !== undefined) userUpdateData.status = body.status;
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      if (!orgId || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Firm member not found');
+      if (!orgId || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(member.role))
+        throw new NotFoundException('Firm member not found');
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-      if (latest.organizationId !== member.organizationId || latest.role !== member.role) throw new ForbiddenException('Membership changed. Reload this member.');
+      if (latest.organizationId !== member.organizationId || latest.role !== member.role)
+        throw new ForbiddenException('Membership changed. Reload this member.');
       if (body.expectedUpdatedAt && latest.updatedAt.toISOString() !== body.expectedUpdatedAt)
         throw new ConflictException('Member changed. Reload and review before saving.');
       if (
@@ -608,10 +640,12 @@ export class OrganizationsController {
       }
       const dashboardSetting = { organizationId: orgId, key: assignmentDashboardSettingKey(userId) };
       if (dashboardAgentIds) {
-        const eligible = await tx.user.count({ where: {
-          ...activeFirmAgents(orgId),
-          id: { in: dashboardAgentIds, not: userId },
-        } });
+        const eligible = await tx.user.count({
+          where: {
+            ...activeFirmAgents(orgId),
+            id: { in: dashboardAgentIds, not: userId },
+          },
+        });
         if (eligible !== dashboardAgentIds.length) throw new BadRequestException('Select active agents from this firm');
         await tx.orgSetting.upsert({
           where: { organizationId_key: dashboardSetting },
@@ -673,7 +707,8 @@ export class OrganizationsController {
     if (userId === user.id) throw new BadRequestException('खुद को remove नहीं कर सकते');
 
     await this.prisma.$transaction(async (tx) => {
-      if (!member.organizationId || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new NotFoundException('Firm member not found');
+      if (!member.organizationId || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(member.role))
+        throw new NotFoundException('Firm member not found');
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${member.organizationId + ':membership'}))`;
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (latest.organizationId !== member.organizationId) throw new ForbiddenException('Membership changed. Reload this member.');
@@ -718,15 +753,20 @@ export class OrganizationsController {
       if (invitation.email.toLowerCase() !== member.email.toLowerCase()) throw new ForbiddenException('Log in with the invited email address');
       if (!['USER', 'BROKER_ADMIN', 'BROKER_AGENT'].includes(member.role)) throw new ForbiddenException('Platform staff cannot join a broker firm');
       if (member.organizationId) throw new BadRequestException('आप पहले से एक broker team में हैं');
-      if (invitation.role === 'SUB_BROKER_ADMIN') {
-        const inviter = invitation.invitedById && await tx.user.findFirst({
-          where: { id: invitation.invitedById, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, organizationId: invitation.organizationId },
-        });
+      if (invitation.role === 'SUB_BROKER_ADMIN' || invitation.role === 'PROPERTY_OWNER') {
+        const inviter =
+          invitation.invitedById &&
+          (await tx.user.findFirst({
+            where: { id: invitation.invitedById, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null, organizationId: invitation.organizationId },
+          }));
         if (!inviter) throw new ForbiddenException('The invitation must be renewed by the firm Broker Admin');
       }
       const firm = await tx.organization.findUniqueOrThrow({ where: { id: invitation.organizationId } });
       if (firm.status !== 'ACTIVE') throw new ForbiddenException('Firm is not active');
-      await tx.user.update({ where: { id: user.id }, data: { organizationId: invitation.organizationId, role: invitation.role, delegatedPermissions: invitation.delegatedPermissions, emailVerified: true } });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { organizationId: invitation.organizationId, role: invitation.role, delegatedPermissions: invitation.delegatedPermissions, emailVerified: true },
+      });
       await tx.invite.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
       return invitation;
     });
@@ -913,9 +953,15 @@ export class OrganizationsController {
   async kycMembers(@CurrentUser() user: RequestUser) {
     const source = await readBrokerTeam(this.prisma, user, false, undefined, {});
     return {
-      members: source.members.map(({ id, name, avatarUrl, role, createdAt, kycStatus, kycDocuments }) =>
-        ({ id, name, avatarUrl, role, createdAt, kycStatus, kycDocuments }),
-      ),
+      members: source.members.map(({ id, name, avatarUrl, role, createdAt, kycStatus, kycDocuments }) => ({
+        id,
+        name,
+        avatarUrl,
+        role,
+        createdAt,
+        kycStatus,
+        kycDocuments,
+      })),
     };
   }
 

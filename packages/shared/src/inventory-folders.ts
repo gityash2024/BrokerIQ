@@ -86,3 +86,8 @@ export function inventoryFolderDefaults(
     ...(furnishing === 'UNFURNISHED' || furnishing === 'SEMI_FURNISHED' || furnishing === 'FULLY_FURNISHED' ? { furnishing } : {}),
   };
 }
+
+/** Survey sector folders can exist before the first property or a public directory entry. */
+export function surveySectors(localities: readonly string[]) {
+  return [...new Set([...localities, 'Sector 27'])].sort((a, b) => a.localeCompare(b, 'en-IN', { numeric: true }));
+}

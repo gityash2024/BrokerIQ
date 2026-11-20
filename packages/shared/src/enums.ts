@@ -12,6 +12,7 @@ export const Role = {
   BROKER_ADMIN: 'BROKER_ADMIN',
   SUB_BROKER_ADMIN: 'SUB_BROKER_ADMIN',
   BROKER_AGENT: 'BROKER_AGENT',
+  PROPERTY_OWNER: 'PROPERTY_OWNER',
   USER: 'USER',
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
