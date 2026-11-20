@@ -99,6 +99,10 @@ export class AuthService implements OnApplicationBootstrap {
       throw new ForbiddenException('आपकी firm का account suspend है। Support से संपर्क करें।');
   }
 
+  private requiresLoginEmailOtp(required: boolean, user: UserWithOrg) {
+    return required && !(user.role === 'PROPERTY_OWNER' && user.emailVerified && user.organizationId);
+  }
+
   private response(user: UserWithOrg, sessionId: string, refreshToken: string): AuthResponse {
     const accessToken = this.jwt.sign({
       sub: user.id,
@@ -191,13 +195,14 @@ export class AuthService implements OnApplicationBootstrap {
     } catch {
       throw new UnauthorizedException('Login selection expired. Please log in again.');
     }
-    if ((await this.settings.getAppConfig()).auth.requireLoginEmailOtp && payload.emailOtpVerified !== true)
-      throw new UnauthorizedException('Email OTP पूरा करने के लिए दोबारा login करें।');
+    const { auth } = await this.settings.getAppConfig();
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${payload.sub + ':sessions'}))`;
       const user = await tx.user.findUniqueOrThrow({ where: { id: payload.sub }, include: { organization: true } });
       this.assertEligible(user);
       if (user.sessionVersion !== payload.sessionVersion) throw new UnauthorizedException('Session changed');
+      if (this.requiresLoginEmailOtp(auth.requireLoginEmailOtp, user) && payload.emailOtpVerified !== true)
+        throw new UnauthorizedException('Email OTP पूरा करने के लिए दोबारा login करें।');
       const challengeHash = sha256(challenge);
       const consumed = await tx.refreshToken.findUnique({ where: { loginChallengeHash: challengeHash } });
       if (consumed) {
@@ -315,7 +320,7 @@ export class AuthService implements OnApplicationBootstrap {
       throw new UnauthorizedException('Email या password गलत है');
     }
     this.assertEligible(user);
-    if (app.auth.requireLoginEmailOtp) return this.loginVerification.start(user, 'PASSWORD', meta);
+    if (this.requiresLoginEmailOtp(app.auth.requireLoginEmailOtp, user)) return this.loginVerification.start(user, 'PASSWORD', meta);
     await this.audit.log({ id: user.id, role: user.role, orgId: user.organizationId }, 'auth.login', 'User', user.id, { method: 'password' }, meta.ip);
     return this.issue(user, meta);
   }
@@ -418,13 +423,14 @@ export class AuthService implements OnApplicationBootstrap {
       await this.linkReferral(created.id, ref);
       user = await this.findUser({ id: created.id });
     } else if (!user.googleId) {
-      await this.prisma.user.update({
+      user = await this.prisma.user.update({
         where: { id: user.id },
         data: { googleId: payload.sub, emailVerified: true, avatarUrl: user.avatarUrl ?? payload.picture },
+        include: { organization: true },
       });
     }
     this.assertEligible(user!);
-    if (app.auth.requireLoginEmailOtp) return this.loginVerification.start(user!, 'GOOGLE', meta);
+    if (this.requiresLoginEmailOtp(app.auth.requireLoginEmailOtp, user!)) return this.loginVerification.start(user!, 'GOOGLE', meta);
     await this.audit.log({ id: user!.id, role: user!.role, orgId: user!.organizationId }, 'auth.login', 'User', user!.id, { method: 'google' }, meta.ip);
     return this.issue(user!, meta);
   }

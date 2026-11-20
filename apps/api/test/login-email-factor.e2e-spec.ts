@@ -20,7 +20,7 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
   const password = 'IsolatedFactor123!';
   const ua = { 'User-Agent': 'BrokerIQ isolated factor client' };
   const actor = async (role: Role = 'USER') => {
-    const org = ['BROKER_ADMIN', 'BROKER_AGENT'].includes(role)
+    const org = ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(role)
       ? await db.organization.create({ data: { name: 'Isolated factor firm', slug: 'factor-' + Date.now() + Math.random().toString(36).slice(2) } })
       : null;
     return db.user.create({
@@ -60,8 +60,8 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
     await app?.close();
   });
 
-  it('all production roles get no session/access until OTP, and a factor challenge cannot access a protected API', async () => {
-    for (const role of ['SUPER_ADMIN', 'BROKER_ADMIN', 'BROKER_AGENT', 'USER'] as Role[]) {
+  it('requires OTP for staff and regular users, and a factor challenge cannot access a protected API', async () => {
+    for (const role of ['SUPER_ADMIN', 'BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'USER'] as Role[]) {
       const user = await actor(role);
       await request(app.getHttpServer()).post('/api/auth/login').set(ua).send({ email: user.email, password: 'Wrong password' }).expect(401);
       const challenge = await begin(user.email);
@@ -75,6 +75,30 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
       await verify(challenge).expect(401);
       expect(await db.refreshToken.count({ where: { userId: user.id } })).toBe(1);
     }
+  });
+
+  it('lets a verified Property Owner sign in and replace a device without a second email code', async () => {
+    const owner = await actor('PROPERTY_OWNER');
+    await begin(owner.email);
+    await db.user.update({ where: { id: owner.id }, data: { emailVerified: true } });
+    await request(app.getHttpServer()).post('/api/auth/login').set(ua).send({ email: owner.email, password: 'Wrong password' }).expect(401);
+    for (let i = 0; i < 5; i++) {
+      const result = await login(owner.email).expect(200);
+      expect(result.body.user.role).toBe('PROPERTY_OWNER');
+      await request(app.getHttpServer()).get('/api/owner/properties').auth(result.body.accessToken, { type: 'bearer' }).expect(200);
+      await request(app.getHttpServer()).get('/api/inventory').auth(result.body.accessToken, { type: 'bearer' }).expect(403);
+    }
+    const selection = await login(owner.email).expect(409);
+    expect(selection.body.code).toBe('SESSION_LIMIT_REACHED');
+    const device = await db.refreshToken.findFirstOrThrow({ where: { userId: owner.id, revokedAt: null } });
+    await request(app.getHttpServer())
+      .post('/api/auth/sessions/replace')
+      .set(ua)
+      .send({ challenge: selection.body.details.challenge, sessionId: device.id })
+      .expect(200);
+    expect(await db.loginVerification.count({ where: { userId: owner.id } })).toBe(1);
+    await db.user.update({ where: { id: owner.id }, data: { status: 'SUSPENDED' } });
+    await login(owner.email).expect(403);
   });
 
   it('persists five failed attempts under concurrency and does not reset attempts on resend', async () => {
@@ -218,5 +242,13 @@ describe('Password/Google/signup followed by an account-bound email factor', () 
     expect(google.body.code).toBe('LOGIN_OTP_REQUIRED');
     expect(await db.refreshToken.count({ where: { userId: user.id } })).toBe(0);
     await verify(google.body.details).expect(200);
+    const owner = await actor('PROPERTY_OWNER');
+    await db.user.update({ where: { id: owner.id }, data: { emailVerified: true } });
+    jest
+      .mocked(OAuth2Client.prototype.verifyIdToken)
+      .mockResolvedValue({ getPayload: () => ({ sub: `owner-google-${owner.id}`, email: owner.email, email_verified: true }) } as never);
+    const ownerGoogle = await request(app.getHttpServer()).post('/api/auth/google').set(ua).send({ idToken: 'isolated-owner-token' }).expect(200);
+    expect(ownerGoogle.body.user.role).toBe('PROPERTY_OWNER');
+    expect(await db.loginVerification.count({ where: { userId: owner.id } })).toBe(0);
   });
 });

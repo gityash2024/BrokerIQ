@@ -135,6 +135,49 @@ describe('Property Owner workspace', () => {
     expect(withOwners.members.some((member: { id: string }) => member.id === ownerId)).toBe(true);
   });
 
+  it('places a complete dated Owner property in current Available Inventory immediately', async () => {
+    const availableFrom = '2099-12-01';
+    const payload = { ...listing, houseNo: 'Upcoming ' + stamp, clientMutationId: randomUUID(), details: { availableFrom, possessionDate: '2099-11-25' } };
+    const saved = (await api().post(properties).set(auth(owner)).send(payload).expect(201)).body;
+    expect(saved).toMatchObject({ needsReview: false, availability: 'AVAILABLE', details: { availableFrom } });
+    await api()
+      .get(properties + '/' + saved.id)
+      .set(auth(otherOwner))
+      .expect(404);
+    for (const token of [admin, delegate, agent]) {
+      const response = (
+        await api()
+          .get('/api/inventory')
+          .query({
+            folderMode: 'AVAILABLE',
+            currentInventory: 'true',
+            search: payload.houseNo,
+          })
+          .set(auth(token))
+          .expect(200)
+      ).body;
+      expect(response.items).toEqual([expect.objectContaining({ id: saved.id, details: expect.objectContaining({ availableFrom }) })]);
+    }
+    expect(await db.inventoryItem.findUniqueOrThrow({ where: { id: saved.id } })).toMatchObject({
+      ownerUserId: ownerId,
+      status: 'ACTIVE',
+      publishedListingId: null,
+      isPublished: false,
+    });
+    const sparse = (
+      await api()
+        .post(properties)
+        .set(auth(owner))
+        .send({
+          ...payload,
+          area: null,
+          clientMutationId: randomUUID(),
+        })
+        .expect(201)
+    ).body;
+    expect(sparse).toMatchObject({ needsReview: true, availability: 'UNKNOWN' });
+  });
+
   it('allows a permitted delegate to link a property and review proposals, and keeps the owner status and date', async () => {
     const firmRecord = (
       await api()

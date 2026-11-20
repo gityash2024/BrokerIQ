@@ -25,6 +25,7 @@ import {
   slugify,
   inventoryDate,
   inventoryDateSchema,
+  inventoryAvailabilityDate,
   inventoryMonthLabel,
   inventoryRoomFolder,
   surveySectors,
@@ -788,9 +789,11 @@ export class InventoryService {
   ) {
     return this.createRecord(input, user, { transaction, source });
   }
-  async createOwnerDraft(input: OwnerCreatePropertyInput, user: RequestUser, transaction: Prisma.TransactionClient) {
+  async createOwnerProperty(input: OwnerCreatePropertyInput, user: RequestUser, transaction: Prisma.TransactionClient) {
     if (user.role !== 'PROPERTY_OWNER') throw new ForbiddenException('Property Owner role required');
     const payload = inventoryInputSchema.parse(input);
+    const recordedDate = inventoryAvailabilityDate({ details: payload.details });
+    const directoryMonth = recordedDate && missingInventoryFolderFields(payload).length === 0 ? inventoryDate().slice(0, 7) : undefined;
     // The signed-in owner's own profile supplies the contact for a new submission.
     const member = await transaction.user.findFirst({
       where: { id: user.id, organizationId: user.orgId, role: 'PROPERTY_OWNER', status: 'ACTIVE', deletedAt: null },
@@ -806,6 +809,7 @@ export class InventoryService {
         status: 'DRAFT',
         availability: 'UNKNOWN',
         verificationStatus: 'NEEDS_REVIEW',
+        directoryMonth,
       },
       user,
       { transaction, ownerUserId: user.id },

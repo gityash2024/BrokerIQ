@@ -8,6 +8,8 @@ import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native'
 import {
   hasDelegatedAccess,
   inventoryPossessionLabel,
+  inventoryAvailabilityDate,
+  inventoryAvailabilityLabel,
   lastSurveyNoAnswer,
   inventoryDate,
   inventoryPrice,
@@ -232,7 +234,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
               {!!item.photoUrls?.[0] && <Image source={item.photoUrls[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />}
               {mode !== 'RENTED' && (
                 <Txt v="small" color="brand">
-                  {inventoryPossessionLabel(item)}
+                  {mode === 'AVAILABLE' && (inventoryAvailabilityDate(item) ?? '') > today ? inventoryAvailabilityLabel(item) : inventoryPossessionLabel(item)}
                 </Txt>
               )}
               {!survey && <Txt v="h3">{inventoryPrice(item)}</Txt>}

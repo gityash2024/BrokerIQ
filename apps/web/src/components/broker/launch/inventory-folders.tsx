@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import {
   hasDelegatedAccess,
   inventoryPossessionLabel,
+  inventoryAvailabilityDate,
+  inventoryAvailabilityLabel,
   lastSurveyNoAnswer,
   inventoryDate,
   inventoryPrice,
@@ -295,7 +297,13 @@ export function InventoryFoldersPage({
                     </div>
                   )}
                   <div className="space-y-1 p-4 pb-2">
-                    {mode !== 'RENTED' && <p className="text-sm font-semibold text-brand-600">{inventoryPossessionLabel(item)}</p>}
+                    {mode !== 'RENTED' && (
+                      <p className="text-sm font-semibold text-brand-600">
+                        {mode === 'AVAILABLE' && (inventoryAvailabilityDate(item) ?? '') > today
+                          ? inventoryAvailabilityLabel(item)
+                          : inventoryPossessionLabel(item)}
+                      </p>
+                    )}
                     {!survey && <p className="text-lg font-bold">{inventoryPrice(item)}</p>}
                     <h3 className="break-words font-semibold">{inventoryCardTitle(item)}</h3>
                     <p className="text-sm text-muted">

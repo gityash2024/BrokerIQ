@@ -140,7 +140,7 @@ function OwnerEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       <PropertyForm
         ownerMode
         initial={initial}
-        label={id ? 'Send changes to broker' : 'Save property for review'}
+        label={id ? 'Send changes to broker' : 'Save property'}
         onDirty={() => {
           mutationId.current = null;
         }}

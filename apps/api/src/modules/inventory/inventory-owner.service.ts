@@ -81,13 +81,11 @@ export class InventoryOwnerService {
       },
     });
     return {
-      items: rows
-        .slice(0, 25)
-        .map(({ ownerReports, ...property }) => ({
-          ...this.shape(property),
-          ownerReport: ownerReports.find(({ status }) => !!status) ?? null,
-          hasPendingChanges: ownerReports.some(({ reviewState }) => reviewState === 'PENDING'),
-        })),
+      items: rows.slice(0, 25).map(({ ownerReports, ...property }) => ({
+        ...this.shape(property),
+        ownerReport: ownerReports.find(({ status }) => !!status) ?? null,
+        hasPendingChanges: ownerReports.some(({ reviewState }) => reviewState === 'PENDING'),
+      })),
       hasMore: rows.length > 25,
     };
   }
@@ -134,8 +132,17 @@ export class InventoryOwnerService {
         where: { organizationId_clientMutationId: { organizationId: scope.organizationId, clientMutationId: key } },
         select: { id: true },
       });
-      const item = await this.inventory.createOwnerDraft(input, user, tx);
-      const notices = prior ? [] : await this.notify(tx, user, item.id, null, 'New property from owner', 'Review the property details submitted by its owner.');
+      const item = await this.inventory.createOwnerProperty(input, user, tx);
+      const notices = prior
+        ? []
+        : await this.notify(
+            tx,
+            user,
+            item.id,
+            null,
+            'New property from owner',
+            item.availability === 'AVAILABLE' ? 'The owner added a property to Available Inventory.' : 'Review the property details submitted by its owner.',
+          );
       return { id: item.id as string, notices };
     });
     this.dispatch(notices);
