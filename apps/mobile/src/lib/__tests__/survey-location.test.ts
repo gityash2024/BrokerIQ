@@ -18,7 +18,7 @@ afterEach(() => jest.restoreAllMocks());
 it('returns a property link in memory without sending a location update', async () => {
   const send = jest.spyOn(globalThis, 'fetch');
   await expect(readSurveyLocation()).resolves.toEqual({ link: 'https://www.google.com/maps/dir/?api=1&destination=28.45%2C77.07', accuracy: 13 });
-  expect(Location.getCurrentPositionAsync).toHaveBeenCalledWith({ accuracy: Location.Accuracy.High });
+  expect(Location.getCurrentPositionAsync).toHaveBeenCalledWith({ accuracy: Location.Accuracy.High, mayShowUserSettingsDialog: false, timeInterval: 0 });
   expect(send).not.toHaveBeenCalled();
 });
 

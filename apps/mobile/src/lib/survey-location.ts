@@ -14,7 +14,10 @@ export async function readSurveyLocation(owner = captureAccountContext()) {
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new Error('Could not get a location fix. Try again or enter the property map link.')), 15_000);
     });
-    const position = await Promise.race([Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }), deadline]);
+    const position = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High, mayShowUserSettingsDialog: false, timeInterval: 0 }),
+      deadline,
+    ]);
     assertAccountContext(owner);
     return { link: surveyLocationLink(position.coords), accuracy: Math.ceil(position.coords.accuracy ?? 0) };
   } finally {
