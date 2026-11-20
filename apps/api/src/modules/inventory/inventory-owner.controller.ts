@@ -44,11 +44,27 @@ export class OwnerPropertiesController {
 }
 
 const ownerReview = z.strictObject({ proposalId: z.string().min(1).max(100), expectedRevision: z.number().int().positive(), accept: z.boolean() });
+const ownerAccept = z.strictObject({ expectedRevision: z.number().int().positive() });
 const ownerLink = z.strictObject({ ownerUserId: z.string().min(1).max(100).nullable(), expectedRevision: z.number().int().positive() });
 
 @Controller('inventory')
 export class InventoryOwnerController {
   constructor(private readonly owners: InventoryOwnerService) {}
+
+  @Roles('BROKER_ADMIN')
+  @Get('owner-submissions')
+  submissions(
+    @Query(new ZodPipe(z.object({ page: z.coerce.number().int().min(1).max(1000).default(1) }))) query: { page: number },
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.owners.submissions(user, query.page);
+  }
+
+  @Roles('BROKER_ADMIN')
+  @Post(':id/owner/accept')
+  accept(@Param('id') id: string, @Body(new ZodPipe(ownerAccept)) body: z.infer<typeof ownerAccept>, @CurrentUser() user: RequestUser) {
+    return this.owners.acceptSubmission(id, body.expectedRevision, user);
+  }
 
   @Roles('BROKER_ADMIN')
   @Get('owners')

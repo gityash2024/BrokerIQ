@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasDelegatedAccess, ownerChangeSummary, readableValue, type InventoryOwnerInfo, type LedgerItem } from '@brokeriq/shared';
 import { ApiErrorState } from '@/components/ui/api-error';
@@ -51,6 +52,30 @@ export function PropertyOwnerPanel({ item }: { item: LedgerItem }) {
       });
       await Promise.all([info.refetch(), client.invalidateQueries({ queryKey: ['ledger-item'] })]);
       setEditing(false);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function acceptSubmission() {
+    if (!canReview || busy || !info.data?.submissionPending) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api('/inventory/' + encodeURIComponent(item.id) + '/owner/accept', {
+        method: 'POST',
+        body: { expectedRevision: item.revision },
+        ownerContext: captureAccountContext(),
+      });
+      await Promise.all([
+        info.refetch(),
+        ...['owner-submissions', 'ledger-item', 'ledger', 'ledger-stats', 'inventory-folders', 'inventory-folder-items'].map((key) =>
+          client.invalidateQueries({ queryKey: [key] }),
+        ),
+      ]);
+      toast.success('Property accepted into Available Inventory');
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -147,6 +172,16 @@ export function PropertyOwnerPanel({ item }: { item: LedgerItem }) {
               Cancel
             </Button>
           </div>
+        </div>
+      )}
+      {info.data?.submissionPending && (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-muted">New owner submission awaiting acceptance</p>
+          {canReview && (
+            <Button size="sm" loading={busy} onClick={() => void acceptSubmission()}>
+              Accept property
+            </Button>
+          )}
         </div>
       )}
       {proposal && (

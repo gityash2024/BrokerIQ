@@ -7,6 +7,7 @@ import { ShieldCheck, ShieldAlert, Clock, ArrowRight } from 'lucide-react';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
 import { ApiErrorState } from '@/components/ui/api-error';
+import { OwnerSubmissions } from './owner-submissions';
 
 export function TodayActions() {
   const { user } = useAuth();
@@ -65,10 +66,17 @@ export function TodayActions() {
       <h2 className="font-display text-lg font-bold">Today’s next actions</h2>
       {typeof q.data?.surveyPending === 'number' && (
         <Link href="/broker/inventory?survey=1" className="card flex items-center justify-between gap-3 p-4 hover:border-brand-500">
-          <span><span className="block font-semibold">Survey pending</span><span className="text-sm text-muted">Waiting for calling or confirmation</span></span>
-          <span className="flex items-center gap-2 font-bold tabular-nums">{q.data.surveyPending}<ArrowRight className="size-4 text-brand-600" /></span>
+          <span>
+            <span className="block font-semibold">Survey pending</span>
+            <span className="text-sm text-muted">Waiting for calling or confirmation</span>
+          </span>
+          <span className="flex items-center gap-2 font-bold tabular-nums">
+            {q.data.surveyPending}
+            <ArrowRight className="size-4 text-brand-600" />
+          </span>
         </Link>
       )}
+      <OwnerSubmissions />
       {q.error && <ApiErrorState error={q.error} onRetry={() => q.refetch()} />}
       {hasDelegatedAccess(user, 'leads', 'view') && (
         <div className="grid gap-5 lg:grid-cols-2">

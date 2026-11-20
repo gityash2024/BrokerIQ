@@ -135,15 +135,59 @@ describe('Property Owner workspace', () => {
     expect(withOwners.members.some((member: { id: string }) => member.id === ownerId)).toBe(true);
   });
 
-  it('places a complete dated Owner property in current Available Inventory immediately', async () => {
+  it('queues a dated Owner property, then shows its future date immediately after Broker Admin acceptance', async () => {
     const availableFrom = '2099-12-01';
     const payload = { ...listing, houseNo: 'Upcoming ' + stamp, clientMutationId: randomUUID(), details: { availableFrom, possessionDate: '2099-11-25' } };
     const saved = (await api().post(properties).set(auth(owner)).send(payload).expect(201)).body;
-    expect(saved).toMatchObject({ needsReview: false, availability: 'AVAILABLE', details: { availableFrom } });
+    expect(saved).toMatchObject({ needsReview: true, availability: 'UNKNOWN', details: { availableFrom } });
     await api()
       .get(properties + '/' + saved.id)
       .set(auth(otherOwner))
       .expect(404);
+    const queue = '/api/inventory/owner-submissions';
+    const brokerProperty = '/api/inventory/' + saved.id;
+    const accept = brokerProperty + '/owner/accept';
+    const pending = (await api().get(queue).set(auth(admin)).expect(200)).body;
+    expect(pending.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: saved.id, availableFrom })]));
+    expect(pending.pendingCount).toBe(2);
+    expect(pending.ownerCount).toBe(1);
+    expect((await api().get(queue).set(auth(delegate)).expect(200)).body).toEqual(pending);
+    await api().get(queue).set(auth(agent)).expect(403);
+    await api().get(queue).set(auth(owner)).expect(403);
+    await api().post(accept).set(auth(agent)).send({ expectedRevision: saved.revision }).expect(403);
+    await api().post(accept).set(auth(owner)).send({ expectedRevision: saved.revision }).expect(403);
+    const before = (
+      await api()
+        .get('/api/inventory')
+        .query({
+          folderMode: 'AVAILABLE',
+          currentInventory: 'true',
+          search: payload.houseNo,
+        })
+        .set(auth(admin))
+        .expect(200)
+    ).body;
+    expect(before.items).toEqual([]);
+    await api()
+      .post(accept)
+      .set(auth(admin))
+      .send({ expectedRevision: saved.revision + 1 })
+      .expect(409);
+    await api().post(accept).set(auth(admin)).send({ expectedRevision: saved.revision }).expect(201);
+    await api().post(accept).set(auth(admin)).send({ expectedRevision: saved.revision }).expect(201);
+    expect((await api().get(queue).set(auth(admin)).expect(200)).body).toMatchObject({ pendingCount: 1, ownerCount: 1 });
+    expect(
+      (
+        await api()
+          .get(properties + '/' + saved.id)
+          .set(auth(owner))
+          .expect(200)
+      ).body,
+    ).toMatchObject({
+      needsReview: false,
+      availability: 'AVAILABLE',
+      details: { availableFrom },
+    });
     for (const token of [admin, delegate, agent]) {
       const response = (
         await api()
@@ -151,12 +195,12 @@ describe('Property Owner workspace', () => {
           .query({
             folderMode: 'AVAILABLE',
             currentInventory: 'true',
-            search: payload.houseNo,
+            ...(token !== agent ? { search: payload.houseNo } : {}),
           })
           .set(auth(token))
           .expect(200)
       ).body;
-      expect(response.items).toEqual([expect.objectContaining({ id: saved.id, details: expect.objectContaining({ availableFrom }) })]);
+      expect(response.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: saved.id, details: expect.objectContaining({ availableFrom }) })]));
     }
     expect(await db.inventoryItem.findUniqueOrThrow({ where: { id: saved.id } })).toMatchObject({
       ownerUserId: ownerId,
@@ -176,6 +220,11 @@ describe('Property Owner workspace', () => {
         .expect(201)
     ).body;
     expect(sparse).toMatchObject({ needsReview: true, availability: 'UNKNOWN' });
+    await api()
+      .post('/api/inventory/' + sparse.id + '/owner/accept')
+      .set(auth(delegate))
+      .send({ expectedRevision: sparse.revision })
+      .expect(400);
   });
 
   it('allows a permitted delegate to link a property and review proposals, and keeps the owner status and date', async () => {

@@ -680,7 +680,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
               ownerMode
                 ? id
                   ? 'Send changes to broker'
-                  : 'Save property'
+                  : 'Submit property'
                 : markRented
                   ? 'Save as rented out'
                   : availabilityReview

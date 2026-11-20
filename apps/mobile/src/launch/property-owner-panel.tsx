@@ -1,3 +1,4 @@
+import { toast } from '@/lib/toast';
 import { useState } from 'react';
 import { Alert, Linking, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -43,6 +44,30 @@ export function PropertyOwnerPanel({ item }: { item: LedgerItem }) {
       });
       await Promise.all([info.refetch(), client.invalidateQueries({ queryKey: ['ledger-item'] })]);
       setEditing(false);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function acceptSubmission() {
+    if (!canReview || busy || !info.data?.submissionPending) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api('/inventory/' + encodeURIComponent(item.id) + '/owner/accept', {
+        method: 'POST',
+        body: { expectedRevision: item.revision },
+        ownerContext: captureAccountContext(),
+      });
+      await Promise.all([
+        info.refetch(),
+        ...['owner-submissions', 'ledger-item', 'ledger', 'ledger-stats', 'inventory-folders', 'inventory-folder-items'].map((key) =>
+          client.invalidateQueries({ queryKey: [key] }),
+        ),
+      ]);
+      toast.success('Property accepted into Available Inventory');
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -102,6 +127,12 @@ export function PropertyOwnerPanel({ item }: { item: LedgerItem }) {
         )}
       </Row>
       {info.error && <ErrorView error={info.error} onRetry={() => info.refetch()} />}
+      {info.data?.submissionPending && (
+        <View style={{ gap: 6 }}>
+          <Txt color="muted">New owner submission awaiting acceptance</Txt>
+          {canReview && <Button title="Accept property" size="sm" loading={busy} onPress={() => void acceptSubmission()} />}
+        </View>
+      )}
       {proposal && (
         <View style={{ gap: 6 }}>
           <Txt v="bodyStrong">Owner changes to review</Txt>

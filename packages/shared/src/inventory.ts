@@ -250,6 +250,20 @@ export type InventoryOwnerInfo = {
   report: OwnerReport | null;
   pendingChanges: OwnerPropertyChanges | null;
   detailsNeedReview: boolean;
+  submissionPending?: boolean;
+};
+
+export type OwnerSubmissionQueue = {
+  pendingCount: number;
+  ownerCount: number;
+  hasMore: boolean;
+  items: {
+    id: string;
+    houseNo: string | null;
+    sector: string | null;
+    ownerName: string;
+    availableFrom: string | null;
+  }[];
 };
 
 export const inventoryFilterSchema = z.object({

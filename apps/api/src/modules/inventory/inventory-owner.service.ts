@@ -1,12 +1,15 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   inventoryInputSchema,
+  inventoryDate,
+  inventoryAvailabilityDate,
   ownerEditablePropertySchema,
   ownerPropertyValues,
   type OwnerCreatePropertyInput,
   type OwnerEditPropertyInput,
   type OwnerReportInput,
+  type OwnerSubmissionQueue,
 } from '@brokeriq/shared';
 import { isDeepStrictEqual } from 'node:util';
 import { InventoryService, ledgerJson } from './inventory.service';
@@ -15,6 +18,15 @@ import { requireOrg } from '../../common/utils';
 import { AuditService } from '../../core/audit/audit.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const ownerSubmissionPrefix = 'owner:';
+const pendingOwnerSubmission = {
+  clientMutationId: { startsWith: ownerSubmissionPrefix },
+  status: 'DRAFT',
+  availability: 'UNKNOWN',
+  verificationStatus: 'NEEDS_REVIEW',
+  ownerUserId: { not: null },
+} satisfies Prisma.InventoryItemWhereInput;
 
 const reportFields = { id: true, status: true, availableFrom: true, note: true, createdAt: true } as const;
 const editableFields = Object.fromEntries(Object.keys(ownerEditablePropertySchema.shape).map((key) => [key, true])) as Record<
@@ -132,17 +144,10 @@ export class InventoryOwnerService {
         where: { organizationId_clientMutationId: { organizationId: scope.organizationId, clientMutationId: key } },
         select: { id: true },
       });
-      const item = await this.inventory.createOwnerProperty(input, user, tx);
+      const item = await this.inventory.createOwnerDraft(input, user, tx);
       const notices = prior
         ? []
-        : await this.notify(
-            tx,
-            user,
-            item.id,
-            null,
-            'New property from owner',
-            item.availability === 'AVAILABLE' ? 'The owner added a property to Available Inventory.' : 'Review the property details submitted by its owner.',
-          );
+        : await this.notify(tx, user, item.id, null, 'New property from owner', 'Review and accept the submitted property to add it to Available Inventory.');
       return { id: item.id as string, notices };
     });
     this.dispatch(notices);
@@ -260,12 +265,62 @@ export class InventoryOwnerService {
     return user.role === 'BROKER_AGENT' ? { ...scope, OR: [{ createdById: user.id }, { assignedToId: user.id }] } : scope;
   }
 
+  async submissions(user: RequestUser, page: number): Promise<OwnerSubmissionQueue> {
+    const where = { ...this.firmScope(user), ...pendingOwnerSubmission };
+    return this.db.$transaction(
+      async (tx) => {
+        const [pendingCount, owners, rows] = await Promise.all([
+          tx.inventoryItem.count({ where }),
+          tx.inventoryItem.groupBy({ by: ['ownerUserId'], where }),
+          tx.inventoryItem.findMany({
+            where,
+            skip: (page - 1) * 20,
+            take: 20,
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            select: { id: true, houseNo: true, sector: true, details: true, ownerName: true, ownerUser: { select: { name: true } } },
+          }),
+        ]);
+        return {
+          pendingCount,
+          ownerCount: owners.length,
+          hasMore: page * 20 < pendingCount,
+          items: rows.map(({ id, houseNo, sector, details, ownerName, ownerUser }) => ({
+            id,
+            houseNo,
+            sector,
+            ownerName: ownerUser?.name ?? ownerName ?? 'Property Owner',
+            availableFrom: inventoryAvailabilityDate({ details: details as Record<string, unknown> }),
+          })),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async acceptSubmission(id: string, expectedRevision: number, user: RequestUser) {
+    if (user.role !== 'BROKER_ADMIN') throw new ForbiddenException('Broker Admin scope required');
+    const item = await this.db.inventoryItem.findFirst({
+      where: { id, ...this.firmScope(user), clientMutationId: pendingOwnerSubmission.clientMutationId },
+      select: { revision: true, status: true, availability: true, verificationStatus: true, directoryMonth: true, ownerUserId: true },
+    });
+    if (!item) throw new NotFoundException('Owner submission not found');
+    if (item.directoryMonth && item.status === 'ACTIVE' && item.availability === 'AVAILABLE' && item.verificationStatus === 'VERIFIED')
+      return { id, accepted: true };
+    if (!item.ownerUserId || item.status !== 'DRAFT' || item.availability !== 'UNKNOWN' || item.verificationStatus !== 'NEEDS_REVIEW')
+      throw new ConflictException('The submission is no longer pending. Reload the property.');
+    await this.inventory.update(id, { expectedRevision, directoryMonth: inventoryDate().slice(0, 7) }, user);
+    return { id, accepted: true };
+  }
+
   async info(id: string, user: RequestUser) {
     const item = await this.db.inventoryItem.findFirst({
       where: { id, ...this.staffPropertyScope(user) },
       select: {
         ownerUser: { select: { id: true, name: true, status: true } },
         ownerUserId: true,
+        clientMutationId: true,
+        status: true,
+        availability: true,
         verificationStatus: true,
         ownerReports: {
           where: { OR: [{ status: { not: null } }, { reviewState: 'PENDING' }] },
@@ -280,6 +335,12 @@ export class InventoryOwnerService {
     return {
       owner: item.ownerUser,
       detailsNeedReview: item.verificationStatus === 'NEEDS_REVIEW',
+      submissionPending:
+        !!item.ownerUserId &&
+        !!item.clientMutationId?.startsWith(ownerSubmissionPrefix) &&
+        item.status === 'DRAFT' &&
+        item.availability === 'UNKNOWN' &&
+        item.verificationStatus === 'NEEDS_REVIEW',
       report: latestReport
         ? { ...Object.fromEntries(Object.keys(reportFields).map((key) => [key, latestReport[key as keyof typeof reportFields]])), owner: latestReport.owner }
         : null,
