@@ -150,10 +150,13 @@ describe('Agent assignment dashboard', () => {
       .send({ assignmentDashboardAgentIds: [outside] })
       .expect(400);
     const updatedAt = (await api().get(memberPath).set(h(ownerToken)).expect(200)).body.member.updatedAt;
+    const beforeLogin = await db.user.findUniqueOrThrow({ where: { id: delegate }, include: { organization: true } });
+    await app.get(AuthService).issue(beforeLogin);
+    expect((await db.user.findUniqueOrThrow({ where: { id: delegate } })).updatedAt).toEqual(beforeLogin.updatedAt);
     const saved = await api()
       .patch(memberPath)
       .set(h(ownerToken))
-      .send({ expectedUpdatedAt: updatedAt, assignmentDashboardAgentIds: [managed] })
+      .send({ expectedUpdatedAt: updatedAt, role: 'SUB_BROKER_ADMIN', delegatedPermissions: grants, assignmentDashboardAgentIds: [managed] })
       .expect(200);
     await api()
       .patch(memberPath)
@@ -183,5 +186,32 @@ describe('Agent assignment dashboard', () => {
     expect((await api().get(path).set(h(delegateToken)).expect(200)).body.agents).toEqual([]);
     await db.user.update({ where: { id: delegate }, data: { delegatedPermissions: ['today:view', 'leads:view'] } });
     await api().get(path).set(h(delegateToken)).expect(403);
+  });
+
+  it('returns the current member revision after a genuine permission change and revokes the old session', async () => {
+    const url = '/api/broker/team/' + delegate;
+    const existing = (await api().get(url).set(h(ownerToken)).expect(200)).body.member;
+    const changed = (
+      await api()
+        .patch(url)
+        .set(h(ownerToken))
+        .send({
+          expectedUpdatedAt: existing.updatedAt,
+          role: 'SUB_BROKER_ADMIN',
+          delegatedPermissions: grants,
+        })
+        .expect(200)
+    ).body;
+    const fresh = (await api().get(url).set(h(ownerToken)).expect(200)).body.member;
+    expect(changed.updatedAt).toBe(fresh.updatedAt);
+    await api().get(path).set(h(delegateToken)).expect(401);
+    await api()
+      .patch(url)
+      .set(h(ownerToken))
+      .send({
+        expectedUpdatedAt: changed.updatedAt,
+        assignmentDashboardAgentIds: [managed],
+      })
+      .expect(200);
   });
 });

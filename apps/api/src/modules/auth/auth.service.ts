@@ -134,7 +134,8 @@ export class AuthService implements OnApplicationBootstrap {
           rotationExpiresAt: new Date(Date.now() + 15_000),
         },
       });
-    await tx.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    // Login activity does not change the revision used for member edits.
+    await tx.$executeRaw`UPDATE "User" SET "lastLoginAt" = ${new Date()} WHERE id = ${user.id}`;
     return response;
   }
 
@@ -568,12 +569,16 @@ export class AuthService implements OnApplicationBootstrap {
     this.realtime.disconnectUser(id);
   }
 
+  disconnectUserSessions(userId: string) {
+    this.realtime.disconnectUser(userId);
+  }
+
   async revokeAll(userId: string) {
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } }),
       this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
     ]);
-    this.realtime.disconnectUser(userId);
+    this.disconnectUserSessions(userId);
   }
 
   async resetPassword(email: string, code: string, password: string) {

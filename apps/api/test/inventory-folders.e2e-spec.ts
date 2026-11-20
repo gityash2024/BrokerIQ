@@ -188,7 +188,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       .expect(200);
   });
 
-  it('saves each quick Survey unit once and records a no-answer call without moving the property', async () => {
+  it('saves each quick Survey unit once and moves a no-answer call to the end of the pending Survey queue', async () => {
     const url = '/api/inventory/survey-units';
     const payload = {
       houseNo: 'Units ' + stamp,
@@ -219,6 +219,23 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     expect(logged.body).toMatchObject({ id: rk.id, status: 'DRAFT', availability: 'UNKNOWN', sector: 'Sector 27' });
     expect(logged.body.notes).toMatch(/Survey call: No answer.*Try in the evening/);
     await api().patch(noAnswer).set(headers(agent)).send(call).expect(409);
+    const listing = '/api/inventory?folderMode=SURVEY&folderSector=Sector%2027&search=' + encodeURIComponent(payload.houseNo);
+    const page1 = await api()
+      .get(listing + '&page=1&pageSize=1')
+      .set(headers(agent))
+      .expect(200);
+    const page2 = await api()
+      .get(listing + '&page=2&pageSize=1')
+      .set(headers(agent))
+      .expect(200);
+    expect(page1.body.items.map(({ id }: { id: string }) => id)).toEqual([bhk.id]);
+    expect(page2.body.items.map(({ id }: { id: string }) => id)).toEqual([rk.id]);
+    await api()
+      .patch('/api/inventory/' + bhk.id + '/survey-call')
+      .set(headers(agent))
+      .send({ expectedRevision: bhk.revision })
+      .expect(200);
+    expect((await api().get(listing).set(headers(agent)).expect(200)).body.items.map(({ id }: { id: string }) => id)).toEqual([rk.id, bhk.id]);
     const folders = (await api().get('/api/inventory/folders?folderMode=SURVEY').set(headers()).expect(200)).body.folders;
     expect(folders).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'Sector 27', count: 2 })]));
     for (const id of [rk.id, bhk.id])

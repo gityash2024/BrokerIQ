@@ -4,11 +4,11 @@ import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import type { AssignmentAgentSelection, BrokerTeamResponse } from '@brokeriq/shared';
+import { reapplySelectionChanges, type AssignmentAgentSelection, type BrokerTeamResponse } from '@brokeriq/shared';
 import { PageHeader } from '@/components/panel/shell';
 import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
+import { ApiError, api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfigStatus } from '@/lib/config';
 import { patch, useApiMutation } from '@/lib/hooks';
@@ -42,42 +42,47 @@ export function TeamPermissionsPage() {
       />
       {!allowed ? (
         <p role="alert">Administrator access required.</p>
-      ) : member.error ? (
+      ) : member.error && !record ? (
         <ApiErrorState error={member.error} onRetry={() => member.refetch()} />
       ) : !record ? (
         <LoadingArtwork className="h-16" label="Loading team member…" />
       ) : record.role !== 'BROKER_AGENT' && (isSuper || record.role !== 'SUB_BROKER_ADMIN') ? (
         <p>This member’s permissions cannot be changed here.</p>
       ) : (
-        <PermissionForm key={record.id} member={record} back={back} />
+        <PermissionForm key={record.id} member={record} back={back} onReload={async () => (await member.refetch({ throwOnError: true })).data!.member} />
       )}
     </div>
   );
 }
 
-function PermissionForm({ member, back }: { member: Member; back: string }) {
+function PermissionForm({ member, back, onReload }: { member: Member; back: string; onReload: () => Promise<Member> }) {
   const router = useRouter();
   const { loaded } = useConfigStatus();
   const { user } = useAuth();
   const editAssignmentAgents = user?.role === 'BROKER_ADMIN';
-  const [draftAgentIds, setDraftAgentIds] = useState<string[]>();
+  const [agentDraft, setAgentDraft] = useState<{ baseline: string[]; selected: string[] }>();
   const [agentSearch, setAgentSearch] = useState('');
   const assignmentAgents = useQuery({
     queryKey: ['team', 'assignment-dashboard', user?.id, member.id],
     queryFn: () => api<AssignmentAgentSelection>(`/broker/team/${encodeURIComponent(member.id)}/assignment-dashboard`),
     enabled: editAssignmentAgents,
   });
-  const selectedAgents = draftAgentIds ?? assignmentAgents.data?.selectedAgentIds ?? [];
+  const loadedAgents = assignmentAgents.data?.selectedAgentIds ?? [];
+  const selectedAgents = agentDraft?.selected ?? loadedAgents;
+  const selectAgents = (selected: string[]) => setAgentDraft({ baseline: agentDraft?.baseline ?? loadedAgents, selected });
   const matchedAgents = assignmentAgents.data?.agents.filter(({ name, email }) => `${name} ${email}`.toLowerCase().includes(agentSearch.trim().toLowerCase()));
-  const [revision] = useState(member.updatedAt);
+  const [baseline, setBaseline] = useState(member);
+  const [reloading, setReloading] = useState(false);
+  const [reloadFailed, setReloadFailed] = useState(false);
+  const [reloaded, setReloaded] = useState(false);
   const [grants, setGrants] = useState(member.delegatedPermissions ?? []);
   const save = useApiMutation(
     () =>
       patch(`/broker/team/${encodeURIComponent(member.id)}`, {
-        expectedUpdatedAt: revision,
+        expectedUpdatedAt: baseline.updatedAt,
         role: 'SUB_BROKER_ADMIN',
         delegatedPermissions: grants,
-        ...(draftAgentIds ? { assignmentDashboardAgentIds: draftAgentIds } : {}),
+        ...(agentDraft ? { assignmentDashboardAgentIds: agentDraft.selected } : {}),
       }),
     {
       success: 'Sub-Broker Admin permissions saved',
@@ -85,6 +90,32 @@ function PermissionForm({ member, back }: { member: Member; back: string }) {
       onSuccess: () => router.replace(back),
     },
   );
+  const conflict = baseline.updatedAt !== member.updatedAt || (save.error instanceof ApiError && save.error.status === 409);
+  async function reload() {
+    setReloading(true);
+    setReloadFailed(false);
+    try {
+      const [latest, assignments] = await Promise.all([onReload(), editAssignmentAgents ? assignmentAgents.refetch({ throwOnError: true }) : undefined]);
+      setGrants((draft) => reapplySelectionChanges(baseline.delegatedPermissions ?? [], draft, latest.delegatedPermissions ?? []));
+      if (assignments?.data) {
+        const { selectedAgentIds, agents } = assignments.data;
+        setAgentDraft(
+          (draft) =>
+            draft && {
+              baseline: selectedAgentIds,
+              selected: reapplySelectionChanges(draft.baseline, draft.selected, selectedAgentIds).filter((id) => agents.some((agent) => agent.id === id)),
+            },
+        );
+      }
+      setBaseline(latest);
+      setReloaded(true);
+      save.reset();
+    } catch {
+      setReloadFailed(true);
+    } finally {
+      setReloading(false);
+    }
+  }
   return (
     <section className="card mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
       {editAssignmentAgents && (
@@ -117,9 +148,7 @@ function PermissionForm({ member, back }: { member: Member; back: string }) {
                     <input
                       type="checkbox"
                       checked={selectedAgents.includes(id)}
-                      onChange={(event) =>
-                        setDraftAgentIds(event.target.checked ? [...selectedAgents, id] : selectedAgents.filter((agentId) => agentId !== id))
-                      }
+                      onChange={(event) => selectAgents(event.target.checked ? [...selectedAgents, id] : selectedAgents.filter((agentId) => agentId !== id))}
                     />
                     <span className="min-w-0 break-words text-sm">
                       {name}
@@ -134,10 +163,22 @@ function PermissionForm({ member, back }: { member: Member; back: string }) {
         </fieldset>
       )}
       <DelegatedPermissions value={grants} onChange={setGrants} />
-      <Button loading={save.isPending} disabled={!loaded || revision !== member.updatedAt} onClick={() => save.mutate(undefined)}>
+      <Button loading={save.isPending} disabled={!loaded || conflict || reloading} onClick={() => save.mutate(undefined)}>
         Save permissions
       </Button>
-      {revision !== member.updatedAt && <p role="alert">This member was updated. Reload to review the current permissions.</p>}
+      {conflict && (
+        <div className="space-y-2">
+          <p role="alert">{reloadFailed ? 'Could not reload permissions. Try again.' : 'This member changed while you were editing.'}</p>
+          <Button variant="secondary" loading={reloading} onClick={() => void reload()}>
+            Reload and review
+          </Button>
+        </div>
+      )}
+      {reloaded && !conflict && (
+        <p role="status" className="text-sm text-muted">
+          Your changes are ready to review and save.
+        </p>
+      )}
     </section>
   );
 }

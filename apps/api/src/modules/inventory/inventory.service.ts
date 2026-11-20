@@ -355,6 +355,7 @@ export class InventoryService {
     const [sortField, sortDirection] = q.sort?.split(':') ?? [];
     const order = sortField ?? (q.sortBy === 'rent' ? 'monthlyRent' : q.sortBy);
     return [
+      ...(q.folderMode === 'SURVEY' ? [{ surveyNoAnswerAt: { sort: 'asc', nulls: 'first' } } as const] : []),
       {
         [order]: ['price', 'ratePerSqft', 'monthlyRent', 'totalSalePrice'].includes(order)
           ? { sort: sortDirection ?? q.sortOrder, nulls: 'last' }
@@ -770,10 +771,11 @@ export class InventoryService {
       const item = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id, ...pendingSurvey }, select: { notes: true, revision: true } });
       if (!item) throw new NotFoundException('Pending Survey property not found');
       if (item.revision !== input.expectedRevision) throw new ConflictException('Property changed. Reload before logging a call.');
-      const text = 'Survey call: No answer - ' + new Date().toISOString() + (input.note ? ' · ' + input.note.replace(/[\r\n]+/g, ' ') : '');
+      const surveyNoAnswerAt = new Date();
+      const text = 'Survey call: No answer - ' + surveyNoAnswerAt.toISOString() + (input.note ? ' · ' + input.note.replace(/[\r\n]+/g, ' ') : '');
       const notes = [item.notes, text].filter(Boolean).join('\n');
       if (notes.length > 20000) throw new BadRequestException('Property notes are full. Shorten the existing notes to log a call.');
-      return tx.inventoryItem.update({ where: { id }, data: { notes, revision: { increment: 1 } }, include });
+      return tx.inventoryItem.update({ where: { id }, data: { notes, surveyNoAnswerAt, revision: { increment: 1 } }, include });
     });
     await this.audit.log(user, 'inventory.survey.no_answer', 'InventoryItem', id);
     return ledgerJson(item);

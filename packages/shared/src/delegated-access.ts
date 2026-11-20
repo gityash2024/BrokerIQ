@@ -68,3 +68,11 @@ export function firmRoleLabel(role: string) {
   if (role === 'PROPERTY_OWNER') return 'Property Owner';
   return role === 'SUB_BROKER_ADMIN' ? 'Sub-Broker Admin' : role === 'BROKER_ADMIN' ? 'Admin' : 'Agent';
 }
+
+// Reapply only the choices changed in this editor after loading concurrent edits.
+export function reapplySelectionChanges(baseline: string[], draft: string[], current: string[]) {
+  return [
+    ...current.filter((item) => !baseline.includes(item) || draft.includes(item)),
+    ...draft.filter((item) => !baseline.includes(item) && !current.includes(item)),
+  ];
+}

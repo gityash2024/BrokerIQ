@@ -2595,6 +2595,7 @@ model InventoryItem {
   availabilityAt     DateTime?
   availableSince     String?   // Local calendar date (YYYY-MM-DD) for the current availability period
   verificationStatus String    @default("NEEDS_REVIEW")
+  surveyNoAnswerAt   DateTime?
   sourceType         String    @default("MANUAL")
   sourceEntryId      String?
   sourceUnitKey      String?

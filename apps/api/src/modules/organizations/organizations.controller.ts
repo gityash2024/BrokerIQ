@@ -618,14 +618,12 @@ export class OrganizationsController {
     const userUpdateData: Prisma.UserUpdateInput = {};
     if (body.name !== undefined) userUpdateData.name = body.name.trim();
     if (body.phone !== undefined) userUpdateData.phone = body.phone ? normalizeIndianPhone(body.phone) : null;
-    if (body.role !== undefined) userUpdateData.role = body.role;
-    if (grants !== undefined) userUpdateData.delegatedPermissions = grants;
-    if (body.status !== undefined) userUpdateData.status = body.status;
 
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const { updated, revokeSessions } = await this.prisma.$transaction(async (tx) => {
       if (!orgId || !['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT', 'PROPERTY_OWNER'].includes(member.role))
         throw new NotFoundException('Firm member not found');
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId + ':membership'}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId + ':sessions'}))`;
       const latest = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (latest.organizationId !== member.organizationId || latest.role !== member.role)
         throw new ForbiddenException('Membership changed. Reload this member.');
@@ -667,13 +665,22 @@ export class OrganizationsController {
           update: { value: current },
         });
       }
-      if (body.role || grants !== undefined || body.status === 'SUSPENDED') {
+      const roleChanged = body.role !== undefined && body.role !== latest.role;
+      const grantsChanged =
+        grants !== undefined && (grants.length !== latest.delegatedPermissions.length || grants.some((grant) => !latest.delegatedPermissions.includes(grant)));
+      const statusChanged = body.status !== undefined && body.status !== latest.status;
+      if (roleChanged) userUpdateData.role = body.role;
+      if (grantsChanged) userUpdateData.delegatedPermissions = grants;
+      if (statusChanged) userUpdateData.status = body.status;
+      const revokeSessions = roleChanged || grantsChanged || (statusChanged && body.status === 'SUSPENDED');
+      if (revokeSessions) {
         userUpdateData.sessionVersion = { increment: 1 };
         await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
       }
-      return Object.keys(userUpdateData).length ? tx.user.update({ where: { id: userId }, data: userUpdateData }) : latest;
+      const updated = Object.keys(userUpdateData).length ? await tx.user.update({ where: { id: userId }, data: userUpdateData }) : latest;
+      return { updated, revokeSessions };
     });
-    if (body.status === 'SUSPENDED' || body.role || grants !== undefined) await this.auth.revokeAll(userId);
+    if (revokeSessions) this.auth.disconnectUserSessions(userId);
 
     await this.audit.log(user, 'team.update', 'User', userId, body);
     return {
