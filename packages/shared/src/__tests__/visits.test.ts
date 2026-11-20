@@ -9,6 +9,7 @@ import {
   visitShortlistStops,
   inventoryInputSchema,
   inventoryNavigation,
+  surveyLocationLink,
 } from '../index';
 test('calendar validation rejects rollover, incomplete inputs and invalid 12-hour times', () => {
   for (const input of ['2026-02-29T11:00', '2026-04-31T11:00', '2026-11-01T24:00', '', '2026-1-1T11:00']) assert.equal(parseVisitLocalDateTime(input), null);
@@ -55,4 +56,14 @@ test('property navigation uses the saved entrance link and keeps sector-only rec
   assert.equal(fallback.sectorMap, 'https://www.abcbuildcon.in/maps/sector-45');
   assert.equal(inventoryNavigation({ sector: 'Sector 45' }).route, null);
   assert.equal(inventoryNavigation({ directionsUrl: 'javascript:alert(1)' }).route, null);
+});
+
+test('survey device fixes become directions links only with valid coordinates and usable accuracy', () => {
+  const location = { latitude: 28.45012347, longitude: 77.0704512, accuracy: 12 };
+  const link = surveyLocationLink(location);
+  assert.equal(new URL(link).searchParams.get('destination'), '28.450123,77.070451');
+  assert.equal(inventoryNavigation({ directionsUrl: link }).route, link);
+  for (const accuracy of [null, -1, 55, Infinity]) assert.throws(() => surveyLocationLink({ ...location, accuracy }), /approximate/);
+  assert.throws(() => surveyLocationLink({ ...location, latitude: 91 }), /valid location/);
+  assert.throws(() => surveyLocationLink({ ...location, longitude: NaN }), /valid location/);
 });

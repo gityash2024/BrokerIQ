@@ -709,6 +709,7 @@ export class InventoryService {
       {
         sector: input.sector,
         ...('phone' in input ? { ownerPhone: input.phone } : { contacts: input.contacts }),
+        directionsUrl: input.directionsUrl,
         clientMutationId: input.clientMutationId,
         survey: true,
         purpose: 'RENT',

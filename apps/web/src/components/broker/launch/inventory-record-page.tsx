@@ -106,7 +106,10 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
         'ledger-stats',
         'ledger-sectors',
         'inventory-folders',
-        'inventory-folder-items', 'broker-today', 'agent-assignments', 'agent-assignment-records',
+        'inventory-folder-items',
+        'broker-today',
+        'agent-assignments',
+        'agent-assignment-records',
         'broker-dashboard',
         'enterprise-dashboard',
       ].map((prefix) => client.invalidateQueries({ queryKey: [prefix] })),
@@ -183,6 +186,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                   activateInMonth={makeAvailable ? (item?.availability === 'AVAILABLE' ? (item.directoryMonth ?? folderMonth) : folderMonth) : undefined}
                   markRented={makeRented}
                   survey={compactSurvey}
+                  captureSurveyLocation={compactSurvey}
                   requireAvailability={mode === 'edit' && makeAvailable}
                   label={
                     makeRented ? 'Save as rented out' : compactSurvey ? 'Save to Survey' : mode === 'edit' && makeAvailable ? 'Confirm availability' : undefined

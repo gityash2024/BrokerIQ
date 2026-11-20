@@ -4,10 +4,11 @@ import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Phone, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { normalizeIndianPhone, surveyPhoneInputSchema } from '@brokeriq/shared';
+import { normalizeIndianPhone, normalizeInventoryDirections, surveyPhoneInputSchema } from '@brokeriq/shared';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { SurveyLocationField } from './survey-location-field';
 
 const blankContact = () => ({ name: '', phone: '', role: 'OWNER' as const });
 
@@ -17,18 +18,25 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
   const [contacts, setContacts] = useState(() => [blankContact()]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [directions, setDirections] = useState('');
+  const [readingLocation, setReadingLocation] = useState(false);
   const mutationId = useRef<string | null>(null);
   const saving = useRef(false);
 
   async function save() {
-    if (!allowed || saving.current) return;
+    if (!allowed || saving.current || readingLocation) return;
     const filled = contacts.filter(({ name, phone }) => name.trim() || phone.trim());
     if (!filled.length || filled.some(({ phone }) => !normalizeIndianPhone(phone))) {
       setError('Enter a valid Indian phone number for each contact');
       return;
     }
     mutationId.current ??= crypto.randomUUID();
-    const parsed = surveyPhoneInputSchema.safeParse({ contacts: filled, sector, clientMutationId: mutationId.current });
+    const parsed = surveyPhoneInputSchema.safeParse({
+      contacts: filled,
+      sector,
+      directionsUrl: normalizeInventoryDirections(directions) ?? undefined,
+      clientMutationId: mutationId.current,
+    });
     if (!parsed.success) {
       setError(parsed.error.issues[0].message);
       return;
@@ -39,6 +47,7 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
     try {
       await api('/inventory/survey-phone', { method: 'POST', body: parsed.data, ownerContext: captureAccountContext() });
       setContacts([blankContact()]);
+      setDirections('');
       mutationId.current = null;
       setOpen(false);
       toast.success('Contacts saved to Survey for calling');
@@ -59,7 +68,10 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (!saving.current) setOpen(value);
+          if (!saving.current) {
+            if (!value) setReadingLocation(false);
+            setOpen(value);
+          }
         }}
         title="Add survey phone"
       >
@@ -114,12 +126,24 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
           >
             <Plus className="size-4" /> Add contact
           </Button>
+          {open && (
+            <SurveyLocationField
+              value={directions}
+              disabled={busy}
+              onReading={setReadingLocation}
+              onChange={(link) => {
+                setDirections(link);
+                mutationId.current = null;
+                setError('');
+              }}
+            />
+          )}
           {error && (
             <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">
               {error}
             </p>
           )}
-          <Button type="submit" loading={busy}>
+          <Button type="submit" disabled={readingLocation} loading={busy}>
             Save to Survey
           </Button>
         </form>

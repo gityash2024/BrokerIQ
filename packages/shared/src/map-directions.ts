@@ -35,6 +35,15 @@ export function normalizeInventoryDirections(value: string): string | null {
   return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? googleDirections(`${latitude},${longitude}`) : text;
 }
 
+/** A one-time device fix for a property, with the accuracy reported by the platform in metres. */
+export function surveyLocationLink({ latitude, longitude, accuracy }: { latitude: number; longitude: number; accuracy: number | null }): string {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180)
+    throw new Error('This device did not return a valid location. Try again or enter a map link.');
+  if (accuracy == null || !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 50)
+    throw new Error('Location is too approximate for a property pin. Enable precise location, move outdoors, or enter a map link.');
+  return googleDirections(`${Number(latitude.toFixed(6))},${Number(longitude.toFixed(6))}`);
+}
+
 export function googleMapSearch(query: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

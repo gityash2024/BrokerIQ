@@ -102,7 +102,7 @@ export const surveyPhotoInputSchema = z.strictObject({
   photoUrl: inventoryInputSchema.shape.photoUrls.unwrap().element,
 });
 export type SurveyPhotoInput = z.infer<typeof surveyPhotoInputSchema>;
-const surveyPhoneBase = surveyPhotoInputSchema.omit({ photoUrl: true });
+const surveyPhoneBase = surveyPhotoInputSchema.omit({ photoUrl: true }).extend({ directionsUrl: directionsLinkSchema.optional() });
 const requiredSurveyPhone = z
   .string()
   .trim()

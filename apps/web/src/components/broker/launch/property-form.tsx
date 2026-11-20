@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/auth';
 import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { PropertyExtras, readPropertyExtras } from './property-extras';
 import { PropertyMedia } from './property-media';
+import { SurveyLocationField } from './survey-location-field';
 
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
 const inputs = [
@@ -58,6 +59,7 @@ export function PropertyForm({
   markRented = false,
   requireAvailability = false,
   survey = false,
+  captureSurveyLocation = false,
 }: {
   initial?: InventoryInput | LedgerItem;
   onSave: (input: InventoryInput) => Promise<void>;
@@ -67,6 +69,7 @@ export function PropertyForm({
   markRented?: boolean;
   requireAvailability?: boolean;
   survey?: boolean;
+  captureSurveyLocation?: boolean;
 }) {
   const { user } = useAuth();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
@@ -100,10 +103,12 @@ export function PropertyForm({
   const [videoUploading, setVideoUploading] = useState(false);
   const uploading = photoUploading || videoUploading;
   const [busy, setBusy] = useState(false);
+  const [directions, setDirections] = useState(initial.directionsUrl ?? '');
+  const [readingLocation, setReadingLocation] = useState(false);
   const [error, setError] = useState('');
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || uploading) return;
+    if (busy || uploading || readingLocation) return;
     setBusy(true);
     setError('');
     const form = event.currentTarget;
@@ -312,6 +317,11 @@ export function PropertyForm({
             )}
           </label>
           {field('houseNo')}
+          {captureSurveyLocation && (
+            <div className="col-span-full">
+              <SurveyLocationField value={directions} onChange={setDirections} disabled={busy} onReading={setReadingLocation} />
+            </div>
+          )}
           <div className="col-span-full rounded-xl border border-line p-3">{contactFields}</div>
           {field('bhk')}
           {select('furnishing')}
@@ -490,7 +500,10 @@ export function PropertyForm({
         </p>
       )}
       <div className="sticky -bottom-6 -mx-6 border-t border-line bg-surface/95 p-4 backdrop-blur">
-        <button disabled={busy || uploading} className="min-h-11 w-full rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+        <button
+          disabled={busy || uploading || readingLocation}
+          className="min-h-11 w-full rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
           {busy ? 'Saving…' : label}
         </button>
       </div>

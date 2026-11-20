@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   name: process.env.APP_NAME ?? 'BrokerIQ',
   slug: 'brokeriq',
   scheme: 'brokeriq',
-  version: '2.3.49',
+  version: '2.3.50',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: process.env.ANDROID_PACKAGE ?? 'com.brokeriq.app',
-    versionCode: 90,
+    versionCode: 91,
     googleServicesFile: process.env.GOOGLE_SERVICES_FILE ?? './google-services.json',
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4F46E5' },
     permissions: [
@@ -75,7 +75,7 @@ const config: ExpoConfig = {
     [
       'expo-location',
       {
-        locationWhenInUsePermission: 'Punch-in verification aur site visits ke liye location chahiye.',
+        locationWhenInUsePermission: 'Location is used for site visits, punch-in verification, and property pins you choose to save in Survey.',
         locationAlwaysAndWhenInUsePermission: 'Shift ke dauran 10-minute periodic location record karne ke liye location permission chahiye.',
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
@@ -104,7 +104,7 @@ const config: ExpoConfig = {
   ],
   experiments: { typedRoutes: false },
   extra: {
-    release: { commit: process.env.BROKERIQ_RELEASE_COMMIT || null, builtAt: process.env.BROKERIQ_RELEASE_BUILT_AT || null, versionCode: 90 },
+    release: { commit: process.env.BROKERIQ_RELEASE_COMMIT || null, builtAt: process.env.BROKERIQ_RELEASE_BUILT_AT || null, versionCode: 91 },
     apiUrl: process.env.EXPO_PUBLIC_API_URL,
     eas: { projectId: process.env.EAS_PROJECT_ID ?? 'a92f8cc4-87c0-476c-aaae-513bfa29ad08' },
   },

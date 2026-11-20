@@ -116,7 +116,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     const pending = async (token: string) => (await api().get('/api/broker/today').set(headers(token)).expect(200)).body.surveyPending;
     const [officeBefore, agentBefore, delegateBefore, otherBefore] = await Promise.all([admin, agent, delegate, otherAgent].map(pending));
     const endpoint = '/api/inventory/survey-phone';
-    const payload = { phone: '9701188902', clientMutationId: randomUUID() };
+    const payload = { phone: '9701188902', directionsUrl, clientMutationId: randomUUID() };
     await api()
       .post(endpoint)
       .set(headers(agent))
@@ -140,7 +140,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
         details: { possessionDate: inventoryDate() },
       })
       .expect(200);
-    expect(available).toMatchObject({ id: draft.id, availability: 'AVAILABLE' });
+    expect(available).toMatchObject({ id: draft.id, availability: 'AVAILABLE', directionsUrl });
     expect(available.contacts).toEqual(draft.contacts);
     expect(await Promise.all([admin, agent, delegate, otherAgent].map(pending))).toEqual([officeBefore, agentBefore, delegateBefore, otherBefore]);
     await api().delete(path).set(headers(admin)).expect(200);
@@ -151,13 +151,25 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     const payload = {
       clientMutationId: randomUUID(),
       sector: 'Sector 46',
+      directionsUrl,
       contacts: [
         { name: 'First owner', phone: '9701188964', role: 'OWNER' },
         { name: 'Second owner', phone: '+91 9701188965', role: 'OWNER' },
         { phone: '9701188966', role: 'OWNER' },
       ],
     };
+    await api()
+      .post(endpoint)
+      .set(headers(agent))
+      .send({ ...payload, directionsUrl: 'https://example.com/invalid' })
+      .expect(400);
     const { body } = await api().post(endpoint).set(headers(agent)).send(payload).expect(201);
+    expect(body.directionsUrl).toBe(directionsUrl);
+    const reloaded = await api()
+      .get('/api/inventory/' + body.id)
+      .set(headers(admin))
+      .expect(200);
+    expect(reloaded.body.directionsUrl).toBe(directionsUrl);
     expect(body.contacts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'First owner', phone: '+919701188964', role: 'OWNER' }),

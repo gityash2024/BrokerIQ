@@ -28,6 +28,7 @@ import { NativePropertyMedia } from '@/launch/property-media';
 import { PropertyDateField } from '@/launch/property-date-field';
 import { ChoiceField } from '@/launch/form';
 import { SurveyContactFields } from '@/launch/survey-contact-fields';
+import { SurveyLocationField } from '@/launch/survey-location-field';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -82,6 +83,7 @@ export default function InventoryEditor() {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [readingLocation, setReadingLocation] = useState(false);
   const [draftStatus, setDraftStatus] = useState('');
   const draftId = useRef(Crypto.randomUUID());
   const writes = useRef<Promise<unknown>>(Promise.resolve());
@@ -181,7 +183,7 @@ export default function InventoryEditor() {
     if (ready) persist(next);
   }
   async function save() {
-    if (!ready || saving || uploading) return;
+    if (!ready || saving || uploading || readingLocation) return;
     setSaving(true);
     setError('');
     Keyboard.dismiss();
@@ -289,6 +291,12 @@ export default function InventoryEditor() {
                 {field('houseNo', 'House / plot no.', false, true)}
               </Row>
               {localities.isError && <Button title="Retry sectors" size="sm" variant="ghost" onPress={() => void localities.refetch()} />}
+              <SurveyLocationField
+                value={form.directionsUrl}
+                onChange={(link) => change('directionsUrl', link)}
+                disabled={!ready || saving}
+                onReading={setReadingLocation}
+              />
               <SurveyContactFields
                 contacts={form.contacts ?? (form.ownerPhone ? [{ name: form.ownerName, phone: form.ownerPhone, role: 'OWNER' }] : [])}
                 onChange={(contacts) => change('contacts', contacts)}
@@ -627,7 +635,7 @@ export default function InventoryEditor() {
           <Button
             title={markRented ? 'Save as rented out' : availabilityReview ? 'Confirm availability' : compactSurvey ? 'Save to Survey' : 'Save property'}
             loading={saving}
-            disabled={!ready || uploading}
+            disabled={!ready || uploading || readingLocation}
             onPress={save}
           />
         </View>

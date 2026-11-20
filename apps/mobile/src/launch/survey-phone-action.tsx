@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Phone } from 'lucide-react-native';
-import { normalizeIndianPhone, type InventoryInput } from '@brokeriq/shared';
+import { normalizeIndianPhone, normalizeInventoryDirections, type InventoryInput } from '@brokeriq/shared';
 import { captureAccountContext, errorMessage } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
 import { Button, Sheet, Txt } from '@/ui';
 import { queueSurveyPhone } from './drafts';
 import { SurveyContactFields } from './survey-contact-fields';
+import { SurveyLocationField } from './survey-location-field';
 
 export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; sector?: string }) {
   const client = useQueryClient();
@@ -15,11 +16,13 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
   const [open, setOpen] = useState(false);
   const [contacts, setContacts] = useState<NonNullable<InventoryInput['contacts']>>([]);
   const [error, setError] = useState('');
+  const [directions, setDirections] = useState('');
+  const [readingLocation, setReadingLocation] = useState(false);
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
 
   async function save() {
-    if (!allowed || saving.current) return;
+    if (!allowed || saving.current || readingLocation) return;
     const filled = contacts.filter((contact) => contact.name?.trim() || contact.phone?.trim());
     if (!filled.length || filled.some((contact) => !normalizeIndianPhone(contact.phone))) {
       setError('Enter a valid Indian phone number for each contact');
@@ -29,7 +32,8 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
     setBusy(true);
     setError('');
     try {
-      await queueSurveyPhone(filled, sector, captureAccountContext());
+      await queueSurveyPhone({ contacts: filled, sector, directionsUrl: normalizeInventoryDirections(directions) ?? undefined }, captureAccountContext());
+      setDirections('');
       setContacts([]);
       setOpen(false);
       toast.success('Survey phone saved on this device. It will sync automatically.');
@@ -55,7 +59,10 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
       <Sheet
         open={open}
         onClose={() => {
-          if (!saving.current) setOpen(false);
+          if (!saving.current) {
+            setReadingLocation(false);
+            setOpen(false);
+          }
         }}
         title="Add survey phone"
       >
@@ -68,8 +75,9 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
             setError('');
           }}
         />
+        {open && <SurveyLocationField value={directions} onChange={setDirections} disabled={busy} onReading={setReadingLocation} />}
         {!!error && <Txt color="danger">{error}</Txt>}
-        <Button title="Save to Survey" loading={busy} onPress={() => void save()} />
+        <Button title="Save to Survey" disabled={readingLocation} loading={busy} onPress={() => void save()} />
       </Sheet>
     </>
   );
