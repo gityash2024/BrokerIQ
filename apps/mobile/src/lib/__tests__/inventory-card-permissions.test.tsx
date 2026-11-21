@@ -32,8 +32,10 @@ jest.mock('@/lib/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() 
 jest.mock('@/launch/screen', () => ({ NativeCard: ({ children }: any) => children }));
 jest.mock('@/ui', () => ({ Txt: require('react-native').Text }));
 
-const item = {
+const item: LedgerItem = {
   id: 'owned-inventory',
+  organizationId: 'inventory-firm',
+  sourceType: 'MANUAL',
   sector: 'Sector 45',
   houseNo: '384',
   monthlyRent: 32000,
@@ -50,7 +52,7 @@ afterEach(() => {
   act(() => tree?.unmount());
   jest.clearAllMocks();
 });
-function render(role: string, delegatedPermissions: string[] = [], property = item as LedgerItem) {
+function render(role: string, delegatedPermissions: string[] = [], property = item) {
   (useAuth as jest.Mock).mockReturnValue({ user: { role, delegatedPermissions } });
   act(() => {
     tree = create(<PropertyCard item={property} />);
@@ -62,7 +64,7 @@ function render(role: string, delegatedPermissions: string[] = [], property = it
 }
 it('shows the Agent cover even when the private gallery is empty', () => {
   const agentCoverPhotoUrl = 'https://brokeriq.example/cover.jpg';
-  render('BROKER_AGENT', [], { ...(item as LedgerItem), agentCoverPhotoUrl, detailAccess: 'LOCKED', canEdit: false });
+  render('BROKER_AGENT', [], { ...item, agentCoverPhotoUrl, detailAccess: 'LOCKED', canEdit: false });
   expect(tree.root.findByType(Image).props.source).toEqual({ uri: agentCoverPhotoUrl });
 });
 it('shows the read-only availability action while keeping it disabled', () => {
