@@ -34,7 +34,7 @@ type ClientShareProperty = Partial<
 export function clientPropertyShare(item: ClientShareProperty, _contact?: string): string {
   const propertyType = item.propertyType && INVENTORY_PROPERTY_TYPES.includes(item.propertyType) ? readableValue(item.propertyType) : 'Property';
   const roomKind = item.roomKind && /^(BHK|RK|STUDIO)$/i.test(item.roomKind) ? item.roomKind.toUpperCase() : '';
-  const rooms = roomKind === 'STUDIO' ? 'Studio' : item.bhk ? `${item.bhk} ${roomKind || 'rooms'}` : '';
+  const rooms = roomKind === 'STUDIO' ? 'Studio' : item.bhk ? `${item.bhk} ${roomKind || 'rooms'}` : roomKind === 'RK' ? 'RK' : '';
   const sector = item.sector?.trim() ?? '';
   // Imported locality values occasionally contain a full property address.
   const numberedSector = sector.match(/^(?:sector|sec\.?)[\s-]*(\d{1,3}[a-z]?)(?=$|[\s,/-])/i);
@@ -120,12 +120,18 @@ export function inventoryAvailabilityDate(item: Pick<LedgerItem, 'availableSince
 export function inventoryCardTitle(item: LedgerItem) {
   let title = inventoryTitle(item);
   if (item.houseNo?.trim()) {
-    title = `House ${item.houseNo.trim()}`;
+    title = [`House ${item.houseNo.trim()}`, item.unitLabel?.trim()].filter(Boolean).join(' · ');
   } else if (isPendingSurvey(item) && !item.address) {
     if (item.photoUrls?.length) title = 'Survey photo to review';
     else if (item.contacts?.some((contact) => contact.phone)) title = 'Survey phone to call';
   }
   return [title, item.sector?.trim()].filter(Boolean).join(' · ');
+}
+
+export function inventoryConfigurationLabel({ roomKind, bhk }: Pick<LedgerItem, 'roomKind' | 'bhk'>) {
+  if (roomKind === 'RK') return 'RK';
+  if (roomKind === 'STUDIO') return 'Studio';
+  return bhk ? `${bhk} BHK` : (roomKind ?? null);
 }
 
 export function inventoryAvailabilityLabel(item: Pick<LedgerItem, 'availableSince' | 'details'>) {

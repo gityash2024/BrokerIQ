@@ -7,7 +7,8 @@ export const inventoryDateSchema = z.iso.date();
 export const inventoryFolderModeSchema = z.enum(['AVAILABLE', 'RENTED', 'REVIEW', 'SURVEY']);
 export type InventoryFolderMode = z.infer<typeof inventoryFolderModeSchema>;
 export type InventoryFolder = { key: string; label: string; count: number };
-export type InventoryFolders = { folders: InventoryFolder[]; years: string[] };
+export type InventoryPhotoCounts = { withPhotos: number; withoutPhotos: number };
+export type InventoryFolders = { folders: InventoryFolder[]; years: string[]; photoCounts?: InventoryPhotoCounts };
 
 export function inventoryDate(date = new Date()): string {
   return new Date(date.getTime() + 330 * 60_000).toISOString().slice(0, 10);

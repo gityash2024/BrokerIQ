@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { INVENTORY_PROPERTY_TYPES, propertyDetailsSchema, preparePropertyDetails } from './property-fields';
 import { normalizeIndianPhone } from './utils';
 import { directionsLinkSchema, normalizeInventoryDirections } from './map-directions';
-import { inventoryDateSchema, inventoryFolderModeSchema, inventoryMonthSchema } from './inventory-folders';
+import { inventoryDateSchema, inventoryFolderModeSchema, inventoryMonthSchema, type InventoryPhotoCounts } from './inventory-folders';
 
 const text = z.string().trim().max(200).nullable().optional();
 const money = z.number().finite().nonnegative().max(1e13).nullable().optional();
@@ -123,24 +123,33 @@ export const surveyPhoneInputSchema = z.union([
   }),
 ]);
 export type SurveyPhoneInput = z.infer<typeof surveyPhoneInputSchema>;
+const unitConfigurationSchema = z.enum(['1_RK', '1_BHK', '2_BHK', '3_BHK', '4_BHK', '5_BHK', '6_BHK', 'STUDIO']);
+export type UnitConfiguration = z.infer<typeof unitConfigurationSchema>;
+export const inventoryUnitLimit = 50;
 const surveyPhoneUnitSchema = z.strictObject({
-  configuration: z.enum(['1_RK', '1_BHK', '2_BHK', '3_BHK', '4_BHK', '5_BHK', '6_BHK', 'STUDIO']).optional(),
+  configuration: unitConfigurationSchema.optional(),
   furnishing: z.enum(['SEMI_FURNISHED', 'FULLY_FURNISHED']).optional(),
   floor: z.string().trim().max(80).optional(),
+  unitLabel: z.string().trim().max(200).optional(),
+  photoUrls: inventoryInputSchema.shape.photoUrls,
 });
 export const surveyUnitsInputSchema = surveyPhoneInputSchema.options[1].extend({
   houseNo: z.string().trim().min(1, 'Enter the house number').max(200),
   units: z
     .array(surveyPhoneUnitSchema)
     .min(1)
-    .max(20)
+    .max(inventoryUnitLimit)
     .superRefine((rows, ctx) => {
       if (rows.length < 2) return;
       const identities = new Set<string>();
       for (const [index, row] of rows.entries()) {
-        const identity = (row.configuration ?? '') + ':' + (row.floor ?? '').trim().toLowerCase();
+        const identity = JSON.stringify([row.configuration, row.floor?.toLowerCase() || '', row.unitLabel?.toLowerCase() || '']);
         if (!row.configuration || identities.has(identity)) {
-          ctx.addIssue({ code: 'custom', path: [index], message: 'Choose a configuration for each unit and record the floor for repeated configurations.' });
+          ctx.addIssue({
+            code: 'custom',
+            path: [index],
+            message: 'Choose a configuration for each unit. Enter a different floor or unit reference for repeated configurations.',
+          });
         }
         identities.add(identity);
       }
@@ -149,6 +158,100 @@ export const surveyUnitsInputSchema = surveyPhoneInputSchema.options[1].extend({
 export type SurveyUnitsInput = z.infer<typeof surveyUnitsInputSchema>;
 export const surveyConfigurationChoices = surveyPhoneUnitSchema.shape.configuration.unwrap().options;
 export const surveyFurnishingChoices = surveyPhoneUnitSchema.shape.furnishing.unwrap().options;
+export function inventoryUnitConfigurationFields(configuration?: UnitConfiguration) {
+  if (!configuration) return { roomKind: undefined, bhk: undefined };
+  if (configuration === 'STUDIO') return { roomKind: 'STUDIO' as const, bhk: undefined };
+  return { roomKind: configuration === '1_RK' ? ('RK' as const) : ('BHK' as const), bhk: Number(configuration[0]) };
+}
+export function inventoryUnitConfiguration(value: Pick<InventoryInput, 'roomKind' | 'bhk'>) {
+  if (value.roomKind === 'RK') return '1_RK';
+  if (value.roomKind === 'STUDIO') return 'STUDIO';
+  const parsed = unitConfigurationSchema.safeParse(`${value.bhk}_BHK`);
+  return value.roomKind === 'BHK' && parsed.success ? parsed.data : undefined;
+}
+
+export const additionalInventoryUnitSchema = inventoryFieldsSchema
+  .pick({
+    furnishing: true,
+    floor: true,
+    unitLabel: true,
+    monthlyRent: true,
+    totalSalePrice: true,
+    area: true,
+    areaUnit: true,
+    photoUrls: true,
+  })
+  .extend({ configuration: unitConfigurationSchema });
+export type AdditionalInventoryUnit = z.input<typeof additionalInventoryUnitSchema>;
+export const inventoryUnitBatchSchema = z
+  .strictObject({
+    property: inventoryInputSchema,
+    units: z
+      .array(additionalInventoryUnitSchema)
+      .min(1)
+      .max(inventoryUnitLimit - 1),
+    clientMutationId: z.uuid(),
+  })
+  .superRefine(({ property, units }, ctx) => {
+    if (!property.houseNo?.trim() && !property.address?.trim())
+      ctx.addIssue({ code: 'custom', path: ['property', 'houseNo'], message: 'Enter the house number or address for these units.' });
+    if (!property.roomKind || (property.roomKind === 'BHK' && !property.bhk))
+      ctx.addIssue({ code: 'custom', path: ['property', 'roomKind'], message: 'Choose a configuration for Unit 1.' });
+    const seen = new Set<string>();
+    for (const [index, unit] of inventoryUnitBatchRows(property, units).entries()) {
+      const identity = JSON.stringify([
+        unit.roomKind,
+        unit.roomKind === 'BHK' ? unit.bhk : null,
+        unit.floor?.toLowerCase() || '',
+        unit.unitLabel?.toLowerCase() || '',
+      ]);
+      if (seen.has(identity))
+        ctx.addIssue({ code: 'custom', path: ['units', index - 1], message: `Enter a different floor or unit reference for Unit ${index + 1}.` });
+      seen.add(identity);
+    }
+  });
+export type InventoryUnitBatch = z.infer<typeof inventoryUnitBatchSchema>;
+export function inventoryUnitBatchRows(property: InventoryInput, units: AdditionalInventoryUnit[]): InventoryInput[] {
+  const {
+    organizationId,
+    sector,
+    address,
+    houseNo,
+    ownerName,
+    ownerPhone,
+    contacts,
+    directionsUrl,
+    date,
+    purpose,
+    propertyType,
+    category,
+    survey,
+    assignedToId,
+    directoryMonth,
+  } = property;
+  return [
+    property,
+    ...units.map(({ configuration, ...unit }) => ({
+      organizationId,
+      sector,
+      address,
+      houseNo,
+      ownerName,
+      ownerPhone,
+      contacts,
+      directionsUrl,
+      date,
+      purpose,
+      propertyType,
+      category,
+      survey,
+      assignedToId,
+      directoryMonth,
+      ...inventoryUnitConfigurationFields(configuration),
+      ...unit,
+    })),
+  ];
+}
 export const surveyCallInputSchema = z.strictObject({
   expectedRevision: z.number().int().positive(),
   note: z.string().trim().max(500).optional(),
@@ -453,6 +556,7 @@ export interface PagedLedger {
   page: number;
   pageSize: number;
   totalPages: number;
+  photoCounts?: InventoryPhotoCounts;
 }
 const FACTORS = { SQ_FT: 1, SQ_YD: 9, SQ_M: 10.7639104167, ACRE: 43560, HECTARE: 107639.104167 };
 export function areaSqft(value: number, unit: string) {

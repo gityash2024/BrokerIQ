@@ -14,6 +14,7 @@ import {
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
+  inventoryConfigurationLabel,
   readableValue,
   type InventoryFolder,
   type InventoryFolderMode,
@@ -99,6 +100,7 @@ export function InventoryFoldersPage({
   const createUrl = `/broker/inventory/new${qs({ makeAvailable: '1', directoryMonth: folderMonth, folderRoom: mode === 'AVAILABLE' ? path[1]?.key : undefined, furnishing: mode === 'AVAILABLE' ? path[2]?.key : undefined })}`;
   const surveySector = survey && path[0]?.key !== '__unset__' ? path[0]?.key : undefined;
   const activeQuery = leaf ? records : folders;
+  const photoCounts = leaf ? records.data?.photoCounts : folders.data?.photoCounts;
   const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', ...filter, ...shelf })}`;
 
   function changePath(next: InventoryFolder[]) {
@@ -276,6 +278,12 @@ export function InventoryFoldersPage({
           </button>
         )}
       </nav>
+      {photoCounts && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+          <span>With photos: {photoCounts.withPhotos}</span>
+          <span>Without photos: {photoCounts.withoutPhotos}</span>
+        </div>
+      )}
       {activeQuery.isPending ? (
         <LoadingArtwork label="Loading inventory" />
       ) : activeQuery.isError ? (
@@ -313,7 +321,7 @@ export function InventoryFoldersPage({
                     {!survey && <p className="text-lg font-bold">{inventoryPrice(item)}</p>}
                     <h3 className="break-words font-semibold">{inventoryCardTitle(item)}</h3>
                     <p className="text-sm text-muted">
-                      {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
+                      {[inventoryConfigurationLabel(item), item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                 </Link>

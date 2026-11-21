@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inventoryFactGroups, inventoryPrice } from '../inventory-presentation';
+import { inventoryConfigurationLabel, inventoryFactGroups, inventoryPrice } from '../inventory-presentation';
 import { directoryProfile, type DirectoryRecord } from '../directory-profile';
 import type { LedgerItem } from '../inventory';
 
@@ -54,4 +54,9 @@ test('directory consumes allowlisted project facts and suppresses unsafe media l
   assert.equal(profile.photos.length, 0);
   assert.equal(directoryProfile({ ...record, sourceUrl: 'javascript:alert(1)', metadata: { enrichment: { version: 99 } } }).sourceUrl, null);
   assert.deepEqual(directoryProfile(record).photos, []);
+});
+test('the saved room kind distinguishes an RK from a 1 BHK with the same room count', () => {
+  assert.equal(inventoryConfigurationLabel({ roomKind: 'RK', bhk: 1 }), 'RK');
+  assert.equal(inventoryConfigurationLabel({ roomKind: 'BHK', bhk: 1 }), '1 BHK');
+  assert.equal(inventoryConfigurationLabel({ roomKind: 'STUDIO', bhk: 1 }), 'Studio');
 });

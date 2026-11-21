@@ -196,8 +196,8 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       directionsUrl,
       contacts: [{ phone: '9701188933', role: 'OWNER' }],
       units: [
-        { configuration: '1_RK', furnishing: 'SEMI_FURNISHED' },
-        { configuration: '2_BHK', furnishing: 'FULLY_FURNISHED' },
+        { configuration: '1_RK', furnishing: 'SEMI_FURNISHED', photoUrls: ['https://inventory.example/survey-rk.jpg'] },
+        { configuration: '2_BHK', furnishing: 'FULLY_FURNISHED', photoUrls: ['https://inventory.example/survey-2bhk.jpg'] },
       ],
       clientMutationId: randomUUID(),
     };
@@ -211,6 +211,7 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
     const [rk, bhk] = saved.body.items;
     expect(rk).toMatchObject({ houseNo: payload.houseNo, sector: 'Sector 27', directionsUrl, bhk: 1, roomKind: 'RK', status: 'DRAFT' });
     expect(bhk).toMatchObject({ bhk: 2, roomKind: 'BHK', furnishing: 'FULLY_FURNISHED', availability: 'UNKNOWN' });
+    expect([rk.photoUrls, bhk.photoUrls]).toEqual(payload.units.map((row) => row.photoUrls));
     expect((await api().post(url).set(headers(agent)).send(payload).expect(201)).body.items.map((item: { id: string }) => item.id)).toEqual([rk.id, bhk.id]);
     const noAnswer = '/api/inventory/' + rk.id + '/survey-call';
     const call = { expectedRevision: rk.revision, note: 'Try in the evening' };
@@ -480,5 +481,56 @@ describe('Inventory directories, reviewed capture and visit directions', () => {
       .send({ directoryMonth: current, availableSince: `${current}-01`, monthlyRent: 33000 })
       .expect(200)
       .expect(({ body }) => expect(body).toMatchObject({ availableSince: `${current}-01`, monthlyRent: 33000 }));
+  });
+
+  it('creates and shares separate same-address units, with role-scoped photo counts across pages', async () => {
+    const houseNo = 'separate-units-' + stamp;
+    const directoryMonth = inventoryMonth();
+    const rkPhoto = 'https://inventory.example/rk.jpg';
+    const bhkPhoto = 'https://inventory.example/3bhk.jpg';
+    const payload = {
+      clientMutationId: randomUUID(),
+      property: { ...unit, propertyType: 'BUILDER_FLOOR', floor: '1st Floor', houseNo, directoryMonth, bhk: 1, roomKind: 'RK', photoUrls: [rkPhoto] },
+      units: [
+        { configuration: '3_BHK', floor: '2nd Floor', monthlyRent: 55000, furnishing: 'SEMI_FURNISHED', area: 1400, areaUnit: 'SQ_FT', photoUrls: [bhkPhoto] },
+        { configuration: '2_BHK', floor: '3rd Floor', monthlyRent: 43000, furnishing: 'FULLY_FURNISHED', area: 1200, areaUnit: 'SQ_FT' },
+      ],
+    };
+    const create = (body: unknown = payload) =>
+      api()
+        .post('/api/inventory/units')
+        .set(headers(delegate))
+        .send(body as object);
+    await create({ ...payload, units: [payload.units[0], { ...payload.units[1], area: null }] }).expect(400);
+    expect(await db.inventoryItem.count({ where: { organizationId: firmId, houseNo } })).toBe(0);
+    const [rk, bhk, noPhoto] = (await create().expect(201)).body.items;
+    expect([rk.photoUrls, bhk.photoUrls, noPhoto.photoUrls]).toEqual([[rkPhoto], [bhkPhoto], []]);
+    expect((await create().expect(201)).body.items.map((row: { id: string }) => row.id)).toEqual([rk.id, bhk.id, noPhoto.id]);
+    for (const [record, photo, configuration] of [
+      [rk, rkPhoto, '1 RK'],
+      [bhk, bhkPhoto, '3 BHK'],
+    ]) {
+      const share = await api().post(`/api/inventory/${record.id}/photo-gallery`).set(headers()).expect(201);
+      const token = share.body.url.split('/').pop();
+      const gallery = await api()
+        .get('/api/public/photo-galleries/' + token)
+        .expect(200);
+      expect(gallery.body.photos).toEqual([photo]);
+      expect(gallery.body.caption).toContain('Config: ' + configuration);
+    }
+    const filters = { folderMode: 'AVAILABLE', currentInventory: 'true', search: houseNo };
+    for (const path of ['/api/inventory', '/api/inventory/folders']) {
+      expect(
+        (
+          await api()
+            .get(path)
+            .query({ ...filters, pageSize: 1 })
+            .set(headers())
+            .expect(200)
+        ).body.photoCounts,
+      ).toEqual({ withPhotos: 2, withoutPhotos: 1 });
+      expect((await api().get(path).query(filters).set(headers(agent)).expect(200)).body.photoCounts).toBeUndefined();
+      expect((await api().get(path).query(filters).set(headers(outsider)).expect(200)).body.photoCounts).toEqual({ withPhotos: 0, withoutPhotos: 0 });
+    }
   });
 });

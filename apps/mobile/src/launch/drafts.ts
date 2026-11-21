@@ -6,6 +6,7 @@ import {
   surveyPhotoInputSchema,
   surveyPhoneInputSchema,
   surveyUnitsInputSchema,
+  inventoryUnitBatchSchema,
   type SurveyUnitsInput,
   captureContentType,
   followUpInputSchema,
@@ -509,8 +510,14 @@ export async function syncDrafts() {
             method = editing ? 'PATCH' : 'POST';
             body = body._ownerSubmission;
           } else if (row.kind === 'PROPERTY_CREATE') {
-            path = '/inventory';
-            body = { ...prepareInventoryEditorInput(body), clientMutationId: row.id };
+            const { _additionalUnits, ...property } = body;
+            if (Array.isArray(_additionalUnits) && _additionalUnits.length) {
+              path = '/inventory/units';
+              body = inventoryUnitBatchSchema.parse({ property: prepareInventoryEditorInput(property), units: _additionalUnits, clientMutationId: row.id });
+            } else {
+              path = '/inventory';
+              body = { ...prepareInventoryEditorInput(property), clientMutationId: row.id };
+            }
           } else if (row.kind === 'PROPERTY_EDIT') {
             path = `/inventory/${body.id}`;
             method = 'PATCH';
@@ -539,7 +546,7 @@ export async function syncDrafts() {
           const result = uploaded ?? (await api<any>(path, { method, body, ownerContext: owner }));
           await database.runAsync(
             "UPDATE local_mutations SET state='SYNCED',server_id=?,error=NULL,updated_at=? WHERE id=? AND owner_id=? AND owner_scope=?",
-            result.id ?? body.id ?? null,
+            result.id ?? result.items?.[0]?.id ?? body.id ?? null,
             Date.now(),
             row.id,
             session.user.id,

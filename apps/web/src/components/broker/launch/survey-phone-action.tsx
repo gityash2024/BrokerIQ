@@ -11,12 +11,14 @@ import {
   surveyConfigurationChoices,
   surveyFurnishingChoices,
   readableValue,
+  inventoryUnitLimit,
   type SurveyUnitsInput,
 } from '@brokeriq/shared';
 import { api, captureAccountContext, errorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SurveyLocationField } from './survey-location-field';
+import { PropertyMedia } from './property-media';
 
 const blankContact = () => ({ name: '', phone: '', role: 'OWNER' as const });
 
@@ -32,13 +34,14 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
   const [contacts, setContacts] = useState(() => [blankContact()]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState<number | null>(null);
   const [directions, setDirections] = useState('');
   const [readingLocation, setReadingLocation] = useState(false);
   const mutationId = useRef<string | null>(null);
   const saving = useRef(false);
 
   async function save() {
-    if (!allowed || saving.current || readingLocation) return;
+    if (!allowed || saving.current || readingLocation || uploading !== null) return;
     const filled = contacts.filter(({ name, phone }) => name.trim() || phone.trim());
     if (!filled.length || filled.some(({ phone }) => !normalizeIndianPhone(phone))) {
       setError('Enter a valid Indian phone number for each contact');
@@ -86,7 +89,7 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (!saving.current) {
+          if (!saving.current && uploading === null) {
             if (!value) setReadingLocation(false);
             setOpen(value);
           }
@@ -153,7 +156,7 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
                 {units.length > 1 && (
                   <>
                     <label className="text-sm">
-                      Floor / unit reference
+                      Floor
                       <input
                         className="block min-h-10 w-full rounded-lg border border-line bg-surface px-2"
                         maxLength={80}
@@ -162,11 +165,21 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
                         onChange={(event) => updateUnit(index, { floor: event.target.value })}
                       />
                     </label>
+                    <label className="text-sm">
+                      Unit reference
+                      <input
+                        className="block min-h-10 w-full rounded-lg border border-line bg-surface px-2"
+                        maxLength={200}
+                        value={unit.unitLabel ?? ''}
+                        disabled={busy}
+                        onChange={(event) => updateUnit(index, { unitLabel: event.target.value })}
+                      />
+                    </label>
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
-                      disabled={busy}
+                      disabled={busy || uploading !== null}
                       onClick={() => {
                         mutationId.current = null;
                         setUnits(units.filter((_, i) => i !== index));
@@ -177,13 +190,24 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
                   </>
                 )}
               </div>
+              <PropertyMedia
+                photoLabel={`Unit ${index + 1} photos`}
+                urls={unit.photoUrls ?? []}
+                disabled={busy || (uploading !== null && uploading !== index)}
+                onUploading={(active) => setUploading(active ? index : null)}
+                onAdd={(url) => {
+                  mutationId.current = null;
+                  setUnits((rows) => rows.map((row, i) => (i === index ? { ...row, photoUrls: [...(row.photoUrls ?? []), url] } : row)));
+                }}
+                onRemove={(photo) => updateUnit(index, { photoUrls: unit.photoUrls?.filter((_, i) => i !== photo) })}
+              />
             </fieldset>
           ))}
           <Button
             type="button"
             size="sm"
             variant="secondary"
-            disabled={busy || units.length >= 20}
+            disabled={busy || uploading !== null || units.length >= inventoryUnitLimit}
             onClick={() => {
               mutationId.current = null;
               setUnits([...units, {}]);
@@ -252,7 +276,7 @@ export function SurveyPhoneAction({ allowed, sector }: { allowed: boolean; secto
               {error}
             </p>
           )}
-          <Button type="submit" disabled={readingLocation} loading={busy}>
+          <Button type="submit" disabled={readingLocation || uploading !== null} loading={busy}>
             Save to Survey
           </Button>
         </form>

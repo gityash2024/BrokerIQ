@@ -11,6 +11,14 @@ import {
   missingInventoryFolderFields,
   isPendingSurvey,
   surveySectors,
+  inventoryUnitBatchSchema,
+  inventoryUnitConfiguration,
+  inventoryUnitConfigurationFields,
+  inventoryUnitLimit,
+  surveyConfigurationChoices,
+  readableValue,
+  type AdditionalInventoryUnit,
+  type UnitConfiguration,
   type InventoryInput,
   type LedgerItem,
 } from '@brokeriq/shared';
@@ -22,6 +30,7 @@ import { InventoryHierarchyPicker } from './inventory-hierarchy-picker';
 import { PropertyExtras, readPropertyExtras } from './property-extras';
 import { PropertyMedia } from './property-media';
 import { SurveyLocationField } from './survey-location-field';
+import { InventoryUnitFields } from './inventory-unit-fields';
 
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
 const inputs = [
@@ -62,9 +71,10 @@ export function PropertyForm({
   survey = false,
   captureSurveyLocation = false,
   ownerMode = false,
+  allowUnits = false,
 }: {
   initial?: InventoryInput | LedgerItem;
-  onSave: (input: InventoryInput) => Promise<void>;
+  onSave: (input: InventoryInput, additionalUnits?: AdditionalInventoryUnit[]) => Promise<void>;
   label?: string;
   onDirty?: () => void;
   activateInMonth?: string;
@@ -73,6 +83,7 @@ export function PropertyForm({
   survey?: boolean;
   captureSurveyLocation?: boolean;
   ownerMode?: boolean;
+  allowUnits?: boolean;
 }) {
   const { user } = useAuth();
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
@@ -104,7 +115,10 @@ export function PropertyForm({
   const [videos, setVideos] = useState(initial.videoUrls ?? []);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
-  const uploading = photoUploading || videoUploading;
+  const [unitUploading, setUnitUploading] = useState<number | null>(null);
+  const [units, setUnits] = useState<Partial<AdditionalInventoryUnit>[]>([]);
+  const [configuration, setConfiguration] = useState<UnitConfiguration | 'CUSTOM' | ''>(inventoryUnitConfiguration(initial) ?? '');
+  const uploading = photoUploading || videoUploading || unitUploading !== null;
   const [busy, setBusy] = useState(false);
   const [directions, setDirections] = useState(initial.directionsUrl ?? '');
   const [readingLocation, setReadingLocation] = useState(false);
@@ -122,6 +136,7 @@ export function PropertyForm({
       if (key !== 'status' && key !== 'availability') values[key] = values[key] === '' ? null : numeric.includes(key) ? Number(values[key]) : values[key];
     for (const key of Object.keys(values)) if (key.startsWith('details.')) delete values[key];
     Object.assign(values, readPropertyExtras(form), { photoUrls: photos, videoUrls: videos });
+    if (allowUnits && !survey && configuration && configuration !== 'CUSTOM') Object.assign(values, inventoryUnitConfigurationFields(configuration));
     if (survey) {
       values.details = { ...initial.details, ...values.details };
       if (!('revision' in initial))
@@ -164,11 +179,18 @@ export function PropertyForm({
           return;
       }
       const payload = 'revision' in initial ? inventoryEditorPatch(values, initial) : values;
-      await onSave({
+      const property = {
         ...payload,
         ...(activate ? { directoryMonth: values.directoryMonth } : {}),
         ...(markRented ? { status: 'RENTED', availability: 'RENTED' } : {}),
-      } as InventoryInput);
+      } as InventoryInput;
+      if (units.length) {
+        const batch = inventoryUnitBatchSchema.safeParse({ property, units, clientMutationId: mutationId.current });
+        if (!batch.success) throw new Error(batch.error.issues[0].message);
+        await onSave(batch.data.property, batch.data.units);
+      } else {
+        await onSave(property);
+      }
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -342,12 +364,34 @@ export function PropertyForm({
             {field('houseNo')}
             {field('address')}
           </div>
-          <p className="section-kicker">Property details</p>
+          <p className="section-kicker">{units.length ? 'Property details · Unit 1' : 'Property details'}</p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {select('purpose')}
             {select('propertyType')}
-            {select('roomKind')}
-            {field('bhk')}
+            {allowUnits && (
+              <label className="text-xs font-semibold text-muted">
+                Property configuration
+                <select
+                  className="mt-1 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-fg"
+                  value={configuration}
+                  onChange={(event) => setConfiguration(event.target.value as typeof configuration)}
+                >
+                  <option value="">Unknown / not recorded</option>
+                  {surveyConfigurationChoices.map((choice) => (
+                    <option key={choice} value={choice}>
+                      {readableValue(choice)}
+                    </option>
+                  ))}
+                  <option value="CUSTOM">Other configuration</option>
+                </select>
+              </label>
+            )}
+            {(!allowUnits || configuration === 'CUSTOM') && (
+              <>
+                {select('roomKind')}
+                {field('bhk')}
+              </>
+            )}
             {select('furnishing')}
             {field('floor')}
             {purpose !== 'SALE' && field('monthlyRent')}
@@ -372,6 +416,7 @@ export function PropertyForm({
       )}
       <div className="space-y-5 rounded-xl border border-line p-4">
         <PropertyMedia
+          photoLabel={units.length ? 'Unit 1 photos' : undefined}
           camera={survey}
           urls={photos}
           onUploading={setPhotoUploading}
@@ -383,7 +428,7 @@ export function PropertyForm({
             setPhotos((current) => current.filter((_, i) => i !== index));
             onDirty?.();
           }}
-          disabled={busy || (survey && !location.sector?.trim())}
+          disabled={busy || unitUploading !== null || (survey && !location.sector?.trim())}
         />
         {!survey && (
           <PropertyMedia
@@ -398,10 +443,44 @@ export function PropertyForm({
               setVideos((current) => current.filter((_, i) => i !== index));
               onDirty?.();
             }}
-            disabled={busy}
+            disabled={busy || unitUploading !== null}
           />
         )}
       </div>
+      {allowUnits && !survey && (
+        <div className="space-y-3">
+          {units.map((unit, index) => (
+            <InventoryUnitFields
+              key={index}
+              unit={unit}
+              number={index + 2}
+              purpose={purpose}
+              locked={busy || (uploading && unitUploading !== index)}
+              uploading={uploading}
+              onChange={(update) => {
+                setUnits((rows) => rows.map((row, i) => (i === index ? update(row) : row)));
+                onDirty?.();
+              }}
+              onUploading={(active) => setUnitUploading(active ? index : null)}
+              onRemove={() => {
+                setUnits((rows) => rows.filter((_, i) => i !== index));
+                onDirty?.();
+              }}
+            />
+          ))}
+          <button
+            type="button"
+            className="action-secondary rounded-xl px-4 py-2 text-sm font-semibold"
+            disabled={busy || uploading || units.length >= inventoryUnitLimit - 1}
+            onClick={() => {
+              setUnits((rows) => [...rows, {}]);
+              onDirty?.();
+            }}
+          >
+            + Add unit
+          </button>
+        </div>
+      )}
       {!survey && (
         <PropertyExtras initial={initial} category={initial.category} separatePossession>
           {activateInMonth && (

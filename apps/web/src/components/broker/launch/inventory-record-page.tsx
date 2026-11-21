@@ -187,17 +187,26 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                   activateInMonth={makeAvailable ? (item?.availability === 'AVAILABLE' ? (item.directoryMonth ?? folderMonth) : folderMonth) : undefined}
                   markRented={makeRented}
                   survey={compactSurvey}
+                  allowUnits={mode === 'new' && !createSurvey}
                   captureSurveyLocation={compactSurvey}
                   requireAvailability={mode === 'edit' && makeAvailable}
                   label={
                     makeRented ? 'Save as rented out' : compactSurvey ? 'Save to Survey' : mode === 'edit' && makeAvailable ? 'Confirm availability' : undefined
                   }
                   onDirty={() => setDirty(true)}
-                  onSave={async (input) => {
-                    const created = await api<LedgerItem>(item ? `/inventory/${item.id}` : '/inventory', {
-                      method: item ? 'PATCH' : 'POST',
-                      body: !item && superAdmin ? { ...input, organizationId } : input,
-                    });
+                  onSave={async (input, units) => {
+                    const property = !item && superAdmin ? { ...input, organizationId } : input;
+                    const created = units?.length
+                      ? (
+                          await api<{ items: LedgerItem[] }>('/inventory/units', {
+                            method: 'POST',
+                            body: { property, units, clientMutationId: input.clientMutationId },
+                          })
+                        ).items[0]
+                      : await api<LedgerItem>(item ? `/inventory/${item.id}` : '/inventory', {
+                          method: item ? 'PATCH' : 'POST',
+                          body: property,
+                        });
                     setDirty(false);
                     await refresh();
                     router.replace(

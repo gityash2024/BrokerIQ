@@ -14,6 +14,7 @@ import {
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
+  inventoryConfigurationLabel,
   readableValue,
   type InventoryFolder,
   type InventoryFolderMode,
@@ -90,6 +91,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
     refetchInterval: (state) => inventoryAccessRefreshInterval(state.state.data?.pages.flatMap((page) => page.items) ?? []),
   });
   const active = leaf ? records : folders;
+  const photoCounts = leaf ? records.data?.pages[0]?.photoCounts : folders.data?.photoCounts;
   const canEdit = hasDelegatedAccess(user, 'inventory', 'edit');
   const rows: (InventoryFolder | LedgerItem)[] = leaf
     ? (records.data?.pages.flatMap((page) => page.items) ?? [])
@@ -214,6 +216,12 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
                 <Chip key={folder.key} label={folder.label} onPress={() => setPath(path.slice(0, index + 1))} />
               ))}
             </Row>
+            {photoCounts && (
+              <Row gap={12} wrap>
+                <Txt v="caption">With photos: {photoCounts.withPhotos}</Txt>
+                <Txt v="caption">Without photos: {photoCounts.withoutPhotos}</Txt>
+              </Row>
+            )}
           </View>
         }
         ListEmptyComponent={
@@ -245,7 +253,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
               </Txt>
               <Row gap={8} wrap>
                 <Txt color="muted" style={{ flex: 1 }}>
-                  {[item.bhk ? item.bhk + ' BHK' : item.roomKind, item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
+                  {[inventoryConfigurationLabel(item), item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                 </Txt>
                 {!survey && (
                   <Switch

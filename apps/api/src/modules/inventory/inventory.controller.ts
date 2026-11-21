@@ -4,6 +4,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
   inventoryInputSchema,
+  inventoryUnitBatchSchema,
   inventoryFilterSchema,
   availabilitySchema,
   inventoryPublishSchema,
@@ -12,6 +13,7 @@ import {
   surveyUnitsInputSchema,
   surveyCallInputSchema,
   type SurveyUnitsInput,
+  type InventoryUnitBatch,
   type SurveyCallInput,
   type SurveyPhoneInput,
   type InventoryPublishInput,
@@ -128,6 +130,10 @@ export class InventoryController {
   }
   @Post() create(@Body(new ZodPipe(inventoryInputSchema)) dto: CreateInventoryItemDto, @CurrentUser() user: RequestUser) {
     return this.inventory.create(dto, user);
+  }
+  @Post('units')
+  createUnits(@Body(new ZodPipe(inventoryUnitBatchSchema)) dto: InventoryUnitBatch, @CurrentUser() user: RequestUser) {
+    return this.inventory.createUnits(dto, user);
   }
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   @Post('survey-photo')

@@ -19,6 +19,12 @@ import {
   ownerCreatePropertySchema,
   ownerEditPropertySchema,
   ownerPropertyValues,
+  inventoryUnitBatchSchema,
+  inventoryUnitConfiguration,
+  inventoryUnitConfigurationFields,
+  inventoryUnitLimit,
+  surveyConfigurationChoices,
+  type UnitConfiguration,
 } from '@brokeriq/shared';
 import { captureAccountContext, api, errorMessage } from '@/lib/api';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -33,6 +39,7 @@ import { PropertyDateField } from '@/launch/property-date-field';
 import { ChoiceField } from '@/launch/form';
 import { SurveyContactFields } from '@/launch/survey-contact-fields';
 import { SurveyLocationField } from '@/launch/survey-location-field';
+import { InventoryUnitFields, type InventoryUnitDraft } from '@/launch/inventory-unit-fields';
 import { editableDraft, getLocalDraft, decodeDraft, saveDraft, queueDraft, syncDrafts } from '@/launch/drafts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 const numeric = ['bhk', 'area', 'monthlyRent', 'totalSalePrice', 'ratePerArea', 'securityDeposit'];
@@ -90,6 +97,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
   const [startSeparate, setStartSeparate] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [unitUploading, setUnitUploading] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [readingLocation, setReadingLocation] = useState(false);
   const [draftStatus, setDraftStatus] = useState('');
@@ -100,6 +108,12 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
   const kind = ownerMode ? (id ? 'OWNER_PROPERTY_EDIT' : 'OWNER_PROPERTY_CREATE') : id ? 'PROPERTY_EDIT' : 'PROPERTY_CREATE';
   const key = id ?? (createSurvey ? 'new-survey:' + (surveySector?.trim() ?? '') : 'new-property');
   const compactSurvey = !ownerMode && (createSurvey || Boolean(id && !availabilityReview && form.sourceType === 'SURVEY' && form.status === 'DRAFT'));
+  const allowUnits = !ownerMode && !id && !compactSurvey;
+  const units: InventoryUnitDraft[] = allowUnits ? (form._additionalUnits ?? []) : [];
+  const configuration = inventoryUnitConfiguration(form);
+  const customConfiguration = form._customConfiguration ?? (!configuration && !!form.roomKind);
+  const formRef = useRef(form);
+  formRef.current = form;
   const localities = useQuery({
     queryKey: ['localities-all'],
     queryFn: () => api<{ name: string }[]>('/public/localities', { auth: false }),
@@ -196,12 +210,16 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
     void writes.current.catch(() => undefined);
   }
   function change(name: string, value: any) {
-    const next = { ...form, ...(name === 'purpose' && value === 'SALE' ? { rent: null, monthlyRent: null } : {}), [name]: value };
+    applyChanges({ ...(name === 'purpose' && value === 'SALE' ? { rent: null, monthlyRent: null } : {}), [name]: value });
+  }
+  function applyChanges(patch: Record<string, unknown>) {
+    const next = { ...formRef.current, ...patch };
+    formRef.current = next;
     setForm(next);
     if (ready) persist(next);
   }
   async function save() {
-    if (!ready || saving || uploading || readingLocation) return;
+    if (!ready || saving || uploading || unitUploading !== null || readingLocation) return;
     setSaving(true);
     setError('');
     Keyboard.dismiss();
@@ -258,8 +276,22 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
         throw new Error(`${issue.path.join('.') || 'Property'}: ${issue.message}`);
       }
       if (!id && !checked.data.sector && !checked.data.address) throw new Error('Sector/locality or address required');
+      const batch = units.length
+        ? inventoryUnitBatchSchema.safeParse({
+            property: checked.data,
+            units: units.map(({ configuration, ...fields }) => ({ ...prepareInventoryEditorInput(fields), configuration })),
+            clientMutationId: draftId.current,
+          })
+        : null;
+      if (batch && !batch.success) throw new Error(batch.error.issues[0].message);
       await writes.current.catch(() => undefined);
-      await saveDraft(kind, key, { ...checked.data, ...(id ? { id } : {}) }, draftId.current, owner.current);
+      await saveDraft(
+        kind,
+        key,
+        { ...checked.data, ...(id ? { id } : {}), ...(batch ? { _additionalUnits: batch.data.units } : {}) },
+        draftId.current,
+        owner.current,
+      );
       await queueDraft(draftId.current, owner.current);
       await syncDrafts();
       const saved = await getLocalDraft(draftId.current, owner.current);
@@ -481,18 +513,36 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                 {field('address', 'Address')}
               </NativeCard>
               <NativeCard style={{ gap: 10 }}>
-                <Txt v="h3">Property details</Txt>
+                <Txt v="h3">{units.length ? 'Property details · Unit 1' : 'Property details'}</Txt>
                 <ChoiceField label="Property type" value={form.propertyType} choices={PROPERTY_TYPES} onChange={(v) => change('propertyType', v)} />
-                <Row align="flex-start">
+                {allowUnits && (
                   <ChoiceField
-                    paired
                     label="Property configuration"
-                    value={form.roomKind}
-                    choices={['BHK', 'RK', 'STUDIO']}
-                    onChange={(v) => change('roomKind', v)}
+                    value={customConfiguration ? 'CUSTOM' : configuration}
+                    choices={[...surveyConfigurationChoices, 'CUSTOM']}
+                    labels={{ CUSTOM: 'Other configuration' }}
+                    onChange={(value) => {
+                      if (value === 'CUSTOM') applyChanges({ _customConfiguration: true });
+                      else
+                        applyChanges({
+                          _customConfiguration: false,
+                          ...inventoryUnitConfigurationFields((value ?? undefined) as UnitConfiguration | undefined),
+                        });
+                    }}
                   />
-                  {field('bhk', 'BHK / rooms', false, true)}
-                </Row>
+                )}
+                {(!allowUnits || customConfiguration) && (
+                  <Row align="flex-start">
+                    <ChoiceField
+                      paired
+                      label={allowUnits ? 'Room kind' : 'Property configuration'}
+                      value={form.roomKind}
+                      choices={['BHK', 'RK', 'STUDIO']}
+                      onChange={(v) => change('roomKind', v)}
+                    />
+                    {field('bhk', 'BHK / rooms', false, true)}
+                  </Row>
+                )}
                 <Row align="flex-start">
                   <ChoiceField
                     paired
@@ -563,9 +613,10 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
               <NativePropertyExtras
                 quickEntry={{ open: additionalOpen, onToggle: setAdditionalOpen }}
                 value={form}
-                disabled={!ready || saving}
+                disabled={!ready || saving || unitUploading !== null}
                 onUploading={setUploading}
                 onChange={(next) => {
+                  formRef.current = next;
                   setForm(next);
                   persist(next);
                 }}
@@ -659,6 +710,40 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                 {field('tenantPreference', 'Tenant notes')}
                 {!ownerMode && field('notes', 'Notes', true)}
               </NativePropertyExtras>
+              {allowUnits && (
+                <>
+                  {units.map((unit, index) => (
+                    <InventoryUnitFields
+                      key={index}
+                      unit={unit}
+                      number={index + 2}
+                      purpose={form.purpose}
+                      locked={!ready || saving || uploading || (unitUploading !== null && unitUploading !== index)}
+                      uploading={unitUploading !== null || uploading}
+                      onChange={(update) => {
+                        const rows: InventoryUnitDraft[] = formRef.current._additionalUnits ?? [];
+                        change(
+                          '_additionalUnits',
+                          rows.map((row, i) => (i === index ? update(row) : row)),
+                        );
+                      }}
+                      onUploading={(active) => setUnitUploading(active ? index : null)}
+                      onRemove={() =>
+                        change(
+                          '_additionalUnits',
+                          units.filter((_, i) => i !== index),
+                        )
+                      }
+                    />
+                  ))}
+                  <Button
+                    title="+ Add unit"
+                    variant="secondary"
+                    disabled={!ready || saving || uploading || unitUploading !== null || units.length >= inventoryUnitLimit - 1}
+                    onPress={() => change('_additionalUnits', [...units, {}])}
+                  />
+                </>
+              )}
             </>
           )}
           <LegacyDraftRecovery
@@ -690,7 +775,7 @@ export function InventoryEditorForm({ ownerMode = false }: { ownerMode?: boolean
                       : 'Save property'
             }
             loading={saving}
-            disabled={!ready || uploading || readingLocation}
+            disabled={!ready || uploading || unitUploading !== null || readingLocation}
             onPress={save}
           />
         </View>

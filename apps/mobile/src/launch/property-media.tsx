@@ -23,6 +23,7 @@ export function NativePropertyMedia({
   disabled = false,
   onlyPhotos = false,
   camera = false,
+  photoLabel = 'Property photos',
 }: {
   photos: readonly string[];
   videos?: readonly string[];
@@ -32,6 +33,7 @@ export function NativePropertyMedia({
   disabled?: boolean;
   onlyPhotos?: boolean;
   camera?: boolean;
+  photoLabel?: string;
 }) {
   const running = useRef(false);
   const [pending, setPending] = useState(false);
@@ -80,7 +82,7 @@ export function NativePropertyMedia({
 
   return (
     <View style={{ gap: 10 }}>
-      <Txt v="h3">Property photos</Txt>
+      <Txt v="h3">{photoLabel}</Txt>
       {camera && !!onAdd && photos.length < 50 && (
         <Button title="Take property photo" variant="secondary" disabled={disabled || pending} onPress={() => void add(false, true)} />
       )}

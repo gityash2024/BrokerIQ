@@ -4,6 +4,9 @@ import { generateCsv } from '../../common/csv';
 import { Prisma, PropertyType } from '@prisma/client';
 import {
   inventoryInputSchema,
+  inventoryUnitBatchRows,
+  inventoryUnitConfigurationFields,
+  type InventoryUnitBatch,
   ownerEditablePropertySchema,
   type OwnerCreatePropertyInput,
   type InventoryInput,
@@ -291,7 +294,10 @@ export class InventoryService {
       user,
       today,
     );
-    const months = await this.prisma.inventoryItem.groupBy({ by: ['directoryMonth'], where: root, _count: { _all: true } });
+    const [months, photoCounts] = await Promise.all([
+      this.prisma.inventoryItem.groupBy({ by: ['directoryMonth'], where: root, _count: { _all: true } }),
+      this.countAvailablePhotos(q, user, query),
+    ]);
     const years = [...new Set([current.slice(0, 4), ...months.flatMap((row) => row.directoryMonth?.slice(0, 4) ?? [])])].sort().reverse();
     const folders: InventoryFolder[] = [];
     if ((q.folderMode === 'RENTED' || q.folderMode === 'SURVEY') && !q.folderSector) {
@@ -350,7 +356,18 @@ export class InventoryService {
         })),
       );
     }
-    return { folders, years };
+    return { folders, years, ...(photoCounts && { photoCounts }) };
+  }
+  private async countAvailablePhotos(q: InventoryFilterQuery, user: RequestUser, where: Prisma.InventoryItemWhereInput) {
+    if (q.folderMode !== 'AVAILABLE' || user.role === 'BROKER_AGENT') return;
+    const [withPhotos, withoutPhotos] = await this.prisma.$transaction(
+      [
+        this.prisma.inventoryItem.count({ where: { AND: [where, { photoUrls: { isEmpty: false } }] } }),
+        this.prisma.inventoryItem.count({ where: { AND: [where, { photoUrls: { isEmpty: true } }] } }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    return { withPhotos, withoutPhotos };
   }
   private orderBy(q: InventoryFilterQuery): Prisma.InventoryItemOrderByWithRelationInput[] {
     if (q.sort && !INVENTORY_SORTS.some((s) => s.value === q.sort)) throw new BadRequestException('Invalid sort');
@@ -368,7 +385,7 @@ export class InventoryService {
   }
   async findAll(q: InventoryFilterQuery, user: RequestUser) {
     const where = this.filterWhere(q, user);
-    const [items, total] = await Promise.all([
+    const [items, total, photoCounts] = await Promise.all([
       this.prisma.inventoryItem.findMany({
         where,
         include,
@@ -377,6 +394,7 @@ export class InventoryService {
         skip: (q.page - 1) * q.pageSize,
       }),
       this.prisma.inventoryItem.count({ where }),
+      this.countAvailablePhotos(q, user, where),
     ]);
 
     // Fast lead matching calculation for items
@@ -429,7 +447,14 @@ export class InventoryService {
       return item;
     });
 
-    return { items: await this.access.present(itemsWithMatches, user), total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
+    return {
+      items: await this.access.present(itemsWithMatches, user),
+      total,
+      page: q.page,
+      pageSize: q.pageSize,
+      totalPages: Math.ceil(total / q.pageSize),
+      ...(photoCounts && { photoCounts }),
+    };
   }
   /** All filtered rows in one consistent snapshot; never silently export only the UI page. */
   async exportCsv(q: InventoryFilterQuery, user: RequestUser, ids?: string[]) {
@@ -729,42 +754,51 @@ export class InventoryService {
     );
   }
   async createSurveyUnits({ clientMutationId, sector, directionsUrl, houseNo, contacts, units }: SurveyUnitsInput, user: RequestUser) {
-    const organizationId = this.orgId(user)!;
-    const mutationPrefix = clientMutationId + '-unit-';
+    const rows = units.map((unit): InventoryInput => ({
+      sector,
+      directionsUrl,
+      houseNo,
+      contacts,
+      survey: true,
+      purpose: 'RENT',
+      furnishing: unit.furnishing,
+      floor: unit.floor || undefined,
+      unitLabel: unit.unitLabel || undefined,
+      photoUrls: unit.photoUrls,
+      ...inventoryUnitConfigurationFields(unit.configuration),
+      ...(unit.configuration ? { category: 'RESIDENTIAL' } : {}),
+    }));
+    return this.createUnitRecords(rows, clientMutationId, user, true);
+  }
+  createUnits(input: InventoryUnitBatch, user: RequestUser) {
+    return this.createUnitRecords(inventoryUnitBatchRows(input.property, input.units), input.clientMutationId, user, false);
+  }
+  private async createUnitRecords(rows: InventoryInput[], clientMutationId: string, user: RequestUser, quickSurvey: boolean) {
+    const organizationId = this.orgId(user, rows[0].organizationId)!;
+    const mutationPrefix = clientMutationId + (quickSurvey ? '-unit-' : '-property-unit-');
+    const lock = `${quickSurvey ? 'survey-batch' : 'property-batch'}:${organizationId}:${clientMutationId}`;
     const { items, created } = await this.prisma.$transaction(
       async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'survey-batch:' + organizationId + ':' + clientMutationId}))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lock}))`;
         const previousCount = await tx.inventoryItem.count({ where: { organizationId, clientMutationId: { startsWith: mutationPrefix } } });
-        if (previousCount && previousCount !== units.length) throw new ConflictException('This group of survey units was already saved. Start a new capture.');
-        const rows = [];
-        for (const [index, unit] of units.entries()) {
-          const [count, kind] = unit.configuration?.split('_') ?? [];
-          const roomKind = count === 'STUDIO' ? 'STUDIO' : kind === 'BHK' || kind === 'RK' ? kind : undefined;
-          rows.push(
-            await this.createRecord(
-              {
-                clientMutationId: mutationPrefix + index,
-                sector,
-                directionsUrl,
-                houseNo,
-                contacts,
-                survey: true,
-                purpose: 'RENT',
-                furnishing: unit.furnishing,
-                floor: unit.floor || undefined,
-                roomKind,
-                ...(roomKind ? { category: 'RESIDENTIAL', ...(roomKind === 'STUDIO' ? {} : { bhk: Number(count) }) } : {}),
-              },
-              user,
-              { transaction: tx, quickSurvey: true },
-            ),
-          );
+        if (previousCount && previousCount !== rows.length) throw new ConflictException('This group of units was already saved. Start a new capture.');
+        const items = [];
+        for (const [index, row] of rows.entries()) {
+          try {
+            items.push(await this.createRecord({ ...row, clientMutationId: mutationPrefix + index }, user, { transaction: tx, quickSurvey }));
+          } catch (error) {
+            if (!quickSurvey && error instanceof BadRequestException) throw new BadRequestException(`Unit ${index + 1}: ${error.message}`);
+            throw error;
+          }
         }
-        return { items: rows, created: previousCount === 0 };
+        return { items, created: previousCount === 0 };
       },
       { timeout: 30_000 },
     );
-    if (created) await this.audit.log(user, 'inventory.survey.units', 'InventoryItem', items[0].id, { ids: items.map(({ id }) => id) });
+    if (created)
+      await this.audit.log(user, quickSurvey ? 'inventory.survey.units' : 'inventory.create.units', 'InventoryItem', items[0].id, {
+        ids: items.map(({ id }) => id),
+      });
     return { items };
   }
 

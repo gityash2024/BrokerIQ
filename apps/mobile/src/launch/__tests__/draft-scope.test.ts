@@ -231,6 +231,35 @@ it('fences every resumable upload chunk using the original workspace', async () 
   }
 });
 
+it('syncs multiple property units together with the original draft ID and isolated photo lists', async () => {
+  await login('inventory-batch');
+  const firstPhoto = 'https://inventory.example/rk.jpg';
+  const extraPhoto = 'https://inventory.example/2bhk.jpg';
+  const draft = await saveDraft('PROPERTY_CREATE', 'new-property', {
+    sector: 'Sector 46',
+    houseNo: '384',
+    roomKind: 'RK',
+    bhk: 1,
+    photoUrls: [firstPhoto],
+    _additionalUnits: [{ configuration: '2_BHK', photoUrls: [extraPhoto] }],
+  });
+  await queueDraft(draft);
+  const request = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'first-unit' }, { id: 'second-unit' }] })));
+  try {
+    await expect(syncDrafts()).resolves.toMatchObject({ inventoryChanged: true });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][0]).toMatch(/\/inventory\/units$/);
+    expect(JSON.parse(String(request.mock.calls[0][1]?.body))).toMatchObject({
+      clientMutationId: draft,
+      property: { roomKind: 'RK', photoUrls: [firstPhoto] },
+      units: [{ configuration: '2_BHK', photoUrls: [extraPhoto] }],
+    });
+    expect(await getLocalDraft(draft)).toMatchObject({ state: 'SYNCED', server_id: 'first-unit' });
+  } finally {
+    request.mockRestore();
+  }
+});
+
 it('does not silently replace a legacy editor with a blank form; separate work requires an explicit choice', async () => {
   await login('legacy-editor-owner');
   const db = await privateDraftDatabase();

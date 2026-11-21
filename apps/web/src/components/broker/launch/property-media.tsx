@@ -17,6 +17,7 @@ export function PropertyMedia({
   camera = false,
   agentCoverPhotoUrl,
   onSetAgentCoverPhoto,
+  photoLabel = 'Property photos',
 }: {
   urls: readonly string[];
   onAdd: (url: string) => void | Promise<void>;
@@ -27,6 +28,7 @@ export function PropertyMedia({
   camera?: boolean;
   agentCoverPhotoUrl?: string | null;
   onSetAgentCoverPhoto?: (url: string | null) => Promise<void>;
+  photoLabel?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -36,7 +38,7 @@ export function PropertyMedia({
   const [error, setError] = useState('');
   const limit = video ? 10 : 50;
   const noun = video ? 'video' : 'photo';
-  const label = video ? 'Property videos' : 'Property photos';
+  const label = video ? 'Property videos' : photoLabel;
 
   async function selectCover(url: string | null) {
     if (!onSetAgentCoverPhoto || running.current) return;
