@@ -175,6 +175,16 @@ export class InventoryController {
   ) {
     return this.inventory.addPhoto(id, body.url, user);
   }
+  @Roles('SUPER_ADMIN', 'BROKER_ADMIN')
+  @Patch(':id/agent-cover-photo')
+  setAgentCoverPhoto(
+    @Param('id') id: string,
+    @Body(new ZodPipe(z.object({ url: inventoryInputSchema.shape.photoUrls.unwrap().element.nullable(), expectedRevision: z.number().int().positive() })))
+    body: { url: string | null; expectedRevision: number },
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.inventory.setAgentCoverPhoto(id, body, user);
+  }
   @Delete(':id') delete(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.inventory.delete(id, user);
   }

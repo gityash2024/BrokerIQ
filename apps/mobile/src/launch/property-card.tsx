@@ -248,9 +248,9 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
         </View>
 
         {/* Property Photo (if available) */}
-        {!!item.photoUrls?.[0] && (
+        {!!(item.agentCoverPhotoUrl || item.photoUrls?.[0]) && (
           <Image
-            source={{ uri: item.photoUrls[0] }}
+            source={{ uri: item.agentCoverPhotoUrl || item.photoUrls?.[0] }}
             contentFit="cover"
             style={{ width: '100%', aspectRatio: 2.1, borderRadius: 14 }}
             accessibilityLabel="Property photograph"

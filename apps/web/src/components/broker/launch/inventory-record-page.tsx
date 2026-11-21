@@ -229,6 +229,20 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                   item.canEdit !== false && !changing && (!delegated || hasDelegatedAccess(user, 'inventory', 'delete')) ? () => void archive() : undefined
                 }
                 onRestore={!changing && (superAdmin || user?.role === 'BROKER_ADMIN') ? () => void archive(true) : undefined}
+                onSetAgentCoverPhoto={
+                  !item.deletedAt && (superAdmin || user?.role === 'BROKER_ADMIN' || (delegated && hasDelegatedAccess(user, 'inventory', 'view', 'edit')))
+                    ? async (url) => {
+                        const updated = await api<LedgerItem>(`/inventory/${item.id}/agent-cover-photo`, {
+                          method: 'PATCH',
+                          ownerContext: captureAccountContext(),
+                          body: { url, expectedRevision: item.revision },
+                        });
+                        client.setQueryData(key, updated);
+                        await refresh();
+                        toast.success(url ? 'Agent cover photo saved' : 'Agent cover photo removed');
+                      }
+                    : undefined
+                }
                 onUploadPhoto={
                   item.canEdit !== false && (!delegated || hasDelegatedAccess(user, 'inventory', 'edit'))
                     ? async (url) => {

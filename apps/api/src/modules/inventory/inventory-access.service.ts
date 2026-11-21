@@ -1,6 +1,13 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PROPERTY_AMENITIES, PROPERTY_FIELDS, clientPropertyShare, inventoryDateSchema, propertyDetailsSchema } from '@brokeriq/shared';
+import {
+  PROPERTY_AMENITIES,
+  PROPERTY_FIELDS,
+  clientPropertyShare,
+  inventoryDateSchema,
+  propertyDetailsSchema,
+  shareablePropertyPhotoUrls,
+} from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobsService } from '../../core/jobs/jobs.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -135,6 +142,7 @@ export class InventoryAccessService {
         ownerName: null,
         ownerPhone: null,
         notes: null,
+        agentCoverPhotoUrl: item.photoUrls?.includes(item.agentCoverPhotoUrl) ? (shareablePropertyPhotoUrls([item.agentCoverPhotoUrl])[0] ?? null) : null,
         photoUrls: [],
         videoUrls: [],
         contacts: [],

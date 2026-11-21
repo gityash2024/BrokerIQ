@@ -2,7 +2,10 @@ import React from 'react';
 import { PropertyCard } from '@/launch/property-card';
 import { useAuth } from '@/lib/auth';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import type { LedgerItem } from '@brokeriq/shared';
 const { act, create } = require('react-test-renderer');
+jest.mock('expo-image', () => ({ Image: 'TestImage' }));
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('lucide-react-native', () => ({
@@ -47,16 +50,21 @@ afterEach(() => {
   act(() => tree?.unmount());
   jest.clearAllMocks();
 });
-function render(role: string, delegatedPermissions: string[] = []) {
+function render(role: string, delegatedPermissions: string[] = [], property = item as LedgerItem) {
   (useAuth as jest.Mock).mockReturnValue({ user: { role, delegatedPermissions } });
   act(() => {
-    tree = create(<PropertyCard item={item as any} />);
+    tree = create(<PropertyCard item={property} />);
   });
   const label = tree.root.findAllByType('Text').find((node: any) => String(node.props.children).includes('Review availability'));
   let control = label?.parent;
   while (control && typeof control.props.onPress !== 'function') control = control.parent;
   return control;
 }
+it('shows the Agent cover even when the private gallery is empty', () => {
+  const agentCoverPhotoUrl = 'https://brokeriq.example/cover.jpg';
+  render('BROKER_AGENT', [], { ...(item as LedgerItem), agentCoverPhotoUrl, detailAccess: 'LOCKED', canEdit: false });
+  expect(tree.root.findByType(Image).props.source).toEqual({ uri: agentCoverPhotoUrl });
+});
 it('shows the read-only availability action while keeping it disabled', () => {
   expect(render('SUB_BROKER_ADMIN', ['inventory:view']).props.disabled).toBe(true);
   expect(router.push).not.toHaveBeenCalled();

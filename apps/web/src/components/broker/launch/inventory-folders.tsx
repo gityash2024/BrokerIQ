@@ -287,10 +287,16 @@ export function InventoryFoldersPage({
             {records.data?.items.map((item) => (
               <article key={item.id} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
                 <Link className="block" href={`/broker/inventory/${encodeURIComponent(item.id)}`}>
-                  {item.photoUrls?.[0] ? (
+                  {item.agentCoverPhotoUrl || item.photoUrls?.[0] ? (
                     // Real property media supplied by the firm.
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.photoUrls[0]} alt="" loading="lazy" className="h-32 w-full object-cover" />
+                    <img
+                      src={item.agentCoverPhotoUrl || item.photoUrls?.[0]}
+                      alt=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      className="h-32 w-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-20 items-center bg-brand-500/5 px-5 text-brand-600">
                       <Building2 className="size-7" />

@@ -2603,6 +2603,7 @@ model InventoryItem {
   directoryMonth     String?
   details            Json      @default("{}")
   photoUrls          String[]  @default([])
+  agentCoverPhotoUrl String?
   videoUrls          String[]  @default([])
   price              Decimal?  @db.Decimal(18, 2)
   ratePerSqft        Decimal?  @db.Decimal(18, 4)

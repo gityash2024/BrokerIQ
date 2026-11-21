@@ -35,7 +35,9 @@ describe('Agent catalogue privacy, shared galleries and lead acceptance', () => 
       ['second', 'BROKER_AGENT', orgId, []],
       ['outside', 'BROKER_ADMIN', other, []],
       ['delegate', 'SUB_BROKER_ADMIN', orgId, ['inventory:view', 'inventory:approve_details', 'leads:view', 'leads:assign']],
+      ['editor', 'SUB_BROKER_ADMIN', orgId, ['inventory:view', 'inventory:edit']],
       ['limited', 'SUB_BROKER_ADMIN', orgId, ['inventory:view', 'inventory:approve', 'leads:view']],
+      ['owner', 'PROPERTY_OWNER', orgId, []],
     ];
     for (const [label, role, organizationId, delegatedPermissions] of specs) {
       const user = await db.user.create({
@@ -226,6 +228,60 @@ describe('Agent catalogue privacy, shared galleries and lead acceptance', () => 
       .set(h('agent'))
       .expect(201);
     expect((await db.inventoryDetailAccess.findUniqueOrThrow({ where: { id: row.id } })).status).toBe('PENDING');
+  });
+
+  it('shows restricted Agents only the selected cover and removes it when the photo is deleted', async () => {
+    const detailPath = '/api/inventory/' + propertyId;
+    const coverPath = detailPath + '/agent-cover-photo';
+    const cover = 'https://brokeriq.example/api/media/f/listing/firm/cover.jpg';
+    const source = 'https://brokeriq.example/api/imports/batch/source';
+    const get = async (actor: string) => (await api().get(detailPath).set(h(actor)).expect(200)).body;
+    const set = (actor: string, url: string | null, expectedRevision: number) => api().patch(coverPath).set(h(actor)).send({ url, expectedRevision });
+    const photos = [photo, cover, source];
+    const saved = (await api().patch(detailPath).set(h('admin')).send({ photoUrls: photos }).expect(200)).body;
+    expect((await get('second')).agentCoverPhotoUrl).toBeNull();
+    await Promise.all(['agent', 'limited', 'delegate', 'owner'].map((actor) => set(actor, cover, saved.revision).expect(403)));
+    await set('outside', cover, saved.revision).expect(404);
+    await set('admin', source, saved.revision).expect(400);
+    await set('admin', 'https://brokeriq.example/unattached.jpg', saved.revision).expect(400);
+    const selected = (await set('editor', cover, saved.revision).expect(200)).body;
+    expect(selected).toMatchObject({ agentCoverPhotoUrl: cover, photoUrls: photos, revision: saved.revision + 1 });
+    expect((await set('editor', cover, saved.revision).expect(200)).body.revision).toBe(selected.revision);
+    await set('admin', photo, saved.revision).expect(409);
+    const restricted = await get('second');
+    expect(restricted).toMatchObject({ detailAccess: 'LOCKED', agentCoverPhotoUrl: cover, photoUrls: [], videoUrls: [], contacts: [], houseNo: null });
+    expect(JSON.stringify(restricted)).not.toContain(photo);
+    expect(JSON.stringify(restricted)).not.toContain(source);
+    const list = (await api().get('/api/inventory').query({ folderMode: 'AVAILABLE', currentInventory: 'true' }).set(h('second')).expect(200)).body.items;
+    expect(list).toEqual(expect.arrayContaining([expect.objectContaining({ id: propertyId, agentCoverPhotoUrl: cover, photoUrls: [] })]));
+    await api()
+      .post(detailPath + '/photo-gallery')
+      .set(h('second'))
+      .expect(400);
+
+    await api()
+      .post(detailPath + '/access/grant')
+      .set(h('admin'))
+      .send({ agentIds: [actors.second.id] })
+      .expect(201);
+    expect(await get('second')).toMatchObject({ detailAccess: 'APPROVED', photoUrls: photos, houseNo: 'PRIVATE-HOUSE-81' });
+    await db.inventoryDetailAccess.update({
+      where: { inventoryId_agentId: { inventoryId: propertyId, agentId: actors.second.id } },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    expect(await get('second')).toMatchObject({ detailAccess: 'EXPIRED', agentCoverPhotoUrl: cover, photoUrls: [] });
+
+    const removed = (await set('admin', null, selected.revision).expect(200)).body;
+    expect(removed.photoUrls).toEqual(photos);
+    expect((await get('second')).agentCoverPhotoUrl).toBeNull();
+    await set('admin', cover, removed.revision).expect(200);
+    await api()
+      .patch(detailPath)
+      .set(h('admin'))
+      .send({ photoUrls: [photo] })
+      .expect(200);
+    expect(await get('admin')).toMatchObject({ agentCoverPhotoUrl: null, photoUrls: [photo] });
+    expect((await get('second')).agentCoverPhotoUrl).toBeNull();
   });
 
   it('keeps notifications and acceptance atomic across retries and reassignment', async () => {

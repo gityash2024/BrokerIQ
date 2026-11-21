@@ -397,6 +397,7 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
   });
 }
 export interface LedgerItem extends Omit<InventoryInput, 'contacts' | 'directoryMonth'> {
+  agentCoverPhotoUrl?: string | null;
   detailAccess?: 'OWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'REVOKED' | 'EXPIRED' | 'LOCKED';
   detailAccessExpiresAt?: string | null;
   canEdit?: boolean;

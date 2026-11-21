@@ -68,6 +68,7 @@ export default function PropertyDetail() {
   const [shareWithLead, setShareWithLead] = useState(share === '1');
   const [updatingAssignee, setUpdatingAssignee] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [savingCover, setSavingCover] = useState(false);
 
   const q = useQuery({
     queryKey: ['ledger-item', id],
@@ -84,6 +85,8 @@ export default function PropertyDetail() {
   const item = q.data;
   const gallery = usePropertyGallery(item?.id, shareExternally && !!shareablePropertyPhotoUrls(item?.photoUrls).length);
   const canEdit = itemEditable && item?.canEdit !== false;
+  const canSetAgentCover =
+    !!item && !item.deletedAt && (isAdmin || user?.role === 'SUPER_ADMIN' || (delegated && hasDelegatedAccess(user, 'inventory', 'view', 'edit')));
   const teamMembers: any[] = (Array.isArray(team.data) ? team.data : team.data?.members) || [];
   const primaryContact = item?.contacts?.[0];
 
@@ -112,6 +115,24 @@ export default function PropertyDetail() {
       toast.error(errorMessage(error));
     } finally {
       setUploadingPhoto(false);
+    }
+  }
+
+  async function setAgentCover(url: string | null) {
+    if (!item || !canSetAgentCover || savingCover) return;
+    setSavingCover(true);
+    try {
+      await api(`/inventory/${item.id}/agent-cover-photo`, {
+        method: 'PATCH',
+        ownerContext: captureAccountContext(),
+        body: { url, expectedRevision: item.revision },
+      });
+      await Promise.all(['ledger-item', 'ledger', 'inventory-folder-items'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      toast.success(url ? 'Agent cover photo saved' : 'Agent cover photo removed');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setSavingCover(false);
     }
   }
 
@@ -556,11 +577,35 @@ export default function PropertyDetail() {
             )}
 
             {!item.deletedAt && (item.photoUrls?.length ?? 0) < 50 && (
-              <Button title="Add property photo" disabled={!canEdit} variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
+              <Button title="Add property photo" disabled={!canEdit || savingCover} variant="secondary" loading={uploadingPhoto} onPress={addPropertyPhoto} />
             )}
             {/* Photos & Videos */}
-            {(item.photoUrls ?? []).map((uri) => (
-              <Image key={uri} source={{ uri }} contentFit="cover" style={{ width: '100%', height: 230, borderRadius: 20 }} />
+            {!!item.agentCoverPhotoUrl && !item.photoUrls?.length && (
+              <NativeCard style={{ gap: 8 }}>
+                <Txt v="h3">Property cover photo</Txt>
+                <Image
+                  source={{ uri: item.agentCoverPhotoUrl }}
+                  contentFit="contain"
+                  style={{ width: '100%', height: 230, borderRadius: 20 }}
+                  accessibilityLabel="Property cover photo"
+                />
+              </NativeCard>
+            )}
+            {(item.photoUrls ?? []).map((uri, index) => (
+              <View key={uri} style={{ gap: 6 }}>
+                <Image source={{ uri }} contentFit="cover" style={{ width: '100%', height: 230, borderRadius: 20 }} />
+                {canSetAgentCover && shareablePropertyPhotoUrls([uri]).length > 0 && (
+                  <>
+                    {item.agentCoverPhotoUrl === uri && <Txt v="caption">Agent cover photo</Txt>}
+                    <Button
+                      title={item.agentCoverPhotoUrl === uri ? 'Remove agent cover photo' : `Set photo ${index + 1} as agent cover`}
+                      variant="secondary"
+                      disabled={savingCover || uploadingPhoto}
+                      onPress={() => void setAgentCover(item.agentCoverPhotoUrl === uri ? null : uri)}
+                    />
+                  </>
+                )}
+              </View>
             ))}
 
             {(item.videoUrls ?? []).map((uri) => (

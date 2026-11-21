@@ -5,6 +5,7 @@ import { ImagePlus, Video, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { img } from '@/lib/utils';
+import { shareablePropertyPhotoUrls } from '@brokeriq/shared';
 
 export function PropertyMedia({
   urls,
@@ -14,6 +15,8 @@ export function PropertyMedia({
   video = false,
   disabled = false,
   camera = false,
+  agentCoverPhotoUrl,
+  onSetAgentCoverPhoto,
 }: {
   urls: readonly string[];
   onAdd: (url: string) => void | Promise<void>;
@@ -22,15 +25,33 @@ export function PropertyMedia({
   video?: boolean;
   disabled?: boolean;
   camera?: boolean;
+  agentCoverPhotoUrl?: string | null;
+  onSetAgentCoverPhoto?: (url: string | null) => Promise<void>;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const running = useRef(false);
   const [pending, setPending] = useState(false);
+  const [savingCover, setSavingCover] = useState(false);
   const [error, setError] = useState('');
   const limit = video ? 10 : 50;
   const noun = video ? 'video' : 'photo';
   const label = video ? 'Property videos' : 'Property photos';
+
+  async function selectCover(url: string | null) {
+    if (!onSetAgentCoverPhoto || running.current) return;
+    running.current = true;
+    setSavingCover(true);
+    setError('');
+    try {
+      await onSetAgentCoverPhoto(url);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      running.current = false;
+      setSavingCover(false);
+    }
+  }
 
   async function upload(files: File[]) {
     if (!files.length || running.current || disabled) return;
@@ -91,7 +112,7 @@ export function PropertyMedia({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={disabled}
+              disabled={disabled || savingCover}
               title={disabled ? 'Upload access is unavailable for this property or account' : undefined}
               loading={pending}
               onClick={() => input.current?.click()}
@@ -130,6 +151,21 @@ export function PropertyMedia({
                 <a href={url} target="_blank" rel="noreferrer">
                   <img src={img(url, 480)} loading="lazy" alt={`Property photo ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
                 </a>
+              )}
+              {!video && onSetAgentCoverPhoto && shareablePropertyPhotoUrls([url]).length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 p-2">
+                  {agentCoverPhotoUrl === url && <span className="text-xs font-semibold">Agent cover photo</span>}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={pending || savingCover}
+                    aria-label={agentCoverPhotoUrl === url ? 'Remove agent cover photo' : `Set photo ${index + 1} as agent cover`}
+                    onClick={() => void selectCover(agentCoverPhotoUrl === url ? null : url)}
+                  >
+                    {agentCoverPhotoUrl === url ? 'Remove cover' : 'Set as agent cover'}
+                  </Button>
+                </div>
               )}
               {onRemove && !disabled && (
                 <Button

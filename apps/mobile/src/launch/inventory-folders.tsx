@@ -231,7 +231,9 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
         renderItem={({ item }) =>
           'id' in item ? (
             <NativeCard style={{ gap: 8 }}>
-              {!!item.photoUrls?.[0] && <Image source={item.photoUrls[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />}
+              {!!(item.agentCoverPhotoUrl || item.photoUrls?.[0]) && (
+                <Image source={item.agentCoverPhotoUrl || item.photoUrls?.[0]} contentFit="cover" style={{ height: 138, width: '100%', borderRadius: 12 }} />
+              )}
               {mode !== 'RENTED' && (
                 <Txt v="small" color="brand">
                   {mode === 'AVAILABLE' && (inventoryAvailabilityDate(item) ?? '') > today ? inventoryAvailabilityLabel(item) : inventoryPossessionLabel(item)}

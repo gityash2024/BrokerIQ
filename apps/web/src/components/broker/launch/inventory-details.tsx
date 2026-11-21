@@ -23,12 +23,14 @@ export function InventoryDetails({
   onArchive,
   onRestore,
   onUploadPhoto,
+  onSetAgentCoverPhoto,
 }: {
   sourceHref?: string | null;
   onMessage?: () => void;
   onArchive?: () => void;
   onRestore?: () => void;
   onUploadPhoto?: (url: string) => Promise<void>;
+  onSetAgentCoverPhoto?: (url: string | null) => Promise<void>;
   item: LedgerItem;
   onEdit?: () => void;
   onPublish?: () => void;
@@ -206,13 +208,23 @@ export function InventoryDetails({
           </section>
           {(!item.deletedAt || !!item.photoUrls?.length || !!item.videoUrls?.length) && (
             <div className="min-w-0 space-y-3 rounded-2xl border border-line p-4">
-              {(!item.deletedAt || !!item.photoUrls?.length) && (
-                <PropertyMedia
-                  urls={item.photoUrls ?? []}
-                  camera={survey}
-                  disabled={!!item.deletedAt || !onUploadPhoto}
-                  onAdd={(url) => onUploadPhoto?.(url)}
-                />
+              {item.agentCoverPhotoUrl && !item.photoUrls?.length ? (
+                <section aria-label="Property cover photo" className="space-y-3">
+                  <h3 className="font-semibold">Property cover photo</h3>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.agentCoverPhotoUrl} alt="Property cover photo" referrerPolicy="no-referrer" className="w-full rounded-xl object-contain" />
+                </section>
+              ) : (
+                (!item.deletedAt || !!item.photoUrls?.length) && (
+                  <PropertyMedia
+                    urls={item.photoUrls ?? []}
+                    camera={survey}
+                    disabled={!!item.deletedAt || !onUploadPhoto}
+                    onAdd={(url) => onUploadPhoto?.(url)}
+                    agentCoverPhotoUrl={item.agentCoverPhotoUrl}
+                    onSetAgentCoverPhoto={onSetAgentCoverPhoto}
+                  />
+                )
               )}
               {!!item.videoUrls?.length && <PropertyMedia video urls={item.videoUrls} disabled onAdd={() => undefined} />}
             </div>

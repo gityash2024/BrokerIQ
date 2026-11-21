@@ -40,6 +40,7 @@ export function delegatedEndpoint(path: string, method: string, body?: { action?
     return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/access/:agentid/review' && method === 'POST') return { module: 'inventory', actions: ['view', 'approve_details'] };
   if (path === '/inventory/:id/photo-gallery' && method === 'POST') return { module: 'inventory', actions: ['view'] };
+  if (path === '/inventory/:id/agent-cover-photo' && method === 'PATCH') return { module: 'inventory', actions: ['view', 'edit'] };
   if (path === '/inventory/owners' && method === 'GET') return { module: 'inventory', actions: ['view', 'assign'] };
   if (['/inventory/:id/owner/review', '/inventory/:id/owner/accept'].includes(path) && method === 'POST')
     return { module: 'inventory', actions: ['view', 'edit'] };

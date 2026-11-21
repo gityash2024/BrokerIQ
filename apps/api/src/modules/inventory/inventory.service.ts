@@ -31,6 +31,7 @@ import {
   NAMED_INVENTORY_TYPES,
   missingInventoryFolderFields,
   readableValue,
+  shareablePropertyPhotoUrls,
   type InventoryFolder,
   type InventoryFolders,
 } from '@brokeriq/shared';
@@ -58,6 +59,7 @@ const include = {
 } as const;
 export function ledgerJson<T extends Record<string, any>>(item: T) {
   const result: Record<string, any> = { ...item };
+  if (result.agentCoverPhotoUrl && !result.photoUrls?.includes(result.agentCoverPhotoUrl)) result.agentCoverPhotoUrl = null;
   for (const key of ['monthlyRent', 'totalSalePrice', 'ratePerArea', 'area', 'minBudget', 'maxBudget', 'minArea', 'maxArea', 'price', 'ratePerSqft'])
     if (result[key] != null) result[key] = Number(result[key]);
   return result;
@@ -681,6 +683,7 @@ export class InventoryService {
     const effectiveAssignedToId = data.assignedToId === '' ? null : data.assignedToId;
     return {
       ...data,
+      ...(input.photoUrls && previous?.agentCoverPhotoUrl && !input.photoUrls.includes(previous.agentCoverPhotoUrl) ? { agentCoverPhotoUrl: null } : {}),
       ...(data.assignedToId !== undefined ? { assignedToId: effectiveAssignedToId } : {}),
       price: price == null ? null : Number(price),
       ratePerSqft: rate,
@@ -977,6 +980,26 @@ export class InventoryService {
       return { item, changed: true };
     });
     if (result.changed) await this.audit.log(user, 'inventory.photo.add', 'InventoryItem', id, { revision: result.item.revision });
+    return ledgerJson(result.item);
+  }
+  async setAgentCoverPhoto(id: string, input: { url: string | null; expectedRevision: number }, user: RequestUser) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id, deletedAt: null }, include });
+      if (!current) throw new NotFoundException('Inventory item not found');
+      if (input.url !== null && (!current.photoUrls.includes(input.url) || !shareablePropertyPhotoUrls([input.url]).length))
+        throw new BadRequestException('Choose an eligible photo already saved to this property');
+      if (current.agentCoverPhotoUrl === input.url) return { item: current, changed: false };
+      if (current.revision !== input.expectedRevision) throw new ConflictException('Property changed. Reload before saving.');
+      const item = await tx.inventoryItem.update({
+        where: { id },
+        data: { agentCoverPhotoUrl: input.url, revision: { increment: 1 } },
+        include,
+      });
+      return { item, changed: true };
+    });
+    if (result.changed)
+      await this.audit.log(user, 'inventory.agent_cover.update', 'InventoryItem', id, { revision: result.item.revision, selected: input.url !== null });
     return ledgerJson(result.item);
   }
   async delete(id: string, user: RequestUser) {
