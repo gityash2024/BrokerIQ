@@ -1,8 +1,9 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { ApiErrorState } from '@/components/ui/api-error';
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { MessageCircle, Phone, Send } from 'lucide-react';
@@ -18,7 +19,7 @@ import { Select } from '@/components/ui/field';
 
 function Inner() {
   const sp = useSearchParams();
-  const [tab, setTab] = useState<'sent' | 'received'>(sp.get('tab') === 'received' ? 'received' : 'sent');
+  const [tab, setTab] = useRouteState<'sent' | 'received'>('enquiries.tab', sp.get('tab') === 'received' ? 'received' : 'sent');
   const q = useQuery({ queryKey: ['enquiries', tab], queryFn: () => api<any[]>(`/enquiries/${tab}`) });
   const status = useApiMutation((v: { id: string; status: string }) => patch(`/enquiries/${v.id}`, { status: v.status }), {
     invalidate: [['enquiries', 'received']],

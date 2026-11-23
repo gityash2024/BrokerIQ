@@ -1,4 +1,5 @@
 'use client';
+import { hasPreviousPage, useRouteState } from '@/lib/navigation';
 import { whatsappLink } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { SmsThread } from '@/components/broker/sms-thread';
@@ -121,14 +122,16 @@ function InboxInner() {
     };
   }, [resolve.data, user?.id, leadTarget, channel, pathname, router, owner]);
 
-  const setParam = (p: Record<string, string | null>) => {
+  const setParam = (p: Record<string, string | null>, addToHistory = false) => {
     const n = new URLSearchParams(sp.toString());
     Object.entries(p).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k)));
-    router.replace(`${pathname}?${n}`, { scroll: false });
+    const href = `${pathname}?${n}`;
+    if (addToHistory) router.push(href, { scroll: false });
+    else router.replace(href, { scroll: false });
   };
 
-  const [search, setSearch] = useState('');
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [search, setSearch] = useRouteState('inbox-page.search', '');
+  const [unreadOnly, setUnreadOnly] = useRouteState('inbox-page.unreadOnly', false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -174,7 +177,7 @@ function InboxInner() {
 
   // Optimistic read handler
   const handleSelectChat = (c: any) => {
-    setParam({ c: c.id });
+    setParam({ c: c.id }, true);
     if (c.unreadCount > 0 && hasDelegatedAccess(user, 'inbox', 'edit')) {
       qc.setQueryData(['conversations', 'pages', channel, dq, unreadOnly], (old: InfiniteData<InboxPage<any>> | undefined) => {
         if (!old) return old;
@@ -370,7 +373,7 @@ function InboxInner() {
         )}
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-line/60">
+        <div data-route-scroll="conversations" className="flex-1 overflow-y-auto divide-y divide-line/60">
           {convs.isPending && <LoadingArtwork className="col-span-full m-3 h-16 rounded-xl" />}
           {convs.error && <ApiErrorState error={convs.error} onRetry={() => convs.refetch()} />}
           {convs.data && !conversationItems.length && (
@@ -483,7 +486,7 @@ function InboxInner() {
             <header className="flex items-center gap-3 border-b border-line bg-surface px-5 py-3 shadow-2xs z-10">
               <button
                 className="md:hidden rounded-lg p-1.5 -ml-1 text-muted hover:text-fg hover:bg-surface-2"
-                onClick={() => setParam({ c: null })}
+                onClick={() => hasPreviousPage({ samePath: true }) ? router.back() : setParam({ c: null })}
                 aria-label="Back"
               >
                 <ArrowLeft className="size-5" />

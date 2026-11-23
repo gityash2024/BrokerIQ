@@ -1,5 +1,6 @@
 'use client';
-import { use, useState } from 'react';
+import { useRouteState } from '@/lib/navigation';
+import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Lock, Search } from 'lucide-react';
 import { formatDate, qs } from '@/lib/utils';
@@ -15,7 +16,7 @@ import { Map } from '@/components/site/map';
 
 export default function UserDataDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('detail.search', '');
   const dq = useDebounced(search);
   const q = useQuery({ queryKey: ['admin-user-data', id, dq], queryFn: () => api<any>(`/admin/user-data/${id}${qs({ q: dq })}`), placeholderData: (p) => p });
   const exportCsv = async () => {

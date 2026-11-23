@@ -1,4 +1,5 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -83,9 +84,9 @@ function VisitScheduleForm() {
       <PageHeader
         title="Schedule site visit"
         actions={
-          <Button variant="secondary" href={back}>
+          <BackButton variant="secondary" href={back}>
             {leadId ? 'Back to lead' : 'Back to visits'}
-          </Button>
+          </BackButton>
         }
       />
       {!allowed ? (

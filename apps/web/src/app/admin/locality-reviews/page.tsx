@@ -1,6 +1,6 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -14,7 +14,7 @@ import { Badge, Empty } from '@/components/ui/misc';
 const DIMS = ['water', 'power', 'safety', 'parking', 'connectivity', 'maintenance'];
 
 export default function LocalityReviewsAdmin() {
-  const [status, setStatus] = useState('PENDING');
+  const [status, setStatus] = useRouteState('locality-reviews.status', 'PENDING');
   const q = useQuery({ queryKey: ['admin-loc-reviews', status], queryFn: () => api<any[]>(`/admin/locality-reviews?status=${status}`) });
   const act = useApiMutation((b: { id: string; status: string }) => patch(`/admin/locality-reviews/${b.id}`, { status: b.status }), {
     success: 'Updated',

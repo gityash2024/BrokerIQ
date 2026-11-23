@@ -1,4 +1,6 @@
 'use client';
+import { BackLink } from '@/components/ui/back-button';
+import { useRouteState } from '@/lib/navigation';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl, openLeadInbox } from '@/lib/inbox-composer';
 import { VisitItinerary } from '@/components/broker/visit-itinerary';
@@ -94,7 +96,7 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
   const team = useAssignees();
   const q = useQuery({ queryKey: ['lead', id], queryFn: () => api<any>(`/leads/${id}`) });
   const query = useSearchParams();
-  const [tab, setTab] = useState<'timeline' | 'shortlist' | 'matches' | 'tasks' | 'requirement'>(
+  const [tab, setTab] = useRouteState<'timeline' | 'shortlist' | 'matches' | 'tasks' | 'requirement'>('detail.tab',
     query.get('tab') === 'shortlist' ? 'shortlist' : query.get('tab') === 'tasks' ? 'tasks' : 'timeline',
   );
   const [advanceFollowUpStage, setAdvanceFollowUpStage] = useState(false);
@@ -137,9 +139,9 @@ export default function LeadDetail({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="space-y-6">
-      <Link href="/broker/leads" className="inline-flex items-center gap-1 text-sm text-muted hover:text-fg">
+      <BackLink href="/broker/leads" className="inline-flex items-center gap-1 text-sm text-muted hover:text-fg">
         <ArrowLeft className="size-4" /> Leads
-      </Link>
+      </BackLink>
 
       {!!l.assignedTo && (
         <div className="card flex flex-wrap items-center justify-between gap-3 p-4">

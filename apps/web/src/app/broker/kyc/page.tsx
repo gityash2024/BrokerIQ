@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useState, useEffect, useRef } from 'react';
@@ -78,13 +79,13 @@ export default function BrokerKycPage() {
 function AdminKycManagementView({ user }: { user: any }) {
   const params = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'team' | 'firm'>('team');
-  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('ALL');
+  const [activeTab, setActiveTab] = useRouteState<'team' | 'firm'>('kyc.activeTab', 'team');
+  const [filter, setFilter] = useRouteState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('kyc.filter', 'ALL');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_AGENT' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN'>('ALL');
   const [agentFilter, setAgentFilter] = useState<string>('ALL');
   const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: 'ALL' });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'PENDING_FIRST' | 'RECENT' | 'NAME_ASC'>('PENDING_FIRST');
+  const [searchQuery, setSearchQuery] = useRouteState('kyc.searchQuery', '');
+  const [sortBy, setSortBy] = useRouteState<'PENDING_FIRST' | 'RECENT' | 'NAME_ASC'>('kyc.sortBy', 'PENDING_FIRST');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     setActiveTab(params.get('view') === 'firm' ? 'firm' : 'team');

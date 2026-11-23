@@ -1,4 +1,6 @@
 'use client';
+import { useGoBack } from '@/lib/navigation';
+import { BackButton } from '@/components/ui/back-button';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -137,7 +139,7 @@ export function HomepageBuilder() {
 
 export function HomepageSectionPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+  const closeEditor = useGoBack('/admin/homepage');
   const sections = useQuery({ queryKey: ['admin-homepage'], queryFn: () => api<any[]>('/admin/homepage') });
   const section = sections.data?.find((entry) => entry.id === id);
   return (
@@ -145,9 +147,9 @@ export function HomepageSectionPage() {
       <PageHeader
         title="Edit homepage section"
         actions={
-          <Button href="/admin/homepage" variant="secondary">
+          <BackButton href="/admin/homepage" variant="secondary">
             Back to homepage builder
-          </Button>
+          </BackButton>
         }
       />
       {sections.error ? (
@@ -155,7 +157,7 @@ export function HomepageSectionPage() {
       ) : sections.isPending ? (
         <LoadingArtwork className="h-96" />
       ) : section ? (
-        <SectionEditor key={id} section={section} onClose={() => router.replace('/admin/homepage')} />
+        <SectionEditor key={id} section={section} onClose={closeEditor} />
       ) : (
         <p>Section unavailable.</p>
       )}

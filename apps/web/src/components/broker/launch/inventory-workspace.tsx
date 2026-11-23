@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 
 import { InventoryStatusActions } from './inventory-status-actions';
 import { LoadingArtwork } from '@/components/ui/request-loader';
@@ -80,17 +81,20 @@ function LedgerInner() {
   const canReviewPublication = hasDelegatedAccess(user, 'inventory', 'approve');
   const basePath = isSuper ? '/admin/inventory' : '/broker/inventory';
   const params = useSearchParams();
-  const [search, setSearch] = useState(params.get('search') ?? '');
+  const [search, setSearch] = useRouteState('inventory-workspace.search', params.get('search') ?? '');
   const term = useDebounced(search);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useRouteState('inventory-workspace.filters', {
     ...initialFilters,
     ...Object.fromEntries(Object.keys(initialFilters).flatMap((key) => (params.get(key) ? [[key, params.get(key)!]] : []))),
   });
   const [filterOpen, setFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
-  const [sort, setSort] = useState({ sortBy: 'createdAt', sortOrder: 'desc' });
-  const [layout, setLayout] = useState<'TABLE' | 'CARDS'>('TABLE');
+  const [sort, setSort] = useRouteState('inventory-workspace.sort', { sortBy: 'createdAt', sortOrder: 'desc' });
+  const [layout, setLayout] = useRouteState<'TABLE' | 'CARDS'>('inventory-workspace.layout', 'TABLE');
+  const filterKey = JSON.stringify([search, filters, sort]);
+  const [pagination, setPagination] = useRouteState('inventory-workspace.pagination', { filterKey, page: 1 });
+  const page = pagination.filterKey === filterKey ? pagination.page : 1;
+  const setPage = (next: number) => setPagination({ filterKey, page: next });
   const requestedId = params.get('item');
   useEffect(() => {
     if (requestedId) router.replace(`${basePath}/${encodeURIComponent(requestedId)}`);
@@ -98,7 +102,6 @@ function LedgerInner() {
   const [exporting, setExporting] = useState(false);
   const qc = useQueryClient();
   useEffect(() => {
-    setPage(1);
     setSelected([]);
   }, [term, filters, sort]);
   const query = useQuery({

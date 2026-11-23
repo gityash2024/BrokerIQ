@@ -1,4 +1,6 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
+import { useGoBack, useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -24,8 +26,8 @@ function InvoicesInner() {
   const sp = useSearchParams();
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
-  const [status, setStatus] = useState('');
-  const [page, setPage] = useState(1);
+  const [status, setStatus] = useRouteState('invoices.status', '');
+  const [page, setPage] = useRouteState('invoices.page', 1);
   const router = useRouter();
   const deal = sp.get('deal');
   useEffect(() => {
@@ -186,7 +188,7 @@ export function InvoiceCreatePage() {
 function CreateInvoice() {
   const dealId = useSearchParams().get('deal');
   const router = useRouter();
-  const onClose = () => router.replace('/broker/invoices');
+  const onClose = useGoBack('/broker/invoices');
   const deals = useQuery({ queryKey: ['deals-for-invoice'], queryFn: () => api<any[]>('/deals') });
   const [f, setF] = useState({ dealId: dealId ?? '', clientName: '', clientPhone: '', clientEmail: '', gstPct: '0', dueDate: '', notes: '' });
   const [items, setItems] = useState([{ description: 'Brokerage', amount: '' }]);
@@ -216,9 +218,9 @@ function CreateInvoice() {
       <PageHeader
         title="New invoice"
         actions={
-          <Button href="/broker/invoices" variant="secondary">
+          <BackButton href="/broker/invoices" variant="secondary">
             Back to invoices
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-4xl space-y-5 p-4 sm:p-6">

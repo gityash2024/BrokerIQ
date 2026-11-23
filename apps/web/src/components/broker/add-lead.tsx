@@ -1,4 +1,5 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -85,9 +86,9 @@ export function AddLeadPage() {
       <PageHeader
         title="Add lead"
         actions={
-          <Button href="/broker/leads" variant="secondary">
+          <BackButton href="/broker/leads" variant="secondary">
             Back to leads
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-4xl space-y-6 p-4 sm:p-6">

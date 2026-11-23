@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Chip, Input } from '../ui/field';
@@ -6,7 +7,7 @@ import { LocalityCard } from './cards';
 import { Map } from './map';
 
 export function LocalitiesExplorer({ locs }: { locs: any[] }) {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useRouteState('localities-explorer.q', '');
   const [zone, setZone] = useState<string | null>(null);
   const zones = useMemo(() => [...new Set(locs.map((l) => l.zone).filter(Boolean))] as string[], [locs]);
   const list = locs.filter((l) => (!zone || l.zone === zone) && (!q || l.name.toLowerCase().includes(q.toLowerCase())));

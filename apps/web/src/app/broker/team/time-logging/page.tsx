@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { InlineLoader } from '@/components/ui/request-loader';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
@@ -150,7 +151,7 @@ function TimeLoggingContent() {
   // Filters State
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>('');
   const [selectedAgentId, setSelectedAgentId] = useState<string>(params.get('memberId') || '');
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayIst());
+  const [selectedDate, setSelectedDate] = useRouteState<string>('time-logging.selectedDate', getTodayIst());
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [punchLoading, setPunchLoading] = useState(false);
 

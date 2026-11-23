@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -47,8 +48,8 @@ export function VoteButton({ item, size = 'md' }: { item: { id: string; voteCoun
 }
 
 export function RoadmapBoard() {
-  const [status, setStatus] = useState('');
-  const [sort, setSort] = useState<'top' | 'new'>('top');
+  const [status, setStatus] = useRouteState('roadmap-board.status', '');
+  const [sort, setSort] = useRouteState<'top' | 'new'>('roadmap-board.sort', 'top');
   const [open, setOpen] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ['feedback-board', status, sort],

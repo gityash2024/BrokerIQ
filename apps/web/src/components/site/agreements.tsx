@@ -1,4 +1,5 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -184,9 +185,9 @@ export function AgreementCreatePage() {
       <PageHeader
         title="New rent agreement"
         actions={
-          <Button href={back} variant="secondary">
+          <BackButton href={back} variant="secondary">
             Back to agreements
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-5xl space-y-5 p-4 sm:p-6">

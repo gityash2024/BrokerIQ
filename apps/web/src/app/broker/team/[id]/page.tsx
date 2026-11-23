@@ -1,4 +1,5 @@
 'use client';
+import { BackLink } from '@/components/ui/back-button';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { firmRoleLabel } from '@brokeriq/shared';
 import { use, useState } from 'react';
@@ -80,9 +81,9 @@ function Editor({ member }: { member: Member }) {
         <span>/</span>
         <span>{member.name}</span>
       </nav>
-      <Link href={teamBase} className="inline-flex items-center gap-2 text-sm text-brand">
+      <BackLink href={teamBase} className="inline-flex items-center gap-2 text-sm text-brand">
         <ArrowLeft className="size-4" /> टीम सूची
-      </Link>
+      </BackLink>
       {removed ? (
         <div className="card p-6">सदस्य की firm access समाप्त कर दी गई है।</div>
       ) : (

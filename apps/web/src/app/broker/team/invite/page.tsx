@@ -1,4 +1,5 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
 import { useState } from 'react';
 import { Link2, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,9 +36,9 @@ export default function InvitePage() {
         title="Invite Team Member"
         subtitle="Invite link is valid for 7 days"
         actions={
-          <Button variant="secondary" href="/broker/team">
+          <BackButton variant="secondary" href="/broker/team">
             Back to team
-          </Button>
+          </BackButton>
         }
       />
       {user?.role === 'BROKER_ADMIN' ? (

@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
@@ -23,7 +24,7 @@ const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) /
 
 function OwnersInner() {
   const sp = useSearchParams();
-  const [tab, setTab] = useState<'owners' | 'leases'>(sp.get('tab') === 'leases' ? 'leases' : 'owners');
+  const [tab, setTab] = useRouteState<'owners' | 'leases'>('owners.tab', sp.get('tab') === 'leases' ? 'leases' : 'owners');
   return (
     <>
       <PageHeader
@@ -44,7 +45,7 @@ function OwnersInner() {
 }
 
 function Owners() {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useRouteState('owners.q', '');
   const [open, setOpen] = useState<any>(null);
   const [add, setAdd] = useState(false);
   const list = useQuery({ queryKey: ['owners', q], queryFn: () => api<any[]>(`/broker/owners${q ? `?q=${encodeURIComponent(q)}` : ''}`) });

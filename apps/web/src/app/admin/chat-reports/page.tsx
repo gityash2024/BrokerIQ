@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -17,7 +18,7 @@ const REASON: Record<string, string> = { SPAM: 'Spam', ABUSE: 'Abuse', FRAUD: 'F
 
 /** In-app chats reported by a user or a broker: read the recent messages, then dismiss, resolve, or close the chat. */
 export default function ChatReportsPage() {
-  const [status, setStatus] = useState<'OPEN' | 'RESOLVED' | 'DISMISSED'>('OPEN');
+  const [status, setStatus] = useRouteState<'OPEN' | 'RESOLVED' | 'DISMISSED'>('chat-reports.status', 'OPEN');
   const q = useQuery({ queryKey: ['chat-reports', status], queryFn: () => api<any[]>(`/admin/chat-reports?status=${status}`) });
   const inv = { invalidate: [['chat-reports'], ['admin-dashboard']] };
   const resolve = useApiMutation((b: any) => patch(`/admin/chat-reports/${b.id}`, b), { success: 'Done', ...inv });

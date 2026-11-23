@@ -1,4 +1,5 @@
 'use client';
+import { useGoBack, useRouteState } from '@/lib/navigation';
 import { InlineLoader } from '@/components/ui/request-loader';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -294,7 +295,7 @@ function AdminCrudContent({
     return pathname + (next.size ? '?' + next.toString() : '');
   };
   const key = queryKey ?? endpoint;
-  const [q, setQ] = useState('');
+  const [q, setQ] = useRouteState(`crud.${key}.q`, '');
   const list = useQuery({
     queryKey: [key, serverSearch ? q : ''],
     queryFn: () => api<any>(`${endpoint}${serverSearch && q ? `?q=${encodeURIComponent(q)}` : ''}`),
@@ -365,10 +366,11 @@ function AdminCrudContent({
   });
   const remove = useApiMutation((id: string) => del(`${endpoint}/${id}`), { success: 'Deleted', invalidate: [[key]] });
   const missing = fields.filter((f) => f.required && (!f.createOnly || isNew) && (get(form, f.key) === '' || get(form, f.key) == null)).map((f) => f.label);
+  const returnToList = useGoBack(editorUrl(), { samePath: true });
   const close = () => {
     if (save.isPending || (dirty && !window.confirm('Discard unsaved changes?'))) return;
     setDirty(false);
-    router.replace(editorUrl());
+    returnToList();
   };
 
   if (editor)

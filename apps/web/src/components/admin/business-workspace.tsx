@@ -1,4 +1,6 @@
 'use client';
+import { BackButton, BackLink } from '@/components/ui/back-button';
+import { useRouteState } from '@/lib/navigation';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -13,21 +15,21 @@ import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
 
 export function AdminBusinessWorkspace({ initial }: { initial: Record<string, string> }) {
-  const [resource, setResource] = useState<AdminBusinessResource>(
+  const [resource, setResource] = useRouteState<AdminBusinessResource>('business-workspace.resource',
     Object.hasOwn(ADMIN_BUSINESS_RESOURCES, initial.resource) ? (initial.resource as AdminBusinessResource) : 'leads',
   );
-  const [org, setOrg] = useState(initial.organizationId ?? '');
-  const [member, setMember] = useState(initial.memberId ?? '');
-  const [search, setSearch] = useState(initial.q ?? '');
+  const [org, setOrg] = useRouteState('business-workspace.org', initial.organizationId ?? '');
+  const [member, setMember] = useRouteState('business-workspace.member', initial.memberId ?? '');
+  const [search, setSearch] = useRouteState('business-workspace.search', initial.q ?? '');
   const term = useDebounced(search);
-  const [status, setStatus] = useState(initial.status ?? '');
-  const [archive, setArchive] = useState(['all', 'active', 'archived'].includes(initial.archive) ? initial.archive : 'all');
-  const [sort, setSort] = useState(initial.sort === 'oldest' ? 'oldest' : 'newest');
+  const [status, setStatus] = useRouteState('business-workspace.status', initial.status ?? '');
+  const [archive, setArchive] = useRouteState('business-workspace.archive', ['all', 'active', 'archived'].includes(initial.archive) ? initial.archive : 'all');
+  const [sort, setSort] = useRouteState('business-workspace.sort', initial.sort === 'oldest' ? 'oldest' : 'newest');
   const validDate = (value: string | undefined) =>
     value && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + 'T00:00:00+05:30')) ? value : '';
-  const [from, setFrom] = useState(validDate(initial.fromDate));
-  const [to, setTo] = useState(validDate(initial.toDate));
-  const [page, setPage] = useState(/^\d+$/.test(initial.page ?? '') ? Math.max(1, Math.min(100000, Number(initial.page))) : 1);
+  const [from, setFrom] = useRouteState('business-workspace.from', validDate(initial.fromDate));
+  const [to, setTo] = useRouteState('business-workspace.to', validDate(initial.toDate));
+  const [page, setPage] = useRouteState('business-workspace.page', /^\d+$/.test(initial.page ?? '') ? Math.max(1, Math.min(100000, Number(initial.page))) : 1);
   const [selected, setSelected] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
@@ -353,9 +355,9 @@ export function AdminBusinessDetail({ resource, id, back }: { resource: AdminBus
   return (
     <>
       <nav className="mb-3 text-sm text-muted">
-        <Link href={`/admin/business${back}`} className="text-brand-600 hover:underline">
+        <BackLink href={`/admin/business${back}`} className="text-brand-600 hover:underline">
           Business records
-        </Link>{' '}
+        </BackLink>{' '}
         / {ADMIN_BUSINESS_RESOURCES[resource]}
       </nav>
       <PageHeader title={String(data.data?.title ?? ADMIN_BUSINESS_RESOURCES[resource])} subtitle={id} />
@@ -386,9 +388,9 @@ export function AdminBusinessDetail({ resource, id, back }: { resource: AdminBus
         </dl>
       )}
       <div className="mt-4 flex gap-3">
-        <Button href={`/admin/business${back}`} variant="secondary">
+        <BackButton href={`/admin/business${back}`} variant="secondary">
           Back to records
-        </Button>
+        </BackButton>
         {resource === 'kyc' && (
           <Button href="/admin/kyc" variant="secondary">
             Open KYC review

@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { leadInboxUrl } from '@/lib/inbox-composer';
 import Link from 'next/link';
@@ -37,7 +38,7 @@ export default function PipelinePage() {
   const canEdit = hasDelegatedAccess(user, 'leads', 'edit');
   const team = useAssignees(admin);
   const qc = useQueryClient();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('pipeline.search', '');
   const [source, setSource] = useState('');
   const [agent, setAgent] = useState('');
   const dq = useDebounced(search);

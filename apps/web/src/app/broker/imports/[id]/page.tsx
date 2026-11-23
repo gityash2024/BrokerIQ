@@ -1,4 +1,6 @@
 'use client';
+import { BackLink } from '@/components/ui/back-button';
+import { useRouteState } from '@/lib/navigation';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -17,7 +19,7 @@ export default function ReviewPage() {
   const bottom = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [openingPreview, setOpeningPreview] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('detail.page', 1);
   const [sourcePage, setSourcePage] = useState('');
   const [pendingOnly, setPendingOnly] = useState(true);
   const qc = useQueryClient();
@@ -87,9 +89,9 @@ export default function ReviewPage() {
             : 'Loading source…'
         }
         actions={
-          <Link href="/broker/imports" className="text-sm text-brand-600">
+          <BackLink href="/broker/imports" className="text-sm text-brand-600">
             All captures
-          </Link>
+          </BackLink>
         }
       />
       {previewOfImportId && (

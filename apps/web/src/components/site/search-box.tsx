@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { InlineLoader } from '@/components/ui/request-loader';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -22,7 +23,7 @@ const RECENT_KEY = 'biq.recent-searches';
 
 // `tabs` (homepage config) is kept for compatibility; rental tabs are always shown.
 export function HeroSearch(_props: { tabs?: string[] }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('RENT');
+  const [tab, setTab] = useRouteState<(typeof TABS)[number]['key']>('search-box.tab', 'RENT');
   const visible = TABS;
   return (
     <div className="w-full max-w-3xl">
@@ -64,7 +65,7 @@ export function SearchInput({
   className?: string;
 }) {
   const router = useRouter();
-  const [q, setQ] = useState(defaultValue);
+  const [q, setQ] = useRouteState('search-box.q', defaultValue);
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<{ label: string; href: string }[]>([]);
   const ref = useRef<HTMLDivElement>(null);

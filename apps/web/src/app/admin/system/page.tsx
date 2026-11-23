@@ -1,6 +1,6 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
 import { ArrowUpRight, Search, Clock3 } from 'lucide-react';
 import { defaultModulePolicies, moduleAllowed } from '@brokeriq/shared';
 import { useConfig } from '@/lib/config';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/field';
 import { adminToolGroups } from '@/components/admin/admin-tools';
 
 export default function SystemPage() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('system.search', '');
   const { modules } = useConfig();
   const policies = { ...defaultModulePolicies(), ...modules };
   const filtered = adminToolGroups

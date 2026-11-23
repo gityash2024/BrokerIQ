@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -45,7 +46,7 @@ export default function SettingsPage() {
 
 function FirmSettingsPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me' | 'workflow'>(user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
+  const [tab, setTab] = useRouteState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me' | 'workflow'>('settings.tab', user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
   const cardOn = useFlag('visiting_card');
   const q = useQuery({ queryKey: ['broker-profile', user?.id, user?.organizationId], queryFn: () => api<any>('/broker/profile'), enabled: !!user });
   if (!user || q.isLoading) return <PageLoader />;

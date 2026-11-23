@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -49,9 +50,9 @@ const TONES: Record<string, any> = {
 };
 
 export function MyListings({ base, newHref, activeOnly = false }: { base: string; newHref: string; activeOnly?: boolean }) {
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState(activeOnly ? 'ACTIVE' : '');
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useRouteState('my-listings.page', 1);
+  const [status, setStatus] = useRouteState('my-listings.status', activeOnly ? 'ACTIVE' : '');
+  const [search, setSearch] = useRouteState('my-listings.search', '');
   const [boost, setBoost] = useState<any>(null);
   const [pack, setPack] = useState<string | null>(null);
   const [kit, setKit] = useState<string | null>(null);

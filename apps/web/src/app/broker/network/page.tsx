@@ -1,7 +1,8 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -20,7 +21,7 @@ const STATUS_TONE: Record<string, any> = { PENDING: 'warning', ACCEPTED: 'succes
 
 function NetworkInner() {
   const sp = useSearchParams();
-  const [tab, setTab] = useState<'network' | 'incoming' | 'outgoing'>((sp.get('tab') as any) || 'network');
+  const [tab, setTab] = useRouteState<'network' | 'incoming' | 'outgoing'>('network.tab', (sp.get('tab') as any) || 'network');
   return (
     <>
       <PageHeader
@@ -42,7 +43,7 @@ function NetworkInner() {
 }
 
 function Network() {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useRouteState('network.q', '');
   const list = useQuery({ queryKey: ['cobroke-network', q], queryFn: () => api<any>(`/cobroking/network${q ? `?q=${encodeURIComponent(q)}` : ''}`) });
   const request = useApiMutation((listingId: string) => post('/cobroking/requests', { listingId }), {
     success: 'Request भेजी — accept होने पर contact मिलेगा',

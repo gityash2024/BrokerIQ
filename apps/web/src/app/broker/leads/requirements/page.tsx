@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -26,10 +27,10 @@ function RequirementsInner() {
   const config = useConfig();
   const configStatus = useConfigStatus();
   const inventoryAllowed = configStatus.loaded && !!user && moduleAllowed(config.modules, 'inventory', user.role);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('requirements.search', '');
   const [intent, setIntent] = useState('');
   const [match, setMatch] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('requirements.page', 1);
   const requestedId = params.get('record');
   useEffect(() => {
     if (requestedId) router.replace(`/broker/leads/requirements/${encodeURIComponent(requestedId)}/edit`);

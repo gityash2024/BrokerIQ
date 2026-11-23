@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -17,7 +18,7 @@ const FOOD: Record<string, string> = { VEG: 'Veg', NONVEG: 'Non-veg', ANY: 'เค•เ
 
 export default function FlatmatesPage() {
   const profile = useQuery({ queryKey: ['flatmate-me'], queryFn: () => api<any>('/flatmates/me') });
-  const [tab, setTab] = useState<'matches' | 'connections' | 'profile'>('matches');
+  const [tab, setTab] = useRouteState<'matches' | 'connections' | 'profile'>('flatmates.tab', 'matches');
   useEffect(() => {
     if (profile.isSuccess && !profile.data) setTab('profile');
   }, [profile.isSuccess, profile.data]);

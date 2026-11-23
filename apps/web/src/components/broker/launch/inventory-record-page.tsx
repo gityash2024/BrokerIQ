@@ -1,4 +1,6 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
+import { shouldReturnTo } from '@/lib/navigation';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
@@ -136,7 +138,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
       <PageHeader
         title={title}
         actions={
-          <Button
+          <BackButton
             variant="secondary"
             href={back}
             onClick={(event) => {
@@ -144,7 +146,7 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
             }}
           >
             <ArrowLeft className="size-4" /> {back === base ? 'Inventory' : 'Property details'}
-          </Button>
+          </BackButton>
         }
       />
       {!allowed ? (
@@ -209,11 +211,11 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                         });
                     setDirty(false);
                     await refresh();
-                    router.replace(
-                      createSurvey
-                        ? `${back}${created.sector ? '&sector=' + encodeURIComponent(created.sector) : ''}`
-                        : `${base}/${encodeURIComponent(created.id)}`,
-                    );
+                    const destination = createSurvey
+                      ? `${back}${created.sector ? '&sector=' + encodeURIComponent(created.sector) : ''}`
+                      : `${base}/${encodeURIComponent(created.id)}`;
+                    if (mode === 'edit' && shouldReturnTo(destination)) router.back();
+                    else router.replace(destination);
                   }}
                 />
               </section>
@@ -282,7 +284,8 @@ function RecordContent({ base, mode }: { base: string; mode: Mode }) {
                 onDone={() => {
                   void refresh();
                   toast.success('Publication saved; status follows the required review path');
-                  router.replace(detail);
+                  if (shouldReturnTo(detail)) router.back();
+                  else router.replace(detail);
                 }}
               />
             </section>

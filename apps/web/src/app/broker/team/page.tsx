@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { InlineLoader } from '@/components/ui/request-loader';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { hasDelegatedAccess, firmRoleLabel, type BrokerTeamResponse } from '@brokeriq/shared';
@@ -120,14 +121,14 @@ export default function TeamPage() {
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
 
   // Teams & Agents Filters State
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useRouteState('team.searchQuery', '');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'BROKER_ADMIN' | 'SUB_BROKER_ADMIN' | 'BROKER_AGENT' | 'PROPERTY_OWNER'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
+  const [statusFilter, setStatusFilter] = useRouteState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('team.statusFilter', 'ALL');
   const [locationFilter, setLocationFilter] = useState<'ALL' | 'LIVE' | 'OFFLINE'>('ALL');
   const [kycFilter, setKycFilter] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REQUIRED'>('ALL');
   const [agentFilter, setAgentFilter] = useState<string>('ALL');
   const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: 'ALL' });
-  const [sortBy, setSortBy] = useState<'PERFORMANCE' | 'LEADS' | 'NAME'>('PERFORMANCE');
+  const [sortBy, setSortBy] = useRouteState<'PERFORMANCE' | 'LEADS' | 'NAME'>('team.sortBy', 'PERFORMANCE');
 
   // Table Row Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

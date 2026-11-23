@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +15,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function AuditPage() {
   const [action, setAction] = useState('');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('audit.page', 1);
   const da = useDebounced(action);
   const q = useQuery({ queryKey: ['admin-audit', da, page], queryFn: () => api<any>(`/admin/audit${qs({ action: da, page })}`), placeholderData: (p) => p });
   return (

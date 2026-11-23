@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -13,7 +14,7 @@ import { useAuth } from '@/lib/auth';
 export function LeadRequirements({ lead }: { lead: { id: string; name: string; phone: string } }) {
   const { user } = useAuth();
   const [selected, setSelected] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('lead-requirements.page', 1);
   const query = useQuery({
     queryKey: ['broker-requirements', 'lead', lead.id, page],
     queryFn: () => api<any>(`/broker-requirements?leadId=${lead.id}&page=${page}`),

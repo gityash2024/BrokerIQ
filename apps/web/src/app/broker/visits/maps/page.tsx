@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { api } from '@/lib/api';
 
 export default function PropertyMapsPage() {
   const [from] = useState(() => new Date().toISOString());
-  const [sectorSearch, setSectorSearch] = useState('');
+  const [sectorSearch, setSectorSearch] = useRouteState('maps.sectorSearch', '');
   const maps = gurugramSectorMaps(sectorSearch);
   const query = useInfiniteQuery({
     queryKey: ['visits', 'property-maps', from],

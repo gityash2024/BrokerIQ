@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PLATFORM_MODULES, defaultModulePolicies, type ModulePolicies, type ModulePolicy } from '@brokeriq/shared';
@@ -13,7 +14,7 @@ import { useState } from 'react';
 
 export default function Modules() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('modules.search', '');
   const [state, setState] = useState('ALL');
   const [saving, setSaving] = useState<string | null>(null);
   const { data, isLoading, error } = useQuery({ queryKey: ['modules'], queryFn: () => api<ModulePolicies>('/admin/modules') });

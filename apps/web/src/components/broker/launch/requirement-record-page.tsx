@@ -1,4 +1,5 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -73,7 +74,7 @@ function RecordContent({ mode }: { mode: Mode }) {
       <PageHeader
         title={title}
         actions={
-          <Button
+          <BackButton
             href={back}
             variant="secondary"
             onClick={(event) => {
@@ -81,7 +82,7 @@ function RecordContent({ mode }: { mode: Mode }) {
             }}
           >
             {leadId ? 'Back to lead' : 'Back to requirements'}
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-5xl space-y-5 p-4 sm:p-6">

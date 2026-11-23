@@ -1,4 +1,6 @@
 'use client';
+import { useGoBack } from '@/lib/navigation';
+import { BackButton } from '@/components/ui/back-button';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
@@ -252,7 +254,7 @@ export function AutomationEditorPage() {
 function AutomationEditor() {
   const { id } = useParams<{ id: string }>();
   const preset = useSearchParams().get('preset');
-  const router = useRouter();
+  const closeEditor = useGoBack('/broker/automations');
   const rules = useQuery({ queryKey: ['automations'], queryFn: () => api<any[]>('/automations'), enabled: !!id });
   const presets = useQuery({ queryKey: ['automation-presets'], queryFn: () => api<any[]>('/automations/presets'), enabled: !!preset });
   const selected = id ? rules.data?.find((rule) => rule.id === id) : preset ? presets.data?.find((rule) => rule.key === preset) : null;
@@ -267,13 +269,13 @@ function AutomationEditor() {
       <PageHeader
         title={id ? 'Edit automation' : 'New automation'}
         actions={
-          <Button href="/broker/automations" variant="secondary">
+          <BackButton href="/broker/automations" variant="secondary">
             Back to automations
-          </Button>
+          </BackButton>
         }
       />
       {rule ? (
-        <Builder key={id || preset || 'new'} rule={rule} onClose={() => router.replace('/broker/automations')} />
+        <Builder key={id || preset || 'new'} rule={rule} onClose={closeEditor} />
       ) : (
         <p role="status">{pending ? 'Loading automation…' : 'Automation unavailable'}</p>
       )}

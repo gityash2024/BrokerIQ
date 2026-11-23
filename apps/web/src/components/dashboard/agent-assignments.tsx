@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 
 import { AgentAssignmentDetails } from './agent-assignment-details';
 import { useState } from 'react';
@@ -17,7 +18,7 @@ export function AgentAssignments() {
   const allowed = canViewAgentAssignmentDashboard(user) && moduleAllowed(modules, 'team', 'BROKER_ADMIN');
   const [open, setOpen] = useState(false);
   const [agent, setAgent] = useState<{ id: string; name: string } | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('agent-assignments.search', '');
   const query = useQuery({
     queryKey: ['agent-assignments', user?.organization?.id, user?.id, user?.role],
     queryFn: () => api<AgentAssignmentDashboard>('/broker/dashboard/agent-assignments'),

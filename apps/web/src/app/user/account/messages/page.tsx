@@ -36,11 +36,11 @@ function Inner() {
         />
       ) : (
         <div className="card grid h-[70vh] overflow-hidden md:grid-cols-[300px_1fr]">
-          <div className={cn('overflow-y-auto border-r border-line', active && 'hidden md:block')}>
+          <div data-route-scroll="conversations" className={cn('overflow-y-auto border-r border-line', active && 'hidden md:block')}>
             {q.data.map((c) => (
               <button
                 key={c.id}
-                onClick={() => router.replace(`/user/account/messages?c=${c.id}`)}
+                onClick={() => router.push(`/user/account/messages?c=${c.id}`)}
                 className={cn(
                   'flex w-full items-center gap-3 border-b border-line p-4 text-left hover:bg-surface-2',
                   active === c.id && 'bg-brand-50 dark:bg-brand-500/10',

@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -20,9 +21,9 @@ interface TeamLeaderboardProps {
 }
 export function TeamLeaderboardView({ currentUserId, organizationId }: TeamLeaderboardProps) {
   const { user } = useAuth();
-  const [range, setRange] = useState<PerformanceQuery['range']>('MONTH');
+  const [range, setRange] = useRouteState<PerformanceQuery['range']>('team-leaderboard.range', 'MONTH');
   const [dates, setDates] = useState({ from: '', to: '' });
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRouteState('team-leaderboard.search', '');
   const params = new URLSearchParams({ range, ...(range === 'CUSTOM' ? dates : {}), ...(organizationId ? { organizationId } : {}) });
   const query = useQuery({
     queryKey: ['team-performance', user?.id, params.toString()],

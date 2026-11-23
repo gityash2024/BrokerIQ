@@ -1,6 +1,6 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { formatINR } from '@brokeriq/shared';
 import { api } from '@/lib/api';
@@ -12,8 +12,8 @@ import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function Page() {
-  const [status, setStatus] = useState('');
-  const [page, setPage] = useState(1);
+  const [status, setStatus] = useRouteState('subscriptions.status', '');
+  const [page, setPage] = useRouteState('subscriptions.page', 1);
   const q = useQuery({
     queryKey: ['admin-subs', status, page],
     queryFn: () => api<any>(`/admin/subscriptions${qs({ status, page })}`),

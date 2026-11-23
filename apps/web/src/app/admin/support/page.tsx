@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +16,7 @@ import { Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function SupportPage() {
-  const [status, setStatus] = useState<'OPEN' | 'CLOSED'>('OPEN');
+  const [status, setStatus] = useRouteState<'OPEN' | 'CLOSED'>('support.status', 'OPEN');
   const q = useQuery({ queryKey: ['admin-support', status], queryFn: () => api<any[]>(`/admin/support?status=${status}`) });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const upd = useApiMutation((b: any) => patch(`/admin/support/${b.id}`, b), { success: 'Updated', invalidate: [['admin-support'], ['admin-dashboard']] });

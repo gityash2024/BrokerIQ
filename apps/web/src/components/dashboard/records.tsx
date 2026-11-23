@@ -1,4 +1,5 @@
 'use client';
+import { useGoBack } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 function Records({ role }: { role: 'admin' | 'broker' | 'user' }) {
   const sp = useSearchParams();
   const router = useRouter();
+  const back = useGoBack(role === 'admin' ? '/admin' : role === 'broker' ? '/broker' : '/user/account');
   const selection = new URLSearchParams(sp.toString());
   if (!selection.get('chart')) selection.set('chart', role === 'admin' ? 'signups' : role === 'broker' ? 'leads' : 'enquiries');
   const params = selection.toString();
@@ -29,7 +31,7 @@ function Records({ role }: { role: 'admin' | 'broker' | 'user' }) {
             : 'Recorded activity in the last 30 days · IST'
         }
         actions={
-          <Button size="sm" variant="secondary" onClick={() => router.back()}>
+          <Button size="sm" variant="secondary" onClick={back}>
             ← Back
           </Button>
         }

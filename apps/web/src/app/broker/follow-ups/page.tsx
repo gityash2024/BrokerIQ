@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { submitTask } from '@/lib/task-submissions';
 import { leadInboxUrl } from '@/lib/inbox-composer';
@@ -38,7 +39,7 @@ export default function FollowUpsPage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
   const team = useAssignees();
-  const [view, setView] = useState<View>('today');
+  const [view, setView] = useRouteState<View>('follow-ups.view', 'today');
   const [month, setMonth] = useState(() => followUpCurrentMonth());
   const monthRange = followUpMonthRange(month);
   const [agent, setAgent] = useState('');
@@ -46,11 +47,11 @@ export default function FollowUpsPage() {
   const [outcome, setOutcome] = useState('');
   const [addOpen, setAddOpen] = useState(false);
 
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useRouteState('follow-ups.page', 1);
+  const [search, setSearch] = useRouteState('follow-ups.search', '');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useRouteState('follow-ups.status', '');
   const fromDate = view === 'future' ? monthRange?.from : from ? followUpDateBoundary(from) : undefined;
   const toDate = view === 'future' ? monthRange?.to : to ? followUpDateBoundary(to, true) : undefined;
   const invalidDates = view === 'future' ? !monthRange : !!((from && !fromDate) || (to && !toDate) || (fromDate && toDate && fromDate > toDate));

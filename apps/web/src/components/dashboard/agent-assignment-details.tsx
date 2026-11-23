@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -21,7 +22,7 @@ export function AgentAssignmentDetails({
 }) {
   const { user } = useAuth();
   const [selectedKind, setKind] = useState(columns[0]);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('agent-assignment-details.page', 1);
   const kind = columns.includes(selectedKind) ? selectedKind : columns[0];
   const query = useQuery({
     queryKey: ['agent-assignment-records', user?.organization?.id, user?.id, agent.id, kind, page],

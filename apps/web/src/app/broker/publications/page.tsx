@@ -1,7 +1,7 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { InventoryTabs } from '@/components/broker/launch/inventory-tabs';
 import { LoadingArtwork } from '@/components/ui/request-loader';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { LedgerItem } from '@brokeriq/shared';
 import { hasDelegatedAccess } from '@brokeriq/shared';
@@ -13,7 +13,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 import { Button } from '@/components/ui/button';
 export default function PublicationQueue() {
   const { user } = useAuth();
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('publications.page', 1);
   const allowed =
     (!!user && ['SUPER_ADMIN', 'BROKER_ADMIN'].includes(user.role)) ||
     (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'view', 'approve'));

@@ -1,4 +1,6 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
+import { useGoBack, useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -141,9 +143,9 @@ export function CampaignEditor() {
         title="नया campaign"
         subtitle="Message और recipients चुनकर draft save करें।"
         actions={
-          <Button variant="secondary" href="/broker/campaigns">
+          <BackButton variant="secondary" href="/broker/campaigns">
             Back to campaigns
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
@@ -366,8 +368,8 @@ export function CampaignEditor() {
 export function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const onClose = () => router.replace('/broker/campaigns');
-  const [page, setPage] = useState(1);
+  const onClose = useGoBack('/broker/campaigns');
+  const [page, setPage] = useRouteState('campaigns.page', 1);
   const q = useQuery({
     queryKey: ['campaign', id, page],
     queryFn: () => api<any>(`/broker/campaigns/${id}?page=${page}`),
@@ -386,9 +388,9 @@ export function CampaignDetail() {
         title={c?.name ?? 'Campaign'}
         subtitle={c ? `${CHANNEL_LABEL[c.channel]} · ${formatDate(c.createdAt)}` : undefined}
         actions={
-          <Button variant="secondary" href="/broker/campaigns">
+          <BackButton variant="secondary" href="/broker/campaigns">
             Back to campaigns
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-5xl p-4 sm:p-6">

@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { surveySectors } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
@@ -59,8 +60,8 @@ function Workspace({ scanner }: { scanner: boolean }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [ready, setReady] = useState(false),
-    [status, setStatus] = useState('');
-  const [page, setPage] = useState(1),
+    [status, setStatus] = useRouteState('capture-workspace.status', '');
+  const [page, setPage] = useRouteState('capture-workspace.page', 1),
     [completed, setCompleted] = useState<{ id: string; name: string }[]>([]);
   const files = useRef<HTMLInputElement>(null),
     camera = useRef<HTMLInputElement>(null),

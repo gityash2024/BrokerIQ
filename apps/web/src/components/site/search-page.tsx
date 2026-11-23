@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -52,7 +53,7 @@ export function SearchPage({ mode, initial }: { mode: SearchMode; initial?: Page
   const pathname = usePathname();
   const { user } = useAuth();
   const m = MODE[mode];
-  const [view, setView] = useState<'grid' | 'list' | 'map'>('grid');
+  const [view, setView] = useRouteState<'grid' | 'list' | 'map'>('search-page.view', 'grid');
   const [moreOpen, setMoreOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
   const [areaSearch, setAreaSearch] = useState(false);

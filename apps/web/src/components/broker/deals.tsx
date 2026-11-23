@@ -1,4 +1,6 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
+import { useGoBack, useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -26,7 +28,7 @@ const commissionOf = (d: any) => d.commissionAmount ?? (d.commissionPct ? (d.dea
 export function DealsPage() {
   const { user } = useAuth();
   const admin = user?.role === 'BROKER_ADMIN';
-  const [status, setStatus] = useState<'' | 'OPEN' | 'CLOSED' | 'CANCELLED'>('');
+  const [status, setStatus] = useRouteState<'' | 'OPEN' | 'CLOSED' | 'CANCELLED'>('deals.status', '');
   const { sortColumn, sortDirection, handleSort } = useSortableTable<'title' | 'value' | 'commission' | 'collected' | 'agent' | 'status'>();
   const q = useQuery({ queryKey: ['deals', status], queryFn: () => api<any[]>(`/deals${qs({ status })}`) });
   const all = useQuery({ queryKey: ['deals', 'all'], queryFn: () => api<any[]>('/deals') });
@@ -240,7 +242,7 @@ export function DealEditorPage() {
 
 function DealEditor({ deal }: { deal: any }) {
   const router = useRouter();
-  const onClose = () => router.replace('/broker/deals');
+  const onClose = useGoBack('/broker/deals');
   const isNew = deal && !deal.id;
   const [lead, setLead] = useState<any>(null);
   const [f, setF] = useState<any>({});
@@ -283,9 +285,9 @@ function DealEditor({ deal }: { deal: any }) {
       <PageHeader
         title={isNew ? 'New deal' : 'Edit deal'}
         actions={
-          <Button href="/broker/deals" variant="secondary">
+          <BackButton href="/broker/deals" variant="secondary">
             Back to deals
-          </Button>
+          </BackButton>
         }
       />
       <section className="card mx-auto max-w-4xl space-y-5 p-4 sm:p-6">

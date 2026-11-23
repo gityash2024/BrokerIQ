@@ -1,4 +1,5 @@
 'use client';
+import { hasPreviousPage, pushRouteView, useRouteState } from '@/lib/navigation';
 
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -30,9 +31,16 @@ export default function OwnerPage() {
 const choices = ['AVAILABLE', 'UPCOMING', 'RENTED', 'UNAVAILABLE'] as const;
 function OwnerProperties() {
   const { user, logout } = useAuth();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [editor, setEditor] = useState<string | null>(null);
+  const [page, setPage] = useRouteState('owner.page', 1);
+  const [search, setSearch] = useRouteState('owner.search', '');
+  const [editor, setEditor] = useRouteState<string | null>('owner.editor', null);
+  const openEditor = (id: string) => {
+    if (!pushRouteView({ 'owner.editor': id })) setEditor(id);
+  };
+  const closeEditor = () => {
+    if (hasPreviousPage({ samePath: true })) window.history.back();
+    else setEditor(null);
+  };
   const list = useQuery({
     queryKey: ['owner-properties', user?.id, user?.organization?.id, page, search],
     queryFn: () => api<{ items: OwnerProperty[]; hasMore: boolean }>('/owner/properties?page=' + page + '&search=' + encodeURIComponent(search)),
@@ -46,7 +54,7 @@ function OwnerProperties() {
         </div>
         <div className="flex flex-wrap gap-2">
           {editor === null && (
-            <Button size="sm" onClick={() => setEditor('new')}>
+            <Button size="sm" onClick={() => openEditor('new')}>
               Add property
             </Button>
           )}
@@ -62,9 +70,10 @@ function OwnerProperties() {
         <OwnerEditor
           key={editor}
           id={editor === 'new' ? null : editor}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           onSaved={() => {
             setEditor(null);
+            closeEditor();
             void list.refetch();
           }}
         />
@@ -76,7 +85,7 @@ function OwnerProperties() {
         <>
           {!list.data.items.length && <p className="card p-4">{search ? 'No matching property.' : 'Add a property or ask your broker to link an existing one.'}</p>}
           {list.data.items.map((property) => (
-            <OwnerPropertyCard key={property.id} property={property} onEdit={() => setEditor(property.id)} refresh={() => void list.refetch()} />
+            <OwnerPropertyCard key={property.id} property={property} onEdit={() => openEditor(property.id)} refresh={() => void list.refetch()} />
           ))}
           {(page > 1 || list.data.hasMore) && (
             <div className="flex gap-2">

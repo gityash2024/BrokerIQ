@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -156,7 +157,7 @@ const SOURCE_TONE = { API: 'danger', WEB: 'warning', MOBILE: 'info' } as const;
 
 /** Grouped runtime errors from the API, website and app — resolve once fixed; a repeat reopens it. */
 function ErrorsCard() {
-  const [status, setStatus] = useState<'open' | 'resolved'>('open');
+  const [status, setStatus] = useRouteState<'open' | 'resolved'>('health.status', 'open');
   const q = useQuery({ queryKey: ['admin-errors', status], queryFn: () => api<any[]>(`/admin/errors?status=${status}`), refetchInterval: 60_000 });
   const [open, setOpen] = useState<string | null>(null);
   const resolve = useApiMutation((b: { id: string; resolved: boolean }) => patch(`/admin/errors/${b.id}`, { resolved: b.resolved }), {

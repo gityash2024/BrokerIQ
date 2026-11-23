@@ -1,4 +1,6 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
+import { shouldReturnTo } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 
 import { useState } from 'react';
@@ -35,9 +37,9 @@ export function TeamPermissionsPage() {
         title={record?.role === 'SUB_BROKER_ADMIN' ? 'Edit Sub-Broker Admin permissions' : 'Make Sub-Broker Admin'}
         subtitle={record?.name}
         actions={
-          <Button href={back} variant="secondary">
+          <BackButton href={back} variant="secondary">
             Back to member
-          </Button>
+          </BackButton>
         }
       />
       {!allowed ? (
@@ -87,7 +89,7 @@ function PermissionForm({ member, back, onReload }: { member: Member; back: stri
     {
       success: 'Sub-Broker Admin permissions saved',
       invalidate: [['team']],
-      onSuccess: () => router.replace(back),
+      onSuccess: () => shouldReturnTo(back) ? router.back() : router.replace(back),
     },
   );
   const conflict = baseline.updatedAt !== member.updatedAt || (save.error instanceof ApiError && save.error.status === 409);

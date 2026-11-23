@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { InlineLoader } from '@/components/ui/request-loader';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState } from 'react';
@@ -165,9 +166,9 @@ function Chart({ chart }: { chart: DashboardChart }) {
 }
 export function EnterpriseDashboard({ role, overview, children }: { role: DashboardData['role']; overview?: React.ReactNode; children?: React.ReactNode }) {
   const { user } = useAuth();
-  const [range, setRange] = useState('30');
-  const [dates, setDates] = useState({ from: '', to: '' });
-  const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
+  const [range, setRange] = useRouteState('dashboard.range', '30');
+  const [dates, setDates] = useRouteState('dashboard.dates', { from: '', to: '' });
+  const [custom, setCustom] = useRouteState<{ from: string; to: string } | null>('dashboard.custom', null);
   const [validation, setValidation] = useState('');
   const query = custom ? new URLSearchParams(custom) : new URLSearchParams({ days: range === 'custom' ? '30' : range });
   const url = role === 'admin' ? '/admin/dashboard/metrics' : role === 'broker' ? '/broker/dashboard/metrics' : '/me/dashboard';

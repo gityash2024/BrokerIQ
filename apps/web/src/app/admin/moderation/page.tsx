@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -34,7 +35,7 @@ const REASONS = [
 ];
 
 export default function ModerationPage() {
-  const [status, setStatus] = useState<'PENDING_REVIEW' | 'REJECTED'>('PENDING_REVIEW');
+  const [status, setStatus] = useRouteState<'PENDING_REVIEW' | 'REJECTED'>('moderation.status', 'PENDING_REVIEW');
   const [flagged, setFlagged] = useState(false);
   const q = useQuery({
     queryKey: ['moderation', status, flagged],

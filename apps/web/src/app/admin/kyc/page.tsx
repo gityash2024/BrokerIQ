@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -20,7 +21,7 @@ import { ApiErrorState } from '@/components/ui/api-error';
 function KycContent() {
   const params = useSearchParams();
   const agentId = params.get('agentId') ?? '';
-  const [status, setStatus] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>(agentId ? 'ALL' : 'PENDING');
+  const [status, setStatus] = useRouteState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('kyc.status', agentId ? 'ALL' : 'PENDING');
   const [archived, setArchived] = useState(false);
   const q = useQuery({
     queryKey: ['admin-kyc', status, archived, agentId],

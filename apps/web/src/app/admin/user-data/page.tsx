@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -21,7 +22,7 @@ const consent = (v: boolean | null) => (v == null ? <Badge>—</Badge> : v ? <Ba
 /** Consented location & contacts — Super Admin only; every detail view is audit-logged. */
 export default function UserDataPage() {
   const [f, setF] = useState({ q: '', page: 1 });
-  const [view, setView] = useState<'list' | 'map'>('list');
+  const [view, setView] = useRouteState<'list' | 'map'>('user-data.view', 'list');
   const dq = useDebounced(f.q);
   const q = useQuery({
     queryKey: ['admin-user-data', { ...f, q: dq }],

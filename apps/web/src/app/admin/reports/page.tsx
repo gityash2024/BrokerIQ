@@ -1,7 +1,7 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import Link from 'next/link';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Archive, Check, ShieldAlert, X } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -14,7 +14,7 @@ import { Badge, Empty } from '@/components/ui/misc';
 import { ApiErrorState } from '@/components/ui/api-error';
 
 export default function ReportsPage() {
-  const [status, setStatus] = useState<'OPEN' | 'RESOLVED' | 'DISMISSED'>('OPEN');
+  const [status, setStatus] = useRouteState<'OPEN' | 'RESOLVED' | 'DISMISSED'>('reports.status', 'OPEN');
   const q = useQuery({ queryKey: ['admin-reports', status], queryFn: () => api<any[]>(`/admin/reports?status=${status}`) });
   const resolve = useApiMutation((b: any) => patch(`/admin/reports/${b.id}`, b), { success: 'Done', invalidate: [['admin-reports'], ['admin-dashboard']] });
   return (

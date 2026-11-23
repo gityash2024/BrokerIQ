@@ -9,6 +9,7 @@ import { ApiError, registerAuthCacheReset } from '@/lib/api';
 import { FeedbackWidget } from '@/components/feedback/feedback-widget';
 import { AssistantWidget } from '@/components/assistant/assistant';
 import { I18nProvider } from '@/lib/i18n';
+import { installNavigationHistory } from '@/lib/navigation';
 import { installGlobalErrorHandlers } from '@/lib/report-error';
 import { captureReferral } from '@/lib/referral';
 import { RequestLoader } from '@/components/ui/request-loader';
@@ -30,6 +31,7 @@ export function Providers({ children, config }: { children: React.ReactNode; con
   useEffect(() => {
     installGlobalErrorHandlers();
     captureReferral();
+    return installNavigationHistory();
   }, []);
   useEffect(() => {
     const reset = () => qc.clear();

@@ -1,4 +1,5 @@
 'use client';
+import { pushRouteView, useRouteState } from '@/lib/navigation';
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
 
 import { useEffect, useState } from 'react';
@@ -55,19 +56,19 @@ export function InventoryFoldersPage({
   }, []);
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [mode, setMode] = useState(initialMode);
+  const [mode, setMode] = useRouteState('inventory-folders.mode', initialMode);
   const survey = mode === 'SURVEY';
   const [notesOpen, setNotesOpen] = useState(false);
-  const [surveyShelf, setSurveyShelf] = useState<'PENDING' | 'NO_ANSWER'>('PENDING');
-  const [selectedPath, setPath] = useState<InventoryFolder[]>(
+  const [surveyShelf, setSurveyShelf] = useRouteState<'PENDING' | 'NO_ANSWER'>('inventory-folders.surveyShelf', 'PENDING');
+  const [selectedPath, setPath] = useRouteState<InventoryFolder[]>('inventory-folders.selectedPath',
     initialMode === 'SURVEY' && initialSector ? [{ key: initialSector, label: initialSector, count: 0 }] : [],
   );
   const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState(initial);
+  const [search, setSearch] = useRouteState('inventory-folders.search', '');
+  const [filters, setFilters] = useRouteState('inventory-folders.filters', initial);
   const [datesOpen, setDatesOpen] = useState(false);
   const [dates, setDates] = useState({ from: '', to: '' });
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('inventory-folders.page', 1);
   const [busy, setBusy] = useState('');
   const term = useDebounced(search);
   const shelf = {
@@ -114,12 +115,15 @@ export function InventoryFoldersPage({
   const advancedUrl = `/broker/inventory/data${qs({ view: 'ledger', ...filter, ...shelf })}`;
 
   function changePath(next: InventoryFolder[]) {
+    if (pushRouteView({ 'inventory-folders.selectedPath': next, 'inventory-folders.page': 1 })) return;
     setPath(next);
     setPage(1);
   }
   function setShelf(next: Exclude<InventoryFolderMode, 'REVIEW'>) {
+    if (pushRouteView({ 'inventory-folders.mode': next, 'inventory-folders.selectedPath': [], 'inventory-folders.page': 1 })) return;
     setMode(next);
-    changePath([]);
+    setPath([]);
+    setPage(1);
   }
   async function markNoAnswer(item: LedgerItem) {
     if (!canEdit || item.canEdit === false || busy) return;

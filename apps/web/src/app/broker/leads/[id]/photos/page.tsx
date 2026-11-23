@@ -1,4 +1,5 @@
 'use client';
+import { BackButton } from '@/components/ui/back-button';
 
 import { usePropertyGallery } from '@/lib/property-gallery';
 import { LoadingArtwork } from '@/components/ui/request-loader';
@@ -60,9 +61,9 @@ export default function Page() {
       <PageHeader
         title="Share property photos"
         actions={
-          <Button variant="secondary" href={`/broker/leads/${id}`}>
+          <BackButton variant="secondary" href={`/broker/leads/${id}`}>
             <ArrowLeft className="size-4" /> Lead details
-          </Button>
+          </BackButton>
         }
       />
       {!allowed ? (

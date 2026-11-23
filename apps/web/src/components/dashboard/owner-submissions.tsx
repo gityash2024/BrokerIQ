@@ -1,4 +1,5 @@
 'use client';
+import { useRouteState } from '@/lib/navigation';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -13,7 +14,7 @@ export function OwnerSubmissions() {
   const { user } = useAuth();
   const allowed = user?.role === 'BROKER_ADMIN' || (user?.role === 'SUB_BROKER_ADMIN' && hasDelegatedAccess(user, 'inventory', 'view'));
   const [open, setOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useRouteState('owner-submissions.page', 1);
   const queue = useQuery({
     queryKey: ['owner-submissions', user?.organization?.id, user?.id, page],
     queryFn: () => api<OwnerSubmissionQueue>('/inventory/owner-submissions?page=' + page),

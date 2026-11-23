@@ -1,5 +1,6 @@
 'use client';
-import { Suspense, useState } from 'react';
+import { useRouteState } from '@/lib/navigation';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -28,7 +29,7 @@ const CATS: Record<string, { label: string; icon: React.ReactNode }> = {
 
 function Inner() {
   const focus = useSearchParams().get('key');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useRouteState('integrations.q', '');
   const list = useQuery({ queryKey: ['admin-integrations'], queryFn: () => api<(IntegrationDef & { state: IntegrationView })[]>('/admin/integrations') });
   if (list.isLoading) return <PageLoader />;
   if (list.isError) return <ApiErrorState error={list.error} onRetry={() => list.refetch()} />;
