@@ -1,14 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Plus_Jakarta_Sans, Noto_Sans_Devanagari } from 'next/font/google';
+import './property-fonts.css';
 import './globals.css';
 import { I18N_BOOT_SCRIPT } from '@/lib/i18n-boot';
 import { Providers } from './providers';
 import { getConfig } from '@/lib/server';
 import { SITE_URL } from '@/lib/utils';
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap', weight: ['500', '600', '700', '800'] });
-const deva = Noto_Sans_Devanagari({ subsets: ['devanagari'], variable: '--font-deva', display: 'swap', weight: ['400', '500', '600', '700'] });
 
 export async function generateMetadata(): Promise<Metadata> {
   const cfg = await getConfig();
@@ -38,7 +34,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem('biq.theme');var
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const config = await getConfig();
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jakarta.variable} ${deva.variable}`}>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: I18N_BOOT_SCRIPT }} />
