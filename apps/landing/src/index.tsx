@@ -7,7 +7,42 @@ const workflows = [
   ['03', 'Capture now. Review with confidence.', 'Turn shared messages, images and registers into records you can check before using.'],
   ['04', 'A clearer view of your business.', 'Real activity, useful trends and visible connection status across web and Android.'],
 ];
-function ReleaseTimestamp({ updatedAt, build }: { updatedAt?: string; build?: string }) {
+const portalCards = [
+  {
+    key: 'user',
+    title: 'User Portal',
+    description: 'Discover, shortlist and enquire about properties.',
+    action: 'Open User Portal',
+    href: '/user',
+    icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+  },
+  {
+    key: 'broker',
+    title: 'Broker Portal',
+    description: 'Track your inventory, leads and conversations in one place.',
+    action: 'Open Broker Portal',
+    href: '/admin',
+    icon: 'M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12a23 23 0 0 0 18 0M5 7h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z',
+  },
+  {
+    key: 'owner',
+    title: 'Owner Portal',
+    description: 'Manage your properties and availability with ease.',
+    action: 'Open Owner Portal',
+    href: '/owner',
+    icon: 'm2 11 10-8 10 8M5 9v11h5v-6h4v6h5V9',
+  },
+  {
+    key: 'android',
+    title: 'Android App',
+    description: 'One app for users, brokers and owners.',
+    action: 'Download App',
+    href: '#android',
+    icon: 'M6 11h12V8a6 6 0 0 0-12 0v3Zm0 0v8h12v-8M8 19v3m8-3v3M3 11v6m18-6v6M7 2l1 2m9-2-1 2M9 7h.01M15 7h.01',
+  },
+] as const;
+
+function ReleaseTimestamp({ updatedAt }: { updatedAt?: string }) {
   if (!updatedAt) return null;
   const formatted = new Intl.DateTimeFormat('en-IN', {
     day: '2-digit',
@@ -20,7 +55,7 @@ function ReleaseTimestamp({ updatedAt, build }: { updatedAt?: string; build?: st
   }).format(new Date(updatedAt));
   return (
     <time className="biq-release-updated" dateTime={updatedAt}>
-      {build ? `${build} · ` : ''}Updated · {formatted} IST
+      {formatted} IST
     </time>
   );
 }
@@ -30,7 +65,6 @@ export function BrokerIQLanding({
   contact,
   galleries = [],
   releaseUpdates,
-  builds,
   preferences,
 }: {
   preferences?: React.ReactNode;
@@ -39,7 +73,6 @@ export function BrokerIQLanding({
   checksum?: string;
   galleries?: { title: string; screenshots: { src: string; label: string; caption: string }[]; mobile?: boolean }[];
   releaseUpdates?: { user: string; broker: string; android: string };
-  builds?: { user?: string; broker?: string; android?: string };
 }) {
   return (
     <div className="biq-landing" style={{ '--biq-brand': BRAND.primary, '--biq-accent': BRAND.accent } as React.CSSProperties}>
@@ -103,51 +136,33 @@ export function BrokerIQLanding({
           </figure>
         </section>
         <section className="biq-portals biq-wrap" aria-label="Choose your experience">
-          <a href="/user" data-biq-reveal>
-            <span className="biq-portal-icon">⌂</span>
-            <div>
-              <small>FOR YOUR NEXT HOME</small>
-              <h2>User Portal</h2>
-              <p>Discover, shortlist and enquire.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.user} build={builds?.user} />
-            </div>
-            <span aria-hidden>↗</span>
-          </a>
-          <a href="/admin" target="_blank" rel="noopener noreferrer" data-biq-reveal data-biq-delay="1">
-            <span className="biq-portal-icon">▦</span>
-            <div>
-              <small>FOR YOUR WORKING DAY</small>
-              <h2>Broker Portal</h2>
-              <p>Your inventory and conversations.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.broker} build={builds?.broker} />
-            </div>
-            <span aria-hidden>↗</span>
-          </a>
-          <a href="/owner" data-biq-reveal data-biq-delay="2">
-            <span className="biq-portal-icon" aria-hidden>◇</span>
-            <div>
-              <small>FOR PROPERTY OWNERS</small>
-              <h2>Owner Portal</h2>
-              <p>Manage your properties and availability.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.broker} build={builds?.broker} />
-            </div>
-            <span aria-hidden>↗</span>
-          </a>
-          <a href={apkUrl || '#android'} data-biq-reveal data-biq-delay="2">
-            <span className="biq-portal-icon">↓</span>
-            <div>
-              <small>WHEREVER WORK TAKES YOU</small>
-              <h2>Android App</h2>
-              <p>One app for users, brokers and owners.</p>
-              <ReleaseTimestamp updatedAt={releaseUpdates?.android} build={builds?.android} />
-              {checksum && (
-                <span className="biq-small" title={`SHA-256 ${checksum}`}>
-                  SHA-256: {checksum.slice(0, 12)}…
+          {portalCards.map(({ key, title, description, action, href, icon }, index) => (
+            <a
+              key={key}
+              className={`biq-portal-card biq-portal-card--${key}`}
+              href={key === 'android' ? apkUrl || href : href}
+              target={key === 'broker' ? '_blank' : undefined}
+              rel={key === 'broker' ? 'noopener noreferrer' : undefined}
+              data-biq-reveal
+              data-biq-delay={index}
+            >
+              <div className="biq-portal-visual" aria-hidden="true">
+                <span className="biq-portal-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={icon} />
+                  </svg>
                 </span>
-              )}
-            </div>
-            <span aria-hidden>↗</span>
-          </a>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/product/portal-${key}.webp`} alt="" decoding="async" />
+              </div>
+              <h2>{title}</h2>
+              <p>{description}</p>
+              <ReleaseTimestamp updatedAt={releaseUpdates?.[key === 'owner' ? 'broker' : key]} />
+              <span className="biq-portal-action">
+                {action} <span aria-hidden="true">{key === 'android' ? '↓' : '↗'}</span>
+              </span>
+            </a>
+          ))}
         </section>
         <section id="platform" className="biq-section biq-wrap" tabIndex={-1}>
           <div className="biq-section-heading" data-biq-reveal>
@@ -370,15 +385,33 @@ const styles = `
 .biq-hero-art>img{display:block;width:100%;height:520px;object-fit:cover;object-position:65% center;border-radius:32px;box-shadow:0 30px 80px -40px #312e8180}
 .biq-hero-art figcaption{position:absolute;bottom:22px;left:20px;right:20px;border:1px solid #fff6;background:#ffffffd9;backdrop-filter:blur(18px);color:#312e81;padding:16px 20px;border-radius:16px;font-size:12px;font-weight:600}
 .biq-art-label{position:absolute;right:-8px;top:32px;border:1px solid var(--line,#e4e7f0);border-radius:12px;padding:10px 16px;background:var(--surface,#fff);font-size:10px;box-shadow:0 8px 25px #312e8110;animation:biq-float 6s ease-in-out infinite}
-.biq-portals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.biq-portals>a{display:flex;align-items:center;gap:16px;border:1px solid var(--line,#e4e7f0);background:var(--surface,#fff);padding:24px;border-radius:20px;transition:transform .2s,border-color .2s}
-.biq-portals>a:hover{transform:translateY(-4px);border-color:var(--biq-brand)}
-.biq-portals>a>span:last-child{margin-left:auto;color:var(--biq-brand)}
-.biq-portal-icon{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;border-radius:14px;color:var(--biq-brand);background:#4f46e510;font-size:24px}
-.biq-portals small{font-size:8px;letter-spacing:1px;color:var(--muted,#475569)}
-.biq-portals h2{font-size:17px;margin:6px 0}
-.biq-portals p{font-size:11px;color:var(--muted,#475569);margin:0}
-.biq-release-updated{display:block;margin-top:10px;font-size:10px;line-height:1.6;color:var(--muted,#475569)}
+.biq-portals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.biq-portal-card{
+  position:relative;display:flex;flex-direction:column;align-items:stretch;
+  isolation:isolate;overflow:hidden;padding:18px 24px 24px;border-radius:28px;
+  border:1px solid var(--portal-border);background:linear-gradient(150deg,var(--portal-wash),transparent 56%),radial-gradient(ellipse 120% 90% at 100% 0%,var(--portal-glow),transparent 70%),var(--surface,#fff);
+  box-shadow:inset 0 0 0 1px #ffffff9e,0 16px 30px -18px var(--portal-shadow),0 3px 4px -2px var(--portal-border);
+  transition:transform .25s,border-color .25s,box-shadow .25s
+}
+.biq-portal-card:before{content:'';position:absolute;z-index:-1;top:-90px;left:-45px;width:90%;height:144px;transform:rotate(-18deg);border-radius:0 0 80% 58%;background:#fff8;pointer-events:none}
+.biq-portal-card--user{--portal-wash:#f0e9ff;--portal-glow:#cbb7fa;--portal-border:#d9c9fc;--portal-shadow:#6b4bbb6b;--portal-ink:#3611bf;--portal-badge:#f2eaff;--portal-action:#e9dffc}
+.biq-portal-card--broker{--portal-wash:#fff0e4;--portal-glow:#e0c8fb;--portal-border:#e9d2f1;--portal-shadow:#9862b861;--portal-ink:#a63200;--portal-badge:#fff2e5;--portal-action:#ffecd9}
+.biq-portal-card--owner{--portal-wash:#e3faf0;--portal-glow:#b9ebd5;--portal-border:#c4e9d9;--portal-shadow:#32785d61;--portal-ink:#076124;--portal-badge:#ecfbf3;--portal-action:#d9f5e6}
+.biq-portal-card--android{--portal-wash:#eaf0ff;--portal-glow:#c7cefb;--portal-border:#cbd3fb;--portal-shadow:#575fba70;--portal-ink:#3125b5;--portal-badge:#f3f4ff;--portal-action:#e2e2fc}
+.biq-portal-card:hover{transform:translateY(-3px);box-shadow:inset 0 0 0 1px #ffffffbb,0 20px 34px -17px var(--portal-shadow)}
+.biq-portal-visual{position:relative;height:113px;display:flex;align-items:center;min-width:0}
+.biq-portal-visual img{position:absolute;right:-5px;top:-9px;width:72%;height:125px;object-fit:contain;object-position:right bottom;pointer-events:none}
+.biq-portal-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;border:1px solid var(--portal-border);background:var(--portal-badge);color:var(--portal-ink);box-shadow:inset 0 0 0 1px #fff9,0 6px 8px -6px var(--portal-shadow)}
+.biq-portal-icon svg{width:25px;height:25px}
+.biq-portal-card h2{font-size:clamp(19px,1.65vw,24px);letter-spacing:-.8px;font-weight:800;margin:3px 0 9px}
+.biq-portal-card p{color:var(--muted,#475569);font-size:14px;line-height:1.4;margin:0 0 8px;flex:1}
+.biq-release-updated{display:block;font-size:11px;line-height:1.5;color:var(--muted,#475569)}
+.biq-portal-action{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--portal-action);color:var(--portal-ink);margin-top:14px;padding:8px 10px;min-height:40px;border-radius:13px;font-size:14px;font-weight:700;text-align:center}
+.biq-portal-action>span{transition:translate .2s}
+.biq-portal-card:hover .biq-portal-action>span,.biq-portal-card:focus-visible .biq-portal-action>span{translate:2px -2px}
+.biq-portal-card--android:is(:hover,:focus-visible) .biq-portal-action>span{translate:0 2px}
+.dark .biq-portal-card{background:linear-gradient(145deg,color-mix(in srgb,var(--portal-glow) 19%,var(--surface)),var(--surface) 66%);border-color:color-mix(in srgb,var(--portal-border) 30%,var(--surface));box-shadow:0 12px 24px -12px #0009}
+.dark .biq-portal-card:before{background:#fff1}
 .biq-section{padding-block:96px}
 .biq-section-heading{display:flex;justify-content:space-between;align-items:end;gap:40px;margin-bottom:36px}
 .biq-section h2{font-size:clamp(30px,3.5vw,46px);letter-spacing:-1.8px;margin:16px 0}
@@ -458,8 +491,8 @@ to{background-position:-150% 0}
 .biq-nav nav>a:hover:after,.biq-nav nav>a:focus-visible:after{transform:scaleX(1)}
 .biq-button:active,.biq-secondary:active{transform:translateY(0) scale(.98)}
 .biq-secondary:hover{border-color:var(--biq-brand);transform:translateY(-2px);box-shadow:0 8px 22px #4f46e510}
-.biq-button>span,.biq-secondary>span,.biq-portals>a>span:last-child{transition:transform .25s}
-.biq-button:hover>span,.biq-secondary:hover>span,.biq-portals>a:hover>span:last-child{transform:translate(3px,-2px)}
+.biq-button>span,.biq-secondary>span{transition:transform .25s}
+.biq-button:hover>span,.biq-secondary:hover>span{transform:translate(3px,-2px)}
 .biq-hero-art>img{transition:transform .7s cubic-bezier(.2,.7,.2,1),box-shadow .7s}
 .biq-hero-art:hover>img{transform:perspective(1000px) rotateY(-2deg) scale(1.015);box-shadow:0 36px 90px -40px #312e8190}
 .biq-workflows article{transition:transform .3s,border-color .3s,box-shadow .3s}
@@ -473,7 +506,7 @@ to{background-position:-150% 0}
 .biq-footer nav a{display:flex;align-items:center;min-height:44px;position:relative;transition:color .2s,translate .2s}
 .biq-footer nav a:hover{translate:3px 0;color:#fff}
 @keyframes biq-orbit{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20px,16px) scale(1.06)}}
-@media(hover:none){.biq-hero-art:hover>img,.biq-workflows article:hover,.biq-portals>a:hover,.biq-button:hover,.biq-secondary:hover{transform:none}}
+@media(hover:none){.biq-hero-art:hover>img,.biq-workflows article:hover,.biq-portal-card:hover,.biq-button:hover,.biq-secondary:hover{transform:none}}
 @media(max-width:1050px){.biq-nav nav>a:not(.biq-button){display:none}
 .biq-nav nav{gap:12px}
 .biq-wrap{padding-inline:28px}
@@ -481,9 +514,6 @@ to{background-position:-150% 0}
 .biq-hero-art>img{height:440px}
 .biq-workflows{grid-template-columns:repeat(2,1fr)}
 .biq-portals{grid-template-columns:repeat(2,minmax(0,1fr))}
-.biq-portals>a{padding:18px;gap:10px}
-.biq-portals small{font-size:7px}
-.biq-portal-icon{display:none}
 .biq-mobile{gap:32px}
 }
 @media(max-width:700px){.biq-wrap{padding-inline:20px}
@@ -499,8 +529,9 @@ to{background-position:-150% 0}
 .biq-art-label{right:10px;font-size:9px}
 .biq-intro{font-size:14px}
 .biq-portals{grid-template-columns:1fr}
-.biq-portal-icon{display:grid}
-.biq-portals small{font-size:8px}
+.biq-portal-card{padding:16px 20px 20px}
+.biq-portal-visual{height:104px}
+.biq-portal-visual img{height:116px}
 .biq-section{padding-block:56px}
 .biq-section-heading{display:block}
 .biq-workflows{gap:12px}

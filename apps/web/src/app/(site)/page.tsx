@@ -29,15 +29,6 @@ export default async function Home() {
       contact={{ email: config?.app.supportEmail, phone: config?.app.supportPhone, address: config?.app.officeAddress }}
       apkUrl={release?.android.url}
       checksum={release?.android.sha256}
-      builds={
-        release
-          ? {
-              user: `Build v${release.portals.version} · ${release.portals.commit.slice(0, 7)}`,
-              broker: `Build v${release.portals.version} · ${release.portals.commit.slice(0, 7)}`,
-              android: `Build ${release.android.versionCode} (v${release.android.version})`,
-            }
-          : undefined
-      }
       releaseUpdates={release ? { user: release.portals.publishedAt, broker: release.portals.publishedAt, android: release.android.publishedAt } : undefined}
       galleries={productGalleries.map((gallery) =>
         gallery.mobile && release?.screenshots.length
