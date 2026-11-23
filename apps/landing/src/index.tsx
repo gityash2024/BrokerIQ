@@ -129,6 +129,7 @@ export function BrokerIQLanding({
               <small>FOR PROPERTY OWNERS</small>
               <h2>Owner Portal</h2>
               <p>Manage your properties and availability.</p>
+              <ReleaseTimestamp updatedAt={releaseUpdates?.broker} build={builds?.broker} />
             </div>
             <span aria-hidden>↗</span>
           </a>
