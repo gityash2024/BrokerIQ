@@ -123,12 +123,21 @@ export function BrokerIQLanding({
             </div>
             <span aria-hidden>↗</span>
           </a>
+          <a href="/owner" data-biq-reveal data-biq-delay="2">
+            <span className="biq-portal-icon" aria-hidden>◇</span>
+            <div>
+              <small>FOR PROPERTY OWNERS</small>
+              <h2>Owner Portal</h2>
+              <p>Manage your properties and availability.</p>
+            </div>
+            <span aria-hidden>↗</span>
+          </a>
           <a href={apkUrl || '#android'} data-biq-reveal data-biq-delay="2">
             <span className="biq-portal-icon">↓</span>
             <div>
               <small>WHEREVER WORK TAKES YOU</small>
               <h2>Android App</h2>
-              <p>One app. User and Broker modes.</p>
+              <p>One app for users, brokers and owners.</p>
               <ReleaseTimestamp updatedAt={releaseUpdates?.android} build={builds?.android} />
               {checksum && (
                 <span className="biq-small" title={`SHA-256 ${checksum}`}>
@@ -291,6 +300,7 @@ export function BrokerIQLanding({
               <strong>Explore</strong>
               <a href="/user">User Portal</a>
               <a href="/login?next=/broker">Broker Portal</a>
+              <a href="/owner">Owner Portal</a>
               <a href="/login?next=/admin">Admin Login</a>
               {apkUrl && (
                 <a href={apkUrl} download>
@@ -359,7 +369,7 @@ const styles = `
 .biq-hero-art>img{display:block;width:100%;height:520px;object-fit:cover;object-position:65% center;border-radius:32px;box-shadow:0 30px 80px -40px #312e8180}
 .biq-hero-art figcaption{position:absolute;bottom:22px;left:20px;right:20px;border:1px solid #fff6;background:#ffffffd9;backdrop-filter:blur(18px);color:#312e81;padding:16px 20px;border-radius:16px;font-size:12px;font-weight:600}
 .biq-art-label{position:absolute;right:-8px;top:32px;border:1px solid var(--line,#e4e7f0);border-radius:12px;padding:10px 16px;background:var(--surface,#fff);font-size:10px;box-shadow:0 8px 25px #312e8110;animation:biq-float 6s ease-in-out infinite}
-.biq-portals{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.biq-portals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .biq-portals>a{display:flex;align-items:center;gap:16px;border:1px solid var(--line,#e4e7f0);background:var(--surface,#fff);padding:24px;border-radius:20px;transition:transform .2s,border-color .2s}
 .biq-portals>a:hover{transform:translateY(-4px);border-color:var(--biq-brand)}
 .biq-portals>a>span:last-child{margin-left:auto;color:var(--biq-brand)}
@@ -469,6 +479,7 @@ to{background-position:-150% 0}
 .biq-hero h1{letter-spacing:-2px}
 .biq-hero-art>img{height:440px}
 .biq-workflows{grid-template-columns:repeat(2,1fr)}
+.biq-portals{grid-template-columns:repeat(2,minmax(0,1fr))}
 .biq-portals>a{padding:18px;gap:10px}
 .biq-portals small{font-size:7px}
 .biq-portal-icon{display:none}
