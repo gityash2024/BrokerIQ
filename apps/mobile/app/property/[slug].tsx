@@ -268,6 +268,7 @@ export default function Property() {
           <Txt v="h2" style={{ marginTop: 8 }}>
             {l.title}
           </Txt>
+          {l.propertyCode && <Txt v="caption" color="muted">{l.propertyCode}</Txt>}
           <PressableScale onPress={() => router.push(`/locality/${l.locality.slug}`)}>
             <Row gap={4}>
               <MapPin size={15} color={c.brand} />
@@ -450,7 +451,7 @@ export default function Property() {
             <Row gap={6}>
               <Flag size={14} color={c.subtle} />
               <Txt v="small" color="subtle">
-                Listing में गड़बड़ी? Report करें · Ref #{l.refNo}
+                Listing में गड़बड़ी? Report करें · {l.propertyCode || `Ref #${l.refNo}`}
               </Txt>
             </Row>
           </PressableScale>

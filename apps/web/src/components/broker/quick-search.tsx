@@ -42,7 +42,7 @@ export function QuickLeadSearch() {
       map: (item: LedgerItem): Result => ({
         id: item.id,
         title: inventoryTitle(item),
-        subtitle: item.sector ?? undefined,
+        subtitle: [item.sector, item.propertyCode].filter(Boolean).join(' · ') || undefined,
         href: `/broker/inventory?item=${item.id}`,
       }),
     },

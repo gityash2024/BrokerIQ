@@ -354,6 +354,7 @@ export function InventoryFoldersPage({
                     )}
                     {!survey && <p className="text-lg font-bold">{inventoryPrice(item)}</p>}
                     <h3 className="break-words font-semibold">{inventoryCardTitle(item)}</h3>
+                    {item.propertyCode && <p className="text-xs text-muted">{item.propertyCode}</p>}
                     <p className="text-sm text-muted">
                       {[inventoryConfigurationLabel(item), item.furnishing ? readableValue(item.furnishing) : null].filter(Boolean).join(' · ')}
                     </p>

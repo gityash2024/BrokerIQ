@@ -244,7 +244,7 @@ function LedgerInner() {
           <Search size={17} className="text-muted" />
           <input
             aria-label="Search inventory"
-            placeholder="House, locality, contact or notes"
+            placeholder="Property ID, house, locality, contact or notes"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-11 w-full bg-transparent text-sm outline-none"
@@ -558,6 +558,7 @@ function LedgerInner() {
                         </span>
                         {item.floor && <span className="text-[11px] text-muted">({floorLabel(item.floor)})</span>}
                       </div>
+                      {item.propertyCode && <span className="block text-xs text-muted">{item.propertyCode}</span>}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">

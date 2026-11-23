@@ -177,7 +177,7 @@ function InventoryLedger() {
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <Input
                   accessibilityLabel="Search inventory"
-                  placeholder="House, locality, contact…"
+                  placeholder="Property ID, house, locality, contact…"
                   value={search}
                   onChangeText={setSearch}
                   icon={<Search size={18} color={c.muted} />}
