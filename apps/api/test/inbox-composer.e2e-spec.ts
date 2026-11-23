@@ -155,8 +155,8 @@ describe('Internal lead composer and conversation ownership', () => {
     }
   });
   describe('free-only WhatsApp', () => {
-    const businessAccountId = '1234567';
-    const phoneNumberId = '1234568';
+    const businessAccountId = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const phoneNumberId = businessAccountId + '1';
     let providerUsage: number, providerPolicy: string, analyticsStatus: number, linked: boolean;
     let fetchAdapter: jest.SpyInstance;
     let sends: number;
