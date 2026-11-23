@@ -26,6 +26,8 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
   const insets = useSafeAreaInsets();
   const { modules } = useConfig();
   const { user } = useAuth();
+  const activeRoute = state.routes[state.index]?.name;
+  const focusedTab = activeRoute === 'inventory-ledger' || activeRoute === 'inventory-survey' ? 'inventory' : activeRoute;
   const delegated = user?.role === 'SUB_BROKER_ADMIN';
   const policies = delegated ? delegatedModulePolicies(modules, user.delegatedPermissions ?? []) : modules;
 
@@ -66,7 +68,7 @@ export function TabBar({ state, descriptors, navigation, badges = {} }: any) {
           )
           .map((route: any) => {
             const options = descriptors[route.key].options;
-            const focused = state.routes[state.index]?.key === route.key;
+            const focused = focusedTab === route.name;
             const activeColor = c.brand;
             const inactiveColor = isDark ? '#7E88A0' : '#64748B';
 

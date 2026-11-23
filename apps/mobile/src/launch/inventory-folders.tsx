@@ -401,7 +401,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
             variant="secondary"
             onPress={() => {
               setOpenFilters(false);
-              router.push({ pathname: '/(broker)/inventory', params: { ...query, view: 'ledger' } });
+              router.push({ pathname: '/(broker)/inventory-ledger', params: query });
             }}
           />
           <Button

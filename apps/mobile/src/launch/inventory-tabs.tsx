@@ -34,7 +34,7 @@ export function NativeInventoryTabs({ active }: { active: string }) {
                       ? 'Publication review requires Broker Admin approval access.'
                       : 'Ask your Broker Admin for access to this inventory section.',
                   );
-                else if (active !== link.href) router.navigate(link.nativeHref as never);
+                else if (active !== link.href) router.push(link.href === '/broker/inventory/data' ? '/(broker)/inventory-ledger' : (link.nativeHref as never));
               }}
             />
           );

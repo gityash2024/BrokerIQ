@@ -27,7 +27,7 @@ export default function UserTabs() {
   });
   const unread = (threads.data ?? []).filter((t) => t.lastInboundAt && t.lastMessageAt && t.lastMessageAt !== t.lastInboundAt).length;
   return (
-    <Tabs
+    <Tabs backBehavior="fullHistory"
       screenLayout={NativeScreenLayout}
       screenOptions={{ headerShown: false }}
       tabBar={(p) => <TabBar {...p} badges={{ messages: unread || undefined, profile: notif.data?.unreadCount || undefined }} />}

@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { ScrollView } from '@/components/keyboard-scroll-view';
@@ -280,7 +281,7 @@ export function CampaignEditor() {
 
 export function CampaignDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const onClose = () => router.replace('/campaigns');
+  const onClose = () => goBack('/campaigns');
   const q = useQuery({
     queryKey: ['campaign', id],
     queryFn: () => api<any>(`/broker/campaigns/${id}`),

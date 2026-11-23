@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { LoadingArtwork } from '@/components/request-loader';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, Linking, View } from 'react-native';
@@ -86,7 +87,7 @@ function MemberEditor({ member, refresh }: { member: Member; refresh: () => Prom
   const busy = update.isPending || remove.isPending;
   return (
     <>
-      <Button title="टीम सूची" variant="ghost" onPress={() => router.replace('/team')} />
+      <Button title="टीम सूची" variant="ghost" onPress={() => goBack('/team')} />
       <Card style={{ padding: 16, gap: 12 }}>
         <Row gap={12}>
           <Avatar name={member.name} uri={member.avatarUrl} size={48} />

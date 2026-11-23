@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { Dimensions, FlatList, Linking, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -90,7 +91,7 @@ function Project() {
                 pointerEvents="none"
               />
               <SafeAreaView edges={['top']} style={{ position: 'absolute', left: 12, top: 0 }}>
-                <IconBtn onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
+                <IconBtn onPress={() => goBack()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
                   <ChevronLeft size={22} color="#0F172A" />
                 </IconBtn>
               </SafeAreaView>

@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -63,7 +64,7 @@ export default function Records() {
             <Button title="Previous" variant="secondary" disabled={page === 1} onPress={() => setPage(page - 1)} />
             <Button title="Next" variant="secondary" disabled={page * 30 >= q.data.total} onPress={() => setPage(page + 1)} />
           </View>
-          <Button title="Back to overview" variant="secondary" onPress={() => router.back()} />
+          <Button title="Back to overview" variant="secondary" onPress={() => goBack()} />
         </View>
       )}
     </Screen>

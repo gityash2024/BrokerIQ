@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { openLeadInbox } from '@/lib/inbox-composer';
 import { DateTimeField } from '@/components/date-time-field';
 import { submitTask } from '@/launch/drafts';
@@ -141,7 +142,7 @@ export default function LeadDetail() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Row style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
-        <IconBtn accessibilityLabel="Back" onPress={() => router.back()}>
+        <IconBtn accessibilityLabel="Back" onPress={() => goBack()}>
           <ChevronLeft size={24} color={c.fg} />
         </IconBtn>
         <View style={{ flex: 1 }} />

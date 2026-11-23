@@ -7,6 +7,7 @@ import { ChevronLeft, Languages, LogOut, Moon, MoreHorizontal, Sun, UserRound } 
 import { Button, Card, IconBtn, Sheet, Txt } from '@/ui';
 import { useTheme, useThemeMode } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
+import { goBack } from '@/lib/navigation';
 import { LanguageSheet } from '@/components/language';
 import { NotificationBell } from '@/components/notification-bell';
 import { alert } from '@/lib/i18n';
@@ -67,9 +68,7 @@ export function BrokerScreen({
         {back && (
           <IconBtn
             accessibilityLabel="Back"
-            onPress={() =>
-              router.canGoBack() ? router.back() : router.replace(platformMonitor ? '/time-logging' : broker ? '/(broker)/dashboard' : '/(user)/home')
-            }
+            onPress={() => goBack()}
             style={{ backgroundColor: c.surface2, flexShrink: 0 }}
           >
             <ChevronLeft size={20} color={c.fg} />

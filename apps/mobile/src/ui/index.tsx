@@ -32,6 +32,7 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import * as Haptics from 'expo-haptics';
 import { AlertTriangle, ChevronLeft, CircleCheck, Info, Inbox, Settings2, XCircle } from 'lucide-react-native';
 import { initials } from '@brokeriq/shared';
@@ -148,7 +149,7 @@ export function Header({ title, subtitle, right, back = true }: { title?: string
       }}
     >
       {back && (
-        <IconBtn onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
+        <IconBtn accessibilityLabel="Back" onPress={() => goBack()}>
           <ChevronLeft size={24} color={c.fg} />
         </IconBtn>
       )}

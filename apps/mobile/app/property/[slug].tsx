@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { Dimensions, FlatList, Linking, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -462,7 +463,7 @@ export default function Property() {
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: insets.top }}>
         <Animated.View style={[{ position: 'absolute', inset: 0, backgroundColor: c.bg, borderBottomWidth: 1, borderColor: c.line } as any, barStyle]} />
         <Row style={{ paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'space-between' }}>
-          <IconBtn onPress={() => (router.canGoBack() ? router.back() : router.replace('/(user)/home'))} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
+          <IconBtn onPress={() => goBack()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
             <ChevronLeft size={22} color="#0F172A" />
           </IconBtn>
           <Animated.View style={[{ flex: 1, paddingHorizontal: 8 }, barStyle]}>

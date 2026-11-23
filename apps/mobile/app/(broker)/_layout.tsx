@@ -18,7 +18,7 @@ export default function BrokerTabs() {
   const policies = delegated ? delegatedModulePolicies(config.modules, user.delegatedPermissions ?? []) : undefined;
   const show = (key: string) => !delegated || moduleAllowed(policies, key, 'BROKER_ADMIN');
   return (
-    <Tabs screenLayout={NativeScreenLayout} screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
+    <Tabs backBehavior="fullHistory" screenLayout={NativeScreenLayout} screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
       <Tabs.Screen name="dashboard" options={{ title: 'Today', tabBarIcon: ({ color }) => <LayoutDashboard size={21} color={color} /> }} />
       <Tabs.Screen name="inventory" options={{ title: 'Inventory', href: show('inventory') ? undefined : null, tabBarIcon: ({ color }) => <Building2 size={21} color={color} /> }} />
       <Tabs.Screen name="leads" options={{ title: 'Leads', href: show('leads') ? undefined : null, tabBarIcon: ({ color }) => <Inbox size={21} color={color} /> }} />
@@ -38,6 +38,8 @@ export default function BrokerTabs() {
           tabBarIcon: ({ color }) => <Workflow size={21} color={color} />,
         }}
       />
+      <Tabs.Screen name="inventory-ledger" options={{ href: null }} />
+      <Tabs.Screen name="inventory-survey" options={{ href: null }} />
       <Tabs.Screen name="more" options={{ href: null }} />
     </Tabs>
   );

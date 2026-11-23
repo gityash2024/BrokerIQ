@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -71,7 +72,7 @@ export default function BrokerMicrosite() {
                 <LinearGradient colors={['#312E81', '#4F46E5', '#7C3AED']} style={{ position: 'absolute', inset: 0 } as any} />
               )}
               <SafeAreaView edges={['top']} style={{ padding: 12 }}>
-                <IconBtn onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
+                <IconBtn onPress={() => goBack()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
                   <ChevronLeft size={22} color="#0F172A" />
                 </IconBtn>
               </SafeAreaView>

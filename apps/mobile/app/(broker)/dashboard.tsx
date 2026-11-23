@@ -104,7 +104,7 @@ export default function Today() {
         )}
 
         {typeof d?.surveyPending === 'number' && (
-          <NativeCard onPress={() => router.push({ pathname: '/(broker)/inventory', params: { survey: '1' } })}>
+          <NativeCard onPress={() => router.push('/(broker)/inventory-survey')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Txt v="bodyStrong">Survey pending</Txt>

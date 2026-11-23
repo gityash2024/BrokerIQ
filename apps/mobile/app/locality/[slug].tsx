@@ -1,3 +1,4 @@
+import { goBack } from '@/lib/navigation';
 import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -43,7 +44,7 @@ export default function Locality() {
           )}
           <LinearGradient colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.65)']} style={{ position: 'absolute', inset: 0 } as any} />
           <SafeAreaView edges={['top']} style={{ flex: 1, padding: 16, justifyContent: 'space-between' }}>
-            <IconBtn onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
+            <IconBtn onPress={() => goBack()} style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
               <ChevronLeft size={22} color="#0F172A" />
             </IconBtn>
             <Animated.View entering={FadeInDown}>
