@@ -1,7 +1,7 @@
 import { inventoryAccessRefreshInterval } from '@brokeriq/shared';
-import { useEffect, useState } from 'react';
-import { Alert, FlatList, Linking, Switch, View } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, BackHandler, FlatList, Linking, Switch, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronRight, Folder, Search } from 'lucide-react-native';
@@ -59,6 +59,15 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   const [surveyShelf, setSurveyShelf] = useState<'PENDING' | 'NO_ANSWER'>('PENDING');
   const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
   const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
+  useFocusEffect(useCallback(() => {
+    if (!path.length && mode === initialMode) return;
+    const back = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (path.length) setPath(path.slice(0, -1));
+      else setMode(initialMode);
+      return true;
+    });
+    return () => back.remove();
+  }, [initialMode, mode, path]));
   const [search, setSearch] = useState('');
   const [openFilters, setOpenFilters] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
