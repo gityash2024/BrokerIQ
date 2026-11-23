@@ -154,4 +154,79 @@ describe('Internal lead composer and conversation ownership', () => {
       outbound.mockRestore();
     }
   });
+  describe('free-only WhatsApp', () => {
+    const businessAccountId = '1234567';
+    const phoneNumberId = '1234568';
+    let providerUsage: number, providerPolicy: string, analyticsStatus: number, linked: boolean;
+    let fetchAdapter: jest.SpyInstance;
+    let sends: number;
+    const send = (body: { text?: string; mediaUrl?: string } = { text: 'Reply within the customer window' }) =>
+      req().post('/api/whatsapp/send').set(h()).send({ conversationId, ...body });
+
+    beforeAll(async () => {
+      await db.orgSetting.create({ data: { organizationId: org, key: 'workflow.options', value: { freeOnly: true } } });
+    });
+
+    beforeEach(async () => {
+      providerUsage = 147;
+      providerPolicy = 'REGULAR';
+      analyticsStatus = 200;
+      linked = true;
+      sends = 0;
+      await db.conversation.update({ where: { id: conversationId }, data: { lastInboundAt: new Date() } });
+      creds.mockResolvedValue({ scope: 'organization', values: { businessAccountId, phoneNumberId } });
+      fetchAdapter = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const url = new URL(String(input));
+        if (url.hostname !== 'graph.facebook.com') throw new Error('Unexpected external request');
+        if (init?.method === 'POST' && url.pathname.endsWith('/' + phoneNumberId + '/messages')) {
+          return Response.json({ messages: [{ id: 'free-test-' + uid + '-' + Math.random().toString(36).slice(2) + '-' + ++sends }] });
+        }
+        const fields = url.searchParams.get('fields');
+        if (fields === 'service_pricing_policy') return Response.json({ service_pricing_policy: providerPolicy });
+        if (!fields?.includes('analytics.start(')) throw new Error('Unexpected Graph request');
+        return Response.json({
+          phone_numbers: { data: linked ? [{ id: phoneNumberId, display_phone_number: '+91 97000 00299' }] : [] },
+          analytics: { granularity: 'DAY', phone_numbers: ['919700000299'], data_points: [{ sent: providerUsage, delivered: providerUsage }] },
+        }, { status: analyticsStatus });
+      });
+    });
+
+    afterEach(() => fetchAdapter.mockRestore());
+
+    it('lets the assigned Agent send text and property images for a regular account under quota', async () => {
+      await send().expect(201);
+      await send({ mediaUrl: new URL('/property-image.jpg', env().PUBLIC_API_URL).href }).expect(201);
+      expect(sends).toBe(2);
+    });
+
+    it('keeps the exempt-account path independent of analytics', async () => {
+      providerPolicy = 'PAID_EXEMPT';
+      analyticsStatus = 503;
+      await send().expect(201);
+      expect(sends).toBe(1);
+    });
+
+    it('keeps the draft on unknown usage, a mismatched sender, and a closed window', async () => {
+      analyticsStatus = 503;
+      const result = await send().expect(403);
+      expect(result.body.code).toBe('MESSAGING_FREE_ONLY');
+      expect(result.body.details.draftUrl).toContain('wa.me');
+      analyticsStatus = 200;
+      linked = false;
+      await send().expect(403);
+      linked = true;
+      await db.conversation.update({ where: { id: conversationId }, data: { lastInboundAt: new Date(Date.now() - 25 * 3600_000) } });
+      await send().expect(403);
+      expect(sends).toBe(0);
+    });
+
+    it('keeps templates blocked and reserves the final free slot for only one concurrent reply', async () => {
+      await expect(wa.send(org, '+919700000201', { type: 'template', name: 'test', language: 'en', params: [] })).rejects.toThrow('Free-only messaging');
+      const attempts = await db.message.count({ where: { conversationId, direction: 'OUTBOUND', type: { in: ['TEXT', 'IMAGE', 'DOCUMENT'] } } });
+      providerUsage = 899 - attempts;
+      const results = await Promise.all([send(), send()]);
+      expect(results.map((r) => r.status).sort()).toEqual([201, 403]);
+      expect(sends).toBe(1);
+    });
+  });
 });

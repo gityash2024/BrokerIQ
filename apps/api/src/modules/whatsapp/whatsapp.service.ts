@@ -39,6 +39,10 @@ function hasPropertyGalleryLink(text: string, publicWebUrl: string): boolean {
 class UnmatchedWhatsAppReceiptError extends Error {}
 class OversizedWhatsAppMediaError extends Error {}
 
+const DAY_MS = 24 * 60 * 60_000;
+// Count account-wide usage and local attempts conservatively because Meta reports by day.
+const SERVICE_SEND_LIMIT = 900;
+
 const NOT_CONNECTED =
   'WhatsApp number connected नहीं है — Broker panel → Connectors → "My WhatsApp Business number" में जोड़ें। Integration configure होने तक draft सुरक्षित रखें; message भेजा नहीं गया है।';
 
@@ -122,6 +126,43 @@ export class WhatsAppService {
     return externalId;
   }
 
+  private async freeServiceAllowance(values: IntegrationValues, now: Date): Promise<'exempt' | { since: Date; providerUsage: number } | null> {
+    const accountId = String(values.businessAccountId);
+    if (!/^\d+$/.test(accountId)) return null;
+    const accountUrl = `${GRAPH}/${accountId}`;
+    const request = async (fields: string) => {
+      const res = await fetch(`${accountUrl}?${new URLSearchParams({ fields })}`, {
+        headers: { Authorization: `Bearer ${values.accessToken}` },
+        signal: AbortSignal.timeout(4_000),
+      });
+      return res.ok ? await res.json() : null;
+    };
+
+    try {
+      const account = await request('service_pricing_policy');
+      if (account?.service_pricing_policy === 'PAID_EXEMPT') return 'exempt';
+      if (account?.service_pricing_policy !== 'REGULAR') return null;
+      // Include the account's local month start even when it differs from UTC.
+      const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) - 2 * DAY_MS);
+      const usage = await request(
+        `phone_numbers.limit(100){id,display_phone_number},analytics.start(${since.getTime() / 1000}).end(${Math.floor(now.getTime() / 1000)}).granularity(DAY)`,
+      );
+      const linkedPhone = usage?.phone_numbers?.data?.find((p: { id: string }) => p.id === String(values.phoneNumberId));
+      const phone = typeof linkedPhone?.display_phone_number === 'string' ? linkedPhone.display_phone_number.replace(/\D/g, '') : '';
+      const analytics = usage?.analytics;
+      if (!phone || analytics?.granularity !== 'DAY' || !Array.isArray(analytics.phone_numbers) || !analytics.phone_numbers.includes(phone) ||
+          !Array.isArray(analytics.data_points)) return null;
+      let providerUsage = 0;
+      for (const point of analytics.data_points) {
+        if (!Number.isSafeInteger(point?.sent) || point.sent < 0 || !Number.isSafeInteger(point?.delivered) || point.delivered < 0) return null;
+        providerUsage += Math.max(point.sent, point.delivered);
+      }
+      return { since, providerUsage };
+    } catch {
+      return null;
+    }
+  }
+
   /** Core send used by inbox, automations and share buttons. Stores the message and emits realtime updates. */
   async send(
     orgId: string | null,
@@ -145,26 +186,20 @@ export class WhatsAppService {
     const creds = await this.requireCreds(orgId);
     if (opts.ownNumberOnly && creds.scope !== 'organization') throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
     const conv = await this.conversationFor(orgId, phone, { leadId: opts.leadId, name: opts.contactName });
-    if ((await this.workflows.get(orgId)).freeOnly) {
-      const inWindow = conv.lastInboundAt && Date.now() - conv.lastInboundAt.getTime() < 24 * 60 * 60_000;
-      let freeService = false;
-      if (msg.type !== 'template' && inWindow && creds.scope === 'organization' && /^\d+$/.test(String(creds.values.businessAccountId))) {
-        try {
-          const account = await fetch(`${GRAPH}/${creds.values.businessAccountId}?fields=service_pricing_policy`, {
-            headers: { Authorization: `Bearer ${creds.values.accessToken}` },
-            signal: AbortSignal.timeout(4_000),
-          });
-          freeService = account.ok && (await account.json()).service_pricing_policy === 'PAID_EXEMPT';
-        } catch {
-          // A missing pricing confirmation cannot authorize a potentially billable send.
-        }
-      }
-      if (!freeService) {
-        const draft = opts.storedBody || msg.type === 'template' ? undefined : msg.type === 'text' ? msg.text : [msg.caption, msg.url].filter(Boolean).join('\n');
-        throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.MESSAGING_FREE_ONLY,
-          'Free-only messaging: WhatsApp API cost could not be confirmed as ₹0.',
-          { draftUrl: opts.userId && !opts.storedBody ? whatsappLink(phone, draft) : undefined });
-      }
+    const freeOnly = (await this.workflows.get(orgId)).freeOnly;
+    const freeOnlyError = () => {
+      const draft = opts.storedBody || msg.type === 'template' ? undefined : msg.type === 'text' ? msg.text : [msg.caption, msg.url].filter(Boolean).join('\n');
+      return new AppException(HttpStatus.FORBIDDEN, ErrorCode.MESSAGING_FREE_ONLY,
+        'Free-only messaging: WhatsApp API cost could not be confirmed as ₹0.',
+        { draftUrl: opts.userId && !opts.storedBody ? whatsappLink(phone, draft) : undefined });
+    };
+    let allowance: Awaited<ReturnType<WhatsAppService['freeServiceAllowance']>> = null;
+    if (freeOnly) {
+      const now = new Date();
+      if (msg.type === 'template' || creds.scope !== 'organization' || !conv.lastInboundAt ||
+          conv.lastInboundAt > now || now.getTime() - conv.lastInboundAt.getTime() >= DAY_MS) throw freeOnlyError();
+      allowance = await this.freeServiceAllowance(creds.values, now);
+      if (!allowance) throw freeOnlyError();
     }
     const body =
       opts.storedBody ??
@@ -174,19 +209,37 @@ export class WhatsAppService {
           ? `[Template] ${msg.name}${msg.params.length ? `: ${msg.params.join(' | ')}` : ''}`
           : (msg.caption ?? ''));
     const type: MessageType = msg.type === 'text' ? 'TEXT' : msg.type === 'template' ? 'TEMPLATE' : msg.type === 'image' ? 'IMAGE' : 'DOCUMENT';
-    const record = await this.prisma.message.create({
-      data: {
-        conversationId: conv.id,
-        direction: 'OUTBOUND',
-        type,
-        body,
-        mediaUrl: 'url' in msg ? msg.url : null,
-        templateName: msg.type === 'template' ? msg.name : null,
-        senderUserId: opts.userId ?? null,
-        status: 'QUEUED',
-        meta: { scope: creds.scope, ...(opts.meta ?? {}) } as Prisma.InputJsonValue,
-      },
-    });
+    const messageData: Prisma.MessageUncheckedCreateInput = {
+      conversationId: conv.id,
+      direction: 'OUTBOUND',
+      type,
+      body,
+      mediaUrl: 'url' in msg ? msg.url : null,
+      templateName: msg.type === 'template' ? msg.name : null,
+      senderUserId: opts.userId ?? null,
+      status: 'QUEUED',
+      meta: { scope: creds.scope, ...(opts.meta ?? {}), waAccountId: String(creds.values.businessAccountId) } as Prisma.InputJsonValue,
+    };
+    const record = allowance && allowance !== 'exempt'
+      ? await this.prisma.$transaction(async (tx) => {
+          const accountId = String(creds.values.businessAccountId);
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wa-free-tier:${accountId}`}))`;
+          const attempts = await tx.message.count({
+            where: {
+              direction: 'OUTBOUND',
+              type: { in: ['TEXT', 'IMAGE', 'DOCUMENT'] },
+              createdAt: { gte: allowance.since },
+              conversation: { channel: 'WHATSAPP' },
+              OR: [
+                { conversation: { organizationId: orgId } },
+                { meta: { path: ['waAccountId'], equals: accountId } },
+              ],
+            },
+          });
+          if (allowance.providerUsage + attempts >= SERVICE_SEND_LIMIT) throw freeOnlyError();
+          return tx.message.create({ data: messageData });
+        })
+      : await this.prisma.message.create({ data: messageData });
     const payload: Record<string, unknown> = { to: phoneForWhatsApp(phone) };
     if (msg.type === 'text')
       Object.assign(payload, { type: 'text', text: { body: msg.text, preview_url: !hasPropertyGalleryLink(msg.text, env().PUBLIC_WEB_URL) } });
