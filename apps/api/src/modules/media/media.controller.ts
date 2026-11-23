@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   Res,
+  ServiceUnavailableException,
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -17,10 +18,12 @@ import { SkipThrottle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators';
 import { LocalStorageService, RESIZE_WIDTHS } from '../../core/media/local-storage.service';
+import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import { PhotoBrandingService } from './photo-branding.service';
 import { KycService } from '../../core/media/kyc.service';
 import { CurrentUser, type RequestUser } from '../../common/decorators';
 import { createHash } from 'node:crypto';
+import sharp from 'sharp';
 import { renderKyc } from '../../core/media/kyc-render';
 
 /** Upload + serve endpoints for the self-hosted media store (MEDIA_ROOT). */
@@ -32,6 +35,7 @@ export class MediaController {
     private readonly branding: PhotoBrandingService,
     private readonly prisma: PrismaService,
     private readonly kyc: KycService,
+    private readonly propertyPhotos: PropertyPhotoService,
   ) {}
 
   @Get('kyc/:id')
@@ -64,6 +68,23 @@ export class MediaController {
   }
 
   @Public()
+  @Get('property-photo/:token')
+  async propertyPhoto(@Param('token') token: string, @Query('w') size: string | undefined, @Query('format') format: string | undefined, @Res() res: Response) {
+    if (!this.store.enabled) throw new NotFoundException();
+    const width = RESIZE_WIDTHS.find((value) => String(value) === size);
+    let bytes: Buffer;
+    try {
+      bytes = await this.propertyPhotos.read(token, width);
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new ServiceUnavailableException('Property photo could not be prepared');
+    }
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    if (format === 'jpeg') return res.type('image/jpeg').send(await sharp(bytes).jpeg({ quality: 86 }).toBuffer());
+    return res.type('image/webp').send(bytes);
+  }
+
+  @Public()
   @SkipThrottle()
   @Get('f/:kind/:owner/:month/:id')
   async serve(
@@ -74,7 +95,7 @@ export class MediaController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    if (!this.store.enabled || p.kind === 'importattachment') throw new NotFoundException();
+    if (!this.store.enabled || ['importattachment', 'rendition', 'propertyvideo'].includes(p.kind)) throw new NotFoundException();
     const key = `${p.kind}/${p.owner}/${p.month}/${p.id}`;
     const width = p.kind === 'kyc' ? undefined : RESIZE_WIDTHS.find((x) => String(x) === w);
     const etag = `"${p.id}${width ? `-${width}` : ''}"`;

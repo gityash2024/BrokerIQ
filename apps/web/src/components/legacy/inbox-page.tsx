@@ -1,4 +1,5 @@
 'use client';
+import { whatsappLink } from '@brokeriq/shared';
 import { LoadingArtwork } from '@/components/ui/request-loader';
 import { SmsThread } from '@/components/broker/sms-thread';
 import Link from 'next/link';
@@ -647,7 +648,12 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
       onReadRef.current();
       return true;
     } catch (e) {
-      if (e instanceof ApiError && e.isNotConfigured) setNotConfigured(e);
+      if (e instanceof ApiError && e.body.code === 'MESSAGING_FREE_ONLY') {
+        const { draftUrl } = (e.body.details ?? {}) as { draftUrl?: string };
+        if (draftUrl?.startsWith('https://wa.me/')) {
+          toast.error(errorMessage(e), { action: { label: 'Open WhatsApp', onClick: () => window.open(draftUrl, '_blank', 'noopener,noreferrer') } });
+        } else toast.error(errorMessage(e));
+      } else if (e instanceof ApiError && e.isNotConfigured) setNotConfigured(e);
       else toast.error(errorMessage(e));
       return false;
     } finally {
@@ -681,6 +687,14 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
   }
 
   const windowOpen = q.data?.windowOpen;
+  const manualPhone = q.data?.freeOnly ? q.data?.conversation?.contactPhone : null;
+  const manualDraft = !windowOpen && manualPhone;
+  const canCompose = windowOpen || manualDraft;
+  function submitText() {
+    if (!ready || !text.trim()) return;
+    if (manualDraft) window.open(whatsappLink(manualPhone, text.trim()), '_blank', 'noopener,noreferrer');
+    else void send({ text });
+  }
 
   return (
     <>
@@ -754,10 +768,8 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
         {!windowOpen && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
             <Clock className="size-3.5 text-amber-600" />
-            <span className="flex-1 leading-normal">24-घंटे की window बंद है — WhatsApp नियम के अनुसार केवल approved template भेज सकते हैं।</span>
-            <Button size="xs" variant="secondary" onClick={() => setTplOpen(true)}>
-              Template भेजें
-            </Button>
+            <span className="flex-1 leading-normal">{manualDraft ? '24-hour window closed. Open the draft in WhatsApp Business.' : '24-घंटे की window बंद है — WhatsApp नियम के अनुसार केवल approved template भेज सकते हैं।'}</span>
+            {!manualDraft && <Button size="xs" variant="secondary" onClick={() => setTplOpen(true)}>Template भेजें</Button>}
           </div>
         )}
 
@@ -785,7 +797,7 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (text.trim()) send({ text });
+            submitText();
           }}
           className="flex items-end gap-2 bg-surface-2 border border-line rounded-2xl p-1.5 focus-within:bg-surface focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition shadow-inner"
         >
@@ -819,16 +831,18 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
           <Textarea
             rows={1}
             value={text}
-            disabled={!ready || !windowOpen || !connected || sending}
+            disabled={!ready || !canCompose || (!connected && !manualDraft) || sending}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (text.trim()) send({ text });
+                submitText();
               }
             }}
             placeholder={
-              !connected
+              manualDraft
+                ? 'Write a WhatsApp Business draft…'
+                : !connected
                 ? 'WhatsApp is not connected'
                 : windowOpen
                   ? 'Write a message… (Enter to send, Shift+Enter for a new line)'
@@ -841,8 +855,8 @@ function WaThread({ id, connected, onRead }: { id: string; connected: boolean; o
             size="icon"
             variant="whatsapp"
             loading={sending}
-            disabled={!ready || !windowOpen || !text.trim() || sending}
-            aria-label="Send"
+            disabled={!ready || !canCompose || !text.trim() || sending}
+            aria-label={manualDraft ? 'Open WhatsApp draft' : 'Send'}
             className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md active:scale-95 shrink-0"
           >
             {!sending && <Send className="size-4" />}

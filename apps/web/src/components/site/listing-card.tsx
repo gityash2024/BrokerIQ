@@ -70,6 +70,7 @@ export function ListingCard({
       </div>
       <div className="flex flex-1 flex-col p-4">
         <h3 className="line-clamp-2 font-display text-[15px] leading-snug font-bold group-hover:text-brand-600">{l.title}</h3>
+        {l.propertyCode && <p className="text-xs text-muted">{l.propertyCode}</p>}
         <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted">
           <MapPin className="size-3.5 shrink-0" />
           {l.societyName ? `${l.societyName}, ` : ''}

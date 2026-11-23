@@ -2,12 +2,14 @@ import { Throttle } from '@nestjs/throttler';
 import { GmailService } from './gmail.service';
 import type { Response } from 'express';
 import { env } from '../../config/env';
-import { Body, Controller, Get, HttpCode, Param, Post, Req, Query, Res, Delete } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Req, Query, Res, Delete } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { FirmWorkflowService } from '../../core/settings/firm-workflow.service';
 import { MessagingService } from './messaging.service';
 
+const workflow = z.strictObject({ freeOnly: z.boolean().optional(), ownerAuto: z.boolean().optional(), confirmCharges: z.boolean().optional() });
 const resolveSchema = z.object({ leadId: z.string().min(1), channel: z.enum(['SMS', 'EMAIL']) });
 const sendSchema = z.object({ conversationId: z.string().min(1), text: z.string().trim().min(1).max(1600), requestId: z.string().uuid() });
 @Controller()
@@ -15,6 +17,7 @@ export class MessagingController {
   constructor(
     private readonly messaging: MessagingService,
     private readonly gmail: GmailService,
+    private readonly workflowSettings: FirmWorkflowService,
   ) {}
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('messaging/gmail/connect')
@@ -40,6 +43,18 @@ export class MessagingController {
     res.setHeader('Referrer-Policy', 'no-referrer');
     return res.redirect(303, `${env().PUBLIC_WEB_URL.replace(/\/$/, '')}/broker/connectors?key=gmail&gmail=${outcome}`);
   }
+  @Get('messaging/workflow')
+  @Roles('BROKER_ADMIN')
+  workflow(@CurrentUser() user: RequestUser) {
+    return this.workflowSettings.get(user.orgId);
+  }
+
+  @Patch('messaging/workflow')
+  @Roles('BROKER_ADMIN')
+  configureWorkflow(@CurrentUser() user: RequestUser, @Body(new ZodPipe(workflow)) body: z.infer<typeof workflow>) {
+    return this.workflowSettings.configure(body, user);
+  }
+
   @Get('messaging/status')
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
   status(@CurrentUser() user: RequestUser) {

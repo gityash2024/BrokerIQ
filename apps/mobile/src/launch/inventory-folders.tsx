@@ -11,6 +11,8 @@ import {
   inventoryAvailabilityDate,
   inventoryAvailabilityLabel,
   lastSurveyNoAnswer,
+  normalizePropertyCode,
+  type SurveyWhatsAppNote,
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
@@ -53,6 +55,8 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   }, []);
   const [mode, setMode] = useState<Exclude<InventoryFolderMode, 'REVIEW'>>(initialMode);
   const survey = mode === 'SURVEY';
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [surveyShelf, setSurveyShelf] = useState<'PENDING' | 'NO_ANSWER'>('PENDING');
   const [selectedPath, setPath] = useState<InventoryFolder[]>([]);
   const path = mode === 'AVAILABLE' && selectedPath[0]?.key !== current ? [] : selectedPath;
   const [search, setSearch] = useState('');
@@ -63,10 +67,11 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
   const term = useDebounced(search);
   const query = {
     ...filters,
-    search: survey && !path.length ? '' : term,
+    search: survey && !path.length && !normalizePropertyCode(term) ? '' : term,
     dateFrom: normalizeDate(filters.dateFrom),
     dateTo: normalizeDate(filters.dateTo, true),
     folderMode: mode,
+    surveyShelf: survey ? surveyShelf : undefined,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
     ...(survey
       ? { folderSector: path[0]?.key }
@@ -76,11 +81,16 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
           ? { folderMonth: path[0]?.key, folderRoom: path[1]?.key, folderFurnishing: path[2]?.key }
           : { folderSector: path[0]?.key }),
   };
-  const leaf = (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const notes = useQuery({
+    queryKey: ['survey-whatsapp-notes', user?.id],
+    queryFn: () => api<SurveyWhatsAppNote[]>('/inventory/survey-notes'),
+    enabled: survey && notesOpen && user?.role === 'BROKER_ADMIN',
+  });
   const folders = useQuery({
     queryKey: ['inventory-folders', user?.id, today, query],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs(query)}`),
-    enabled: !!user && !leaf,
+    enabled: !!user && (!leaf || survey),
   });
   const records = useInfiniteQuery({
     queryKey: ['inventory-folder-items', user?.id, today, query],
@@ -108,7 +118,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
     try {
       await api(`/inventory/${encodeURIComponent(item.id)}/survey-call`, { method: 'PATCH', body: { expectedRevision: item.revision } });
       await Promise.all(['inventory-folder-items', 'ledger-item', 'ledger'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
-      toast.success('No answer recorded. Property stays in Survey.');
+      toast.success('No answer recorded. Property moved to No answer.');
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -188,6 +198,32 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
                 { value: 'SURVEY', label: 'Survey' },
               ]}
             />
+            {survey && (
+              <Segmented
+                value={surveyShelf}
+                onChange={setSurveyShelf}
+                options={[
+                  { value: 'PENDING', label: `Pending ${folders.data?.surveyCounts?.pending ?? ''}`.trim() },
+                  { value: 'NO_ANSWER', label: `No answer ${folders.data?.surveyCounts?.noAnswer ?? ''}`.trim() },
+                ]}
+              />
+            )}
+            {survey && user?.role === 'BROKER_ADMIN' && (
+              <Button title={notesOpen ? 'Hide WhatsApp notes' : 'WhatsApp notes'} variant="secondary" onPress={() => setNotesOpen(!notesOpen)} />
+            )}
+            {survey && notesOpen && user?.role === 'BROKER_ADMIN' && (
+              <>
+                {notes.isLoading && <Txt v="caption">Loading notes…</Txt>}
+                {notes.isError && <Button title="Retry notes" variant="secondary" onPress={() => void notes.refetch()} />}
+                {notes.data?.length === 0 && <Txt v="caption">No WhatsApp notes to review.</Txt>}
+                {notes.data?.map((note) => (
+                  <Button key={note.id} variant="secondary"
+                    title={`${note.conversation.contactName || note.conversation.contactPhone || 'WhatsApp'} · ${note.state === 'REVIEW' ? 'Needs review' : 'No Survey match'} · ${note.body.slice(0, 80)}`}
+                    onPress={() => router.push(`/wa/${note.conversationId}`)}
+                  />
+                ))}
+              </>
+            )}
             <Txt color="muted" v="caption">
               Browse properties with complete details. Review older or incomplete records in All Inventory.
             </Txt>
@@ -195,7 +231,7 @@ export function NativeInventoryFolders({ initialMode = 'AVAILABLE' }: { initialM
               <Input
                 icon={<Search size={18} color={c.muted} />}
                 accessibilityLabel="Search inventory"
-                placeholder="Search house, sector or contact"
+                placeholder="Search Property ID, house, sector or contact"
                 value={search}
                 onChangeText={setSearch}
                 containerStyle={{ flex: 1 }}

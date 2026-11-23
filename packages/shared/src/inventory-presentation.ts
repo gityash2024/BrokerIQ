@@ -3,6 +3,12 @@ import type { LedgerItem, OwnerEditableProperty } from './inventory';
 import { INVENTORY_PROPERTY_TYPES, PROPERTY_FIELDS } from './property-fields';
 import { floorLabel } from './design';
 import { formatINR } from './utils';
+/** Accept the displayed code and the same code typed without its separator. */
+export function normalizePropertyCode(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const match = /^BIQ-?(\d{6,19})$/i.exec(value.trim());
+  return match ? `BIQ-${match[1]}` : undefined;
+}
 export const readableValue = (value: unknown): string =>
   typeof value === 'boolean'
     ? value
@@ -27,7 +33,7 @@ export const inventoryPrice = (item: LedgerItem) =>
         ? `${formatINR(item.ratePerArea)}${item.rateAreaUnit ? `/${item.rateAreaUnit.replace(/_/g, ' ').toLowerCase()}` : ' · Area unit not recorded'}`
         : 'Price not recorded';
 type ClientShareProperty = Partial<
-  Pick<LedgerItem, 'propertyType' | 'houseNo' | 'sector' | 'bhk' | 'floor' | 'monthlyRent' | 'rent' | 'totalSalePrice' | 'assignedTo'>
+  Pick<LedgerItem, 'propertyCode' | 'propertyType' | 'houseNo' | 'sector' | 'bhk' | 'floor' | 'monthlyRent' | 'rent' | 'totalSalePrice' | 'assignedTo'>
 > & { purpose?: string | null; furnishing?: string | null; roomKind?: string | null };
 
 /** Client messages use structured fields so private inventory labels never become the heading. */
@@ -57,6 +63,7 @@ export function clientPropertyShare(item: ClientShareProperty, _contact?: string
     : '';
   const price = item.purpose === 'RENT' ? (item.monthlyRent ?? item.rent) : item.purpose === 'SALE' ? item.totalSalePrice : null;
   return [
+    normalizePropertyCode(item.propertyCode) && `Property ID: ${item.propertyCode}`,
     locality && `📍 Location: ${locality}`,
     rooms && `🛏️ Config: ${rooms} · ${propertyType}`,
     item.furnishing && /^(UNFURNISHED|SEMI_FURNISHED|FULLY_FURNISHED)$/.test(item.furnishing) && `🛋️ Furnishing: ${readableValue(item.furnishing)}`,
@@ -74,6 +81,7 @@ export function inventoryFactGroups(item: LedgerItem) {
     if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length)) return;
     (groups[group] ??= []).push({ label, value: String(value) });
   };
+  add('Location & configuration', 'Property ID', item.propertyCode);
   add('Location & configuration', 'Locality', item.sector);
   add('Location & configuration', 'Address', item.address);
   add('Location & configuration', 'House / plot no.', item.houseNo);
@@ -186,3 +194,20 @@ export function ownerChangeSummary(changes: OwnerEditableProperty) {
     return { key, label, display: typeof value === 'string' && /^[A-Z][A-Z_]+$/.test(value) ? readableValue(value) : display };
   });
 }
+
+export type PropertyVideoStatus = {
+  state: 'AWAITING_UPLOAD' | 'PROCESSING' | 'READY' | 'FAILED' | 'SAVED' | 'CANCELLED';
+  frames: string[];
+  aiVerified: boolean;
+};
+
+export type PropertyVideoUpload = { id: string; uploadUrl: string; headers: Record<string, string>; maxBytes: number };
+
+export type SurveyWhatsAppNote = {
+  id: string;
+  body: string;
+  state: 'NOTES' | 'REVIEW';
+  conversationId: string;
+  createdAt: string;
+  conversation: { contactName?: string; contactPhone?: string };
+};

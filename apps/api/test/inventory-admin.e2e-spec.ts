@@ -228,7 +228,9 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
         .send({ photoUrls: [signed.publicUrl], expectedRevision: current.revision })
         .expect(200)
     ).body;
-    expect(saved.photoUrls).toEqual([signed.publicUrl]);
+    expect(saved.photoUrls).toHaveLength(1);
+    expect(new URL(saved.photoUrls[0]).pathname).toMatch(/^\/api\/media\/property-photo\//);
+    expect((await db.inventoryItem.findUniqueOrThrow({ where: { id: item.id } })).photoUrls).toEqual([signed.publicUrl]);
     expect(saved.monthlyRent).toBe(23000);
     expect(saved.assignedToId).toBe(agentId);
     await request(app.getHttpServer())
@@ -241,7 +243,7 @@ describe('Inventory all-firms hierarchy, complete exports and safe assignment (r
       .set(h(outsider))
       .send({ photoUrls: [], expectedRevision: saved.revision })
       .expect(404);
-    expect((await get('/' + item.id, broker).expect(200)).body.photoUrls).toEqual([signed.publicUrl]);
+    expect((await get('/' + item.id, broker).expect(200)).body.photoUrls).toEqual(saved.photoUrls);
     // Avatar upload uses the same real media route but can only update the authenticated profile.
     const avatar = (
       await request(app.getHttpServer()).post('/api/me/uploads/sign').set(h(agent)).send({ kind: 'avatar', contentType: 'image/jpeg' }).expect(201)

@@ -18,7 +18,7 @@ const FLAG_BROTLI = 1;
 const MB = 1024 * 1024;
 
 /** Kinds whose files must never be cached by browsers / Cloudflare. */
-export const PRIVATE_KINDS: readonly UploadKind[] = ['scan', 'chat', 'inspection', 'kyc'];
+export const PRIVATE_KINDS: readonly UploadKind[] = ['scan', 'chat', 'inspection', 'kyc', 'propertyvideo'];
 /** Widths the API resizes to on `?w=` — a fixed set keeps the CDN cache small. */
 export const RESIZE_WIDTHS = [320, 480, 800, 1200] as const;
 
@@ -119,7 +119,7 @@ export class LocalStorageService {
     await fs.mkdir(dirname(path), { recursive: true });
     const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
     await fs.writeFile(tmp, out, { mode: 0o600 });
-    if (key.startsWith('kyc/')) {
+    if (key.startsWith('kyc/') || key.startsWith('propertyvideo/')) {
       // A still-valid signed PUT must not replace a document already under review.
       try {
         await fs.link(tmp, path);
@@ -157,6 +157,11 @@ export class LocalStorageService {
       body = await sharp(body).resize({ width, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
     }
     return { contentType, body };
+  }
+
+  async remove(key: string) {
+    if (!KEY_RE.test(key) || !key.startsWith('propertyvideo/')) throw new NotFoundException();
+    await fs.rm(this.pathFor(key), { force: true });
   }
 
   /** Server-side upload of a base64 data URL (AI listing scanner). */

@@ -106,7 +106,7 @@ export function PropertyCard({ item, selected, onSelect }: { item: LedgerItem; s
               numberOfLines={1}
               style={{ flex: 1, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 }}
             >
-              {item.sector || 'Locality not recorded'}
+              {[item.sector || 'Locality not recorded', item.propertyCode].filter(Boolean).join(' · ')}
             </Txt>
           </View>
 

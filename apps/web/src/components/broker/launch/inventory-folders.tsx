@@ -11,6 +11,8 @@ import {
   inventoryAvailabilityDate,
   inventoryAvailabilityLabel,
   lastSurveyNoAnswer,
+  normalizePropertyCode,
+  type SurveyWhatsAppNote,
   inventoryDate,
   inventoryPrice,
   inventoryCardTitle,
@@ -55,6 +57,8 @@ export function InventoryFoldersPage({
   const qc = useQueryClient();
   const [mode, setMode] = useState(initialMode);
   const survey = mode === 'SURVEY';
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [surveyShelf, setSurveyShelf] = useState<'PENDING' | 'NO_ANSWER'>('PENDING');
   const [selectedPath, setPath] = useState<InventoryFolder[]>(
     initialMode === 'SURVEY' && initialSector ? [{ key: initialSector, label: initialSector, count: 0 }] : [],
   );
@@ -68,6 +72,7 @@ export function InventoryFoldersPage({
   const term = useDebounced(search);
   const shelf = {
     folderMode: mode,
+    surveyShelf: survey ? surveyShelf : undefined,
     currentInventory: mode === 'AVAILABLE' ? 'true' : undefined,
     ...(survey
       ? { folderSector: path[0]?.key }
@@ -81,13 +86,18 @@ export function InventoryFoldersPage({
     ...filters,
     dateFrom: filters.dateFrom ? new Date(filters.dateFrom + 'T00:00:00+05:30').toISOString() : '',
     dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999+05:30').toISOString() : '',
-    search: survey && !path.length ? '' : term,
+    search: survey && !path.length && !normalizePropertyCode(term) ? '' : term,
   };
-  const leaf = (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const leaf = Boolean(normalizePropertyCode(term)) || (!survey && Boolean(term)) || path.length === (mode === 'AVAILABLE' ? 3 : 1);
+  const notes = useQuery({
+    queryKey: ['survey-whatsapp-notes', user?.id],
+    queryFn: () => api<SurveyWhatsAppNote[]>('/inventory/survey-notes'),
+    enabled: survey && notesOpen && user?.role === 'BROKER_ADMIN',
+  });
   const folders = useQuery({
     queryKey: ['inventory-folders', user?.id, today, shelf, filter],
     queryFn: () => api<InventoryFolders>(`/inventory/folders${qs({ ...filter, ...shelf })}`),
-    enabled: !!user && !leaf,
+    enabled: !!user && (!leaf || survey),
   });
   const records = useQuery({
     queryKey: ['inventory-folder-items', user?.id, today, shelf, filter, page],
@@ -117,7 +127,7 @@ export function InventoryFoldersPage({
     try {
       await api(`/inventory/${encodeURIComponent(item.id)}/survey-call`, { method: 'PATCH', body: { expectedRevision: item.revision } });
       await Promise.all(['inventory-folder-items', 'ledger-item', 'ledger'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
-      toast.success('No answer recorded. Property stays in Survey.');
+      toast.success('No answer recorded. Property moved to No answer.');
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -198,13 +208,37 @@ export function InventoryFoldersPage({
             </p>
           )}
         </div>
+        {survey && (
+          <div className="mt-3 flex gap-2" role="group" aria-label="Survey status">
+            <Button size="sm" variant={surveyShelf === 'PENDING' ? 'primary' : 'secondary'} onClick={() => { setSurveyShelf('PENDING'); setPage(1); }}>
+              Pending {folders.data?.surveyCounts?.pending ?? ''}
+            </Button>
+            <Button size="sm" variant={surveyShelf === 'NO_ANSWER' ? 'primary' : 'secondary'} onClick={() => { setSurveyShelf('NO_ANSWER'); setPage(1); }}>
+              No answer {folders.data?.surveyCounts?.noAnswer ?? ''}
+            </Button>
+            {user?.role === 'BROKER_ADMIN' && <Button size="sm" variant="secondary" aria-expanded={notesOpen} onClick={() => setNotesOpen(!notesOpen)}>WhatsApp notes</Button>}
+          </div>
+        )}
+        {survey && notesOpen && user?.role === 'BROKER_ADMIN' && (
+          <div className="mt-3 space-y-2 rounded-xl border border-line p-3">
+            {notes.isLoading && <p className="text-sm">Loading notes…</p>}
+            {notes.isError && <Button size="sm" variant="secondary" onClick={() => void notes.refetch()}>Retry notes</Button>}
+            {notes.data?.length === 0 && <p className="text-sm text-muted">No WhatsApp notes to review.</p>}
+            {notes.data?.map((note) => (
+              <Link key={note.id} href={`/broker/inbox?c=${note.conversationId}`} className="block rounded-lg bg-surface-2 p-2">
+                <strong className="text-sm">{note.conversation.contactName || note.conversation.contactPhone || 'WhatsApp'} · {note.state === 'REVIEW' ? 'Needs review' : 'No Survey match'}</strong>
+                <p className="line-clamp-2 whitespace-pre-wrap text-sm text-muted">{note.body}</p>
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="mt-4 grid grid-cols-2 items-start gap-2 xl:grid-cols-6">
           <label className="relative col-span-2 xl:col-span-2">
             <span className="sr-only">Search inventory</span>
             <Search className="absolute left-3 top-3 size-4 text-muted" />
             <input
               className={inputClass + ' pl-9'}
-              placeholder="Search house, sector or contact"
+              placeholder="Search Property ID, house, sector or contact"
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);

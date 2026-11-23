@@ -2,9 +2,11 @@ import { useRef, useState } from 'react';
 import { Image, Linking, View } from 'react-native';
 import * as ImagePicker from '@/lib/image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { File } from 'expo-file-system';
+import type { PropertyVideoStatus, PropertyVideoUpload } from '@brokeriq/shared';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Button, Txt } from '@/ui';
-import { assertAccountContext, captureAccountContext, errorMessage, img, uploadUri } from '@/lib/api';
+import { api, assertAccountContext, captureAccountContext, errorMessage, img, uploadUri } from '@/lib/api';
 
 export async function preparePropertyPhoto(asset: ImagePickerAsset) {
   const result = await ImageManipulator.manipulateAsync(asset.uri, [{ resize: { width: Math.min(asset.width || 1800, 1800) } }], {
@@ -36,6 +38,8 @@ export function NativePropertyMedia({
   photoLabel?: string;
 }) {
   const running = useRef(false);
+  const attachedFrames = useRef(new Set<string>());
+  const [extraction, setExtraction] = useState<{ id: string; result: PropertyVideoStatus; selected: number[] }>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
@@ -80,6 +84,79 @@ export function NativePropertyMedia({
     }
   }
 
+  async function extract() {
+    if (!onAdd || running.current || disabled) return;
+    const ownerContext = captureAccountContext();
+    running.current = true;
+    setPending(true);
+    onUploading?.(true);
+    setError('');
+    let id: string | undefined;
+    try {
+      const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], videoExportPreset: ImagePicker.VideoExportPreset.Passthrough });
+      if (picked.canceled) return;
+      const asset = picked.assets[0];
+      const contentType = asset.mimeType ?? (/\.mov$/i.test(asset.fileName ?? '') ? 'video/quicktime' : 'video/mp4');
+      const file = new File(asset.uri);
+      const signed = await api<PropertyVideoUpload>('/media/property-video', { body: { contentType }, ownerContext });
+      id = signed.id;
+      if (!file.size || file.size > signed.maxBytes) throw new Error('Choose a nonempty video up to 100 MB.');
+      const bytes = await file.bytes();
+      assertAccountContext(ownerContext);
+      const uploaded = await fetch(signed.uploadUrl, { method: 'PUT', headers: signed.headers, body: bytes as Uint8Array<ArrayBuffer> });
+      if (!uploaded.ok) throw new Error('Video upload failed. Select it again.');
+      await api(`/media/property-video/${id}/start`, { method: 'POST', ownerContext });
+      for (let attempt = 0; attempt < 75; attempt++) {
+        const result = await api<PropertyVideoStatus>(`/media/property-video/${id}`, { ownerContext });
+        if (result.state === 'READY') {
+          attachedFrames.current.clear();
+          setExtraction({ id, result, selected: result.frames.slice(0, 50 - photos.length).map((_, index) => index) });
+          return;
+        }
+        if (result.state === 'FAILED') throw new Error('No usable photos were found. Try another video.');
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
+      throw new Error('Video extraction timed out. Try another video.');
+    } catch (cause) {
+      if (id) await api(`/media/property-video/${id}`, { method: 'DELETE', ownerContext }).catch(() => undefined);
+      setError(errorMessage(cause));
+    } finally {
+      running.current = false;
+      setPending(false);
+      onUploading?.(false);
+    }
+  }
+
+  async function finishExtraction(save: boolean) {
+    if (!extraction || !onAdd || running.current || disabled) return;
+    const ownerContext = captureAccountContext();
+    running.current = true;
+    setPending(true);
+    onUploading?.(true);
+    setError('');
+    try {
+      if (save) {
+        const { urls: generated } = await api<{ urls: string[] }>(`/media/property-video/${extraction.id}/save`, { body: { indices: extraction.selected }, ownerContext });
+        for (const url of generated) {
+          assertAccountContext(ownerContext);
+          if (attachedFrames.current.has(url) || photos.includes(url)) continue;
+          await onAdd('photoUrls', url);
+          attachedFrames.current.add(url);
+        }
+        await api(`/media/property-video/${extraction.id}/complete`, { method: 'POST', ownerContext });
+      } else {
+        await api(`/media/property-video/${extraction.id}`, { method: 'DELETE', ownerContext });
+      }
+      setExtraction(undefined);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      running.current = false;
+      setPending(false);
+      onUploading?.(false);
+    }
+  }
+
   return (
     <View style={{ gap: 10 }}>
       <Txt v="h3">{photoLabel}</Txt>
@@ -88,6 +165,27 @@ export function NativePropertyMedia({
       )}
       {!!onAdd && photos.length < 50 && (
         <Button title={pending ? 'Uploading…' : 'Upload photos'} variant="secondary" disabled={disabled || pending} onPress={() => void add(false)} />
+      )}
+      {!!onAdd && !extraction && photos.length < 50 && (
+        <Button title={pending ? 'Processing…' : 'Extract photos from video'} variant="secondary" disabled={disabled || pending} onPress={() => void extract()} />
+      )}
+      {extraction && (
+        <View style={{ gap: 8 }}>
+          <Txt v="caption">{extraction.result.aiVerified ? 'AI reviewed these photos. Keep the ones you want.' : 'Review and select the photos you want to keep.'}</Txt>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            {extraction.result.frames.map((frame, index) => {
+              const keep = extraction.selected.includes(index);
+              return (
+                <View key={index} style={{ gap: 4 }}>
+                  <Image source={{ uri: frame }} accessibilityLabel={`Extracted photo ${index + 1}`} style={{ width: 100, height: 76, borderRadius: 10 }} />
+                  <Button size="sm" variant={keep ? 'secondary' : 'ghost'} title={keep ? `Remove photo ${index + 1}` : `Keep photo ${index + 1}`} disabled={disabled || pending} onPress={() => setExtraction((current) => current && { ...current, selected: keep ? current.selected.filter((item) => item !== index) : [...current.selected, index] })} />
+                </View>
+              );
+            })}
+          </View>
+          <Button title="Add selected photos" disabled={disabled || pending || !extraction.selected.length || extraction.selected.length > 50 - photos.length + attachedFrames.current.size} onPress={() => void finishExtraction(true)} />
+          <Button title="Discard" variant="ghost" disabled={disabled || pending} onPress={() => void finishExtraction(false)} />
+        </View>
       )}
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {photos.map((url, i) => (

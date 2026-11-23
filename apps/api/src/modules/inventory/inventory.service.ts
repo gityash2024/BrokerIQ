@@ -18,6 +18,7 @@ import {
   ledgerMatch,
   areaSqft,
   normalizeIndianPhone,
+  normalizePropertyCode,
   propertyDetailsSchema,
   PROPERTY_FIELDS,
   INVENTORY_SORTS,
@@ -46,6 +47,7 @@ import type { RequestUser } from '../../common/decorators';
 import { SettingsService } from '../../core/settings/settings.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
+import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import type { InventoryFilterQuery } from './inventory.dto';
 
 const pendingSurvey: Prisma.InventoryItemWhereInput = { sourceType: 'SURVEY', status: 'DRAFT' };
@@ -78,6 +80,7 @@ export class InventoryService {
     private readonly events: EventsService,
     private readonly notifications: NotificationsService,
     private readonly access: InventoryAccessService,
+    private readonly propertyPhotos: PropertyPhotoService,
   ) {}
   orgId(user: RequestUser, requested?: string, required = true) {
     const id = user.role === 'SUPER_ADMIN' ? requested : user.orgId;
@@ -102,6 +105,8 @@ export class InventoryService {
     }
     if (q.dateFrom && q.dateTo && new Date(q.dateFrom) > new Date(q.dateTo)) throw new BadRequestException('From date must precede through date');
     const and: Prisma.InventoryItemWhereInput[] = [];
+    if (q.folderMode === 'SURVEY' && q.surveyShelf)
+      where.surveyNoAnswerAt = q.surveyShelf === 'NO_ANSWER' ? { not: null } : null;
     and.push(q.folderMode === 'SURVEY' ? pendingSurvey : { NOT: pendingSurvey });
     if (q.review === 'publication')
       and.push({ publishedListing: { is: { status: 'PENDING_REVIEW', ...(user.role === 'BROKER_ADMIN' ? { reviewRequiredRole: 'BROKER_ADMIN' } : {}) } } });
@@ -124,7 +129,9 @@ export class InventoryService {
     }
     for (const key of ['bhk', 'status', 'purpose', 'propertyType', 'category', 'furnishing', 'roomKind', 'availability', 'sourceType'] as const)
       if (q[key] != null) (where as any)[key] = q[key];
-    if (q.search) {
+    const propertyCode = normalizePropertyCode(q.search);
+    if (propertyCode) where.propertyCode = propertyCode;
+    else if (q.search) {
       const search = {
         OR: [
           ...['houseNo', 'sector', 'ownerName', 'ownerPhone', 'notes', 'address', 'unitLabel'].map((key) => ({
@@ -294,6 +301,9 @@ export class InventoryService {
       user,
       today,
     );
+    const surveyCounts = q.folderMode === 'SURVEY' ? await Promise.all(
+      (['PENDING', 'NO_ANSWER'] as const).map((surveyShelf) => this.prisma.inventoryItem.count({ where: this.filterWhere({ ...q, surveyShelf }, user, today) })),
+    ) : null;
     const [months, photoCounts] = await Promise.all([
       this.prisma.inventoryItem.groupBy({ by: ['directoryMonth'], where: root, _count: { _all: true } }),
       this.countAvailablePhotos(q, user, query),
@@ -356,7 +366,11 @@ export class InventoryService {
         })),
       );
     }
-    return { folders, years, ...(photoCounts && { photoCounts }) };
+    return {
+      folders, years,
+      ...(photoCounts && { photoCounts }),
+      ...(surveyCounts && { surveyCounts: { pending: surveyCounts[0], noAnswer: surveyCounts[1] } }),
+    };
   }
   private async countAvailablePhotos(q: InventoryFilterQuery, user: RequestUser, where: Prisma.InventoryItemWhereInput) {
     if (q.folderMode !== 'AVAILABLE' || user.role === 'BROKER_AGENT') return;
@@ -448,7 +462,7 @@ export class InventoryService {
     });
 
     return {
-      items: await this.access.present(itemsWithMatches, user),
+      items: (await this.access.present(itemsWithMatches, user)).map((item) => this.propertyPhotos.inventory(item)),
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -469,6 +483,7 @@ export class InventoryService {
           orderBy: this.orderBy(q),
           select: {
             id: true,
+            propertyCode: true,
             organization: { select: { name: true } },
             sector: true,
             houseNo: true,
@@ -505,6 +520,7 @@ export class InventoryService {
     return generateCsv(
       [
         'ID',
+        'Property ID',
         'Firm',
         'Sector',
         'House',
@@ -531,6 +547,7 @@ export class InventoryService {
       ],
       (await this.access.present(rows, user)).map((r) => [
         r.id,
+        r.propertyCode,
         r.organization.name,
         r.sector,
         r.houseNo,
@@ -592,7 +609,7 @@ export class InventoryService {
       include,
     });
     if (!item) throw new NotFoundException('Inventory item not found');
-    return (await this.access.present([ledgerJson(item)], user))[0];
+    return this.propertyPhotos.inventory((await this.access.present([ledgerJson(item)], user))[0]);
   }
   countPendingSurvey(user: RequestUser) {
     return this.prisma.inventoryItem.count({ where: { ...this.scope(user), ...pendingSurvey } });
@@ -645,6 +662,7 @@ export class InventoryService {
     const monthly = input.monthlyRent !== undefined ? input.monthlyRent : input.rent;
     const primaryPhone = input.ownerPhone === undefined ? undefined : input.ownerPhone ? normalizeIndianPhone(input.ownerPhone) : null;
     if (input.ownerPhone && !primaryPhone) throw new BadRequestException('Invalid Indian phone number');
+    if (data.photoUrls) data.photoUrls = data.photoUrls.map((url) => this.propertyPhotos.source(url, previous?.propertyCode));
     const effective = { ...previous, ...data, ...(monthly !== undefined ? { monthlyRent: monthly, rent: monthly } : {}) };
     const details = input.details ? { ...(previous?.details ?? {}), ...input.details } : undefined;
     const isSurvey = input.survey || (previous?.sourceType === 'SURVEY' && previous.status === 'DRAFT');
@@ -708,7 +726,7 @@ export class InventoryService {
     const effectiveAssignedToId = data.assignedToId === '' ? null : data.assignedToId;
     return {
       ...data,
-      ...(input.photoUrls && previous?.agentCoverPhotoUrl && !input.photoUrls.includes(previous.agentCoverPhotoUrl) ? { agentCoverPhotoUrl: null } : {}),
+      ...(data.photoUrls && previous?.agentCoverPhotoUrl && !data.photoUrls.includes(previous.agentCoverPhotoUrl) ? { agentCoverPhotoUrl: null } : {}),
       ...(data.assignedToId !== undefined ? { assignedToId: effectiveAssignedToId } : {}),
       price: price == null ? null : Number(price),
       ratePerSqft: rate,
@@ -815,7 +833,7 @@ export class InventoryService {
       return tx.inventoryItem.update({ where: { id }, data: { notes, surveyNoAnswerAt, revision: { increment: 1 } }, include });
     });
     await this.audit.log(user, 'inventory.survey.no_answer', 'InventoryItem', id);
-    return ledgerJson(item);
+    return this.propertyPhotos.inventory(ledgerJson(item));
   }
   create(
     input: InventoryInput,
@@ -917,8 +935,15 @@ export class InventoryService {
         ? await this.prisma.$transaction(persist, { timeout: 30_000 })
         : await persist(this.prisma);
     if (!transaction && result.created) await this.audit.log(user, 'inventory.create', 'InventoryItem', result.item.id);
-    return ledgerJson(result.item);
+    return this.propertyPhotos.inventory(ledgerJson(result.item));
   }
+  async applyLinkedOwnerChanges(tx: Prisma.TransactionClient, current: Prisma.InventoryItemGetPayload<{}>, changes: InventoryInput) {
+    await tx.inventoryItem.update({
+      where: { id: current.id },
+      data: { ...this.fields(changes, current), revision: { increment: 1 } },
+    });
+  }
+
   async update(id: string, input: InventoryInput, user: RequestUser, ownerReview?: { id: string; accept: boolean }) {
     const item = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
@@ -997,7 +1022,7 @@ export class InventoryService {
       fields: Object.keys(input).filter((k) => k !== 'contacts'),
       revision: item.revision,
     });
-    return ledgerJson(item);
+    return this.propertyPhotos.inventory(ledgerJson(item));
   }
   async addPhoto(id: string, url: string, user: RequestUser) {
     const result = await this.prisma.$transaction(async (tx) => {
@@ -1014,27 +1039,28 @@ export class InventoryService {
       return { item, changed: true };
     });
     if (result.changed) await this.audit.log(user, 'inventory.photo.add', 'InventoryItem', id, { revision: result.item.revision });
-    return ledgerJson(result.item);
+    return this.propertyPhotos.inventory(ledgerJson(result.item));
   }
   async setAgentCoverPhoto(id: string, input: { url: string | null; expectedRevision: number }, user: RequestUser) {
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "InventoryItem" WHERE id = ${id} FOR UPDATE`;
       const current = await tx.inventoryItem.findFirst({ where: { ...this.scope(user), id, deletedAt: null }, include });
       if (!current) throw new NotFoundException('Inventory item not found');
-      if (input.url !== null && (!current.photoUrls.includes(input.url) || !shareablePropertyPhotoUrls([input.url]).length))
+      const source = input.url === null ? null : this.propertyPhotos.source(input.url, current.propertyCode);
+      if (source !== null && (!current.photoUrls.includes(source) || !shareablePropertyPhotoUrls([source]).length))
         throw new BadRequestException('Choose an eligible photo already saved to this property');
-      if (current.agentCoverPhotoUrl === input.url) return { item: current, changed: false };
+      if (current.agentCoverPhotoUrl === source) return { item: current, changed: false };
       if (current.revision !== input.expectedRevision) throw new ConflictException('Property changed. Reload before saving.');
       const item = await tx.inventoryItem.update({
         where: { id },
-        data: { agentCoverPhotoUrl: input.url, revision: { increment: 1 } },
+        data: { agentCoverPhotoUrl: source, revision: { increment: 1 } },
         include,
       });
       return { item, changed: true };
     });
     if (result.changed)
       await this.audit.log(user, 'inventory.agent_cover.update', 'InventoryItem', id, { revision: result.item.revision, selected: input.url !== null });
-    return ledgerJson(result.item);
+    return this.propertyPhotos.inventory(ledgerJson(result.item));
   }
   async delete(id: string, user: RequestUser) {
     await this.prisma.$transaction(async (tx) => {
@@ -1057,7 +1083,7 @@ export class InventoryService {
       return tx.inventoryItem.update({ where: { id }, data: { deletedAt: null, revision: { increment: 1 } }, include });
     });
     await this.audit.log(user, 'inventory.restore', 'InventoryItem', id);
-    return ledgerJson(item);
+    return this.propertyPhotos.inventory(ledgerJson(item));
   }
   async publishToListing(id: string, input: InventoryPublishInput, user: RequestUser) {
     await this.modules.assertPath('/listings', user.role);
@@ -1118,6 +1144,7 @@ export class InventoryService {
         : await tx.listing.create({
             data: {
               ...data,
+              propertyCode: item.propertyCode,
               slug: slugify(input.title).slice(0, 65) + '-' + id,
               organizationId: item.organizationId,
               postedById: user.id,

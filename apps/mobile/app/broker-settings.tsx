@@ -65,6 +65,7 @@ export default function BrokerSettings() {
   return (
     <BrokerScreen title="Profile & Settings" subtitle="Account, agency & app configuration" back>
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 14, paddingBottom: 40 }}>
+        {user?.role === 'BROKER_ADMIN' && <FirmWorkflowSettings key={user.id} userId={user.id} />}
         {/* Profile Hero Card */}
         <View
           style={{
@@ -576,6 +577,52 @@ function MicrositeQr() {
           </>
         )}
       </View>
+    </NativeCard>
+  );
+}
+
+function FirmWorkflowSettings({ userId }: { userId: string }) {
+  const query = useQuery({
+    queryKey: ['firm-workflow', userId],
+    queryFn: () => api<{ freeOnly: boolean; ownerAuto: boolean }>('/messaging/workflow'),
+  });
+  const [saving, setSaving] = useState(false);
+  async function save(body: { freeOnly?: boolean; ownerAuto?: boolean; confirmCharges?: boolean }) {
+    setSaving(true);
+    try {
+      await api('/messaging/workflow', { method: 'PATCH', body });
+      await query.refetch();
+    } catch (error) {
+      showError(error);
+    } finally {
+      setSaving(false);
+    }
+  }
+  if (query.isLoading) return <Loader />;
+  if (!query.data) return <ErrorView error={query.error} onRetry={() => query.refetch()} />;
+  const { freeOnly, ownerAuto } = query.data;
+  return (
+    <NativeCard>
+      <Txt v="h3">Messaging & Owner</Txt>
+      <Txt v="caption" color="muted">Free-only applies to firm messages, campaigns and automations. WhatsApp and SMS API sends require verified zero cost.</Txt>
+      <Button
+        title={freeOnly ? 'Free-only messaging is on' : 'Turn on Free-only messaging'}
+        variant="secondary"
+        disabled={saving}
+        onPress={() => freeOnly
+          ? Alert.alert('Turn off Free-only?', 'Your providers may charge for customer messages.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Allow provider charges', onPress: () => void save({ freeOnly: false, confirmCharges: true }) },
+          ])
+          : void save({ freeOnly: true })}
+      />
+      <Txt v="caption" color="muted">Auto applies eligible updates to existing linked properties. New Owner properties require acceptance.</Txt>
+      <Button
+        title={ownerAuto ? 'Owner updates · Auto' : 'Owner updates · Manual'}
+        variant="secondary"
+        disabled={saving}
+        onPress={() => void save({ ownerAuto: !ownerAuto })}
+      />
     </NativeCard>
   );
 }

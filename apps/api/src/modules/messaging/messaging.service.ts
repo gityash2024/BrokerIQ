@@ -5,6 +5,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Prisma, type MessageStatus } from '@prisma/client';
 import { hasDelegatedAccess, normalizeIndianPhone } from '@brokeriq/shared';
 import { createHash } from 'node:crypto';
+import { FirmWorkflowService } from '../../core/settings/firm-workflow.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { JobsService } from '../../core/jobs/jobs.service';
@@ -28,6 +29,7 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly workflows: FirmWorkflowService,
     private readonly settings: SettingsService,
     private readonly jobs: JobsService,
     private readonly realtime: RealtimeGateway,
@@ -77,6 +79,7 @@ export class MessagingService {
   async sendSms(user: RequestUser, input: { conversationId: string; text: string; requestId: string }) {
     await this.access.assertAllowed(user, 'chat');
     const orgId = requireOrg(user);
+    if ((await this.workflows.get(orgId)).freeOnly) throw new ForbiddenException('Free-only messaging: the SMS carrier cost cannot be verified.');
     const values = await this.credentials(orgId);
     const config = textbeeConfig(values);
     const requestKey = hash(`sms:${orgId}:${input.requestId}`);
@@ -151,6 +154,7 @@ export class MessagingService {
       if (original.deviceId !== config.deviceId || original.simSubscriptionId !== config.simSubscriptionId || original.senderPhone !== config.senderPhone)
         throw new ConflictException('SMS gateway changed; review queued message before sending.');
       const accepted = await sendTextbeeSms(values, conv.contactPhone!, record.body!, async () => {
+        if ((await this.workflows.get(orgId)).freeOnly) throw new ForbiddenException('Free-only messaging: the SMS carrier cost cannot be verified.');
         const current = await this.prisma.user.findFirst({ where: { id: record.senderUserId!, organizationId: orgId, status: 'ACTIVE', deletedAt: null } });
         const activeOrg = await this.prisma.organization.findFirst({ where: { id: orgId, status: 'ACTIVE' } });
         const currentConversation = await this.prisma.conversation.findFirst({

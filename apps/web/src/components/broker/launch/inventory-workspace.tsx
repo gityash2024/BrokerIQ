@@ -390,7 +390,7 @@ function LedgerInner() {
                       {isSuper && <span className="mt-1 block text-xs font-normal text-muted">{item.organization?.name || item.organizationId}</span>}
                     </h3>
                     <p className="text-xs text-muted font-medium">
-                      {item.sector || 'Locality not recorded'}
+                      {[item.sector || 'Locality not recorded', item.propertyCode].filter(Boolean).join(' · ')}
                       {item.deletedAt && ' · Archived'}
                     </p>
                   </div>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   ownerCreatePropertySchema,
   ownerEditPropertySchema,
@@ -10,6 +10,8 @@ import {
 import { z } from 'zod';
 import { CurrentUser, Roles, type RequestUser } from '../../common/decorators';
 import { ZodPipe } from '../../common/pipes/zod.pipe';
+import { requireOrg } from '../../common/utils';
+import { SurveyWhatsAppService } from './survey-whatsapp.service';
 import { InventoryOwnerService } from './inventory-owner.service';
 
 @Controller('owner/properties')
@@ -18,8 +20,12 @@ export class OwnerPropertiesController {
   constructor(private readonly owners: InventoryOwnerService) {}
 
   @Get()
-  list(@Query(new ZodPipe(z.object({ page: z.coerce.number().int().min(1).max(1000).default(1) }))) query: { page: number }, @CurrentUser() user: RequestUser) {
-    return this.owners.myProperties(user, query.page);
+  list(
+    @Query(new ZodPipe(z.object({ page: z.coerce.number().int().min(1).max(1000).default(1), search: z.string().trim().max(32).optional() })))
+    query: { page: number; search?: string },
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.owners.myProperties(user, query.page, query.search);
   }
 
   @Get(':id')
@@ -49,7 +55,14 @@ const ownerLink = z.strictObject({ ownerUserId: z.string().min(1).max(100).nulla
 
 @Controller('inventory')
 export class InventoryOwnerController {
-  constructor(private readonly owners: InventoryOwnerService) {}
+  constructor(private readonly owners: InventoryOwnerService, private readonly survey: SurveyWhatsAppService) {}
+
+  @Roles('BROKER_ADMIN')
+  @Get('survey-notes')
+  surveyNotes(@CurrentUser() user: RequestUser) {
+    if (user.delegatedActor) throw new ForbiddenException('Only your Broker Admin can review firm WhatsApp notes.');
+    return this.survey.notes(requireOrg(user));
+  }
 
   @Roles('BROKER_ADMIN')
   @Get('owner-submissions')

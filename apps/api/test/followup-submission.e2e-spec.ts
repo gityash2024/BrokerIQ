@@ -85,7 +85,7 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
     ]);
   });
 
-  it('records photos only after a successful outbound send or confirmation from the assigned agent', async () => {
+  it('records photos after outbound delivery or confirmation from the assigned agent', async () => {
     const photo = 'https://example.test/api/media/f/listing/property/one.jpg';
     const inventory = await db.inventoryItem.create({ data: { organizationId: org, createdById: agent.id, photoUrls: [photo] } });
     const confirm = (actor = agent) =>
@@ -107,6 +107,10 @@ describe('Atomic retry-safe follow-up submission (real PostgreSQL)', () => {
       expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('FOLLOW_UP');
       const sent = await send();
       expect(sent.status).toBe('SENT');
+      expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('FOLLOW_UP');
+      await (wa as any).onStatus({ id: sent.externalId, status: 'delivered' }, org);
+      expect(await db.job.findUnique({ where: { key: 'whatsapp-photo-stage:' + sent.id } })).not.toBeNull();
+      await app.get(LeadsService).recordSentPropertyPhotos(sent.id);
       expect((await db.lead.findUniqueOrThrow({ where: { id: lead } })).stage).toBe('PHOTOS_SHARED');
       await db.lead.update({ where: { id: lead }, data: { stage: 'INTERESTED' } });
       expect((await confirm().expect(200)).body.stage).toBe('PHOTOS_SHARED');

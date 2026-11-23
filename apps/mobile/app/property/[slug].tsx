@@ -169,7 +169,7 @@ export default function Property() {
     const r = contact ?? (await reveal());
     if (r?.whatsapp)
       Linking.openURL(
-        whatsappLink(r.whatsapp, `नमस्ते, मुझे ${app.siteName} पर यह property पसंद आई: ${l.title} (${formatPriceShort(l.price)}). Ref #${l.refNo}`),
+        whatsappLink(r.whatsapp, `नमस्ते, मुझे ${app.siteName} पर यह property पसंद आई: ${l.title} (${formatPriceShort(l.price)}). ${l.propertyCode || `Ref #${l.refNo}`}`),
       );
   };
   const chat = async () => {
@@ -471,7 +471,7 @@ export default function Property() {
           </Animated.View>
           <Row gap={8}>
             <IconBtn
-              onPress={() => Share.share({ message: `${l.title} — ${formatPriceShort(l.price)}\n${app.siteUrl || ''}/property/${l.slug}` })}
+              onPress={() => Share.share({ message: `${l.title} — ${formatPriceShort(l.price)}\n${l.propertyCode ? l.propertyCode + '\n' : ''}${app.siteUrl || ''}/property/${l.slug}` })}
               style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
             >
               <Share2 size={19} color="#0F172A" />

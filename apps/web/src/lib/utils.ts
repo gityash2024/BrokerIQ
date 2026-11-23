@@ -14,7 +14,7 @@ export function img(url: string | null | undefined, w = 800): string {
   if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('/upload/w_')) {
     return url.replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`);
   }
-  if (url.includes('/api/media/f/') && !url.includes('?')) {
+  if (/\/api\/media\/(?:f|property-photo)\//.test(url) && !url.includes('?')) {
     const width = [320, 480, 800, 1200].find((x) => x >= w);
     return width ? `${url}?w=${width}` : url;
   }

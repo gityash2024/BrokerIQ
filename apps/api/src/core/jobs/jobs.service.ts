@@ -63,11 +63,11 @@ export class JobsService implements OnModuleDestroy {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brokeriq:job-claim'))`;
         return tx.$queryRaw<Job[]>(Prisma.sql`
           WITH ordinary AS (
-            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type <> 'import.extract'
+            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type NOT IN ('import.extract', 'property.video.extract')
             ORDER BY "runAt" ASC, id ASC LIMIT 10 FOR UPDATE SKIP LOCKED
           ), heavy AS (
-            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type = 'import.extract'
-              AND NOT EXISTS (SELECT 1 FROM "Job" WHERE type = 'import.extract' AND status = 'RUNNING')
+            SELECT id FROM "Job" WHERE status = 'PENDING' AND "runAt" <= timezone('UTC', now()) AND type IN ('import.extract', 'property.video.extract')
+              AND NOT EXISTS (SELECT 1 FROM "Job" WHERE type IN ('import.extract', 'property.video.extract') AND status = 'RUNNING')
             ORDER BY "runAt" ASC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED
           )
           UPDATE "Job" SET status = 'RUNNING', "lockedAt" = timezone('UTC', now()), attempts = attempts + 1, "updatedAt" = timezone('UTC', now())
@@ -75,7 +75,7 @@ export class JobsService implements OnModuleDestroy {
       });
       const ordinary: Job[] = [];
       for (const job of jobs) {
-        if (job.type !== 'import.extract') {
+        if (!['import.extract', 'property.video.extract'].includes(job.type)) {
           ordinary.push(job);
           continue;
         }

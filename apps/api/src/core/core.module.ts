@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { CryptoService } from './settings/crypto.service';
+import { FirmWorkflowService } from './settings/firm-workflow.service';
 import { SettingsService } from './settings/settings.service';
 import { AuditService } from './audit/audit.service';
 import { JobsService } from './jobs/jobs.service';
@@ -11,6 +12,7 @@ import { NotificationsService } from './notifications/notifications.service';
 import { WebPushService } from './notifications/web-push.service';
 import { AiService } from './ai/ai.service';
 import { MediaService } from './media/media.service';
+import { PropertyPhotoService } from './media/property-photo.service';
 import { LocalStorageService } from './media/local-storage.service';
 import { KycService } from './media/kyc.service';
 import { EventsService } from './events/events.service';
@@ -24,6 +26,7 @@ import { env } from '../config/env';
 const services = [
   CryptoService,
   SettingsService,
+  FirmWorkflowService,
   AuditService,
   JobsService,
   MailService,
@@ -34,6 +37,7 @@ const services = [
   AiService,
   LocalStorageService,
   MediaService,
+  PropertyPhotoService,
   KycService,
   EventsService,
   UsageService,

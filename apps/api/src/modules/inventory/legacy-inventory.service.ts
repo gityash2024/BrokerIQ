@@ -265,6 +265,7 @@ export class LegacyInventoryService {
     // Create public Listing
     const listing = await this.prisma.listing.create({
       data: {
+        propertyCode: item.propertyCode,
         title,
         slug,
         purpose: item.purpose === 'SALE' ? 'SALE' : 'RENT',

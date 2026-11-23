@@ -1,13 +1,15 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma, type MessageType } from '@prisma/client';
-import { normalizeIndianPhone, phoneForWhatsApp } from '@brokeriq/shared';
+import { ErrorCode, normalizeIndianPhone, phoneForWhatsApp, whatsappLink } from '@brokeriq/shared';
+import { FirmWorkflowService } from '../../core/settings/firm-workflow.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService, type IntegrationValues } from '../../core/settings/settings.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
 import { NotificationsService } from '../../core/notifications/notifications.service';
 import { EventsService } from '../../core/events/events.service';
-import { IntegrationFailedException, IntegrationNotConfiguredException, WhatsAppWindowClosedException } from '../../common/exceptions';
+import { AppException, IntegrationFailedException, IntegrationNotConfiguredException, WhatsAppWindowClosedException } from '../../common/exceptions';
+import { surveyIntakeJob } from '../inventory/survey-whatsapp.service';
 import { LeadsService } from '../leads/leads.service';
 import { sha256 } from '../../common/utils';
 import { JobsService } from '../../core/jobs/jobs.service';
@@ -52,6 +54,7 @@ export class WhatsAppService {
     private readonly leads: LeadsService,
     private readonly jobs: JobsService,
     private readonly storage: LocalStorageService,
+    private readonly workflows: FirmWorkflowService,
   ) {
     this.jobs.register('whatsapp.photo-stage', (payload) => this.leads.recordSentPropertyPhotos(payload.messageId));
     this.jobs.register('whatsapp.event', (payload) => this.processEvent(payload.eventId));
@@ -111,10 +114,12 @@ export class WhatsAppService {
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       const code = data?.error?.code;
-      if (code === 131047 || code === 131026) throw new WhatsAppWindowClosedException();
+      if (code === 131047) throw new WhatsAppWindowClosedException();
       throw new IntegrationFailedException('whatsapp', data?.error?.error_data?.details ?? data?.error?.message ?? `Meta API ${res.status}`);
     }
-    return data?.messages?.[0]?.id as string | undefined;
+    const externalId = data?.messages?.[0]?.id;
+    if (typeof externalId !== 'string' || !externalId) throw new IntegrationFailedException('whatsapp', 'Provider response did not include a message ID.');
+    return externalId;
   }
 
   /** Core send used by inbox, automations and share buttons. Stores the message and emits realtime updates. */
@@ -140,6 +145,27 @@ export class WhatsAppService {
     const creds = await this.requireCreds(orgId);
     if (opts.ownNumberOnly && creds.scope !== 'organization') throw new IntegrationNotConfiguredException('whatsapp', NOT_CONNECTED);
     const conv = await this.conversationFor(orgId, phone, { leadId: opts.leadId, name: opts.contactName });
+    if ((await this.workflows.get(orgId)).freeOnly) {
+      const inWindow = conv.lastInboundAt && Date.now() - conv.lastInboundAt.getTime() < 24 * 60 * 60_000;
+      let freeService = false;
+      if (msg.type !== 'template' && inWindow && creds.scope === 'organization' && /^\d+$/.test(String(creds.values.businessAccountId))) {
+        try {
+          const account = await fetch(`${GRAPH}/${creds.values.businessAccountId}?fields=service_pricing_policy`, {
+            headers: { Authorization: `Bearer ${creds.values.accessToken}` },
+            signal: AbortSignal.timeout(4_000),
+          });
+          freeService = account.ok && (await account.json()).service_pricing_policy === 'PAID_EXEMPT';
+        } catch {
+          // A missing pricing confirmation cannot authorize a potentially billable send.
+        }
+      }
+      if (!freeService) {
+        const draft = opts.storedBody || msg.type === 'template' ? undefined : msg.type === 'text' ? msg.text : [msg.caption, msg.url].filter(Boolean).join('\n');
+        throw new AppException(HttpStatus.FORBIDDEN, ErrorCode.MESSAGING_FREE_ONLY,
+          'Free-only messaging: WhatsApp API cost could not be confirmed as ₹0.',
+          { draftUrl: opts.userId && !opts.storedBody ? whatsappLink(phone, draft) : undefined });
+      }
+    }
     const body =
       opts.storedBody ??
       (msg.type === 'text'
@@ -173,7 +199,11 @@ export class WhatsAppService {
           ...(msg.params.length ? { components: [{ type: 'body', parameters: msg.params.map((p) => ({ type: 'text', text: p })) }] } : {}),
         },
       });
-    else Object.assign(payload, { type: msg.type, [msg.type]: { link: msg.url, ...(msg.caption ? { caption: msg.caption } : {}) } });
+    else {
+      const isRendition = msg.type === 'image' && msg.url.startsWith(env().PUBLIC_API_URL.replace(/\/$/, '') + '/api/media/property-photo/');
+      const url = isRendition ? msg.url + (msg.url.includes('?') ? '&' : '?') + 'format=jpeg' : msg.url;
+      Object.assign(payload, { type: msg.type, [msg.type]: { link: url, ...(msg.caption ? { caption: msg.caption } : {}) } });
+    }
 
     try {
       const externalId = await this.graphSend(creds.values, payload);
@@ -193,13 +223,6 @@ export class WhatsAppService {
         await this.prisma.lead.updateMany({ where: { id: opts.leadId, firstResponseAt: null }, data: { firstResponseAt: new Date() } });
       }
       this.emit(conv.organizationId, 'wa:message', { conversationId: conv.id, message: saved });
-      if (opts.userId && opts.leadId && (msg.type === 'image' || /https:\/\//.test(body))) {
-        await this.leads.recordSentPropertyPhotos(saved.id).catch(async () => {
-          await this.jobs
-            .enqueue('whatsapp.photo-stage', { messageId: saved.id, orgId: conv.organizationId }, { key: 'whatsapp-photo-stage:' + saved.id })
-            .catch(() => this.logger.error('Photo stage update needs retry for message ' + saved.id));
-        });
-      }
       return saved;
     } catch (e) {
       const failed = await this.prisma.message.update({ where: { id: record.id }, data: { status: 'FAILED', error: (e as Error).message.slice(0, 500) } });
@@ -259,6 +282,7 @@ export class WhatsAppService {
     const event = await this.prisma.webhookEvent.findUniqueOrThrow({ where: { id: eventId } });
     if (event.status === 'PROCESSED') return;
     const target = { orgId: event.organizationId };
+    const featureNumber = target.orgId ? (await this.settings.resolve('whatsapp', target.orgId))?.phoneNumberId : null;
     const body: any = event.payload;
     try {
       let unmatchedReceipt: UnmatchedWhatsAppReceiptError | null = null;
@@ -267,7 +291,8 @@ export class WhatsAppService {
           const value = change?.value ?? {};
           const businessPhone = value.metadata?.display_phone_number;
           const contacts: any[] = value.contacts ?? [];
-          for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone);
+          const verifiedFirmNumber = !!featureNumber && String(featureNumber) === String(value.metadata?.phone_number_id);
+          for (const m of value.messages ?? []) await this.onInbound(target.orgId, m, contacts.find((c) => c.wa_id === m.from)?.profile?.name, businessPhone, verifiedFirmNumber);
           for (const s of value.statuses ?? []) {
             try {
               await this.onStatus(s, target.orgId);
@@ -300,7 +325,7 @@ export class WhatsAppService {
     );
   }
 
-  private async onInbound(orgId: string | null, m: any, profileName?: string, businessPhone?: string) {
+  private async onInbound(orgId: string | null, m: any, profileName?: string, businessPhone?: string, verifiedFirmNumber = false) {
     if (!m.id || typeof m.id !== 'string' || !/^[0-9]{10,15}$/.test(String(m.from))) throw new BadRequestException('Malformed WhatsApp message');
     if (await this.prisma.message.findUnique({ where: { externalId: m.id } })) return;
     const fromPhone = String(m.from).replace(/^\+/, '');
@@ -406,7 +431,8 @@ export class WhatsAppService {
     }
     let saved;
     try {
-      saved = await this.prisma.message.create({
+      saved = await this.prisma.$transaction(async (tx) => {
+        const message = await tx.message.create({
         data: {
           conversationId: conv.id,
           direction: 'INBOUND',
@@ -417,6 +443,11 @@ export class WhatsAppService {
           externalId: m.id,
           meta: { raw: m } as Prisma.InputJsonValue,
         },
+        });
+        if (orgId && verifiedFirmNumber && !otpAsk && !leadId && (type === 'TEXT' || type === 'IMAGE')) {
+          await tx.job.create({ data: { type: surveyIntakeJob, payload: { orgId, organizationId: orgId, messageId: message.id }, key: surveyIntakeJob + ':' + message.id } });
+        }
+        return message;
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return;
@@ -519,6 +550,12 @@ export class WhatsAppService {
         where: { id: msg.id },
         data: { status, error: status === 'FAILED' ? String(s.errors?.[0]?.title ?? 'Failed').slice(0, 500) : null },
       });
+      if ((status === 'DELIVERED' || status === 'READ') && msg.senderUserId && msg.conversation.leadId && (msg.type === 'IMAGE' || msg.body?.includes('https://'))) {
+        await tx.job.createMany({
+          data: [{ type: 'whatsapp.photo-stage', payload: { messageId: msg.id, orgId: msg.conversation.organizationId }, key: 'whatsapp-photo-stage:' + msg.id }],
+          skipDuplicates: true,
+        });
+      }
       return { orgId: msg.conversation.organizationId, conversationId: msg.conversationId, messageId: msg.id, status: updated.status };
     });
     if (changed) this.emit(changed.orgId, 'wa:status', { conversationId: changed.conversationId, messageId: changed.messageId, status: changed.status });

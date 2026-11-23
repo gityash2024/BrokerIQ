@@ -17,6 +17,7 @@ import type { RequestUser } from '../../common/decorators';
 const catalogue = { availability: 'AVAILABLE', status: 'ACTIVE', verificationStatus: 'VERIFIED', directoryMonth: { not: null } } as const;
 const overviewKeys = [
   'id',
+  'propertyCode',
   'organizationId',
   'organization',
   'date',

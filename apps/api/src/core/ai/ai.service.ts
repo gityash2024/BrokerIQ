@@ -335,7 +335,7 @@ export class AiService {
     kind: 'text' | 'vision' | 'tools' | 'json',
     attempt: (p: Provider, model: string) => Promise<{ text: string; tokens: number }>,
   ): Promise<string> {
-    const providers = (await this.providers(kind === 'vision' && opts.feature === 'capture')).filter((p) =>
+    const providers = (await this.providers(kind === 'vision' && (opts.feature === 'capture' || opts.feature === 'property_video'))).filter((p) =>
       kind === 'vision'
         ? p.visionModels.length > 0
         : (kind !== 'tools' || p.name !== 'qwen_local') &&

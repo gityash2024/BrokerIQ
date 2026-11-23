@@ -9,6 +9,7 @@ export const ErrorCode = {
   RATE_LIMITED: 'RATE_LIMITED',
   INTEGRATION_NOT_CONFIGURED: 'INTEGRATION_NOT_CONFIGURED',
   INTEGRATION_FAILED: 'INTEGRATION_FAILED',
+  MESSAGING_FREE_ONLY: 'MESSAGING_FREE_ONLY',
   /** WhatsApp's 24-hour window is closed: the person must message the firm first (details.waLink opens that chat) */
   WHATSAPP_WINDOW_CLOSED: 'WHATSAPP_WINDOW_CLOSED',
   PLAN_LIMIT_REACHED: 'PLAN_LIMIT_REACHED',

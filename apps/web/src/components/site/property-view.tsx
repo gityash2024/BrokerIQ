@@ -326,7 +326,7 @@ export function PropertyView({ initial, similar, amenities }: { initial: any; si
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5 text-xs text-subtle">
             <span className="flex items-center gap-3">
-              <span>Ref #{l.refNo}</span>
+              <span>{l.propertyCode || `Ref #${l.refNo}`}</span>
               <span className="flex items-center gap-1">
                 <Eye className="size-3.5" /> {l.views} views
               </span>

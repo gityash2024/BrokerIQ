@@ -45,7 +45,7 @@ export default function SettingsPage() {
 
 function FirmSettingsPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me'>(user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
+  const [tab, setTab] = useState<'firm' | 'hours' | 'branding' | 'card' | 'verify' | 'me' | 'workflow'>(user?.role === 'BROKER_AGENT' ? 'me' : 'firm');
   const cardOn = useFlag('visiting_card');
   const q = useQuery({ queryKey: ['broker-profile', user?.id, user?.organizationId], queryFn: () => api<any>('/broker/profile'), enabled: !!user });
   if (!user || q.isLoading) return <PageLoader />;
@@ -76,6 +76,7 @@ function FirmSettingsPage() {
           { value: 'firm', label: 'Firm profile' },
           { value: 'hours', label: 'Business hours' },
           { value: 'branding', label: 'Photos & social' },
+          ...(user.role === 'BROKER_ADMIN' ? [{ value: 'workflow', label: 'Messaging & Owner' }] : []),
           ...(cardOn ? [{ value: 'card' as const, label: 'Visiting card' }] : []),
           { value: 'verify', label: 'Verification' },
           { value: 'me', label: 'मेरा account' },
@@ -83,6 +84,7 @@ function FirmSettingsPage() {
       />
       {tab === 'firm' && <FirmForm org={org} microsite={microsite} onSaved={() => q.refetch()} />}
       {tab === 'hours' && <Hours org={org} />}
+      {tab === 'workflow' && <FirmWorkflowSettings key={user.id} userId={user.id} />}
       {tab === 'branding' && <BrandingSettings isAdmin={user?.role === 'BROKER_ADMIN'} />}
       {tab === 'card' && <VisitingCardPanel slug={org.slug} />}
       {tab === 'verify' && (
@@ -377,6 +379,56 @@ function Hours({ org }: { org: any }) {
       <Button className="mt-6" onClick={() => save.mutate(undefined)} loading={save.isPending}>
         <UserCog className="size-4" /> Save
       </Button>
+    </div>
+  );
+}
+
+function FirmWorkflowSettings({ userId }: { userId: string }) {
+  const query = useQuery({
+    queryKey: ['firm-workflow', userId],
+    queryFn: () => api<{ freeOnly: boolean; ownerAuto: boolean }>('/messaging/workflow'),
+  });
+  const [saving, setSaving] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  async function save(changes: { freeOnly?: boolean; ownerAuto?: boolean; confirmCharges?: boolean }) {
+    setSaving(true);
+    try {
+      await patch('/messaging/workflow', changes);
+      setConfirm(false);
+      await query.refetch();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+  if (query.isLoading) return <PageLoader />;
+  if (!query.data) return <ApiErrorState error={query.error} onRetry={() => query.refetch()} />;
+  return (
+    <div className="card max-w-2xl space-y-5 p-5">
+      <div className="space-y-2">
+        <label className="flex items-center justify-between gap-4">
+          <span className="font-semibold">Free-only messaging</span>
+          <Switch checked={query.data.freeOnly} disabled={saving} onCheckedChange={(enabled) => enabled ? void save({ freeOnly: true }) : setConfirm(true)} />
+        </label>
+        <p className="text-sm text-muted">Applies to firm messages, campaigns and automations. WhatsApp and SMS API sends require verified zero cost. WhatsApp Business can open the draft for manual sending.</p>
+        {confirm && (
+          <div className="space-y-2 rounded-xl border border-line p-3">
+            <p className="text-sm">Your providers may charge for customer messages when Free-only is off.</p>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" disabled={saving} onClick={() => void save({ freeOnly: false, confirmCharges: true })}>Allow provider charges</Button>
+              <Button type="button" size="sm" variant="secondary" disabled={saving} onClick={() => setConfirm(false)}>Cancel</Button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="space-y-2 border-t border-line pt-4">
+        <label className="flex items-center justify-between gap-4">
+          <span className="font-semibold">Automatically apply matched Owner updates</span>
+          <Switch checked={query.data.ownerAuto} disabled={saving} onCheckedChange={(ownerAuto) => void save({ ownerAuto })} />
+        </label>
+        <p className="text-sm text-muted">Applies eligible updates to existing linked properties. New Owner properties still require your acceptance.</p>
+      </div>
     </div>
   );
 }

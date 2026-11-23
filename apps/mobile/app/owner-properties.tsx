@@ -14,11 +14,12 @@ import { PropertyDateField } from '@/launch/property-date-field';
 export default function OwnerProperties() {
   const { user, ready, logout } = useAuth();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<OwnerProperty | null>(null);
   const { c } = useTheme();
   const list = useQuery({
-    queryKey: ['owner-properties', user?.id, user?.organization?.id, page],
-    queryFn: () => api<{ items: OwnerProperty[]; hasMore: boolean }>('/owner/properties?page=' + page),
+    queryKey: ['owner-properties', user?.id, user?.organization?.id, page, search],
+    queryFn: () => api<{ items: OwnerProperty[]; hasMore: boolean }>('/owner/properties?page=' + page + '&search=' + encodeURIComponent(search)),
     enabled: user?.role === 'PROPERTY_OWNER',
   });
   if (!ready) return <Loader />;
@@ -35,6 +36,9 @@ export default function OwnerProperties() {
         <Button title="Add property" size="sm" onPress={() => router.push('/owner-property-edit' as never)} />
         <Button title="Saved drafts" size="sm" variant="secondary" onPress={() => router.push('/drafts')} />
       </Row>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+        <Input accessibilityLabel="Property ID" placeholder="Search Property ID" value={search} maxLength={32} onChangeText={(value) => { setSearch(value); setPage(1); }} />
+      </View>
       {list.error ? (
         <ErrorView error={list.error} onRetry={() => list.refetch()} />
       ) : list.isPending ? (
@@ -46,10 +50,10 @@ export default function OwnerProperties() {
           contentContainerStyle={{ padding: 16, gap: 10 }}
           onRefresh={() => void list.refetch()}
           refreshing={list.isRefetching}
-          ListEmptyComponent={<Txt color="muted">Add a property or ask your broker to link an existing one.</Txt>}
+          ListEmptyComponent={<Txt color="muted">{search ? 'No matching property.' : 'Add a property or ask your broker to link an existing one.'}</Txt>}
           renderItem={({ item }) => (
             <Card style={{ gap: 8 }}>
-              <Txt v="bodyStrong">{[item.houseNo && 'House ' + item.houseNo, item.unitLabel, item.sector].filter(Boolean).join(' · ') || 'Property'}</Txt>
+              <Txt v="bodyStrong">{[item.houseNo && 'House ' + item.houseNo, item.unitLabel, item.sector, item.propertyCode].filter(Boolean).join(' · ') || 'Property'}</Txt>
               <Txt v="caption" color="muted">
                 {[item.bhk && item.roomKind && item.bhk + ' ' + item.roomKind, item.floor].filter(Boolean).join(' · ')}
               </Txt>

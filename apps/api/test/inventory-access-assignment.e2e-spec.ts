@@ -172,7 +172,7 @@ describe('Agent catalogue privacy, shared galleries and lead acceptance', () => 
       .expect(404);
   });
 
-  it('shares one opaque gallery link, exposes no property identifiers, and keeps the full photo collection', async () => {
+  it('shares one opaque gallery link, shows the public Property ID, and preserves the full photo collection', async () => {
     const results = await Promise.all(
       [1, 2].map(() =>
         api()
@@ -189,7 +189,7 @@ describe('Agent catalogue privacy, shared galleries and lead acceptance', () => 
         .expect(200)
     ).body;
     expect(publicGallery.photos).toEqual([photo]);
-    expect(publicGallery.caption).toMatch(/^📍 Location: Sector 43/);
+    expect(publicGallery.caption).toMatch(/^Property ID: BIQ-\d+\n📍 Location: Sector 43/);
     expect(publicGallery.caption).not.toMatch(/PRIVATE-HOUSE|9876543210|Managed by|Transaction|reconfirm|1000/);
     await api()
       .get('/api/public/photo-galleries/' + 'a'.repeat(48))

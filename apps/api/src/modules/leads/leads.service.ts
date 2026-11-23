@@ -18,6 +18,7 @@ import {
   type LeadRequirementInput,
 } from '@brokeriq/shared';
 import { JobsService } from '../../core/jobs/jobs.service';
+import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsService } from '../../core/events/events.service';
 import { NotificationsService } from '../../core/notifications/notifications.service';
@@ -76,6 +77,7 @@ export class LeadsService {
   private readonly logger = new Logger(LeadsService.name);
   constructor(
     private readonly prisma: PrismaService,
+    private readonly propertyPhotos: PropertyPhotoService,
     private readonly events: EventsService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
@@ -647,13 +649,19 @@ export class LeadsService {
     if (
       !message ||
       message.direction !== 'OUTBOUND' ||
-      !['SENT', 'DELIVERED', 'READ'].includes(message.status) ||
+      !(message.conversation.channel === 'WHATSAPP' ? ['DELIVERED', 'READ'] : ['SENT', 'DELIVERED', 'READ']).includes(message.status) ||
       !message.senderUserId ||
       !message.conversation.leadId ||
       !message.conversation.organizationId
     )
       return;
-    const photos = shareablePropertyPhotoUrls([...(message.body?.match(/https:\/\/[^\s<>]+/g) ?? []), ...(message.mediaUrl ? [message.mediaUrl] : [])]);
+    const photos = shareablePropertyPhotoUrls([...(message.body?.match(/https:\/\/[^\s<>]+/g) ?? []), ...(message.mediaUrl ? [message.mediaUrl] : [])]).flatMap((url) => {
+      try {
+        return [this.propertyPhotos.source(url)];
+      } catch {
+        return [];
+      }
+    });
     const galleryIds = (message.body?.match(/https?:\/\/[^\s<>]+/g) ?? []).flatMap((value) => {
       try {
         const url = new URL(value);

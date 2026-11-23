@@ -7,6 +7,7 @@ import opentype from 'opentype.js';
 import { FURNISHING_LABELS, PROPERTY_TYPE_LABELS, formatINR } from '@brokeriq/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { shortCode } from '../../common/utils';
+import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import { env } from '../../config/env';
 import { SHAREABLE_LISTING } from './public-listing-scope';
 
@@ -37,7 +38,7 @@ export class ShareKitService {
   private fonts?: { bold: opentype.Font; medium: opentype.Font };
   private cache = new Map<string, { at: number; png: Buffer }>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly propertyPhotos: PropertyPhotoService) {}
 
   private font() {
     if (!this.fonts) {
@@ -70,6 +71,7 @@ export class ShareKitService {
     const price = formatINR(l.price) + (l.purpose === 'RENT' ? '/month' : '');
     const lines = [
       `🏠 ${l.title}`,
+      `Property ID: ${l.propertyCode}`,
       `💰 ${price}${l.purpose === 'RENT' && l.securityDeposit ? ` · Deposit ${formatINR(l.securityDeposit)}` : ''}`,
       [l.bedrooms ? `${l.bedrooms} BHK` : null, l.furnishing ? FURNISHING_LABELS[l.furnishing] : null, l.superArea ? `${l.superArea} sqft` : null]
         .filter(Boolean)
@@ -103,7 +105,8 @@ export class ShareKitService {
     const f = this.font();
     const url = `${env().PUBLIC_WEB_URL.replace(/\/$/, '')}/s/${code}`;
 
-    const photo = l.coverUrl ? await this.fetchImage(l.coverUrl, w, photoH) : null;
+    const cover = this.propertyPhotos.url(l.coverUrl, l.propertyCode, l.organization?.name);
+    const photo = cover ? await this.fetchImage(cover, w, photoH) : null;
     const qrSize = format === 'story' ? 300 : 230;
     const qr = await QRCode.toBuffer(url, { width: qrSize, margin: 1, color: { dark: '#0F172A', light: '#FFFFFF' } });
 
@@ -131,6 +134,7 @@ export class ShareKitService {
       this.path(f.medium, `${place}, Gurgaon`, pad, y0 + big * 0.95 + mid * 1.45, mid, textW, '#E2E8F0'),
       l.organization ? this.path(f.bold, l.organization.name, pad, h - pad - (format === 'story' ? 40 : 10), small, nameW, '#A5B4FC') : '',
       this.path(f.bold, badge, pad + 26, 94, 30, 400, '#0F172A'),
+      this.path(f.medium, l.propertyCode, pad, y0 - mid * 1.55, small, textW, '#A5B4FC'),
       this.path(f.medium, 'Scan for photos', w - pad - qrSize, h - pad + 4 - (format === 'story' ? 30 : 0), 22, qrSize, '#CBD5E1'),
     ].join('');
     const rentPillW = Math.ceil(f.bold.getAdvanceWidth(badge, 30)) + 52;

@@ -7,6 +7,7 @@ import { InventoryAccessService } from './inventory-access.service';
 import { InventoryOwnerController, OwnerPropertiesController } from './inventory-owner.controller';
 import { InventoryOwnerService } from './inventory-owner.service';
 import { InventoryService } from './inventory.service';
+import { SurveyWhatsAppService } from './survey-whatsapp.service';
 import { PrismaModule } from '../../prisma/prisma.service';
 
 @Module({
@@ -20,7 +21,7 @@ import { PrismaModule } from '../../prisma/prisma.service';
     InventoryGalleryController,
     PublicInventoryGalleryController,
   ],
-  providers: [InventoryService, InventoryAccessService, InventoryOwnerService],
+  providers: [InventoryService, InventoryAccessService, InventoryOwnerService, SurveyWhatsAppService],
   exports: [InventoryService],
 })
 export class InventoryModule {}

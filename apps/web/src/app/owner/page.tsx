@@ -31,10 +31,11 @@ const choices = ['AVAILABLE', 'UPCOMING', 'RENTED', 'UNAVAILABLE'] as const;
 function OwnerProperties() {
   const { user, logout } = useAuth();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [editor, setEditor] = useState<string | null>(null);
   const list = useQuery({
-    queryKey: ['owner-properties', user?.id, user?.organization?.id, page],
-    queryFn: () => api<{ items: OwnerProperty[]; hasMore: boolean }>('/owner/properties?page=' + page),
+    queryKey: ['owner-properties', user?.id, user?.organization?.id, page, search],
+    queryFn: () => api<{ items: OwnerProperty[]; hasMore: boolean }>('/owner/properties?page=' + page + '&search=' + encodeURIComponent(search)),
   });
   return (
     <main className="mx-auto max-w-4xl space-y-4 px-4 py-6">
@@ -54,6 +55,9 @@ function OwnerProperties() {
           </Button>
         </div>
       </header>
+      {editor === null && (
+        <input className="h-10 w-full max-w-xs rounded-lg border border-line bg-surface px-3 text-sm" aria-label="Property ID" placeholder="Search Property ID" value={search} maxLength={32} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+      )}
       {editor !== null ? (
         <OwnerEditor
           key={editor}
@@ -70,7 +74,7 @@ function OwnerProperties() {
         <p role="status">Loading properties…</p>
       ) : (
         <>
-          {!list.data.items.length && <p className="card p-4">Add a property or ask your broker to link an existing one.</p>}
+          {!list.data.items.length && <p className="card p-4">{search ? 'No matching property.' : 'Add a property or ask your broker to link an existing one.'}</p>}
           {list.data.items.map((property) => (
             <OwnerPropertyCard key={property.id} property={property} onEdit={() => setEditor(property.id)} refresh={() => void list.refetch()} />
           ))}
@@ -186,7 +190,7 @@ function OwnerPropertyCard({ property, refresh, onEdit }: { property: OwnerPrope
   return (
     <article className="card space-y-3 p-4">
       <h2 className="font-semibold">
-        {[property.houseNo && 'House ' + property.houseNo, property.unitLabel, property.sector].filter(Boolean).join(' · ') || 'Property'}
+        {[property.houseNo && 'House ' + property.houseNo, property.unitLabel, property.sector, property.propertyCode].filter(Boolean).join(' · ') || 'Property'}
       </h2>
       <p className="text-sm text-muted">
         {[property.bhk && property.roomKind && property.bhk + ' ' + property.roomKind, property.floor].filter(Boolean).join(' · ')}

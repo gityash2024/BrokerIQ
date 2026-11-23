@@ -44,7 +44,8 @@ export class PhotoBrandingService {
     const cfg = await this.settingsFor(owner);
     if (!cfg) return data;
     try {
-      return await this.render(data, cfg);
+      // The property rendition adds the two labels once the photo is attached.
+      return cfg.enhance ? await this.render(data, { ...cfg, watermark: false }) : data;
     } catch (e) {
       this.logger.warn(`branding skipped for ${key}: ${(e as Error).message}`);
       return data;

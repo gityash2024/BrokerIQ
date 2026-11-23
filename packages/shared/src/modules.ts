@@ -110,8 +110,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     'Property ledger, units, contacts and source review',
     '/broker/inventory',
     ['/broker/inventory', '/broker/scanner', '/broker/listings', '/broker/publications'],
-    ['/inventory', '/listings', '/ai/scan'],
-    ['import.pdf', 'inventory.access-notification'],
+    ['/inventory', '/listings', '/ai/scan', '/media/property-video'],
+    ['import.pdf', 'inventory.access-notification', 'inventory.survey-whatsapp', 'property.video.extract'],
   ),
   core(
     'leads',

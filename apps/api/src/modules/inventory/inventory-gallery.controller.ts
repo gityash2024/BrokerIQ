@@ -4,6 +4,7 @@ import { clientPropertyShare, shareablePropertyPhotoUrls } from '@brokeriq/share
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrentUser, Public, Roles, type RequestUser } from '../../common/decorators';
 import { InventoryService } from './inventory.service';
+import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import { env } from '../../config/env';
 
 @Controller('inventory')
@@ -33,16 +34,16 @@ export class InventoryGalleryController {
 
 @Controller('public/photo-galleries')
 export class PublicInventoryGalleryController {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: PrismaService, private readonly propertyPhotos: PropertyPhotoService) {}
 
   @Public()
   @Get(':token')
   @Header('Cache-Control', 'no-store')
   async get(@Param('token') token: string) {
     if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException('Photo gallery not found');
-    const gallery = await this.db.inventoryPhotoGallery.findUnique({ where: { id: token }, include: { inventory: true } });
+    const gallery = await this.db.inventoryPhotoGallery.findUnique({ where: { id: token }, include: { inventory: { include: { organization: { select: { name: true } } } } } });
     if (!gallery || gallery.inventory.deletedAt) throw new NotFoundException('Photo gallery not found');
-    const photos = shareablePropertyPhotoUrls(gallery.inventory.photoUrls);
+    const photos = shareablePropertyPhotoUrls(this.propertyPhotos.inventory(gallery.inventory).photoUrls);
     if (!photos.length) throw new NotFoundException('This gallery no longer has photos');
     // Only the client-facing caption and approved public media cross this unauthenticated boundary.
     return {

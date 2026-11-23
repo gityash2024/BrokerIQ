@@ -340,6 +340,7 @@ export type OwnerPropertyChanges = {
   createdAt: string;
 };
 export type OwnerProperty = OwnerEditableProperty & {
+  propertyCode?: string;
   id: string;
   revision: number;
   availability: string;
@@ -371,6 +372,7 @@ export type OwnerSubmissionQueue = {
 
 export const inventoryFilterSchema = z.object({
   folderMode: inventoryFolderModeSchema.optional(),
+  surveyShelf: z.enum(['PENDING', 'NO_ANSWER']).optional(),
   currentInventory: z.literal('true').optional(),
   folderYear: z
     .string()
@@ -500,6 +502,7 @@ export function offeredRequirement(input: InventoryInput): BrokerRequirementInpu
   });
 }
 export interface LedgerItem extends Omit<InventoryInput, 'contacts' | 'directoryMonth'> {
+  propertyCode?: string;
   agentCoverPhotoUrl?: string | null;
   detailAccess?: 'OWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'REVOKED' | 'EXPIRED' | 'LOCKED';
   detailAccessExpiresAt?: string | null;
@@ -682,7 +685,7 @@ export function shareablePropertyPhotoUrls(urls: readonly string[] = []): string
       const url = new URL(value);
       const path = decodeURIComponent(url.pathname);
       if (url.protocol !== 'https:' || url.username || url.password || /[%\\\u0000-\u001f]/.test(path)) continue;
-      if (/\/(?:imports|inventory|private|authenticated|kyc|scan|chat|inspection)(?:\/|$)|\/media\/(?!f\/listing\/)/i.test(path)) continue;
+      if (/\/(?:imports|inventory|private|authenticated|kyc|scan|chat|inspection)(?:\/|$)|\/media\/(?!f\/listing\/|property-photo\/)/i.test(path)) continue;
       url.hash = '';
       links.add(url.href);
     } catch {

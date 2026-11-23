@@ -3,9 +3,9 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, Video, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
+import { api, assertAccountContext, captureAccountContext, compressImage, errorMessage, uploadFile } from '@/lib/api';
 import { img } from '@/lib/utils';
-import { shareablePropertyPhotoUrls } from '@brokeriq/shared';
+import { shareablePropertyPhotoUrls, type PropertyVideoStatus, type PropertyVideoUpload } from '@brokeriq/shared';
 
 export function PropertyMedia({
   urls,
@@ -32,7 +32,10 @@ export function PropertyMedia({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
   const running = useRef(false);
+  const attachedFrames = useRef(new Set<string>());
+  const [extraction, setExtraction] = useState<{ id: string; result: PropertyVideoStatus; selected: number[] }>();
   const [pending, setPending] = useState(false);
   const [savingCover, setSavingCover] = useState(false);
   const [error, setError] = useState('');
@@ -85,6 +88,72 @@ export function PropertyMedia({
     }
   }
 
+  async function extract(file?: File) {
+    if (!file || running.current || disabled) return;
+    const ownerContext = captureAccountContext();
+    running.current = true;
+    setPending(true);
+    onUploading?.(true);
+    setError('');
+    let id: string | undefined;
+    try {
+      const signed = await api<PropertyVideoUpload>('/media/property-video', { body: { contentType: file.type }, ownerContext });
+      id = signed.id;
+      if (file.size > signed.maxBytes) throw new Error('Choose a video up to 100 MB.');
+      const response = await fetch(signed.uploadUrl, { method: 'PUT', headers: signed.headers, body: file });
+      if (!response.ok) throw new Error('Video upload failed. Select it again.');
+      await api(`/media/property-video/${id}/start`, { method: 'POST', ownerContext });
+      for (let attempt = 0; attempt < 75; attempt++) {
+        const result = await api<PropertyVideoStatus>(`/media/property-video/${id}`, { ownerContext });
+        if (result.state === 'READY') {
+          attachedFrames.current.clear();
+          setExtraction({ id, result, selected: result.frames.slice(0, limit - urls.length).map((_, index) => index) });
+          return;
+        }
+        if (result.state === 'FAILED') throw new Error('No usable photos were found. Try another video.');
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
+      throw new Error('Video extraction timed out. Try another video.');
+    } catch (cause) {
+      if (id) await api(`/media/property-video/${id}`, { method: 'DELETE', ownerContext }).catch(() => undefined);
+      setError(errorMessage(cause));
+    } finally {
+      running.current = false;
+      setPending(false);
+      onUploading?.(false);
+    }
+  }
+
+  async function finishExtraction(save: boolean) {
+    if (!extraction || running.current || disabled) return;
+    const ownerContext = captureAccountContext();
+    running.current = true;
+    setPending(true);
+    onUploading?.(true);
+    setError('');
+    try {
+      if (save) {
+        const { urls: generated } = await api<{ urls: string[] }>(`/media/property-video/${extraction.id}/save`, { body: { indices: extraction.selected }, ownerContext });
+        for (const url of generated) {
+          assertAccountContext(ownerContext);
+          if (attachedFrames.current.has(url) || urls.includes(url)) continue;
+          await onAdd(url);
+          attachedFrames.current.add(url);
+        }
+        await api(`/media/property-video/${extraction.id}/complete`, { method: 'POST', ownerContext });
+      } else {
+        await api(`/media/property-video/${extraction.id}`, { method: 'DELETE', ownerContext });
+      }
+      setExtraction(undefined);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      running.current = false;
+      setPending(false);
+      onUploading?.(false);
+    }
+  }
+
   return (
     <section aria-label={label} className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -122,6 +191,25 @@ export function PropertyMedia({
               {video ? <Video className="size-4" /> : <ImagePlus className="size-4" />}
               {pending ? 'Uploading…' : `Upload ${noun}s`}
             </Button>
+            {!video && !disabled && !extraction && (
+              <>
+                <Button type="button" variant="secondary" size="sm" disabled={pending || savingCover} onClick={() => videoInput.current?.click()}>
+                  Extract photos from video
+                </Button>
+                <input
+                  ref={videoInput}
+                  aria-label="Select a video for property photos"
+                  type="file"
+                  accept="video/mp4,video/quicktime,video/webm"
+                  hidden
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = '';
+                    void extract(file);
+                  }}
+                />
+              </>
+            )}
             <input
               ref={input}
               aria-label={`Select ${noun} files`}
@@ -138,6 +226,32 @@ export function PropertyMedia({
           </>
         )}
       </div>
+      {extraction && (
+        <div className="space-y-2" aria-label="Review extracted property photos">
+          <p className="text-sm text-muted">{extraction.result.aiVerified ? 'AI reviewed these photos. Keep the ones you want.' : 'Review and select the photos you want to keep.'}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {extraction.result.frames.map((frame, index) => (
+              <label key={index} className="flex cursor-pointer items-center gap-2 rounded-xl border border-line p-2">
+                <input
+                  type="checkbox"
+                  aria-label={`Keep photo ${index + 1}`}
+                  checked={extraction.selected.includes(index)}
+                  disabled={pending || disabled}
+                  onChange={(event) => {
+                    const checked = event.currentTarget.checked;
+                    setExtraction((current) => current && { ...current, selected: checked ? [...current.selected, index] : current.selected.filter((item) => item !== index) });
+                  }}
+                />
+                <img src={frame} alt={`Extracted photo ${index + 1}`} className="aspect-[4/3] min-w-0 flex-1 rounded-lg object-cover" />
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" disabled={disabled || pending || !extraction.selected.length || extraction.selected.length > limit - urls.length + attachedFrames.current.size} onClick={() => void finishExtraction(true)}>Add selected photos</Button>
+            <Button type="button" variant="secondary" size="sm" disabled={disabled || pending} onClick={() => void finishExtraction(false)}>Discard</Button>
+          </div>
+        </div>
+      )}
       {!!urls.length && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {urls.map((url, index) => (

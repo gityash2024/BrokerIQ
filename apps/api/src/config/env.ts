@@ -30,6 +30,8 @@ const envSchema = z.object({
   PUBLIC_WEB_URL: z.string().default('http://localhost:3001'),
   /** Self-hosted media: when set, uploads are compressed + encrypted onto this directory (takes precedence over Cloudinary/S3). */
   MEDIA_ROOT: z.string().optional(),
+  PROPERTY_VIDEO_FFMPEG: z.string().min(1).optional(),
+  PROPERTY_VIDEO_FFPROBE: z.string().min(1).optional(),
   SUPER_ADMIN_EMAIL: z.string().email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
   SUPER_ADMIN_NAME: z.string().default('Super Admin'),

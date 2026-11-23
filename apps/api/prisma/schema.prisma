@@ -913,6 +913,7 @@ model Amenity {
 // ============================================================ Marketplace
 
 model Listing {
+  propertyCode String @unique @default(dbgenerated("brokeriq_next_property_code()"))
   reviewRequiredRole String? @default("SUPER_ADMIN")
   inventoryOrigin InventoryItem? @relation("InventoryPublicListing")
   blockedReason     String?
@@ -2554,6 +2555,7 @@ model ShortlistShare {
 
 /// Internal broker inventory ledger (Google Sheet / Excel register style).
 model InventoryItem {
+  propertyCode String @unique @default(dbgenerated("brokeriq_next_property_code()"))
   publicationHash    String?
   convertedRequirement BrokerRequirement? @relation("RequirementConversion")
   visits             SiteVisit[]
@@ -2872,4 +2874,20 @@ model InventoryPhotoGallery {
   createdById String
   createdAt DateTime @default(now())
   inventory InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+}
+
+model PropertyVideoExtraction {
+  id          String   @id @default(cuid())
+  userId      String
+  organizationId String?
+  sourceKey   String   @unique
+  state       String   @default("AWAITING_UPLOAD")
+  frameKeys   String[] @default([])
+  urls        String[] @default([])
+  aiVerified  Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
 }

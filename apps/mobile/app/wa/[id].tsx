@@ -4,17 +4,17 @@ import { LinkedMessage } from '@/components/linked-message';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { FlatList, TextInput, Text, View } from 'react-native';
+import { Alert, FlatList, Linking, TextInput, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Building2, AlertTriangle, Check, CheckCheck, Clock, FileText, Send, UserRound } from 'lucide-react-native';
-import { renderTemplate, type WaTemplate } from '@brokeriq/shared';
+import { renderTemplate, whatsappLink, type WaTemplate } from '@brokeriq/shared';
 import { readInboxDraft, saveInboxDraft, hasLegacyInboxDraft } from '@/lib/inbox-drafts';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { useAuth } from '@/lib/auth';
-import { authStore, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
+import { ApiError, authStore, api, post, captureAccountContext, assertAccountContext } from '@/lib/api';
 import { showError } from '@/lib/hooks';
 import { useRealtime } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
@@ -124,7 +124,15 @@ export default function WaThread() {
       q.refetch();
       return true;
     } catch (e) {
-      showError(e);
+      const { draftUrl } = e instanceof ApiError && e.body.code === 'MESSAGING_FREE_ONLY'
+        ? (e.body.details ?? {}) as { draftUrl?: string }
+        : {};
+      if (draftUrl?.startsWith('https://wa.me/')) {
+        Alert.alert('Free-only messaging', 'Send the saved draft in WhatsApp Business.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open WhatsApp', onPress: () => void Linking.openURL(draftUrl).catch(showError) },
+        ]);
+      } else showError(e);
       return false;
     } finally {
       setSending(false);
@@ -141,6 +149,8 @@ export default function WaThread() {
   const email = conv.channel === 'EMAIL';
   const sms = conv.channel === 'SMS';
   const windowOpen = sms || email || thread!.windowOpen;
+  const manualDraft = !windowOpen && thread!.freeOnly && !!conv.contactPhone;
+  const canCompose = windowOpen || manualDraft;
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: c.bg }}>
       <Header
@@ -250,7 +260,8 @@ export default function WaThread() {
             SMS business SIM से जाएगा। Queue में पहुँचना delivery नहीं है; अनिश्चित स्थिति में फिर न भेजें।
           </Txt>
         )}
-        {canSend && !windowOpen && (
+        {canSend && manualDraft && <Txt v="caption" color="muted" style={{ paddingHorizontal: 14 }}>24-hour window closed. Open this draft in WhatsApp Business.</Txt>}
+        {canSend && !windowOpen && !manualDraft && (
           <PressableScale
             onPress={() => setTpl(true)}
             style={{
@@ -316,8 +327,8 @@ export default function WaThread() {
               setText(value);
               saveInboxDraft(id, value, owner).catch(showError);
             }}
-            editable={canSend && windowOpen && !sending}
-            placeholder={tr(windowOpen ? 'Message…' : 'Template भेजें')}
+            editable={canSend && canCompose && !sending}
+            placeholder={tr(manualDraft ? 'WhatsApp Business draft…' : windowOpen ? 'Message…' : 'Template भेजें')}
             placeholderTextColor={c.subtle}
             maxLength={sms ? 1600 : email ? 20_000 : undefined}
             multiline
@@ -335,8 +346,10 @@ export default function WaThread() {
             }}
           />
           <IconBtn
-            onPress={() => text.trim() && send({ text })}
-            style={{ backgroundColor: '#25D366', width: 46, height: 46, borderRadius: 23, opacity: !windowOpen || sending || !text.trim() ? 0.5 : 1 }}
+            accessibilityLabel={manualDraft ? 'Open WhatsApp draft' : 'Send'}
+            disabled={!canSend || !canCompose || sending || !text.trim()}
+            onPress={() => manualDraft ? void Linking.openURL(whatsappLink(conv.contactPhone, text.trim())).catch(showError) : void send({ text })}
+            style={{ backgroundColor: '#25D366', width: 46, height: 46, borderRadius: 23, opacity: !canCompose || sending || !text.trim() ? 0.5 : 1 }}
           >
             <Send size={19} color="#fff" />
           </IconBtn>

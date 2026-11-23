@@ -28,6 +28,7 @@ import {
   inboxListQuerySchema,
   type InboxListQuery,
 } from '@brokeriq/shared';
+import { FirmWorkflowService } from '../../core/settings/firm-workflow.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
 import { RealtimeGateway } from '../../core/realtime/realtime.gateway';
@@ -44,6 +45,7 @@ export class WhatsAppController {
     private readonly prisma: PrismaService,
     private readonly wa: WhatsAppService,
     private readonly realtime: RealtimeGateway,
+    private readonly workflows: FirmWorkflowService,
   ) {}
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')
@@ -171,7 +173,8 @@ export class WhatsAppController {
       include: { sender: { select: { id: true, name: true } } },
     });
     const windowOpen = !!c.lastInboundAt && Date.now() - c.lastInboundAt.getTime() < 24 * 3600_000;
-    return { conversation: c, windowOpen, nextCursor: items.length > 60 ? items[59].id : null, items: items.slice(0, 60).reverse() };
+    const freeOnly = c.channel === 'WHATSAPP' && (await this.workflows.get(c.organizationId)).freeOnly;
+    return { conversation: c, windowOpen, freeOnly, nextCursor: items.length > 60 ? items[59].id : null, items: items.slice(0, 60).reverse() };
   }
 
   @Roles('BROKER_ADMIN', 'BROKER_AGENT')

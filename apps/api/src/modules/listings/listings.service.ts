@@ -8,6 +8,7 @@ import {
   PROPERTY_TYPE_LABELS,
   maskPhone,
   normalizeIndianPhone,
+  normalizePropertyCode,
   pricePerSqft,
   slugify,
   type ListingInput,
@@ -26,11 +27,13 @@ import { AuditService } from '../../core/audit/audit.service';
 import { paged, shortCode } from '../../common/utils';
 import type { RequestUser } from '../../common/decorators';
 import { FeaturesService } from '../../core/features/features.service';
+import { PropertyPhotoService } from '../../core/media/property-photo.service';
 import { AccessService } from '../../core/access/access.service';
 
 export const LISTING_CARD_SELECT = {
   id: true,
   refNo: true,
+  propertyCode: true,
   slug: true,
   purpose: true,
   category: true,
@@ -79,6 +82,7 @@ export const LISTING_CARD_SELECT = {
 export class ListingsService {
   constructor(
     private readonly access: AccessService,
+    private readonly propertyPhotos: PropertyPhotoService,
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly usage: UsageService,
@@ -163,7 +167,9 @@ export class ListingsService {
       if ([minLng, minLat, maxLng, maxLat].every(Number.isFinite))
         and.push({ latitude: { gte: minLat, lte: maxLat }, longitude: { gte: minLng, lte: maxLng } });
     }
-    if (f.q) {
+    const propertyCode = normalizePropertyCode(f.q);
+    if (propertyCode) and.push({ propertyCode });
+    else if (f.q) {
       const q = f.q.trim();
       and.push({
         OR: [
@@ -222,7 +228,7 @@ export class ListingsService {
       }),
       this.prisma.listing.count({ where }),
     ]);
-    return paged(items, total, f.page, f.pageSize);
+    return paged(items.map((item) => this.propertyPhotos.listing(item)), total, f.page, f.pageSize);
   }
 
   /**
@@ -256,7 +262,7 @@ export class ListingsService {
       .filter((l) => l.commute.minutes <= max);
     if (f.sort === 'commute') scored.sort((a, b) => a.commute.minutes - b.commute.minutes);
     const items = scored.slice((f.page - 1) * f.pageSize, f.page * f.pageSize);
-    return paged(items, scored.length, f.page, f.pageSize);
+    return paged(items.map((item) => this.propertyPhotos.listing(item)), scored.length, f.page, f.pageSize);
   }
 
   async mapPoints(f: ListingSearchInput) {
@@ -267,7 +273,7 @@ export class ListingsService {
         { longitude: { not: null } },
       ],
     };
-    return this.prisma.listing.findMany({
+    const items = await this.prisma.listing.findMany({
       where,
       take: 600,
       orderBy: this.orderBy(f.sort, await this.freeMode()),
@@ -282,8 +288,11 @@ export class ListingsService {
         longitude: true,
         title: true,
         coverUrl: true,
+        propertyCode: true,
+        organization: { select: { name: true } },
       },
     });
+    return items.map(({ organization, ...item }) => ({ ...item, coverUrl: this.propertyPhotos.url(item.coverUrl, item.propertyCode, organization?.name) }));
   }
 
   /** Scam protection: enough distinct pending reports send a live listing back to admin review. */
@@ -331,8 +340,9 @@ export class ListingsService {
   }
 
   async detail(slugOrId: string, user?: RequestUser, track = true) {
+    const propertyCode = normalizePropertyCode(slugOrId);
     const listing = await this.prisma.listing.findFirst({
-      where: { OR: [{ slug: slugOrId }, { id: slugOrId }], deletedAt: null },
+      where: { OR: [{ slug: slugOrId }, { id: slugOrId }, ...(propertyCode ? [{ propertyCode }] : [])], deletedAt: null },
       include: {
         media: { orderBy: { sortOrder: 'asc' } },
         locality: true,
@@ -388,7 +398,7 @@ export class ListingsService {
     const localityStats = await this.localityPsf(listing.localityId, listing.purpose, listing.category);
     const phone = listing.contactPhone ?? listing.organization?.phone ?? null;
     return {
-      ...listing,
+      ...this.propertyPhotos.listing(listing),
       contactPhone: manage ? phone : maskPhone(phone),
       organization: listing.organization
         ? { ...listing.organization, phone: manage ? listing.organization.phone : maskPhone(listing.organization.phone), whatsapp: undefined }
@@ -411,7 +421,7 @@ export class ListingsService {
   async similar(id: string) {
     const l = await this.prisma.listing.findUnique({ where: { id } });
     if (!l) throw new NotFoundException();
-    return this.prisma.listing.findMany({
+    const matches = await this.prisma.listing.findMany({
       where: {
         AND: [PUBLIC_LISTING_ORIGIN],
         id: { not: l.id },
@@ -425,6 +435,7 @@ export class ListingsService {
       take: 8,
       select: LISTING_CARD_SELECT,
     });
+    return matches.map((item) => this.propertyPhotos.listing(item));
   }
 
   /** Reveals the real contact number (and records it as an enquiry signal). */
@@ -593,9 +604,10 @@ export class ListingsService {
         if (input.photos) {
           await tx.listingMedia.deleteMany({ where: { listingId: id } });
           await tx.listingMedia.createMany({
-            data: input.photos.map((p, i) => ({ listingId: id, url: p.url, caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })),
+            data: input.photos.map((p, i) => ({ listingId: id, url: this.propertyPhotos.source(p.url, existing.propertyCode), caption: p.caption, publicId: p.publicId, sortOrder: i, kind: p.kind ?? 'PHOTO' })),
           });
-          data.coverUrl = (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url ?? null;
+          const cover = (input.photos.find((p) => p.kind !== 'PANORAMA') ?? input.photos[0])?.url;
+          data.coverUrl = cover ? this.propertyPhotos.source(cover, existing.propertyCode) : null;
         }
         const updated = await tx.listing.update({ where: { id }, data });
         return updated;
@@ -677,6 +689,7 @@ export class ListingsService {
   async mine(user: RequestUser, q: { status?: string; page?: number; pageSize?: number; search?: string }) {
     const page = Math.max(1, Number(q.page) || 1);
     const pageSize = Math.min(100, Number(q.pageSize) || 20);
+    const propertyCode = normalizePropertyCode(q.search);
     const where: Prisma.ListingWhereInput = {
       deletedAt: null,
       ...(user.orgId ? { organizationId: user.orgId } : { postedById: user.id }),
@@ -684,7 +697,7 @@ export class ListingsService {
         ? { AND: [{ OR: [{ postedById: user.id }, { inventoryOrigin: { is: { OR: [{ createdById: user.id }, { assignedToId: user.id }] } } }] }] }
         : {}),
       ...(q.status ? { status: q.status as any } : {}),
-      ...(q.search ? { OR: [{ title: { contains: q.search, mode: 'insensitive' } }, { societyName: { contains: q.search, mode: 'insensitive' } }] } : {}),
+      ...(propertyCode ? { propertyCode } : q.search ? { OR: [{ title: { contains: q.search, mode: 'insensitive' } }, { societyName: { contains: q.search, mode: 'insensitive' } }] } : {}),
     };
     const [items, total, counts] = await Promise.all([
       this.prisma.listing.findMany({
@@ -707,7 +720,7 @@ export class ListingsService {
         _count: { _all: true },
       }),
     ]);
-    return { ...paged(items, total, page, pageSize), statusCounts: Object.fromEntries(counts.map((c) => [c.status, c._count._all])) };
+    return { ...paged(items.map((item) => this.propertyPhotos.listing(item)), total, page, pageSize), statusCounts: Object.fromEntries(counts.map((c) => [c.status, c._count._all])) };
   }
 
   // ------------------------------------------------------------------ saved / recent
@@ -730,7 +743,7 @@ export class ListingsService {
       orderBy: { createdAt: 'desc' },
       include: { listing: { select: LISTING_CARD_SELECT } },
     });
-    return rows.map((r) => ({ ...r.listing, savedAt: r.createdAt }));
+    return rows.map((r) => ({ ...this.propertyPhotos.listing(r.listing), savedAt: r.createdAt }));
   }
 
   async savedIds(userId: string) {
@@ -744,7 +757,7 @@ export class ListingsService {
       take: 20,
       include: { listing: { select: LISTING_CARD_SELECT } },
     });
-    return rows.map((r) => r.listing);
+    return rows.map((r) => this.propertyPhotos.listing(r.listing));
   }
 }
 

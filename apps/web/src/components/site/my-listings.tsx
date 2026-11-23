@@ -142,7 +142,7 @@ export function MyListings({ base, newHref, activeOnly = false }: { base: string
                   <Badge tone={TONES[l.status]}>{LISTING_STATUS_LABELS[l.status as keyof typeof LISTING_STATUS_LABELS]}</Badge>
                   {l.isVerified && <BadgeCheck className="size-4 text-emerald-500" />}
                   <span className="text-xs text-subtle">
-                    #{l.refNo} · updated {timeAgo(l.updatedAt)}
+                    {l.propertyCode || `#${l.refNo}`} · updated {timeAgo(l.updatedAt)}
                   </span>
                 </div>
                 <Link href={`/user/property/${l.slug}`} className="mt-1 block truncate font-semibold hover:text-brand-600">

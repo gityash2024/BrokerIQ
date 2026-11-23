@@ -8,6 +8,7 @@ export interface LocalityLite {
 }
 
 export interface ListingCard {
+  propertyCode?: string;
   id: string;
   refNo: number;
   slug: string;

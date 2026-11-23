@@ -13,6 +13,7 @@ import { fonts, palette, useTheme } from '@/lib/theme';
 import { PressableScale, Row, Txt } from '@/ui';
 
 export interface ListingCardData {
+  propertyCode?: string;
   id: string;
   slug: string;
   title: string;
@@ -160,6 +161,7 @@ export function ListingCard({ l, width }: { l: ListingCardData; width?: number }
         <Txt v="title" numberOfLines={1}>
           {l.title}
         </Txt>
+        {l.propertyCode && <Txt v="caption" color="muted">{l.propertyCode}</Txt>}
         <Row gap={4}>
           <MapPin size={13} color={c.subtle} />
           <Txt v="small" color="muted" numberOfLines={1} style={{ flex: 1 }}>
@@ -231,6 +233,7 @@ export function ListingRow({ l, right, onPress, selected }: { l: ListingCardData
         <Txt v="bodyStrong" numberOfLines={1}>
           {l.title}
         </Txt>
+        {l.propertyCode && <Txt v="caption" color="muted">{l.propertyCode}</Txt>}
         <Txt v="small" color="muted" numberOfLines={1}>
           {l.locality?.name}
           {l.bedrooms != null ? ` · ${l.bedrooms} BHK` : ''}

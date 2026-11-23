@@ -43,6 +43,10 @@ export class ModuleGuard implements CanActivate {
       ) {
         permission = { module: 'time_logging', actions: ['create'] };
       }
+      if (path.startsWith('/media/property-video')) {
+        const action = (req.delegatedPermissions ?? []).includes('inventory:edit') ? 'edit' : 'create';
+        permission = { module: 'inventory', actions: [action] };
+      }
       if (path === '/me/uploads/sign') {
         const kind = req.body?.kind;
         if (kind === 'avatar' || kind === 'kyc') return true;
@@ -104,6 +108,7 @@ export class ModuleGuard implements CanActivate {
         this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]) ||
         /^\/auth(?:\/|$)/.test(path) ||
         /^\/owner\/properties(?:\/|$)/.test(path) ||
+        /^\/media\/property-video(?:\/|$)/.test(path) ||
         (path === '/me/uploads/sign' && req.method === 'POST' && req.body?.kind === 'listing')
       )
         return true;
