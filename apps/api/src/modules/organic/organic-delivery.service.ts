@@ -110,8 +110,10 @@ export class OrganicDeliveryService {
     const current = await this.db.organicDeliverySchedule.findUnique({ where: { id: scheduleId } });
     if (!current || !current.enabled || current.nextRunAt?.toISOString() !== cutoff.toISOString()) return;
     const key = 'delivery:' + scheduleId + ':' + cutoffText;
-    const run = await this.db.organicRun.upsert({ where: { key }, update: { status: 'RUNNING' },
-      create: { kind: 'DELIVERY', key, scheduleId, windowFrom: current.cursorFrom, windowTo: cutoff, status: 'RUNNING' } });
+    await this.db.organicRun.createMany({ skipDuplicates: true,
+      data: { kind: 'DELIVERY', key, scheduleId, windowFrom: current.cursorFrom, windowTo: cutoff, status: 'RUNNING' } });
+    const run = await this.db.organicRun.findUniqueOrThrow({ where: { key } });
+    if (run.status === 'COMPLETE' || run.status === 'CANCELLED') return;
     let after: string | undefined;
     const report = newCounters();
     do {
@@ -121,7 +123,7 @@ export class OrganicDeliveryService {
       });
       for (const row of rows) {
         try {
-          const result = await this.transfer(row.id, current, run.id);
+          const result = await this.transfer(row.id, current, run.id, undefined, { id: scheduleId, cutoff });
           report[result]++;
         } catch { report.failed++; }
       }
@@ -130,6 +132,8 @@ export class OrganicDeliveryService {
 
     const notification = await this.db.$transaction(async (tx) => {
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'organic-schedule:' + current.organizationId}))`);
+      const settled = await tx.organicRun.findUniqueOrThrow({ where: { id: run.id }, select: { status: true } });
+      if (settled.status === 'COMPLETE' || settled.status === 'CANCELLED') return;
       const actual = await tx.organicDeliverySchedule.findUnique({ where: { id: scheduleId } });
       if (!actual?.enabled || actual.nextRunAt?.toISOString() !== cutoffText) {
         await tx.organicRun.update({ where: { id: run.id }, data: { status: 'CANCELLED', report, finishedAt: new Date() } });
@@ -195,9 +199,16 @@ export class OrganicDeliveryService {
     if (report.failed) throw new Error('Some organic transfers need retry');
   }
 
-  private async transfer(recordId: string, target: OrganicTarget, runId: string, actorId?: string): Promise<'delivered' | 'duplicate' | 'skipped'> {
+  private async transfer(recordId: string, target: OrganicTarget, runId: string, actorId?: string,
+    scheduled?: { id: string; cutoff: Date }): Promise<'delivered' | 'duplicate' | 'skipped'> {
     return this.db.$transaction(async (tx) => {
       const { organizationId, brokerAdminId } = target;
+      if (scheduled) {
+        await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'organic-schedule:' + organizationId}))`);
+        const enabled = await tx.organicDeliverySchedule.count({ where: { id: scheduled.id, organizationId, brokerAdminId,
+          nextRunAt: scheduled.cutoff, enabled: true } });
+        if (!enabled) return 'skipped';
+      }
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'organic-target:' + organizationId}))`);
       await this.verifyTarget(tx, target);
       const prior = await tx.organicTransfer.findUnique({ where: { recordId_organizationId: { recordId, organizationId } } });

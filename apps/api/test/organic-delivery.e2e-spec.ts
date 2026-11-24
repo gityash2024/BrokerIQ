@@ -133,11 +133,18 @@ describe('Organic daily delivery', () => {
     expect(preview.firms[0]).toMatchObject({ selected: 1, duplicates: 0, newRecords: 1 });
 
     const service = app.get(OrganicDeliveryService);
+    await db.organicDeliverySchedule.update({ where: { id: rule.id }, data: { enabled: false } });
+    const queued = await db.organicRun.create({ data: { kind: 'DELIVERY', key: randomUUID(), scheduleId: rule.id, status: 'RUNNING' } });
+    await expect(service['transfer'](record.id, recipients[0], queued.id, undefined, { id: rule.id, cutoff })).resolves.toBe('skipped');
+    expect(await db.organicTransfer.count({ where: { recordId: record.id } })).toBe(0);
+    await db.organicDeliverySchedule.update({ where: { id: rule.id }, data: { enabled: true } });
     await Promise.all([
       service['deliverRun'](rule.id, cutoff.toISOString()),
       service['deliverRun'](rule.id, cutoff.toISOString()),
     ]);
     expect(await db.organicTransfer.count({ where: { recordId: record.id, organizationId: first.id } })).toBe(1);
+    const settled = await db.organicRun.findUnique({ where: { key: `delivery:${rule.id}:${cutoff.toISOString()}` } });
+    expect(settled).toMatchObject({ status: 'COMPLETE', report: { delivered: 1, failed: 0 } });
     const lead = await db.lead.findUniqueOrThrow({ where: { organizationId_phone: { organizationId: first.id, phone: '+919811100831' } }, include: { requirement: true } });
     expect(lead).toMatchObject({ source: 'ORGANIC_DEMAND', assignedToId: broker.user.id, requirement: { bedrooms: [2], maxBudget: 43000 } });
     await api().get('/api/leads/' + lead.id).set(auth(other.token)).expect(404);
