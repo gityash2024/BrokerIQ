@@ -14,6 +14,12 @@ export const connectSettings = z.object({
   backgroundSync: z.boolean().default(false),
   groups: z.array(hash).max(100).default([]),
 });
+export const connectFirmPolicy = z.object({
+  leads: z.boolean().default(false),
+  inventory: z.boolean().default(false),
+  survey: z.boolean().default(false),
+}).strict();
+export type ConnectFirmPolicy = z.infer<typeof connectFirmPolicy>;
 export const connectRegistration = z.object({ installId: z.uuid(), label: z.string().trim().min(1).max(100), version: z.number().int().positive() });
 const event = { capturedAt: z.iso.datetime({ offset: true }) };
 export const connectCapture = z.discriminatedUnion('kind', [

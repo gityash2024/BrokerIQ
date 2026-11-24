@@ -13,13 +13,14 @@ import { LocalStorageService } from '../../core/media/local-storage.service';
 import { CryptoService } from '../../core/settings/crypto.service';
 import { AiService, OpenRouterQuotaDeferred } from '../../core/ai/ai.service';
 import { AuthService } from '../auth/auth.service';
-import { connectSettings, type ConnectCapture, type ConnectRecording, type ConnectRegistration, type ConnectSettings } from './connect.schemas';
+import { connectFirmPolicy, connectSettings, type ConnectCapture, type ConnectFirmPolicy, type ConnectRecording, type ConnectRegistration, type ConnectSettings } from './connect.schemas';
 import { transcribeConnectRecording } from './connect-transcription';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const privateMessage = /\b(?:otp|password|passcode|one.time (?:code|password)|verification code|bank account|credited|debited)\b/i;
 const redact = (text: string) => text.replace(/(?:\+?91[\s.-]*)?[6-9](?:[\s.-]*\d){9}\b/g, '[contact]')
   .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[contact]');
+const firmPolicyKey = 'connect.automatic_updates';
 const eventProjection = {
   id: true, kind: true, status: true, capturedAt: true, updatedAt: true, leadId: true, callId: true, lastError: true, recordingType: true,
 } as const;
@@ -63,8 +64,32 @@ export class ConnectService {
     const sessions = devices.length ? await this.db.refreshToken.findMany({ where: { id: { in: devices.map(({ sessionId }) => sessionId) },
       userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true } }) : [];
     const connected = devices.filter(({ sessionId }) => sessions.some(({ id }) => id === sessionId)).map(({ sessionId: _session, ...device }) => device);
+    const canManagePolicy = user.role === 'BROKER_ADMIN' && !user.delegatedActor && !!user.orgId;
+    const policy = options.CONNECT_ENABLED && canManagePolicy ? await this.firmPolicy(this.db, user.orgId!) : undefined;
     return { downloadUrl: options.CONNECT_APK_URL ?? null, latestVersion: options.CONNECT_APK_VERSION,
-      enabled: options.CONNECT_ENABLED, devices: connected };
+      enabled: options.CONNECT_ENABLED, devices: connected, policy };
+  }
+
+  private async firmPolicy(tx: Prisma.TransactionClient, organizationId: string) {
+    const setting = await tx.orgSetting.findUnique({ where: { organizationId_key: { organizationId, key: firmPolicyKey } }, select: { value: true } });
+    return connectFirmPolicy.parse(setting?.value ?? {});
+  }
+
+  async updateFirmPolicy(user: RequestUser, input: ConnectFirmPolicy) {
+    if (user.role !== 'BROKER_ADMIN' || user.delegatedActor) throw new ForbiddenException('Only the firm Broker Admin can configure automatic Connect updates');
+    const organizationId = this.assertCaptureAllowed(user);
+    const where = { organizationId, key: firmPolicyKey };
+    return this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId + ':' + firmPolicyKey}))`;
+      if (!(await tx.user.count({ where: { id: user.id, organizationId, role: 'BROKER_ADMIN', status: 'ACTIVE', deletedAt: null } }))) {
+        throw new ForbiddenException('Firm membership changed');
+      }
+      await tx.orgSetting.upsert({ where: { organizationId_key: where },
+        create: { ...where, value: input, updatedById: user.id }, update: { value: input, updatedById: user.id } });
+      await tx.auditLog.create({ data: { actorId: user.id, actorRole: user.role, organizationId,
+        action: 'connect.firm_policy', entity: 'Organization', entityId: organizationId, meta: input } });
+      return input;
+    });
   }
 
   private assertCaptureAllowed(user: RequestUser) {
@@ -340,6 +365,7 @@ export class ConnectService {
         ], { feature: 'brokeriq-connect', schema: insights, openRouterOnly: true, deferWhenRateLimited: true, orgId: row.organizationId, userId: row.userId, maxTokens: 3500, temperature: 0 });
       }
       await this.db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "ConnectDevice" WHERE id = ${row.deviceId} FOR UPDATE`;
         const fresh = await tx.connectDevice.findUnique({ where: { id: row.deviceId } });
         const live = fresh && !fresh.revokedAt ? connectSettings.parse(fresh.settings) : connectSettings.parse({});
         const session = await tx.refreshToken.count({ where: { id: row.device.sessionId, userId: row.userId, revokedAt: null, expiresAt: { gt: new Date() } } });
@@ -351,21 +377,23 @@ export class ConnectService {
           encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal })), status: 'REVIEW',
         } });
         if (!result.count || !proposal) return;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${row.organizationId + ':' + firmPolicyKey}))`;
+        const policy = await this.firmPolicy(tx, row.organizationId);
         const eligible = proposal.confidence >= 90 && Boolean(proposal.evidence && redact(text).includes(proposal.evidence));
         if (row.leadId && live.fillSurvey) {
-          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible);
+          const survey = await this.surveySuggestions(tx, { ...row, leadId: row.leadId }, proposal, text, eligible && policy.survey);
           if (survey.length) await tx.connectEvent.update({ where: { id }, data: {
             encryptedResult: this.crypto.encrypt(JSON.stringify({ transcript, proposal, survey })),
             status: survey.some((field) => field.applied) ? 'APPLIED' : 'REVIEW',
           } });
         }
         if (!eligible) return;
-        if (row.leadId && live.fillSurvey) {
+        if (row.leadId && live.fillSurvey && policy.survey) {
           await tx.lead.updateMany({ where: { id: row.leadId, organizationId: row.organizationId, deletedAt: null, aiSummary: null }, data: { aiSummary: proposal.summary } });
           await tx.activity.create({ data: { organizationId: row.organizationId, leadId: row.leadId,
             userId: row.userId, type: 'NOTE', content: proposal.summary, meta: { source: 'BROKERIQ_CONNECT', connectEventId: row.id } } });
         }
-        if (proposal.intent === 'DEMAND' && live.createLeads && input.senderPhone && proposal.purpose) {
+        if (proposal.intent === 'DEMAND' && live.createLeads && policy.leads && input.senderPhone && proposal.purpose) {
           const phone = normalizeIndianPhone(input.senderPhone);
           if (phone) {
             const created = await tx.lead.createMany({ data: [{ organizationId: row.organizationId, name: 'WhatsApp requirement',
@@ -378,7 +406,7 @@ export class ConnectService {
             }
           }
         }
-        if (input.group && proposal.intent === 'OFFER' && live.createInventory && proposal.purpose && proposal.address && text.toLowerCase().includes(proposal.address.toLowerCase())) {
+        if (input.group && proposal.intent === 'OFFER' && live.createInventory && policy.inventory && proposal.purpose && proposal.address && text.toLowerCase().includes(proposal.address.toLowerCase())) {
           const sector = proposal.sector ? canonicalInventorySector(proposal.sector) : undefined;
           if (!sector && !proposal.locality) return;
           const location = sector ?? proposal.locality;

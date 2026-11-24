@@ -10,7 +10,9 @@ import { NativeCard } from './screen';
 
 const ConnectRecordingPlayer = lazy(() => import('./connect-recording-player'));
 
-type Profile = { downloadUrl: string | null; latestVersion: number; enabled: boolean;
+const firmOptions = { leads: 'Create leads and requirements', inventory: 'Create private property drafts', survey: 'Fill empty Survey fields' };
+type FirmPolicy = Record<keyof typeof firmOptions, boolean>;
+type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
 type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
@@ -23,6 +25,7 @@ type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps
 export function NativeConnectProfile() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [policyBusy, setPolicyBusy] = useState(false);
   const data = useQuery({ queryKey: ['connect-profile', user?.organization?.id, user?.id], queryFn: () => api<Profile>('/connect/profile'), enabled: !!user && open });
   function revoke(id: string) {
     const ownerContext = captureAccountContext();
@@ -30,6 +33,17 @@ export function NativeConnectProfile() {
       try { await api('/connect/devices/' + id, { method: 'DELETE', ownerContext }); await data.refetch(); }
       catch (error) { toast.error(errorMessage(error)); }
     } }]);
+  }
+  async function updatePolicy(field: keyof FirmPolicy) {
+    const policy = data.data?.policy;
+    if (!policy || policyBusy) return;
+    const ownerContext = captureAccountContext();
+    setPolicyBusy(true);
+    try {
+      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, [field]: !policy[field] } });
+      await data.refetch();
+    } catch (error) { toast.error(errorMessage(error)); }
+    finally { setPolicyBusy(false); }
   }
   if (!user) return null;
   return <>
@@ -46,6 +60,11 @@ export function NativeConnectProfile() {
           <Txt>{device.consentAt ? 'Authorized' : 'Permissions required'}{device.version < data.data!.latestVersion ? ' · Update available' : ''}</Txt>
           <Button title="Revoke" size="sm" variant="secondary" onPress={() => revoke(device.id)} />
         </NativeCard>)}
+        {data.data.policy && <NativeCard>
+          <Txt v="bodyStrong">Firm automation rules</Txt>
+          {(Object.keys(firmOptions) as (keyof FirmPolicy)[]).map((key) => <Button key={key} variant="secondary" size="sm" disabled={policyBusy}
+            title={firmOptions[key] + (data.data!.policy![key] ? ' · Enabled' : ' · Review only')} onPress={() => void updatePolicy(key)} />)}
+        </NativeCard>}
         <NativeConnectLeadActivity enabled={data.data.enabled && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && hasDelegatedAccess(user, 'automation', 'view')} />
       </>}
     </Sheet>

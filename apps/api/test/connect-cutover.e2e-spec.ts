@@ -32,6 +32,11 @@ const enabled = process.env.CONNECT_ENABLED === 'true' && process.env.CONNECT_WH
     };
     const broker = await makeAccount('connect-owner');
     const outsider = await makeAccount('connect-outside');
+    const policy = (await http().get('/api/connect/profile').set(broker.headers).expect(200)).body.policy;
+    expect(policy).toEqual({ leads: false, inventory: false, survey: false });
+    await http().patch('/api/connect/firm-policy').set(broker.headers).send({ ...policy, survey: true }).expect(200);
+    await http().get('/api/connect/profile').set(broker.headers).expect(200).expect(({ body }) => expect(body.policy.survey).toBe(true));
+    await http().get('/api/connect/profile').set(outsider.headers).expect(200).expect(({ body }) => expect(body.policy.survey).toBe(false));
     const group = 'b'.repeat(64);
     const event = { kind: 'WHATSAPP', capturedAt: new Date().toISOString(), packageName: 'com.whatsapp.w4b', group, text: '2 BHK in Sector 30' };
     const upload = { clientKey: key, fileName: 'known.zip', sourceType: 'CHAT_EXPORT', contentType: 'application/zip', target: 'AUTO', totalBytes: 400 };

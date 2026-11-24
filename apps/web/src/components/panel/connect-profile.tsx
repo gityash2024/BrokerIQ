@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { api, apiBlob, errorMessage } from '@/lib/api';
+import { api, apiBlob, captureAccountContext, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { hasDelegatedAccess } from '@brokeriq/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ApiErrorState } from '@/components/ui/api-error';
 
-type Profile = { downloadUrl: string | null; latestVersion: number; enabled: boolean;
+const firmOptions = { leads: 'Create leads and requirements', inventory: 'Create private property drafts', survey: 'Fill empty Survey fields' };
+type FirmPolicy = Record<keyof typeof firmOptions, boolean>;
+type Profile = { policy?: FirmPolicy; downloadUrl: string | null; latestVersion: number; enabled: boolean;
   devices: { id: string; label: string; version: number; consentAt: string | null; lastSeenAt: string }[] };
 type Event = { id: string; kind: string; status: string; capturedAt: string; recording: boolean; lastError?: string };
 type SurveySuggestion = { field: 'bhk' | 'floor' | 'purpose'; proposed: string | number; previous: string | number | null; conflict: boolean;
@@ -23,11 +25,23 @@ type EventDetail = Event & { details: { proposal?: { summary?: string; nextSteps
 export function ConnectProfile() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [policyBusy, setPolicyBusy] = useState(false);
   const data = useQuery({ queryKey: ['connect-profile', user?.id, user?.organization?.id], queryFn: () => api<Profile>('/connect/profile'), enabled: !!user && open });
   async function revoke(id: string) {
     if (!window.confirm('Revoke this connected device?')) return;
     try { await api('/connect/devices/' + id, { method: 'DELETE' }); await data.refetch(); }
     catch (error) { toast.error(errorMessage(error)); }
+  }
+  async function updatePolicy(field: keyof FirmPolicy) {
+    const policy = data.data?.policy;
+    if (!policy || policyBusy) return;
+    const ownerContext = captureAccountContext();
+    setPolicyBusy(true);
+    try {
+      await api('/connect/firm-policy', { method: 'PATCH', ownerContext, body: { ...policy, [field]: !policy[field] } });
+      await data.refetch();
+    } catch (error) { toast.error(errorMessage(error)); }
+    finally { setPolicyBusy(false); }
   }
   if (!user) return null;
   return <>
@@ -46,6 +60,12 @@ export function ConnectProfile() {
           </p></div>
           <Button size="sm" variant="secondary" onClick={() => void revoke(device.id)}>Revoke</Button>
         </div>)}
+        {data.data.policy && <fieldset className="space-y-2 rounded-xl border border-line p-3" disabled={policyBusy}>
+          <legend className="text-sm font-semibold">Firm automation rules</legend>
+          {(Object.keys(firmOptions) as (keyof FirmPolicy)[]).map((key) => <label key={key} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={data.data!.policy![key]} onChange={() => void updatePolicy(key)} />{firmOptions[key]}
+          </label>)}
+        </fieldset>}
         <ConnectLeadActivity enabled={data.data.enabled && ['BROKER_ADMIN', 'SUB_BROKER_ADMIN', 'BROKER_AGENT'].includes(user.role) && hasDelegatedAccess(user, 'automation', 'view')} />
       </div>}
     </Dialog>
